@@ -81,7 +81,13 @@ export default async function WohnungenPage() {
   const { data: tenants, error: tenantsError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
   if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
 
-  const today = new Date();
+  // Get today's date in YYYY-MM-DD format in local time
+  const now = new Date()
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')
+  ].join('-')
 
   type Tenant = NonNullable<typeof tenants>[number];
   const tenantMap = (tenants ?? []).reduce((map, t) => {
@@ -94,7 +100,7 @@ export default async function WohnungenPage() {
   const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
     const tenant = tenantMap.get(apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+    if (tenant && (!tenant.auszug || tenant.auszug > todayStr)) {
       status = 'vermietet';
     }
     return {

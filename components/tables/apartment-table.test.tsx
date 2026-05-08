@@ -2,8 +2,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { ApartmentTable, Apartment } from './apartment-table'
 
 // Mock the context menu component
-jest.mock('./apartment-context-menu', () => ({
-  ApartmentContextMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
+jest.mock('@/components/apartments/apartment-context-menu', () => ({
+  ApartmentContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
 
 const mockApartments: Apartment[] = [
@@ -44,9 +44,9 @@ describe('ApartmentTable Sorting', () => {
     )
 
     expect(screen.getByText('Wohnung')).toBeInTheDocument()
-    expect(screen.getByText('Größe (m²)')).toBeInTheDocument()
-    expect(screen.getByText('Miete (€)')).toBeInTheDocument()
-    expect(screen.getByText('Miete pro m²')).toBeInTheDocument()
+    expect(screen.getByText('Größe')).toBeInTheDocument()
+    expect(screen.getByText('Miete')).toBeInTheDocument()
+    expect(screen.getByText('€/m²')).toBeInTheDocument()
     expect(screen.getByText('Haus')).toBeInTheDocument()
     expect(screen.getByText('Status')).toBeInTheDocument()
   })
@@ -76,36 +76,37 @@ describe('ApartmentTable Sorting', () => {
       />
     )
 
-    const sizeHeader = screen.getByText('Größe (m²)')
+    const sizeHeader = screen.getByText('Größe')
     fireEvent.click(sizeHeader)
 
     // Check that apartments are sorted by size (50, 60, 75)
     const rows = screen.getAllByRole('row')
     
     // Check individual cell contents for more robust testing
+    // Column 0 is the checkbox
     const row1Cells = rows[1].querySelectorAll('td')
-    expect(row1Cells[0]).toHaveTextContent('Apartment A')
-    expect(row1Cells[1]).toHaveTextContent('50,00 m²')
-    expect(row1Cells[2]).toHaveTextContent('800,00 €')
-    expect(row1Cells[3]).toHaveTextContent('16,00 €/m²')
-    expect(row1Cells[4]).toHaveTextContent('House 1')
-    expect(row1Cells[5]).toHaveTextContent('frei')
+    expect(row1Cells[1]).toHaveTextContent('Apartment A')
+    expect(row1Cells[2]).toHaveTextContent('50,00 m²')
+    expect(row1Cells[3]).toHaveTextContent('800,00 €')
+    expect(row1Cells[4]).toHaveTextContent('16,00 €/m²')
+    expect(row1Cells[5]).toHaveTextContent('House 1')
+    expect(row1Cells[6]).toHaveTextContent('frei')
     
     const row2Cells = rows[2].querySelectorAll('td')
-    expect(row2Cells[0]).toHaveTextContent('Apartment C')
-    expect(row2Cells[1]).toHaveTextContent('60,00 m²')
-    expect(row2Cells[2]).toHaveTextContent('900,00 €')
-    expect(row2Cells[3]).toHaveTextContent('15,00 €/m²')
-    expect(row2Cells[4]).toHaveTextContent('House 1')
-    expect(row2Cells[5]).toHaveTextContent('frei')
+    expect(row2Cells[1]).toHaveTextContent('Apartment C')
+    expect(row2Cells[2]).toHaveTextContent('60,00 m²')
+    expect(row2Cells[3]).toHaveTextContent('900,00 €')
+    expect(row2Cells[4]).toHaveTextContent('15,00 €/m²')
+    expect(row2Cells[5]).toHaveTextContent('House 1')
+    expect(row2Cells[6]).toHaveTextContent('frei')
     
     const row3Cells = rows[3].querySelectorAll('td')
-    expect(row3Cells[0]).toHaveTextContent('Apartment B')
-    expect(row3Cells[1]).toHaveTextContent('75,00 m²')
-    expect(row3Cells[2]).toHaveTextContent('1.200,00 €')
-    expect(row3Cells[3]).toHaveTextContent('16,00 €/m²')
-    expect(row3Cells[4]).toHaveTextContent('House 2')
-    expect(row3Cells[5]).toHaveTextContent('vermietet')
+    expect(row3Cells[1]).toHaveTextContent('Apartment B')
+    expect(row3Cells[2]).toHaveTextContent('75,00 m²')
+    expect(row3Cells[3]).toHaveTextContent('1.200,00 €')
+    expect(row3Cells[4]).toHaveTextContent('16,00 €/m²')
+    expect(row3Cells[5]).toHaveTextContent('House 2')
+    expect(row3Cells[6]).toHaveTextContent('vermietet')
   })
 
   it('should sort by rent when clicking rent header', () => {
@@ -117,7 +118,7 @@ describe('ApartmentTable Sorting', () => {
       />
     )
 
-    const rentHeader = screen.getByText('Miete (€)')
+    const rentHeader = screen.getByText('Miete')
     fireEvent.click(rentHeader)
 
     // Check that apartments are sorted by rent (800, 900, 1200)
@@ -160,35 +161,36 @@ describe('ApartmentTable Sorting', () => {
       />
     )
 
-    const pricePerSqmHeader = screen.getByText('Miete pro m²')
+    const pricePerSqmHeader = screen.getByText('€/m²')
     fireEvent.click(pricePerSqmHeader)
 
     // Expected order by price per sqm: Apartment C (15.00), Apartment A (16.00), Apartment B (16.00)
     const rows = screen.getAllByRole('row')
     
     // Check individual cell contents for more robust testing
+    // Column 0 is the checkbox
     const row1Cells = rows[1].querySelectorAll('td')
-    expect(row1Cells[0]).toHaveTextContent('Apartment C')
-    expect(row1Cells[1]).toHaveTextContent('60,00 m²')
-    expect(row1Cells[2]).toHaveTextContent('900,00 €')
-    expect(row1Cells[3]).toHaveTextContent('15,00 €/m²')
-    expect(row1Cells[4]).toHaveTextContent('House 1')
-    expect(row1Cells[5]).toHaveTextContent('frei')
+    expect(row1Cells[1]).toHaveTextContent('Apartment C')
+    expect(row1Cells[2]).toHaveTextContent('60,00 m²')
+    expect(row1Cells[3]).toHaveTextContent('900,00 €')
+    expect(row1Cells[4]).toHaveTextContent('15,00 €/m²')
+    expect(row1Cells[5]).toHaveTextContent('House 1')
+    expect(row1Cells[6]).toHaveTextContent('frei')
     
     const row2Cells = rows[2].querySelectorAll('td')
-    expect(row2Cells[0]).toHaveTextContent('Apartment A')
-    expect(row2Cells[1]).toHaveTextContent('50,00 m²')
-    expect(row2Cells[2]).toHaveTextContent('800,00 €')
-    expect(row2Cells[3]).toHaveTextContent('16,00 €/m²')
-    expect(row2Cells[4]).toHaveTextContent('House 1')
-    expect(row2Cells[5]).toHaveTextContent('frei')
+    expect(row2Cells[1]).toHaveTextContent('Apartment A')
+    expect(row2Cells[2]).toHaveTextContent('50,00 m²')
+    expect(row2Cells[3]).toHaveTextContent('800,00 €')
+    expect(row2Cells[4]).toHaveTextContent('16,00 €/m²')
+    expect(row2Cells[5]).toHaveTextContent('House 1')
+    expect(row2Cells[6]).toHaveTextContent('frei')
     
     const row3Cells = rows[3].querySelectorAll('td')
-    expect(row3Cells[0]).toHaveTextContent('Apartment B')
-    expect(row3Cells[1]).toHaveTextContent('75,00 m²')
-    expect(row3Cells[2]).toHaveTextContent('1.200,00 €')
-    expect(row3Cells[3]).toHaveTextContent('16,00 €/m²')
-    expect(row3Cells[4]).toHaveTextContent('House 2')
-    expect(row3Cells[5]).toHaveTextContent('vermietet')
+    expect(row3Cells[1]).toHaveTextContent('Apartment B')
+    expect(row3Cells[2]).toHaveTextContent('75,00 m²')
+    expect(row3Cells[3]).toHaveTextContent('1.200,00 €')
+    expect(row3Cells[4]).toHaveTextContent('16,00 €/m²')
+    expect(row3Cells[5]).toHaveTextContent('House 2')
+    expect(row3Cells[6]).toHaveTextContent('vermietet')
   })
 })

@@ -20,11 +20,18 @@ export default async function MieterPage() {
     .select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
   if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
 
-  const today = new Date();
+  // Get today's date in YYYY-MM-DD format in local time
+  const now = new Date()
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')
+  ].join('-')
+
   const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
     const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+    if (tenant && (!tenant.auszug || tenant.auszug > todayStr)) {
       status = 'vermietet';
     }
     return {

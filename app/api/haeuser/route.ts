@@ -85,15 +85,22 @@ export async function GET() {
       const pricePerSqm = totalSize > 0 ? (totalRent / totalSize) : 0
       
       // Count free apartments (those without a tenant or with a tenant who has moved out)
-      const today = new Date()
+      // Get today's date in YYYY-MM-DD format in local time
+      const now = new Date()
+      const todayStr = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0')
+      ].join('-')
+
       const freeApartments = houseApartments.filter(apt => {
         // Find tenant for this apartment
         const tenant = tenants.find(t => t.wohnung_id === apt.id)
         
         // Apartment is free if:
         // 1. No tenant is assigned, or
-        // 2. Tenant has a move-out date in the past
-        return !tenant || (tenant.auszug && new Date(tenant.auszug) <= today)
+        // 2. Tenant has a move-out date today or in the past
+        return !tenant || (tenant.auszug && tenant.auszug <= todayStr)
       }).length
       
       return {

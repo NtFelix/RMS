@@ -37,8 +37,16 @@ export function useTenantPayments() {
             const { tenants } = await response.json()
 
             // Filter for active tenants only
+            // Get today's date in YYYY-MM-DD format in local time
+            const now = new Date()
+            const todayStr = [
+                now.getFullYear(),
+                String(now.getMonth() + 1).padStart(2, '0'),
+                String(now.getDate()).padStart(2, '0')
+            ].join('-')
+
             const activeTenants = tenants.filter((tenant: any) =>
-                !tenant.auszug || new Date(tenant.auszug) > new Date()
+                !tenant.auszug || tenant.auszug > todayStr
             )
 
             const formattedData: TenantBentoItem[] = activeTenants.map((mieter: any) => {

@@ -308,10 +308,18 @@ export async function getDashboardSummary() {
     return sum + betraegeSum + zaehlerSum;
   }, 0);
 
+  // Get today's date in YYYY-MM-DD format in local time
+  const now = new Date()
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')
+  ].join('-')
+
   return {
     haeuserCount: haeuser.length,
     wohnungenCount: wohnungen.length,
-    mieterCount: mieter.filter(m => !m.auszug || new Date(m.auszug) > new Date()).length,
+    mieterCount: mieter.filter(m => !m.auszug || m.auszug > todayStr).length,
     monatlicheEinnahmen,
     jaehrlicheAusgaben,
     offeneAufgabenCount: aufgaben.length

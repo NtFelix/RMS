@@ -100,10 +100,20 @@ export function DashboardCharts() {
         const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`
         
         const vermietetCount = mieter.filter(m => {
+          // Note: Since we are comparing against historical 'date' objects in the chart,
+          // we still need to parse the tenant dates here.
+          // However, for the current status, string comparison is preferred.
+          // This specific chart logic deals with historical months.
           const einzug = m.einzug ? new Date(m.einzug) : null
           const auszug = m.auszug ? new Date(m.auszug) : null
           
-          return einzug && einzug <= date && (!auszug || auszug >= date)
+          // normalize to start of day for comparison
+          if (einzug) einzug.setHours(0, 0, 0, 0)
+          if (auszug) auszug.setHours(0, 0, 0, 0)
+          const compareDate = new Date(date)
+          compareDate.setHours(0, 0, 0, 0)
+
+          return einzug && einzug <= compareDate && (!auszug || auszug >= compareDate)
         }).length
         
         occupancy[monthKey] = {

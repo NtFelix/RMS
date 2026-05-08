@@ -114,7 +114,14 @@ export async function GET(
     }
 
     // Process Mieter with status and validate data
-    const today = new Date();
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+
     const mieter: MieterOverviewData[] = (mieterData || []).map(mieterItem => {
       // Validate required fields
       if (!mieterItem.id || !mieterItem.name) {
@@ -130,7 +137,7 @@ export async function GET(
       }
 
       // Determine if tenant is active or moved out
-      const isActive = !mieterItem.auszug || new Date(mieterItem.auszug) > today;
+      const isActive = !mieterItem.auszug || mieterItem.auszug > todayStr;
 
       return {
         id: mieterItem.id,

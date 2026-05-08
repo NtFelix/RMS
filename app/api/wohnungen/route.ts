@@ -179,7 +179,14 @@ export async function GET() {
   }
 
   // Add status and tenant information
-  const today = new Date();
+  // Get today's date in YYYY-MM-DD format in local time
+  const now = new Date()
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')
+  ].join('-')
+
   const enrichedApartments = apartments.map(apt => {
     // Find tenant for this apartment
     const tenant = tenants.find(t => t.wohnung_id === apt.id);
@@ -188,7 +195,7 @@ export async function GET() {
     let status = 'frei';
     if (tenant) {
       // If tenant exists with no move-out date or move-out date is in the future
-      if (!tenant.auszug || new Date(tenant.auszug) > today) {
+      if (!tenant.auszug || tenant.auszug > todayStr) {
         status = 'vermietet';
       }
     }

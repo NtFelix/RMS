@@ -129,11 +129,18 @@ export async function GET(
     const wohnungenData = hausData.Wohnungen || [];
 
     // Process Wohnungen with tenant status
-    const today = new Date();
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+
     const wohnungen: WohnungOverviewData[] = wohnungenData.map(wohnung => {
       // Find current tenant (no move-out date or move-out date in the future)
       const currentTenant = (wohnung.Mieter || []).find((mieter: MieterFromDB) => 
-        !mieter.auszug || new Date(mieter.auszug) > today
+        !mieter.auszug || mieter.auszug > todayStr
       );
 
       const rentPerSqm = wohnung.groesse > 0 ? (wohnung.miete || 0) / wohnung.groesse : 0;

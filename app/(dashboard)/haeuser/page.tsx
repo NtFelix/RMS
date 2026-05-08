@@ -29,13 +29,21 @@ export default async function HaeuserPage() {
   const apartments = apartmentsData ?? [];
   const tenants = tenantsData ?? [];
 
+  // Get today's date in YYYY-MM-DD format in local time
+  const now = new Date()
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')
+  ].join('-')
+
   // Enrich houses with stats
   const enrichedHaeuser: House[] = houses.map(house => {
     const apts = apartments.filter(a => a.haus_id === house.id);
     const totalApartments = apts.length;
     const freeApartments = apts.reduce((acc, apt) => {
       const tenant = tenants.find(t => t.wohnung_id === apt.id);
-      const occupied = tenant && (!tenant.auszug || new Date(tenant.auszug) > new Date());
+      const occupied = tenant && (!tenant.auszug || tenant.auszug > todayStr);
       return acc + (occupied ? 0 : 1);
     }, 0);
 

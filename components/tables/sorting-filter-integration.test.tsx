@@ -19,6 +19,31 @@ jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn()
 }))
 
+// Mock useModalStore
+jest.mock('@/hooks/use-modal-store', () => ({
+  useModalStore: Object.assign(
+    () => ({
+      openApplicantScoreModal: jest.fn(),
+      openMailPreviewModal: jest.fn(),
+      openZaehlerModal: jest.fn(),
+    }),
+    {
+      getState: () => ({
+        openHausOverviewModal: jest.fn(),
+        openZaehlerModal: jest.fn(),
+      }),
+    }
+  ),
+}))
+
+// Mock next/navigation
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: jest.fn(),
+    push: jest.fn(),
+  }),
+}))
+
 import { ApartmentTable } from '@/components/tables/apartment-table'
 import { TenantTable } from '@/components/tables/tenant-table'
 import type { Apartment } from '@/components/tables/apartment-table'
@@ -154,7 +179,7 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // First, sort by rent (ascending)
-      const rentHeader = screen.getByText('Miete (€)').closest('div')
+      const rentHeader = screen.getByText('Miete').closest('button')
       fireEvent.click(rentHeader!)
 
       // Verify initial sort order (by rent ascending: 1000, 1200, 1500)
@@ -192,7 +217,7 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // Sort by size (ascending)
-      const sizeHeader = screen.getByText('Größe (m²)').closest('div')
+      const sizeHeader = screen.getByText('Größe').closest('button')
       fireEvent.click(sizeHeader!)
 
       // Apply search for "Apartment"
@@ -384,7 +409,7 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // Sort by rent (ascending)
-      const rentHeader = screen.getByText('Miete (€)').closest('div')
+      const rentHeader = screen.getByText('Miete').closest('button')
       fireEvent.click(rentHeader!)
 
       // Change filter but keep same sort
