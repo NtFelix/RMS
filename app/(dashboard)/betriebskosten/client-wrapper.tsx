@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Droplets, X } from "lucide-react";
@@ -35,6 +35,13 @@ export default function BetriebskostenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
+  const { openBetriebskostenModal } = useModalStore();
+  const { toast } = useToast();
+  const router = useRouter();
+  const tableRef = useRef<HTMLDivElement | null>(null);
+  const [showGuide, setShowGuide] = useState(true);
   
   // Derive filteredNebenkosten from initial data and filter state
   const filteredNebenkosten = useMemo(() => {

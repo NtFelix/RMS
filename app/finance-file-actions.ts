@@ -77,6 +77,7 @@ export async function getFinanceDocumentPath(
 export async function getFinanceDocumentUrl(
     dokumentId: string
 ): Promise<{ success: boolean; url?: string; filename?: string; error?: string }> {
+    const supabase = await createClient();
     if (!dokumentId) {
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
