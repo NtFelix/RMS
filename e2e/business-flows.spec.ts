@@ -98,9 +98,9 @@ test.describe('Business Logic Flows', () => {
     try {
       await expect(modal).toBeHidden({ timeout: 10000 });
     } catch (e) {
-      const errorText = await page.locator('[role="alert"], .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
+      const errorText = await page.locator('[role="alert"], [role="status"], .destructive, .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
       if (errorText) {
-        throw new Error(`Failed to create House. Error shown in UI: ${errorText}`);
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
       }
       throw e;
     }
@@ -172,9 +172,9 @@ test.describe('Business Logic Flows', () => {
       await expect(modal).not.toBeVisible({ timeout: 15000 });
     } catch (e) {
       // Check for error messages in the modal or page
-      const errorText = await page.locator('[role="alert"], .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
+      const errorText = await page.locator('[role="alert"], [role="status"], .destructive, .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
       if (errorText) {
-        throw new Error(`Failed to create Apartment. Error shown in UI: ${errorText}`);
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
       }
       throw e;
     }
@@ -267,9 +267,9 @@ test.describe('Business Logic Flows', () => {
     try {
       await expect(modal).toBeHidden({ timeout: 10000 });
     } catch (e) {
-      const errorText = await page.locator('[role="alert"], .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
+      const errorText = await page.locator('[role="alert"], [role="status"], .destructive, .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
       if (errorText) {
-        throw new Error(`Failed to create Tenant. Error shown in UI: ${errorText}`);
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
       }
       throw e;
     }
