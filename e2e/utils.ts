@@ -32,25 +32,24 @@ export const login = async (page: Page) => {
   await form.locator('#password').first().fill(TEST_PASSWORD!);
 
   // Submit with a small delay to ensure React state is updated
+  await page.waitForTimeout(500);
   await page.getByRole('button', { name: /anmelden/i }).first().click({ force: true });
 
   // Wait for navigation to dashboard or check for errors
   try {
-    // If we are already on the dashboard, we are done
-    if (page.url().includes('/dashboard')) {
-      return;
+    // Wait for URL change using Playwright's built-in waitForURL for better reliability
+    await page.waitForURL(url => {
+      const p = url.pathname;
+      return p === '/dashboard' || p === '/' || p === '/haeuser' || p.startsWith('/subscription-locked');
+    }, { timeout: 30000 });
+
+    // Let Next.js hydrate and cookies settle
+    await page.waitForTimeout(1000);
+    
+    // Final check of the URL to ensure we aren't stuck on login due to some silent failure
+    if (page.url().includes('/auth/login')) {
+      throw new Error(`Login failed: Still on login page. URL: ${page.url()}`);
     }
-    await page.waitForFunction(() => {
-      const p = window.location.pathname;
-      return p === '/dashboard' || p === '/' || p === '/haeuser';
-    }, { timeout: 60000 }).catch(async (e) => {
-      // In webkit sometimes the URL changes but it throws a timeout anyway if the load event doesn't fire
-      if (!page.url().includes('/dashboard')) {
-        throw e;
-      }
-    });
-    // Let Next.js hydrate
-    await page.waitForTimeout(500);
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer

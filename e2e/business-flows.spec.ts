@@ -95,7 +95,15 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern|Aktualisieren/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    try {
+      await expect(modal).toBeHidden({ timeout: 10000 });
+    } catch (e) {
+      const errorText = await page.locator('[role="alert"], .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
+      if (errorText) {
+        throw new Error(`Failed to create House. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify in table
@@ -159,8 +167,17 @@ test.describe('Business Logic Flows', () => {
     // Submit
     await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
 
-    // Wait for modal to close
-    await expect(modal).not.toBeVisible({ timeout: 15000 });
+    // Wait for modal to close with better error reporting
+    try {
+      await expect(modal).not.toBeVisible({ timeout: 15000 });
+    } catch (e) {
+      // Check for error messages in the modal or page
+      const errorText = await page.locator('[role="alert"], .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
+      if (errorText) {
+        throw new Error(`Failed to create Apartment. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify
@@ -247,7 +264,15 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    try {
+      await expect(modal).toBeHidden({ timeout: 10000 });
+    } catch (e) {
+      const errorText = await page.locator('[role="alert"], .text-destructive, .text-red-500').filter({ hasNotText: /^$/ }).first().innerText().catch(() => '');
+      if (errorText) {
+        throw new Error(`Failed to create Tenant. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify
