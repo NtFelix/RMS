@@ -6,9 +6,9 @@ import { logAction } from '@/lib/logging-middleware';
 
 interface AufgabePayload {
   name: string;
-  beschreibung?: string | null; //beschreibung is optional
+  beschreibung?: string | null;
   ist_erledigt?: boolean;
-  // Future fields like status, prioritaet, faelligkeitsdatum can be added here
+  faelligkeitsdatum?: string | null;
 }
 
 // Interface for the data returned from the database, including all fields
@@ -17,8 +17,9 @@ interface AufgabeDbRecord {
   name: string;
   beschreibung?: string | null;
   ist_erledigt: boolean;
-  created_at: string;
-  // Add other DB fields if they exist
+  erstellungsdatum: string;
+  aenderungsdatum: string;
+  faelligkeitsdatum?: string | null;
 }
 
 export async function aufgabeServerAction(id: string | null, data: AufgabePayload): Promise<{ success: boolean; error?: any; data?: AufgabeDbRecord }> {
@@ -27,19 +28,23 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
 
   const supabase = await createClient();
 
-  const payload = {
+  const payload: Record<string, any> = {
     name: data.name,
-    beschreibung: data.beschreibung || null, // Ensure null if empty string or undefined
-    // If creating a new task (id is null) and ist_erledigt is not provided, default to false.
-    // If editing, and ist_erledigt is provided, use that value. Otherwise, it won't be updated.
+    beschreibung: data.beschreibung || null,
     ist_erledigt: (id === null && typeof data.ist_erledigt === 'undefined') ? false : data.ist_erledigt,
   };
+
+  // Handle due date - include if provided or explicitly set to null
+  if (data.faelligkeitsdatum !== undefined) {
+    payload.faelligkeitsdatum = data.faelligkeitsdatum || null;
+  }
+
+  payload.aenderungsdatum = new Date().toISOString();
 
   // If editing and ist_erledigt is not provided in data, remove it from payload to avoid unintended updates
   if (id !== null && typeof data.ist_erledigt === 'undefined') {
     delete (payload as Partial<AufgabePayload>).ist_erledigt;
   }
-
 
   // Basic validation
   if (!payload.name || payload.name.trim() === "") {
@@ -47,26 +52,40 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     return { success: false, error: { message: "Name ist erforderlich." } };
   }
 
+  if (payload.name.trim().length > 100) {
+    logAction(actionName, 'failed', { task_id: id, error_message: 'Name ist zu lang.' });
+    return { success: false, error: { message: "Der Name darf maximal 100 Zeichen lang sein." } };
+  }
+
+  if (payload.beschreibung && payload.beschreibung.trim().length > 1000) {
+    logAction(actionName, 'failed', { task_id: id, error_message: 'Beschreibung ist zu lang.' });
+    return { success: false, error: { message: "Die Beschreibung darf maximal 1000 Zeichen lang sein." } };
+  }
+
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Nicht authentifiziert");
+
     let dbResponse;
     if (id) {
-      // Update existing record
-      dbResponse = await supabase.from("Aufgaben").update(payload).eq("id", id).select().single();
+      // Update existing record - ensuring it belongs to the user
+      dbResponse = await supabase.from("Aufgaben").update(payload).eq("id", id).eq("user_id", user.id).select().single();
     } else {
       // Create new record
-      // Ensure ist_erledigt is explicitly set for new records if not in payload (already handled above)
-      const insertPayload = { ...payload, ist_erledigt: payload.ist_erledigt ?? false };
+      const insertPayload = { ...payload, user_id: user.id, ist_erledigt: payload.ist_erledigt ?? false };
       dbResponse = await supabase.from("Aufgaben").insert(insertPayload).select().single();
     }
 
     if (dbResponse.error) throw dbResponse.error;
 
-    revalidatePath('/todos'); // Revalidate the main tasks page
+    revalidatePath('/todos');
+    revalidatePath('/dashboard');
     logAction(actionName, 'success', { task_id: dbResponse.data?.id, task_name: data.name });
     return { success: true, data: dbResponse.data as AufgabeDbRecord };
-  } catch (error: any) {
-    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: error.message });
-    return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -79,6 +98,9 @@ export async function toggleTaskStatusAction(
 
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Nicht authentifiziert");
+
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
@@ -86,6 +108,7 @@ export async function toggleTaskStatusAction(
         aenderungsdatum: new Date().toISOString(),
       })
       .eq("id", taskId)
+      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -95,6 +118,7 @@ export async function toggleTaskStatusAction(
     }
 
     revalidatePath("/todos");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { task_id: taskId, new_status: newStatus });
     return { success: true, task: data };
 
@@ -119,6 +143,9 @@ export async function bulkUpdateTaskStatusesAction(
 
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Nicht authentifiziert");
+
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
@@ -126,6 +153,7 @@ export async function bulkUpdateTaskStatusesAction(
         aenderungsdatum: new Date().toISOString(),
       })
       .in("id", taskIds)
+      .eq("user_id", user.id)
       .select("id");
 
     if (error) {
@@ -135,6 +163,7 @@ export async function bulkUpdateTaskStatusesAction(
 
     const updatedCount = data?.length || 0;
     revalidatePath("/todos");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { task_count: taskIds.length, updated_count: updatedCount });
     return { success: true, updatedCount };
 
@@ -158,10 +187,14 @@ export async function bulkDeleteTasksAction(
 
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Nicht authentifiziert");
+
     const { count, error } = await supabase
       .from("Aufgaben")
       .delete()
-      .in("id", taskIds);
+      .in("id", taskIds)
+      .eq("user_id", user.id);
 
     if (error) {
       logAction(actionName, 'error', { task_count: taskIds.length, error_message: error.message });
@@ -169,6 +202,7 @@ export async function bulkDeleteTasksAction(
     }
 
     revalidatePath("/todos");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { task_count: taskIds.length, deleted_count: count || 0 });
     return { success: true, deletedCount: count || 0 };
 
@@ -185,10 +219,14 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
 
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Nicht authentifiziert");
+
     const { error } = await supabase
       .from("Aufgaben")
       .delete()
-      .eq("id", taskId);
+      .eq("id", taskId)
+      .eq("user_id", user.id);
 
     if (error) {
       logAction(actionName, 'error', { task_id: taskId, error_message: error.message });
@@ -196,6 +234,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
     }
 
     revalidatePath('/todos');
+    revalidatePath('/dashboard');
     logAction(actionName, 'success', { task_id: taskId });
     return { success: true, taskId };
 
@@ -206,3 +245,43 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   }
 }
 
+
+export async function updateTaskDueDateAction(
+  taskId: string,
+  dueDate: string | null
+): Promise<{ success: boolean; task?: AufgabeDbRecord; error?: { message: string } }> {
+  const actionName = 'updateTaskDueDate';
+  logAction(actionName, 'start', { task_id: taskId, due_date: dueDate });
+
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Nicht authentifiziert");
+
+    const { data, error } = await supabase
+      .from("Aufgaben")
+      .update({
+        faelligkeitsdatum: dueDate,
+        aenderungsdatum: new Date().toISOString(),
+      })
+      .eq("id", taskId)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (error) {
+      logAction(actionName, 'error', { task_id: taskId, error_message: error.message });
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath("/todos");
+    revalidatePath("/dashboard");
+    logAction(actionName, 'success', { task_id: taskId, due_date: dueDate });
+    return { success: true, task: data as AufgabeDbRecord };
+
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+}
