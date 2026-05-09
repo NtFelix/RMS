@@ -88,10 +88,61 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
+  build-app:
+    name: Build Application
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      build-cache-key: ${{ steps.build-key.outputs.key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Generate build cache key
+        id: build-key
+        run: |
+          SOURCE_HASH=$(find app components lib hooks types public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.css" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
+          echo "key=${{ runner.os }}-nextjs-build-${SOURCE_HASH}-${{ hashFiles('**/package-lock.json', 'next.config.*', 'tsconfig.json', 'tailwind.config.*') }}" >> $GITHUB_OUTPUT
+
+      - name: Restore build cache
+        id: build-cache
+        uses: actions/cache@v4
+        with:
+          path: .next
+          key: ${{ steps.build-key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-
+
+      - name: Build Next.js app
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        run: npm run build
+        env:
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+
+      - name: Save build cache
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .next
+          key: ${{ steps.build-key.outputs.key }}
+
   visual-review:
     name: Visual Review (PostHog)
     runs-on: ubuntu-latest
-    needs: [lint, type-check, install-playwright]
+    needs: [lint, type-check, install-playwright, build-app]
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
@@ -116,14 +167,12 @@ jobs:
       - name: Install Playwright system dependencies
         run: npx playwright install-deps chromium
 
-      - name: Build Next.js app
-        run: npm run build
-        env:
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
-          NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          STRIPE_SECRET_KEY: mock-stripe-key
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .next
+          key: ${{ needs.build-app.outputs.build-cache-key }}
+          fail-on-cache-miss: true
 
       - name: Run Playwright visual tests
         run: npx playwright test --grep @visual --project=chromium --reporter=list
