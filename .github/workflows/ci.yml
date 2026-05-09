@@ -214,15 +214,17 @@ jobs:
 
       - name: Submit snapshots to PostHog Visual Review
         if: always()
-        continue-on-error: true
-        # Use $(git rev-parse HEAD) instead of ${{ github.sha }} so that re-runs
-        # always submit with the actual current HEAD SHA, not the stale trigger SHA.
-        run: >
-          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit
-          --baseline playwright/snapshots.yml
-          --dir playwright/__snapshots__
-          --type playwright
-          --token ${{ secrets.POSTHOG_VR_TOKEN }}
-          --branch ${{ github.event.pull_request.head.ref }}
-          --commit $(git rev-parse HEAD)
-          --pr ${{ github.event.pull_request.number }}
+        # PostHog CLI exits 1 when visual changes are detected (expected behavior).
+        # We use `|| true` to prevent a red step while still surfacing the run URL.
+        # Use $(git rev-parse HEAD) instead of ${{ github.sha }} so re-runs always
+        # submit with the actual current HEAD SHA, not the stale trigger SHA.
+        run: |
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit \
+            --baseline playwright/snapshots.yml \
+            --dir playwright/__snapshots__ \
+            --type playwright \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} \
+            --branch ${{ github.event.pull_request.head.ref }} \
+            --commit $(git rev-parse HEAD) \
+            --pr ${{ github.event.pull_request.number }} \
+          || true
