@@ -247,7 +247,7 @@ export function FileUploadZone({
       >
         <CardContent className="flex flex-col items-center justify-center py-8 px-6 text-center">
           <Upload className={cn(
-            "size-100 mb-3",
+            "size-10 mb-3",
             isDragOver && !disabled ? "text-primary" : "text-muted-foreground"
           )} />
 
