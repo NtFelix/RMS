@@ -31,26 +31,27 @@ export const login = async (page: Page) => {
   await form.locator('#email').first().fill(TEST_EMAIL!);
   await form.locator('#password').first().fill(TEST_PASSWORD!);
 
-  // Submit with a small delay to ensure React state is updated
-  await page.getByRole('button', { name: /anmelden/i }).first().click({ force: true });
+  // Ensure button is ready to receive clicks
+  const loginBtn = page.getByRole('button', { name: /anmelden/i }).first();
+  await expect(loginBtn).toBeEnabled();
+  await loginBtn.click({ force: true });
 
   // Wait for navigation to dashboard or check for errors
   try {
-    // If we are already on the dashboard, we are done
-    if (page.url().includes('/dashboard')) {
-      return;
+    // Wait for URL change using Playwright's built-in waitForURL for better reliability
+    await page.waitForURL(url => {
+      const p = url.pathname;
+      return p === '/dashboard' || p === '/' || p === '/haeuser' || p.startsWith('/subscription-locked');
+    }, { timeout: 30000 });
+
+    // Wait for a key element to appear to ensure Next.js has hydrated and the session is loaded.
+    // We check for elements common to dashboard/management pages OR the subscription lock page.
+    await expect(page.locator('nav, aside, h1, .subscription-lock-container').first()).toBeVisible({ timeout: 15000 });
+    
+    // Final check of the URL to ensure we aren't stuck on login due to some silent failure
+    if (page.url().includes('/auth/login')) {
+      throw new Error(`Login failed: Still on login page. URL: ${page.url()}`);
     }
-    await page.waitForFunction(() => {
-      const p = window.location.pathname;
-      return p === '/dashboard' || p === '/' || p === '/haeuser';
-    }, { timeout: 60000 }).catch(async (e) => {
-      // In webkit sometimes the URL changes but it throws a timeout anyway if the load event doesn't fire
-      if (!page.url().includes('/dashboard')) {
-        throw e;
-      }
-    });
-    // Let Next.js hydrate
-    await page.waitForTimeout(500);
   } catch (e) {
     // If navigation failed, check if there's an error message visible
     // We filter for alerts that aren't the hidden route announcer
@@ -90,3 +91,31 @@ export const acceptCookieConsent = async (page: Page) => {
     await expect(consentBtn).toBeHidden();
   }
 };
+
+/**
+ * Reusable helper to extract error messages from the UI (toasts, alerts, etc.)
+ */
+export async function getUiErrorMessage(page: Page) {
+  // We check multiple common error locations and roles
+  const locators = [
+    page.locator('[role="alert"]'),
+    page.locator('[role="status"]').filter({ hasText: /fehler|error|fehlgeschlagen|failed/i }),
+    page.locator('.destructive'),
+    page.locator('.text-destructive'),
+    page.locator('.text-red-500'),
+    page.locator('.bg-red-50'),
+  ];
+
+  for (const locator of locators) {
+    try {
+      const first = locator.filter({ hasNotText: /^$/ }).first();
+      if (await first.isVisible({ timeout: 1000 })) {
+        const text = await first.innerText();
+        if (text && text.trim().length > 0) return text.trim();
+      }
+    } catch (e) {
+      // Ignore timeout/not found for individual locators
+    }
+  }
+  return '';
+}
