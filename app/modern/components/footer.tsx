@@ -135,13 +135,13 @@ export default function Footer() {
                             )}
                           </Link>
                         ) : (
-                          <a
-                            href="#"
-                            className="text-muted-foreground hover:text-foreground transition-colors"
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground transition-colors text-left"
                             onClick={() => trackFooterLinkClicked(link, footerCategory, '#')}
                           >
                             {link}
-                          </a>
+                          </button>
                         )}
                       </li>
                     );
