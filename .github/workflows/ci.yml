@@ -10,6 +10,9 @@ on:
       - develop
   pull_request:
 
+env:
+  NODE_VERSION: '22'
+
 jobs:
   lint:
     name: Lint
@@ -21,11 +24,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Run ESLint
         run: npm run lint
@@ -40,19 +43,55 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
       - name: Run TypeScript check
         run: npx tsc --noEmit
 
+  install-playwright:
+    name: Install Playwright Browsers
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Generate Playwright cache key
+        id: playwright-key
+        run: echo "key=${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
   visual-review:
     name: Visual Review (PostHog)
     runs-on: ubuntu-latest
-    needs: [lint, type-check]
+    needs: [lint, type-check, install-playwright]
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
@@ -61,14 +100,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+      - name: Restore Playwright browsers
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ needs.install-playwright.outputs.playwright-cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps chromium
 
       - name: Build Next.js app
         run: npm run build
@@ -80,7 +126,7 @@ jobs:
           STRIPE_SECRET_KEY: mock-stripe-key
 
       - name: Run Playwright visual tests
-        run: npx playwright test --grep @visual --reporter=list
+        run: npx playwright test --grep @visual --project=chromium --reporter=list
         env:
           BASE_URL: http://localhost:3000
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
