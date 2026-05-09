@@ -260,12 +260,15 @@ jobs:
 
       - name: Submit snapshots to PostHog Visual Review
         if: always()
-        # PostHog CLI exits 1 when visual changes are detected (expected behavior).
-        # We use `|| true` to prevent a red step while still surfacing the run URL.
-        # Use $(git rev-parse HEAD) instead of ${{ github.sha }} so re-runs always
-        # submit with the actual current HEAD SHA, not the stale trigger SHA.
+        # The PostHog CLI waits up to 600s for server-side diff processing to complete.
+        # When PostHog's backend is slow (132 images across 3 browsers), this hangs CI.
+        # We cap the wait at 3 minutes: the run is always created + uploaded successfully
+        # before processing starts, so the review is still visible in the PostHog dashboard.
+        # `timeout` returns 124 on kill — `|| true` suppresses both that and exit code 1
+        # (visual changes detected). `continue-on-error` covers the step-level cancel.
+        continue-on-error: true
         run: |
-          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit \
+          timeout 180 npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit \
             --baseline playwright/snapshots.yml \
             --dir playwright/__snapshots__ \
             --type playwright \
@@ -274,3 +277,4 @@ jobs:
             --commit $(git rev-parse HEAD) \
             --pr ${{ github.event.pull_request.number }} \
           || true
+
