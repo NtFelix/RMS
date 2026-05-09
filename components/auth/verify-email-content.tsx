@@ -274,7 +274,7 @@ export default function VerifyEmailContent() {
                                         className="flex items-center gap-2 text-white/70 text-sm mb-8"
                                     >
                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                        <span>Warte auf Bestätigung...</span>
+                                        <span>Warte auf Bestätigung…</span>
                                     </motion.div>
 
                                     <motion.div
@@ -309,7 +309,7 @@ export default function VerifyEmailContent() {
                                         {/* Celebration particles */}
                                         {[...Array(6)].map((_, i) => (
                                             <motion.div
-                                                key={i}
+                                                key={`particle-${i}`}
                                                 className="absolute w-2 h-2 bg-white/60 rounded-full"
                                                 initial={{
                                                     x: 0,
@@ -353,7 +353,7 @@ export default function VerifyEmailContent() {
                                         transition={{ delay: 0.3, duration: 0.5 }}
                                         className="text-white/80 text-base md:text-lg max-w-xs leading-relaxed mb-6"
                                     >
-                                        Sie werden zum Dashboard weitergeleitet...
+                                        Sie werden zum Dashboard weitergeleitet…
                                     </motion.p>
 
                                     {/* Countdown indicator */}
@@ -364,7 +364,7 @@ export default function VerifyEmailContent() {
                                         className="flex flex-col items-center gap-3 mb-6"
                                     >
                                         <div className="text-white/70 text-sm">
-                                            Weiterleitung in {countdown} Sekunden...
+                                            Weiterleitung in {countdown} Sekunden…
                                         </div>
                                         {/* Progress bar */}
                                         <div className="w-32 h-1 bg-white/20 rounded-full overflow-hidden">
