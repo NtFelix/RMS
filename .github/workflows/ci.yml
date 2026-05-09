@@ -6,9 +6,6 @@ on:
       - main
       - develop
   pull_request:
-    branches:
-      - main
-      - develop
 
 jobs:
   lint:
@@ -51,8 +48,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
 
       - name: Build Next.js app
         run: npm run build
@@ -61,24 +58,35 @@ jobs:
           NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-
-      - name: Start Next.js server
-        run: npx next start -p 3000 &
-
-      - name: Wait for server to be ready
-        run: npx wait-on http://localhost:3000 --timeout 30000
+          STRIPE_SECRET_KEY: mock-stripe-key
 
       - name: Run Playwright visual tests
         run: npx playwright test --grep @visual --reporter=list
         env:
           BASE_URL: http://localhost:3000
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: mock-stripe-key
         continue-on-error: true
+
+      - name: Install PostHog Visual Review CLI
+        if: always()
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/PostHog/posthog.git /tmp/posthog
+          cd /tmp/posthog
+          git sparse-checkout set products/visual_review/cli
+          cd products/visual_review/cli
+          npm ci
 
       - name: Submit snapshots to PostHog Visual Review
         if: always()
+        continue-on-error: true
         run: >
-          npx @posthog/visual-review submit
-          --config playwright/snapshots.yml
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit
+          --baseline playwright/snapshots.yml
           --dir playwright/__snapshots__
           --type playwright
           --token ${{ secrets.POSTHOG_VR_TOKEN }}
