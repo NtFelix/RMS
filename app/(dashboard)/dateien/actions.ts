@@ -110,7 +110,6 @@ export interface FolderContentsResult {
 export async function getFolderContents(userId: string, path?: string): Promise<FolderContentsResult> {
     const targetPath = path || `user_${userId}`
     const startTime = performance.now()
-    let shouldRedirect = false
 
     try {
         const supabase = await createClient()
@@ -179,8 +178,8 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
     } catch (error) {
-        if (shouldRedirect) {
-            redirect('/auth/login')
+        if (error instanceof Error && (error as any).digest?.startsWith('NEXT_REDIRECT')) {
+            throw error
         }
         await logRpcCall('get_folder_contents', targetPath, startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'

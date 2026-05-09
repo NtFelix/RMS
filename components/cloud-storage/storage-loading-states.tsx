@@ -119,10 +119,10 @@ export function FileGridSkeleton({
             {/* Content Skeleton */}
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center space-x-2">
-                <Skeleton className="size-4/3" />
-                <Skeleton className="size-46 rounded-full" />
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-4 w-16 rounded-full" />
               </div>
-              <Skeleton className="size-3/4" />
+              <Skeleton className="h-3 w-1/4" />
             </div>
 
             {/* Action Skeleton */}
@@ -159,7 +159,7 @@ export function FileGridSkeleton({
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-3 w-3/4 mx-auto" />
               <div className="pt-1 flex justify-center">
-                <Skeleton className="size-56 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded-full" />
               </div>
             </div>
           </div>
@@ -186,7 +186,7 @@ export function BreadcrumbSkeleton({ className }: { className?: string }) {
       />
       <span className="text-muted-foreground/50">/</span>
       <Skeleton
-        className="size-46 animate-pulse"
+        className="h-4 w-16 animate-pulse"
         style={{ animationDelay: '100ms' }}
       />
       <span className="text-muted-foreground/50">/</span>
@@ -746,7 +746,7 @@ export function SmartSkeleton({
               </div>
               <div className="text-center w-full space-y-2">
                 <Skeleton className="h-4 w-full" />
-                <Skeleton className="size-36 mx-auto" />
+                <Skeleton className="h-3 w-16 mx-auto" />
               </div>
             </div>
           </div>
@@ -772,8 +772,8 @@ export function SmartSkeleton({
               <div className="text-center w-full space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <div className="flex justify-center space-x-2">
-                  <Skeleton className="size-32" />
-                  <Skeleton className="size-36" />
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-16" />
                 </div>
               </div>
             </div>

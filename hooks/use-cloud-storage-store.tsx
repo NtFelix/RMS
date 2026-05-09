@@ -921,7 +921,7 @@ export const useCloudStorageFiles = () => {
 export const useCloudStorageUpload = () => {
   const store = useCloudStorageStore()
   return {
-    uploadQueue: Object.values(store.uploadQueue),
+    uploadQueue: store.uploadQueue,
     isUploading: store.isUploading,
     addToUploadQueue: store.addToUploadQueue,
     updateUploadProgress: store.updateUploadProgress,
