@@ -202,8 +202,7 @@ export async function testWithRealData(
   
   console.log('Testing get_nebenkosten_with_metrics...');
   const { data: nebenkostenData, error: nebenkostenError } = await supabase.rpc(
-    'get_nebenkosten_with_metrics',
-    { user_id: userId }
+    'get_nebenkosten_with_metrics'
   );
   
   console.log('Nebenkosten result:', {

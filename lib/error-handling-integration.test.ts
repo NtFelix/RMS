@@ -59,7 +59,7 @@ describe('Error Handling Integration Tests', () => {
       const operation = () => safeRpcCall(
         mockSupabaseClient as any,
         'get_nebenkosten_with_metrics',
-        { user_id: 'test-user' },
+        {},
         { userId: 'test-user', timeoutMs: 50 }
       );
 
@@ -244,7 +244,7 @@ describe('Error Handling Integration Tests', () => {
         const result = await safeRpcCall(
           mockSupabaseClient as any,
           op.name,
-          { user_id: 'test-user' },
+          op.name === 'get_nebenkosten_with_metrics' ? {} : { user_id: 'test-user' },
           { userId: 'test-user', logPerformance: true }
         );
 

@@ -1000,8 +1000,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
     const result = await withRetry(
       () => safeRpcCall<OptimizedNebenkosten[]>(
         supabase,
-        'get_nebenkosten_with_metrics',
-        { user_id: user.id }
+        'get_nebenkosten_with_metrics'
       ),
       {
         maxRetries: 2,
