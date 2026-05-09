@@ -1,5 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import { login, acceptCookieConsent } from '../e2e/utils';
+import path from 'path';
+import fs from 'fs';
+
+// Ensure snapshot directory exists
+const snapshotDir = path.join(__dirname, '__snapshots__');
+if (!fs.existsSync(snapshotDir)) {
+  fs.mkdirSync(snapshotDir, { recursive: true });
+}
 
 // Array of public pages to screenshot
 const publicPages = [
@@ -37,13 +45,13 @@ for (const theme of themes) {
   test.describe(`@visual Visual Review - Public Pages (${theme} mode)`, () => {
     test.use({ colorScheme: theme });
 
-    for (const path of publicPages) {
+    for (const pathStr of publicPages) {
       // Generate a safe filename based on path and theme
-      const baseFilename = path === '/' ? 'landing' : `${path.replace(/^\//, '').replace(/\//g, '-')}`;
+      const baseFilename = pathStr === '/' ? 'landing' : `${pathStr.replace(/^\//, '').replace(/\//g, '-')}`;
       const filename = `${baseFilename}-${theme}.png`;
 
-      test(`Public Page: ${path}`, async ({ page }) => {
-        await page.goto(path);
+      test(`Public Page: ${pathStr}`, async ({ page }, testInfo) => {
+        await page.goto(pathStr);
         await page.waitForLoadState('networkidle');
         await acceptCookieConsent(page);
 
@@ -60,9 +68,13 @@ for (const theme of themes) {
 
         // Wait for any animations to settle
         await page.waitForTimeout(1000);
-        await expect(page).toHaveScreenshot(filename, {
+
+        // Capture screenshot for PostHog Visual Review
+        // We use page.screenshot instead of expect().toHaveScreenshot to avoid 
+        // baseline mismatch errors in CI, as PostHog handles the comparison.
+        await page.screenshot({
+          path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
           fullPage: true,
-          threshold: 0.02,
         });
       });
     }
@@ -76,11 +88,12 @@ for (const theme of themes) {
       await acceptCookieConsent(page);
     });
 
-    for (const path of dashboardPages) {
-      const filename = `dashboard-${path.replace(/^\//, '').replace(/\//g, '-')}-${theme}.png`;
+    for (const pathStr of dashboardPages) {
+      const baseFilename = `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}`;
+      const filename = `${baseFilename}-${theme}.png`;
 
-      test(`Dashboard Page: ${path}`, async ({ page }) => {
-        await page.goto(path);
+      test(`Dashboard Page: ${pathStr}`, async ({ page }, testInfo) => {
+        await page.goto(pathStr);
         await page.waitForLoadState('networkidle');
 
         // Force the theme using a custom function if the app uses next-themes or similar class-based approach
@@ -96,11 +109,14 @@ for (const theme of themes) {
 
         // Give charts and dynamic data extra time to render
         await page.waitForTimeout(2500);
-        await expect(page).toHaveScreenshot(filename, {
+
+        // Capture screenshot for PostHog Visual Review
+        await page.screenshot({
+          path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
           fullPage: true,
-          threshold: 0.02,
         });
       });
     }
   });
 }
+
