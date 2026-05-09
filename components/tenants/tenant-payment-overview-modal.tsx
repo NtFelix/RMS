@@ -165,7 +165,7 @@ export default function TenantPaymentOverviewModal() {
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <AlertCircle className="size-122 text-red-500 mb-4" />
+              <AlertCircle className="size-12 text-red-500 mb-4" />
               <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
               <p className="text-muted-foreground">{error}</p>
             </div>
@@ -293,7 +293,7 @@ export default function TenantPaymentOverviewModal() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <User className="size-122 text-muted-foreground mb-4" />
+              <User className="size-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Keine Mieter gefunden</h3>
               <p className="text-muted-foreground">Es wurden keine aktiven Mieter gefunden.</p>
             </div>

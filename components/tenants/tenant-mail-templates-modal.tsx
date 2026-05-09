@@ -350,7 +350,7 @@ export function TenantMailTemplatesModal({
   // Render error state
   const renderError = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <AlertCircle className="size-122 text-destructive/60 mb-4" />
+      <AlertCircle className="size-12 text-destructive/60 mb-4" />
       <h3 className="text-lg font-medium mb-2 text-foreground">
         Fehler beim Laden der Vorlagen
       </h3>
