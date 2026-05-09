@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, hasTestCredentials, generateRandomString, acceptCookieConsent } from './utils';
+import { login, hasTestCredentials, generateRandomString, acceptCookieConsent, getUiErrorMessage } from './utils';
 
 
 import { Page } from '@playwright/test';
@@ -95,7 +95,15 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern|Aktualisieren/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    try {
+      await expect(modal).toBeHidden({ timeout: 10000 });
+    } catch (e) {
+      const errorText = await getUiErrorMessage(page);
+      if (errorText) {
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify in table
@@ -159,8 +167,17 @@ test.describe('Business Logic Flows', () => {
     // Submit
     await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
 
-    // Wait for modal to close
-    await expect(modal).not.toBeVisible({ timeout: 15000 });
+    // Wait for modal to close with better error reporting
+    try {
+      await expect(modal).not.toBeVisible({ timeout: 15000 });
+    } catch (e) {
+      // Check for error messages in the modal or page
+      const errorText = await getUiErrorMessage(page);
+      if (errorText) {
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify
@@ -247,7 +264,15 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    try {
+      await expect(modal).toBeHidden({ timeout: 10000 });
+    } catch (e) {
+      const errorText = await getUiErrorMessage(page);
+      if (errorText) {
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify
