@@ -213,7 +213,7 @@ export function MeterCard({
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className={cn("size-100 rounded-full flex items-center justify-center", getMeterBgColor(editingMeter.zaehlerTyp))}>
+                                    <div className={cn("size-10 rounded-full flex items-center justify-center", getMeterBgColor(editingMeter.zaehlerTyp))}>
                                         {getMeterIcon(editingMeter.zaehlerTyp)}
                                     </div>
                                     <span className="text-sm font-medium text-muted-foreground">Bearbeiten</span>
@@ -323,7 +323,7 @@ export function MeterCard({
                             <div className="p-4 pb-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className={cn("size-100 rounded-full flex items-center justify-center", getMeterBgColor(zaehler.zaehler_typ))}>
+                                        <div className={cn("size-10 rounded-full flex items-center justify-center", getMeterBgColor(zaehler.zaehler_typ))}>
                                             {getMeterIcon(zaehler.zaehler_typ)}
                                         </div>
                                         <div>

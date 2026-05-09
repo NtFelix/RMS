@@ -114,7 +114,7 @@ const ErrorState = ({
 }) => (
   <div className="flex flex-col items-center justify-center py-12 space-y-6">
     <div className="p-4 rounded-full bg-red-50">
-      <AlertCircle className="size-122 text-red-500" />
+      <AlertCircle className="size-12 text-red-500" />
     </div>
     <div className="text-center space-y-3 max-w-md">
       <h3 className="text-lg font-semibold text-gray-900">Fehler beim Laden</h3>

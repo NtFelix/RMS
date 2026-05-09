@@ -417,7 +417,7 @@ export function ApartmentTenantDetailsModal() {
               ) : (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center space-y-4 p-8">
-                    <User className="size-122 text-muted-foreground" />
+                    <User className="size-12 text-muted-foreground" />
                     <div className="text-center space-y-2">
                       <h3 className="font-semibold">Keine Mieter</h3>
                       <p className="text-sm text-muted-foreground">
@@ -558,7 +558,7 @@ function ErrorState({
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-6">
       <div className="p-4 rounded-full bg-red-50">
-        <AlertCircle className="size-122 text-red-500" />
+        <AlertCircle className="size-12 text-red-500" />
       </div>
       <div className="text-center space-y-3 max-w-md">
         <h3 className="text-lg font-semibold text-gray-900">Fehler beim Laden</h3>
