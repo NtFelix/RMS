@@ -116,9 +116,18 @@ export async function middleware(request: NextRequest) {
   })
 
   // Transfer all accrued cookie mutations into the final response
-  for (const [key, value] of response.headers.entries()) {
-    if (key.toLowerCase() === 'set-cookie') {
-      finalResponse.headers.append(key, value)
+  // We use getSetCookie() if available for better multiple-cookie support
+  if (typeof response.headers.getSetCookie === 'function') {
+    const cookies = response.headers.getSetCookie()
+    cookies.forEach(cookie => {
+      finalResponse.headers.append('set-cookie', cookie)
+    })
+  } else {
+    // Fallback for older environments
+    for (const [key, value] of response.headers.entries()) {
+      if (key.toLowerCase() === 'set-cookie') {
+        finalResponse.headers.append(key, value)
+      }
     }
   }
 
