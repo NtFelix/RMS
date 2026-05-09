@@ -86,7 +86,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps
 
   build-app:
     name: Build Application
@@ -165,7 +165,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Install Playwright system dependencies
-        run: npx playwright install-deps chromium
+        run: npx playwright install-deps
 
       - name: Restore build cache
         uses: actions/cache/restore@v4
@@ -175,7 +175,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Run Playwright visual tests
-        run: npx playwright test --grep @visual --project=chromium --reporter=list
+        run: npx playwright test --grep @visual --reporter=list
         env:
           BASE_URL: http://localhost:3000
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
