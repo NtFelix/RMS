@@ -31,9 +31,9 @@ export default async function WohnungenPage() {
   ] = await Promise.all([
     fetchUserProfile(),
     supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
-    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
-    supabase.from('Haeuser').select('id,name')
+    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)').eq('user_id', user.id),
+    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name').eq('user_id', user.id),
+    supabase.from('Haeuser').select('id,name').eq('user_id', user.id)
   ]);
 
   if (userProfile) {
@@ -70,13 +70,6 @@ export default async function WohnungenPage() {
       } catch (error) { console.error('WohnungenPage: Error fetching plan details:', error); userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
     } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
   } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-
-  // Bypass limits for E2E tests in CI environment
-  if (isTestEnv()) {
-    userIsEligibleToAdd = true;
-    effectiveApartmentLimit = 100;
-    limitReason = 'subscription';
-  }
 
   // Handle count result
   if (countResult.error) console.error('Error fetching apartment count:', countResult.error.message);
