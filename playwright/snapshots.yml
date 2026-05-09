@@ -5,266 +5,266 @@ config:
     repo: f63cdd2e-ce5d-40ed-9d64-f49fafb448bc
 snapshots:
     chromium-agb-dark:
-        hash: v1.k6168a3a1.628535fc9ddc86a61449463c8db820d787e9a28aa94ea4ba413ec18b09a7236b.R3N4AXod4A01p-cjWDWak9AKsDoiG71jE-3qlEBSu2c
+        hash: v1.k04ffa068.628535fc9ddc86a61449463c8db820d787e9a28aa94ea4ba413ec18b09a7236b.ErKOQ5AerY05-7o9OxggZ2Rxxhds5ncJE-hj2tjz3HU
     chromium-agb-light:
-        hash: v1.k6168a3a1.2bbe298f6ffc32167d1e44315cffe92dfb49ffa7dcb1e42591a86a9bf3900f77.6kzLcsdRYhqfHmG01vO9YvcPTdjLLgK71zvaJF24i58
+        hash: v1.k04ffa068.2bbe298f6ffc32167d1e44315cffe92dfb49ffa7dcb1e42591a86a9bf3900f77.88YmOByJ7RPHhrBUuC-uFMncpesUiJWLecClGro23D0
     chromium-dashboard-betriebskosten-dark:
-        hash: v1.k6168a3a1.ed2dac669c89c19c09451feff8ee97d628b47d7d6e6d9c44add70a93b0c5aac7.T-XqMmYkneSNMwb_2eH1jpM454cYJ1LBsjWMxGI8fJ4
+        hash: v1.k04ffa068.ed2dac669c89c19c09451feff8ee97d628b47d7d6e6d9c44add70a93b0c5aac7.X8fOB69A-IAed6jFQGFjTq8mCRsMmH4DTaUNtghhcak
     chromium-dashboard-betriebskosten-light:
-        hash: v1.k6168a3a1.e3a5efe7dec08d7becf7b4307b9b6018713b9e931ff59190775f6785d31d9d28.eXEucOpXVOP4LWt5N3ppFU0Mz5-OsJUEon32-Yzcj94
+        hash: v1.k04ffa068.e3a5efe7dec08d7becf7b4307b9b6018713b9e931ff59190775f6785d31d9d28.IF1j2N4q00ss7j7mDe4YHoTn9LZyuLCjIaijl5BW9R0
     chromium-dashboard-dashboard-dark:
-        hash: v1.k6168a3a1.b35afa1cc5a76f3bd2fb0eb45ac8ce95b2b5331731f9d09d5a8b01d021148f79.xaOIrEUZrr59aNybJV0ZHNuI7mhUB4711vZxirF6LLc
+        hash: v1.k04ffa068.36e7e76303594d5dbccd2ff9e3c9f6669f5dc25c4f73d54a173a8fb5ce59f0a5.KFgL_vKHtTfzwIKpcQOnqQnBXjCXaFc94h2zCcd6zZc
     chromium-dashboard-dashboard-light:
-        hash: v1.k6168a3a1.6e26df782b3eb2da7254d31ee89d39ad22e071ed081b579340e26d2d26cdce20.upUwH78DQtL6iXVkt5yNMH6jtfgvfgzmimoJgdain9U
+        hash: v1.k04ffa068.1fdfd62db63cfd111c93fe5c005258bea3e1370b9a40af0fa140e33e0f86f4d2.1iosfo0emPtklYsfiDjVEkdLHzU4twkE_obc2Piuuq0
     chromium-dashboard-dateien-dark:
-        hash: v1.k6168a3a1.745fd31eb941207cf0403cecc5e976ac46a3d34878dedd282b506780f11a68c5.WrWJFnuklRtXXgXP_nTHqCrJGV6gsPvK74ObyvGQRcI
+        hash: v1.k04ffa068.6705094acd97104771452545b04f36fca0d449091c4c6c8ae4c09c5e11515cc8.1v7_K3gzzHnxF7kYF06txtQmQxd9RulWBnmehlb5uPg
     chromium-dashboard-dateien-light:
-        hash: v1.k6168a3a1.e61075621bba9a2f2fdedfc94795061b4ce6898023ba4d07442c822edaaf3ac6.I-EE6LtWwmDZSwvctp_Tvf8QJ6iBC5QLSN5-rvhn_3w
+        hash: v1.k04ffa068.2009e016d0cd55822ba7c8b07df78ec5d89fc9f9b4d751466628d30804e471a0.8j5emDLdskvGzc9jzdPSV9J4r1EDygE0c7K41dGSg9U
     chromium-dashboard-finanzen-dark:
-        hash: v1.k6168a3a1.032646d236d7c146f1d508781957092925370436aeb357420ffb33771159e2fb.CMUJUkQ9Ek4nUQgpkvqIgrvM3dWRR1RLvMa3Cd9s_8o
+        hash: v1.k04ffa068.032646d236d7c146f1d508781957092925370436aeb357420ffb33771159e2fb.ucLp_dBVYKTrb9RKQwIEAO48clvoo5e9LM7ikY3muYg
     chromium-dashboard-finanzen-light:
-        hash: v1.k6168a3a1.af10267901653202de14ac6edf0ea387cdc7f3422c9d7bb7275510c9d9c508d4.-IPe_cTCXQp8tE3IkSKsRKQPtBzA9TTjQtuD68j9WLo
+        hash: v1.k04ffa068.af10267901653202de14ac6edf0ea387cdc7f3422c9d7bb7275510c9d9c508d4.NPgGFJ3GSWPHuV02E5rDxeWHMJpBR7zSjXR7vjpnHjg
     chromium-dashboard-haeuser-dark:
-        hash: v1.k6168a3a1.237507c4fe57945fcca502857d5578a9a453b27c2f49abdf03c2aa18c45ba22e.Zf9Jm7fsIWznA0vYkZ7vn22x-p6BmcL1Zplky9mc9x8
+        hash: v1.k04ffa068.88de6a1756bfe1e7fec65176953ea34c6ad016d228c348da3744146a14b24217.AUYYc2CvkBhs1SO5y3nfZhoYwHP6R9eOt4T6sCI17yM
     chromium-dashboard-haeuser-light:
-        hash: v1.k6168a3a1.a2fed2e6e6ac8113d732ea8d9c0a95fa6a6fa614aa328f6f2f04f82ff2d430bd.jYgWMFVIOgWmsV3reN6BlwdgKdg4KSsu_lApn_TiEe4
+        hash: v1.k04ffa068.5449f2518292cae5a719c8db40d723d17bac9f654db897d1afb6cfb76528ea42.hbuTbOEw1s0VBkIZuoata4HrepdD-AI-_59N-9JOUVk
     chromium-dashboard-mails-dark:
-        hash: v1.k6168a3a1.0aa2e96155016eef488bff8991a9fb96aa122b3b68ec3d907c71382de74efd5e.20iqhIwEzY3UPJ0do3hvwYy8m8Fe9NmKSLWYguq2wmY
+        hash: v1.k04ffa068.0aa2e96155016eef488bff8991a9fb96aa122b3b68ec3d907c71382de74efd5e.PVckPuTOhtzxioDkFmH2M90__O5B4352s0gvTVMcbbY
     chromium-dashboard-mails-light:
-        hash: v1.k6168a3a1.0a28a45d5c5b6de7e298d883aa359b2327dbb9ea9873dbd1cfd7dace88730f09.YIxfEpuwBr2B38-rPXNl9eDKUaY8KcadsshnOiEUCn8
+        hash: v1.k04ffa068.1e1c8d5a297886e52fb03c98bf1e553767a90fac562e1f2373ace691fd5fbe59.vYsGQsVv76XWnPkU-9uqEJa5YwTwSYY81arjoQ6uoYM
     chromium-dashboard-mieter-dark:
-        hash: v1.k6168a3a1.049b886cca402fa71d5d7a5cfd9641a169a3d24e8ac3267aa9318ff5d7239882.OUHu5CYqVp0lgKTQKVlXSCoDox-GySYY7SU1iiE5DCg
+        hash: v1.k04ffa068.049b886cca402fa71d5d7a5cfd9641a169a3d24e8ac3267aa9318ff5d7239882.YC8SJsFMSk0C5ew4OE6kehPosSvbsyTRSygJTY0KKJw
     chromium-dashboard-mieter-light:
-        hash: v1.k6168a3a1.1b6ffb3d6f844ca610cd8e9b8ad7e773a56e78ed0c2ea3a3ac68e5f0cd2c761b.fYqebxDN4RSoTtrOLOkxvWXtbe7Q20zT5sLo6wF4afI
+        hash: v1.k04ffa068.1b6ffb3d6f844ca610cd8e9b8ad7e773a56e78ed0c2ea3a3ac68e5f0cd2c761b.cT0CYYBFqOwQL_HkvYWYuVRoLvYmEgPJqOWqpI1m158
     chromium-dashboard-todos-dark:
-        hash: v1.k6168a3a1.d445d882f77272107c26c18daa6d25fc16ff7ab4c11bd7b518dbb4b9f3b39669.yAdI_HRcP0UIVLpfoEhvdDUaxqF9TJO9eL9C0x3IwV8
+        hash: v1.k04ffa068.d445d882f77272107c26c18daa6d25fc16ff7ab4c11bd7b518dbb4b9f3b39669.ZgRn3njW6KmjuQSeSJYOdg1lC67WaFRZSSyVHUOBNH8
     chromium-dashboard-todos-light:
-        hash: v1.k6168a3a1.2d3b7df910907a65ebc59ddd4debf6e42cc27e67dadf8ba184976dedca79f84c.2e9aAgpjOKFliNJRyrdz_XKo_DhZDRrZBhMEIIaQnEs
+        hash: v1.k04ffa068.2d3b7df910907a65ebc59ddd4debf6e42cc27e67dadf8ba184976dedca79f84c.vtMGOu74ghRB0dTMqhgxqr-_Zw_W53LetRypZ_ZHl7Q
     chromium-dashboard-wohnungen-dark:
-        hash: v1.k6168a3a1.d66654be093929818f51c0a6c3c150f5543a814af28c4db729081b043f8fa26b.DtCZO6Zf6zy1ISEa7hASM0fEM0Lnl9IDNiJd8MJpoVU
+        hash: v1.k04ffa068.d66654be093929818f51c0a6c3c150f5543a814af28c4db729081b043f8fa26b.PgGRA8NQrko0KRTNGO_AZJU1NMAjL1y0r_egTpwMIDI
     chromium-dashboard-wohnungen-light:
-        hash: v1.k6168a3a1.3897dfb37907616b5980b2474e25963ca973dd26fb65373e5eef54a3b957c6f5.yZAVNXOOtBK7pVFgGBbGCXWYnQi3w-wamECX6YSRLec
+        hash: v1.k04ffa068.3897dfb37907616b5980b2474e25963ca973dd26fb65373e5eef54a3b957c6f5.0_ZMT0_bzkrXIzvx5jE57n1FErGFjSDfv8nC4hXXw5k
     chromium-datenschutz-dark:
-        hash: v1.k6168a3a1.62ec6fe25f9869e43c8aafd20e3af7b92305da5ab33b11407849586c46e205c2.oQUax-mP7HivSkhOwcEBKpeJQpd0ZjwNKkh6xErtccU
+        hash: v1.k04ffa068.62ec6fe25f9869e43c8aafd20e3af7b92305da5ab33b11407849586c46e205c2.GWjqMjzo9KiS5ZaYMxZ4XD-Sq-UYQdCqzSpRnLE25BI
     chromium-datenschutz-light:
-        hash: v1.k6168a3a1.5aba1e5c9208cb70c9b25227c126e85ee7214cb0cf61f13443d40c2099791a7c.gEajEpzwvnI_3sDj9URuMGHShn5JOsEoSoI3k5SAdw4
+        hash: v1.k04ffa068.5aba1e5c9208cb70c9b25227c126e85ee7214cb0cf61f13443d40c2099791a7c.XgbOtev3V1JI9IVrqsmzVzfb1fUjmstmyaPvFajmkBk
     chromium-funktionen-betriebskosten-dark:
-        hash: v1.k6168a3a1.7c6439f819f4e47e7a5c9ec85c235a944148121ec08f81b8d851a1867e5605b3.9IR5tf-4A8Ykmx-IPHqu90UVXahekdFgO6D_ZUV3I9s
+        hash: v1.k04ffa068.7c6439f819f4e47e7a5c9ec85c235a944148121ec08f81b8d851a1867e5605b3.koyeovfXUHz3yO4Uig9bEEEsiT94amuztTtoiSDHSYA
     chromium-funktionen-betriebskosten-light:
-        hash: v1.k6168a3a1.d4461c9719dff8cb919a130d355762a9feb6cb29aab594421474d979ed7d5896._Ee-36clUL_iPqPHL-H0ORwqkwBTtNSNpu0DXTRAYPk
+        hash: v1.k04ffa068.d4461c9719dff8cb919a130d355762a9feb6cb29aab594421474d979ed7d5896.iWJe2ZxzIBCPVHkUlprgfZGgD6yQCY1NP2CQzjbhh4s
     chromium-funktionen-finanzverwaltung-dark:
-        hash: v1.k6168a3a1.e23da65bb6a90ca82a99ad694635f73b8cb167b1633b07f12ce61deb8c9dc2cf.vcHv394DVIoJ0bL737JDUy9c6ibGGKrnRV-FxJaHfAg
+        hash: v1.k04ffa068.e23da65bb6a90ca82a99ad694635f73b8cb167b1633b07f12ce61deb8c9dc2cf.b3jAPYSTV9mvXZQ3kJf6dhQBB8O4IcInAd0qMnafbbI
     chromium-funktionen-finanzverwaltung-light:
-        hash: v1.k6168a3a1.4c8eacdcc5a740a806e3f02ef4b6a008ac037edba0dd884a44a5cf2609933641.KNYYRBMcbdcU5qDrGODVmVjR-yD3sH5bzTUbXmlR42Q
+        hash: v1.k04ffa068.4c8eacdcc5a740a806e3f02ef4b6a008ac037edba0dd884a44a5cf2609933641.EiPmN79-8S2m2FTXXn-5cYuFTDud_n8ZRlCsz26T25I
     chromium-funktionen-wohnungsverwaltung-dark:
-        hash: v1.k6168a3a1.975480aaf4a7db59d06a57e201f26599201aa6e19ae799293015dac9bac3715b.iJn23BhEGJqoyxoOORf223_BssW06YxoRJCiQiEZfp8
+        hash: v1.k04ffa068.975480aaf4a7db59d06a57e201f26599201aa6e19ae799293015dac9bac3715b.bYFemefYV5VnsDQuE66IwKZCRYV3ZE5J3h16CjiPNZw
     chromium-funktionen-wohnungsverwaltung-light:
-        hash: v1.k6168a3a1.6a372e94923f5069821543b91ce80198f0f91d2e71a69477ccc245588ce90d98.iTRzA0TEvcRYLLmk17R7KQcmagzvof1qNK2oU4zV3Rg
+        hash: v1.k04ffa068.6a372e94923f5069821543b91ce80198f0f91d2e71a69477ccc245588ce90d98.0NQ1BVixYZt4D-2MtlhTAz-ZmsOkmVnNlcY5AbWnoBo
     chromium-impressum-dark:
-        hash: v1.k6168a3a1.dff4de2a5645649787ef632e991a60644473bc4b841a6a04ade5cefddb69ad34.gNUnEUIdHeVcCqMmYpKGiaHg_Fvt0NdZQPjdTO-wBqU
+        hash: v1.k04ffa068.dff4de2a5645649787ef632e991a60644473bc4b841a6a04ade5cefddb69ad34.cGvaDLc4k1SjKMBHW9p2tokwqI-8eE1FzwhmNIIbemI
     chromium-impressum-light:
-        hash: v1.k6168a3a1.635a38e33b8c2810aacfa63452e21b410ff1c94dbc819dc4fcebf10bb7dae373.LKSxN9FE4dBTjR2u-Lp_0sP-3atuT2oLDbmBTi7H7Sw
+        hash: v1.k04ffa068.635a38e33b8c2810aacfa63452e21b410ff1c94dbc819dc4fcebf10bb7dae373.kzuolPmDwR05cNokCfNmJZRpOY88YfuFFD_PJjBTEu4
     chromium-landing-dark:
-        hash: v1.k6168a3a1.9ec598e71c0958a3e19b32c942301a1c267d48dbd762257bc2fec665bb1784d9.ZSzAu3eQ3dL2AmATz6S8-eNEXEtfGxA0rolrWoPoU_Q
+        hash: v1.k04ffa068.4769a15883a052fc1c442723d0fcbb49269f0de7994a3a9062dfb299e0fa68df.RJF-eWt2bYMreyo8QQmQhOV2ShuUMNlK73ihQI3AdwM
     chromium-landing-light:
-        hash: v1.k6168a3a1.6f358202ef316111da2bca675346264cb31cb1a65e8520ace3265030ea609f38.7G8cHkYNEEEz_z-smz4yQjXpcr2HcVDEdSx6iHyHleo
+        hash: v1.k04ffa068.322f760009c2efcca0c1c9ffcf3fbcc966fcc50e7224c8bd9757005ce4e4ee5b.lzmQG4PmZ3aKy8oCLuwn3MwjmYXRWDLqAM1ukiWyD8o
     chromium-loesungen-grosse-hausverwaltungen-dark:
-        hash: v1.k6168a3a1.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.BFHsuLet8L713rTfy1JCvHrAQJCJm3PP0fOsE3vTN3Y
+        hash: v1.k04ffa068.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.Ycu7_QURAeFXa1lOQoItK76ROACWg-doiJHHFMYdYCk
     chromium-loesungen-grosse-hausverwaltungen-light:
-        hash: v1.k6168a3a1.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.010iWRImjFmHnJuKAhWflyGgULGI34faXqyuXhyFs64
+        hash: v1.k04ffa068.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.LkmU7x6Chwj7rz8k_uQ8jctvmU756gVDyjGhLQmmD04
     chromium-loesungen-kleine-mittlere-hausverwaltungen-dark:
-        hash: v1.k6168a3a1.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.lvx8EPQVCck9ky41fBxGwmZTeOYRT_oWzlWWWjdORMA
+        hash: v1.k04ffa068.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.32871uWMGAYRtANtB3nLA-xk4g_qq99z_JDgiBGYvZQ
     chromium-loesungen-kleine-mittlere-hausverwaltungen-light:
-        hash: v1.k6168a3a1.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.xMzJUIpO8mzTLXTyW-Lc5lHE6fACBJKAdZ2M4fefjzI
+        hash: v1.k04ffa068.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.2pVSn-IIwuYbS5QJawY8EO8yd2tz6Z8tkO7i3x2kjiQ
     chromium-loesungen-privatvermieter-dark:
-        hash: v1.k6168a3a1.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.Vrh-wQQ9SrbiZVVP-pV8D-JG-PKDM1DHIKQRlj-a4ko
+        hash: v1.k04ffa068.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.KrKT-TVgQ40NQb_d2a5ijNdYmCas2BAimtx5pbIO9cg
     chromium-loesungen-privatvermieter-light:
-        hash: v1.k6168a3a1.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.PJkZ7Bb_JzGm0TU0H74epwbB4B6uvIYVfTDnllWk5ew
+        hash: v1.k04ffa068.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.XckNXobk6LK0D6ZbnIbAFptVe1FpN6v19Wr272sdlUA
     chromium-preise-dark:
-        hash: v1.k6168a3a1.2756e73e3666340e507a21fddc6a92b274daeafc124a892ca67d1eed7069787d.j8aYsQa6Nl5jxOOyul2Bs5svgioms8Hb06_VIhLDgtA
+        hash: v1.k04ffa068.2756e73e3666340e507a21fddc6a92b274daeafc124a892ca67d1eed7069787d.tw4qj4monh1ul5kkeL2M_tJ95wr9yEQsWlsHOV7ct7s
     chromium-preise-light:
-        hash: v1.k6168a3a1.ba37e932c337ff58adfba2729386fbfc43174b6970d3c4a5d511dbeb26606515.YSRXoc7L8PScgdQvNn08kFVcpg-hjvG9Xo6StVGbOJ8
+        hash: v1.k04ffa068.ba37e932c337ff58adfba2729386fbfc43174b6970d3c4a5d511dbeb26606515.5W2slrAYhW3Jmz8B7zWR_wQYFrWz7AOYrzSSH9a2gYk
     chromium-warteliste-browser-erweiterung-dark:
-        hash: v1.k6168a3a1.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.XCuKrgTs06Jd2rVCaBHeqJTLezYUeVzoeNicC8uve4s
+        hash: v1.k04ffa068.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.2wrLeuU5uoAuX51dSNcZfhbzJX5avZKGcVZhxk7EFdo
     chromium-warteliste-browser-erweiterung-light:
-        hash: v1.k6168a3a1.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.gPPBgoKU-REswCJWlewgiwvpPeRGRCgroq80CPOrvm4
+        hash: v1.k04ffa068.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.QzCGkW9os29T5T3V7bX1F3bxBSYiyM4E72kSr89xspM
     chromium-warteliste-mobile-app-dark:
-        hash: v1.k6168a3a1.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.H5IjhmBLjKEgj_KQcYjDQgQNSiIK2pudadJLdEtuYTw
+        hash: v1.k04ffa068.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.SZ9e7LMSK-PTyuUHhmb7isSGqZQd8P33GLy0yoBf04Y
     chromium-warteliste-mobile-app-light:
-        hash: v1.k6168a3a1.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.H1tTKq9cvmusdq_DJIBLEB3VEHVtATtXyN-PDHXD5cw
+        hash: v1.k04ffa068.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.DaExMTlqUwGxFp9mSEApfQfjhPJDotN-Dkowp6cl7qQ
     firefox-agb-dark:
-        hash: v1.k6168a3a1.95c0e100d9633b7f63dab975bb003f79420d872367e3283d251a7334161af8e7.e3UouIC4rRBtVN1ciSQBFLux74c9cy10hv-nNtpa31E
+        hash: v1.k04ffa068.95c0e100d9633b7f63dab975bb003f79420d872367e3283d251a7334161af8e7.C7Iv5MP5haZVcLEDLCJxWnpN10jp8pMmPFJHoam_X0M
     firefox-agb-light:
-        hash: v1.k6168a3a1.fdd134933aad0ad67cf48116b83fd2c81efa4a048ed55aa6c260e891953e1918.3qV36ppBrKIb1G7BrrF6RqlJcgfyaPUwqhQzRSS7ufo
+        hash: v1.k04ffa068.fdd134933aad0ad67cf48116b83fd2c81efa4a048ed55aa6c260e891953e1918.JVmRw9zJ0MIK22OT_BNgLttvT_cQzB1YFqCHLitFBqY
     firefox-dashboard-betriebskosten-dark:
-        hash: v1.k6168a3a1.f65fac729ad4d4188e7fe887411cc45053470b55f9af3df70f29143d940c1b63.NW5Y_SSENgMiEd37e53OhbguXW9NkTiiP-xg5D9a8S8
+        hash: v1.k04ffa068.f65fac729ad4d4188e7fe887411cc45053470b55f9af3df70f29143d940c1b63.E8XP6XFseeX_Rz1OjTXIoVVGickQB0yts4OqA1UPXz8
     firefox-dashboard-betriebskosten-light:
-        hash: v1.k6168a3a1.27546d19897d3f7a6b812040fdfdaeeea572219c387aab637ecff06c01d55de4.J8F55q_tAuhsW_m9VfI9KN4WhN8siz6fchyEXh1sHC4
+        hash: v1.k04ffa068.27546d19897d3f7a6b812040fdfdaeeea572219c387aab637ecff06c01d55de4.bEYQ-GbKk4EdlEijfCF3yOkycAcUa6xMllkLL1gqQsk
     firefox-dashboard-dashboard-dark:
-        hash: v1.k6168a3a1.eb69ea4df4ec53213681962c6b11fbc31ad58d8b725d2ef6001f933bd18716b0.TWeGRYLGWFjx-49UenD401kUZpQjVInCG0Ccd_CwZpw
+        hash: v1.k04ffa068.8c8f442776957bc9874b1ed6497eca72fee94fda49ca125636113dc2d5bd28f9.3oAthRjlWPgRIR3m0lcz4Kx4uGgpAPtGwijCHqU2InM
     firefox-dashboard-dashboard-light:
-        hash: v1.k6168a3a1.0709d35fecd58c1564dbc31b8096b3fd8bf85e631d13419d7000b44d00a26f39.hYGNL5n_Dd7chVgWEWiekiv4CQc5SJ9v2UrxkPJG-VM
+        hash: v1.k04ffa068.d2dd1f87411aaa8881b85dec1ad9d726928d4f5414672e5b56b1da3f379f1b6c.N_hU7aTTxJA3fV_NfRhQZehjxqxb0H55Qn2kKdYSbu0
     firefox-dashboard-dateien-dark:
-        hash: v1.k6168a3a1.384e546db94ed6639b4b94e9b7cf223679bfb6c85448ecd2cf5e3635c5c31e13.e72DWTt3_Jxij1ANHAcoCOPHqnZg2iEb4C7frtIoQok
+        hash: v1.k04ffa068.384e546db94ed6639b4b94e9b7cf223679bfb6c85448ecd2cf5e3635c5c31e13.kf4GeTw0OTZFc4-QkBi09CyLqrWPCqvBV5gO3je5uVs
     firefox-dashboard-dateien-light:
-        hash: v1.k6168a3a1.7f3bed0b04427f98ff4acd51915a44ad0ab29c7a770cc49ee9a10886538e664a.m0sNRXl5VEWRmCoAS3ARcemlmR4nk50FNrt7QwqE1R8
+        hash: v1.k04ffa068.4137a29e2a93c796643308bed8c6addd030efc51ffd9d77a3bade187e9bed78f.xPFBbApEDbra7zfbcdY0ym_foDIAjGzUvtfkLN0Redc
     firefox-dashboard-finanzen-dark:
-        hash: v1.k6168a3a1.54a8ab8ad21efbc180b4914137f98857be4d58476a8d73045927cff9ffee6a8f.DNGVJcirJHBraJJCTtaE4U2sBQB4aTum6zRGIklMDyg
+        hash: v1.k04ffa068.54a8ab8ad21efbc180b4914137f98857be4d58476a8d73045927cff9ffee6a8f.Nbw3BLWvHr_XT9JTPZS6CwIAznaioqGgWb6vJrKLTIs
     firefox-dashboard-finanzen-light:
-        hash: v1.k6168a3a1.d4fa1fa0fa18c5011df60f67b73a6fb435a361122eb4c23272f44df8571c8aca.kzwYqODs-vIzc8k6dwJIO4xfSAN57JkaGVS3as2DuzQ
+        hash: v1.k04ffa068.d4fa1fa0fa18c5011df60f67b73a6fb435a361122eb4c23272f44df8571c8aca.kH3UrWCEr2HUQd5Rp-sxDWavfvNukcXodZXvTByQcRo
     firefox-dashboard-haeuser-dark:
-        hash: v1.k6168a3a1.e45dd188a678b54311b0659ba0e70a19f53af74d0628f343e050d413ff643872.Ono3vYsg9tNKAKGEAd1_OTS_18_n-sjva_0CtOTkqD4
+        hash: v1.k04ffa068.06f0fdf22a463d12561eb37469985e335bbe0be55ec1a652c52a4c7997df462f.vui0fbeIZIHZ550cbFVyn4eA9mNjhGfHFWwgkz0tMnU
     firefox-dashboard-haeuser-light:
-        hash: v1.k6168a3a1.12132c9fbd69ce3444f4add93a649914d9e0f4bde4960591a269a1455eea8cc3.m8qzBrAueoYzHh3FuCdYU5AAQ_bylzL404b8ikho9F0
+        hash: v1.k04ffa068.311ff46c5b50c9ea9d754e72c41e6342ee71ceee0817a5166ad2fe621845139b.VhXecgPirG5bii1eJlcgU3GOC6CThLKw48dB8D6spVQ
     firefox-dashboard-mails-dark:
-        hash: v1.k6168a3a1.da86d07e1d80ca484f866b68e137e9abe915e4fecacf9d4c4a6e2c8837f20ce2.IGv-M6fcHDOzJBkBud4Rwr3wc29lSTAeSLTtDLiioxI
+        hash: v1.k04ffa068.da86d07e1d80ca484f866b68e137e9abe915e4fecacf9d4c4a6e2c8837f20ce2.iNL17SKstHE_tDPnkgprYGT7CBKJ7Iy3cFym69kfs4c
     firefox-dashboard-mails-light:
-        hash: v1.k6168a3a1.f04dcd7adcf82f39817c64325d1f858031002dc1f3f89067c49f8652783c20e7.-nQULPIGcy7m1ZoW8AXdBRZGwAh4Y_SE-dg32j48otc
+        hash: v1.k04ffa068.f04dcd7adcf82f39817c64325d1f858031002dc1f3f89067c49f8652783c20e7.1g4ZyxsPv-lz6CoD8Ubd8elsgXrA1R60s-3h_idYJMQ
     firefox-dashboard-mieter-dark:
-        hash: v1.k6168a3a1.315d10e0acd90f569c8fc2798639aa4f031499d122c5214720cc9bf3e88054d5.8P948ZJEXweh9NQwHiISpfez68cuCxb9cbxVaFpjIog
+        hash: v1.k04ffa068.315d10e0acd90f569c8fc2798639aa4f031499d122c5214720cc9bf3e88054d5.wU4ApmpCi3p9_o8T2f9bxc8rqJaJJiRh5OW6r5NlNsY
     firefox-dashboard-mieter-light:
-        hash: v1.k6168a3a1.6b105a86aae18f86956ce4e75f815b2370d02434bd7f1edffd0eb8ce8cef668c.iknSf-du3hAd25n5dLpbTBYpuqrSJClDD-01QYE_r-M
+        hash: v1.k04ffa068.6b105a86aae18f86956ce4e75f815b2370d02434bd7f1edffd0eb8ce8cef668c.4ewZFAcruwDIS0aENwHeGgdXFe1ra5DfYjSR_PSozUg
     firefox-dashboard-todos-dark:
-        hash: v1.k6168a3a1.7ae68eaea680d42ff4472746c895143cd7f773a0716a3ef624e054085221571c.SL4MgNimBIogIjzt6b4bXdgs0qETBnM9ix5JdSEomKI
+        hash: v1.k04ffa068.7ae68eaea680d42ff4472746c895143cd7f773a0716a3ef624e054085221571c.bkuWMeu6hcQC9R__oknFESBTBduQetkryqYd8lmA4F4
     firefox-dashboard-todos-light:
-        hash: v1.k6168a3a1.83f3cee0820c17190a3d0f80c1d136c8c038c7c026d093f43485700a1d804983.6_rSft2hiSCMSaa5ucMs-ir155JlvJkK5xFSc3q0CWI
+        hash: v1.k04ffa068.83f3cee0820c17190a3d0f80c1d136c8c038c7c026d093f43485700a1d804983.VImc4sWy6s-Hn3BIXBXxOkYuIJgac7Dqv1ZV1YSUwow
     firefox-dashboard-wohnungen-dark:
-        hash: v1.k6168a3a1.d14779db74e904ca7b9a9844c6ab1cffddba3a2299b092953bf391aee25b583c.vBy7mTLlcbxpZ7xzj8rlBUZY_7RrOoflOg7nQJ8bLsA
+        hash: v1.k04ffa068.2571073ba83a0ab70aea8c9062516f56a39688efaf89a2a90d51d7f13df0c0a2.lf0wAzgE7lm0_XhoWM7ILJpHcbyjygx9SBEes9WvgxY
     firefox-dashboard-wohnungen-light:
-        hash: v1.k6168a3a1.880af1ef5e1135a565c50199ebb5a9ef2ad49f25e3b51f01c633e416810c3928.kQYfqNl4psT1FjAX3KPMJzLp5IGNzAxYqNJAOQjLsUA
+        hash: v1.k04ffa068.880af1ef5e1135a565c50199ebb5a9ef2ad49f25e3b51f01c633e416810c3928.1_Wpk13r2Stl1vdfQ64sBauQZDCqeJMIe7pk-J2HVhM
     firefox-datenschutz-dark:
-        hash: v1.k6168a3a1.e6d3bb2b6b0dc82a19a75a83f4dcab7e0defb2d5fa2e96f1acc5d0a3e65ccb5d.WcXfxNGBmLDLgiyd4ZASmZFS0g4GGRchw4KIf_XpQSs
+        hash: v1.k04ffa068.e6d3bb2b6b0dc82a19a75a83f4dcab7e0defb2d5fa2e96f1acc5d0a3e65ccb5d.k0ntQsY8klBzmcPhYxkp5eWIQq-rzW6m0rMkjUuNJpo
     firefox-datenschutz-light:
-        hash: v1.k6168a3a1.b90e7ebeaa2fb5120bbc07e2bc6c677226472a18ed6c37bee0ebbb7b72b83d45.KpJ1kLRNb6JGz9_5pF3jXLDDNy4gQvaFzv_LMkULctw
+        hash: v1.k04ffa068.b90e7ebeaa2fb5120bbc07e2bc6c677226472a18ed6c37bee0ebbb7b72b83d45.J1fkjvjuO-fsqsPCfI83LbmOSGBL3M2L6sNupIHGL0o
     firefox-funktionen-betriebskosten-dark:
-        hash: v1.k6168a3a1.0b794ca124ecf5d1fa974f431246be919480704d2510e031287114e7bd397915.Nu7wBWbGMVI-E5UXiu1kkK3efvEFOAfgEn159QFIGr4
+        hash: v1.k04ffa068.0b794ca124ecf5d1fa974f431246be919480704d2510e031287114e7bd397915.67iWfy08ev0OLr9-K8m-OS-bNFB2BYBrFMHr_LFxpUY
     firefox-funktionen-betriebskosten-light:
-        hash: v1.k6168a3a1.b1b34da64c74fdb2b9449628d9eb2f53966a69f02d921949e42ec172e839b429.4gXc7q-mNmBSqdyy5QZjQFjSbiX_lQEtelSI6_Shatg
+        hash: v1.k04ffa068.b1b34da64c74fdb2b9449628d9eb2f53966a69f02d921949e42ec172e839b429.jm-RK--2kX76OVNt_nFCAtsrtiV3JV0nkopz2aoF6zg
     firefox-funktionen-finanzverwaltung-dark:
-        hash: v1.k6168a3a1.21de06db3e5e653710e11445e87c09cebce84a2386ef05d36f0b53f6e74b0307.u3bKkxroBNrKvH9Op7LVh4HK0iCeVmI2DKmBNgLfU4g
+        hash: v1.k04ffa068.21de06db3e5e653710e11445e87c09cebce84a2386ef05d36f0b53f6e74b0307.9VLnk9wPnGbh1R42KkxDplgw4LlqVykAmgXDEyN6XfM
     firefox-funktionen-finanzverwaltung-light:
-        hash: v1.k6168a3a1.a21131c4554024498cf8c18571633b217021540af75f3cc5bc59ecb85c960606.fjqcv0zJwcdljgoD6_UwIoM6pAxq6C2f8CatNTk4cv8
+        hash: v1.k04ffa068.a21131c4554024498cf8c18571633b217021540af75f3cc5bc59ecb85c960606.q_SP28-97cKjRG3qQdzDgqmI47D5Yg5CjzOA5yvnWbE
     firefox-funktionen-wohnungsverwaltung-dark:
-        hash: v1.k6168a3a1.4fc7560f7f55bf9b76a90ae18b427ad149e28f05d2047385d1c1fa53d2b3201b.EELlxxakHQ12Zx8vhOqUvmNYitRhEQEQxmtQcnxXWpM
+        hash: v1.k04ffa068.07d41d11816b394544c372867eb94d45acd7d58760c06e14b38bd9a05856745d.vS_P0BBa1OAcpqE0neFwOXEHRgS3yUHVX2Z-oqxE-iU
     firefox-funktionen-wohnungsverwaltung-light:
-        hash: v1.k6168a3a1.a091f3e163bfaf71e59b6fe7f822968a54a496706ecaa3c30f4000cb3fad2354.tfz1J9KWfqHWeWMVm4JTT3Ol4qIgOLSM45SDow9x3RU
+        hash: v1.k04ffa068.a091f3e163bfaf71e59b6fe7f822968a54a496706ecaa3c30f4000cb3fad2354.OAjpu-rrXckHv2W4BaPTrHhQsqKgjanoOrCeKqzc-wc
     firefox-impressum-dark:
-        hash: v1.k6168a3a1.3e9dba84f154014fd471fd2cd97293b8e4e5f962f8b79e05a3adf1ca83c8ad51.kQY46auVcF38duaYd2Da_IwFOOi27ZlrGas6QKKQNcE
+        hash: v1.k04ffa068.3e9dba84f154014fd471fd2cd97293b8e4e5f962f8b79e05a3adf1ca83c8ad51.DW-jwLnkRxDSyz3oPcSnARYuPDNdoqsaqBYqvTE0he4
     firefox-impressum-light:
-        hash: v1.k6168a3a1.60f8ac5dbe9d0575c35f9c879a2947534b22bf2faa6e2102c5ed648feb4578af.MYQ8F5_P88JCigXtkQ8Ii0beaCkTidqFtA5LdfKPg3k
+        hash: v1.k04ffa068.60f8ac5dbe9d0575c35f9c879a2947534b22bf2faa6e2102c5ed648feb4578af.INim7I_QOdyV49S6u5WyRqFOqkzMBICauGz6hS_eD0o
     firefox-landing-dark:
-        hash: v1.k6168a3a1.5a0dc5ec8498e1a1e9d9445b8ea9362ee31362490b3ed353693b54fcdabf4ae4.gT809DGzpjrQwMI9U5jnBwBaOdCEixvRNw3M98bycVs
+        hash: v1.k04ffa068.2e25aa25c9486a480e677625c1a7837b021cb4fee495719a20f73edfd31fe818.XX1xWdGgX7xN-7BYqaPWqkNDkX4OxM5gWXwk6zlohD8
     firefox-landing-light:
-        hash: v1.k6168a3a1.e445a6d95bec2fe3e6fcc35177aee6bde6bb1f91e1a96f6c2400bd1f450f1d9b.kQru6QkL4jnwAs18ty3yGBvj1K_yQCvXpOB7hWdRbzk
+        hash: v1.k04ffa068.25752295f6b24ea2a29957c69f15f6a9c8ff7dc428eb8976868ac4a1f9762c25.ZgBLlnystoZYWtNrXIeaN9ZurNmwQ_Z_V1ZOxpFQGoQ
     firefox-loesungen-grosse-hausverwaltungen-dark:
-        hash: v1.k6168a3a1.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.gDSqgDw6DzrAlkgN_ndVOz1Ct_l6aoD06Onzq9c_h6E
+        hash: v1.k04ffa068.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.8jDv_zW5QzxhashMHaxUcUP5sBRlgQlQDSJ_BH7bhNg
     firefox-loesungen-grosse-hausverwaltungen-light:
-        hash: v1.k6168a3a1.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.jeS-dDGaFe5zySxuBuTdyb68FWKykkzZ62O6OKTkCp4
+        hash: v1.k04ffa068.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.-7nUI4IuuKWy5DqsPpFe42GzISMvsEMD9Pb1vYie2lg
     firefox-loesungen-kleine-mittlere-hausverwaltungen-dark:
-        hash: v1.k6168a3a1.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.sAijLV8Ntm_dzUXCfrcBVR6kJduPNV9QYAVcAOF8LHY
+        hash: v1.k04ffa068.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.5LwT4SI1CoV9HVkQoqNpoHdKCgGi2E7-HE3nIzZrPrc
     firefox-loesungen-kleine-mittlere-hausverwaltungen-light:
-        hash: v1.k6168a3a1.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.EWyR_xrSGrdewbCJVUaqj2DNnA8fic5uJflFP5Cz8MQ
+        hash: v1.k04ffa068.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.hm9ZfHO_3zYp5ANNX9aH7sv2hkw4XDg6Rao6B0KBc6Q
     firefox-loesungen-privatvermieter-dark:
-        hash: v1.k6168a3a1.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.UsJQcEVQWWDXtqYfUd4jg__qomCM4ynnUnkmpwtDbRg
+        hash: v1.k04ffa068.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.2lPoNBL_YiXDWDS8O4381drHuGVhUZ6irnrzpQvq0NI
     firefox-loesungen-privatvermieter-light:
-        hash: v1.k6168a3a1.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.TCwou0pYO3X3bglDhWp5Pds_qEOqIJciDiLZbpTfXsA
+        hash: v1.k04ffa068.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.TB42oVZ9QM43NK9J0Q_89H20AlxyaMVPgZ6OAsuiheI
     firefox-preise-dark:
-        hash: v1.k6168a3a1.bb6fa66a9e2a79e48cc78bacb7d0a43342c22d4cc19faaa61c3eca10ad7d9831.4tzYRI-RKdr8d8tiUtBnLZ7nDj3akONfNNyIhJT6zKA
+        hash: v1.k04ffa068.bb6fa66a9e2a79e48cc78bacb7d0a43342c22d4cc19faaa61c3eca10ad7d9831.oOMeFb7pRR3BOTkylg9B7CI-d_6tQKBrhW1bXOt_6hE
     firefox-preise-light:
-        hash: v1.k6168a3a1.a3bd136a2bbadabd515ab132b484b70592d03eacc96fa1f69e995ce673250500.AvJs3Llz3hezbgP6ehKBdNXdarX8_sxrVwe0wTi4kgQ
+        hash: v1.k04ffa068.a3bd136a2bbadabd515ab132b484b70592d03eacc96fa1f69e995ce673250500.f2B3cqDvuPl-uKHcxqvITUozVLUvLz6AIESzSufzvHg
     firefox-warteliste-browser-erweiterung-dark:
-        hash: v1.k6168a3a1.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.W46sAIY90ZwX45fp7gD5NAYcotTKHChtODXbTemYonA
+        hash: v1.k04ffa068.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.6l7n7As6T2BKIVSRToFkdRFuK1gSyldW9K3liqAGN0Q
     firefox-warteliste-browser-erweiterung-light:
-        hash: v1.k6168a3a1.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.OQW1QGV3HYzw7HXg4trRDxEqQP6yEGIutFSh4Ck3jFk
+        hash: v1.k04ffa068.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.JDpCArZl6owynPhS34supKIEMtidlDZWlJh4jIUVzQQ
     firefox-warteliste-mobile-app-dark:
-        hash: v1.k6168a3a1.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.W8cKecfWt85V3mTgAwrT9JAZ7ZldMb7Aot9U6puW-Zo
+        hash: v1.k04ffa068.17c42b3ba1d98a4e6fe855ff163e4e5e8dc67cd0825a4b33652b2648fd661c05.Y_VbMlHcyv3g4D7GDOvWC2ZuZSjTydwgvOZC15nozcs
     firefox-warteliste-mobile-app-light:
-        hash: v1.k6168a3a1.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.8M1DDCwj8jSan4aHtoHycNOeTunW1BMu3z-rSmmT6YM
+        hash: v1.k04ffa068.af025c925305251a054efb0d81f92b70b69061737d289c5a895a4680a0ccbd2b.uoJImNBJc7SXZAhhwU6lGfrg73DBxUb6louMuTEdDIU
     webkit-agb-dark:
-        hash: v1.k6168a3a1.11d9b286bf58b7c6dbc4566125063d359ff66418822bbbfe13344d5871453d66.MUHaeV_Bng0Awg_Zt-sAmXLkq26cFMCcQc-BhM6i-1Y
+        hash: v1.k04ffa068.11d9b286bf58b7c6dbc4566125063d359ff66418822bbbfe13344d5871453d66.crs54OIMh9xCXDmi1B046KSUNCVUtu9BSc7td63Atq0
     webkit-agb-light:
-        hash: v1.k6168a3a1.8865cb018d239af662b773b095a5f6ec218ba53a3353ada1430bf3f8316c02c1.6_vWMZIUEmJdqjIsaz3yQaY-Bq8wtiNDSVnpYaXYQ6k
+        hash: v1.k04ffa068.8865cb018d239af662b773b095a5f6ec218ba53a3353ada1430bf3f8316c02c1.Kf_mrtHxU3vWMINpnllTvDI0TCS4v151K8ALnV7DYic
     webkit-dashboard-betriebskosten-dark:
-        hash: v1.k6168a3a1.276506fd9bc952d0d16f5131f62889c8c23aaa3a3f00e5c6b562b5110be911a1.pmT0T84uc9AupcG6w-jvPy2_4Bn9aw5h7MjnQD3P-_E
+        hash: v1.k04ffa068.276506fd9bc952d0d16f5131f62889c8c23aaa3a3f00e5c6b562b5110be911a1.j1fulq7uUYV7l-AQUCN9HSBbB5rBjCUzh9exZF_VINw
     webkit-dashboard-betriebskosten-light:
-        hash: v1.k6168a3a1.ffd69e7e39b4b600ab21fbf68d8baa049016a1f417bef92f9af4b40464398cfc.pKUfjBvz8eO-rsYGTZ4eNu4A7isyuRXhdmXDMJNIaMI
+        hash: v1.k04ffa068.ffd69e7e39b4b600ab21fbf68d8baa049016a1f417bef92f9af4b40464398cfc.Rm2mZv2Ekh1UEw4VxA0oMTk9yV7qK1zyZk-BQS2QR98
     webkit-dashboard-dashboard-dark:
-        hash: v1.k6168a3a1.56245591167d7e463a7e2cad6ff20b5fe4354b6a67c85a3433647ef5cd12d31b.VA_v8CnQf9DxoW4t6SFOp-BwO8dFD51ZOoTOHemvhLI
+        hash: v1.k04ffa068.56245591167d7e463a7e2cad6ff20b5fe4354b6a67c85a3433647ef5cd12d31b.ilv-xJ8FcN1X3ugr57TflCmxzLWGcpmb72NnPOe9_0E
     webkit-dashboard-dashboard-light:
-        hash: v1.k6168a3a1.fa2e7ddecdeed060018c7469c9a9bcdf9511a050e5e29b930d82fda06039525a.04SYUBbnDmXd2rifaMPo1yAVQbYcb_cZbD3OgXNzfW0
+        hash: v1.k04ffa068.fa2e7ddecdeed060018c7469c9a9bcdf9511a050e5e29b930d82fda06039525a.MX8uKcGWyhY1NGmwVSN6HTheoEvjbRQCfhFbsG9OJwA
     webkit-dashboard-dateien-dark:
-        hash: v1.k6168a3a1.4656b06320721f875b63c283d0d2352314a3133f1d2e21f20cb4b7dcade20213._8NtHBif5x5Wo3isSan9bRPxvvFrb0M0R3HMGQmDqMg
+        hash: v1.k04ffa068.4656b06320721f875b63c283d0d2352314a3133f1d2e21f20cb4b7dcade20213.Z9KFgAyra3tArBz0ezlIYsez3a1xBprknXtYnT1s9sI
     webkit-dashboard-dateien-light:
-        hash: v1.k6168a3a1.9bbdde78cb506fb5e883f02503f1bd895557b2f7caa30a9f03515d2ef84ba39f.7592nAeIo70kBt2KWHmjgzyaFj-CVorDXQJEP_FsTAU
+        hash: v1.k04ffa068.9bbdde78cb506fb5e883f02503f1bd895557b2f7caa30a9f03515d2ef84ba39f.F1PTL1-z5E1r4eHwwVDjcJbVKDnjyaM2Fd-LsIEsqFE
     webkit-dashboard-finanzen-dark:
-        hash: v1.k6168a3a1.57930104bdaf023f6e304e64ab0b941960bfa01feb2d3f4c8b4f765cba024c2e.l7xxPaDlY7ZPrnueLMWxpaW1EJwlrI6-haB9PXgh0zk
+        hash: v1.k04ffa068.57930104bdaf023f6e304e64ab0b941960bfa01feb2d3f4c8b4f765cba024c2e.bRue7uSDBw021erAhf_q07ZDInbuyhILpsdp-UWwaOc
     webkit-dashboard-finanzen-light:
-        hash: v1.k6168a3a1.532ae44619f7f8866e2bdcc3fb2cd919eb8faaa48203e1d1dab7704057973ff6.5sHaSLUsQlXea5w3A2v3uYSr1yL_zqsTZtlFPp2ZHNw
+        hash: v1.k04ffa068.532ae44619f7f8866e2bdcc3fb2cd919eb8faaa48203e1d1dab7704057973ff6.7zN9McdUvHTgZVaGc6UVQoKtKbA0cpaeqetTNlDZiHs
     webkit-dashboard-haeuser-dark:
-        hash: v1.k6168a3a1.f0ee9258b49fefbb3042c389a19583f0f4ae39627755146682ff4b10ca92b2d9.uNASgMxHKv_nxz0MtnMfo-OoPWEiSguYxXvak9xW0sw
+        hash: v1.k04ffa068.f0ee9258b49fefbb3042c389a19583f0f4ae39627755146682ff4b10ca92b2d9.TGjchUHbc3mBzErXqVpqC9GRSUWtUnZV34TnutSyj_Y
     webkit-dashboard-haeuser-light:
-        hash: v1.k6168a3a1.5d24f33278d6a5c1b6d2bf5837d8502dc048bf849d840e456233a04bf01eeb7f.eZxRwR2aCT4C-lRzawCHPdi2N3FRbGCAozxCEgzHfaI
+        hash: v1.k04ffa068.5d24f33278d6a5c1b6d2bf5837d8502dc048bf849d840e456233a04bf01eeb7f.XJTsWJUnPzn2K9eFff4hfATIR4rZRDl-2KpRwB4QqHY
     webkit-dashboard-mails-dark:
-        hash: v1.k6168a3a1.17567df14aebaf1affbaa450180e62511b703c6584658b8fb5e233b6ca457096.b79Ah3w6dGi3IurvXID1eivnkkUeYNZTZ799wObmKsU
+        hash: v1.k04ffa068.17567df14aebaf1affbaa450180e62511b703c6584658b8fb5e233b6ca457096.9hKotPK4raKsj4TCZiK0HZPxNCpuYJmlESrh4mOApcg
     webkit-dashboard-mails-light:
-        hash: v1.k6168a3a1.e3d1697a48e0dcf3e179c5d51d45d8b73086b055734207a268b62b097ec7a4bd.iTJy02fCz8TX9H-zyQu2cKQ3fs4rWcwly1x-YhdzbQU
+        hash: v1.k04ffa068.e3d1697a48e0dcf3e179c5d51d45d8b73086b055734207a268b62b097ec7a4bd.v4k4GAxqPr0KY2xlpJF_132mJ4miY-NpjbNGwZaCKGE
     webkit-dashboard-mieter-dark:
-        hash: v1.k6168a3a1.15a1817b1d5117ac1e84df827b25027153ad7e79b0dd228f20cac3b331085125.A1-3fL5Op6JwFNUZD8xKSahuWYM1dQ66SOp5qacykuk
+        hash: v1.k04ffa068.15a1817b1d5117ac1e84df827b25027153ad7e79b0dd228f20cac3b331085125.J-DsjrpjsewUzoERtRNlWrEpK4VhHxMY7l9w_ItQOAQ
     webkit-dashboard-mieter-light:
-        hash: v1.k6168a3a1.4e3b3b913637509a858670f968c5423320bb3dcfbe9a1c1438359df01a094aba.OAW5GM_vdaMD81zSzhPD_gOtlZho4kIUJpWSHTZ_Y54
+        hash: v1.k04ffa068.4e3b3b913637509a858670f968c5423320bb3dcfbe9a1c1438359df01a094aba.6DRCjxj8Uijq4qEWl9MxzvwIw3VmkIiuMhU9c7B8LOc
     webkit-dashboard-todos-dark:
-        hash: v1.k6168a3a1.70c2405318950fd02ad0113d1b473532809148f99fca0ce55e617ba59aa6aa96.WOIB2SHVEBn1AYJBn5dPIKn1f-xowFMYHZ-MxECy9pE
+        hash: v1.k04ffa068.70c2405318950fd02ad0113d1b473532809148f99fca0ce55e617ba59aa6aa96.cUg4q4VoHzKR3AtaaDO5ANYlicy_LXeoXmQXYhMxcMw
     webkit-dashboard-todos-light:
-        hash: v1.k6168a3a1.3c3d4fc6552595ac4b6e2eb1e2ee09c469ed8ab3787580ccf6a3cd984bbdd723.zWPEi4NoCWr1XL1_r3EntWpPeVsAvWJj4YG_w_KdMv0
+        hash: v1.k04ffa068.3c3d4fc6552595ac4b6e2eb1e2ee09c469ed8ab3787580ccf6a3cd984bbdd723.-rAmPjtm3dtPaBbJOqUrp3lRb0SbnsqSkbc4tOdcyLs
     webkit-dashboard-wohnungen-dark:
-        hash: v1.k6168a3a1.d2ded31fa550234f141fcc61eeadcc8bbdc3c55eb74c939ad3b00c2ec91e3892.O-vnNW3px3zhJiIk_zrbNVQGHe0itGmAMKZBbdraBz8
+        hash: v1.k04ffa068.d2ded31fa550234f141fcc61eeadcc8bbdc3c55eb74c939ad3b00c2ec91e3892.05c2WBtnahCRjwPnxhSux-AesjB6l89bgKmXedur66Q
     webkit-dashboard-wohnungen-light:
-        hash: v1.k6168a3a1.76613726613fe6ef79c11915de3eed4cdba2ac16cf09f3d766cb37ca4794ac05.xyYYEQyOgXcCO5y4EUbKHR90yNbcfrd6eTtK92vjc2A
+        hash: v1.k04ffa068.76613726613fe6ef79c11915de3eed4cdba2ac16cf09f3d766cb37ca4794ac05.hMvqHr7hQj_4mQTap1SQAytZ0y-MrEEONgGA-7jo2uQ
     webkit-datenschutz-dark:
-        hash: v1.k6168a3a1.67f31e890feddb0a561c437924e86b30eff932d639b62ef2477e8d7f5cb3e40e.qmleiRPNPU_9qa8CkhzgLPRINl3LL-ggZxM6GdW1dbo
+        hash: v1.k04ffa068.67f31e890feddb0a561c437924e86b30eff932d639b62ef2477e8d7f5cb3e40e.IsUa2bk31ukxx3k9opOBWypYqkHpBFtkCCHML5DPWkk
     webkit-datenschutz-light:
-        hash: v1.k6168a3a1.387ad499a4da9ce64af62b8409e9efd98db1c2cada8647195134ca62c6d7f01a.9lLoxbPIXO2szof3XxUqrX_RUPZwLO-8GnDNu4db2gI
+        hash: v1.k04ffa068.387ad499a4da9ce64af62b8409e9efd98db1c2cada8647195134ca62c6d7f01a.vfPwpYYsDdPX5F5thpKfcIVKFO5SlVGhE-1vMIZQgxk
     webkit-funktionen-betriebskosten-dark:
-        hash: v1.k6168a3a1.ff3e34f3aceefb9ca117623f1542c0ef2c8b06b29545f9af5cbc971307344d62.MLmrko6FQqJMAbjYFQaM0MOg2pWqG7d9Ka6FWKvh1Rc
+        hash: v1.k04ffa068.ff3e34f3aceefb9ca117623f1542c0ef2c8b06b29545f9af5cbc971307344d62.wDDfWNvrr1McsVpSO5Hazy_A5E9xA2bqwu_nsfHafNw
     webkit-funktionen-betriebskosten-light:
-        hash: v1.k6168a3a1.9b4cbbbabf5dc7d149e2e5a56c4f91e4f0f1f160fa1c7d70a323445ee89fc4eb.ttFGmx53nVavt-f4EShAg3BvJI3RN4xq7nJxoXPS64g
+        hash: v1.k04ffa068.9b4cbbbabf5dc7d149e2e5a56c4f91e4f0f1f160fa1c7d70a323445ee89fc4eb.vAmj0WGhYModiPQyvaQyGA0-B-wCiEBCgBDjyWFZYss
     webkit-funktionen-finanzverwaltung-dark:
-        hash: v1.k6168a3a1.57c7e1a5070389b4c369fea01cec45a4ded8cf769ceda048862ba5e87732bee3.br3pjA2Zcxkdf7Ehb0Ml5XbKZc3n3f0qk4-mnenvz1Y
+        hash: v1.k04ffa068.57c7e1a5070389b4c369fea01cec45a4ded8cf769ceda048862ba5e87732bee3.hFf1ea9HRiOUourIcueYfIu4Iufwb9HDV6B3XmcZ-gU
     webkit-funktionen-finanzverwaltung-light:
-        hash: v1.k6168a3a1.a7948f02cc8f1fddf2d1335789ac9367487f982ab4d56e4b6dfeb9fbb18100a9.UMDsbKb1AnnJ8TBhWbpOalAZkNZ9r5FiLQb8WhLmpCg
+        hash: v1.k04ffa068.a7948f02cc8f1fddf2d1335789ac9367487f982ab4d56e4b6dfeb9fbb18100a9.VdeMf26NQ9rovXqQqvOcHuT2heT0NrbiFEogd00bpcw
     webkit-funktionen-wohnungsverwaltung-dark:
-        hash: v1.k6168a3a1.46b305cd2598093d619a278d53d83bb287bb0b88fa42c2f667fce5e419f7c9cc.mwPDdfV9JXoAataA4BX7aiD4RVmYLntwAEqm0wF500c
+        hash: v1.k04ffa068.46b305cd2598093d619a278d53d83bb287bb0b88fa42c2f667fce5e419f7c9cc.GId22Bnr8DINMeat8S081dghRMporWLM69BGUzZuITE
     webkit-funktionen-wohnungsverwaltung-light:
-        hash: v1.k6168a3a1.662c3214747da4d621605ae509904e3ec7613ab410a6497cbbc1d4e1647b172f.Whh6D3i4BRFNrQL77ehdvIa1sHuq5MaIX2b13Fp1fmQ
+        hash: v1.k04ffa068.662c3214747da4d621605ae509904e3ec7613ab410a6497cbbc1d4e1647b172f.VpNk1ne-YNLaFduGG2muyyt5nX9lJU7SABCn9J5zjKs
     webkit-impressum-dark:
-        hash: v1.k6168a3a1.e5c2c5eb0408e0499138afc711eed35d8d9ddb9dadac30403f6bda7d28295c8a.v2TFA28RIQx2mNQEttlVlY-BfzIXJ6qYilpHM-kDx1k
+        hash: v1.k04ffa068.e5c2c5eb0408e0499138afc711eed35d8d9ddb9dadac30403f6bda7d28295c8a.p038dhttEdhxR3cDiqFi1Tjics5N9MfwMGeulmWjcU0
     webkit-impressum-light:
-        hash: v1.k6168a3a1.d1b2a54c9dd613dab6ea2d76b5e0b883f73761545e972b8d7ed573c2d4309e78.QsVyDpKXw3SUJ7bG81_110vHriVy-_2RDc9zcWAXJ3s
+        hash: v1.k04ffa068.d1b2a54c9dd613dab6ea2d76b5e0b883f73761545e972b8d7ed573c2d4309e78.G_KCZS7BsS-5BL6p1MDiPLLpFs39TEwnXHMngFUTl-g
     webkit-landing-dark:
-        hash: v1.k6168a3a1.e18f1ac28b50c6d2286ceeef67b308051550c30ebba39030d7c19762ab29bf32.PeI9L2h5SBSd3hsxt42kIlnLsl6M_e7rpGhW8dUR8kQ
+        hash: v1.k04ffa068.7e1b720bbf39cab3aa06f714d7cd042c13c0d7b38e9cb363c0138b46509348a4.hEk2uEf1xTquyQV9EvaZVyMvatAWEH0R8XW8LnWK0T8
     webkit-landing-light:
-        hash: v1.k6168a3a1.5ed21b742cd8a365d2ccdda2a0a6344addb38e07a344a102fbe6d188ca0f4047.SZrbPCTrgRxrZMZByfjV9BkOXC1r1bz5YoNBmVQ9oRQ
+        hash: v1.k04ffa068.14db4f31df0f25567824fd5975a471b30ab418951a9158267fa5b430f5bb814c._GZgtlJ06ZFT2nRy-nba5mCOGZ1l5PwBMZrPPdU5u8Y
     webkit-loesungen-grosse-hausverwaltungen-dark:
-        hash: v1.k6168a3a1.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.Eb574hleclpvIwimVOcPKbuhVyTRuyql0yB9zDJkTqU
+        hash: v1.k04ffa068.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.q8GPUIse6peXNLcfD298zONF3PEgcTDaE3DSK06pV4E
     webkit-loesungen-grosse-hausverwaltungen-light:
-        hash: v1.k6168a3a1.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.-BwV52GXq7LDtKB8tR84536M6gqdikejjEM4loNjWEA
+        hash: v1.k04ffa068.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.0jmiJNFHJgMZMbwP1eB7hE0eJAD-rEdtEnrp-t3vwx8
     webkit-loesungen-kleine-mittlere-hausverwaltungen-dark:
-        hash: v1.k6168a3a1.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.FQCEMFF5wQIfe4aoyOBDv9ehCUykr5gZUV-kY7xXj5Q
+        hash: v1.k04ffa068.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.i-BXZLe7bIDgfq1Eevp-Nlmg1ObZCRt_PHq80N-HYyE
     webkit-loesungen-kleine-mittlere-hausverwaltungen-light:
-        hash: v1.k6168a3a1.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.F2f-dFogGD6UYy5y6ftqPHADe9kvlwNgkyPgVrjOaKo
+        hash: v1.k04ffa068.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.Yr6HJPmRPJwmY0RAz3UnOLM6yLwHVYjunV6DGWbz4l0
     webkit-loesungen-privatvermieter-dark:
-        hash: v1.k6168a3a1.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.hg5ce_49KTXD37LoTdkvcH4WHAdHYiTdNAKjV7zMl2I
+        hash: v1.k04ffa068.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.zlMqceb3aArvOCQ1qjFuZLeSxWzXzt3irDRm1vCWx68
     webkit-loesungen-privatvermieter-light:
-        hash: v1.k6168a3a1.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.hNOcoe1FOr39C1oJWhEQMSnj0nyrInox6wLHvP1J934
+        hash: v1.k04ffa068.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.yS-T0_5EZnR6zsSwCc95NDFCbHo9zSsH4CU4vaqQrlU
     webkit-preise-dark:
-        hash: v1.k6168a3a1.163a20e2b385dbfd45a7cb566620450e4bd92ac62403d41c238ff88329e8cc37.a_FnR5qEnHj6X8TWVIDvogR5ni02JpsAn-eFYP6CsP8
+        hash: v1.k04ffa068.163a20e2b385dbfd45a7cb566620450e4bd92ac62403d41c238ff88329e8cc37.V047sgaaytZ2lTLAKmxcxGn-AxsVi4mcjZGbguhjuX4
     webkit-preise-light:
-        hash: v1.k6168a3a1.89edcb6821f872425f3c30caf4fd56dab0d4d49262436090cc76cecda0c8344a.olosEVW0njrM3nmpUZhMtQDyEf10rmuiw34cWweFO4s
+        hash: v1.k04ffa068.89edcb6821f872425f3c30caf4fd56dab0d4d49262436090cc76cecda0c8344a.8MDrZ6e4M5EriMWgH2A_H-EWAPJE5BFjjcZ7kictLeU
     webkit-warteliste-browser-erweiterung-dark:
-        hash: v1.k6168a3a1.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.wQS0crnoiyOG5pVypj-J0GtPLM2bGZm9prvFrvgorGA
+        hash: v1.k04ffa068.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.YH2CzUDbHDk4jnh3TRrhpRyp6MiP3vjyv1u2VR3tKp8
     webkit-warteliste-browser-erweiterung-light:
-        hash: v1.k6168a3a1.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.hV7sOpA8Drn-jETShg-vCRioO3BouYLB46xYAs7ypII
+        hash: v1.k04ffa068.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.YzOh51u5DAAiUVyIRD2tHbQwAlPSUzlR9IRwskljK84
     webkit-warteliste-mobile-app-dark:
-        hash: v1.k6168a3a1.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.m-fuEqV7QCSCw7pvdQQSDkWXKXvPrnCEP4qPHTW7cks
+        hash: v1.k04ffa068.80139a096e2f4e4440e4fc6ead40a5826d384baa4e05d20284fcfa744af808c1.Cko5zq20spK4nffN3axgtfB7CYkL39LHalmWsrvtSvk
     webkit-warteliste-mobile-app-light:
-        hash: v1.k6168a3a1.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.2V61OpP9zO0iiHmeE2Pj9vwri_8AD9teIFl8sTF2HOc
+        hash: v1.k04ffa068.fe4db2ec8f1ed59bc5fc0e275639c08f48d80d3557e681cf1c618fe162be8318.gRQ2JY918HV24vtetYtEGJmyWXnh7nIsxPGO8oqjCf8
