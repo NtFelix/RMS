@@ -15,13 +15,13 @@ type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
  */
 export async function getMeterForHausAction(hausId: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
   const startTime = Date.now();
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     // Try to use optimized database function first
     const { data, error } = await supabase.rpc('get_zaehler_for_haus', {
@@ -198,12 +198,12 @@ async function getMeterForHausFallback(
  */
 export async function getZaehlerDataAction(wohnungId: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     const { data, error } = await supabase.rpc('get_zaehler_data', {
       wohnung_id_param: wohnungId,
@@ -243,12 +243,12 @@ export const getWasserZaehlerDataAction = getZaehlerDataAction;
  */
 export async function getAblesungenForZaehlerAction(zaehlerId: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     const { data, error } = await supabase.rpc('get_ablesungen_for_zaehler', {
       zaehler_id_param: zaehlerId,
@@ -288,12 +288,12 @@ export const getWasserAblesenDataAction = getAblesungenForZaehlerAction;
  */
 export async function getReadingsForMetersAction(meterIds: string[]) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     if (!meterIds || meterIds.length === 0) {
       return { success: true, data: [] };
@@ -326,16 +326,15 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
  */
 export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
   const actionName = 'createMeter';
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    logAction(actionName, 'error', { error_message: 'Benutzer nicht authentifiziert.' });
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
   logAction(actionName, 'start', { apartment_id: data.wohnung_id });
 
-  const supabase = await createClient();
-
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      logAction(actionName, 'error', { error_message: 'Benutzer nicht authentifiziert.' });
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     const { data: result, error } = await supabase
       .from("Zaehler")
@@ -373,12 +372,12 @@ export const createWasserZaehler = createZaehler;
  */
 export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id' | 'user_id'>>) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     // Pre-check for better error messages
     const { data: existingMeter, error: fetchError } = await supabase
@@ -431,12 +430,12 @@ export const updateWasserZaehler = updateZaehler;
  */
 export async function deleteZaehler(id: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     // Pre-check for better error messages
     const { data: existingMeter, error: fetchError } = await supabase
@@ -480,12 +479,12 @@ export const deleteWasserZaehler = deleteZaehler;
  */
 export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id'>) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     const { data: result, error } = await supabase
       .from("Zaehler_Ablesungen")
@@ -521,12 +520,12 @@ export const createWasserAblesung = createAblesung;
  */
 export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAblesung, 'id' | 'user_id'>>) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     const { data: result, error } = await supabase
       .from("Zaehler_Ablesungen")
@@ -564,12 +563,12 @@ export const updateWasserAblesung = updateAblesung;
  */
 export async function deleteAblesung(id: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     const { error } = await supabase
       .from("Zaehler_Ablesungen")
@@ -598,12 +597,12 @@ export const deleteWasserAblesung = deleteAblesung;
  */
 export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' | 'user_id'>[]) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     if (readings.length === 0) {
       return { success: true, data: [] };

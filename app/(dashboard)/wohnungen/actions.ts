@@ -29,16 +29,16 @@ interface WohnungData {
  */
 export async function speichereWohnung(formData: WohnungFormData) {
   const actionName = 'createApartment';
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    console.error('User not authenticated:', userError);
+    return { error: 'Benutzer nicht authentifiziert.' };
+  }
   logAction(actionName, 'start', { apartment_name: formData.name });
 
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('User not authenticated:', userError);
-      return { error: 'Benutzer nicht authentifiziert.' };
-    }
     const userId = user.id;
 
     // Fetch user profile - assuming it contains stripe_price_id and stripe_subscription_status
@@ -167,16 +167,16 @@ export async function speichereWohnung(formData: WohnungFormData) {
  */
 export async function aktualisiereWohnung(id: string, formData: WohnungFormData) {
   const actionName = 'updateApartment';
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    console.error('User not authenticated for update:', userError);
+    return { error: 'Benutzer nicht authentifiziert.' };
+  }
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
 
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('User not authenticated for update:', userError);
-      return { error: 'Benutzer nicht authentifiziert.' };
-    }
     const userId = user.id;
 
     const userProfile = await fetchUserProfile(); // Fetches profile for the authenticated user
@@ -271,14 +271,16 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
  */
 export async function loescheWohnung(id: string) {
   const actionName = 'deleteApartment';
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return { error: "Nicht authentifiziert" };
   logAction(actionName, 'start', { apartment_id: id });
 
   try {
-    const supabase = await createClient();
-
     const { error } = await supabase.from('Wohnungen')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);
 
     if (error) {
       logAction(actionName, 'error', { apartment_id: id, error_message: error.message });

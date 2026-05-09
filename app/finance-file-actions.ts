@@ -82,6 +82,8 @@ export async function getFinanceDocumentUrl(
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Nicht authentifiziert" };
 
     // Get document metadata
     const { data: dokument, error: docError } = await supabase
@@ -126,6 +128,8 @@ export async function deleteFinanceDocument(
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Nicht authentifiziert" };
 
     // Get document metadata first
     const { data: dokument, error: docError } = await supabase
@@ -140,8 +144,7 @@ export async function deleteFinanceDocument(
     }
 
     // Verify user owns this document
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || dokument.user_id !== user.id) {
+    if (dokument.user_id !== user.id) {
         return { success: false, error: "Keine Berechtigung" };
     }
 
@@ -182,6 +185,8 @@ export async function getFinanceDocumentInfo(
     }
 
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Nicht authentifiziert" };
 
     const { data: dokument, error } = await supabase
         .from("Dokumente_Metadaten")

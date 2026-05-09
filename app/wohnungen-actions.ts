@@ -84,6 +84,14 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   logAction(actionName, 'start', { apartment_id: id, apartment_name: data.name });
 
   const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) {
+    return {
+      success: false,
+      error: { message: "Benutzer nicht gefunden. Bitte melden Sie sich erneut an." }
+    };
+  }
 
   const payload = {
     name: data.name,
@@ -109,15 +117,6 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   // }
 
   try {
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) throw userError;
-    if (!user) {
-      return {
-        success: false,
-        error: { message: "Benutzer nicht gefunden. Bitte melden Sie sich erneut an." }
-      };
-    }
 
     // Only check limits when creating a new apartment
     if (!id) {

@@ -21,9 +21,12 @@ interface FinanzInput {
 
 export async function financeServerAction(id: string | null, data: FinanzInput): Promise<{ success: boolean; error?: any; data?: any }> {
   const actionName = id ? 'updateFinance' : 'createFinance';
-  logAction(actionName, 'start', { finance_id: id, finance_name: data.name, amount: data.betrag });
-
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    logAction(actionName, 'error', { error_message: 'User not authenticated' });
+    return { success: false, error: { message: "Nicht authentifiziert" } };
+  }
 
   // Ensure betrag is a number and handle potential string input from forms
   const payload = {
@@ -98,6 +101,8 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
 
 export async function toggleFinanceStatusAction(id: string, currentStatus: boolean): Promise<{ success: boolean; error?: any; data?: any }> {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: { message: "Nicht authentifiziert" } };
 
   try {
     // Only update the ist_einnahmen field
@@ -126,6 +131,8 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
 export async function deleteFinanceAction(financeId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: { message: "Nicht authentifiziert" } };
     const { error } = await supabase
       .from("Finanzen")
       .delete()

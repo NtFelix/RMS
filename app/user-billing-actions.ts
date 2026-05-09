@@ -1,19 +1,14 @@
 'use server';
+import { createClient } from "@/utils/supabase/server";
 
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
-let stripeClient: Stripe | null = null;
 function getStripe(): Stripe {
-  // Note: On Cloudflare Workers, module scope is not shared across requests.
-  // This singleton only benefits Node.js environments.
-  if (!stripeClient) {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-    stripeClient = new Stripe(key, STRIPE_CONFIG);
-  }
-  return stripeClient;
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key, STRIPE_CONFIG);
 }
 
 type BillingAddressError = {
@@ -56,6 +51,10 @@ interface UpdateBillingAddressParams {
 export async function getBillingAddress(
   stripeCustomerId: string,
 ): Promise<BillingAddress | BillingAddressError> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Nicht authentifiziert" };
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return {
@@ -136,6 +135,10 @@ export async function updateBillingAddress(
   stripeCustomerId: string,
   details: UpdateBillingAddressParams,
 ): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Nicht authentifiziert" };
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return { success: true };

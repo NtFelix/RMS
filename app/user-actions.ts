@@ -10,6 +10,10 @@ export async function getUserSubscriptionContext(): Promise<{
   stripe_subscription_status: string | null;
   error?: string;
 }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { stripe_price_id: null, stripe_subscription_status: null, error: "Nicht authentifiziert" };
+
   try {
     const userProfile = await fetchUserProfile();
     if (!userProfile) {
@@ -36,6 +40,10 @@ export async function getUserSubscriptionContext(): Promise<{
 export async function getPlanApartmentLimit(
   priceId: string
 ): Promise<{ limit_wohnungen: number | null | typeof Infinity; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { limit_wohnungen: null, error: "Nicht authentifiziert" };
+
   try {
     const planDetails = await getPlanDetails(priceId);
     if (!planDetails) {
@@ -61,13 +69,10 @@ export async function getUserApartmentCount(): Promise<{
 }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { count: 0, error: "User not found or authentication error." };
+      return { count: 0, error: "Nicht authentifiziert" };
     }
 
     const count = await getCurrentWohnungenCount(supabase, user.id);

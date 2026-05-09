@@ -6,9 +6,8 @@ import { posthogLogger } from "@/lib/posthog-logger";
 
 export async function searchMailSenders(query: string) {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) return [];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
 
     if (!query || query.length < 2) return [];
 
@@ -37,9 +36,8 @@ export async function searchMailSenders(query: string) {
 
 export async function getMailsBySender(sender: string, startDate?: Date, endDate?: Date) {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) return [];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
 
     let query = supabase
         .from('Mail_Metadaten')
@@ -71,9 +69,9 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
 
 export async function createApplicantsFromMails(mails: { id: string, absender: string, dateipfad?: string | null }[]) {
     const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-        return { success: false, error: "Unauthorized: Please log in." };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { success: false, error: "Nicht authentifiziert" };
     }
     const userId = user.id;
 
@@ -235,6 +233,12 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 }
 
 export async function checkWorkerQueueStatus(userId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || user.id !== userId) {
+        return { hasMore: false, error: "Nicht authentifiziert" };
+    }
+
     const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
     let workerAuthKey = process.env.WORKER_AUTH_KEY;
 

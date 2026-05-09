@@ -110,6 +110,12 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
 
   const supabase = await createClient();
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    logAction(actionName, 'error', { error_message: 'User not authenticated' });
+    return { success: false, message: "User not authenticated", data: null };
+  }
+
   const { data, error } = await supabase
     .from("Nebenkosten")
     .update(formData)
@@ -161,6 +167,10 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
   }
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, count: 0, message: "Nicht authentifiziert" };
+  }
 
   try {
     // Use in_ operator to delete multiple records in a single query
@@ -684,6 +694,12 @@ export async function getWasserzaehlerByHausAndYearAction(
     // Validate year format (basic check for YYYY)
     if (!/^\d{4}$/.test(year)) {
       return { success: false, message: "Ungültiges Jahr. Bitte verwenden Sie das Format YYYY." };
+    }
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, message: "Nicht authentifiziert" };
     }
 
     const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
