@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
+import { redirect, unstable_rethrow } from 'next/navigation'
 
 /**
  * Unified Document Navigation Actions
@@ -178,6 +178,8 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
     } catch (error) {
+        unstable_rethrow(error)
+
         await logRpcCall('get_folder_contents', targetPath, startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'
         })
