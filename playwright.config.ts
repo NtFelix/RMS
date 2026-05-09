@@ -31,6 +31,8 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
+    /* Set larger viewport to "zoom out" and see more of the app */
+    viewport: { width: 1920, height: 1080 },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -49,30 +51,17 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        // Reduced from device-default 1280×720 to limit screenshot pixel count.
-        // fullPage screenshots at 1280px were ~3.84M px each (×132 = 507M total).
-        // At 960px they are ~2.16M px each (×132 = 285M total) — 44% fewer pixels,
-        // which dramatically reduces PostHog diff-processing time.
-        viewport: { width: 960, height: 640 },
-      },
+      use: { ...devices['Desktop Chrome'] },
     },
 
     {
       name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-        viewport: { width: 960, height: 640 },
-      },
+      use: { ...devices['Desktop Firefox'] },
     },
 
     {
       name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        viewport: { width: 960, height: 640 },
-      },
+      use: { ...devices['Desktop Safari'] },
     },
 
     /* Test against mobile viewports. */
