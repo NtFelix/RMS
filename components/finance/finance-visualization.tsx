@@ -150,7 +150,7 @@ const EmptyChartState = ({ title, description }: { title: string; description: s
     <CardContent>
       <div className="relative w-full h-auto min-h-[400px]">
         <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
-          <div className="flex items-center justify-center size-166 rounded-full bg-muted">
+          <div className="flex items-center justify-center size-16 rounded-full bg-muted">
             <BarChart3 className="w-8 h-8 text-muted-foreground" />
           </div>
           <div className="text-center space-y-2">

@@ -1259,7 +1259,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                 <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
                                 <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
                                 <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                                <div className="flex items-center justify-center flex-none size-100">
+                                <div className="flex items-center justify-center flex-none size-10">
                                 <Skeleton className="size-8 rounded" />
                                 </div>
                                 </div>

@@ -181,7 +181,7 @@ export function LastTransactionsContainer() {
               ))
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="size-122 rounded-full bg-muted flex items-center justify-center mb-3">
+                <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-3">
                   <ArrowUpRight className="size-6 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">Keine Transaktionen gefunden</p>

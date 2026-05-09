@@ -181,7 +181,7 @@ export function SortableCostItem({
             document.body
           )}
         </div>
-        <div className="flex items-center justify-center flex-none size-100">
+        <div className="flex items-center justify-center flex-none size-10">
           <Button
             type="button"
             variant="ghost"

@@ -104,7 +104,7 @@ export function NKCarousel() {
                     <Card className="h-full bg-card border border-border/50 shadow-lg p-6 rounded-3xl">
                       <CardHeader className="p-0 mb-4">
                         <div
-                          className="size-122 rounded-2xl flex items-center justify-center mb-4"
+                          className="size-12 rounded-2xl flex items-center justify-center mb-4"
                           style={{ backgroundColor: `${colorMap[feature.color]}15`, color: colorMap[feature.color] }}
                         >
                           <feature.icon className="h-6 w-6" />
@@ -207,8 +207,8 @@ export function NKCarousel() {
                     className={cn(
                       "relative flex items-center justify-center rounded-2xl transition-all duration-300 z-30",
                       isActive
-                        ? "size-166 md:w-20 md:h-20 bg-background shadow-2xl ring-4 ring-offset-4 ring-offset-background"
-                        : "size-122 md:w-16 md:h-16 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 text-slate-500 shadow-sm"
+                        ? "size-16 md:w-20 md:h-20 bg-background shadow-2xl ring-4 ring-offset-4 ring-offset-background"
+                        : "size-12 md:w-16 md:h-16 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 text-slate-500 shadow-sm"
                     )}
                     style={{
                       borderColor: isActive ? colorMap[feature.color] : undefined,
@@ -286,7 +286,7 @@ export function NKCarousel() {
                     initial={{ scale: 0, opacity: 0, rotate: -45 }}
                     animate={{ scale: 1, opacity: 1, rotate: 0 }}
                     transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
-                    className="size-166 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"
+                    className="size-16 rounded-2xl flex items-center justify-center mb-6 shadow-inner relative z-10"
                     style={{ backgroundColor: `${colorMap[activeFeature!.color]}15`, color: colorMap[activeFeature!.color] }}
                   >
                     {React.createElement(activeFeature!.icon, { className: "w-8 h-8" })}
