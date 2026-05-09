@@ -45,14 +45,18 @@ export function MarkdownEditorModal({
 
   // Load file content when modal opens for existing files
   useEffect(() => {
+    let timer: NodeJS.Timeout
     if (isOpen && !isNewFile && filePath && fileName) {
       // Add a small delay to ensure any previous operations have completed
-      setTimeout(() => {
+      timer = setTimeout(() => {
         loadFileContent()
       }, 100)
     } else if (isOpen && isNewFile) {
       setContent(initialContent)
       setIsDirty(false)
+    }
+    return () => {
+      if (timer) clearTimeout(timer)
     }
   }, [isOpen, filePath, fileName, isNewFile, initialContent])
 
@@ -336,7 +340,7 @@ export function MarkdownEditorModal({
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "edit" | "preview")} className="flex-1 flex flex-col">
               <TabsList className="mx-6 mt-4 w-fit">
                 <TabsTrigger value="edit" className="flex items-center gap-2">
-                  <Edit3 className="h-4 w-4" />
+                  <Edit3 className="size-4" />
                   Bearbeiten
                 </TabsTrigger>
                 <TabsTrigger value="preview" className="flex items-center gap-2">

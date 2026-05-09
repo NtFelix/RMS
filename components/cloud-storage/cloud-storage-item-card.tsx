@@ -343,7 +343,7 @@ export function CloudStorageItemCard({
             handleRename()
           }
         }}>
-          <Edit3 className="h-4 w-4 mr-2" />
+          <Edit3 className="size-4 mr-2" />
           Umbenennen
         </ContextMenuItem>
       )}
@@ -541,7 +541,7 @@ export function CloudStorageItemCard({
                             handleRename()
                           }
                         }}>
-                          <Edit3 className="h-4 w-4 mr-2" />
+                          <Edit3 className="size-4 mr-2" />
                           Umbenennen
                         </DropdownMenuItem>
                       )}

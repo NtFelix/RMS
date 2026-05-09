@@ -211,7 +211,7 @@ export function FileUploadZone({
       case 'uploading':
         return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
       case 'completed':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />
+        return <CheckCircle2 className="size-4 text-green-500" />
       case 'error':
         return <AlertCircle className="h-4 w-4 text-red-500" />
       default:
@@ -247,7 +247,7 @@ export function FileUploadZone({
       >
         <CardContent className="flex flex-col items-center justify-center py-8 px-6 text-center">
           <Upload className={cn(
-            "h-10 w-10 mb-3",
+            "size-10 mb-3",
             isDragOver && !disabled ? "text-primary" : "text-muted-foreground"
           )} />
 

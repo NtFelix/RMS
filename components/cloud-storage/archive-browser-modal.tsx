@@ -293,7 +293,7 @@ export function ArchiveBrowserModal({ isOpen, onClose, userId }: ArchiveBrowserM
               </div>
             ) : filteredAndSortedFiles.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                <Archive className="h-12 w-12 mb-2" />
+                <Archive className="size-12 mb-2" />
                 <p className="text-lg font-medium">Archiv ist leer</p>
                 <p className="text-sm">Gelöschte Dateien werden hier angezeigt</p>
               </div>
