@@ -273,7 +273,7 @@ export default function AIAssistantInterface({
           <div className="space-y-4">
             {state.messages.length === 0 && (
               <div className="text-center py-8">
-                <Bot className="size-122 text-muted-foreground mx-auto mb-4" />
+                <Bot className="size-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-medium text-foreground mb-2">
                   Willkommen beim {BRAND_NAME} AI Assistenten
                 </h3>

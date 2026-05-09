@@ -58,7 +58,7 @@ export default function MoreFeatures() {
               <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-primary/10 transition-all duration-300 h-full relative overflow-hidden rounded-3xl">
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">
-                    <div className="size-166 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <div className="size-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                       <feature.icon className="w-8 h-8 text-primary-foreground" />
                     </div>
                   </div>

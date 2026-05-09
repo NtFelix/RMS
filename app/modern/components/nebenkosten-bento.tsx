@@ -138,7 +138,7 @@ const nkFeatures: NKFeature[] = [
           <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full" />
           <div className="relative space-y-3">
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-background border border-border shadow-sm group-hover:translate-x-2 transition-transform duration-500">
-              <div className="size-100 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
+              <div className="size-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
                 <FileText size={20} />
               </div>
               <div className="flex-1 min-w-0">
@@ -150,7 +150,7 @@ const nkFeatures: NKFeature[] = [
               </div>
             </div>
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-background border border-border shadow-sm group-hover:translate-x-2 transition-transform duration-500 delay-100 italic opacity-60">
-              <div className="size-100 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+              <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
                 <FileJson size={20} />
               </div>
               <div className="flex-1 min-w-0 text-sm">Versicherung_2024.pdf...</div>
@@ -232,7 +232,7 @@ export default function NebenkostenBento() {
                 {/* Content Area */}
                 <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="size-100 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                       <feature.icon size={20} />
                     </div>
                     <span className="text-xs font-bold uppercase tracking-widest text-primary/60">
