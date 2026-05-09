@@ -7,7 +7,7 @@ import { formatNumber } from "@/utils/format";
 import { House } from "@/components/tables/house-table"; // Type for enrichedHaeuser
 
 export default async function HaeuserPage() {
-  const { supabase } = await requireAuthenticatedUser();
+  const { supabase, user } = await requireAuthenticatedUser();
 
   // Load data in parallel
   const [
@@ -15,9 +15,9 @@ export default async function HaeuserPage() {
     { data: apartmentsData, error: apartmentsError },
     { data: tenantsData, error: tenantsError }
   ] = await Promise.all([
-    supabase.from('Haeuser').select('*'),
-    supabase.from('Wohnungen').select('*'),
-    supabase.from('Mieter').select('wohnung_id,einzug,auszug')
+    supabase.from('Haeuser').select('*').eq('user_id', user.id),
+    supabase.from('Wohnungen').select('*').eq('user_id', user.id),
+    supabase.from('Mieter').select('wohnung_id,einzug,auszug').eq('user_id', user.id)
   ]);
 
   if (housesError || apartmentsError || tenantsError) {

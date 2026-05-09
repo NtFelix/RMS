@@ -9,6 +9,7 @@ import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
 import { posthogLogger } from '@/lib/posthog-logger';
+import { isTestEnv } from "@/lib/test-utils";
 
 interface WohnungPayload {
   name: string;
