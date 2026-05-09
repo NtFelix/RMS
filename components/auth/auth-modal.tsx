@@ -40,7 +40,7 @@ const AuthHeader = ({ title, description }: { title: string; description: string
         alt="Mietevo Logo" 
         width={48}
         height={48}
-        className="size-122 object-contain" 
+        className="size-12 object-contain" 
         priority
       />
     </Link>

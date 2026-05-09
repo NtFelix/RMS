@@ -59,7 +59,7 @@ export default function UpdatePasswordPage() {
             {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
                 next/image adds unnecessary overhead for small, pre-optimized images. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_URL} alt="Mietevo Logo" className="size-122 object-contain" />
+            <img src={LOGO_URL} alt="Mietevo Logo" className="size-12 object-contain" />
           </Link>
           <CardTitle className="text-2xl font-bold">Passwort aktualisieren</CardTitle>
           <CardDescription>Geben Sie Ihr neues Passwort ein</CardDescription>

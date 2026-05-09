@@ -122,7 +122,7 @@ export function Auth3DDecorations() {
             </motion.div>
 
             <motion.div
-                className="absolute top-1/2 right-1/4 size-166 rounded-full"
+                className="absolute top-1/2 right-1/4 size-16 rounded-full"
                 style={{
                     opacity: SPHERE_OPACITY.overall,
                     boxShadow: `0 10px 30px rgba(0,0,0,${SPHERE_OPACITY.shadowSecondary})`,

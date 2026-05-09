@@ -235,7 +235,7 @@ export default function VerifyEmailContent() {
                                 >
                                     {/* Icon with pulsing indicator */}
                                     <div className="relative p-4 rounded-2xl bg-white/10 backdrop-blur-md mb-6 shadow-xl">
-                                        <Mail className="size-122 text-white" />
+                                        <Mail className="size-12 text-white" />
                                         <motion.div
                                             className="absolute -top-1 -right-1 w-4 h-4 bg-white/30 rounded-full"
                                             animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
@@ -305,7 +305,7 @@ export default function VerifyEmailContent() {
                                         transition={{ type: "spring", stiffness: 300, damping: 20 }}
                                         className="relative p-4 rounded-2xl bg-green-500/20 backdrop-blur-md mb-6 shadow-xl"
                                     >
-                                        <MailCheck className="size-122 text-green-300" />
+                                        <MailCheck className="size-12 text-green-300" />
                                         {/* Celebration particles */}
                                         {[...Array(6)].map((_, i) => (
                                             <motion.div
