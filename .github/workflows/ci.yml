@@ -74,10 +74,19 @@ jobs:
           BASE_URL: http://localhost:3000
         continue-on-error: true
 
+      - name: Install PostHog Visual Review CLI
+        if: always()
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/PostHog/posthog.git /tmp/posthog
+          cd /tmp/posthog
+          git sparse-checkout set products/visual_review/cli
+          cd products/visual_review/cli
+          npm ci
+
       - name: Submit snapshots to PostHog Visual Review
         if: always()
         run: >
-          npx @posthog/visual-review submit
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit
           --config playwright/snapshots.yml
           --dir playwright/__snapshots__
           --type playwright
