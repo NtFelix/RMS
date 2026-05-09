@@ -59,12 +59,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
-      - name: Start Next.js server
-        run: npx next start -p 3000 &
-
-      - name: Wait for server to be ready
-        run: npx wait-on http://localhost:3000 --timeout 30000
-
       - name: Run Playwright visual tests
         run: npx playwright test --grep @visual --reporter=list
         env:
@@ -84,7 +78,7 @@ jobs:
         if: always()
         run: >
           npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit
-          --config playwright/snapshots.yml
+          --baseline playwright/snapshots.yml
           --dir playwright/__snapshots__
           --type playwright
           --token ${{ secrets.POSTHOG_VR_TOKEN }}
