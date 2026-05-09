@@ -254,19 +254,46 @@ jobs:
           cd products/visual_review/cli
           npm ci
 
-      - name: Submit snapshots to PostHog Visual Review
+      # Use the shard-based flow (run create → upload → complete) instead of the
+      # monolithic `submit` command. This lets us fire the completeRun API call
+      # (which triggers PostHog's diff processing) and immediately exit without
+      # waiting for the diff result. PostHog processes asynchronously in the background.
+      # The diff result is visible in the PostHog dashboard regardless.
+
+      - name: Create PostHog Visual Review run
         if: always()
-        # PostHog CLI exits 1 when visual changes are detected (expected behavior).
-        # We use `|| true` to prevent a red step while still surfacing the run URL.
-        # Use $(git rev-parse HEAD) instead of ${{ github.sha }} so re-runs always
-        # submit with the actual current HEAD SHA, not the stale trigger SHA.
+        id: vr-run
+        # `run create` writes only the run ID to stdout (all logs go to stderr).
         run: |
-          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts submit \
-            --baseline playwright/snapshots.yml \
-            --dir playwright/__snapshots__ \
+          RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
             --type playwright \
+            --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
             --branch ${{ github.event.pull_request.head.ref }} \
             --commit $(git rev-parse HEAD) \
-            --pr ${{ github.event.pull_request.number }} \
+            --pr ${{ github.event.pull_request.number }})
+          echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Created PostHog VR run: $RUN_ID"
+
+      - name: Upload snapshots to PostHog Visual Review
+        if: always() && steps.vr-run.outputs.run-id != ''
+        run: |
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run upload \
+            --run-id ${{ steps.vr-run.outputs.run-id }} \
+            --dir playwright/__snapshots__ \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }}
+
+      - name: Trigger PostHog diff processing (fire and forget)
+        if: always() && steps.vr-run.outputs.run-id != ''
+        continue-on-error: true
+        # `run complete` makes a single API call to tell PostHog "all uploads done,
+        # start processing". That call takes ~5–10s. After it fires, PostHog processes
+        # asynchronously. We give 30s total then exit — we do NOT wait for the result.
+        run: |
+          timeout 30 npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
+            --run-id ${{ steps.vr-run.outputs.run-id }} \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} \
           || true
+
