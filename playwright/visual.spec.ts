@@ -31,45 +31,76 @@ const dashboardPages = [
   '/mails',
 ];
 
-test.describe('@visual Visual Review - Public Pages', () => {
-  for (const path of publicPages) {
-    // Generate a safe filename based on path
-    const filename = path === '/' ? 'landing.png' : `${path.replace(/^\//, '').replace(/\//g, '-')}.png`;
+const themes = ['light', 'dark'] as const;
 
-    test(`Public Page: ${path}`, async ({ page }) => {
-      await page.goto(path);
-      await page.waitForLoadState('networkidle');
-      await acceptCookieConsent(page);
-      // Wait for any animations to settle
-      await page.waitForTimeout(1000);
-      await expect(page).toHaveScreenshot(filename, {
-        fullPage: true,
-        threshold: 0.02,
+for (const theme of themes) {
+  test.describe(`@visual Visual Review - Public Pages (${theme} mode)`, () => {
+    test.use({ colorScheme: theme });
+
+    for (const path of publicPages) {
+      // Generate a safe filename based on path and theme
+      const baseFilename = path === '/' ? 'landing' : `${path.replace(/^\//, '').replace(/\//g, '-')}`;
+      const filename = `${baseFilename}-${theme}.png`;
+
+      test(`Public Page: ${path}`, async ({ page }) => {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle');
+        await acceptCookieConsent(page);
+
+        // Force the theme using a custom function if the app uses next-themes or similar class-based approach
+        await page.evaluate((t) => {
+          if (t === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+          }
+        }, theme);
+
+        // Wait for any animations to settle
+        await page.waitForTimeout(1000);
+        await expect(page).toHaveScreenshot(filename, {
+          fullPage: true,
+          threshold: 0.02,
+        });
       });
-    });
-  }
-});
-
-test.describe('@visual Visual Review - Dashboard Pages', () => {
-  // Login once before running all dashboard tests if using serial, but Playwright parallelizes by default.
-  // Using beforeEach ensures each test gets an authenticated state.
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-    await acceptCookieConsent(page);
+    }
   });
 
-  for (const path of dashboardPages) {
-    const filename = `dashboard-${path.replace(/^\//, '').replace(/\//g, '-')}.png`;
+  test.describe(`@visual Visual Review - Dashboard Pages (${theme} mode)`, () => {
+    test.use({ colorScheme: theme });
 
-    test(`Dashboard Page: ${path}`, async ({ page }) => {
-      await page.goto(path);
-      await page.waitForLoadState('networkidle');
-      // Give charts and dynamic data extra time to render
-      await page.waitForTimeout(2500);
-      await expect(page).toHaveScreenshot(filename, {
-        fullPage: true,
-        threshold: 0.02,
-      });
+    test.beforeEach(async ({ page }) => {
+      await login(page);
+      await acceptCookieConsent(page);
     });
-  }
-});
+
+    for (const path of dashboardPages) {
+      const filename = `dashboard-${path.replace(/^\//, '').replace(/\//g, '-')}-${theme}.png`;
+
+      test(`Dashboard Page: ${path}`, async ({ page }) => {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle');
+
+        // Force the theme using a custom function if the app uses next-themes or similar class-based approach
+        await page.evaluate((t) => {
+          if (t === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+          }
+        }, theme);
+
+        // Give charts and dynamic data extra time to render
+        await page.waitForTimeout(2500);
+        await expect(page).toHaveScreenshot(filename, {
+          fullPage: true,
+          threshold: 0.02,
+        });
+      });
+    }
+  });
+}
