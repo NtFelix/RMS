@@ -51,12 +51,12 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     let finalTenantId = id as string | null;
 
     if (id) {
-      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
+      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string).eq('user_id', user.id);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
+      const { data: newTenant, error } = await supabase.from('Mieter').insert({ ...payload, user_id: user.id }).select('id').single();
       if (error) {
         return { success: false, error: { message: error.message } };
       }
@@ -281,6 +281,7 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
       .from('Mieter')
       .select('kaution')
       .eq('id', tenantId)
+      .eq('user_id', user.id)
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
@@ -297,7 +298,8 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
     const { error: updateError } = await supabase
       .from('Mieter')
       .update({ kaution: kautionData })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .eq('user_id', user.id);
 
     if (updateError) {
       console.error("Error updating kaution data:", updateError);
@@ -349,9 +351,9 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 }
 
 export async function getSuggestedKautionAmount(tenantId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: { message: string } }> {
-  let supabase;
+  let user, supabase;
   try {
-    ({ supabase } = await ensureAuth());
+    ({ user, supabase } = await ensureAuth());
   } catch (authError: any) {
     return { success: false, error: { message: authError.message } };
   }
@@ -362,6 +364,7 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
       .from('Mieter')
       .select('wohnung_id, Wohnungen(miete)')
       .eq('id', tenantId)
+      .eq('user_id', user.id)
       .single();
 
     if (tenantError) {

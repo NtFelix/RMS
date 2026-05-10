@@ -2,7 +2,7 @@
 
 import { fetchUserProfile, getCurrentWohnungenCount } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { normalizeApartmentLimit } from "@/lib/utils/subscription";
 
 export async function getUserSubscriptionContext(): Promise<{
@@ -10,9 +10,11 @@ export async function getUserSubscriptionContext(): Promise<{
   stripe_subscription_status: string | null;
   error?: string;
 }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { stripe_price_id: null, stripe_subscription_status: null, error: "Nicht authentifiziert" };
+  try {
+    await ensureAuth();
+  } catch (authError: any) {
+    return { stripe_price_id: null, stripe_subscription_status: null, error: authError.message };
+  }
 
   try {
     const userProfile = await fetchUserProfile();
@@ -40,9 +42,11 @@ export async function getUserSubscriptionContext(): Promise<{
 export async function getPlanApartmentLimit(
   priceId: string
 ): Promise<{ limit_wohnungen: number | null | typeof Infinity; error?: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { limit_wohnungen: null, error: "Nicht authentifiziert" };
+  try {
+    await ensureAuth();
+  } catch (authError: any) {
+    return { limit_wohnungen: null, error: authError.message };
+  }
 
   try {
     const planDetails = await getPlanDetails(priceId);
@@ -68,17 +72,11 @@ export async function getUserApartmentCount(): Promise<{
   error?: string;
 }> {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return { count: 0, error: "Nicht authentifiziert" };
-    }
-
+    const { user, supabase } = await ensureAuth();
     const count = await getCurrentWohnungenCount(supabase, user.id);
     return { count };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in getUserApartmentCount:", error);
-    return { count: 0, error: "Failed to fetch user apartment count." };
+    return { count: 0, error: error.message || "Failed to fetch user apartment count." };
   }
 }

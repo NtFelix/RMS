@@ -1,5 +1,5 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -10,6 +10,7 @@ interface HouseData {
   ort: string;
   strasse?: string | null;
   groesse: number | null;
+  user_id?: string;
 }
 
 export async function handleSubmit(id: string | null, formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
@@ -18,11 +19,12 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
   logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    logAction(actionName, 'error', { error_message: 'User not authenticated' });
-    return { success: false, error: { message: "Nicht authentifiziert" } };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    logAction(actionName, 'error', { error_message: authError.message });
+    return { success: false, error: { message: authError.message } };
   }
 
   try {
@@ -59,7 +61,8 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       const { error } = await supabase
         .from("Haeuser")
         .update(houseData)
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
 
       if (error) {
         logAction(actionName, 'error', { house_id: id, house_name: houseName, error_message: error.message });
@@ -68,7 +71,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     } else {
       const { error: insertError } = await supabase
         .from("Haeuser")
-        .insert(houseData);
+        .insert({ ...houseData, user_id: user.id });
 
       if (insertError) {
         logAction(actionName, 'error', { house_name: houseName, error_message: insertError.message });
@@ -89,16 +92,13 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   logAction(actionName, 'start', { house_id: houseId });
 
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      logAction(actionName, 'error', { house_id: houseId, error_message: 'User not authenticated' });
-      return { success: false, error: { message: "Nicht authentifiziert" } };
-    }
+    const { user, supabase } = await ensureAuth();
+
     const { error } = await supabase
       .from("Haeuser")
       .delete()
-      .eq("id", houseId);
+      .eq("id", houseId)
+      .eq("user_id", user.id);
 
     if (error) {
       logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
@@ -109,8 +109,8 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
     logAction(actionName, 'success', { house_id: houseId });
     return { success: true };
 
-  } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+  } catch (e: any) {
+    const errorMessage = e.message || "An unknown server error occurred";
     logAction(actionName, 'error', { house_id: houseId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -121,9 +121,7 @@ import { fetchWasserzaehlerModalData, Mieter, Wasserzaehler } from "@/lib/data-f
 
 export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+    await ensureAuth();
 
     const data = await fetchWasserzaehlerModalData(nebenkostenId);
     return data;

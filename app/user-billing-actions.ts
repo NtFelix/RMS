@@ -57,10 +57,22 @@ interface UpdateBillingAddressParams {
 export async function getBillingAddress(
   stripeCustomerId: string,
 ): Promise<BillingAddress | BillingAddressError> {
+  let user, supabase;
   try {
-    await ensureAuth();
-  } catch (authError) {
-    return { error: "Nicht authentifiziert" };
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { error: authError.message };
+  }
+
+  // Verify ownership
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.stripe_customer_id !== stripeCustomerId) {
+    return { error: "Nicht autorisiert" };
   }
 
   if (isStripeMocked()) {
@@ -143,10 +155,22 @@ export async function updateBillingAddress(
   stripeCustomerId: string,
   details: UpdateBillingAddressParams,
 ): Promise<{ success: boolean; error?: string }> {
+  let user, supabase;
   try {
-    await ensureAuth();
-  } catch (authError) {
-    return { success: false, error: "Nicht authentifiziert" };
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, error: authError.message };
+  }
+
+  // Verify ownership
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.stripe_customer_id !== stripeCustomerId) {
+    return { success: false, error: "Nicht autorisiert" };
   }
 
   if (isStripeMocked()) {
@@ -196,11 +220,24 @@ export async function updateBillingAddress(
 export async function createSetupIntent(
   stripeCustomerId: string,
 ): Promise<{ clientSecret: string } | { error: string }> {
+  let user, supabase;
   try {
-    await ensureAuth();
-  } catch (authError) {
-    return { error: "Nicht authentifiziert" };
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { error: authError.message };
   }
+
+  // Verify ownership
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.stripe_customer_id !== stripeCustomerId) {
+    return { error: "Nicht autorisiert" };
+  }
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return { clientSecret: 'seti_mock_secret_123' };
