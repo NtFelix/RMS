@@ -31,12 +31,13 @@ async function triggerScrollAnimations(page: Page) {
     // Scroll down in chunks to ensure all observers fire
     for (let i = 0; i < scrollHeight; i += viewportHeight / 2) {
       window.scrollTo(0, i);
-      // Small delay to let JS execution and observers catch up
-      await new Promise(r => setTimeout(r, 50));
+      // Increased delay to let JS execution and observers catch up
+      await new Promise(r => setTimeout(r, 100));
     }
     // Scroll back to the top
     window.scrollTo(0, 0);
-    await new Promise(r => setTimeout(r, 100));
+    // Increased settling time
+    await new Promise(r => setTimeout(r, 500));
   });
 }
 
@@ -101,6 +102,9 @@ for (const theme of themes) {
           document.documentElement.classList.toggle('light', t === 'light');
         }, theme);
 
+        // Small wait to allow theme switch JS to settle
+        await page.waitForTimeout(500);
+
         // Scroll the page to trigger all animations
         await triggerScrollAnimations(page);
 
@@ -143,6 +147,9 @@ for (const theme of themes) {
           document.documentElement.classList.toggle('dark', t === 'dark');
           document.documentElement.classList.toggle('light', t === 'light');
         }, theme);
+
+        // Small wait to allow theme switch JS to settle
+        await page.waitForTimeout(500);
 
         // Scroll the page to trigger all animations
         await triggerScrollAnimations(page);
