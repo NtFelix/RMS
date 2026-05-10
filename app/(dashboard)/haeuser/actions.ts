@@ -81,9 +81,10 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     revalidatePath("/haeuser");
     logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
     return { success: true };
-  } catch (e) {
-    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: (e as Error).message });
-    return { success: false, error: { message: (e as Error).message } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -109,8 +110,8 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
     logAction(actionName, 'success', { house_id: houseId });
     return { success: true };
 
-  } catch (e: any) {
-    const errorMessage = e.message || "An unknown server error occurred";
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
     logAction(actionName, 'error', { house_id: houseId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -125,8 +126,8 @@ export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: strin
 
     const data = await fetchWasserzaehlerModalData(nebenkostenId);
     return data;
-  } catch (error) {
-    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error);
+  } catch (error: unknown) {
+    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error instanceof Error ? error.message : error);
     // Return empty data on error, consistent with fetchWasserzaehlerModalData's own error handling for some cases.
     return { mieterList: [], existingReadings: [] };
   }

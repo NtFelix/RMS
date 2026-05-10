@@ -96,9 +96,10 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     }
 
     return { success: true };
-  } catch (e) {
-    logAction(actionName, 'error', { tenant_name: tenantName, error_message: (e as Error).message });
-    return { success: false, error: { message: (e as Error).message } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { tenant_name: tenantName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -223,9 +224,10 @@ export async function getMieterByHausIdAction(
     // This is also a successful query with no results.
     return { success: true, data: mieterData || [] };
 
-  } catch (e: any) {
-    console.error("Unexpected error in getMieterByHausIdAction:", e.message);
-    return { success: false, error: e.message || "An unexpected error occurred.", data: null };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+    console.error("Unexpected error in getMieterByHausIdAction:", errorMessage);
+    return { success: false, error: errorMessage, data: null };
   }
 }
 
@@ -311,9 +313,10 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
 
     return { success: true };
 
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unexpected error in updateKautionAction";
     console.error("Unexpected error in updateKautionAction:", e);
-    return { success: false, error: { message: (e as Error).message } };
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -339,7 +342,7 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 
     revalidatePath('/mieter');
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Unexpected error updating tenant apartment:', error);
     return {
       success: false,
@@ -385,9 +388,10 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
     const suggestedAmount = wohnung.miete * 3;
 
     return { success: true, suggestedAmount };
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unexpected error in getSuggestedKautionAmount";
     console.error("Unexpected error in getSuggestedKautionAmount:", e);
-    return { success: false, error: { message: (e as Error).message } };
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -413,7 +417,7 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
 
     revalidatePath('/mieter');
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Unexpected error deleting all applicants:', error);
     return {
       success: false,

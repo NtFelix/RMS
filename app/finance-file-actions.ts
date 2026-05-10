@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -11,11 +11,11 @@ import { revalidatePath } from "next/cache";
 export async function getFinanceDocumentPath(
     wohnungId?: string | null
 ): Promise<{ success: boolean; path?: string; error?: string }> {
-    const supabase = await createClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        return { success: false, error: "Nicht authentifiziert" };
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch (authError: any) {
+        return { success: false, error: authError.message || "Nicht authentifiziert" };
     }
 
     const basePath = `user_${user.id}/Rechnungen`;
@@ -81,9 +81,12 @@ export async function getFinanceDocumentUrl(
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "Nicht authentifiziert" };
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch (authError: any) {
+        return { success: false, error: authError.message || "Nicht authentifiziert" };
+    }
 
     // Get document metadata
     const { data: dokument, error: docError } = await supabase
@@ -127,9 +130,12 @@ export async function deleteFinanceDocument(
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "Nicht authentifiziert" };
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch (authError: any) {
+        return { success: false, error: authError.message || "Nicht authentifiziert" };
+    }
 
     // Get document metadata first
     const { data: dokument, error: docError } = await supabase
@@ -184,9 +190,12 @@ export async function getFinanceDocumentInfo(
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "Nicht authentifiziert" };
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch (authError: any) {
+        return { success: false, error: authError.message || "Nicht authentifiziert" };
+    }
 
     const { data: dokument, error } = await supabase
         .from("Dokumente_Metadaten")

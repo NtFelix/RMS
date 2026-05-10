@@ -1,7 +1,7 @@
 "use server";
 
 // const APARTMENT_LIMIT = 5; // Removed hardcoded limit
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails
@@ -29,12 +29,11 @@ interface WohnungData {
  */
 export async function speichereWohnung(formData: WohnungFormData) {
   const actionName = 'createApartment';
-  const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    console.error('User not authenticated:', userError);
-    return { error: 'Benutzer nicht authentifiziert.' };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { error: authError.message };
   }
   logAction(actionName, 'start', { apartment_name: formData.name });
 
@@ -167,12 +166,11 @@ export async function speichereWohnung(formData: WohnungFormData) {
  */
 export async function aktualisiereWohnung(id: string, formData: WohnungFormData) {
   const actionName = 'updateApartment';
-  const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    console.error('User not authenticated for update:', userError);
-    return { error: 'Benutzer nicht authentifiziert.' };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { error: authError.message };
   }
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
 
@@ -271,9 +269,12 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
  */
 export async function loescheWohnung(id: string) {
   const actionName = 'deleteApartment';
-  const supabase = await createClient();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) return { error: "Nicht authentifiziert" };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { error: authError.message };
+  }
   logAction(actionName, 'start', { apartment_id: id });
 
   try {

@@ -93,10 +93,11 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     }
 
     return { success: true, data: dbResponse.data };
-  } catch (error: any) {
-    logAction(actionName, 'error', { finance_id: id, error_message: error.message });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { finance_id: id, error_message: errorMessage });
     console.error("Error in financeServerAction:", error);
-    return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -127,9 +128,10 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
 
     revalidatePath("/finanzen");
     return { success: true, data };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in toggleFinanceStatusAction:', error);
-    return { success: false, error: { message: error.message || 'Ein unerwarteter Fehler ist aufgetreten.' } };
+    const errorMessage = error instanceof Error ? error.message : 'Ein unerwarteter Fehler ist aufgetreten.';
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -153,8 +155,9 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
 
     return { success: true };
 
-  } catch (e: any) { // Using unknown for better type safety with instanceof
+  } catch (e: unknown) {
     console.error("Unexpected error in deleteFinanceAction:", e);
-    return { success: false, error: { message: e.message || "An unknown server error occurred" } };
+    const message = e instanceof Error ? e.message : "An unknown server error occurred";
+    return { success: false, error: { message } };
   }
 }

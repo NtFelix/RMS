@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import type { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/types";
 import { logAction } from '@/lib/logging-middleware';
@@ -14,10 +14,11 @@ type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
  * Falls back to individual queries if database function is not available
  */
 export async function getMeterForHausAction(hausId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
   const startTime = Date.now();
 
@@ -82,9 +83,10 @@ Context: ${JSON.stringify({
         mieter: result.mieter || []
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in getMeterForHausAction:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -183,11 +185,12 @@ async function getMeterForHausFallback(
         mieter: (mieter || []) as unknown as MieterBasic[]
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in fallback queries:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      message: `Fallback-Fehler: ${error.message}`,
+      message: `Fallback-Fehler: ${errorMessage}`,
       data: { wohnungen: [], meters: [], readings: [], mieter: [] }
     };
   }
@@ -197,10 +200,11 @@ async function getMeterForHausFallback(
  * Fetch meter data for a specific apartment
  */
 export async function getZaehlerDataAction(wohnungId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -229,9 +233,10 @@ export async function getZaehlerDataAction(wohnungId: string) {
         readings: result.readings || []
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in getZaehlerDataAction:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -242,10 +247,11 @@ export const getWasserZaehlerDataAction = getZaehlerDataAction;
  * Fetch readings for a specific meter
  */
 export async function getAblesungenForZaehlerAction(zaehlerId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -273,9 +279,10 @@ export async function getAblesungenForZaehlerAction(zaehlerId: string) {
         readings: result.readings || []
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in getAblesungenForZaehlerAction:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -287,10 +294,11 @@ export const getWasserAblesenDataAction = getAblesungenForZaehlerAction;
  * Fetch readings for multiple meters
  */
 export async function getReadingsForMetersAction(meterIds: string[]) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -326,11 +334,13 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
  */
 export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
   const actionName = 'createMeter';
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    logAction(actionName, 'error', { error_message: 'Benutzer nicht authentifiziert.' });
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    const errorMessage = authError.message || 'Benutzer nicht authentifiziert.';
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage };
   }
   logAction(actionName, 'start', { apartment_id: data.wohnung_id });
 
@@ -358,9 +368,10 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
     });
 
     return { success: true, data: result };
-  } catch (error: any) {
-    logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: error.message });
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: errorMessage });
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -371,10 +382,11 @@ export const createWasserZaehler = createZaehler;
  * Update a meter
  */
 export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id' | 'user_id'>>) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -416,9 +428,10 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
     });
 
     return { success: true, data: result };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in updateZaehler:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -429,10 +442,11 @@ export const updateWasserZaehler = updateZaehler;
  * Delete a meter
  */
 export async function deleteZaehler(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -465,9 +479,10 @@ export async function deleteZaehler(id: string) {
 
     revalidatePath("/betriebskosten");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in deleteZaehler:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -478,10 +493,11 @@ export const deleteWasserZaehler = deleteZaehler;
  * Create a new reading
  */
 export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id'>) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -506,9 +522,10 @@ export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id
     });
 
     return { success: true, data: result };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in createAblesung:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -519,10 +536,11 @@ export const createWasserAblesung = createAblesung;
  * Update a reading
  */
 export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAblesung, 'id' | 'user_id'>>) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -549,9 +567,10 @@ export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAbles
     });
 
     return { success: true, data: result };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in updateAblesung:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -562,10 +581,11 @@ export const updateWasserAblesung = updateAblesung;
  * Delete a reading
  */
 export async function deleteAblesung(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -583,9 +603,10 @@ export async function deleteAblesung(id: string) {
 
     revalidatePath("/betriebskosten");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in deleteAblesung:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -596,10 +617,11 @@ export const deleteWasserAblesung = deleteAblesung;
  * Bulk create readings
  */
 export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' | 'user_id'>[]) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
   }
 
   try {
@@ -642,9 +664,10 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
     });
 
     return { success: true, data: result };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Unexpected error in bulkCreateAblesungen:", error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
