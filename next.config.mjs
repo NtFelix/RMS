@@ -43,7 +43,7 @@ const nextConfig = {
   outputFileTracingRoot: projectRoot,
   reactStrictMode: true,
   // swcMinify is now enabled by default in Next.js 15
-  productionBrowserSourceMaps: false,
+  productionBrowserSourceMaps: true,
   compress: true,
   poweredByHeader: false,
   // Avoid redirecting /assets/v2/ -> /assets/v2 which can break PostHog proxying
