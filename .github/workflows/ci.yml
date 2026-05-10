@@ -60,6 +60,28 @@ jobs:
       - name: Run TypeScript check
         run: npx tsc --noEmit
 
+  react-doctor:
+    name: React Doctor Audit
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Required for diffing branches
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run React Doctor
+        run: npx react-doctor@latest . --diff ${{ github.base_ref }}
+
   # ─── Detects whether UI-relevant files changed ───────────────────────────────
   # Runs in parallel with lint/type-check. Downstream visual jobs check its
   # output and skip entirely if no UI files changed — preserving PostHog baseline
