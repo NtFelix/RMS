@@ -85,9 +85,10 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logAction(actionName, 'error', { error_message: authError.message });
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 
   const payload = {
@@ -225,12 +226,13 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     }
 
     return { success: true, data: dbResponse.data as WohnungDbRecord };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', {
       apartment_id: id,
-      error_message: error.message
+      error_message: errorMessage
     });
     console.error("Error in wohnungServerAction:", error);
-    return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
+    return { success: false, error: { message: errorMessage } };
   }
 }

@@ -350,9 +350,10 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
     } else {
       return { success: false, message: "Nebenkosten not found." };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in getNebenkostenDetailsAction:", error);
-    return { success: false, message: error.message || "Failed to fetch Nebenkosten details." };
+    const message = error instanceof Error ? error.message : "Failed to fetch Nebenkosten details.";
+    return { success: false, message };
   }
 }
 
@@ -490,9 +491,10 @@ async function getPreviousWasserzaehlerRecordAction(
 
     return { success: true, data: null };
 
-  } catch (error: any) {
-    console.error('Unexpected error in getPreviousWasserzaehlerRecordAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected error:', errorMessage);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -653,9 +655,10 @@ export async function getBatchPreviousMeterReadingsAction(
 
     return { success: true, data: result };
 
-  } catch (error: any) {
-    console.error('Unexpected error in getBatchPreviousWasserzaehlerRecordsAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected error:', errorMessage);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -691,9 +694,10 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
 
     return { success: true, data: data as Rechnung[] };
 
-  } catch (error: any) {
-    console.error('Unexpected error in getRechnungenForNebenkostenAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected error:', errorMessage);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -1073,8 +1077,8 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
 
     return { success: true, data: transformedData };
 
-  } catch (error: any) {
-    logger.error('Unexpected error in fetchNebenkostenListOptimized', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in fetchNebenkostenListOptimized', error instanceof Error ? error : new Error(String(error)), {
       operation: 'fetchNebenkostenListOptimized'
     });
 
@@ -1082,13 +1086,10 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
       error,
       'Laden der Betriebskosten-Liste'
     );
-
-    return {
-      success: false,
-      message: userMessage
-    };
+    return { success: false, message: userMessage };
   }
-}
+  }
+
 
 /**
  * Optimized server action to fetch all Wasserzähler modal data in a single database call
@@ -1146,7 +1147,13 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
 export async function getLatestBetriebskostenByHausId(hausId: string) {
   "use server";
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
+  }
 
   try {
     // First, get the latest Nebenkosten ID for the house
@@ -1154,6 +1161,7 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
       .from("Nebenkosten")
       .select('id')
       .eq('haeuser_id', hausId)
+      .eq('user_id', user.id)
       .order('enddatum', { ascending: false })
       .limit(1)
       .single();
