@@ -301,3 +301,16 @@ jobs:
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
           || true
 
+      - name: Generate PostHog Visual Review Summary
+        if: always() && steps.vr-run.outputs.run-id != ''
+        run: |
+          REVIEW_URL="https://eu.posthog.com/project/76914/visual_review/runs/${{ steps.vr-run.outputs.run-id }}"
+          echo "### 🎨 PostHog Visual Review" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Visual snapshots have been submitted and are being processed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔍 **[Review Visual Changes on PostHog]($REVIEW_URL)**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> _Note: Processing usually takes 1-2 minutes. If the link shows 'Processing', please refresh after a moment._" >> $GITHUB_STEP_SUMMARY
+
+
