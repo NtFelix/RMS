@@ -21,7 +21,8 @@
         "@typescript-eslint/parser": "^6.21.0",
         "eslint": "^8.0.0",
         "typescript": "^5.0.0",
-        "vitest": "^3.2.4",
+        "vite": "^8.0.11",
+        "vitest": "^4.1.5",
         "wrangler": "^4.90.0"
     },
     "dependencies": {
