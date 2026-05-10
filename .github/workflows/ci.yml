@@ -288,29 +288,56 @@ jobs:
             --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }}
 
-      - name: Trigger PostHog diff processing (fire and forget)
+      - name: Wait for PostHog diff processing
         if: always() && steps.vr-run.outputs.run-id != ''
-        continue-on-error: true
-        # `run complete` makes a single API call to tell PostHog "all uploads done,
-        # start processing". That call takes ~5–10s. After it fires, PostHog processes
-        # asynchronously. We give 30s total then exit — we do NOT wait for the result.
+        id: vr-complete
+        # We now wait for completion since we reduced the image count to 44 (Chromium only).
+        # We capture the output to parse the summary for the GitHub Action summary.
+        # timeout 300 is a safety net (5 mins). || true ensures we still generate the summary.
         run: |
-          timeout 30 npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
             --baseline playwright/snapshots.yml \
-            --token ${{ secrets.POSTHOG_VR_TOKEN }} \
-          || true
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee vr-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Generate PostHog Visual Review Summary
         if: always() && steps.vr-run.outputs.run-id != ''
         run: |
           REVIEW_URL="https://eu.posthog.com/project/76914/visual_review/runs/${{ steps.vr-run.outputs.run-id }}"
+          
+          # Extract summary stats from the log if they exist
+          STATS=$(grep "Done:" vr-output.txt || true)
+          
           echo "### 🎨 PostHog Visual Review" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Visual snapshots have been submitted and are being processed." >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "$STATS" ]; then
+            # Format: [run:...] Done: 44 snapshots — 44 unchanged, 0 changed, 0 new, 0 removed
+            SUMMARY=$(echo "$STATS" | sed 's/.*Done: //')
+            echo "✅ **Processing Complete**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Result: $SUMMARY" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏳ **Processing Timed Out / Interrupted**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The diff engine is still working or encountered an issue. Please check the dashboard manually." >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔍 **[Review Visual Changes on PostHog]($REVIEW_URL)**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> _Note: Processing usually takes 1-2 minutes. If the link shows 'Processing', please refresh after a moment._" >> $GITHUB_STEP_SUMMARY
+          
+          # If changes were detected, we want to inform the user clearly
+          if grep -q "Visual changes detected" vr-output.txt; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> [!IMPORTANT]" >> $GITHUB_STEP_SUMMARY
+            echo "> **Visual regressions or new snapshots detected.** Please review and approve them in PostHog to update the baseline." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Fail the step if visual changes were detected (CLI returned 1)
+          if [ "${{ steps.vr-complete.outputs.exit_code }}" == "1" ]; then
+             echo "Visual changes detected. Review required."
+             exit 1
+          fi
+
 
 
