@@ -234,7 +234,7 @@ jobs:
           STRIPE_SECRET_KEY: mock-stripe-key
 
       - name: Run Playwright visual tests
-        run: npx playwright test --grep @visual --reporter=list
+        run: npx playwright test --project=chromium --grep @visual --reporter=list
         env:
           BASE_URL: http://localhost:3000
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
