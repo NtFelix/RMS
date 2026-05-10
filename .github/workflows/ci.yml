@@ -1,0 +1,346 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
+  pull_request:
+    paths-ignore:
+      - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ─── Always runs on every PR ─────────────────────────────────────────────────
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run ESLint
+        run: npm run lint
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+  # ─── Detects whether UI-relevant files changed ───────────────────────────────
+  # Runs in parallel with lint/type-check. Downstream visual jobs check its
+  # output and skip entirely if no UI files changed — preserving PostHog baseline
+  # integrity (partial submissions would corrupt the baseline comparison).
+
+  check-visual-run:
+    name: Check for Visual Run
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      should-run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for relevant file changes
+        id: filter
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E \
+            '^(app|components|lib|hooks|public|styles|playwright)/|\.css$|playwright\.config\.ts$' \
+            || true)
+
+          if [ -n "$CHANGED" ]; then
+            echo "Relevant files changed:"
+            echo "$CHANGED"
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "No relevant files changed — skipping visual review"
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ─── Only runs when UI files changed ─────────────────────────────────────────
+
+  install-playwright:
+    name: Install Playwright Browsers
+    runs-on: ubuntu-latest
+    needs: check-visual-run
+    if: needs.check-visual-run.outputs.should-run == 'true'
+    outputs:
+      playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Generate Playwright cache key
+        id: playwright-key
+        run: echo "key=${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
+
+  build-app:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: check-visual-run
+    if: needs.check-visual-run.outputs.should-run == 'true'
+    outputs:
+      build-cache-key: ${{ steps.build-key.outputs.key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Generate build cache key
+        id: build-key
+        run: |
+          SOURCE_HASH=$(find app components lib hooks types public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.css" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
+          echo "key=${{ runner.os }}-nextjs-build-${SOURCE_HASH}-${{ hashFiles('**/package-lock.json', 'next.config.*', 'tsconfig.json', 'tailwind.config.*') }}" >> $GITHUB_OUTPUT
+
+      - name: Restore build cache
+        id: build-cache
+        uses: actions/cache@v5
+        with:
+          path: .next
+          key: ${{ steps.build-key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-
+
+      - name: Build Next.js app
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        run: npm run build
+        env:
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+
+      - name: Save build cache
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: .next
+          key: ${{ steps.build-key.outputs.key }}
+
+  visual-review:
+    name: Visual Review (PostHog)
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, check-visual-run, install-playwright, build-app]
+    if: needs.check-visual-run.outputs.should-run == 'true'
+    steps:
+      # Checkout the branch tip by ref name (not SHA) so re-runs always get
+      # the latest commit on the branch, not the stale SHA from the original trigger.
+      - name: Checkout (latest branch tip)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Restore Playwright browsers
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ needs.install-playwright.outputs.playwright-cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps
+
+      - name: Restore build cache
+        id: restore-build
+        uses: actions/cache/restore@v5
+        with:
+          path: .next
+          key: ${{ needs.build-app.outputs.build-cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-
+
+      # Rebuild if cache missed (e.g. on a re-run after new commits)
+      - name: Build Next.js app (cache miss fallback)
+        if: steps.restore-build.outputs.cache-hit != 'true'
+        run: npm run build
+        env:
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+
+      - name: Run Playwright visual tests
+        run: npx playwright test --project=chromium --grep @visual --reporter=list
+        env:
+          BASE_URL: http://localhost:3000
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        continue-on-error: true
+
+      - name: Install PostHog Visual Review CLI
+        if: always()
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/PostHog/posthog.git /tmp/posthog
+          cd /tmp/posthog
+          git sparse-checkout set products/visual_review/cli
+          cd products/visual_review/cli
+          npm ci
+
+      # Use the shard-based flow (run create → upload → complete) instead of the
+      # monolithic `submit` command. This lets us fire the completeRun API call
+      # (which triggers PostHog's diff processing) and immediately exit without
+      # waiting for the diff result. PostHog processes asynchronously in the background.
+      # The diff result is visible in the PostHog dashboard regardless.
+
+      - name: Create PostHog Visual Review run
+        if: always()
+        id: vr-run
+        # `run create` writes only the run ID to stdout (all logs go to stderr).
+        run: |
+          RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
+            --type playwright \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} \
+            --branch ${{ github.event.pull_request.head.ref }} \
+            --commit $(git rev-parse HEAD) \
+            --pr ${{ github.event.pull_request.number }})
+          echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Created PostHog VR run: $RUN_ID"
+
+      - name: Upload snapshots to PostHog Visual Review
+        if: always() && steps.vr-run.outputs.run-id != ''
+        run: |
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run upload \
+            --run-id ${{ steps.vr-run.outputs.run-id }} \
+            --dir playwright/__snapshots__ \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }}
+
+      - name: Wait for PostHog diff processing
+        if: always() && steps.vr-run.outputs.run-id != ''
+        id: vr-complete
+        # We now wait for completion since we reduced the image count to 44 (Chromium only).
+        # We capture the output to parse the summary for the GitHub Action summary.
+        # timeout 300 is a safety net (5 mins). || true ensures we still generate the summary.
+        run: |
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
+            --run-id ${{ steps.vr-run.outputs.run-id }} \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee vr-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Generate PostHog Visual Review Summary
+        if: always() && steps.vr-run.outputs.run-id != ''
+        run: |
+          REVIEW_URL="https://eu.posthog.com/project/76914/visual_review/runs/${{ steps.vr-run.outputs.run-id }}"
+          
+          # Extract summary stats from the log if they exist
+          STATS=$(grep "Done:" vr-output.txt || true)
+          
+          echo "### 🎨 PostHog Visual Review" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "$STATS" ]; then
+            # Format: [run:...] Done: 44 snapshots — 44 unchanged, 0 changed, 0 new, 0 removed
+            SUMMARY=$(echo "$STATS" | sed 's/.*Done: //')
+            echo "✅ **Processing Complete**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Result: $SUMMARY" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏳ **Processing Timed Out / Interrupted**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The diff engine is still working or encountered an issue. Please check the dashboard manually." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔍 **[Review Visual Changes on PostHog]($REVIEW_URL)**" >> $GITHUB_STEP_SUMMARY
+          
+          # If changes were detected, we want to inform the user clearly
+          if grep -q "Visual changes detected" vr-output.txt; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> [!IMPORTANT]" >> $GITHUB_STEP_SUMMARY
+            echo "> **Visual regressions or new snapshots detected.** Please review and approve them in PostHog to update the baseline." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Fail the step if visual changes were detected (CLI returned 1)
+          if [ "${{ steps.vr-complete.outputs.exit_code }}" == "1" ]; then
+             echo "Visual changes detected. Review required."
+             exit 1
+          fi
+
+
+
