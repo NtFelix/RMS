@@ -77,9 +77,10 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logAction(actionName, "error", { error_message: authError.message });
-    return { success: false, message: authError.message, data: null };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage, data: null };
   }
 
   const preparedData = {
@@ -112,9 +113,10 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logAction(actionName, "error", { error_message: authError.message });
-    return { success: false, message: authError.message, data: null };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage, data: null };
   }
 
   const { data, error } = await supabase
@@ -142,9 +144,10 @@ export async function deleteNebenkosten(id: string) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logAction(actionName, 'error', { error_message: authError.message });
-    return { success: false, message: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage };
   }
 
   const { error } = await supabase
@@ -177,9 +180,11 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, count: 0, message: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage, data: [] };
   }
+
 
   try {
     // Use in_ operator to delete multiple records in a single query
@@ -213,9 +218,10 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     console.error("User not authenticated for createRechnungenBatch");
-    return { success: false, message: authError.message, data: null };
+    return { success: false, message: errorMessage, data: null };
   }
 
   const dataWithUserId = rechnungen.map(rechnung => ({
@@ -280,9 +286,10 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     console.error("User not authenticated for deleteRechnungenByNebenkostenId");
-    return { success: false, message: authError.message };
+    return { success: false, message: errorMessage };
   }
 
   const { error } = await supabase
@@ -311,8 +318,9 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
     let user, supabase;
     try {
       ({ user, supabase } = await ensureAuth());
-    } catch (authError: any) {
-      return { success: false, message: authError.message };
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, message: errorMessage };
     }
     const { data, error } = await supabase
       .from("Nebenkosten")
@@ -378,8 +386,9 @@ async function getPreviousWasserzaehlerRecordAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
   try {
     // Get tenant data
@@ -589,8 +598,9 @@ export async function getBatchPreviousMeterReadingsAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
   try {
     const result: Record<string, Wasserzaehler | null> = {};
@@ -663,8 +673,9 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
   try {
     const { data, error } = await supabase
@@ -703,8 +714,9 @@ export async function getWasserzaehlerByHausAndYearAction(
     let user;
     try {
       ({ user } = await ensureAuth());
-    } catch (authError: any) {
-      return { success: false, message: authError.message };
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, message: errorMessage };
     }
     const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
 
@@ -739,8 +751,9 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   const results = [];
@@ -785,7 +798,7 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
   // 3. Handle legacy entries (without meter ID) - Resolve Meter ID individually
   if (entriesWithoutId.length > 0) {
     // Collect all mieter IDs to fetch apartments in batch
-    const mieterIds = [...new Set(entriesWithoutId.map(e => e.mieter_id))];
+    const mieterIds = Array.from(new Set(entriesWithoutId.map(e => e.mieter_id)));
 
     // Batch fetch apartment IDs for these tenants
     const { data: mieters, error: mieterError } = await supabase
@@ -1006,9 +1019,12 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logger.warn('Unauthenticated access attempt to fetchNebenkostenListOptimized');
-    return { success: false, message: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt', {
+      error_message: errorMessage
+    });
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -1208,12 +1224,12 @@ export async function getMeterModalDataAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logger.warn('Unauthenticated access attempt to getWasserzaehlerModalDataAction', {
-      nebenkostenId,
-      operation: 'getWasserzaehlerModalDataAction'
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt', {
+      error_message: errorMessage
     });
-    return { success: false, message: authError.message };
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -1644,12 +1660,12 @@ export async function getAbrechnungModalDataAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logger.warn('Unauthenticated access attempt to getAbrechnungModalDataAction', {
-      nebenkostenId,
-      operation: 'getAbrechnungModalDataAction'
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt', {
+      error_message: errorMessage
     });
-    return { success: false, message: authError.message };
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -2044,12 +2060,14 @@ export async function createAbrechnungCalculationAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logger.warn('Unauthenticated access attempt to createAbrechnungCalculationAction', {
       nebenkostenId,
-      operation: 'createAbrechnungCalculationAction'
+      operation: 'createAbrechnungCalculationAction',
+      error_message: errorMessage
     });
-    return { success: false, message: authError.message };
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -2260,12 +2278,14 @@ export async function createAbrechnungCalculationOptimizedAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logger.warn('Unauthenticated access attempt to createAbrechnungCalculationOptimizedAction', {
       nebenkostenId,
-      operation: 'createAbrechnungCalculationOptimizedAction'
+      operation: 'createAbrechnungCalculationOptimizedAction',
+      error_message: errorMessage
     });
-    return { success: false, message: authError.message };
+    return { success: false, message: errorMessage };
   }
 
   try {
