@@ -19,6 +19,27 @@ async function disableAnimations(page: Page) {
   });
 }
 
+/**
+ * Scrolls the page from top to bottom incrementally to trigger lazy-loaded images
+ * and scroll-based animations (like Intersection Observers).
+ */
+async function triggerScrollAnimations(page: Page) {
+  await page.evaluate(async () => {
+    const scrollHeight = document.body.scrollHeight;
+    const viewportHeight = window.innerHeight;
+    
+    // Scroll down in chunks to ensure all observers fire
+    for (let i = 0; i < scrollHeight; i += viewportHeight / 2) {
+      window.scrollTo(0, i);
+      // Small delay to let JS execution and observers catch up
+      await new Promise(r => setTimeout(r, 50));
+    }
+    // Scroll back to the top
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 100));
+  });
+}
+
 // Ensure snapshot directory exists
 const snapshotDir = path.join(__dirname, '__snapshots__');
 
@@ -80,6 +101,9 @@ for (const theme of themes) {
           document.documentElement.classList.toggle('light', t === 'light');
         }, theme);
 
+        // Scroll the page to trigger all animations
+        await triggerScrollAnimations(page);
+
         // Wait for the page to be fully settled
         await page.waitForLoadState('networkidle');
         // Wait for footer as a signal that the long page has rendered
@@ -119,6 +143,9 @@ for (const theme of themes) {
           document.documentElement.classList.toggle('dark', t === 'dark');
           document.documentElement.classList.toggle('light', t === 'light');
         }, theme);
+
+        // Scroll the page to trigger all animations
+        await triggerScrollAnimations(page);
 
         await page.waitForLoadState('networkidle');
         
