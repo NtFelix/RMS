@@ -8,6 +8,9 @@ import {
   createSetupIntent as createSetupIntentAction,
   getBillingAddress as getBillingAddressAction,
   updateBillingAddress as updateBillingAddressAction,
+  type BillingAddress,
+  type BillingAddressError,
+  type UpdateBillingAddressParams,
 } from './user-billing-actions';
 
 // Define the expected return type for clarity, similar to UserProfileWithSubscription
@@ -93,19 +96,19 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 
 export async function getBillingAddress(
   stripeCustomerId: string
-): Promise<any> {
+): Promise<BillingAddress | BillingAddressError> {
   return getBillingAddressAction(stripeCustomerId);
 }
 
 export async function updateBillingAddress(
   stripeCustomerId: string,
-  details: Parameters<typeof updateBillingAddressAction>[1],
-): Promise<any> {
+  details: UpdateBillingAddressParams,
+): Promise<{ success: boolean; error?: string }> {
   return updateBillingAddressAction(stripeCustomerId, details);
 }
 
 export async function createSetupIntent(
   stripeCustomerId: string
-): Promise<any> {
+): Promise<{ clientSecret: string } | { error: string }> {
   return createSetupIntentAction(stripeCustomerId);
 }

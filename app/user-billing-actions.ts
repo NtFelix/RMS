@@ -17,7 +17,7 @@ function getStripe(): Stripe {
   return stripeClient;
 }
 
-type BillingAddressError = {
+export type BillingAddressError = {
   error: string;
   details?: string;
 };
@@ -41,7 +41,7 @@ export interface BillingAddress {
   phone?: string | null;
 }
 
-interface UpdateBillingAddressParams {
+export interface UpdateBillingAddressParams {
   name: string;
   address: {
     line1: string;
