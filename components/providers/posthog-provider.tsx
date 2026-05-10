@@ -238,25 +238,12 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
 
 export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
-
     const checkPostHogReady = async () => {
       if (posthog.__loaded) return;
-
       await initializePostHog(nonce);
-
-      if (!posthog.__loaded) {
-        timeoutId = setTimeout(() => {
-          // Just an initialization check
-        }, 1000);
-      }
     };
 
     checkPostHogReady();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
   }, [nonce]);
 
   return (

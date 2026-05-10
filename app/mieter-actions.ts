@@ -104,16 +104,17 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
 
 export async function deleteTenantAction(tenantId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
-    let supabase;
+    let user, supabase;
     try {
-      ({ supabase } = await ensureAuth());
+      ({ user, supabase } = await ensureAuth());
     } catch (authError: any) {
       return { success: false, error: { message: authError.message } };
     }
     const { error } = await supabase
       .from("Mieter")
       .delete()
-      .eq("id", tenantId);
+      .eq("id", tenantId)
+      .eq("user_id", user.id);
 
     if (error) {
       console.error("Error deleting tenant from Supabase:", error);
@@ -315,9 +316,9 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
 }
 
 export async function updateTenantApartment(tenantId: string, apartmentId: string): Promise<{ success: boolean; error?: { message: string } }> {
-  let supabase;
+  let user, supabase;
   try {
-    ({ supabase } = await ensureAuth());
+    ({ user, supabase } = await ensureAuth());
   } catch (authError: any) {
     return { success: false, error: { message: authError.message } };
   }
@@ -326,7 +327,8 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
     const { error } = await supabase
       .from('Mieter')
       .update({ wohnung_id: apartmentId || null })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error updating tenant apartment:', error);
