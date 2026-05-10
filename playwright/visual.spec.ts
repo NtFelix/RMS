@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import { login, acceptCookieConsent } from '../e2e/utils';
 import path from 'path';
 import fs from 'fs';
