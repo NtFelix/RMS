@@ -3,6 +3,22 @@ import { login, acceptCookieConsent } from '../e2e/utils';
 import path from 'path';
 import fs from 'fs';
 
+/**
+ * Disables all CSS transitions and animations to ensure deterministic screenshots.
+ * This prevents "ghosting" diffs caused by capturing a UI mid-transition.
+ */
+async function disableAnimations(page: Page) {
+  await page.addStyleTag({
+    content: `
+      *, *::before, *::after {
+        transition-property: none !important;
+        transform: none !important;
+        animation: none !important;
+      }
+    `,
+  });
+}
+
 // Ensure snapshot directory exists
 const snapshotDir = path.join(__dirname, '__snapshots__');
 
@@ -56,6 +72,7 @@ for (const theme of themes) {
         await page.goto(pathStr);
         await page.waitForLoadState('networkidle');
         await acceptCookieConsent(page);
+        await disableAnimations(page);
 
         // Force the theme using classList.toggle
         await page.evaluate((t) => {
@@ -95,6 +112,7 @@ for (const theme of themes) {
       test(`Dashboard Page: ${pathStr}`, async ({ page }, testInfo) => {
         await page.goto(pathStr);
         await page.waitForLoadState('networkidle');
+        await disableAnimations(page);
 
         // Force the theme using classList.toggle
         await page.evaluate((t) => {
