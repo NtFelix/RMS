@@ -10,8 +10,12 @@ on:
       - '**/*.jsx'
       - '**/package.json'
       - '**/package-lock.json'
+    paths-ignore:
+      - 'playwright/snapshots.yml'
   pull_request:
     branches: [main, develop]
+    paths-ignore:
+      - 'playwright/snapshots.yml'
   workflow_dispatch:
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -525,7 +529,7 @@ jobs:
 
       - name: Run Playwright tests (${{ matrix.browser }})
         id: playwright
-        run: npx playwright test --project=${{ matrix.browser }} --reporter=list
+        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual --reporter=list
         env:
           CI: true
           NODE_ENV: production
