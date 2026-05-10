@@ -8,7 +8,11 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - 'playwright/snapshots.yml'
   pull_request:
+    paths-ignore:
+      - 'playwright/snapshots.yml'
 
 env:
   NODE_VERSION: '22'
