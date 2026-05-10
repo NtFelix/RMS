@@ -12,12 +12,6 @@ export async function searchMailSenders(query: string) {
 
     if (!query || query.length < 2) return [];
 
-    // Assuming 'absender' is the column name in Mail_Metadaten
-    // We use .ilike for case-insensitive search and .limit so we don't fetch too many
-    // Ideally we want distinct senders, but Supabase/PostgREST distinct is a bit tricky with unrelated columns.
-    // We'll fetch a bunch and dedup in JS for now if the table isn't huge, or ideally use a .rpc if performance is an issue.
-    // For now, let's just fetch recent matches.
-
     const { data, error } = await supabase
         .from('Mail_Metadaten')
         .select('absender')
@@ -30,7 +24,6 @@ export async function searchMailSenders(query: string) {
         return [];
     }
 
-    // Deduplicate results
     const uniqueSenders = Array.from(new Set(data.map(d => d.absender))).filter(Boolean);
     return uniqueSenders;
 }
@@ -53,7 +46,6 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
         query = query.gte('datum_erhalten', startDate.toISOString());
     }
     if (endDate) {
-        // Set end date to end of day
         const endOfDay = new Date(endDate);
         endOfDay.setHours(23, 59, 59, 999);
         query = query.lte('datum_erhalten', endOfDay.toISOString());
@@ -81,7 +73,6 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
         return { success: false, error: "No mails provided" };
     }
 
-    // Process in chunks to avoid any potential batch size limits on insert
     const CHUNK_SIZE = 100;
     let successCount = 0;
     const errors: string[] = [];
@@ -93,9 +84,7 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             let name = mail.absender;
             const emailMatch = mail.absender.match(/<([^>]+)>/);
             if (emailMatch) {
-                // If there's an email in angle brackets, take the part before it as the name.
                 name = mail.absender.substring(0, emailMatch.index).trim();
-                // Remove quotes if the name is wrapped in them.
                 if (name.startsWith('"') && name.endsWith('"')) {
                     name = name.substring(1, name.length - 1);
                 }
@@ -107,7 +96,6 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 status: 'bewerber',
                 bewerbung_mail_id: mail.id,
                 user_id: userId,
-                // bewerbung_metadaten left empty for now, to be filled by AI later
             };
         });
 
@@ -127,18 +115,16 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 
     if (errors.length > 0) {
         return {
-            success: successCount > 0, // Partial success
+            success: successCount > 0,
             count: successCount,
             error: `Import partially failed: ${errors.join(', ')}`
         };
     }
 
-    // Queue Processing & Kickoff - ALWAYS queue mails with dateipfad
     const mailsWithContent = mails.filter(mail => mail.dateipfad);
 
     if (mailsWithContent.length > 0) {
         try {
-            // Queue mails in smaller batches to avoid fetch timeouts
             const PGMQ_BATCH_SIZE = 10;
             const queueResults = [];
 
@@ -159,7 +145,6 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 queueResults.push(...batchResults);
             }
 
-            // Debugging: Check for RPC errors
             const failedSends = queueResults.filter(r => r.error);
             if (failedSends.length > 0) {
                 const msg = "PGMQ Send Errors: " + JSON.stringify(failedSends.map(r => r.error));
@@ -174,7 +159,6 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 posthogLogger.info('Applicants Queued', { count: queueResults.length });
             }
 
-            // Kickoff first Worker call
             const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
             let workerAuthKey = process.env.WORKER_AUTH_KEY;
 
@@ -202,11 +186,6 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 }
             } catch (e: any) {
                 console.error("Worker fetch failed:", e);
-                // We don't necessarily want to fail the whole import if just the kickoff failed,
-                // but we should probably let the user know.
-                // Since this is the very last step, adding to errors might be confusing if success is true.
-                // But the user prompt suggested returning a specific error.
-                // The outer catch block pushes to errors. Rethrowing here will do that.
                 throw new Error("AI Processing kickoff failed: " + e.message);
             }
 
@@ -235,6 +214,13 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 }
 
 export async function checkWorkerQueueStatus(userId: string) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user || user.id !== userId) {
+        return { hasMore: false, error: "Unauthorized" };
+    }
+
     const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
     let workerAuthKey = process.env.WORKER_AUTH_KEY;
 

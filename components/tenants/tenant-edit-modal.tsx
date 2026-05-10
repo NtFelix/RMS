@@ -327,14 +327,13 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 onClick={convertToTenant}
                 className="hidden sm:flex"
               >
-                <BadgeCheck className="mr-2 h-4 w-4" />
+                <BadgeCheck className="mr-2 size-4" />
                 Als Mieter übernehmen
               </Button>
             )}
           </div>
         </DialogHeader>
-        <form onSubmit={async e => {
-          e.preventDefault();
+        <form action={async (formDataFromAction: FormData) => {
           setIsSubmitting(true);
 
           let currentNkErrors: Record<string, { amount?: string; date?: string }> = {};
@@ -365,29 +364,28 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           }
 
           try {
-            const currentFormData = new FormData(e.currentTarget as HTMLFormElement); // Cast to HTMLFormElement
-
+            // We use formDataFromAction and supplement it
             // Only include nebenkosten if not applicant
             if (!isApplicant) {
               const finalNebenkostenEntries = nebenkostenEntries.filter(entry => entry.amount.trim() !== "");
-              currentFormData.set('nebenkosten', JSON.stringify(finalNebenkostenEntries));
+              formDataFromAction.set('nebenkosten', JSON.stringify(finalNebenkostenEntries));
             } else {
-              currentFormData.set('nebenkosten', JSON.stringify([]));
+              formDataFromAction.set('nebenkosten', JSON.stringify([]));
             }
 
-            if (formData.wohnung_id) currentFormData.set('wohnung_id', formData.wohnung_id);
-            else currentFormData.set('wohnung_id', '');
+            if (formData.wohnung_id) formDataFromAction.set('wohnung_id', formData.wohnung_id);
+            else formDataFromAction.set('wohnung_id', '');
 
             // Explicitly set status from state
-            currentFormData.set('status', formData.status);
+            formDataFromAction.set('status', formData.status);
 
             // Add id if editing
             if (tenantInitialData?.id) {
-              currentFormData.set('id', tenantInitialData.id);
+              formDataFromAction.set('id', tenantInitialData.id);
             }
 
             const tenantNameForToast = formData.name;
-            const result = await serverAction(currentFormData);
+            const result = await serverAction(formDataFromAction);
 
             if (result.success) {
               toast({
@@ -395,18 +393,15 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 description: `Die Daten des Mieters "${tenantNameForToast}" wurden erfolgreich ${tenantInitialData?.id ? "aktualisiert" : "erstellt"}.`,
                 variant: "success",
               });
-              setTenantModalDirty(false); // Reset dirty before closing
-              // No explicit onSuccess in store for tenant, rely on router.refresh and close.
+              setTenantModalDirty(false);
               useOnboardingStore.getState().completeStep('assign-tenant-form');
               closeTenantModal();
-              router.refresh(); // Refresh data on page
+              router.refresh();
             } else {
               toast({ title: "Fehler", description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.", variant: "destructive" });
-              // Don't reset dirty flag, error occurred
             }
           } catch (error: any) {
             toast({ title: "Unerwarteter Fehler", description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.", variant: "destructive" });
-            // Don't reset dirty flag, error occurred
           } finally {
             setIsSubmitting(false);
           }
