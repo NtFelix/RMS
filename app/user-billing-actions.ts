@@ -103,17 +103,18 @@ export async function getBillingAddress(
     const stripe = getStripe();
     const customer = await stripe.customers.retrieve(stripeCustomerId);
 
-    if ('deleted' in customer && customer.deleted) {
+    if (customer.deleted) {
       return { error: 'Customer not found' };
     }
 
     // Support fallback to legacy `business_name` mapping on customer object
-    const legacyCustomer = customer as Stripe.Customer & { business_name?: string };
-    const companyName = customer.metadata?.company_name || legacyCustomer.business_name || '';
+    const activeCustomer = customer as Stripe.Customer;
+    const legacyCustomer = activeCustomer as Stripe.Customer & { business_name?: string };
+    const companyName = activeCustomer.metadata?.company_name || legacyCustomer.business_name || '';
 
-    if (!customer.address) {
+    if (!activeCustomer.address) {
       return {
-        name: customer.name || '',
+        name: activeCustomer.name || '',
         companyName,
         address: {
           line1: '',
@@ -123,24 +124,24 @@ export async function getBillingAddress(
           postal_code: '',
           country: 'DE',
         },
-        email: customer.email || '',
-        phone: customer.phone || null,
+        email: activeCustomer.email || '',
+        phone: activeCustomer.phone || null,
       };
     }
 
     return {
-      name: customer.name || '',
+      name: activeCustomer.name || '',
       companyName,
       address: {
-        line1: customer.address.line1 || '',
-        line2: customer.address.line2 || null,
-        city: customer.address.city || '',
-        state: customer.address.state || null,
-        postal_code: customer.address.postal_code || '',
-        country: customer.address.country || 'DE',
+        line1: activeCustomer.address.line1 || '',
+        line2: activeCustomer.address.line2 || null,
+        city: activeCustomer.address.city || '',
+        state: activeCustomer.address.state || null,
+        postal_code: activeCustomer.address.postal_code || '',
+        country: activeCustomer.address.country || 'DE',
       },
-      email: customer.email || '',
-      phone: customer.phone || null,
+      email: activeCustomer.email || '',
+      phone: activeCustomer.phone || null,
     };
   } catch (error: unknown) {
     console.error('Error in getBillingAddress:', error);
