@@ -230,9 +230,9 @@ export async function getMieterByHausIdAction(
 }
 
 export async function updateKautionAction(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
-  let supabase;
+  let user, supabase;
   try {
-    ({ supabase } = await ensureAuth());
+    ({ user, supabase } = await ensureAuth());
   } catch (authError: any) {
     return { success: false, error: { message: authError.message } };
   }
