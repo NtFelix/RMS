@@ -10,9 +10,11 @@ on:
       - develop
     paths-ignore:
       - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
   pull_request:
     paths-ignore:
       - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
 
 env:
   NODE_VERSION: '22'
