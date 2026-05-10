@@ -18,9 +18,9 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logAction(actionName, 'error', { error_message: authError.message });
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -108,8 +108,9 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
     let user, supabase;
     try {
       ({ user, supabase } = await ensureAuth());
-    } catch (authError: any) {
-      return { success: false, error: { message: authError.message } };
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
     }
     const { error } = await supabase
       .from("Mieter")
@@ -153,8 +154,9 @@ export async function getMieterByHausIdAction(
   let supabase;
   try {
     ({ supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, error: authError.message, data: null };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: errorMessage, data: null };
   }
 
   // Validate date parameters if provided
@@ -235,8 +237,9 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -324,8 +327,9 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -357,8 +361,9 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -400,8 +405,9 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
     let user, supabase;
     try {
       ({ user, supabase } = await ensureAuth());
-    } catch (authError: any) {
-      return { success: false, error: { message: authError.message } };
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
     }
 
     const { error } = await supabase

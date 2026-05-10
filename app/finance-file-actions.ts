@@ -14,8 +14,9 @@ export async function getFinanceDocumentPath(
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch (authError: any) {
-        return { success: false, error: authError.message || "Nicht authentifiziert" };
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
     }
 
     const basePath = `user_${user.id}/Rechnungen`;
@@ -84,8 +85,9 @@ export async function getFinanceDocumentUrl(
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch (authError: any) {
-        return { success: false, error: authError.message || "Nicht authentifiziert" };
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
     }
 
     // Get document metadata
@@ -133,8 +135,9 @@ export async function deleteFinanceDocument(
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch (authError: any) {
-        return { success: false, error: authError.message || "Nicht authentifiziert" };
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
     }
 
     // Get document metadata first
@@ -193,8 +196,9 @@ export async function getFinanceDocumentInfo(
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch (authError: any) {
-        return { success: false, error: authError.message || "Nicht authentifiziert" };
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
     }
 
     const { data: dokument, error } = await supabase

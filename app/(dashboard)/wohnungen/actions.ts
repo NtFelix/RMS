@@ -32,8 +32,9 @@ export async function speichereWohnung(formData: WohnungFormData) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { error: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
   }
   logAction(actionName, 'start', { apartment_name: formData.name });
 
@@ -169,8 +170,9 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { error: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
   }
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
 
@@ -272,8 +274,9 @@ export async function loescheWohnung(id: string) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { error: authError.message };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
   }
   logAction(actionName, 'start', { apartment_id: id });
 

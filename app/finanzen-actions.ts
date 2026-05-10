@@ -26,9 +26,10 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logAction(actionName, 'error', { error_message: authError.message });
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 
   // Ensure betrag is a number and handle potential string input from forms
@@ -105,8 +106,9 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
   }
 
   try {

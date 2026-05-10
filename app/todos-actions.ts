@@ -30,8 +30,8 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    const errorMessage = authError.message || "Nicht authentifiziert";
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -104,8 +104,8 @@ export async function toggleTaskStatusAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    const errorMessage = authError.message || "Nicht authentifiziert";
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -154,8 +154,8 @@ export async function bulkUpdateTaskStatusesAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    const errorMessage = authError.message || "Nicht authentifiziert";
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -203,8 +203,8 @@ export async function bulkDeleteTasksAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    const errorMessage = authError.message || "Nicht authentifiziert";
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -240,8 +240,8 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    const errorMessage = authError.message || "Nicht authentifiziert";
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -280,8 +280,8 @@ export async function updateTaskDueDateAction(
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    const errorMessage = authError.message || "Nicht authentifiziert";
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }

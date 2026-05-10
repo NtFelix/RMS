@@ -22,9 +22,10 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    logAction(actionName, 'error', { error_message: authError.message });
-    return { success: false, error: { message: authError.message } };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 
   try {

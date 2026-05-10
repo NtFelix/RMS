@@ -2,11 +2,12 @@
 
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
+import { type SupabaseClient } from "@supabase/supabase-js";
 import type { Zaehler, ZaehlerAblesung, Wohnung, Mieter } from "@/lib/types";
 import { logAction } from '@/lib/logging-middleware';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
 
-type SupabaseClientType = Awaited<ReturnType<typeof createClient>>;
+type SupabaseClientType = SupabaseClient;
 
 /**
  * Fetch all meter data for a house
@@ -17,8 +18,9 @@ export async function getMeterForHausAction(hausId: string) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
   const startTime = Date.now();
 
@@ -203,8 +205,9 @@ export async function getZaehlerDataAction(wohnungId: string) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -250,8 +253,9 @@ export async function getAblesungenForZaehlerAction(zaehlerId: string) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -297,8 +301,9 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -337,8 +342,8 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    const errorMessage = authError.message || 'Benutzer nicht authentifiziert.';
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : 'Benutzer nicht authentifiziert.';
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, message: errorMessage };
   }
@@ -385,8 +390,9 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -445,8 +451,9 @@ export async function deleteZaehler(id: string) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -496,8 +503,9 @@ export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -539,8 +547,9 @@ export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAbles
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -584,8 +593,9 @@ export async function deleteAblesung(id: string) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -620,8 +630,9 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
-  } catch (authError: any) {
-    return { success: false, message: authError.message || "Benutzer nicht authentifiziert." };
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   try {
@@ -630,7 +641,7 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
       return { success: true, data: [] };
     }
 
-    const meterIds = [...new Set(readings.map(r => r.zaehler_id).filter((id): id is string => !!id))];
+    const meterIds = Array.from(new Set(readings.map(r => r.zaehler_id).filter((id): id is string => !!id)));
 
     const { data: meters, error: metersError } = await supabase
       .from("Zaehler")
@@ -641,8 +652,9 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
     if (metersError) throw metersError;
 
     const ownedMeterIds = new Set(meters?.map(m => m.id) || []);
-    const validReadings = readings.filter(r => ownedMeterIds.has(r.zaehler_id))
-      .map(r => ({ ...r, user_id: user.id }));
+    const validReadings = readings
+      .filter(r => ownedMeterIds.has(r.zaehler_id))
+      .map(r => ({ ...r, user_id: user.id } as ZaehlerAblesung));
 
     if (validReadings.length === 0) {
       return { success: false, message: "Keine gültigen Zähler gefunden, für die Sie berechtigt sind." };
