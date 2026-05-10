@@ -63,19 +63,19 @@ jobs:
   # output and skip entirely if no UI files changed — preserving PostHog baseline
   # integrity (partial submissions would corrupt the baseline comparison).
 
-  detect-changes:
-    name: Detect UI Changes
+  check-visual-run:
+    name: Check for Visual Run
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     outputs:
-      ui-changed: ${{ steps.filter.outputs.ui }}
+      should-run: ${{ steps.filter.outputs.run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Check for UI file changes
+      - name: Check for relevant file changes
         id: filter
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
@@ -86,12 +86,12 @@ jobs:
             || true)
 
           if [ -n "$CHANGED" ]; then
-            echo "UI files changed:"
+            echo "Relevant files changed:"
             echo "$CHANGED"
-            echo "ui=true" >> $GITHUB_OUTPUT
+            echo "run=true" >> $GITHUB_OUTPUT
           else
-            echo "No UI files changed — skipping visual review"
-            echo "ui=false" >> $GITHUB_OUTPUT
+            echo "No relevant files changed — skipping visual review"
+            echo "run=false" >> $GITHUB_OUTPUT
           fi
 
   # ─── Only runs when UI files changed ─────────────────────────────────────────
@@ -99,8 +99,8 @@ jobs:
   install-playwright:
     name: Install Playwright Browsers
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.ui-changed == 'true'
+    needs: check-visual-run
+    if: needs.check-visual-run.outputs.should-run == 'true'
     outputs:
       playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
     steps:
@@ -136,8 +136,8 @@ jobs:
   build-app:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.ui-changed == 'true'
+    needs: check-visual-run
+    if: needs.check-visual-run.outputs.should-run == 'true'
     outputs:
       build-cache-key: ${{ steps.build-key.outputs.key }}
     steps:
@@ -188,8 +188,8 @@ jobs:
   visual-review:
     name: Visual Review (PostHog)
     runs-on: ubuntu-latest
-    needs: [lint, type-check, detect-changes, install-playwright, build-app]
-    if: needs.detect-changes.outputs.ui-changed == 'true'
+    needs: [lint, type-check, check-visual-run, install-playwright, build-app]
+    if: needs.check-visual-run.outputs.should-run == 'true'
     steps:
       # Checkout the branch tip by ref name (not SHA) so re-runs always get
       # the latest commit on the branch, not the stale SHA from the original trigger.
