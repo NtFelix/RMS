@@ -176,6 +176,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         .from("Wohnungen")
         .update(fullPayload)
         .eq("id", id)
+        .eq("user_id", user.id)
         .select()
         .single();
     } else {

@@ -43,13 +43,13 @@ export function ApartmentTenantRowSkeleton({
             <div className="flex items-center gap-2">
               <Skeleton className="h-4 w-4" />
               <div className="text-right">
-                <Skeleton className="h-4 w-16 mb-1" />
-                <Skeleton className="h-3 w-12" />
+                <Skeleton className="size-46 mb-1" />
+                <Skeleton className="size-32" />
               </div>
             </div>
             <div className="flex gap-1">
               <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="size-86" />
             </div>
           </div>
         </div>
@@ -68,8 +68,8 @@ export function ApartmentTenantRowSkeletonCompact({ count = 3 }: { count?: numbe
             <Skeleton className="h-3 w-32" />
           </div>
           <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-5 w-16" />
+            <Skeleton className="size-46" />
+            <Skeleton className="size-56" />
           </div>
         </div>
       ))}

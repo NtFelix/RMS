@@ -714,7 +714,7 @@ export function AblesungenModal() {
               ) : ablesenList.length === 0 ? (
                 <Card className="bg-gray-50 dark:bg-[#22272e] border border-dashed border-gray-300 dark:border-gray-600 rounded-3xl">
                   <CardContent className="flex flex-col items-center justify-center p-8 text-center">
-                    <Gauge className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                    <Gauge className="size-12 text-muted-foreground/50 mb-3" />
                     <p className="text-sm text-muted-foreground">
                       Keine Ablesungen vorhanden
                     </p>
@@ -744,7 +744,7 @@ export function AblesungenModal() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getMeterBgColor(ablesungenModalData?.zaehlerTyp))}>
+                                    <div className={cn("size-10 rounded-full flex items-center justify-center", getMeterBgColor(ablesungenModalData?.zaehlerTyp))}>
                                       {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-5 w-5")}
                                     </div>
                                     <span className="text-sm font-medium text-muted-foreground">Bearbeiten</span>
@@ -856,7 +856,7 @@ export function AblesungenModal() {
                                 <div className="p-4">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", getMeterBgColor(ablesungenModalData?.zaehlerTyp))}>
+                                      <div className={cn("size-10 rounded-full flex items-center justify-center", getMeterBgColor(ablesungenModalData?.zaehlerTyp))}>
                                         {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-5 w-5")}
                                       </div>
                                       <div>

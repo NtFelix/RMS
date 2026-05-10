@@ -139,29 +139,17 @@ async function getMeterForHausFallback(
       };
     }
 
-    const { data: meters, error: metersError } = await supabase
-      .from("Zaehler")
-      .select("*")
-      .in("wohnung_id", wohnungIds)
-      .eq("user_id", userId)
-      .order('custom_id', { ascending: true });
-
-    if (metersError) throw metersError;
-
-    const meterIds = meters?.map((m: Zaehler) => m.id) || [];
-
+    // Parallelize meters and mieter fetch
     const [
-      { data: readings, error: readingsError },
+      { data: meters, error: metersError },
       { data: mieter, error: mieterError }
     ] = await Promise.all([
-      meterIds.length > 0
-        ? supabase
-          .from("Zaehler_Ablesungen")
-          .select("*")
-          .in("zaehler_id", meterIds)
-          .eq("user_id", userId)
-          .order('ablese_datum', { ascending: false })
-        : { data: null, error: null },
+      supabase
+        .from("Zaehler")
+        .select("*")
+        .in("wohnung_id", wohnungIds)
+        .eq("user_id", userId)
+        .order('custom_id', { ascending: true }),
 
       supabase
         .from("Mieter")
@@ -171,8 +159,22 @@ async function getMeterForHausFallback(
         .order('name', { ascending: true })
     ]);
 
-    if (readingsError) throw readingsError;
+    if (metersError) throw metersError;
     if (mieterError) throw mieterError;
+
+    const meterIds = meters?.map((m: Zaehler) => m.id) || [];
+
+    // Fetch readings after we have meter IDs
+    const { data: readings, error: readingsError } = meterIds.length > 0
+      ? await supabase
+        .from("Zaehler_Ablesungen")
+        .select("*")
+        .in("zaehler_id", meterIds)
+        .eq("user_id", userId)
+        .order('ablese_datum', { ascending: false })
+      : { data: [], error: null };
+
+    if (readingsError) throw readingsError;
 
     return {
       success: true,
@@ -337,6 +339,19 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
+    // Verify apartment ownership
+    const { data: apartment, error: apartmentError } = await supabase
+      .from("Wohnungen")
+      .select("id")
+      .eq("id", data.wohnung_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (apartmentError || !apartment) {
+      logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: 'Wohnung nicht gefunden oder keine Berechtigung.' });
+      return { success: false, message: "Wohnung nicht gefunden oder keine Berechtigung." };
+    }
+
     const { data: result, error } = await supabase
       .from("Zaehler")
       .insert([{ ...data, user_id: user.id }])
@@ -485,6 +500,18 @@ export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    // Verify meter ownership
+    const { data: meter, error: meterError } = await supabase
+      .from("Zaehler")
+      .select("id")
+      .eq("id", data.zaehler_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (meterError || !meter) {
+      return { success: false, message: "Zähler nicht gefunden oder keine Berechtigung." };
     }
 
     const { data: result, error } = await supabase

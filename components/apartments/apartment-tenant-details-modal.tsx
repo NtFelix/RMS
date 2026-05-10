@@ -417,7 +417,7 @@ export function ApartmentTenantDetailsModal() {
               ) : (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center space-y-4 p-8">
-                    <User className="h-12 w-12 text-muted-foreground" />
+                    <User className="size-12 text-muted-foreground" />
                     <div className="text-center space-y-2">
                       <h3 className="font-semibold">Keine Mieter</h3>
                       <p className="text-sm text-muted-foreground">
@@ -482,7 +482,7 @@ function ApartmentTenantDetailsSkeleton({
             <Skeleton className="h-4 w-24" />
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-6 w-16" />
+                <Skeleton key={i} className="size-66" />
               ))}
             </div>
           </div>
@@ -531,8 +531,8 @@ function ApartmentTenantDetailsSkeleton({
                     <Skeleton className="h-3 w-32" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="size-46" />
+                    <Skeleton className="size-56" />
                   </div>
                 </div>
               ))}
@@ -558,7 +558,7 @@ function ErrorState({
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-6">
       <div className="p-4 rounded-full bg-red-50">
-        <AlertCircle className="h-12 w-12 text-red-500" />
+        <AlertCircle className="size-12 text-red-500" />
       </div>
       <div className="text-center space-y-3 max-w-md">
         <h3 className="text-lg font-semibold text-gray-900">Fehler beim Laden</h3>

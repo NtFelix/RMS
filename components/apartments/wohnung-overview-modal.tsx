@@ -37,6 +37,185 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Enhanced loading skeleton component with progress indicator
+const LoadingSkeleton = ({ isSlowLoading, loadingProgress }: { isSlowLoading: boolean, loadingProgress: number }) => (
+  <div className="space-y-6">
+    {/* Progress indicator for slow loading */}
+    {isSlowLoading && (
+      <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="flex items-center gap-2 text-blue-700">
+          <Clock className="h-4 w-4" />
+          <span className="text-sm font-medium">Mieter-Daten werden geladen…</span>
+        </div>
+        <Progress value={loadingProgress} className="h-2" />
+        <p className="text-xs text-blue-600">
+          Dies kann bei umfangreichen Mieter-Historien etwas dauern.
+        </p>
+      </div>
+    )}
+
+    {/* Summary cards skeleton */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <SummaryCardSkeleton title="Wohnungsgröße" icon={<Ruler className="h-5 w-5 text-muted-foreground" />} />
+      <SummaryCardSkeleton title="Monatsmiete" icon={<Euro className="h-5 w-5 text-muted-foreground" />} />
+      <SummaryCardSkeleton title="Mieter Status" icon={<Users className="h-5 w-5 text-muted-foreground" />} />
+      <SummaryCardSkeleton title="Belegung" icon={<Calendar className="h-5 w-5 text-muted-foreground" />} />
+    </div>
+
+    {/* Skeleton content */}
+    <div className="space-y-4">
+
+      {/* Table skeleton */}
+      <div className="rounded-md border">
+        <div className="p-4 border-b bg-gray-50">
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="size-46" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+        <div className="space-y-3 p-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center space-x-4">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-28" />
+              <div className="flex gap-1">
+                <Skeleton className="h-8 w-8" />
+                <Skeleton className="h-8 w-8" />
+                <Skeleton className="h-8 w-8" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Enhanced error state component
+const ErrorState = ({
+  wohnungOverviewError,
+  loadingStartTime,
+  onRetry,
+  onClose
+}: {
+  wohnungOverviewError?: string,
+  loadingStartTime: number | null,
+  onRetry: () => void,
+  onClose: () => void
+}) => (
+  <div className="flex flex-col items-center justify-center py-12 space-y-6">
+    <div className="p-4 rounded-full bg-red-50">
+      <AlertCircle className="size-12 text-red-500" />
+    </div>
+    <div className="text-center space-y-3 max-w-md">
+      <h3 className="text-lg font-semibold text-gray-900">Fehler beim Laden</h3>
+      <p className="text-sm text-gray-600 leading-relaxed">
+        {wohnungOverviewError || 'Die Wohnungs-Übersicht konnte nicht geladen werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'}
+      </p>
+      {loadingStartTime && (
+        <p className="text-xs text-gray-500">
+          Ladezeit überschritten (max. 2 Sekunden)
+        </p>
+      )}
+    </div>
+    <div className="flex flex-col sm:flex-row gap-3">
+      <Button onClick={onRetry} variant="outline" className="flex items-center gap-2">
+        <RefreshCw className="h-4 w-4" />
+        Erneut versuchen
+      </Button>
+      <Button
+        onClick={onClose}
+        variant="ghost"
+        className="text-gray-600"
+      >
+        Schließen
+      </Button>
+    </div>
+  </div>
+);
+
+// Summary cards component
+const SummaryCards = ({ data }: { data: any }) => {
+  if (!data) return null;
+
+  const activeTenants = data.mieter?.filter((m: any) => m.status === 'active').length || 0;
+  const totalTenants = data.mieter?.length || 0;
+  const pricePerSqm = data.groesse > 0 ? data.miete / data.groesse : 0;
+
+  // Find current tenant for occupancy info
+  const currentTenant = data.mieter?.find((m: any) => m.status === 'active');
+  const occupancyDays = currentTenant?.einzug
+    ? Math.floor((Date.now() - new Date(currentTenant.einzug).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const cards = [
+    {
+      title: "Wohnungsgröße",
+      value: `${formatNumber(data.groesse)} m²`,
+      description: `${formatCurrency(pricePerSqm)}/m²`,
+      icon: <Ruler className="h-5 w-5 text-muted-foreground" />,
+    },
+    {
+      title: "Monatsmiete",
+      value: formatCurrency(data.miete),
+      description: `${formatCurrency(data.miete * 12)}/Jahr`,
+      icon: <Euro className="h-5 w-5 text-muted-foreground" />,
+    },
+    {
+      title: "Mieter Status",
+      value: `${activeTenants}/${totalTenants}`,
+      description: activeTenants > 0 ? "Vermietet" : "Frei",
+      icon: <Users className="h-5 w-5 text-muted-foreground" />,
+    },
+    {
+      title: "Belegung",
+      value: occupancyDays > 0 ? `${occupancyDays} Tage` : "Leer",
+      description: currentTenant ? `seit ${new Date(currentTenant.einzug!).toLocaleDateString('de-DE')}` : "Keine aktiven Mieter",
+      icon: <Calendar className="h-5 w-5 text-muted-foreground" />,
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      {cards.map((card, index) => (
+        <Card key={index} className="overflow-hidden rounded-xl border-none shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+            <div className="h-5 w-5 text-muted-foreground">
+              {card.icon}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{card.value}</div>
+            <p className="text-xs text-muted-foreground">{card.description}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+// Empty state component
+const EmptyState = () => (
+  <div className="flex flex-col items-center justify-center py-8 space-y-4">
+    <div className="text-center space-y-2">
+      <h3 className="text-lg font-semibold">Keine Mieter</h3>
+      <p className="text-sm text-muted-foreground">
+        Diese Wohnung hat noch keine Mieter.
+      </p>
+    </div>
+  </div>
+);
+
 export function WohnungOverviewModal() {
   const {
     isWohnungOverviewModalOpen,
@@ -102,7 +281,7 @@ export function WohnungOverviewModal() {
         }, 300);
       }
     }
-  }, [wohnungOverviewLoading, loadingStartTime]);
+  }, [wohnungOverviewLoading, loadingStartTime, setWohnungOverviewError, setWohnungOverviewLoading]);
 
   const handleRetry = async () => {
     if (!wohnungOverviewData?.id) return;
@@ -239,175 +418,6 @@ export function WohnungOverviewModal() {
     }
   };
 
-  // Enhanced loading skeleton component with progress indicator
-  const LoadingSkeleton = () => (
-    <div className="space-y-6">
-      {/* Progress indicator for slow loading */}
-      {isSlowLoading && (
-        <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center gap-2 text-blue-700">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm font-medium">Mieter-Daten werden geladen...</span>
-          </div>
-          <Progress value={loadingProgress} className="h-2" />
-          <p className="text-xs text-blue-600">
-            Dies kann bei umfangreichen Mieter-Historien etwas dauern.
-          </p>
-        </div>
-      )}
-
-      {/* Summary cards skeleton */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <SummaryCardSkeleton title="Wohnungsgröße" icon={<Ruler className="h-5 w-5 text-muted-foreground" />} />
-        <SummaryCardSkeleton title="Monatsmiete" icon={<Euro className="h-5 w-5 text-muted-foreground" />} />
-        <SummaryCardSkeleton title="Mieter Status" icon={<Users className="h-5 w-5 text-muted-foreground" />} />
-        <SummaryCardSkeleton title="Belegung" icon={<Calendar className="h-5 w-5 text-muted-foreground" />} />
-      </div>
-
-      {/* Skeleton content */}
-      <div className="space-y-4">
-
-        {/* Table skeleton */}
-        <div className="rounded-md border">
-          <div className="p-4 border-b bg-gray-50">
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-          </div>
-          <div className="space-y-3 p-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center space-x-4">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-6 w-20" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-4 w-28" />
-                <div className="flex gap-1">
-                  <Skeleton className="h-8 w-8" />
-                  <Skeleton className="h-8 w-8" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Enhanced error state component
-  const ErrorState = () => (
-    <div className="flex flex-col items-center justify-center py-12 space-y-6">
-      <div className="p-4 rounded-full bg-red-50">
-        <AlertCircle className="h-12 w-12 text-red-500" />
-      </div>
-      <div className="text-center space-y-3 max-w-md">
-        <h3 className="text-lg font-semibold text-gray-900">Fehler beim Laden</h3>
-        <p className="text-sm text-gray-600 leading-relaxed">
-          {wohnungOverviewError || 'Die Wohnungs-Übersicht konnte nicht geladen werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'}
-        </p>
-        {loadingStartTime && (
-          <p className="text-xs text-gray-500">
-            Ladezeit überschritten (max. 2 Sekunden)
-          </p>
-        )}
-      </div>
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Button onClick={handleRetry} variant="outline" className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Erneut versuchen
-        </Button>
-        <Button
-          onClick={() => closeWohnungOverviewModal()}
-          variant="ghost"
-          className="text-gray-600"
-        >
-          Schließen
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Summary cards component
-  const SummaryCards = () => {
-    if (!wohnungOverviewData) return null;
-
-    const activeTenants = wohnungOverviewData.mieter?.filter(m => m.status === 'active').length || 0;
-    const totalTenants = wohnungOverviewData.mieter?.length || 0;
-    const pricePerSqm = wohnungOverviewData.groesse > 0 ? wohnungOverviewData.miete / wohnungOverviewData.groesse : 0;
-
-    // Find current tenant for occupancy info
-    const currentTenant = wohnungOverviewData.mieter?.find(m => m.status === 'active');
-    const occupancyDays = currentTenant?.einzug
-      ? Math.floor((Date.now() - new Date(currentTenant.einzug).getTime()) / (1000 * 60 * 60 * 24))
-      : 0;
-
-    const cards = [
-      {
-        title: "Wohnungsgröße",
-        value: `${formatNumber(wohnungOverviewData.groesse)} m²`,
-        description: `${formatCurrency(pricePerSqm)}/m²`,
-        icon: <Ruler className="h-5 w-5 text-muted-foreground" />,
-      },
-      {
-        title: "Monatsmiete",
-        value: formatCurrency(wohnungOverviewData.miete),
-        description: `${formatCurrency(wohnungOverviewData.miete * 12)}/Jahr`,
-        icon: <Euro className="h-5 w-5 text-muted-foreground" />,
-      },
-      {
-        title: "Mieter Status",
-        value: `${activeTenants}/${totalTenants}`,
-        description: activeTenants > 0 ? "Vermietet" : "Frei",
-        icon: <Users className="h-5 w-5 text-muted-foreground" />,
-      },
-      {
-        title: "Belegung",
-        value: occupancyDays > 0 ? `${occupancyDays} Tage` : "Leer",
-        description: currentTenant ? `seit ${new Date(currentTenant.einzug!).toLocaleDateString('de-DE')}` : "Keine aktiven Mieter",
-        icon: <Calendar className="h-5 w-5 text-muted-foreground" />,
-      },
-    ];
-
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        {cards.map((card, index) => (
-          <Card key={index} className="overflow-hidden rounded-xl border-none shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-              <div className="h-5 w-5 text-muted-foreground">
-                {card.icon}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{card.value}</div>
-              <p className="text-xs text-muted-foreground">{card.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  };
-
-  // Empty state component
-  const EmptyState = () => (
-    <div className="flex flex-col items-center justify-center py-8 space-y-4">
-      <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold">Keine Mieter</h3>
-        <p className="text-sm text-muted-foreground">
-          Diese Wohnung hat noch keine Mieter.
-        </p>
-      </div>
-    </div>
-  );
-
   if (!isWohnungOverviewModalOpen) {
     return null;
   }
@@ -438,17 +448,22 @@ export function WohnungOverviewModal() {
 
         <div className="flex-1 overflow-hidden">
           {wohnungOverviewLoading ? (
-            <LoadingSkeleton />
+            <LoadingSkeleton isSlowLoading={isSlowLoading} loadingProgress={loadingProgress} />
           ) : wohnungOverviewError ? (
-            <ErrorState />
+            <ErrorState
+              wohnungOverviewError={wohnungOverviewError}
+              loadingStartTime={loadingStartTime}
+              onRetry={handleRetry}
+              onClose={() => closeWohnungOverviewModal()}
+            />
           ) : !wohnungOverviewData?.mieter?.length ? (
             <div className="space-y-6">
-              <SummaryCards />
+              <SummaryCards data={wohnungOverviewData} />
               <EmptyState />
             </div>
           ) : (
             <div className="h-full overflow-auto space-y-6">
-              <SummaryCards />
+              <SummaryCards data={wohnungOverviewData} />
               <div className="rounded-md border">
                 <div className="max-h-[400px] overflow-auto">
                   <Table>
@@ -631,7 +646,7 @@ export function WohnungOverviewModal() {
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {isDeleting ? "Löschen..." : "Löschen"}
+              {isDeleting ? "Löschen…" : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

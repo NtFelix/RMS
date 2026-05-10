@@ -87,28 +87,18 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     wohnungModalOnSuccess,
     isWohnungModalDirty,
     setWohnungModalDirty,
-  } = useModalStore(); // Assuming you will import useModalStore
+  } = useModalStore();
 
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: wohnungInitialData?.name || "",
-    groesse: wohnungInitialData?.groesse?.toString() || "",
-    miete: wohnungInitialData?.miete?.toString() || "",
-    haus_id: wohnungInitialData?.haus_id || "",
+    name: "",
+    groesse: "",
+    miete: "",
+    haus_id: "",
   });
 
-  const [internalHaeuser, setInternalHaeuser] = useState<Haus[]>([]); // Initialize empty, effect will populate
-  const [isLoadingHaeuser, setIsLoadingHaeuser] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // New state variables for context fetching
   const [isLoadingContext, setIsLoadingContext] = useState(false);
-  const [isSaveDisabledByLimitsOrSubscriptionState, setIsSaveDisabledByLimitsOrSubscriptionState] = useState(false);
-  const [contextualSaveMessage, setContextualSaveMessage] = useState("");
-
-  const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
-
-  const isAddNewMode = !wohnungInitialData; // Use store data
 
   useEffect(() => {
     if (isWohnungModalOpen) {
@@ -118,77 +108,40 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
         miete: wohnungInitialData?.miete?.toString() || "",
         haus_id: wohnungInitialData?.haus_id || "",
       });
-      setWohnungModalDirty(false); // Reset dirty state
-      // internalHaeuser is now wohnungModalHaeuser from the store, no need to fetch here
-      // if (wohnungModalHaeuser && wohnungModalHaeuser.length > 0) {
-      //   setInternalHaeuser(wohnungModalHaeuser);
-      // } else {
-      //   // Potentially fetch if store didn't provide them, though ideally store should.
-      // }
+      setWohnungModalDirty(false);
     }
-  }, [wohnungInitialData, isWohnungModalOpen, setWohnungModalDirty]); // Removed wohnungModalHaeuser if it's guaranteed by openWohnungModal
+  }, [wohnungInitialData, isWohnungModalOpen, setWohnungModalDirty]);
 
-  // useEffect for fetching Haeuser (if not provided by store) is removed for now,
-  // assuming wohnungModalHaeuser is populated by openWohnungModal.
+  const isAddNewMode = !wohnungInitialData;
+  const internalHaeuser = wohnungModalHaeuser || [];
+  const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
 
-  // Sync internalHaeuser with store's wohnungModalHaeuser
-  useEffect(() => {
-    if (isWohnungModalOpen) { // Only run if modal is open
-      setInternalHaeuser(wohnungModalHaeuser || []);
-      // If there's a need to fetch Haeuser because wohnungModalHaeuser is empty,
-      // that logic would go here, perhaps setting setIsLoadingHaeuser.
-      // For now, we assume openWohnungModal provides the necessary haeuser list.
+  // Calculate context values during render
+  const { isSaveDisabledByLimitsOrSubscriptionState, contextualSaveMessage } = React.useMemo(() => {
+    if (!isWohnungModalOpen) return { isSaveDisabledByLimitsOrSubscriptionState: false, contextualSaveMessage: "" };
+
+    let message = "";
+    let disabled = false;
+
+    const count = currentApartmentCountFromProps;
+    const limit = currentApartmentLimitFromProps;
+    const isActiveSub = isActiveSubscriptionFromProps;
+
+    if (isActiveSub === false) {
+      message = "Ein aktives Abonnement ist erforderlich.";
+      disabled = true;
+    } else if (isAddNewMode && limit !== undefined && count !== undefined && limit !== Infinity && count >= limit) {
+      message = `Sie haben die maximale Anzahl an Wohnungen (${limit}) für Ihr Abonnement erreicht.`;
+      disabled = true;
     }
-  }, [isWohnungModalOpen, wohnungModalHaeuser]);
 
-  useEffect(() => {
-    if (isWohnungModalOpen) {
-      let determinedMessage = "";
-      let determinedDisabled = false;
-      setContextualSaveMessage("");
-      setIsSaveDisabledByLimitsOrSubscriptionState(false);
-      setIsLoadingContext(true); // Start loading context
-
-      // Directly use props for limits and subscription status
-      // These are passed from layout, which gets them from useModalStore's specific wohnung... fields
-      const count = currentApartmentCountFromProps;
-      const limit = currentApartmentLimitFromProps;
-      const isActiveSub = isActiveSubscriptionFromProps;
-
-      if (isActiveSub === false) {
-        determinedMessage = "Ein aktives Abonnement ist erforderlich.";
-        determinedDisabled = true;
-      } else if (isAddNewMode && limit !== undefined && count !== undefined && limit !== Infinity && count >= limit) {
-        determinedMessage = `Sie haben die maximale Anzahl an Wohnungen (${limit}) für Ihr Abonnement erreicht.`;
-        determinedDisabled = true;
-      } else if (!isAddNewMode && limit !== undefined && count !== undefined && limit !== Infinity && count > limit && wohnungInitialData?.id) {
-        // This case is tricky: if editing and already over limit.
-        // The original logic for EDIT mode: count > limit.
-        // This assumes `count` reflects total BEFORE this edit might save (which is fine for blocking).
-        // Let's refine: if editing, the concern is less about *this* apartment
-        // unless policies strictly block any interaction. Usually, "add new" is the primary block.
-        // The original logic: `else if (initialData && count > limit)`
-        // For simplicity, if adding is blocked, that's the main use case for these props.
-        // If editing while over limit should also be blocked, this needs careful consideration
-        // of whether `count` includes the current apartment being edited.
-        // For now, focusing on "add new" block as per original intent.
-      }
-
-      setContextualSaveMessage(determinedMessage);
-      setIsSaveDisabledByLimitsOrSubscriptionState(determinedDisabled);
-      setIsLoadingContext(false); // Finished context check
-    } else {
-      setContextualSaveMessage("");
-      setIsSaveDisabledByLimitsOrSubscriptionState(false);
-      setIsLoadingContext(false);
-    }
+    return { isSaveDisabledByLimitsOrSubscriptionState: disabled, contextualSaveMessage: message };
   }, [
     isWohnungModalOpen,
-    isAddNewMode, // Derived from wohnungInitialData
+    isAddNewMode,
     isActiveSubscriptionFromProps,
     currentApartmentLimitFromProps,
-    currentApartmentCountFromProps,
-    wohnungInitialData?.id // Added to re-evaluate if mode changes
+    currentApartmentCountFromProps
   ]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -343,10 +296,10 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               options={houseOptions}
               value={formData.haus_id}
               onChange={(value) => handleSelectChange("haus_id", value || "")}
-              placeholder={isLoadingHaeuser ? "Häuser laden..." : "Haus auswählen"}
+              placeholder="Haus auswählen"
               searchPlaceholder="Haus suchen..."
               emptyText="Kein Haus gefunden."
-              disabled={isLoadingHaeuser || isSubmitting || isLoadingContext}
+              disabled={isSubmitting}
             />
           </div>
           {contextualSaveMessage && (
@@ -358,7 +311,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || isLoadingHaeuser || isLoadingContext || isSaveDisabledByLimitsOrSubscriptionState}
+              disabled={isSubmitting || isSaveDisabledByLimitsOrSubscriptionState}
             >
               {isSubmitting ? (wohnungInitialData?.id ? "Wird aktualisiert..." : "Wird erstellt...") : (wohnungInitialData?.id ? "Änderungen speichern" : "Wohnung erstellen")}
             </Button>
