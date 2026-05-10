@@ -123,6 +123,7 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
     .from("Nebenkosten")
     .update(formData)
     .eq("id", id)
+    .eq("user_id", user.id)
     .select()
     .single();
 
@@ -191,7 +192,8 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
     const { count, error } = await supabase
       .from("Nebenkosten")
       .delete()
-      .in("id", ids);
+      .in("id", ids)
+      .eq("user_id", user.id);
 
     if (error) throw error;
 
@@ -295,7 +297,8 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
   const { error } = await supabase
     .from("Rechnungen")
     .delete()
-    .eq("nebenkosten_id", nebenkostenId);
+    .eq("nebenkosten_id", nebenkostenId)
+    .eq("user_id", user.id);
 
   if (error) {
     console.error('Error deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
@@ -732,11 +735,12 @@ export async function getWasserzaehlerByHausAndYearAction(
       }
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
     console.error('Error in getWasserzaehlerByHausAndYearAction:', error);
     return {
       success: false,
-      message: `Ein Fehler ist beim Abrufen der Wasserzählerdaten aufgetreten: ${error.message || 'Unbekannter Fehler'}`
+      message: `Ein Fehler ist beim Abrufen der Wasserzählerdaten aufgetreten: ${errorMessage}`
     };
   }
 }
@@ -1461,8 +1465,8 @@ export async function getMeterModalDataAction(
 
     return result;
 
-  } catch (error: any) {
-    logger.error('Unexpected error in getWasserzaehlerModalDataAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in getWasserzaehlerModalDataAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'getWasserzaehlerModalDataAction'
     });
@@ -1758,11 +1762,11 @@ export async function getAbrechnungModalDataAction(
 
       return { success: true, data: modalData };
 
-    } catch (optimizedError: any) {
+    } catch (optimizedError: unknown) {
       logger.warn('Optimized function failed, using fallback', {
         userId: user.id,
         nebenkostenId,
-        error: optimizedError.message
+        error: optimizedError instanceof Error ? optimizedError.message : String(optimizedError)
       });
 
       // Fallback to individual queries
@@ -1771,8 +1775,8 @@ export async function getAbrechnungModalDataAction(
 
 
 
-  } catch (error: any) {
-    logger.error('Unexpected error in getAbrechnungModalDataAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in getAbrechnungModalDataAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'getAbrechnungModalDataAction'
     });
@@ -2159,8 +2163,8 @@ export async function createAbrechnungCalculationAction(
 
         tenantCalculations.push(tenantCalculation);
 
-      } catch (error: any) {
-        logger.error(`Failed to calculate costs for tenant ${tenant.id}`, error, {
+      } catch (error: unknown) {
+        logger.error(`Failed to calculate costs for tenant ${tenant.id}`, error instanceof Error ? error : new Error(String(error)), {
           userId: user.id,
           nebenkostenId,
           tenantId: tenant.id
@@ -2220,8 +2224,8 @@ export async function createAbrechnungCalculationAction(
 
     return { success: true, data: result, message: calculationWarning };
 
-  } catch (error: any) {
-    logger.error('Unexpected error in createAbrechnungCalculationAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in createAbrechnungCalculationAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'createAbrechnungCalculationAction'
     });
@@ -2404,8 +2408,8 @@ export async function createAbrechnungCalculationOptimizedAction(
 
         tenantCalculations.push(tenantCalculation);
 
-      } catch (error: any) {
-        logger.error(`Failed to calculate costs for tenant ${tenant.id} in optimized function`, error, {
+      } catch (error: unknown) {
+        logger.error(`Failed to calculate costs for tenant ${tenant.id} in optimized function`, error instanceof Error ? error : new Error(String(error)), {
           userId: user.id,
           nebenkostenId,
           tenantId: tenant.id
@@ -2467,8 +2471,8 @@ export async function createAbrechnungCalculationOptimizedAction(
 
     return { success: true, data: calculationResult, message: calculationWarningOpt };
 
-  } catch (error: any) {
-    logger.error('Unexpected error in createAbrechnungCalculationOptimizedAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in createAbrechnungCalculationOptimizedAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'createAbrechnungCalculationOptimizedAction'
     });
