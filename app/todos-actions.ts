@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -26,9 +27,12 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
   const actionName = id ? 'updateTask' : 'createTask';
   logAction(actionName, 'start', { task_id: id, task_name: data.name });
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht authentifiziert");
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    throw new Error(authError.message);
+  }
 
   const payload: Record<string, any> = {
     name: data.name,
@@ -95,9 +99,12 @@ export async function toggleTaskStatusAction(
   const actionName = 'toggleTaskStatus';
   logAction(actionName, 'start', { task_id: taskId, new_status: newStatus });
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht authentifiziert");
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    throw new Error(authError.message);
+  }
 
   try {
     const { data, error } = await supabase
@@ -140,9 +147,12 @@ export async function bulkUpdateTaskStatusesAction(
     return { success: false, error: { message: "Keine Aufgaben zum Aktualisieren ausgewählt." } };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht authentifiziert");
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    throw new Error(authError.message);
+  }
 
   try {
     const { data, error } = await supabase
@@ -184,9 +194,12 @@ export async function bulkDeleteTasksAction(
     return { success: false, error: { message: "Keine Aufgaben zum Löschen ausgewählt." } };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht authentifiziert");
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    throw new Error(authError.message);
+  }
 
   try {
     const { count, error } = await supabase
@@ -216,9 +229,12 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   const actionName = 'deleteTask';
   logAction(actionName, 'start', { task_id: taskId });
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht authentifiziert");
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    throw new Error(authError.message);
+  }
 
   try {
     const { error } = await supabase
@@ -251,9 +267,12 @@ export async function updateTaskDueDateAction(
   const actionName = 'updateTaskDueDate';
   logAction(actionName, 'start', { task_id: taskId, due_date: dueDate });
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht authentifiziert");
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    throw new Error(authError.message);
+  }
 
   try {
     const { data, error } = await supabase

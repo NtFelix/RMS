@@ -109,7 +109,7 @@ async function initializePostHog(nonce?: string) {
 function PostHogTracking({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const getParam = searchParams?.get.bind(searchParams)
+  const getParam = searchParams ? searchParams.get.bind(searchParams) : null
   const [consentTrigger, triggerConsent] = useReducer((s) => s + 1, 0)
 
   // Listen for consent-granted event to trigger tracking immediately

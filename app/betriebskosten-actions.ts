@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
@@ -73,12 +74,12 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   const actionName = 'createNebenkosten';
   logAction(actionName, 'start', { house_id: formData.haeuser_id });
 
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    logAction(actionName, 'error', { error_message: 'User not authenticated' });
-    return { success: false, message: "User not authenticated", data: null };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    logAction(actionName, "error", { error_message: authError.message });
+    return { success: false, message: authError.message, data: null };
   }
 
   const preparedData = {
@@ -108,12 +109,12 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   const actionName = 'updateNebenkosten';
   logAction(actionName, 'start', { nebenkosten_id: id });
 
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    logAction(actionName, 'error', { error_message: 'User not authenticated' });
-    return { success: false, message: "User not authenticated", data: null };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    logAction(actionName, "error", { error_message: authError.message });
+    return { success: false, message: authError.message, data: null };
   }
 
   const { data, error } = await supabase
@@ -138,12 +139,19 @@ export async function deleteNebenkosten(id: string) {
   const actionName = 'deleteNebenkosten';
   logAction(actionName, 'start', { nebenkosten_id: id });
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    logAction(actionName, 'error', { error_message: authError.message });
+    return { success: false, message: authError.message };
+  }
 
   const { error } = await supabase
     .from("Nebenkosten")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: error.message });
@@ -166,10 +174,11 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
     return { success: false, count: 0, message: "Keine IDs zum Löschen angegeben" };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return { success: false, count: 0, message: "Nicht authentifiziert" };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, count: 0, message: authError.message };
   }
 
   try {
@@ -201,12 +210,12 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
 
 export async function createRechnungenBatch(rechnungen: RechnungData[]) {
   console.log('[Server Action] createRechnungenBatch received batch of', rechnungen.length, 'items');
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
     console.error("User not authenticated for createRechnungenBatch");
-    return { success: false, message: "User not authenticated", data: null };
+    return { success: false, message: authError.message, data: null };
   }
 
   const dataWithUserId = rechnungen.map(rechnung => ({
@@ -268,13 +277,12 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
 export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Promise<{ success: boolean; message?: string }> {
   console.log('[Server Action] deleteRechnungenByNebenkostenId called for nebenkostenId:', nebenkostenId);
-  const supabase = await createClient();
-
-  // Authentication check (basic - RLS should handle actual data access control)
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
     console.error("User not authenticated for deleteRechnungenByNebenkostenId");
-    return { success: false, message: "User not authenticated" };
+    return { success: false, message: authError.message };
   }
 
   const { error } = await supabase
@@ -301,12 +309,12 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
   "use server";
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { success: false, message: "User not authenticated" };
+    let user, supabase;
+    try {
+      ({ user, supabase } = await ensureAuth());
+    } catch (authError: any) {
+      return { success: false, message: authError.message };
     }
-
     const { data, error } = await supabase
       .from("Nebenkosten")
       .select(`
@@ -369,12 +377,12 @@ async function getPreviousWasserzaehlerRecordAction(
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message };
   }
-
   try {
     // Get tenant data
     const { data: mieterData, error: mieterError } = await supabase
@@ -581,12 +589,12 @@ export async function getBatchPreviousMeterReadingsAction(
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message };
   }
-
   try {
     const result: Record<string, Wasserzaehler | null> = {};
 
@@ -656,12 +664,12 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message };
   }
-
   try {
     const { data, error } = await supabase
       .from("Rechnungen")
@@ -697,11 +705,12 @@ export async function getWasserzaehlerByHausAndYearAction(
     }
 
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, message: "Nicht authentifiziert" };
+    let user;
+    try {
+      ({ user } = await ensureAuth());
+    } catch (authError: any) {
+      return { success: false, message: authError.message };
     }
-
     const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
 
     return {
@@ -732,11 +741,11 @@ export async function getWasserzaehlerByHausAndYearAction(
  * 3. Inserts the reading into 'Zaehler_Ablesungen'.
  */
 export async function saveMeterReadings(formData: MeterReadingFormData): Promise<{ success: boolean; message?: string; data?: any[] }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: any) {
+    return { success: false, message: authError.message };
   }
 
   const results = [];

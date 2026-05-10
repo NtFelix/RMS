@@ -1,13 +1,17 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { posthogLogger } from "@/lib/posthog-logger";
 
 export async function searchMailSenders(query: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch {
+        return [];
+    }
 
     if (!query || query.length < 2) return [];
 
@@ -35,9 +39,12 @@ export async function searchMailSenders(query: string) {
 }
 
 export async function getMailsBySender(sender: string, startDate?: Date, endDate?: Date) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch {
+        return [];
+    }
 
     let query = supabase
         .from('Mail_Metadaten')
@@ -68,9 +75,10 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
 }
 
 export async function createApplicantsFromMails(mails: { id: string, absender: string, dateipfad?: string | null }[]) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch {
         return { success: false, error: "Nicht authentifiziert" };
     }
     const userId = user.id;
@@ -233,9 +241,14 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 }
 
 export async function checkWorkerQueueStatus(userId: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || user.id !== userId) {
+    let user;
+    try {
+        ({ user } = await ensureAuth());
+    } catch {
+        return { hasMore: false, error: "Nicht authentifiziert" };
+    }
+
+    if (user.id !== userId) {
         return { hasMore: false, error: "Nicht authentifiziert" };
     }
 

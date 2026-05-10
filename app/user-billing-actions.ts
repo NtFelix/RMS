@@ -1,14 +1,20 @@
 'use server';
 import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
+let stripeClient: Stripe | null = null;
+
 function getStripe(): Stripe {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key, STRIPE_CONFIG);
+  if (!stripeClient) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+    stripeClient = new Stripe(key, STRIPE_CONFIG);
+  }
+  return stripeClient;
 }
 
 type BillingAddressError = {
@@ -51,9 +57,11 @@ interface UpdateBillingAddressParams {
 export async function getBillingAddress(
   stripeCustomerId: string,
 ): Promise<BillingAddress | BillingAddressError> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Nicht authentifiziert" };
+  try {
+    await ensureAuth();
+  } catch (authError) {
+    return { error: "Nicht authentifiziert" };
+  }
 
   if (isStripeMocked()) {
     if (isTestEnv()) {
@@ -135,9 +143,11 @@ export async function updateBillingAddress(
   stripeCustomerId: string,
   details: UpdateBillingAddressParams,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Nicht authentifiziert" };
+  try {
+    await ensureAuth();
+  } catch (authError) {
+    return { success: false, error: "Nicht authentifiziert" };
+  }
 
   if (isStripeMocked()) {
     if (isTestEnv()) {
@@ -186,6 +196,11 @@ export async function updateBillingAddress(
 export async function createSetupIntent(
   stripeCustomerId: string,
 ): Promise<{ clientSecret: string } | { error: string }> {
+  try {
+    await ensureAuth();
+  } catch (authError) {
+    return { error: "Nicht authentifiziert" };
+  }
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return { clientSecret: 'seti_mock_secret_123' };
