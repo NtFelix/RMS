@@ -4,8 +4,14 @@ on:
   pull_request:
     branches: [main, develop]
     types: [opened, reopened, synchronize]
+    paths-ignore:
+      - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
   push:
     branches: [main]
+    paths-ignore:
+      - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
   workflow_dispatch:  # Allows manual triggering from the Actions tab
 
 permissions:

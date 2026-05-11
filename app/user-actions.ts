@@ -2,7 +2,7 @@
 
 import { fetchUserProfile, getCurrentWohnungenCount } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { normalizeApartmentLimit } from "@/lib/utils/subscription";
 
 export async function getUserSubscriptionContext(): Promise<{
@@ -10,6 +10,13 @@ export async function getUserSubscriptionContext(): Promise<{
   stripe_subscription_status: string | null;
   error?: string;
 }> {
+  try {
+    await ensureAuth();
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { stripe_price_id: null, stripe_subscription_status: null, error: errorMessage };
+  }
+
   try {
     const userProfile = await fetchUserProfile();
     if (!userProfile) {
@@ -37,6 +44,13 @@ export async function getPlanApartmentLimit(
   priceId: string
 ): Promise<{ limit_wohnungen: number | null | typeof Infinity; error?: string }> {
   try {
+    await ensureAuth();
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { limit_wohnungen: null, error: errorMessage };
+  }
+
+  try {
     const planDetails = await getPlanDetails(priceId);
     if (!planDetails) {
       return { limit_wohnungen: null, error: "Plan details not found." };
@@ -60,20 +74,11 @@ export async function getUserApartmentCount(): Promise<{
   error?: string;
 }> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return { count: 0, error: "User not found or authentication error." };
-    }
-
+    const { user, supabase } = await ensureAuth();
     const count = await getCurrentWohnungenCount(supabase, user.id);
     return { count };
-  } catch (error) {
-    console.error("Error in getUserApartmentCount:", error);
-    return { count: 0, error: "Failed to fetch user apartment count." };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+    return { count: 0, error: errorMessage };
   }
 }

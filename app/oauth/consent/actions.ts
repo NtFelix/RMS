@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/utils/supabase/server';
+import { ensureAuth } from '@/lib/auth-utils';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -47,13 +47,7 @@ function parseSupabaseAuthError(responseText: string, fallbackMessage: string): 
  * NOT cookies — unlike most other Supabase Auth endpoints.
  */
 async function getAccessToken(): Promise<string> {
-    const supabase = await createClient();
-
-    // getUser() securely validates the JWT against the Supabase Auth server
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-        throw new Error('Not authenticated: invalid or expired session');
-    }
+    const { supabase } = await ensureAuth();
 
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) {
@@ -120,13 +114,7 @@ export interface AuthorizationDetailsResult {
 export async function getAuthorizationDetailsAction(authorizationId: string): Promise<AuthorizationDetailsResult> {
     try {
         validateId(authorizationId);
-        const supabase = await createClient();
-
-        // Verify the user is authenticated first
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) {
-            return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };
-        }
+        const { supabase } = await ensureAuth();
 
         const { data, error } = await (supabase.auth as any).oauth.getAuthorizationDetails(authorizationId);
 
@@ -146,9 +134,10 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
         }
 
         return { success: true, data: data as AuthorizationDetails, error: null };
-    } catch (err: any) {
-        console.error('Server Action: getAuthorizationDetails failed:', err.message);
-        return { success: false, error: err.message || 'Failed to load authorization details', data: null };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load authorization details";
+        console.error('Server Action: getAuthorizationDetails failed:', message);
+        return { success: false, error: message, data: null };
     }
 }
 
@@ -164,13 +153,7 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
             throw new Error('Invalid decision value');
         }
 
-        const supabase = await createClient();
-
-        // Verify the user is authenticated
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) {
-            return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
-        }
+        const { supabase } = await ensureAuth();
 
         if (decision === 'allow') {
             // supabase.auth.oauth.approveAuthorization() POSTs to
@@ -189,9 +172,10 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
             }
             return { success: true, redirect_to: data?.redirect_url || data?.redirect_to || null, error: null };
         }
-    } catch (err: any) {
-        console.error('Server Action: submitDecision failed:', err.message);
-        return { success: false, redirect_to: null, error: err.message || 'Authorization decision failed' };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Authorization decision failed";
+        console.error('Server Action: submitDecision failed:', message);
+        return { success: false, redirect_to: null, error: message };
     }
 }
 
