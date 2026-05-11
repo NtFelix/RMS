@@ -173,7 +173,7 @@ describe('Database Functions Type Definitions', () => {
       const fs = require('fs');
       const path = require('path');
       
-      const migrationPath = path.join(process.cwd(), 'supabase/migrations/20250202000000_add_performance_optimization_functions.sql');
+      const migrationPath = path.join(process.cwd(), 'supabase/migrations/20260511000000_fix_rpc_security_phase2.sql');
       
       expect(fs.existsSync(migrationPath)).toBe(true);
       
@@ -181,7 +181,7 @@ describe('Database Functions Type Definitions', () => {
       
       // Verify all three functions are defined
       expect(migrationContent).toContain('CREATE OR REPLACE FUNCTION get_nebenkosten_with_metrics');
-      expect(migrationContent).toContain('CREATE OR REPLACE FUNCTION get_wasserzaehler_modal_data');
+      expect(migrationContent).toContain('CREATE OR REPLACE FUNCTION get_meter_modal_data');
       expect(migrationContent).toContain('CREATE OR REPLACE FUNCTION get_abrechnung_modal_data');
       
       // Verify proper permissions are granted
@@ -212,22 +212,22 @@ export async function testWithRealData(
   });
 
   if (nebenkostenId) {
-    console.log('Testing get_wasserzaehler_modal_data...');
-    const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase.rpc(
-      'get_wasserzaehler_modal_data',
-      { nebenkosten_id: nebenkostenId, user_id: userId }
+    console.log('Testing get_meter_modal_data...');
+    const { data: meterData, error: meterError } = await supabase.rpc(
+      'get_meter_modal_data',
+      { nebenkosten_id: nebenkostenId }
     );
     
-    console.log('Wasserzaehler result:', {
-      error: wasserzaehlerError,
-      dataCount: wasserzaehlerData?.length || 0,
-      sampleData: wasserzaehlerData?.[0]
+    console.log('Meter result:', {
+      error: meterError,
+      dataCount: meterData?.length || 0,
+      sampleData: meterData?.[0]
     });
 
     console.log('Testing get_abrechnung_modal_data...');
     const { data: abrechnungData, error: abrechnungError } = await supabase.rpc(
       'get_abrechnung_modal_data',
-      { nebenkosten_id: nebenkostenId, user_id: userId }
+      { nebenkosten_id: nebenkostenId }
     );
     
     console.log('Abrechnung result:', {

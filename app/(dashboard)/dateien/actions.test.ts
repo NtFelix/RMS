@@ -92,7 +92,6 @@ describe('dateien/actions', () => {
         totalSize: mockData.totalSize,
       });
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_user_id: 'user123',
         p_current_path: 'path/to/folder',
       });
     });
@@ -140,7 +139,6 @@ describe('dateien/actions', () => {
 
       await getPathContents('user123', 'path');
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_user_id: 'user123',
         p_current_path: 'path',
       });
     });
@@ -165,7 +163,6 @@ describe('dateien/actions', () => {
 
       await loadFilesForPath('user123', 'user_user123/path');
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_user_id: 'user123',
         p_current_path: 'user_user123/path',
       });
     });

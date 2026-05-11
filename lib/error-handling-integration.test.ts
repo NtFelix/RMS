@@ -97,8 +97,8 @@ describe('Error Handling Integration Tests', () => {
 
       const operation = () => safeRpcCall(
         mockSupabaseClient as any,
-        'get_wasserzaehler_modal_data',
-        { nebenkosten_id: 'test-id', user_id: 'test-user' },
+        'get_meter_modal_data',
+        { nebenkosten_id: 'test-id' },
         { userId: 'test-user' }
       );
 
@@ -226,7 +226,7 @@ describe('Error Handling Integration Tests', () => {
       // Simulate different operations with varying performance
       const operations = [
         { name: 'get_nebenkosten_with_metrics', delay: 500, success: true },
-        { name: 'get_wasserzaehler_modal_data', delay: 1500, success: true },
+        { name: 'get_meter_modal_data', delay: 1500, success: true },
         { name: 'save_wasserzaehler_batch', delay: 3000, success: false },
         { name: 'get_abrechnung_modal_data', delay: 800, success: true }
       ];
@@ -244,7 +244,7 @@ describe('Error Handling Integration Tests', () => {
         const result = await safeRpcCall(
           mockSupabaseClient as any,
           op.name,
-          op.name === 'get_nebenkosten_with_metrics' ? {} : { user_id: 'test-user' },
+          op.name === 'get_nebenkosten_with_metrics' ? {} : { nebenkosten_id: 'test-nk' },
           { userId: 'test-user', logPerformance: true }
         );
 
@@ -299,7 +299,7 @@ describe('Error Handling Integration Tests', () => {
       const result = await safeRpcCall(
         mockSupabaseClient as any,
         'recent_function',
-        { user_id: 'test-user' },
+        { some_param: 'test' },
         { userId: 'test-user', logPerformance: true }
       );
 
