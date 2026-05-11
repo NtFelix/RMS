@@ -1066,6 +1066,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
     const transformedData = (result.data || []).map(item => ({
       ...item,
       // Map database function fields to expected format for compatibility
+      user_id: (item as any).user_id_field,
       Haeuser: { name: item.haus_name },
       gesamtFlaeche: item.gesamt_flaeche,
       anzahlWohnungen: item.anzahl_wohnungen,
