@@ -10,21 +10,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useAIConversation } from "@/hooks/use-ai-conversation";
+import { AIDocumentationContext } from "@/types/ai";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
   onClose: () => void;
-  documentationContext?: any;
+  documentationContext?: AIDocumentationContext;
   className?: string;
-  onFallbackToSearch?: () => void;
 }
 
 export default function AIAssistantInterfaceSimple({
   isOpen,
   onClose,
   documentationContext,
-  className,
-  onFallbackToSearch
+  className
 }: AIAssistantInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,7 +41,6 @@ export default function AIAssistantInterfaceSimple({
     formatTime
   } = useAIConversation({
     documentationContext,
-    onFallbackToSearch,
     interface: 'simple'
   });
 
@@ -252,16 +250,6 @@ export default function AIAssistantInterfaceSimple({
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
                 <span>{error}</span>
-                {onFallbackToSearch && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onFallbackToSearch}
-                    className="ml-2"
-                  >
-                    Zur Suche
-                  </Button>
-                )}
               </AlertDescription>
             </Alert>
           </div>

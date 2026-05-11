@@ -18,7 +18,6 @@ describe('useAIAssistantStore', () => {
     const { result } = renderHook(() => useAIAssistantStore());
     
     expect(result.current.isOpen).toBe(false);
-    expect(result.current.currentMode).toBe('search');
     expect(result.current.messages).toEqual([]);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
@@ -33,7 +32,6 @@ describe('useAIAssistantStore', () => {
     });
     
     expect(result.current.isOpen).toBe(true);
-    expect(result.current.currentMode).toBe('ai');
     expect(result.current.sessionId).toMatch(/^session_/);
     expect(result.current.error).toBe(null);
   });
@@ -52,41 +50,6 @@ describe('useAIAssistantStore', () => {
     });
     
     expect(result.current.isOpen).toBe(false);
-    expect(result.current.error).toBe(null);
-  });
-
-  it('switches to search mode correctly', () => {
-    const { result } = renderHook(() => useAIAssistantStore());
-    
-    act(() => {
-      result.current.openAI();
-    });
-    
-    expect(result.current.currentMode).toBe('ai');
-    expect(result.current.isOpen).toBe(true);
-    
-    act(() => {
-      result.current.switchToSearch();
-    });
-    
-    expect(result.current.currentMode).toBe('search');
-    expect(result.current.isOpen).toBe(false);
-    expect(result.current.error).toBe(null);
-  });
-
-  it('switches to AI mode correctly', () => {
-    const { result } = renderHook(() => useAIAssistantStore());
-    
-    expect(result.current.currentMode).toBe('search');
-    expect(result.current.isOpen).toBe(false);
-    
-    act(() => {
-      result.current.switchToAI();
-    });
-    
-    expect(result.current.currentMode).toBe('ai');
-    expect(result.current.isOpen).toBe(true);
-    expect(result.current.sessionId).toMatch(/^session_/);
     expect(result.current.error).toBe(null);
   });
 
@@ -200,22 +163,6 @@ describe('useAIAssistantStore', () => {
     });
     
     expect(result.current.sessionId).toBe(null);
-  });
-
-  it('reuses existing session ID when switching to AI mode', () => {
-    const { result } = renderHook(() => useAIAssistantStore());
-    
-    act(() => {
-      result.current.setSessionId('existing-session');
-    });
-    
-    act(() => {
-      result.current.switchToAI();
-    });
-    
-    expect(result.current.sessionId).toBe('existing-session');
-    expect(result.current.currentMode).toBe('ai');
-    expect(result.current.isOpen).toBe(true);
   });
 
   it('generates new session ID when opening AI without existing session', () => {

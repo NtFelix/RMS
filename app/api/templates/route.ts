@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { TemplatePayload } from "@/types/template";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET() {
   try {
@@ -11,10 +12,10 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       console.error('GET /api/templates auth error:', authError);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Nicht autorisiert. Bitte melden Sie sich an.',
         code: 'UNAUTHORIZED'
-      }, { status: 401 });
+      }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
     const { data, error } = await supabase
@@ -28,27 +29,27 @@ export async function GET() {
       
       // Handle specific database errors
       if (error.code === 'PGRST301') {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Keine Berechtigung zum Zugriff auf die Vorlagen.',
           code: 'ACCESS_DENIED'
-        }, { status: 403 });
+        }, { status: 403, headers: NO_CACHE_HEADERS });
       }
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Datenbankfehler beim Laden der Vorlagen.',
         code: 'DATABASE_ERROR',
         details: error.message
-      }, { status: 500 });
+      }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 
     // Return empty array if no templates found
-    return NextResponse.json(data || [], { status: 200 });
+    return NextResponse.json(data || [], { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
     console.error('Server error GET /api/templates:', e);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Unerwarteter Serverfehler beim Laden der Vorlagen.',
       code: 'INTERNAL_SERVER_ERROR'
-    }, { status: 500 });
+    }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -60,23 +61,23 @@ export async function POST(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       console.error('POST /api/templates auth error:', authError);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Nicht autorisiert. Bitte melden Sie sich an.',
         code: 'UNAUTHORIZED'
-      }, { status: 401 });
+      }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
     let templateData: TemplatePayload;
-    
+
     // Parse and validate request body
     try {
       templateData = await request.json();
     } catch (parseError) {
       console.error('POST /api/templates JSON parse error:', parseError);
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Ungültiges JSON-Format in der Anfrage.',
         code: 'INVALID_JSON'
-      }, { status: 400 });
+      }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
     // Enhanced server-side validation
@@ -109,11 +110,11 @@ export async function POST(request: Request) {
     }
 
     if (validationErrors.length > 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Validierungsfehler in den Eingabedaten.',
         code: 'VALIDATION_ERROR',
         details: validationErrors
-      }, { status: 400 });
+      }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     // Sanitize data
@@ -135,35 +136,35 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('POST /api/templates database error:', error);
-      
+
       // Handle specific database errors
       if (error.code === '23505') {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Eine Vorlage mit diesem Namen existiert bereits.',
           code: 'DUPLICATE_TITLE'
-        }, { status: 409 });
-      }
-      
-      if (error.code === '23514') {
-        return NextResponse.json({ 
-          error: 'Die Eingabedaten entsprechen nicht den Anforderungen.',
-          code: 'CONSTRAINT_VIOLATION'
-        }, { status: 400 });
+        }, { status: 409, headers: NO_CACHE_HEADERS });
       }
 
-      return NextResponse.json({ 
+      if (error.code === '23514') {
+        return NextResponse.json({
+          error: 'Die Eingabedaten entsprechen nicht den Anforderungen.',
+          code: 'CONSTRAINT_VIOLATION'
+        }, { status: 400, headers: NO_CACHE_HEADERS });
+      }
+
+      return NextResponse.json({
         error: 'Datenbankfehler beim Erstellen der Vorlage.',
         code: 'DATABASE_ERROR',
         details: error.message
-      }, { status: 500 });
+      }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(data, { status: 201, headers: NO_CACHE_HEADERS });
   } catch (e) {
     console.error('Server error POST /api/templates:', e);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Unerwarteter Serverfehler beim Erstellen der Vorlage.',
       code: 'INTERNAL_SERVER_ERROR'
-    }, { status: 500 });
+    }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

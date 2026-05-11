@@ -1,134 +1,24 @@
-import type { Article, Category } from '@/types/documentation';
-
 /**
  * Client-side AI context utilities
  * These functions help prepare context data for AI requests from the client
  */
 
-export interface AIContextOptions {
-  useDocumentationContext?: boolean;
-  maxArticles?: number;
-  maxContentLength?: number;
-  searchQuery?: string;
-  currentArticleId?: string;
-}
-
 export interface AIRequestPayload {
   message: string;
-  context?: {
-    articles: Article[];
-    categories: Category[];
-    currentArticleId?: string;
-  };
-  contextOptions?: AIContextOptions;
   sessionId?: string;
 }
 
 /**
- * Prepares an AI request payload with documentation context options
+ * Prepares an AI request payload
  */
 export function prepareAIRequest(
   message: string,
-  options: AIContextOptions = {},
-  sessionId?: string
-): AIRequestPayload {
-  const {
-    useDocumentationContext = true,
-    maxArticles = 10,
-    maxContentLength = 1000,
-    searchQuery,
-    currentArticleId
-  } = options;
-
-  return {
-    message: message.trim(),
-    contextOptions: {
-      useDocumentationContext,
-      maxArticles,
-      maxContentLength,
-      searchQuery: searchQuery || message, // Use message as search query if not provided
-      currentArticleId
-    },
-    sessionId
-  };
-}
-
-/**
- * Prepares an AI request with explicit context (when context is already available)
- */
-export function prepareAIRequestWithContext(
-  message: string,
-  articles: Article[],
-  categories: Category[] = [],
-  currentArticleId?: string,
   sessionId?: string
 ): AIRequestPayload {
   return {
     message: message.trim(),
-    context: {
-      articles,
-      categories,
-      currentArticleId
-    },
-    contextOptions: {
-      useDocumentationContext: false // Don't fetch additional context
-    },
     sessionId
   };
-}
-
-/**
- * Filters articles to most relevant ones for the query
- */
-export function filterRelevantArticles(
-  articles: Article[],
-  query: string,
-  maxArticles: number = 10
-): Article[] {
-  if (!query.trim() || articles.length <= maxArticles) {
-    return articles.slice(0, maxArticles);
-  }
-
-  const queryLower = query.toLowerCase();
-  const queryTerms = queryLower.split(/\s+/).filter(term => term.length > 2);
-
-  // Score articles based on relevance
-  const scoredArticles = articles.map(article => {
-    let score = 0;
-    const titleLower = article.titel.toLowerCase();
-    const contentLower = (article.seiteninhalt || '').toLowerCase();
-    const categoryLower = (article.kategorie || '').toLowerCase();
-
-    // Title matches get highest score
-    queryTerms.forEach(term => {
-      if (titleLower.includes(term)) {
-        score += 10;
-      }
-      if (categoryLower.includes(term)) {
-        score += 5;
-      }
-      if (contentLower.includes(term)) {
-        score += 2;
-      }
-    });
-
-    // Exact phrase matches get bonus points
-    if (titleLower.includes(queryLower)) {
-      score += 20;
-    }
-    if (contentLower.includes(queryLower)) {
-      score += 10;
-    }
-
-    return { article, score };
-  });
-
-  // Sort by score and return top articles
-  return scoredArticles
-    .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, maxArticles)
-    .map(item => item.article);
 }
 
 /**
@@ -143,14 +33,6 @@ export function validateAIRequest(payload: AIRequestPayload): string[] {
 
   if (payload.message && payload.message.length > 4000) {
     errors.push('Message is too long (max 4000 characters)');
-  }
-
-  if (payload.contextOptions?.maxArticles !== undefined && (payload.contextOptions.maxArticles < 1 || payload.contextOptions.maxArticles > 50)) {
-    errors.push('maxArticles must be between 1 and 50');
-  }
-
-  if (payload.contextOptions?.maxContentLength !== undefined && (payload.contextOptions.maxContentLength < 100 || payload.contextOptions.maxContentLength > 2000)) {
-    errors.push('maxContentLength must be between 100 and 2000');
   }
 
   return errors;

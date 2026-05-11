@@ -5,6 +5,7 @@ import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 interface Tenant {
   id: string
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
         error: userError?.message,
         duration: Date.now() - requestStartTime
       })
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     let tenantsData: any[] = []
@@ -67,8 +68,7 @@ export async function GET(request: Request) {
     const rpcStartTime = Date.now()
     try {
       const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "fetch_tenant_payment_dashboard_data",
-        { p_user_id: user.id }
+        "fetch_tenant_payment_dashboard_data"
       )
 
       const rpcDuration = Date.now() - rpcStartTime
@@ -138,7 +138,7 @@ export async function GET(request: Request) {
         })
         return NextResponse.json(
           { error: "Failed to fetch tenants" },
-          { status: 500 }
+          { status: 500, headers: NO_CACHE_HEADERS }
         )
       }
 
@@ -160,7 +160,7 @@ export async function GET(request: Request) {
         })
         return NextResponse.json(
           { error: "Failed to fetch finances" },
-          { status: 500 }
+          { status: 500, headers: NO_CACHE_HEADERS }
         )
       }
 
@@ -237,7 +237,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       tenants: processedTenants,
       // finances: financesData // Removed to reduce payload size
-    })
+    }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     const totalDuration = Date.now() - requestStartTime
     logger.error("❌ [Tenant Data API] Unexpected error", error as Error, {
@@ -246,7 +246,7 @@ export async function GET(request: Request) {
     })
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }

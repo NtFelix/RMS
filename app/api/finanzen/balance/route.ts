@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 // Helper function to fetch all records with pagination - no limits
 async function fetchAllRecords(query: any) {
@@ -98,9 +99,9 @@ export async function GET(request: Request) {
       totalIncome,
       totalExpenses,
       transactionCount
-    }, { status: 200 });
+    }, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
     console.error('Server error GET /api/finanzen/balance:', e);
-    return NextResponse.json({ error: 'Serverfehler bei Balance-Berechnung.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler bei Balance-Berechnung.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

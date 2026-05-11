@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -11,14 +12,14 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const searchParams = request.nextUrl.searchParams
     const wasserZaehlerId = searchParams.get('zaehler_id') || searchParams.get('wasser_zaehler_id')
 
     if (!wasserZaehlerId) {
-      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400 })
+      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
     // Verify the Wasserzähler belongs to the user
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
 
     if (zaehlerError || !zaehler) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
     // Fetch Zaehler_Ablesungen
@@ -43,13 +44,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching Zaehler_Ablesungen:', error)
-      return NextResponse.json({ error: 'Failed to fetch Zaehler_Ablesungen' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch Zaehler_Ablesungen' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in GET /api/wasser-ablesungen:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
   }
 }
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const body = await request.json()
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     const meterId = zaehler_id || wasser_zaehler_id
 
     if (!meterId) {
-      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400 })
+      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
     // Verify the Wasserzähler belongs to the user
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (zaehlerError || !zaehler) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
     // Create Zaehler_Ablesung
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating Zaehler_Ablesung:', error)
-      return NextResponse.json({ error: 'Failed to create Zaehler_Ablesung' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create Zaehler_Ablesung' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
     // PostHog Event Tracking
@@ -111,10 +112,10 @@ export async function POST(request: NextRequest) {
       source: 'api_route'
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(data, { status: 201, headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in POST /api/wasser-ablesungen:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
   }
 }
 

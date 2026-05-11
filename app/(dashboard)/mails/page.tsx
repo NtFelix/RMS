@@ -2,22 +2,14 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
-import { createClient } from '@/utils/supabase/server';
-import { redirect } from 'next/navigation';
+import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import MailsClientView from "./client-wrapper";
 import type { LegacyMail } from "@/types/Mail";
 import { convertToLegacyMail } from "@/types/Mail";
 import type { Mail } from "@/types/Mail";
 
 export default async function MailsPage() {
-  const supabase = await createClient();
-
-  // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    redirect('/auth/login');
-  }
+  const { supabase, user } = await requireAuthenticatedUser();
 
   // Fetch initial page of emails from database
   const { data: emails, error: emailsError, count } = await supabase

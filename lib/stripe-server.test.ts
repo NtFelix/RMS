@@ -87,7 +87,7 @@ describe('lib/stripe-server', () => {
         interval: null,
         interval_count: null,
         features: ['Feature 1', 'Feature 2', 'Feature 3'],
-        limitWohnungen: 10,
+        limit_wohnungen: 10,
         storageLimit: 0
       });
     });

@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
+import posthogProxyConfig from "@/lib/posthog-proxy"
+
+const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
 const MANAGED_ROUTE_PREFIXES = [
   "/auth",
@@ -14,7 +17,6 @@ const MANAGED_ROUTE_PREFIXES = [
   "/dateien",
   "/oauth",
   "/checkout/success",
-  "/hilfe/dokumentation",
 ]
 
 function matchesRoutePrefix(pathname: string, prefix: string) {
@@ -23,15 +25,17 @@ function matchesRoutePrefix(pathname: string, prefix: string) {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+
+  // Skip PostHog proxy traffic entirely (no auth, no CSP, no redirects)
+  if (pathname.startsWith(POSTHOG_PROXY_PATH)) {
+    return NextResponse.next()
+  }
   const needsManagedHeaders = MANAGED_ROUTE_PREFIXES.some((prefix) =>
     matchesRoutePrefix(pathname, prefix),
   )
   const nonce = needsManagedHeaders ? crypto.randomUUID() : null
 
   // Content Security Policy
-  // Note: We use 'unsafe-inline' without a nonce for scripts because Next.js 
-  // root-level hydration scripts don't support nonces in a static-root architecture.
-  // This is the standard way to support Next.js on Cloudflare Pages without breaking hydration.
   const scriptSrc = `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
 
   const csp = [
@@ -48,21 +52,21 @@ export async function middleware(request: NextRequest) {
     "frame-ancestors 'self'",
   ].join('; ');
 
-  // Clone request headers so layouts and server components can read request context
-  const requestHeaders = new Headers(request.headers)
+  // Update request headers directly so they are passed downstream
   if (nonce) {
-    requestHeaders.set('x-nonce', nonce)
+    request.headers.set('x-nonce', nonce)
   }
   if (needsManagedHeaders) {
-    requestHeaders.set('x-current-pathname', pathname)
-    requestHeaders.set('x-current-search', request.nextUrl.search)
+    request.headers.set('x-current-pathname', pathname)
+    request.headers.set('x-current-search', request.nextUrl.search)
   }
+  
   // Pre-emptively clear any potentially spoofed user data headers from external client requests
-  requestHeaders.delete('x-user-data')
-  requestHeaders.delete('x-user-signature')
+  request.headers.delete('x-user-data')
+  request.headers.delete('x-user-signature')
 
   // Set CSP on request headers so Server Components can read it (e.g., for nonces)
-  requestHeaders.set('Content-Security-Policy', csp)
+  request.headers.set('Content-Security-Policy', csp)
 
   // Initialize empty response to collect cookie mutations from updateSession
   let response = NextResponse.next()
@@ -77,19 +81,19 @@ export async function middleware(request: NextRequest) {
       // We sign this data with a secret to prevent spoofing if middleware is bypassed.
       const userData = JSON.stringify(user)
       const secret = process.env.USER_HEADER_SECRET
-      
+
       if (secret) {
         // Use standard Web Crypto API (available in Cloudflare Edge) for HMAC
         const encoder = new TextEncoder()
         const keyData = encoder.encode(secret)
         const msgData = encoder.encode(userData)
-        
+
         // This is async in Web Crypto, but middleware allows awaiting
         const key = await crypto.subtle.importKey(
-          'raw', 
-          keyData, 
-          { name: 'HMAC', hash: 'SHA-256' }, 
-          false, 
+          'raw',
+          keyData,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
           ['sign']
         )
         const signatureBuffer = await crypto.subtle.sign('HMAC', key, msgData)
@@ -97,57 +101,70 @@ export async function middleware(request: NextRequest) {
           .map(b => b.toString(16).padStart(2, '0'))
           .join('')
 
-        requestHeaders.set('x-user-data', btoa(encodeURIComponent(userData)))
-        requestHeaders.set('x-user-signature', signature)
+        request.headers.set('x-user-data', btoa(encodeURIComponent(userData)))
+        request.headers.set('x-user-signature', signature)
       } else {
         // Fallback to unsigned if secret is missing (only for development/testing safety)
-        requestHeaders.set('x-user-data', btoa(encodeURIComponent(userData)))
+        request.headers.set('x-user-data', btoa(encodeURIComponent(userData)))
       }
     }
   }
 
-  // Re-initialize final response with the mutated requestHeaders payload
+  // Create final response from modified request
   const finalResponse = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
+    request,
   })
 
   // Transfer all accrued cookie mutations into the final response
-  // We strictly only transfer Set-Cookie to prevent header duplication issues
-  for (const [key, value] of response.headers.entries()) {
-    if (key.toLowerCase() === 'set-cookie') {
-      finalResponse.headers.append(key, value)
+  // We use getSetCookie() if available for better multiple-cookie support
+  if (typeof response.headers.getSetCookie === 'function') {
+    const cookies = response.headers.getSetCookie()
+    cookies.forEach(cookie => {
+      finalResponse.headers.append('set-cookie', cookie)
+    })
+  } else {
+    // Fallback for older environments
+    for (const [key, value] of response.headers.entries()) {
+      if (key.toLowerCase() === 'set-cookie') {
+        finalResponse.headers.append(key, value)
+      }
     }
   }
-  response = finalResponse
 
-  // Add security headers
-  response.headers.set('X-Frame-Options', 'DENY')
-  response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
-  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  // Add security headers to the response sent to the browser
+  finalResponse.headers.set('X-Frame-Options', 'DENY')
+  finalResponse.headers.set('X-Content-Type-Options', 'nosniff')
+  finalResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  finalResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
+  finalResponse.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   // Set CSP on response headers so the browser enforces it
-  response.headers.set('Content-Security-Policy', csp);
+  finalResponse.headers.set('Content-Security-Policy', csp);
 
-  return response
+  return finalResponse
 }
 
 export const config = {
   matcher: [
     "/auth/:path*",
+    "/dashboard",
     "/dashboard/:path*",
+    "/betriebskosten",
     "/betriebskosten/:path*",
+    "/finanzen",
     "/finanzen/:path*",
+    "/haeuser",
     "/haeuser/:path*",
+    "/wohnungen",
     "/wohnungen/:path*",
+    "/mieter",
     "/mieter/:path*",
+    "/todos",
     "/todos/:path*",
+    "/mails",
     "/mails/:path*",
+    "/dateien",
     "/dateien/:path*",
     "/checkout/success",
-    "/hilfe/dokumentation/:path*",
     "/oauth/:path*",
   ],
 }

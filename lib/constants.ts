@@ -86,6 +86,10 @@ export const ROUTES = {
   IMPRESSUM: '/impressum',
 } as const;
 
+export const EXTERNAL_LINKS = {
+  DOCUMENTATION: 'https://docs.mietevo.de/',
+} as const;
+
 // MCP Worker URL
 export const MIETEVO_MCP_URL = process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || 'https://mcp.mietevo.de';
 

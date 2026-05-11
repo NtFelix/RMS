@@ -11,9 +11,11 @@ export interface LogAttributes {
 }
 
 // Configuration constants
+import resolvePostHogHost from './posthog-host';
+
 export const SERVICE_NAME = 'mietevo';
 export const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
-export const POSTHOG_HOST = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com';
+export const POSTHOG_HOST = resolvePostHogHost();
 
 /**
  * Get the PostHog logs endpoint from the configured host

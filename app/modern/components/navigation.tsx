@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles, type LucideIcon } from "lucide-react"
 
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, INFO_EMAIL, ROUTES } from "@/lib/constants"
+import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, INFO_EMAIL, ROUTES, EXTERNAL_LINKS } from "@/lib/constants"
 import { Button } from '@/components/ui/button'
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
@@ -33,28 +33,29 @@ import {
   trackNavMobileMenuOpened,
   type NavDropdown,
 } from "@/lib/posthog-landing-events";
+import type { NavItem } from "@/lib/types";
 
 // Navigation dropdown items
-const produkteItems = [
+const produkteItems: NavItem[] = [
   { name: "Web-Anwendung", href: ROUTES.HOME, icon: LayoutDashboard, description: "Die Web-Anwendung" },
   { name: "Browser-Erweiterung", href: "/warteliste/browser-erweiterung", icon: Package, description: "Demnächst verfügbar" },
   { name: "Mobile App", href: "/warteliste/mobile-app", icon: Phone, description: "Demnächst verfügbar" },
 ]
 
-const funktionenItems = [
+const funktionenItems: NavItem[] = [
   { name: "Wohnungsverwaltung", href: "/funktionen/wohnungsverwaltung", icon: Building2, description: "Verwalten Sie Ihre Wohnungen zentral" },
   { name: "Finanzverwaltung", href: "/funktionen/finanzverwaltung", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
   { name: "Betriebskosten", href: "/funktionen/betriebskosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
 ]
 
-const loesungenItems = [
+const loesungenItems: NavItem[] = [
   { name: "Für Privatvermieter", href: "/loesungen/privatvermieter", icon: Home, description: "Perfekt für private Vermieter" },
   { name: "Für kleine bis mittlere Hausverwaltungen", href: "/loesungen/kleine-mittlere-hausverwaltungen", icon: Building2, description: "Professionelle Verwaltungslösung" },
   { name: "Für große Hausverwaltungen", href: "/loesungen/grosse-hausverwaltungen", icon: TrendingUp, description: "Enterprise-Lösungen für große Portfolios" },
 ]
 
-const hilfeItems = [
-  { name: "Dokumentation", href: "/hilfe/dokumentation", icon: BookOpen, description: "Ausführliche Anleitungen" },
+const hilfeItems: NavItem[] = [
+  { name: "Dokumentation", href: EXTERNAL_LINKS.DOCUMENTATION, icon: BookOpen, description: "Ausführliche Anleitungen", target: "_blank", rel: "noopener noreferrer" },
   { name: "Kontakt", href: `mailto:${INFO_EMAIL}`, icon: Mail, description: "Schreiben Sie uns" },
 ]
 
@@ -170,10 +171,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
     return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
   }
 
-  const renderNavItem = (item: { name: string; href: string; icon: any; description: string }, index: number, dropdown?: NavDropdown) => (
+  const renderNavItem = (item: NavItem, dropdown?: NavDropdown) => (
     <Link
-      key={index}
+      key={item.name}
       href={item.href}
+      target={item.target}
+      rel={item.rel}
       onClick={() => {
         trackNavLinkClicked(item.name, item.href, dropdown);
         setIsOpen(false);
@@ -182,7 +185,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
     >
       <item.icon className="w-5 h-5 mr-3" />
       <div>
-        <div className="font-medium">{item.name}</div>
+        <div className="font-medium">
+          {item.name}
+          {item.target === "_blank" && (
+            <span className="sr-only"> (öffnet in neuem Tab)</span>
+          )}
+        </div>
         <div className="text-sm text-muted-foreground">{item.description}</div>
       </div>
     </Link>
@@ -260,8 +268,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
-                        {produkteItems.map((item, index) => (
-                          <DropdownMenuItem key={index} asChild>
+                        {produkteItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'produkte')}>
                               <item.icon className="w-4 h-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
@@ -287,8 +295,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <DropdownMenuContent align="start" className="w-[600px] p-0">
                       <div className="grid grid-cols-2">
                         <div className="p-2">
-                          {funktionenItems.map((item, index) => (
-                            <DropdownMenuItem key={index} asChild>
+                          {funktionenItems.map((item) => (
+                            <DropdownMenuItem key={item.name} asChild>
                               <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'funktionen')}>
                                 <item.icon className="w-4 h-4 shrink-0" />
                                 <div className="flex flex-col items-start gap-0.5">
@@ -343,8 +351,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
-                        {loesungenItems.map((item, index) => (
-                          <DropdownMenuItem key={index} asChild>
+                        {loesungenItems.map((item) => (
+                          <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'loesungen')}>
                               <item.icon className="w-4 h-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
@@ -378,9 +386,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-72">
-                      {hilfeItems.map((item, index) => (
-                        <DropdownMenuItem key={index} asChild>
-                          <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}>
+                      {hilfeItems.map((item) => (
+                        <DropdownMenuItem key={item.name} asChild>
+                          <Link
+                            href={item.href}
+                            target={item.target}
+                            rel={item.rel}
+                            onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}
+                          >
                             <item.icon className="w-4 h-4 shrink-0" />
                             <div className="flex flex-col items-start gap-0.5">
                               <span className="font-medium">{item.name}</span>
@@ -527,7 +540,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Produkte
                       </div>
-                      {produkteItems.map((item, index) => renderNavItem(item, index))}
+                      {produkteItems.map((item) => renderNavItem(item))}
                     </div>
                   )}
 
@@ -536,7 +549,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Funktionen
                     </div>
-                    {funktionenItems.map((item, index) => renderNavItem(item, index))}
+                    {funktionenItems.map((item) => renderNavItem(item))}
                   </div>
 
                   {/* Lösungen Section */}
@@ -545,7 +558,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Lösungen
                       </div>
-                      {loesungenItems.map((item, index) => renderNavItem(item, index))}
+                      {loesungenItems.map((item) => renderNavItem(item))}
                     </div>
                   )}
 
@@ -569,7 +582,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Hilfe
                     </div>
-                    {hilfeItems.map((item, index) => renderNavItem(item, index))}
+                    {hilfeItems.map((item) => renderNavItem(item))}
                   </div>
                 </div>
 

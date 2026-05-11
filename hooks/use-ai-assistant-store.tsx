@@ -2,18 +2,11 @@ import { create } from 'zustand';
 import posthog from 'posthog-js';
 import { createAIPerformanceMonitor } from '@/lib/ai-performance-monitor';
 import { createBundleSizeMonitor } from '@/lib/bundle-size-monitor';
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+import { type ChatMessage } from '@/types/ai';
 
 interface AIAssistantStore {
   // State
   isOpen: boolean;
-  currentMode: 'search' | 'ai';
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
@@ -23,8 +16,6 @@ interface AIAssistantStore {
   // Actions
   openAI: () => void;
   closeAI: () => void;
-  switchToSearch: () => void;
-  switchToAI: () => void;
   addMessage: (message: ChatMessage) => void;
   updateMessage: (messageId: string, content: string) => void;
   setLoading: (loading: boolean) => void;
@@ -42,7 +33,6 @@ const bundleMonitor = createBundleSizeMonitor(posthog);
 export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   // Initial state
   isOpen: false,
-  currentMode: 'search',
   messages: [],
   isLoading: false,
   error: null,
@@ -70,7 +60,6 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
     
     set({ 
       isOpen: true, 
-      currentMode: 'ai',
       sessionId,
       sessionStartTime,
       error: null 
@@ -103,37 +92,6 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
       isOpen: false,
       error: null,
       sessionStartTime: null
-    });
-  },
-
-  switchToSearch: () => {
-    set({ 
-      currentMode: 'search',
-      isOpen: false,
-      error: null 
-    });
-  },
-
-  switchToAI: () => {
-    const state = get();
-    const sessionId = state.sessionId || generateSessionId();
-    const sessionStartTime = state.sessionStartTime || new Date();
-    
-    // Track AI assistant opened event if not already open
-    if (!state.isOpen && typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.()) {
-      posthog.capture('ai_assistant_opened', {
-        source: 'mode_switch',
-        session_id: sessionId,
-        timestamp: sessionStartTime.toISOString()
-      });
-    }
-    
-    set({ 
-      currentMode: 'ai',
-      isOpen: true,
-      sessionId,
-      sessionStartTime,
-      error: null 
     });
   },
 

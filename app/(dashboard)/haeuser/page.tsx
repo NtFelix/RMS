@@ -1,13 +1,13 @@
 // "use client" directive removed. This file is now a pure Server Component.
 
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server"; // For server-side data fetching
+import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
 import { House } from "@/components/tables/house-table"; // Type for enrichedHaeuser
 
 export default async function HaeuserPage() {
-  const supabase = await createClient();
+  const { supabase, user } = await requireAuthenticatedUser();
 
   // Load data in parallel
   const [
@@ -15,9 +15,9 @@ export default async function HaeuserPage() {
     { data: apartmentsData, error: apartmentsError },
     { data: tenantsData, error: tenantsError }
   ] = await Promise.all([
-    supabase.from('Haeuser').select('*'),
-    supabase.from('Wohnungen').select('*'),
-    supabase.from('Mieter').select('wohnung_id,einzug,auszug')
+    supabase.from('Haeuser').select('*').eq('user_id', user.id),
+    supabase.from('Wohnungen').select('*').eq('user_id', user.id),
+    supabase.from('Mieter').select('wohnung_id,einzug,auszug').eq('user_id', user.id)
   ]);
 
   if (housesError || apartmentsError || tenantsError) {

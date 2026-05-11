@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { PAGINATION } from '@/constants'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -18,7 +19,10 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     
     if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, {
+        status: 401,
+        headers: NO_CACHE_HEADERS,
+      })
     }
 
     // Calculate range for pagination
@@ -46,17 +50,24 @@ export async function GET(request: NextRequest) {
 
     if (emailsError) {
       console.error('Error fetching emails:', emailsError)
-      return NextResponse.json({ error: 'Failed to fetch emails' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch emails' }, {
+        status: 500,
+        headers: NO_CACHE_HEADERS,
+      })
     }
 
     return NextResponse.json(emails || [], {
       status: 200,
       headers: {
+        ...NO_CACHE_HEADERS,
         'X-Total-Count': count?.toString() || '0',
       }
     })
   } catch (error) {
     console.error('Server error GET /api/mails:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS,
+    })
   }
 }

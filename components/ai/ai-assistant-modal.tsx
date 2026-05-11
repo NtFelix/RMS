@@ -37,7 +37,6 @@ export function AIAssistantModal() {
     formatTime
   } = useAIConversation({
     documentationContext: aiAssistantModalData?.documentationContext,
-    onFallbackToSearch: aiAssistantModalData?.onFallbackToSearch,
     interface: 'modal'
   });
 
@@ -199,16 +198,6 @@ export function AIAssistantModal() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
                 <span>{error}</span>
-                {aiAssistantModalData?.onFallbackToSearch && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={aiAssistantModalData.onFallbackToSearch}
-                    className="ml-2"
-                  >
-                    Zur Suche
-                  </Button>
-                )}
               </AlertDescription>
             </Alert>
           </div>

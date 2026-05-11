@@ -1,4 +1,5 @@
 import { PostHog } from 'posthog-node'
+import resolvePostHogHost from '../lib/posthog-host.js'
 
 const dummyPostHog = {
   capture: async () => { },
@@ -11,10 +12,21 @@ const dummyPostHog = {
 
 let posthogInstance = null
 
+function resolvePostHogProjectApiKey() {
+  const projectApiKey = process.env.POSTHOG_API_KEY
+
+  if (projectApiKey?.startsWith('phx_')) {
+    console.warn('[PostHog Server] POSTHOG_API_KEY looks like a personal API key. Falling back to NEXT_PUBLIC_POSTHOG_KEY project token.')
+    return process.env.NEXT_PUBLIC_POSTHOG_KEY
+  }
+
+  return projectApiKey || process.env.NEXT_PUBLIC_POSTHOG_KEY
+}
+
 export function getPostHogServer() {
   if (!posthogInstance) {
-    const apiKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY
-    const apiHost = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+    const apiKey = resolvePostHogProjectApiKey()
+    const apiHost = resolvePostHogHost()
 
     if (!apiKey) {
       if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {

@@ -213,8 +213,8 @@ export function CommandMenu() {
           const limitResult = await getPlanApartmentLimit(subContext.stripe_price_id)
           if (
             limitResult.error ||
-            limitResult.limitWohnungen === undefined ||
-            limitResult.limitWohnungen === null
+            limitResult.limit_wohnungen === undefined ||
+            limitResult.limit_wohnungen === null
           ) {
             apartmentLimit = undefined
             toast({
@@ -223,7 +223,7 @@ export function CommandMenu() {
               variant: "destructive",
             })
           } else {
-            apartmentLimit = limitResult.limitWohnungen
+            apartmentLimit = limitResult.limit_wohnungen
           }
         }
       }

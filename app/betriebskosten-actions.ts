@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
 import { roundToNearest5 } from "@/lib/utils";
@@ -73,12 +74,13 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   const actionName = 'createNebenkosten';
   logAction(actionName, 'start', { house_id: formData.haeuser_id });
 
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    logAction(actionName, 'error', { error_message: 'User not authenticated' });
-    return { success: false, message: "User not authenticated", data: null };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage, data: null };
   }
 
   const preparedData = {
@@ -108,12 +110,20 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   const actionName = 'updateNebenkosten';
   logAction(actionName, 'start', { nebenkosten_id: id });
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage, data: null };
+  }
 
   const { data, error } = await supabase
     .from("Nebenkosten")
     .update(formData)
     .eq("id", id)
+    .eq("user_id", user.id)
     .select()
     .single();
 
@@ -132,12 +142,20 @@ export async function deleteNebenkosten(id: string) {
   const actionName = 'deleteNebenkosten';
   logAction(actionName, 'start', { nebenkosten_id: id });
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage };
+  }
 
   const { error } = await supabase
     .from("Nebenkosten")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: error.message });
@@ -160,14 +178,22 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
     return { success: false, count: 0, message: "Keine IDs zum Löschen angegeben" };
   }
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage, data: [] };
+  }
+
 
   try {
     // Use in_ operator to delete multiple records in a single query
     const { count, error } = await supabase
       .from("Nebenkosten")
       .delete()
-      .in("id", ids);
+      .in("id", ids)
+      .eq("user_id", user.id);
 
     if (error) throw error;
 
@@ -191,12 +217,13 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
 
 export async function createRechnungenBatch(rechnungen: RechnungData[]) {
   console.log('[Server Action] createRechnungenBatch received batch of', rechnungen.length, 'items');
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     console.error("User not authenticated for createRechnungenBatch");
-    return { success: false, message: "User not authenticated", data: null };
+    return { success: false, message: errorMessage, data: null };
   }
 
   const dataWithUserId = rechnungen.map(rechnung => ({
@@ -258,19 +285,20 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
 export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Promise<{ success: boolean; message?: string }> {
   console.log('[Server Action] deleteRechnungenByNebenkostenId called for nebenkostenId:', nebenkostenId);
-  const supabase = await createClient();
-
-  // Authentication check (basic - RLS should handle actual data access control)
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     console.error("User not authenticated for deleteRechnungenByNebenkostenId");
-    return { success: false, message: "User not authenticated" };
+    return { success: false, message: errorMessage };
   }
 
   const { error } = await supabase
     .from("Rechnungen")
     .delete()
-    .eq("nebenkosten_id", nebenkostenId);
+    .eq("nebenkosten_id", nebenkostenId)
+    .eq("user_id", user.id);
 
   if (error) {
     console.error('Error deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
@@ -290,13 +318,13 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
 }> {
   "use server";
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { success: false, message: "User not authenticated" };
+    let user, supabase;
+    try {
+      ({ user, supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, message: errorMessage };
     }
-
     const { data, error } = await supabase
       .from("Nebenkosten")
       .select(`
@@ -325,9 +353,10 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
     } else {
       return { success: false, message: "Nebenkosten not found." };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in getNebenkostenDetailsAction:", error);
-    return { success: false, message: error.message || "Failed to fetch Nebenkosten details." };
+    const message = error instanceof Error ? error.message : "Failed to fetch Nebenkosten details.";
+    return { success: false, message };
   }
 }
 
@@ -358,13 +387,13 @@ async function getPreviousWasserzaehlerRecordAction(
     return { success: false, message: "Ungültige Mieter-ID angegeben." };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
-
   try {
     // Get tenant data
     const { data: mieterData, error: mieterError } = await supabase
@@ -465,9 +494,10 @@ async function getPreviousWasserzaehlerRecordAction(
 
     return { success: true, data: null };
 
-  } catch (error: any) {
-    console.error('Unexpected error in getPreviousWasserzaehlerRecordAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected error:', errorMessage);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -570,13 +600,13 @@ export async function getBatchPreviousMeterReadingsAction(
     return { success: false, message: "Keine Mieter-IDs angegeben." };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
-
   try {
     const result: Record<string, Wasserzaehler | null> = {};
 
@@ -628,9 +658,10 @@ export async function getBatchPreviousMeterReadingsAction(
 
     return { success: true, data: result };
 
-  } catch (error: any) {
-    console.error('Unexpected error in getBatchPreviousWasserzaehlerRecordsAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected error:', errorMessage);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -645,13 +676,13 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
-
   try {
     const { data, error } = await supabase
       .from("Rechnungen")
@@ -666,9 +697,10 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
 
     return { success: true, data: data as Rechnung[] };
 
-  } catch (error: any) {
-    console.error('Unexpected error in getRechnungenForNebenkostenAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected error:', errorMessage);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${errorMessage}` };
   }
 }
 
@@ -686,6 +718,13 @@ export async function getWasserzaehlerByHausAndYearAction(
       return { success: false, message: "Ungültiges Jahr. Bitte verwenden Sie das Format YYYY." };
     }
 
+    let user;
+    try {
+      ({ user } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, message: errorMessage };
+    }
     const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
 
     return {
@@ -696,11 +735,12 @@ export async function getWasserzaehlerByHausAndYearAction(
       }
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unbekannter Fehler";
     console.error('Error in getWasserzaehlerByHausAndYearAction:', error);
     return {
       success: false,
-      message: `Ein Fehler ist beim Abrufen der Wasserzählerdaten aufgetreten: ${error.message || 'Unbekannter Fehler'}`
+      message: `Ein Fehler ist beim Abrufen der Wasserzählerdaten aufgetreten: ${errorMessage}`
     };
   }
 }
@@ -716,11 +756,12 @@ export async function getWasserzaehlerByHausAndYearAction(
  * 3. Inserts the reading into 'Zaehler_Ablesungen'.
  */
 export async function saveMeterReadings(formData: MeterReadingFormData): Promise<{ success: boolean; message?: string; data?: any[] }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
   }
 
   const results = [];
@@ -765,7 +806,7 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
   // 3. Handle legacy entries (without meter ID) - Resolve Meter ID individually
   if (entriesWithoutId.length > 0) {
     // Collect all mieter IDs to fetch apartments in batch
-    const mieterIds = [...new Set(entriesWithoutId.map(e => e.mieter_id))];
+    const mieterIds = Array.from(new Set(entriesWithoutId.map(e => e.mieter_id)));
 
     // Batch fetch apartment IDs for these tenants
     const { data: mieters, error: mieterError } = await supabase
@@ -952,7 +993,7 @@ export async function saveMeterReadingsOptimized(
  * - Comprehensive error handling with retry logic
  * - Performance monitoring and logging
  * 
- * **Database Function**: `get_nebenkosten_with_metrics(user_id)`
+ * **Database Function**: `get_nebenkosten_with_metrics()`
  * 
  * **Expected Performance**: 
  * - Reduces page load time from 5-8s to 2-3s
@@ -983,14 +1024,18 @@ export async function saveMeterReadingsOptimized(
 export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
   "use server";
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt', {
+      error_message: errorMessage
+    });
+    return { success: false, message: errorMessage };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      logger.warn('Unauthenticated access attempt to fetchNebenkostenListOptimized');
-      return { success: false, message: "Benutzer nicht authentifiziert" };
-    }
 
     logger.info('Starting optimized nebenkosten list fetch', {
       userId: user.id,
@@ -1000,8 +1045,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
     const result = await withRetry(
       () => safeRpcCall<OptimizedNebenkosten[]>(
         supabase,
-        'get_nebenkosten_with_metrics',
-        { user_id: user.id }
+        'get_nebenkosten_with_metrics'
       ),
       {
         maxRetries: 2,
@@ -1036,8 +1080,8 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
 
     return { success: true, data: transformedData };
 
-  } catch (error: any) {
-    logger.error('Unexpected error in fetchNebenkostenListOptimized', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in fetchNebenkostenListOptimized', error instanceof Error ? error : new Error(String(error)), {
       operation: 'fetchNebenkostenListOptimized'
     });
 
@@ -1045,13 +1089,10 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
       error,
       'Laden der Betriebskosten-Liste'
     );
-
-    return {
-      success: false,
-      message: userMessage
-    };
+    return { success: false, message: userMessage };
   }
-}
+  }
+
 
 /**
  * Optimized server action to fetch all Wasserzähler modal data in a single database call
@@ -1109,7 +1150,13 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
 export async function getLatestBetriebskostenByHausId(hausId: string) {
   "use server";
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
+  }
 
   try {
     // First, get the latest Nebenkosten ID for the house
@@ -1117,6 +1164,7 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
       .from("Nebenkosten")
       .select('id')
       .eq('haeuser_id', hausId)
+      .eq('user_id', user.id)
       .order('enddatum', { ascending: false })
       .limit(1)
       .single();
@@ -1184,17 +1232,18 @@ export async function getMeterModalDataAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt', {
+      error_message: errorMessage
+    });
+    return { success: false, message: errorMessage };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      logger.warn('Unauthenticated access attempt to getWasserzaehlerModalDataAction', {
-        nebenkostenId,
-        operation: 'getWasserzaehlerModalDataAction'
-      });
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     logger.info('Starting Wasserzähler modal data fetch', {
       userId: user.id,
@@ -1208,8 +1257,7 @@ export async function getMeterModalDataAction(
         supabase,
         'get_meter_modal_data',
         {
-          nebenkosten_id: nebenkostenId,
-          user_id: user.id
+          nebenkosten_id: nebenkostenId
         }
       ),
       {
@@ -1415,8 +1463,8 @@ export async function getMeterModalDataAction(
 
     return result;
 
-  } catch (error: any) {
-    logger.error('Unexpected error in getWasserzaehlerModalDataAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in getWasserzaehlerModalDataAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'getWasserzaehlerModalDataAction'
     });
@@ -1619,17 +1667,18 @@ export async function getAbrechnungModalDataAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt', {
+      error_message: errorMessage
+    });
+    return { success: false, message: errorMessage };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      logger.warn('Unauthenticated access attempt to getAbrechnungModalDataAction', {
-        nebenkostenId,
-        operation: 'getAbrechnungModalDataAction'
-      });
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     logger.info('Starting Abrechnung modal data fetch', {
       userId: user.id,
@@ -1649,8 +1698,7 @@ export async function getAbrechnungModalDataAction(
         supabase,
         'get_abrechnung_modal_data',
         {
-          nebenkosten_id: nebenkostenId,
-          user_id: user.id
+          nebenkosten_id: nebenkostenId
         }
       );
 
@@ -1711,11 +1759,11 @@ export async function getAbrechnungModalDataAction(
 
       return { success: true, data: modalData };
 
-    } catch (optimizedError: any) {
+    } catch (optimizedError: unknown) {
       logger.warn('Optimized function failed, using fallback', {
         userId: user.id,
         nebenkostenId,
-        error: optimizedError.message
+        error: optimizedError instanceof Error ? optimizedError.message : String(optimizedError)
       });
 
       // Fallback to individual queries
@@ -1724,8 +1772,8 @@ export async function getAbrechnungModalDataAction(
 
 
 
-  } catch (error: any) {
-    logger.error('Unexpected error in getAbrechnungModalDataAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in getAbrechnungModalDataAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'getAbrechnungModalDataAction'
     });
@@ -2018,17 +2066,20 @@ export async function createAbrechnungCalculationAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt to createAbrechnungCalculationAction', {
+      nebenkostenId,
+      operation: 'createAbrechnungCalculationAction',
+      error_message: errorMessage
+    });
+    return { success: false, message: errorMessage };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      logger.warn('Unauthenticated access attempt to createAbrechnungCalculationAction', {
-        nebenkostenId,
-        operation: 'createAbrechnungCalculationAction'
-      });
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     logger.info('Starting Abrechnung calculation process', {
       userId: user.id,
@@ -2109,8 +2160,8 @@ export async function createAbrechnungCalculationAction(
 
         tenantCalculations.push(tenantCalculation);
 
-      } catch (error: any) {
-        logger.error(`Failed to calculate costs for tenant ${tenant.id}`, error, {
+      } catch (error: unknown) {
+        logger.error(`Failed to calculate costs for tenant ${tenant.id}`, error instanceof Error ? error : new Error(String(error)), {
           userId: user.id,
           nebenkostenId,
           tenantId: tenant.id
@@ -2170,8 +2221,8 @@ export async function createAbrechnungCalculationAction(
 
     return { success: true, data: result, message: calculationWarning };
 
-  } catch (error: any) {
-    logger.error('Unexpected error in createAbrechnungCalculationAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in createAbrechnungCalculationAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'createAbrechnungCalculationAction'
     });
@@ -2233,17 +2284,20 @@ export async function createAbrechnungCalculationOptimizedAction(
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logger.warn('Unauthenticated access attempt to createAbrechnungCalculationOptimizedAction', {
+      nebenkostenId,
+      operation: 'createAbrechnungCalculationOptimizedAction',
+      error_message: errorMessage
+    });
+    return { success: false, message: errorMessage };
+  }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      logger.warn('Unauthenticated access attempt to createAbrechnungCalculationOptimizedAction', {
-        nebenkostenId,
-        operation: 'createAbrechnungCalculationOptimizedAction'
-      });
-      return { success: false, message: "Benutzer nicht authentifiziert." };
-    }
 
     logger.info('Starting optimized Abrechnung calculation process', {
       userId: user.id,
@@ -2257,7 +2311,7 @@ export async function createAbrechnungCalculationOptimizedAction(
       () => safeRpcCall<any[]>(
         supabase,
         'get_abrechnung_calculation_data',
-        { nebenkosten_id: nebenkostenId, user_id: user.id }
+        { nebenkosten_id: nebenkostenId }
       ),
       {
         maxRetries: 3,
@@ -2351,8 +2405,8 @@ export async function createAbrechnungCalculationOptimizedAction(
 
         tenantCalculations.push(tenantCalculation);
 
-      } catch (error: any) {
-        logger.error(`Failed to calculate costs for tenant ${tenant.id} in optimized function`, error, {
+      } catch (error: unknown) {
+        logger.error(`Failed to calculate costs for tenant ${tenant.id} in optimized function`, error instanceof Error ? error : new Error(String(error)), {
           userId: user.id,
           nebenkostenId,
           tenantId: tenant.id
@@ -2414,8 +2468,8 @@ export async function createAbrechnungCalculationOptimizedAction(
 
     return { success: true, data: calculationResult, message: calculationWarningOpt };
 
-  } catch (error: any) {
-    logger.error('Unexpected error in createAbrechnungCalculationOptimizedAction', error, {
+  } catch (error: unknown) {
+    logger.error('Unexpected error in createAbrechnungCalculationOptimizedAction', error instanceof Error ? error : new Error(String(error)), {
       nebenkostenId,
       operation: 'createAbrechnungCalculationOptimizedAction'
     });
