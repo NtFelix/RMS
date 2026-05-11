@@ -603,41 +603,35 @@ BEGIN
   END LOOP;
   
   -- GET FILES IN CURRENT PATH
-  FOR v_file_record IN
-    SELECT 
-      id,
-      dateiname as name,
-      dateigroesse as size,
-      mime_type,
-      COALESCE(aktualisierungsdatum, erstellungsdatum, now())::text as updated_at,
-      COALESCE(erstellungsdatum, now())::text as created_at,
-      COALESCE(letzter_zugriff, aktualisierungsdatum, erstellungsdatum, now())::text as last_accessed_at
-    FROM "Dokumente_Metadaten"
-    WHERE dateipfad = p_current_path
-      AND user_id = v_uid
-      AND dateiname != '.keep'
-    ORDER BY dateiname ASC
-  LOOP
-    v_files := v_files || jsonb_build_object(
-      'id', v_file_record.id,
-      'name', v_file_record.name,
-      'size', COALESCE(v_file_record.size, 0),
-      'updated_at', v_file_record.updated_at,
-      'created_at', v_file_record.created_at,
-      'last_accessed_at', v_file_record.last_accessed_at,
-      'metadata', jsonb_build_object('mimetype', v_file_record.mime_type, 'size', COALESCE(v_file_record.size, 0))
-    );
-  END LOOP;
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'id', id,
+    'name', dateiname,
+    'size', COALESCE(dateigroesse, 0),
+    'updated_at', COALESCE(aktualisierungsdatum, erstellungsdatum, now())::text,
+    'created_at', COALESCE(erstellungsdatum, now())::text,
+    'last_accessed_at', COALESCE(letzter_zugriff, aktualisierungsdatum, erstellungsdatum, now())::text,
+    'metadata', jsonb_build_object('mimetype', mime_type, 'size', COALESCE(dateigroesse, 0))
+  ) ORDER BY dateiname ASC), '[]'::jsonb)
+  INTO v_files
+  FROM "Dokumente_Metadaten"
+  WHERE dateipfad = p_current_path
+    AND user_id = v_uid
+    AND dateiname != '.keep';
   
   -- GET FOLDERS
   IF v_depth = 1 THEN
-    FOR v_folder_record IN
-      SELECT 
-        h.id::text as id,
-        h.name,
-        p_current_path || '/' || h.id::text as path,
-        'house' as folder_type,
-        COALESCE(fc.file_count, 0) as file_count
+    -- Virtual Folders for Depth 1
+    SELECT COALESCE(jsonb_agg(folder_obj), '[]'::jsonb) INTO v_folders
+    FROM (
+      SELECT jsonb_build_object(
+        'name', h.id::text,
+        'path', p_current_path || '/' || h.id::text,
+        'type', 'house',
+        'isEmpty', COALESCE(fc.file_count, 0) = 0,
+        'children', '[]'::jsonb,
+        'fileCount', COALESCE(fc.file_count, 0),
+        'displayName', h.name
+      ) as folder_obj
       FROM "Haeuser" h
       LEFT JOIN (
         SELECT 
@@ -651,18 +645,8 @@ BEGIN
       ) fc ON fc.entity_id = h.id::text
       WHERE h.user_id = v_uid
       ORDER BY h.name ASC
-    LOOP
-      v_folders := v_folders || jsonb_build_object(
-        'name', v_folder_record.id,
-        'path', v_folder_record.path,
-        'type', v_folder_record.folder_type,
-        'isEmpty', v_folder_record.file_count = 0,
-        'children', '[]'::jsonb,
-        'fileCount', v_folder_record.file_count,
-        'displayName', v_folder_record.name
-      );
-    END LOOP;
-    
+    ) sub;
+
     v_folders := v_folders || jsonb_build_object(
       'name', 'house_documents',
       'path', p_current_path || '/house_documents',
@@ -696,37 +680,33 @@ BEGIN
         'displayName', 'Hausdokumente'
       );
       
-      FOR v_folder_record IN
-        SELECT 
-          w.id::text as id,
-          w.name,
-          p_current_path || '/' || w.id::text as path,
-          'apartment' as folder_type,
-          COALESCE(fc.file_count, 0) as file_count
-        FROM "Wohnungen" w
-        LEFT JOIN (
-          SELECT 
-            split_part(dateipfad, '/', 3) as entity_id,
-            COUNT(*) as file_count
-          FROM "Dokumente_Metadaten"
-          WHERE dateipfad LIKE p_current_path || '/%'
-            AND user_id = v_uid 
-            AND dateiname != '.keep'
-          GROUP BY split_part(dateipfad, '/', 3)
-        ) fc ON fc.entity_id = w.id::text
-        WHERE w.haus_id = v_house_id AND w.user_id = v_uid
-        ORDER BY w.name ASC
-      LOOP
-        v_folders := v_folders || jsonb_build_object(
-          'name', v_folder_record.id,
-          'path', v_folder_record.path,
-          'type', v_folder_record.folder_type,
-          'isEmpty', v_folder_record.file_count = 0,
-          'children', '[]'::jsonb,
-          'fileCount', v_folder_record.file_count,
-          'displayName', v_folder_record.name
-        );
-      END LOOP;
+      v_folders := v_folders || (
+        SELECT COALESCE(jsonb_agg(folder_obj), '[]'::jsonb)
+        FROM (
+          SELECT jsonb_build_object(
+            'name', w.id::text,
+            'path', p_current_path || '/' || w.id::text,
+            'type', 'apartment',
+            'isEmpty', COALESCE(fc.file_count, 0) = 0,
+            'children', '[]'::jsonb,
+            'fileCount', COALESCE(fc.file_count, 0),
+            'displayName', w.name
+          ) as folder_obj
+          FROM "Wohnungen" w
+          LEFT JOIN (
+            SELECT 
+              split_part(dateipfad, '/', 3) as entity_id,
+              COUNT(*) as file_count
+            FROM "Dokumente_Metadaten"
+            WHERE dateipfad LIKE p_current_path || '/%'
+              AND user_id = v_uid 
+              AND dateiname != '.keep'
+            GROUP BY split_part(dateipfad, '/', 3)
+          ) fc ON fc.entity_id = w.id::text
+          WHERE w.haus_id = v_house_id AND w.user_id = v_uid
+          ORDER BY w.name ASC
+        ) sub
+      );
     END IF;
   
   ELSIF v_depth = 3 AND v_path_parts[2] ~ v_uuid_pattern AND v_path_parts[3] ~ v_uuid_pattern THEN
@@ -743,42 +723,38 @@ BEGIN
         'displayName', 'Wohnungsdokumente'
       );
       
-      FOR v_folder_record IN
-        SELECT 
-          m.id::text as id,
-          m.name,
-          p_current_path || '/' || m.id::text as path,
-          'tenant' as folder_type,
-          COALESCE(fc.file_count, 0) as file_count
-        FROM "Mieter" m
-        LEFT JOIN (
-          SELECT 
-            split_part(dateipfad, '/', 4) as entity_id,
-            COUNT(*) as file_count
-          FROM "Dokumente_Metadaten"
-          WHERE dateipfad LIKE p_current_path || '/%'
-            AND user_id = v_uid 
-            AND dateiname != '.keep'
-          GROUP BY split_part(dateipfad, '/', 4)
-        ) fc ON fc.entity_id = m.id::text
-        WHERE m.wohnung_id = v_apartment_id AND m.user_id = v_uid
-        ORDER BY m.name ASC
-      LOOP
-        v_folders := v_folders || jsonb_build_object(
-          'name', v_folder_record.id,
-          'path', v_folder_record.path,
-          'type', v_folder_record.folder_type,
-          'isEmpty', v_folder_record.file_count = 0,
-          'children', '[]'::jsonb,
-          'fileCount', v_folder_record.file_count,
-          'displayName', COALESCE(v_folder_record.name, v_folder_record.id)
-        );
-      END LOOP;
+      v_folders := v_folders || (
+        SELECT COALESCE(jsonb_agg(folder_obj), '[]'::jsonb)
+        FROM (
+          SELECT jsonb_build_object(
+            'name', m.id::text,
+            'path', p_current_path || '/' || m.id::text,
+            'type', 'tenant',
+            'isEmpty', COALESCE(fc.file_count, 0) = 0,
+            'children', '[]'::jsonb,
+            'fileCount', COALESCE(fc.file_count, 0),
+            'displayName', COALESCE(m.name, m.id::text)
+          ) as folder_obj
+          FROM "Mieter" m
+          LEFT JOIN (
+            SELECT 
+              split_part(dateipfad, '/', 4) as entity_id,
+              COUNT(*) as file_count
+            FROM "Dokumente_Metadaten"
+            WHERE dateipfad LIKE p_current_path || '/%'
+              AND user_id = v_uid 
+              AND dateiname != '.keep'
+            GROUP BY split_part(dateipfad, '/', 4)
+          ) fc ON fc.entity_id = m.id::text
+          WHERE m.wohnung_id = v_apartment_id AND m.user_id = v_uid
+          ORDER BY m.name ASC
+        ) sub
+      );
     END IF;
   END IF;
   
-  -- DISCOVER CUSTOM STORAGE FOLDERS
-  FOR v_folder_record IN
+  -- DISCOVER CUSTOM STORAGE FOLDERS (Recursive File Count & jsonb_agg)
+  v_folders := v_folders || (
     WITH folder_stats AS (
       SELECT 
         dateipfad,
@@ -800,25 +776,24 @@ BEGIN
       SELECT 
         folder_name,
         p_current_path || '/' || folder_name as path,
-        SUM(direct_file_count) filter (where target_path = p_current_path || '/' || folder_name) as file_count
+        SUM(direct_file_count) as file_count -- REMOVED FILTER: Recursive count across all sub-paths
       FROM immediate_subfolders
       WHERE folder_name != ''
       GROUP BY folder_name
     )
-    SELECT * FROM aggregated_subfolders
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+      'name', folder_name,
+      'path', path,
+      'type', 'storage',
+      'isEmpty', COALESCE(file_count, 0) = 0,
+      'children', '[]'::jsonb,
+      'fileCount', COALESCE(file_count, 0),
+      'displayName', folder_name
+    )), '[]'::jsonb)
+    FROM aggregated_subfolders
     WHERE folder_name NOT IN ('Miscellaneous', 'house_documents', 'apartment_documents')
       AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(v_folders) f WHERE f->>'name' = folder_name)
-  LOOP
-    v_folders := v_folders || jsonb_build_object(
-      'name', v_folder_record.folder_name,
-      'path', v_folder_record.path,
-      'type', 'storage',
-      'isEmpty', COALESCE(v_folder_record.file_count, 0) = 0,
-      'children', '[]'::jsonb,
-      'fileCount', COALESCE(v_folder_record.file_count, 0),
-      'displayName', v_folder_record.folder_name
-    );
-  END LOOP;
+  );
   
   SELECT COALESCE(SUM(dateigroesse), 0) INTO v_total_size
   FROM "Dokumente_Metadaten"
