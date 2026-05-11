@@ -28,8 +28,7 @@ export async function getMeterForHausAction(hausId: string) {
 
     // Try to use optimized database function first
     const { data, error } = await supabase.rpc('get_zaehler_for_haus', {
-      haus_id_param: hausId,
-      user_id_param: user.id
+      haus_id_param: hausId
     });
 
     if (error) {
@@ -213,8 +212,7 @@ export async function getZaehlerDataAction(wohnungId: string) {
   try {
 
     const { data, error } = await supabase.rpc('get_zaehler_data', {
-      wohnung_id_param: wohnungId,
-      user_id_param: user.id
+      wohnung_id_param: wohnungId
     });
 
     if (error) {
@@ -261,8 +259,7 @@ export async function getAblesungenForZaehlerAction(zaehlerId: string) {
   try {
 
     const { data, error } = await supabase.rpc('get_ablesungen_for_zaehler', {
-      zaehler_id_param: zaehlerId,
-      user_id_param: user.id
+      zaehler_id_param: zaehlerId
     });
 
     if (error) {

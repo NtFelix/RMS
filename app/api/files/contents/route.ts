@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
-            p_user_id: user.id,
             p_current_path: path
         })
 

@@ -146,13 +146,8 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
             for (let i = 0; i < mailsWithContent.length; i += PGMQ_BATCH_SIZE) {
                 const batch = mailsWithContent.slice(i, i + PGMQ_BATCH_SIZE);
                 const batchPromises = batch.map(mail => {
-                    return supabase.rpc('pgmq_send', {
-                        queue_name: 'applicant_ai_processing',
-                        message: {
-                            mail_id: mail.id,
-                            user_id: userId,
-                            created_at: new Date().toISOString()
-                        }
+                    return supabase.rpc('send_applicant_processing_message', {
+                        p_mail_id: mail.id
                     });
                 });
 

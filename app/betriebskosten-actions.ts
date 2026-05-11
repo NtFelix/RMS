@@ -993,7 +993,7 @@ export async function saveMeterReadingsOptimized(
  * - Comprehensive error handling with retry logic
  * - Performance monitoring and logging
  * 
- * **Database Function**: `get_nebenkosten_with_metrics(user_id)`
+ * **Database Function**: `get_nebenkosten_with_metrics()`
  * 
  * **Expected Performance**: 
  * - Reduces page load time from 5-8s to 2-3s
@@ -1045,8 +1045,7 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
     const result = await withRetry(
       () => safeRpcCall<OptimizedNebenkosten[]>(
         supabase,
-        'get_nebenkosten_with_metrics',
-        { user_id: user.id }
+        'get_nebenkosten_with_metrics'
       ),
       {
         maxRetries: 2,
@@ -1258,8 +1257,7 @@ export async function getMeterModalDataAction(
         supabase,
         'get_meter_modal_data',
         {
-          nebenkosten_id: nebenkostenId,
-          user_id: user.id
+          nebenkosten_id: nebenkostenId
         }
       ),
       {
@@ -1700,8 +1698,7 @@ export async function getAbrechnungModalDataAction(
         supabase,
         'get_abrechnung_modal_data',
         {
-          nebenkosten_id: nebenkostenId,
-          user_id: user.id
+          nebenkosten_id: nebenkostenId
         }
       );
 
@@ -2314,7 +2311,7 @@ export async function createAbrechnungCalculationOptimizedAction(
       () => safeRpcCall<any[]>(
         supabase,
         'get_abrechnung_calculation_data',
-        { nebenkosten_id: nebenkostenId, user_id: user.id }
+        { nebenkosten_id: nebenkostenId }
       ),
       {
         maxRetries: 3,

@@ -120,7 +120,6 @@ export async function getFolderContents(userId: string, path?: string): Promise<
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
-            p_user_id: userId,
             p_current_path: targetPath
         })
 
