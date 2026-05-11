@@ -10,15 +10,15 @@ CREATE OR REPLACE FUNCTION public.get_actual_prepayments(
     p_end_date date, 
     p_tags text[] DEFAULT ARRAY['Nebenkosten'::text]
 )
-RETURNS SETOF "Finanzen"
+RETURNS SETOF public."Finanzen"
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO ''
+SET search_path = ''
 AS $$
 BEGIN
     RETURN QUERY
     SELECT *
-    FROM "public"."Finanzen"
+    FROM public."Finanzen"
     WHERE user_id = auth.uid() -- Critical security fix
     AND wohnung_id = ANY(p_wohnung_ids)
     AND datum >= p_start_date
@@ -46,13 +46,13 @@ CREATE OR REPLACE FUNCTION public.get_available_finance_years()
  RETURNS TABLE(year integer)
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
   SELECT DISTINCT 
     EXTRACT(YEAR FROM f.datum)::INTEGER as year
-  FROM "Finanzen" f
+  FROM public."Finanzen" f
   WHERE f.datum IS NOT NULL
     -- RLS will handle the filtering
   ORDER BY year DESC;
@@ -69,7 +69,7 @@ CREATE OR REPLACE FUNCTION public.get_filtered_financial_summary(
  RETURNS TABLE(total_income numeric, total_expenses numeric, total_balance numeric)
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
@@ -77,8 +77,8 @@ BEGIN
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END), 0) as total_income,
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END), 0) as total_expenses,
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE -f.betrag END), 0) as total_balance
-  FROM "Finanzen" f
-  LEFT JOIN "Wohnungen" w ON f.wohnung_id = w.id
+  FROM public."Finanzen" f
+  LEFT JOIN public."Wohnungen" w ON f.wohnung_id = w.id
   WHERE f.datum IS NOT NULL
     -- Text search filter
     AND (search_query = '' OR 
@@ -106,7 +106,7 @@ CREATE OR REPLACE FUNCTION public.get_filtered_financial_summary(
  RETURNS TABLE(total_income numeric, total_expenses numeric, total_balance numeric)
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
@@ -114,8 +114,8 @@ BEGIN
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END), 0) as total_income,
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END), 0) as total_expenses,
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE -f.betrag END), 0) as total_balance
-  FROM "Finanzen" f
-  LEFT JOIN "Wohnungen" w ON f.wohnung_id = w.id
+  FROM public."Finanzen" f
+  LEFT JOIN public."Wohnungen" w ON f.wohnung_id = w.id
   WHERE f.datum IS NOT NULL
     -- Text search filter
     AND (search_query = '' OR 
@@ -139,7 +139,7 @@ CREATE OR REPLACE FUNCTION public.get_financial_chart_data(target_year integer)
  RETURNS TABLE(id uuid, betrag numeric, ist_einnahmen boolean, datum date, name text, wohnung_id uuid, apartment_name text)
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
@@ -151,8 +151,8 @@ BEGIN
     f.name,
     f.wohnung_id,
     w.name as apartment_name
-  FROM "Finanzen" f
-  LEFT JOIN "Wohnungen" w ON f.wohnung_id = w.id
+  FROM public."Finanzen" f
+  LEFT JOIN public."Wohnungen" w ON f.wohnung_id = w.id
   WHERE EXTRACT(YEAR FROM f.datum) = target_year
     AND f.datum IS NOT NULL
   ORDER BY f.datum;
@@ -164,7 +164,7 @@ CREATE OR REPLACE FUNCTION public.get_financial_summary_data(target_year integer
  RETURNS TABLE(id uuid, betrag numeric, ist_einnahmen boolean, datum date, name text, wohnung_id uuid)
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
@@ -175,7 +175,7 @@ BEGIN
     f.datum,
     f.name,
     f.wohnung_id
-  FROM "Finanzen" f
+  FROM public."Finanzen" f
   WHERE EXTRACT(YEAR FROM f.datum) = target_year
     AND f.datum IS NOT NULL
   ORDER BY f.datum;
@@ -187,7 +187,7 @@ CREATE OR REPLACE FUNCTION public.get_financial_year_summary(target_year integer
  RETURNS TABLE(year integer, total_income numeric, total_expenses numeric, total_cashflow numeric, transaction_count integer, monthly_data jsonb)
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
@@ -209,7 +209,7 @@ BEGIN
       SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END) as total_income,
       SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END) as total_expenses,
       COUNT(*) as transaction_count
-    FROM "Finanzen" f
+    FROM public."Finanzen" f
     WHERE EXTRACT(YEAR FROM f.datum) = target_year
       AND f.datum IS NOT NULL
     GROUP BY EXTRACT(MONTH FROM f.datum)
@@ -222,7 +222,7 @@ CREATE OR REPLACE FUNCTION public.get_mail_summary()
  RETURNS json
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   result JSON;
@@ -250,7 +250,7 @@ CREATE OR REPLACE FUNCTION public.get_monthly_finance_data(start_date date, end_
  RETURNS TABLE(month integer, total_income numeric, total_expenses numeric)
  LANGUAGE plpgsql
  SECURITY INVOKER -- Changed from DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
@@ -258,7 +258,7 @@ BEGIN
     EXTRACT(MONTH FROM f.datum)::INTEGER as month,
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END), 0) as total_income,
     COALESCE(SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END), 0) as total_expenses
-  FROM "Finanzen" f
+  FROM public."Finanzen" f
   WHERE f.datum >= start_date 
     AND f.datum <= end_date
   GROUP BY EXTRACT(MONTH FROM f.datum)
@@ -303,3 +303,4 @@ REVOKE ALL ON FUNCTION public.get_next_pending_import() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_next_pending_import() FROM anon;
 REVOKE ALL ON FUNCTION public.get_next_pending_import() FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_next_pending_import() TO service_role;
+

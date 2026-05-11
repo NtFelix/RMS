@@ -15,7 +15,7 @@ CREATE OR REPLACE FUNCTION public.calculate_storage_usage()
 RETURNS bigint
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 declare
   total_size bigint;
@@ -39,7 +39,7 @@ CREATE OR REPLACE FUNCTION public.fetch_tenant_payment_dashboard_data()
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   tenants_payload JSONB;
@@ -75,9 +75,9 @@ BEGIN
     )
   ), '[]'::jsonb)
   INTO tenants_payload
-  FROM "Mieter" m
-  LEFT JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
-  LEFT JOIN "Haeuser" h ON w.haus_id = h.id AND h.user_id = v_uid
+  FROM public."Mieter" m
+  LEFT JOIN public."Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+  LEFT JOIN public."Haeuser" h ON w.haus_id = h.id AND h.user_id = v_uid
   WHERE m.user_id = v_uid;
 
   -- Aggregate finance entries relevant for the dashboard
@@ -93,7 +93,7 @@ BEGIN
     )
   ), '[]'::jsonb)
   INTO finances_payload
-  FROM "Finanzen" f
+  FROM public."Finanzen" f
   WHERE f.user_id = v_uid
     AND f.ist_einnahmen = TRUE
     AND (
@@ -129,7 +129,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -143,10 +143,10 @@ BEGIN
       SELECT 
           h.id as house_id,
           h.name as house_name,
-          COALESCE(h.groesse, (SELECT SUM(groesse) FROM "Wohnungen" WHERE haus_id = h.id AND user_id = v_uid)) as total_area,
+          COALESCE(h.groesse, (SELECT SUM(groesse) FROM public."Wohnungen" WHERE haus_id = h.id AND user_id = v_uid)) as total_area,
           COUNT(w.id)::INTEGER as apartment_count
-      FROM "Haeuser" h
-      LEFT JOIN "Wohnungen" w ON h.id = w.haus_id AND w.user_id = v_uid
+      FROM public."Haeuser" h
+      LEFT JOIN public."Wohnungen" w ON h.id = w.haus_id AND w.user_id = v_uid
       WHERE h.user_id = v_uid
       GROUP BY h.id, h.name, h.groesse
   ),
@@ -154,9 +154,9 @@ BEGIN
       SELECT 
           n.id as nebenkosten_id,
           COUNT(DISTINCT m.id)::INTEGER as tenant_count
-      FROM "Nebenkosten" n
-      LEFT JOIN "Wohnungen" w ON n.haeuser_id = w.haus_id AND w.user_id = v_uid
-      LEFT JOIN "Mieter" m ON w.id = m.wohnung_id 
+      FROM public."Nebenkosten" n
+      LEFT JOIN public."Wohnungen" w ON n.haeuser_id = w.haus_id AND w.user_id = v_uid
+      LEFT JOIN public."Mieter" m ON w.id = m.wohnung_id 
           AND m.user_id = v_uid
           AND COALESCE(m.einzug, '1900-01-01'::DATE) <= n.enddatum
           AND COALESCE(m.auszug, '9999-12-31'::DATE) >= n.startdatum
@@ -179,7 +179,7 @@ BEGIN
       COALESCE(hm.total_area, 0) as gesamt_flaeche,
       COALESCE(hm.apartment_count, 0) as anzahl_wohnungen,
       COALESCE(tc.tenant_count, 0) as anzahl_mieter
-  FROM "Nebenkosten" n
+  FROM public."Nebenkosten" n
   LEFT JOIN house_metrics hm ON n.haeuser_id = hm.house_id
   LEFT JOIN tenant_counts tc ON n.id = tc.nebenkosten_id
   WHERE n.user_id = v_uid
@@ -192,7 +192,7 @@ CREATE OR REPLACE FUNCTION public.insert_finance_entries_batch(p_entries jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   entry JSONB;
@@ -231,12 +231,12 @@ BEGIN
       END IF;
 
       -- Verify ownership of the apartment
-      IF NOT EXISTS (SELECT 1 FROM "Wohnungen" WHERE id = (entry->>'wohnung_id')::UUID AND user_id = v_uid) THEN
+      IF NOT EXISTS (SELECT 1 FROM public."Wohnungen" WHERE id = (entry->>'wohnung_id')::UUID AND user_id = v_uid) THEN
         skipped_count := skipped_count + 1;
         CONTINUE;
       END IF;
 
-      INSERT INTO "Finanzen" (
+      INSERT INTO public."Finanzen" (
         wohnung_id,
         name,
         betrag,

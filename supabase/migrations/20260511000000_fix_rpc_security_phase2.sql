@@ -26,7 +26,7 @@ CREATE OR REPLACE FUNCTION public.send_applicant_processing_message(p_mail_id uu
 RETURNS bigint
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -37,12 +37,12 @@ BEGIN
   END IF;
 
   -- Verify the mail belongs to the user before queueing
-  IF NOT EXISTS (SELECT 1 FROM "Mail_Metadaten" WHERE id = p_mail_id AND user_id = v_uid) THEN
+  IF NOT EXISTS (SELECT 1 FROM public."Mail_Metadaten" WHERE id = p_mail_id AND user_id = v_uid) THEN
     RAISE EXCEPTION 'Mail not found or access denied';
   END IF;
 
   -- Send to queue using the restricted pgmq_send function
-  SELECT pgmq_send(
+  SELECT public.pgmq_send(
     'applicant_ai_processing',
     jsonb_build_object(
       'mail_id', p_mail_id,
@@ -76,7 +76,7 @@ CREATE OR REPLACE FUNCTION public.get_ablesungen_for_zaehler(zaehler_id_param uu
  RETURNS TABLE(zaehler_data jsonb, readings jsonb)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -102,9 +102,9 @@ BEGIN
         'Haeuser', jsonb_build_object('name', h.name)
       )
     ) as data
-    FROM "Zaehler" z
-    LEFT JOIN "Wohnungen" w ON z.wohnung_id = w.id AND w.user_id = v_uid
-    LEFT JOIN "Haeuser" h ON w.haus_id = h.id AND h.user_id = v_uid
+    FROM public."Zaehler" z
+    LEFT JOIN public."Wohnungen" w ON z.wohnung_id = w.id AND w.user_id = v_uid
+    LEFT JOIN public."Haeuser" h ON w.haus_id = h.id AND h.user_id = v_uid
     WHERE z.id = zaehler_id_param
       AND z.user_id = v_uid
   ),
@@ -120,7 +120,7 @@ BEGIN
         'kommentar', a.kommentar
       ) ORDER BY a.ablese_datum DESC
     ), '[]'::jsonb) as data
-    FROM "Zaehler_Ablesungen" a
+    FROM public."Zaehler_Ablesungen" a
     WHERE a.zaehler_id = zaehler_id_param
       AND a.user_id = v_uid
   )
@@ -135,7 +135,7 @@ CREATE OR REPLACE FUNCTION public.get_abrechnung_calculation_data(nebenkosten_id
  RETURNS TABLE(nebenkosten_data jsonb, tenants_with_occupancy jsonb, rechnungen jsonb, wasserzaehler_readings jsonb, wasserzaehler_meters jsonb, house_metrics jsonb, calculation_metadata jsonb)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
     target_haus_id UUID;
@@ -150,7 +150,7 @@ BEGIN
     -- Get nebenkosten details
     SELECT n.haeuser_id, n.startdatum, n.enddatum
     INTO target_haus_id, start_datum, end_datum
-    FROM "Nebenkosten" n
+    FROM public."Nebenkosten" n
     WHERE n.id = nebenkosten_id 
     AND n.user_id = v_uid;
 
@@ -172,7 +172,7 @@ BEGIN
             'haeuser_id', n.haeuser_id,
             'vorauszahlungs_art', n.vorauszahlungs_art
         ) as data
-        FROM "Nebenkosten" n
+        FROM public."Nebenkosten" n
         WHERE n.id = nebenkosten_id
     ),
     tenants_json AS (
@@ -190,9 +190,9 @@ BEGIN
                 )
             )
         ) as data
-        FROM "Mieter" m
-        JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
-        CROSS JOIN "Nebenkosten" n
+        FROM public."Mieter" m
+        JOIN public."Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+        CROSS JOIN public."Nebenkosten" n
         WHERE w.haus_id = target_haus_id AND n.id = nebenkosten_id
           AND m.user_id = v_uid
           AND COALESCE(m.einzug, '1900-01-01'::DATE) <= n.enddatum
@@ -200,30 +200,30 @@ BEGIN
     ),
     rechnungen_info AS (
         SELECT COALESCE(jsonb_agg(r), '[]'::jsonb) as data
-        FROM "Rechnungen" r
+        FROM public."Rechnungen" r
         WHERE r.nebenkosten_id = nebenkosten_id
           AND r.user_id = v_uid
     ),
     house_summary AS (
         SELECT jsonb_build_object(
-            'totalArea', COALESCE(h.groesse, (SELECT SUM(groesse) FROM "Wohnungen" WHERE haus_id = target_haus_id AND user_id = v_uid))
+            'totalArea', COALESCE(h.groesse, (SELECT SUM(groesse) FROM public."Wohnungen" WHERE haus_id = target_haus_id AND user_id = v_uid))
         ) as data
-        FROM "Haeuser" h
+        FROM public."Haeuser" h
         WHERE h.id = target_haus_id AND h.user_id = v_uid
     ),
     relevant_meters AS (
         SELECT COALESCE(jsonb_agg(wz), '[]'::jsonb) as data
-        FROM "Zaehler" wz
+        FROM public."Zaehler" wz
         WHERE wz.user_id = v_uid AND wz.wohnung_id IN (
             SELECT m.wohnung_id
-            FROM "Mieter" m
-            JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+            FROM public."Mieter" m
+            JOIN public."Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
             WHERE w.haus_id = target_haus_id AND m.user_id = v_uid
         )
     ),
     relevant_readings AS (
         SELECT COALESCE(jsonb_agg(wa), '[]'::jsonb) as data
-        FROM "Zaehler_Ablesungen" wa
+        FROM public."Zaehler_Ablesungen" wa
         WHERE wa.user_id = v_uid AND wa.ablese_datum >= start_datum AND wa.ablese_datum <= end_datum
     )
     SELECT
@@ -242,7 +242,7 @@ CREATE OR REPLACE FUNCTION public.get_abrechnung_modal_data(nebenkosten_id uuid)
  RETURNS TABLE(nebenkosten_data jsonb, tenants jsonb, rechnungen jsonb, meters jsonb, readings jsonb)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   target_haus_id UUID;
@@ -257,7 +257,7 @@ BEGIN
   -- Get nebenkosten details
   SELECT n.haeuser_id, n.startdatum, n.enddatum
   INTO target_haus_id, start_datum, end_datum
-  FROM "Nebenkosten" n
+  FROM public."Nebenkosten" n
   WHERE n.id = nebenkosten_id
     AND n.user_id = v_uid;
 
@@ -282,8 +282,8 @@ BEGIN
       'Haeuser', jsonb_build_object('name', h.name),
       'gesamtFlaeche', h.groesse
     ) as data
-    FROM "Nebenkosten" n
-    LEFT JOIN "Haeuser" h ON n.haeuser_id = h.id AND h.user_id = v_uid
+    FROM public."Nebenkosten" n
+    LEFT JOIN public."Haeuser" h ON n.haeuser_id = h.id AND h.user_id = v_uid
     WHERE n.id = nebenkosten_id
       AND n.user_id = v_uid
   ),
@@ -303,8 +303,8 @@ BEGIN
         )
       )
     ) as data
-    FROM "Mieter" m
-    JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+    FROM public."Mieter" m
+    JOIN public."Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
     WHERE w.haus_id = target_haus_id
       AND m.user_id = v_uid
       AND COALESCE(m.einzug, '1900-01-01'::DATE) <= end_datum
@@ -312,23 +312,23 @@ BEGIN
   ),
   relevant_rechnungen AS (
     SELECT COALESCE(jsonb_agg(r), '[]'::jsonb) as data
-    FROM "Rechnungen" r
+    FROM public."Rechnungen" r
     WHERE r.nebenkosten_id = nebenkosten_id
       AND r.user_id = v_uid
   ),
   relevant_meters AS (
     SELECT COALESCE(jsonb_agg(wz), '[]'::jsonb) as data
-    FROM "Zaehler" wz
+    FROM public."Zaehler" wz
     WHERE wz.user_id = v_uid AND wz.wohnung_id IN (
         SELECT m.wohnung_id 
-        FROM "Mieter" m 
-        JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+        FROM public."Mieter" m 
+        JOIN public."Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
         WHERE w.haus_id = target_haus_id AND m.user_id = v_uid
     )
   ),
   relevant_readings AS (
     SELECT COALESCE(jsonb_agg(wa), '[]'::jsonb) as data
-    FROM "Zaehler_Ablesungen" wa
+    FROM public."Zaehler_Ablesungen" wa
     WHERE wa.user_id = v_uid AND wa.ablese_datum >= start_datum AND wa.ablese_datum <= end_datum
   )
   SELECT
@@ -345,7 +345,7 @@ CREATE OR REPLACE FUNCTION public.get_zaehler_data(wohnung_id_param uuid)
  RETURNS TABLE(wohnung_data jsonb, meters jsonb, readings jsonb)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -364,8 +364,8 @@ BEGIN
       'haus_id', w.haus_id,
       'Haeuser', jsonb_build_object('name', h.name)
     ) as data
-    FROM "Wohnungen" w
-    LEFT JOIN "Haeuser" h ON w.haus_id = h.id AND h.user_id = v_uid
+    FROM public."Wohnungen" w
+    LEFT JOIN public."Haeuser" h ON w.haus_id = h.id AND h.user_id = v_uid
     WHERE w.id = wohnung_id_param
       AND w.user_id = v_uid
   ),
@@ -383,7 +383,7 @@ BEGIN
         'einheit', z.einheit
       ) ORDER BY z.zaehler_typ, z.custom_id
     ), '[]'::jsonb) as data
-    FROM "Zaehler" z
+    FROM public."Zaehler" z
     WHERE z.wohnung_id = wohnung_id_param
       AND z.user_id = v_uid
   ),
@@ -399,8 +399,8 @@ BEGIN
         'kommentar', a.kommentar
       ) ORDER BY a.ablese_datum DESC
     ), '[]'::jsonb) as data
-    FROM "Zaehler_Ablesungen" a
-    JOIN "Zaehler" z ON a.zaehler_id = z.id AND z.user_id = v_uid
+    FROM public."Zaehler_Ablesungen" a
+    JOIN public."Zaehler" z ON a.zaehler_id = z.id AND z.user_id = v_uid
     WHERE z.wohnung_id = wohnung_id_param
       AND a.user_id = v_uid
   )
@@ -416,7 +416,7 @@ CREATE OR REPLACE FUNCTION public.get_zaehler_for_haus(haus_id_param uuid)
  RETURNS TABLE(wohnungen jsonb, meters jsonb, readings jsonb, mieter jsonb)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -436,7 +436,7 @@ BEGIN
         'haus_id', w.haus_id
       ) ORDER BY w.name
     ) as data
-    FROM "Wohnungen" w
+    FROM public."Wohnungen" w
     WHERE w.haus_id = haus_id_param
       AND w.user_id = v_uid
   ),
@@ -454,8 +454,8 @@ BEGIN
         'einheit', z.einheit
       ) ORDER BY z.zaehler_typ, z.custom_id
     ), '[]'::jsonb) as data
-    FROM "Zaehler" z
-    JOIN "Wohnungen" w ON z.wohnung_id = w.id AND w.user_id = v_uid
+    FROM public."Zaehler" z
+    JOIN public."Wohnungen" w ON z.wohnung_id = w.id AND w.user_id = v_uid
     WHERE w.haus_id = haus_id_param
       AND z.user_id = v_uid
   ),
@@ -471,9 +471,9 @@ BEGIN
         'kommentar', a.kommentar
       ) ORDER BY a.ablese_datum DESC
     ), '[]'::jsonb) as data
-    FROM "Zaehler_Ablesungen" a
-    JOIN "Zaehler" z ON a.zaehler_id = z.id AND z.user_id = v_uid
-    JOIN "Wohnungen" w ON z.wohnung_id = w.id AND w.user_id = v_uid
+    FROM public."Zaehler_Ablesungen" a
+    JOIN public."Zaehler" z ON a.zaehler_id = z.id AND z.user_id = v_uid
+    JOIN public."Wohnungen" w ON z.wohnung_id = w.id AND w.user_id = v_uid
     WHERE w.haus_id = haus_id_param
       AND a.user_id = v_uid
   ),
@@ -487,8 +487,8 @@ BEGIN
         'auszug', m.auszug
       ) ORDER BY m.name
     ), '[]'::jsonb) as data
-    FROM "Mieter" m
-    JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+    FROM public."Mieter" m
+    JOIN public."Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
     WHERE w.haus_id = haus_id_param
       AND m.user_id = v_uid
   )
@@ -505,7 +505,7 @@ CREATE OR REPLACE FUNCTION public.get_folder_contents(p_current_path text)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -573,13 +573,13 @@ BEGIN
       v_breadcrumb_type := 'category';
     ELSIF v_segment ~ v_uuid_pattern THEN
       IF i = 2 THEN -- House
-        SELECT name INTO v_entity_name FROM "Haeuser" WHERE id = v_segment::uuid AND user_id = v_uid;
+        SELECT name INTO v_entity_name FROM public."Haeuser" WHERE id = v_segment::uuid AND user_id = v_uid;
         v_breadcrumb_type := 'house';
       ELSIF i = 3 THEN -- Apartment
-        SELECT name INTO v_entity_name FROM "Wohnungen" WHERE id = v_segment::uuid AND user_id = v_uid;
+        SELECT name INTO v_entity_name FROM public."Wohnungen" WHERE id = v_segment::uuid AND user_id = v_uid;
         v_breadcrumb_type := 'apartment';
       ELSIF i = 4 THEN -- Tenant
-        SELECT name INTO v_entity_name FROM "Mieter" WHERE id = v_segment::uuid AND user_id = v_uid;
+        SELECT name INTO v_entity_name FROM public."Mieter" WHERE id = v_segment::uuid AND user_id = v_uid;
         v_breadcrumb_type := 'tenant';
       ELSE
         v_entity_name := v_segment;
@@ -613,7 +613,7 @@ BEGIN
     'metadata', jsonb_build_object('mimetype', mime_type, 'size', COALESCE(dateigroesse, 0))
   ) ORDER BY dateiname ASC), '[]'::jsonb)
   INTO v_files
-  FROM "Dokumente_Metadaten"
+  FROM public."Dokumente_Metadaten"
   WHERE dateipfad = p_current_path
     AND user_id = v_uid
     AND dateiname != '.keep';
@@ -632,12 +632,12 @@ BEGIN
         'fileCount', COALESCE(fc.file_count, 0),
         'displayName', h.name
       ) as folder_obj
-      FROM "Haeuser" h
+      FROM public."Haeuser" h
       LEFT JOIN (
         SELECT 
           split_part(dateipfad, '/', 2) as entity_id,
           COUNT(*) as file_count
-        FROM "Dokumente_Metadaten"
+        FROM public."Dokumente_Metadaten"
         WHERE dateipfad LIKE p_current_path || '/%'
           AND user_id = v_uid 
           AND dateiname != '.keep'
@@ -651,9 +651,9 @@ BEGIN
       'name', 'house_documents',
       'path', p_current_path || '/house_documents',
       'type', 'category',
-      'isEmpty', NOT EXISTS(SELECT 1 FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
+      'isEmpty', NOT EXISTS(SELECT 1 FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
       'children', '[]'::jsonb,
-      'fileCount', (SELECT COUNT(*) FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
+      'fileCount', (SELECT COUNT(*) FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
       'displayName', 'Hausdokumente'
     );
     
@@ -661,22 +661,22 @@ BEGIN
       'name', 'Miscellaneous',
       'path', p_current_path || '/Miscellaneous',
       'type', 'category',
-      'isEmpty', NOT EXISTS(SELECT 1 FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/Miscellaneous' AND user_id = v_uid AND dateiname != '.keep'),
+      'isEmpty', NOT EXISTS(SELECT 1 FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/Miscellaneous' AND user_id = v_uid AND dateiname != '.keep'),
       'children', '[]'::jsonb,
-      'fileCount', (SELECT COUNT(*) FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/Miscellaneous' AND user_id = v_uid AND dateiname != '.keep'),
+      'fileCount', (SELECT COUNT(*) FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/Miscellaneous' AND user_id = v_uid AND dateiname != '.keep'),
       'displayName', 'Sonstiges'
     );
   
   ELSIF v_depth = 2 AND v_path_parts[2] ~ v_uuid_pattern THEN
     v_house_id := v_path_parts[2]::uuid;
-    IF EXISTS(SELECT 1 FROM "Haeuser" WHERE id = v_house_id AND user_id = v_uid) THEN
+    IF EXISTS(SELECT 1 FROM public."Haeuser" WHERE id = v_house_id AND user_id = v_uid) THEN
       v_folders := v_folders || jsonb_build_object(
         'name', 'house_documents',
         'path', p_current_path || '/house_documents',
         'type', 'category',
-        'isEmpty', NOT EXISTS(SELECT 1 FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
+        'isEmpty', NOT EXISTS(SELECT 1 FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
         'children', '[]'::jsonb,
-        'fileCount', (SELECT COUNT(*) FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
+        'fileCount', (SELECT COUNT(*) FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/house_documents' AND user_id = v_uid AND dateiname != '.keep'),
         'displayName', 'Hausdokumente'
       );
       
@@ -692,12 +692,12 @@ BEGIN
             'fileCount', COALESCE(fc.file_count, 0),
             'displayName', w.name
           ) as folder_obj
-          FROM "Wohnungen" w
+          FROM public."Wohnungen" w
           LEFT JOIN (
             SELECT 
               split_part(dateipfad, '/', 3) as entity_id,
               COUNT(*) as file_count
-            FROM "Dokumente_Metadaten"
+            FROM public."Dokumente_Metadaten"
             WHERE dateipfad LIKE p_current_path || '/%'
               AND user_id = v_uid 
               AND dateiname != '.keep'
@@ -712,14 +712,14 @@ BEGIN
   ELSIF v_depth = 3 AND v_path_parts[2] ~ v_uuid_pattern AND v_path_parts[3] ~ v_uuid_pattern THEN
     v_house_id := v_path_parts[2]::uuid;
     v_apartment_id := v_path_parts[3]::uuid;
-    IF EXISTS(SELECT 1 FROM "Wohnungen" WHERE id = v_apartment_id AND haus_id = v_house_id AND user_id = v_uid) THEN
+    IF EXISTS(SELECT 1 FROM public."Wohnungen" WHERE id = v_apartment_id AND haus_id = v_house_id AND user_id = v_uid) THEN
       v_folders := v_folders || jsonb_build_object(
         'name', 'apartment_documents',
         'path', p_current_path || '/apartment_documents',
         'type', 'category',
-        'isEmpty', NOT EXISTS(SELECT 1 FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/apartment_documents' AND user_id = v_uid AND dateiname != '.keep'),
+        'isEmpty', NOT EXISTS(SELECT 1 FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/apartment_documents' AND user_id = v_uid AND dateiname != '.keep'),
         'children', '[]'::jsonb,
-        'fileCount', (SELECT COUNT(*) FROM "Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/apartment_documents' AND user_id = v_uid AND dateiname != '.keep'),
+        'fileCount', (SELECT COUNT(*) FROM public."Dokumente_Metadaten" WHERE dateipfad = p_current_path || '/apartment_documents' AND user_id = v_uid AND dateiname != '.keep'),
         'displayName', 'Wohnungsdokumente'
       );
       
@@ -735,12 +735,12 @@ BEGIN
             'fileCount', COALESCE(fc.file_count, 0),
             'displayName', COALESCE(m.name, m.id::text)
           ) as folder_obj
-          FROM "Mieter" m
+          FROM public."Mieter" m
           LEFT JOIN (
             SELECT 
               split_part(dateipfad, '/', 4) as entity_id,
               COUNT(*) as file_count
-            FROM "Dokumente_Metadaten"
+            FROM public."Dokumente_Metadaten"
             WHERE dateipfad LIKE p_current_path || '/%'
               AND user_id = v_uid 
               AND dateiname != '.keep'
@@ -759,7 +759,7 @@ BEGIN
       SELECT 
         dateipfad,
         COUNT(*) filter (where dateiname != '.keep') as direct_file_count
-      FROM "Dokumente_Metadaten"
+      FROM public."Dokumente_Metadaten"
       WHERE dateipfad LIKE p_current_path || '/%'
         AND user_id = v_uid
       GROUP BY dateipfad
@@ -796,7 +796,7 @@ BEGIN
   );
   
   SELECT COALESCE(SUM(dateigroesse), 0) INTO v_total_size
-  FROM "Dokumente_Metadaten"
+  FROM public."Dokumente_Metadaten"
   WHERE user_id = v_uid;
   
   RETURN jsonb_build_object(
@@ -814,7 +814,7 @@ CREATE OR REPLACE FUNCTION public.get_virtual_folders(p_current_path text)
  RETURNS TABLE(id text, name text, path text, type text, file_count bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -838,8 +838,8 @@ BEGIN
       h.name,
       p_current_path || '/' || h.id,
       'house'::text,
-      (select count(*) from "Dokumente_Metadaten" dm where dm.dateipfad = p_current_path || '/' || h.id and dm.user_id = v_uid)
-    from "Haeuser" h
+      (select count(*) from public."Dokumente_Metadaten" dm where dm.dateipfad = p_current_path || '/' || h.id and dm.user_id = v_uid)
+    from public."Haeuser" h
     where h.user_id = v_uid;
   end if;
 
@@ -852,8 +852,8 @@ BEGIN
         w.name,
         p_current_path || '/' || w.id,
         'apartment'::text,
-        (select count(*) from "Dokumente_Metadaten" dm where dm.dateipfad = p_current_path || '/' || w.id and dm.user_id = v_uid)
-      from "Wohnungen" w
+        (select count(*) from public."Dokumente_Metadaten" dm where dm.dateipfad = p_current_path || '/' || w.id and dm.user_id = v_uid)
+      from public."Wohnungen" w
       where w.haus_id = v_house_id and w.user_id = v_uid;
     end if;
   end if;
@@ -867,8 +867,8 @@ BEGIN
         m.name,
         p_current_path || '/' || m.id,
         'tenant'::text,
-        (select count(*) from "Dokumente_Metadaten" dm where dm.dateipfad = p_current_path || '/' || m.id and dm.user_id = v_uid)
-      from "Mieter" m
+        (select count(*) from public."Dokumente_Metadaten" dm where dm.dateipfad = p_current_path || '/' || h.id and dm.user_id = v_uid)
+      from public."Mieter" m
       where m.wohnung_id = v_apt_id and m.user_id = v_uid;
     end if;
   end if;
@@ -882,7 +882,7 @@ CREATE OR REPLACE FUNCTION public.get_meter_modal_data(nebenkosten_id uuid, mete
  RETURNS TABLE(mieter_id uuid, mieter_name text, wohnung_name text, wohnung_groesse numeric, meter_id uuid, meter_type text, custom_id text, current_reading jsonb, previous_reading jsonb)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   target_haus_id UUID;
@@ -897,7 +897,7 @@ BEGIN
   -- Get nebenkosten details
   SELECT n.haeuser_id, n.startdatum, n.enddatum
   INTO target_haus_id, start_datum, end_datum
-  FROM "Nebenkosten" n
+  FROM public."Nebenkosten" n
   WHERE n.id = nebenkosten_id
     AND n.user_id = v_uid;
 
@@ -913,8 +913,8 @@ BEGIN
       w.id as wohnung_id,
       w.name as wohnung_name,
       w.groesse as wohnung_groesse
-    FROM "Mieter" m
-    JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+    FROM public."Mieter" m
+    JOIN public."Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
     WHERE w.haus_id = target_haus_id
       AND m.user_id = v_uid
       AND COALESCE(m.einzug, '1900-01-01'::DATE) <= end_datum
@@ -928,7 +928,7 @@ BEGIN
       wz.custom_id,
       wz.wohnung_id
     FROM relevant_tenants rt
-    JOIN "Zaehler" wz ON wz.wohnung_id = rt.wohnung_id AND wz.user_id = v_uid
+    JOIN public."Zaehler" wz ON wz.wohnung_id = rt.wohnung_id AND wz.user_id = v_uid
     WHERE wz.zaehler_typ = ANY(meter_types) 
       AND wz.ist_aktiv = true
   ),
@@ -941,7 +941,7 @@ BEGIN
         'verbrauch', wa.verbrauch
       ) as reading_data
     FROM apartment_meters am
-    JOIN "Zaehler_Ablesungen" wa ON wa.zaehler_id = am.meter_id AND wa.user_id = v_uid
+    JOIN public."Zaehler_Ablesungen" wa ON wa.zaehler_id = am.meter_id AND wa.user_id = v_uid
     WHERE wa.ablese_datum >= start_datum
       AND wa.ablese_datum <= end_datum
     ORDER BY wa.ablese_datum DESC
@@ -955,7 +955,7 @@ BEGIN
         'verbrauch', wa.verbrauch
       ) as reading_data
     FROM apartment_meters am
-    JOIN "Zaehler_Ablesungen" wa ON wa.zaehler_id = am.meter_id AND wa.user_id = v_uid
+    JOIN public."Zaehler_Ablesungen" wa ON wa.zaehler_id = am.meter_id AND wa.user_id = v_uid
     WHERE wa.ablese_datum < start_datum
     ORDER BY am.meter_id, wa.ablese_datum DESC
   )
@@ -980,7 +980,7 @@ CREATE OR REPLACE FUNCTION public.get_email_import_stats()
  RETURNS TABLE(queued_jobs integer, processing_jobs integer, completed_jobs integer, failed_jobs integer, total_messages_imported integer, queue_depth bigint)
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
   v_uid uuid := auth.uid();
@@ -1007,7 +1007,7 @@ CREATE OR REPLACE FUNCTION public.queue_email_import(p_account_id uuid, p_sync_j
  RETURNS uuid
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path = ''
 AS $$
 DECLARE
     v_job_id UUID;
@@ -1058,7 +1058,7 @@ BEGIN
     );
 
     -- Send to PGMQ queue
-    PERFORM pgmq.send('outlook_email_import', v_message);
+    PERFORM public.pgmq_send('outlook_email_import', v_message);
 
     RETURN v_job_id;
 END;
