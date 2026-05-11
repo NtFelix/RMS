@@ -76,8 +76,8 @@ BEGIN
   ), '[]'::jsonb)
   INTO tenants_payload
   FROM "Mieter" m
-  LEFT JOIN "Wohnungen" w ON m.wohnung_id = w.id
-  LEFT JOIN "Haeuser" h ON w.haus_id = h.id
+  LEFT JOIN "Wohnungen" w ON m.wohnung_id = w.id AND w.user_id = v_uid
+  LEFT JOIN "Haeuser" h ON w.haus_id = h.id AND h.user_id = v_uid
   WHERE m.user_id = v_uid;
 
   -- Aggregate finance entries relevant for the dashboard
@@ -143,7 +143,7 @@ BEGIN
       SELECT 
           h.id as house_id,
           h.name as house_name,
-          COALESCE(h.groesse, (SELECT SUM(groesse) FROM "Wohnungen" WHERE haus_id = h.id)) as total_area,
+          COALESCE(h.groesse, (SELECT SUM(groesse) FROM "Wohnungen" WHERE haus_id = h.id AND user_id = v_uid)) as total_area,
           COUNT(w.id)::INTEGER as apartment_count
       FROM "Haeuser" h
       LEFT JOIN "Wohnungen" w ON h.id = w.haus_id AND w.user_id = v_uid
@@ -230,6 +230,12 @@ BEGIN
         entry_tags := NULL;
       END IF;
 
+      -- Verify ownership of the apartment
+      IF NOT EXISTS (SELECT 1 FROM "Wohnungen" WHERE id = (entry->>'wohnung_id')::UUID AND user_id = v_uid) THEN
+        skipped_count := skipped_count + 1;
+        CONTINUE;
+      END IF;
+
       INSERT INTO "Finanzen" (
         wohnung_id,
         name,
@@ -252,7 +258,7 @@ BEGIN
 
       inserted_count := inserted_count + 1;
     EXCEPTION WHEN OTHERS THEN
-      RAISE WARNING 'Skipping entry due to error: %. Entry: %', SQLERRM, entry;
+      RAISE WARNING 'Skipping entry due to validation error. Entry: %', entry;
       skipped_count := skipped_count + 1;
       CONTINUE;
     END;
