@@ -7,8 +7,7 @@
             "ESNext"
         ],
         "types": [
-            "@cloudflare/workers-types",
-            "@cloudflare/vitest-pool-workers"
+            "@cloudflare/workers-types"
         ],
         "strict": true,
         "skipLibCheck": true,
