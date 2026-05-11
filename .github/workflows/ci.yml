@@ -16,6 +16,7 @@ on:
     paths-ignore:
       - 'playwright/snapshots.yml'
       - '**/snapshots.yml'
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '22'
@@ -134,17 +135,19 @@ jobs:
   check-visual-run:
     name: Check for Visual Run
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     outputs:
-      should-run: ${{ steps.filter.outputs.run }}
+      should-run: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.run == 'true' }}
     steps:
       - name: Checkout
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Check for relevant file changes
         id: filter
+        if: github.event_name == 'pull_request'
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
@@ -263,7 +266,7 @@ jobs:
       - name: Checkout (latest branch tip)
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -332,9 +335,9 @@ jobs:
             --type playwright \
             --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
-            --branch ${{ github.event.pull_request.head.ref }} \
+            --branch ${{ github.event.pull_request.head.ref || github.ref_name }} \
             --commit $(git rev-parse HEAD) \
-            --pr ${{ github.event.pull_request.number }})
+            ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }})
           echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Created PostHog VR run: $RUN_ID"
 
