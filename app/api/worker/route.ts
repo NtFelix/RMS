@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 export const runtime = 'edge';
 
 const MAX_RETRIES = 3;
@@ -56,7 +57,10 @@ export async function POST(request: Request) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('[WorkerProxy] Backend error:', response.status, errorText);
-            return new NextResponse(errorText, { status: response.status });
+            return new NextResponse(errorText, { 
+                status: response.status,
+                headers: NO_CACHE_HEADERS
+            });
         }
 
         // Forward the binary response from the worker
@@ -74,6 +78,11 @@ export async function POST(request: Request) {
         // Expose headers for the frontend
         responseHeaders.set('Access-Control-Expose-Headers', 'X-PDF-Page-Count, X-PDF-Generation-Time');
 
+        // Apply NO_CACHE_HEADERS
+        Object.entries(NO_CACHE_HEADERS).forEach(([key, value]) => {
+            responseHeaders.set(key, value);
+        });
+
         return new NextResponse(response.body, {
             status: response.status,
             headers: responseHeaders,
@@ -81,13 +90,13 @@ export async function POST(request: Request) {
     } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
         console.error('[WorkerProxy] Proxy failed:', error);
-        return new NextResponse(JSON.stringify({
+        return NextResponse.json({
             error: 'Proxy failed',
             details: error.message,
             name: error.name
-        }), {
+        }, {
             status: 500,
-            headers: { 'Content-Type': 'application/json' },
+            headers: NO_CACHE_HEADERS,
         });
     }
 }
