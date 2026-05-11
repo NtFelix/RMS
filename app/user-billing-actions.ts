@@ -1,13 +1,14 @@
 'use server';
+import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
 let stripeClient: Stripe | null = null;
+
 function getStripe(): Stripe {
-  // Note: On Cloudflare Workers, module scope is not shared across requests.
-  // This singleton only benefits Node.js environments.
   if (!stripeClient) {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
@@ -16,7 +17,7 @@ function getStripe(): Stripe {
   return stripeClient;
 }
 
-type BillingAddressError = {
+export type BillingAddressError = {
   error: string;
   details?: string;
 };
@@ -40,7 +41,7 @@ export interface BillingAddress {
   phone?: string | null;
 }
 
-interface UpdateBillingAddressParams {
+export interface UpdateBillingAddressParams {
   name: string;
   address: {
     line1: string;
@@ -56,6 +57,25 @@ interface UpdateBillingAddressParams {
 export async function getBillingAddress(
   stripeCustomerId: string,
 ): Promise<BillingAddress | BillingAddressError> {
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
+  }
+
+  // Verify ownership
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.stripe_customer_id !== stripeCustomerId) {
+    return { error: "Nicht autorisiert" };
+  }
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return {
@@ -84,17 +104,18 @@ export async function getBillingAddress(
     const stripe = getStripe();
     const customer = await stripe.customers.retrieve(stripeCustomerId);
 
-    if ('deleted' in customer && customer.deleted) {
+    if ('deleted' in customer) {
       return { error: 'Customer not found' };
     }
 
-    // Support fallback to legacy `business_name` mapping on customer object
-    const legacyCustomer = customer as Stripe.Customer & { business_name?: string };
-    const companyName = customer.metadata?.company_name || legacyCustomer.business_name || '';
+    // Now customer is narrowed to Stripe.Customer
+    const activeCustomer = customer as Stripe.Customer;
+    const legacyCustomer = activeCustomer as Stripe.Customer & { business_name?: string };
+    const companyName = activeCustomer.metadata?.company_name || legacyCustomer.business_name || '';
 
-    if (!customer.address) {
+    if (!activeCustomer.address) {
       return {
-        name: customer.name || '',
+        name: activeCustomer.name || '',
         companyName,
         address: {
           line1: '',
@@ -104,24 +125,24 @@ export async function getBillingAddress(
           postal_code: '',
           country: 'DE',
         },
-        email: customer.email || '',
-        phone: customer.phone || null,
+        email: activeCustomer.email || '',
+        phone: activeCustomer.phone || null,
       };
     }
 
     return {
-      name: customer.name || '',
+      name: activeCustomer.name || '',
       companyName,
       address: {
-        line1: customer.address.line1 || '',
-        line2: customer.address.line2 || null,
-        city: customer.address.city || '',
-        state: customer.address.state || null,
-        postal_code: customer.address.postal_code || '',
-        country: customer.address.country || 'DE',
+        line1: activeCustomer.address.line1 || '',
+        line2: activeCustomer.address.line2 || null,
+        city: activeCustomer.address.city || '',
+        state: activeCustomer.address.state || null,
+        postal_code: activeCustomer.address.postal_code || '',
+        country: activeCustomer.address.country || 'DE',
       },
-      email: customer.email || '',
-      phone: customer.phone || null,
+      email: activeCustomer.email || '',
+      phone: activeCustomer.phone || null,
     };
   } catch (error: unknown) {
     console.error('Error in getBillingAddress:', error);
@@ -136,6 +157,25 @@ export async function updateBillingAddress(
   stripeCustomerId: string,
   details: UpdateBillingAddressParams,
 ): Promise<{ success: boolean; error?: string }> {
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: errorMessage };
+  }
+
+  // Verify ownership
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.stripe_customer_id !== stripeCustomerId) {
+    return { success: false, error: "Nicht autorisiert" };
+  }
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return { success: true };
@@ -183,6 +223,25 @@ export async function updateBillingAddress(
 export async function createSetupIntent(
   stripeCustomerId: string,
 ): Promise<{ clientSecret: string } | { error: string }> {
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
+  }
+
+  // Verify ownership
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || profile.stripe_customer_id !== stripeCustomerId) {
+    return { error: "Nicht autorisiert" };
+  }
+
   if (isStripeMocked()) {
     if (isTestEnv()) {
       return { clientSecret: 'seti_mock_secret_123' };

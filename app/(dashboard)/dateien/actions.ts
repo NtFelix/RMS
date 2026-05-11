@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { ensureAuth } from '@/lib/auth-utils'
 import { redirect, unstable_rethrow } from 'next/navigation'
 
 /**
@@ -112,12 +112,9 @@ export async function getFolderContents(userId: string, path?: string): Promise<
     const startTime = performance.now()
 
     try {
-        const supabase = await createClient()
+        const { user, supabase } = await ensureAuth()
 
-        // Verify user authentication
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user || user.id !== userId) {
+        if (user.id !== userId) {
             redirect('/auth/login')
         }
 
@@ -244,12 +241,9 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
     error?: string
 }> {
     try {
-        const supabase = await createClient()
+        const { user, supabase } = await ensureAuth()
 
-        // Verify user authentication
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user || user.id !== userId) {
+        if (user.id !== userId) {
             return {
                 success: false,
                 error: 'Nicht authentifiziert'

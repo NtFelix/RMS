@@ -1,23 +1,21 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { posthogLogger } from "@/lib/posthog-logger";
 
 export async function searchMailSenders(query: string) {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) return [];
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch {
+        return [];
+    }
 
     if (!query || query.length < 2) return [];
 
     // Assuming 'absender' is the column name in Mail_Metadaten
-    // We use .ilike for case-insensitive search and .limit so we don't fetch too many
-    // Ideally we want distinct senders, but Supabase/PostgREST distinct is a bit tricky with unrelated columns.
-    // We'll fetch a bunch and dedup in JS for now if the table isn't huge, or ideally use a .rpc if performance is an issue.
-    // For now, let's just fetch recent matches.
-
     const { data, error } = await supabase
         .from('Mail_Metadaten')
         .select('absender')
@@ -36,10 +34,12 @@ export async function searchMailSenders(query: string) {
 }
 
 export async function getMailsBySender(sender: string, startDate?: Date, endDate?: Date) {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) return [];
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch {
+        return [];
+    }
 
     let query = supabase
         .from('Mail_Metadaten')
@@ -70,10 +70,11 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
 }
 
 export async function createApplicantsFromMails(mails: { id: string, absender: string, dateipfad?: string | null }[]) {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-        return { success: false, error: "Unauthorized: Please log in." };
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch {
+        return { success: false, error: "Nicht authentifiziert" };
     }
     const userId = user.id;
 
@@ -200,22 +201,19 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 if (!response.ok) {
                     throw new Error(`Worker returned ${response.status} ${response.statusText}`);
                 }
-            } catch (e: any) {
+            } catch (e: unknown) {
                 console.error("Worker fetch failed:", e);
-                // We don't necessarily want to fail the whole import if just the kickoff failed,
-                // but we should probably let the user know.
-                // Since this is the very last step, adding to errors might be confusing if success is true.
-                // But the user prompt suggested returning a specific error.
-                // The outer catch block pushes to errors. Rethrowing here will do that.
-                throw new Error("AI Processing kickoff failed: " + e.message);
+                const message = e instanceof Error ? e.message : String(e);
+                throw new Error("AI Processing kickoff failed: " + message);
             }
 
             await posthogLogger.flush();
-        } catch (queueError: any) {
+        } catch (queueError: unknown) {
             console.error("Error queueing AI processing:", queueError);
-            posthogLogger.error('Queueing AI processing failed', { error: queueError.message });
+            const message = queueError instanceof Error ? queueError.message : "AI Processing verification failed to start.";
+            posthogLogger.error('Queueing AI processing failed', { error: message });
             await posthogLogger.flush();
-            errors.push("AI Processing verification failed to start.");
+            errors.push(message);
         }
     } else if (mails.length > 0) {
         posthogLogger.warn('No mails with stored content to process', { totalMails: mails.length });
@@ -235,6 +233,17 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
 }
 
 export async function checkWorkerQueueStatus(userId: string) {
+    let user;
+    try {
+        ({ user } = await ensureAuth());
+    } catch {
+        return { hasMore: false, error: "Nicht authentifiziert" };
+    }
+
+    if (user.id !== userId) {
+        return { hasMore: false, error: "Nicht authentifiziert" };
+    }
+
     const workerUrl = process.env.WORKER_URL || 'https://backend.mietevo.de';
     let workerAuthKey = process.env.WORKER_AUTH_KEY;
 
@@ -264,8 +273,9 @@ export async function checkWorkerQueueStatus(userId: string) {
 
         const data = await res.json() as { hasMore: boolean };
         return { hasMore: data.hasMore, success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Polling error:", err);
-        return { hasMore: false, error: err.message };
+        const message = err instanceof Error ? err.message : "Polling error";
+        return { hasMore: false, error: message };
     }
 }
