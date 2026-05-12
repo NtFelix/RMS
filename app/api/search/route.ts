@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import type {
   SearchResponse,
   SearchResult as FrontendSearchResult
@@ -154,20 +155,20 @@ export async function GET(request: Request) {
     if (!query || query.trim().length === 0) {
       return NextResponse.json({ 
         error: 'Search query is required' 
-      }, { status: 400 });
+      }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
     if (query.length > 100) {
       return NextResponse.json({ 
         error: 'Search query too long' 
-      }, { status: 400 });
+      }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
     // Validate limit
     if (limit < 1 || limit > 20) {
       return NextResponse.json({ 
         error: 'Limit must be between 1 and 20' 
-      }, { status: 400 });
+      }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
     const supabase = await createClient();
@@ -680,7 +681,7 @@ export async function GET(request: Request) {
     // Add warning header if some searches failed but we have partial results
     const headers = new Headers({
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=60', // Cache for 1 minute
+      ...NO_CACHE_HEADERS,
     });
     
     if (failedSearches > 0 && successfulSearches > 0) {
@@ -732,7 +733,7 @@ export async function GET(request: Request) {
       }
     }
     
-    const responseHeaders: Record<string, string> = {};
+    const responseHeaders: Record<string, string> = { ...NO_CACHE_HEADERS };
     if (statusCode === 503) {
       responseHeaders['Retry-After'] = '30'; // Suggest retry after 30 seconds for service unavailable
     }
