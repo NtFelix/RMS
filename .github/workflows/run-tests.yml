@@ -10,8 +10,6 @@ on:
       - '**/*.jsx'
       - '**/package.json'
       - '**/package-lock.json'
-    paths-ignore:
-      - 'playwright/snapshots.yml'
   pull_request:
     branches: [main, develop]
     paths-ignore:
@@ -428,7 +426,7 @@ jobs:
   install-playwright:
     name: Install Playwright Browsers
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     outputs:
       playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
     
