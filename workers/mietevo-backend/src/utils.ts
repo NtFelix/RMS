@@ -12,7 +12,7 @@ export const isoToGermanDate = (isoString: string | null | undefined) => {
             month: '2-digit',
             year: 'numeric'
         });
-    } catch (_) {
+    } catch {
         return isoString;
     }
 };
