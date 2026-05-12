@@ -452,7 +452,7 @@ jobs:
                 body: body
               });
             }
-            return new Date().toISOString();
+            core.setOutput('start_time', new Date().toISOString());
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -479,7 +479,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-          START_TIME: ${{ steps.start-comment.outputs.result }}
+          START_TIME: ${{ steps.start-comment.outputs.start_time }}
         with:
           script: |
             const startTimeStr = process.env.START_TIME;
@@ -501,7 +501,7 @@ jobs:
             const existingComment = comments.find(c => c.body.includes(marker));
             
             const timestamp = endTime.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
-            const body = `${marker}\n✅ **New version is live!**\n\n🔗 **URL:** ${process.env.DEPLOY_URL}\n\n🕒 **Deployed at:** ${timestamp}\n⏱️ **Duration:** ${durationStr}`;
+            const body = `${marker}\n✅ **New version is live!**\n\n🔗 **[Preview #${prNumber}](${process.env.DEPLOY_URL})**\n\n🕒 **Deployed at:** ${timestamp}\n⏱️ **Duration:** ${durationStr}`;
             
             if (existingComment) {
               await github.rest.issues.updateComment({
