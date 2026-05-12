@@ -95,7 +95,7 @@ jobs:
             });
             const existingComment = comments.find(c => c.body.includes(marker));
             const body = `${marker}\n⏳ **Building Docker container...** It won't take long!`;
-            
+
             if (existingComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
@@ -515,7 +515,7 @@ jobs:
             });
             const existingComment = comments.find(c => c.body.includes(marker));
             const body = `${marker}\n⏳ **Build finished. Deploying to Cloud Run...**`;
-            
+
             if (existingComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
@@ -569,10 +569,10 @@ jobs:
             const endTime = new Date();
             const durationMs = endTime - startTime;
             const durationSec = Math.floor(durationMs / 1000);
-            const durationStr = durationSec > 60 
+            const durationStr = durationSec > 60
               ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`
               : `${durationSec}s`;
-            
+
             const prNumber = context.issue.number;
             const marker = '<!-- preview-deploy-comment -->';
             const { data: comments } = await github.rest.issues.listComments({
@@ -581,10 +581,10 @@ jobs:
               issue_number: prNumber,
             });
             const existingComment = comments.find(c => c.body.includes(marker));
-            
+
             const timestamp = endTime.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
             const body = `${marker}\n✅ **New version is live!**\n\n🔗 **[Preview #${prNumber}](${process.env.DEPLOY_URL})**\n\n🕒 **Deployed at:** ${timestamp}\n⏱️ **Duration:** ${durationStr} (Build + Deploy)`;
-            
+
             if (existingComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
