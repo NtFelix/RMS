@@ -156,6 +156,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=docker-build
 
       - name: Smoke test
+        id: smoke-test
         run: |
           docker pull ${{ steps.image.outputs.full_name }}
           docker run -d \
@@ -166,30 +167,64 @@ jobs:
             -e NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
             ${{ steps.image.outputs.full_name }}
 
-          echo "Waiting for container to be healthy..."
+          # Give container a moment to start
+          sleep 2
+
+          # Check 1: Verify container is still running
+          INITIAL_STATUS=$(docker inspect --format='{{.State.Status}}' mietevo-smoke 2>/dev/null || echo "not_found")
+          if [ "$INITIAL_STATUS" != "running" ]; then
+            echo "❌ Container failed to start (status: $INITIAL_STATUS)"
+            echo "Container logs:"
+            docker logs mietevo-smoke
+            exit 1
+          fi
+          echo "✓ Container started successfully"
+
+          # Check 2: Scan logs for critical errors during startup
+          STARTUP_ERRORS=$(docker logs mietevo-smoke 2>&1 | grep -iE "error|fatal|panic|uncaught|exception" | grep -v "warning" || true)
+          if [ -n "$STARTUP_ERRORS" ]; then
+            echo "⚠️  Critical errors detected in logs:"
+            echo "$STARTUP_ERRORS"
+            echo "Full logs:"
+            docker logs mietevo-smoke
+            exit 1
+          fi
+          echo "✓ No critical startup errors"
+
+          # Check 3: Wait for HTTP endpoint to be responsive
+          echo "Waiting for HTTP endpoint..."
           for i in $(seq 1 30); do
             STATUS=$(docker inspect --format='{{.State.Status}}' mietevo-smoke 2>/dev/null || echo "not_found")
-            if [ "$STATUS" = "exited" ]; then
-              echo "Container exited unexpectedly."
+            if [ "$STATUS" != "running" ]; then
+              echo "❌ Container stopped unexpectedly (status: $STATUS)"
               docker logs mietevo-smoke
               exit 1
             fi
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "000")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "307" ] || [ "$HTTP_CODE" = "302" ]; then
-              echo "Container is healthy (HTTP $HTTP_CODE)."
+              echo "✓ HTTP endpoint healthy (HTTP $HTTP_CODE)"
               exit 0
             fi
-            echo "Attempt $i/30: HTTP $HTTP_CODE — retrying in 2s..."
+            if [ $i -eq 30 ]; then
+              echo "❌ HTTP endpoint did not respond after 60s"
+              echo "Last HTTP code: $HTTP_CODE"
+              echo "Container logs:"
+              docker logs mietevo-smoke
+              exit 1
+            fi
+            echo "  Attempt $i/30: HTTP $HTTP_CODE — retrying in 2s..."
             sleep 2
           done
 
-          echo "Smoke test failed: container did not respond in time."
-          docker logs mietevo-smoke
-          exit 1
-
-      - name: Stop smoke test container
+      - name: Cleanup smoke test container
         if: always()
-        run: docker rm -f mietevo-smoke || true
+        run: |
+          if docker inspect mietevo-smoke &>/dev/null; then
+            echo "Stopping smoke test container..."
+            docker stop mietevo-smoke || true
+            docker rm -f mietevo-smoke || true
+            echo "✓ Cleanup complete"
+          fi
 
   # ─── Detects whether UI-relevant files changed ───────────────────────────────
 

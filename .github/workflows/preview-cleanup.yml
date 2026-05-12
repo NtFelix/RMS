@@ -39,11 +39,15 @@ jobs:
             --format="value(metadata.name)" \
             --limit=1)
           if [ -n "$REVISION" ]; then
+            echo "Deleting revision: $REVISION"
             gcloud run revisions delete "$REVISION" --region=europe-west1 --quiet
+            echo "✓ Revision deleted"
+          else
+            echo "No revision found for this PR tag"
           fi
 
       - name: Delete Docker Image from Artifact Registry
         run: |
           gcloud artifacts docker images delete \
-            europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo/mietevo:pr-${{ github.event.pull_request.number }} \
+            europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:pr-${{ github.event.pull_request.number }} \
             --quiet || echo "Image not found"
