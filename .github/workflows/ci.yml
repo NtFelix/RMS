@@ -160,7 +160,7 @@ jobs:
             NEXT_PUBLIC_MIETEVO_MCP_URL=${{ secrets.NEXT_PUBLIC_MIETEVO_MCP_URL }}
             POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
             POSTHOG_PROJECT_ID=${{ secrets.POSTHOG_PROJECT_ID }}
-            POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
           cache-from: type=gha,scope=docker-build
           cache-to: type=gha,mode=max,scope=docker-build
 
