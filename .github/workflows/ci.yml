@@ -155,6 +155,9 @@ jobs:
             NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ github.event_name == 'pull_request' && secrets.STAGING_STRIPE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
+            NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }}
+            NEXT_PUBLIC_MIETEVO_MCP_URL=${{ secrets.NEXT_PUBLIC_MIETEVO_MCP_URL }}
             POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
             POSTHOG_PROJECT_ID=${{ secrets.POSTHOG_PROJECT_ID }}
             POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
@@ -541,7 +544,18 @@ jobs:
           env_vars: |
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
             STRIPE_SECRET_KEY=${{ secrets.STAGING_STRIPE_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STAGING_STRIPE_WEBHOOK_SECRET }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+            TOKEN_ENCRYPTION_KEY=${{ secrets.STAGING_TOKEN_ENCRYPTION_KEY }}
+            WORKER_AUTH_KEY=${{ secrets.WORKER_AUTH_KEY }}
+            USER_HEADER_SECRET=${{ secrets.USER_HEADER_SECRET }}
+            OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
+            OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
+            OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
 
       - name: Comment Preview URL on PR
         uses: actions/github-script@v7
@@ -611,4 +625,15 @@ jobs:
           env_vars: |
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
             STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            TOKEN_ENCRYPTION_KEY=${{ secrets.TOKEN_ENCRYPTION_KEY }}
+            WORKER_AUTH_KEY=${{ secrets.WORKER_AUTH_KEY }}
+            USER_HEADER_SECRET=${{ secrets.USER_HEADER_SECRET }}
+            OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
+            OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
+            OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
