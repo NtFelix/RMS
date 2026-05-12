@@ -85,13 +85,13 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Authenticate Docker to GCR
-        run: gcloud auth configure-docker gcr.io --quiet
+      - name: Authenticate Docker to Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 
       - name: Set Image Name & Tag
         id: image
         run: |
-          IMAGE_BASE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mietevo"
+          IMAGE_BASE="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             TAG="pr-${{ github.event.pull_request.number }}"
           elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
@@ -430,7 +430,7 @@ jobs:
         with:
           service: mietevo
           region: europe-west1
-          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mietevo:pr-${{ github.event.pull_request.number }}
+          image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:pr-${{ github.event.pull_request.number }}
           tag: pr-${{ github.event.pull_request.number }}
           no_traffic: true
           env_vars: |
@@ -472,7 +472,7 @@ jobs:
         with:
           service: mietevo
           region: europe-west1
-          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mietevo:latest
+          image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:latest
           env_vars: |
             SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
