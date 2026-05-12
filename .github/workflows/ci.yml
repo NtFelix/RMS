@@ -65,46 +65,66 @@ jobs:
   # ─── Docker Build and Smoke Test ─────────────────────────────────────────────
 
   docker-build:
-    name: Docker Build (${{ matrix.platform }})
-    runs-on: ${{ matrix.runner }}
-    needs: [lint, type-check, build-app, check-docker-run]
-    if: needs.check-docker-run.outputs.should-run == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, build-app]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate Docker to GCR
+        run: gcloud auth configure-docker gcr.io --quiet
+
+      - name: Set Image Name & Tag
+        id: image
+        run: |
+          IMAGE_BASE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/mietevo"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAG="latest"
+          else
+            TAG="branch-${{ github.ref_name }}"
+          fi
+          echo "full_name=$IMAGE_BASE:$TAG" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Build and Push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
-          load: true
-          platforms: ${{ matrix.platform }}
-          tags: rms-frontend:latest
-          cache-from: type=gha,scope=${{ matrix.platform }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.image.outputs.full_name }}
+          cache-from: type=gha,scope=docker-build
+          cache-to: type=gha,mode=max,scope=docker-build
 
       - name: Smoke test
         run: |
+          docker pull ${{ steps.image.outputs.full_name }}
           docker run -d \
             --name mietevo-smoke \
             -p 3000:3000 \
             -e NODE_ENV=production \
             -e NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
             -e NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
-            rms-frontend:latest
+            ${{ steps.image.outputs.full_name }}
 
           echo "Waiting for container to be healthy..."
           for i in $(seq 1 30); do
@@ -166,41 +186,6 @@ jobs:
             echo "run=false" >> $GITHUB_OUTPUT
           fi
 
-  check-docker-run:
-    name: Check for Docker Run
-    runs-on: ubuntu-latest
-    outputs:
-      should-run: ${{ steps.check.outputs.run }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Check branch and files
-        id: check
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-            HEAD="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-            HEAD="${{ github.sha }}"
-            if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
-              BASE="HEAD~1"
-            fi
-          fi
-          
-          CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null | grep -E '^(Dockerfile|.dockerignore)$' || true)
-          if [ -n "$CHANGED" ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          else
-            echo "run=false" >> $GITHUB_OUTPUT
-          fi
 
   # ─── Only runs when UI files changed ─────────────────────────────────────────
 
@@ -422,3 +407,73 @@ jobs:
              echo "Visual changes detected. Review required."
              exit 1
           fi
+
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy Preview to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        id: deploy
+        with:
+          service: mietevo
+          region: europe-west1
+          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mietevo:pr-${{ github.event.pull_request.number }}
+          tag: pr-${{ github.event.pull_request.number }}
+          no_traffic: true
+          env_vars: |
+            SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+            STRIPE_SECRET_KEY=${{ secrets.STAGING_STRIPE_KEY }}
+
+      - name: Comment Preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            // Note: The specific service hash 'xyz' should be replaced once known
+            const url = `https://pr-${prNumber}---mietevo-xyz.a.run.app`;
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Preview deployed:** ${url}`
+            });
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: mietevo
+          region: europe-west1
+          image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/mietevo:latest
+          env_vars: |
+            SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
