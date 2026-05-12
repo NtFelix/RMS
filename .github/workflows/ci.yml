@@ -113,6 +113,9 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ${{ steps.image.outputs.full_name }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           cache-from: type=gha,scope=docker-build
           cache-to: type=gha,mode=max,scope=docker-build
 
@@ -433,10 +436,11 @@ jobs:
           region: europe-west1
           image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:pr-${{ github.event.pull_request.number }}
           tag: pr-${{ github.event.pull_request.number }}
+          labels: pr=pr-${{ github.event.pull_request.number }}
           no_traffic: true
           env_vars: |
-            SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}
-            SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
             STRIPE_SECRET_KEY=${{ secrets.STAGING_STRIPE_KEY }}
 
       - name: Comment Preview URL on PR
@@ -472,6 +476,6 @@ jobs:
           region: europe-west1
           image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:latest
           env_vars: |
-            SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-            SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
