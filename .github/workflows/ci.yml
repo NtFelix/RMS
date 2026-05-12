@@ -442,14 +442,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.issue.number;
-            // Note: The specific service hash 'xyz' should be replaced once known
-            const url = `https://pr-${prNumber}---mietevo-xyz.a.run.app`;
             github.rest.issues.createComment({
-              issue_number: prNumber,
+              issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `🚀 **Preview deployed:** ${url}`
+              body: `🚀 **Preview deployed:** ${{ steps.deploy.outputs.url }}`
             });
 
   deploy-production:
