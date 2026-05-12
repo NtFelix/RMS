@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import posthogProxyConfig from '@/lib/posthog-proxy'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -17,8 +18,8 @@ export async function GET() {
 
   // Only return config if we have a valid key
   if (!config.key || config.key === 'phc_placeholder_key') {
-    return NextResponse.json({ error: 'PostHog not configured' }, { status: 404 })
+    return NextResponse.json({ error: 'PostHog not configured' }, { status: 404, headers: NO_CACHE_HEADERS })
   }
 
-  return NextResponse.json(config)
+  return NextResponse.json(config, { headers: NO_CACHE_HEADERS })
 }

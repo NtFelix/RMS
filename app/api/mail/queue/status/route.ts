@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 export const runtime = 'edge';
 
@@ -12,7 +13,7 @@ export async function GET() {
     if (authError || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
-        { status: 401 }
+        { status: 401, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -24,7 +25,7 @@ export async function GET() {
       console.error("Error fetching queue stats:", statsError)
       return NextResponse.json(
         { error: "Failed to fetch queue statistics" },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -38,12 +39,12 @@ export async function GET() {
         failed_items: 0,
         total_messages_imported: 0,
       },
-    })
+    }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Queue status error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }
