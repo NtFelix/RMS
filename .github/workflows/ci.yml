@@ -482,7 +482,8 @@ jobs:
           START_TIME: ${{ steps.start-comment.outputs.result }}
         with:
           script: |
-            const startTime = new Date(process.env.START_TIME);
+            const startTimeStr = process.env.START_TIME;
+            const startTime = (startTimeStr && startTimeStr !== 'null') ? new Date(startTimeStr) : new Date();
             const endTime = new Date();
             const durationMs = endTime - startTime;
             const durationSec = Math.floor(durationMs / 1000);
@@ -499,7 +500,8 @@ jobs:
             });
             const existingComment = comments.find(c => c.body.includes(marker));
             
-            const body = `${marker}\n✅ **New version is live!**\n\n🔗 **[View Preview](${process.env.DEPLOY_URL})**\n\n🕒 **Deployed at:** ${endTime.toLocaleString('de-DE')}\n⏱️ **Duration:** ${durationStr}`;
+            const timestamp = endTime.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
+            const body = `${marker}\n✅ **New version is live!**\n\n🔗 **URL:** ${process.env.DEPLOY_URL}\n\n🕒 **Deployed at:** ${timestamp}\n⏱️ **Duration:** ${durationStr}`;
             
             if (existingComment) {
               await github.rest.issues.updateComment({
