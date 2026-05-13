@@ -43,9 +43,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Use a secret mount for the PostHog API key (optional for local builds)
-# Also use a cache mount for Next.js build cache to speed up subsequent builds
+# We rely on the .next/cache copied from the build context for incremental builds
 RUN --mount=type=secret,id=POSTHOG_PERSONAL_API_KEY \
-    --mount=type=cache,target=/app/.next/cache \
     POSTHOG_PERSONAL_API_KEY=$(cat /run/secrets/POSTHOG_PERSONAL_API_KEY 2>/dev/null || echo "") \
     npm run build
 
