@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM node:22-slim AS deps
+FROM node:22.22-slim AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -8,7 +8,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
 # Stage 2: Build the source code
-FROM node:22-slim AS builder
+FROM node:22.22-slim AS builder
 WORKDIR /app
 
 # Required at build time: inlined into client bundles
@@ -44,12 +44,14 @@ COPY . .
 
 # Use a secret mount for the PostHog API key (optional for local builds)
 # We rely on the .next/cache copied from the build context for incremental builds
+# in CI. GitHub Actions caches the .next folder and restores it before docker build.
+# This allows incremental Next.js compilation without Docker's native cache mounts.
 RUN --mount=type=secret,id=POSTHOG_PERSONAL_API_KEY \
     POSTHOG_PERSONAL_API_KEY=$(cat /run/secrets/POSTHOG_PERSONAL_API_KEY 2>/dev/null || echo "") \
     npm run build
 
 # Stage 3: Production image
-FROM node:22-slim AS runner
+FROM node:22.22-slim AS runner
 WORKDIR /app
 
 # Runtime environment variables
@@ -73,7 +75,8 @@ USER nextjs
 EXPOSE 3000
 
 # Healthcheck that respects the dynamic PORT environment variable
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000), (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+# Simple Node.js HTTP check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get({hostname:'localhost',port:process.env.PORT||3000,path:'/',timeout:2000},(res)=>{process.exit(res.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
 CMD ["node", "server.js"]

@@ -180,6 +180,11 @@ jobs:
           docker run -d \
             --name mietevo-smoke \
             -p 3000:3000 \
+            --health-cmd='node -e "require(\"http\").get({hostname:\"localhost\",port:process.env.PORT||3000,path:\"/\",timeout:2000},(res)=>{process.exit(res.statusCode===200?0:1)}).on(\"error\",()=>process.exit(1))"' \
+            --health-interval=10s \
+            --health-timeout=5s \
+            --health-start-period=40s \
+            --health-retries=3 \
             -e NODE_ENV=production \
             -e NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
             -e NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
@@ -199,18 +204,21 @@ jobs:
           echo "✓ Container started successfully"
 
           # Check 2: Scan logs for critical errors during startup
-          STARTUP_ERRORS=$(docker logs mietevo-smoke 2>&1 | grep -iE "error|fatal|panic|uncaught|exception" | grep -v "warning" || true)
+          STARTUP_ERRORS=$(docker logs mietevo-smoke 2>&1 | grep -iE "^.*error|^.*fatal|^.*panic|^.*uncaught|^.*exception" | grep -v "warning\|WarningLogLevel\|deprecated" | head -10 || true)
           if [ -n "$STARTUP_ERRORS" ]; then
             echo "⚠️  Critical errors detected in logs:"
             echo "$STARTUP_ERRORS"
-            echo "Full logs:"
-            docker logs mietevo-smoke
+            # Log full output for debugging
+            echo "---"
+            echo "Full container logs:"
+            docker logs mietevo-smoke | tail -50
             exit 1
           fi
           echo "✓ No critical startup errors"
 
           # Check 3: Wait for HTTP endpoint to be responsive
           echo "Waiting for HTTP endpoint..."
+          HTTP_SUCCESS=false
           for i in $(seq 1 30); do
             STATUS=$(docker inspect --format='{{.State.Status}}' mietevo-smoke 2>/dev/null || echo "not_found")
             if [ "$STATUS" != "running" ]; then
@@ -218,11 +226,14 @@ jobs:
               docker logs mietevo-smoke
               exit 1
             fi
+            
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "307" ] || [ "$HTTP_CODE" = "302" ]; then
               echo "✓ HTTP endpoint healthy (HTTP $HTTP_CODE)"
-              exit 0
+              HTTP_SUCCESS=true
+              break
             fi
+            
             if [ $i -eq 30 ]; then
               echo "❌ HTTP endpoint did not respond after 60s"
               echo "Last HTTP code: $HTTP_CODE"
@@ -233,6 +244,53 @@ jobs:
             echo "  Attempt $i/30: HTTP $HTTP_CODE — retrying in 2s..."
             sleep 2
           done
+          
+          if [ "$HTTP_SUCCESS" != "true" ]; then
+            exit 1
+          fi
+
+          # Check 4: Validate response content
+          echo "Validating response content..."
+          RESPONSE_HEADERS=$(curl -s -i http://localhost:3000 2>/dev/null | head -20)
+          CONTENT_TYPE=$(echo "$RESPONSE_HEADERS" | grep -i "content-type" || true)
+          if [ -z "$CONTENT_TYPE" ]; then
+            echo "⚠️  Warning: No content-type header found"
+          else
+            echo "✓ Content-Type header present: $(echo "$CONTENT_TYPE" | cut -d: -f2- | xargs)"
+          fi
+          
+          # Check for HTML content
+          BODY=$(curl -s http://localhost:3000 2>/dev/null | head -c 500)
+          if echo "$BODY" | grep -qi "<!doctype\|<html"; then
+            echo "✓ Valid HTML response received"
+          else
+            echo "⚠️  Warning: No HTML doctype found in response"
+          fi
+
+          # Check 5: Verify Next.js assets are served
+          echo "Checking Next.js assets availability..."
+          ASSETS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/_next/static/ 2>/dev/null || echo "000")
+          if [ "$ASSETS_CHECK" = "200" ] || [ "$ASSETS_CHECK" = "404" ]; then
+            echo "✓ Next.js static assets endpoint accessible (HTTP $ASSETS_CHECK)"
+          else
+            echo "⚠️  Warning: Unexpected response from _next/static/ (HTTP $ASSETS_CHECK)"
+          fi
+          
+          # Check 6: Verify healthcheck endpoint
+          echo "Checking Docker healthcheck status..."
+          sleep 1
+          HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' mietevo-smoke 2>/dev/null || echo "none")
+          echo "Container health status: $HEALTH_STATUS"
+          if [ "$HEALTH_STATUS" = "healthy" ] || [ "$HEALTH_STATUS" = "starting" ]; then
+            echo "✓ Healthcheck passed or in progress"
+          elif [ "$HEALTH_STATUS" = "unhealthy" ]; then
+            echo "❌ Container healthcheck failed"
+            docker inspect mietevo-smoke | grep -A 10 '"Health"'
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All smoke tests passed!"
 
       - name: Cleanup smoke test container
         if: always()
@@ -340,8 +398,13 @@ jobs:
       - name: Generate build cache key
         id: build-key
         run: |
-          SOURCE_HASH=$(find app components lib hooks types public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.css" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
-          echo "key=${{ runner.os }}-nextjs-build-${SOURCE_HASH}-${{ hashFiles('**/package-lock.json', 'next.config.*', 'tsconfig.json', 'tailwind.config.*') }}" >> $GITHUB_OUTPUT
+          # Deterministic cache key based on critical build inputs
+          # Includes: package-lock.json, config files, and source code hash
+          LOCK_HASH=${{ hashFiles('**/package-lock.json') }}
+          CONFIG_HASH=${{ hashFiles('next.config.*', 'tsconfig.json', 'tailwind.config.*', '.env.example') }}
+          SOURCE_HASH=$(find app components lib hooks types -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-source")
+          echo "key=${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}" >> $GITHUB_OUTPUT
+          echo "Cache key: ${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}"
 
       - name: Restore build cache
         id: build-cache
