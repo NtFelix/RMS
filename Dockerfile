@@ -1,9 +1,11 @@
-# Stage 1: Install dependencies
+# Stage 1: Dependencies
 FROM node:22-slim AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# Cache npm registry between builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # Stage 2: Build the source code
 FROM node:22-slim AS builder
@@ -40,9 +42,11 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Use a secret mount for the PostHog API key during build to avoid baking it into the image
+# Use a secret mount for the PostHog API key (optional for local builds)
+# Also use a cache mount for Next.js build cache to speed up subsequent builds
 RUN --mount=type=secret,id=POSTHOG_PERSONAL_API_KEY \
-    POSTHOG_PERSONAL_API_KEY=$(cat /run/secrets/POSTHOG_PERSONAL_API_KEY) \
+    --mount=type=cache,target=/app/.next/cache \
+    POSTHOG_PERSONAL_API_KEY=$(cat /run/secrets/POSTHOG_PERSONAL_API_KEY 2>/dev/null || echo "") \
     npm run build
 
 # Stage 3: Production image
@@ -69,7 +73,8 @@ USER nextjs
 
 EXPOSE 3000
 
+# Healthcheck that respects the dynamic PORT environment variable
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000), (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
 CMD ["node", "server.js"]
