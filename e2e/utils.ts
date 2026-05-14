@@ -21,6 +21,13 @@ export const login = async (page: Page) => {
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
+  // Monitor browser console for errors during login
+  page.on('console', msg => {
+    if (msg.type() === 'error') {
+      console.log(`[Browser Error] ${msg.text()}`);
+    }
+  });
+
   // Use domcontentloaded for faster initial load
   await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('domcontentloaded');
@@ -30,59 +37,65 @@ export const login = async (page: Page) => {
   await expect(emailInput).toBeVisible({ timeout: 30000 });
 
   // Fill in credentials
-  await emailInput.fill(TEST_EMAIL!);
+  await emailInput.fill(TEST_EMAIL!, { timeout: 10000 });
   const passwordInput = page.locator('#password').first();
-  await passwordInput.fill(TEST_PASSWORD!);
+  await passwordInput.fill(TEST_PASSWORD!, { timeout: 10000 });
 
-  // Ensure button is ready to receive clicks (as a indicator that JS is loaded)
+  // Ensure button is ready to receive clicks
   const loginBtn = page.getByRole('button', { name: /anmelden/i }).first();
-  await expect(loginBtn).toBeVisible();
+  await expect(loginBtn).toBeVisible({ timeout: 10000 });
   
   // On some browsers (Webkit), a small delay after filling fields can help React state sync
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1000);
   
-  // Submit via Enter key - often more reliable than clicking a potentially moving/animated button
+  console.log('[Login] Attempting submission via Enter key...');
   await passwordInput.press('Enter');
 
   // Wait for navigation to dashboard or check for errors
   try {
-    // Wait for URL change using Playwright's built-in waitForURL for better reliability
+    // Wait for URL change using a more flexible approach
+    // We use a longer timeout (45s) for Webkit stability in CI
     await page.waitForURL(url => {
       const p = url.pathname;
       const normalizedPath = p.replace(/\/$/, '') || '/';
-      return ['/dashboard', '/', '/haeuser', '/wohnungen', '/mieter', '/todos', '/finanzen'].includes(normalizedPath) || p.startsWith('/subscription-locked');
-    }, { timeout: 30000 });
+      const isTarget = ['/dashboard', '/', '/haeuser', '/wohnungen', '/mieter', '/todos', '/finanzen'].includes(normalizedPath) || p.startsWith('/subscription-locked');
+      if (isTarget) console.log(`[Login] Target URL reached: ${url.href}`);
+      return isTarget;
+    }, { timeout: 45000 });
 
     // Wait for a key element to appear to ensure Next.js has hydrated and the session is loaded.
-    await expect(page.locator('nav, aside, h1, .subscription-lock-container').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('nav, aside, h1, .subscription-lock-container').first()).toBeVisible({ timeout: 20000 });
     
-    // Final check of the URL to ensure we aren't stuck on login
+    // Final check of the URL
     if (page.url().includes('/auth/login')) {
       throw new Error(`Login failed: Still on login page. URL: ${page.url()}`);
     }
   } catch (e) {
-    // If navigation failed, check if there's an error message visible in the UI
-    const errorText = await getUiErrorMessage(page);
-    if (errorText) {
-      throw new Error(`Login failed with error: ${errorText}`);
-    }
-
-    // Check if we are still on the login page
-    const currentUrl = page.url();
-    if (currentUrl.includes('/auth/login')) {
-      // Final attempt to click the button in case Enter didn't work
+    console.log(`[Login] Navigation wait failed or timed out. Current URL: ${page.url()}`);
+    
+    // If we are still on login page, try clicking the button as a second attempt
+    if (page.url().includes('/auth/login')) {
+      console.log('[Login] Still on login page, attempting click on submit button...');
+      await loginBtn.click({ force: true }).catch(() => {});
+      
       try {
-        await loginBtn.click({ timeout: 2000 });
-        await page.waitForURL(url => !url.pathname.includes('/auth/login'), { timeout: 10000 });
-      } catch (clickErr) {
-        // Still failing
+        await page.waitForURL(url => !url.pathname.includes('/auth/login'), { timeout: 15000 });
+        console.log(`[Login] Redirected after secondary click to: ${page.url()}`);
+      } catch (secondaryError) {
+        // Still failing, check for error messages
+        const errorText = await getUiErrorMessage(page);
+        if (errorText) {
+          throw new Error(`Login failed with error: ${errorText}`);
+        }
+        
         const bodyText = await page.innerText('body').catch(() => '');
         const hasGenericError = bodyText.toLowerCase().includes('fehler') || bodyText.toLowerCase().includes('error');
-        throw new Error(`Login failed: Still on login page after timeout. URL: ${currentUrl}. ${hasGenericError ? 'Possible error visible on page.' : ''}`);
+        throw new Error(`Login failed: Still on login page after retries. URL: ${page.url()}. ${hasGenericError ? 'Possible error visible on page.' : ''}`);
       }
+    } else {
+      // It did navigate but maybe waitForURL or wait for element failed
+      throw e;
     }
-
-    throw e;
   }
 };
 
