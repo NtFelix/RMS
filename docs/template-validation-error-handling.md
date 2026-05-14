@@ -6,9 +6,9 @@ This document describes the validation logic and error handling strategy for the
 
 We use **Zod** for schema-based validation. The schemas are defined in `components/templates/template-editor-modal.tsx`.
 
-### Zod 4 Implementation
+### Build Stability (Zod 4)
 
-The project has been migrated to Zod 4, which introduces a unified error API for most types and improved performance.
+To ensure maximum build stability across all CI environments (including those with cached dependencies), we use universally compatible error properties.
 
 #### Category Selection Schema
 ```typescript
@@ -25,9 +25,8 @@ const categorySchema = z.object({
 const templateSchema = z.object({
   titel: z
     .string({
-      error: (issue) => issue.input === undefined 
-        ? 'Der Titel ist erforderlich.' 
-        : 'Der Titel muss ein Text sein.'
+      required_error: 'Der Titel ist erforderlich.',
+      invalid_type_error: 'Der Titel muss ein Text sein.',
     })
     .min(3, 'Der Titel muss mindestens 3 Zeichen lang sein.')
     .max(100, 'Der Titel darf maximal 100 Zeichen lang sein.')
