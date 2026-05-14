@@ -66,8 +66,7 @@ const categorySchema = z.object({
 const templateSchema = z.object({
   titel: z
     .string({
-      required_error: 'Der Titel ist erforderlich.',
-      invalid_type_error: 'Der Titel muss ein Text sein.',
+        error: (issue) => issue.input === undefined ? 'Der Titel ist erforderlich.' : 'Der Titel muss ein Text sein.'
     })
     .min(3, 'Der Titel muss mindestens 3 Zeichen lang sein.')
     .max(100, 'Der Titel darf maximal 100 Zeichen lang sein.')
