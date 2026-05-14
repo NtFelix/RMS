@@ -8,15 +8,14 @@ We use **Zod** for schema-based validation. The schemas are defined in `componen
 
 ### Zod 4 Implementation
 
-The project has been migrated to Zod 4, which introduces a unified error API and improved performance.
+The project has been migrated to Zod 4, which introduces a unified error API for most types and improved performance.
 
 #### Category Selection Schema
 ```typescript
 const categorySchema = z.object({
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-    error: (issue) => issue.input === undefined 
-      ? 'Bitte wählen Sie eine Kategorie aus.' 
-      : 'Ungültige Kategorie ausgewählt.',
+    required_error: 'Bitte wählen Sie eine Kategorie aus.',
+    invalid_type_error: 'Ungültige Kategorie ausgewählt.',
   }),
 });
 ```
@@ -41,9 +40,8 @@ const templateSchema = z.object({
       message: 'Der Inhalt enthält ungültige Variablen.',
     }),
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-    error: (issue) => issue.input === undefined 
-      ? 'Bitte wählen Sie eine Kategorie aus.' 
-      : 'Ungültige Kategorie ausgewählt.',
+    required_error: 'Bitte wählen Sie eine Kategorie aus.',
+    invalid_type_error: 'Ungültige Kategorie ausgewählt.',
   }),
 });
 ```

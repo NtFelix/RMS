@@ -59,8 +59,8 @@ import { Badge } from '@/components/ui/badge';
 // Enhanced form validation schemas
 const categorySchema = z.object({
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-      error: (issue) => issue.input === undefined ? 'Bitte wählen Sie eine Kategorie aus.' : 'Ungültige Kategorie ausgewählt.'
-}),
+    message: 'Bitte wählen Sie eine Kategorie aus.',
+  }),
 });
 
 const templateSchema = z.object({
@@ -90,8 +90,8 @@ const templateSchema = z.object({
     }
   ),
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-      error: (issue) => issue.input === undefined ? 'Bitte wählen Sie eine Kategorie aus.' : 'Ungültige Kategorie ausgewählt.'
-}),
+    message: 'Bitte wählen Sie eine Kategorie aus.',
+  }),
 });
 
 type CategoryFormData = z.infer<typeof categorySchema>;
