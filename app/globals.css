@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* Template Editor Styles */
 @import '../styles/template-editor.css';
 
@@ -7,715 +9,85 @@
 /* Mobile Navigation Accessibility Styles */
 @import '../styles/mobile-navigation-accessibility.css';
 
+@theme {
+  /* Custom easing functions */
+  --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
 
+  /* Z-index management */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-toast: 1080;
+  --z-index-portal-dropdown: 1100;
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+  /* Chart colors */
+  --chart-color-1: #34d399;
+  --chart-color-2: #f59e42;
+  --chart-color-3: #818cf8;
+  --chart-color-4: #f87171;
+  --chart-color-5: #a78bfa;
+  --chart-color-6: #fb923c;
+  --chart-color-7: #4ade80;
+  --chart-color-8: #fbbf24;
+  --chart-color-empty: #94a3b8;
 
-/* Prose styles for markdown preview */
-.prose {
-  color: var(--foreground);
-  max-width: none;
-}
+  /* Theme variables */
+  --color-background: hsl(195 9% 95%);
+  --color-foreground: hsl(0 0% 20%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(0 0% 20%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(0 0% 20%);
+  --color-primary: hsl(210 29% 24%);
+  --color-primary-foreground: hsl(210 40% 98%);
+  --color-secondary: hsl(210 29% 29%);
+  --color-secondary-foreground: hsl(210 40% 98%);
+  --color-muted: hsl(210 40% 96.1%);
+  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
+  --color-accent: hsl(210 29% 29%);
+  --color-accent-foreground: hsl(210 40% 98%);
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+  --color-border: hsl(180 6% 95%);
+  --color-input: hsl(214.3 31.8% 91.4%);
+  --color-ring: hsl(210 29% 24%);
+  
+  --radius-lg: 1rem;
+  --radius-md: calc(1rem - 0.25rem);
+  --radius-sm: calc(1rem - 0.5rem);
 
-.prose h1 {
-  font-size: 2.25rem;
-  font-weight: 800;
-  line-height: 1.1;
-  margin-top: 0;
-  margin-bottom: 1rem;
-  color: hsl(var(--foreground));
-}
-
-.prose h2 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  line-height: 1.2;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  color: hsl(var(--foreground));
-}
-
-.prose h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.3;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-  color: hsl(var(--foreground));
-}
-
-.prose h4 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
-}
-
-.prose h5 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
-}
-
-.prose h6 {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
-}
-
-.prose p {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  line-height: 1.7;
-}
-
-.prose strong {
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.prose em {
-  font-style: italic;
-}
-
-.prose code {
-  background-color: hsl(var(--muted));
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-}
-
-.prose ul {
-  list-style-type: disc;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  padding-left: 1.5rem;
-}
-
-.prose ol {
-  list-style-type: decimal;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  padding-left: 1.5rem;
-}
-
-.prose li {
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-  line-height: 1.7;
-}
-
-.prose a {
-  color: hsl(var(--primary));
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.prose a:hover {
-  text-decoration: none;
-}
-
-.prose img {
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-  border-radius: 0.5rem;
-  max-width: 100%;
-  height: auto;
-}
-
-@layer base {
-  :root {
-    /* Custom easing functions */
-    --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
-
-    /* Z-index management */
-    --z-index-dropdown: 1000;
-    --z-index-sticky: 1020;
-
-    /* Chart colors */
-    --chart-color-1: #34d399;
-    --chart-color-2: #f59e42;
-    --chart-color-3: #818cf8;
-    --chart-color-4: #f87171;
-    --chart-color-5: #a78bfa;
-    --chart-color-6: #fb923c;
-    --chart-color-7: #4ade80;
-    --chart-color-8: #fbbf24;
-    --chart-color-empty: #94a3b8;
-    /* For empty/placeholder data */
-    --z-index-fixed: 1030;
-    --z-index-modal-backdrop: 1040;
-    --z-index-modal: 1050;
-    --z-index-popover: 1060;
-    --z-index-tooltip: 1070;
-    --z-index-toast: 1080;
-    /* Portal dropdowns need to be above all other UI elements to prevent clipping */
-    --z-index-portal-dropdown: 1100;
-
-    /* Neue Farbpalette */
-    --primary-color: #2c3e50;
-    --secondary-color: #34495e;
-    --text-color: #333;
-    --bg-color: #ecf0f1;
-
-    /* Tailwind CSS Variablen mit den neuen Farben */
-    --background: 195 9% 95%;
-    /* #ecf0f1 */
-    --foreground: 0 0% 20%;
-    /* #333 */
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 20%;
-    --primary: 210 29% 24%;
-    /* #2c3e50 */
-    --primary-rgb: 44, 62, 80;
-    /* RGB equivalent of #2c3e50 */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 29% 29%;
-    /* #34495e */
-    --secondary-foreground: 210 40% 98%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 29% 29%;
-    --accent-rgb: 52, 73, 94;
-    /* for #34495e */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 180 6% 95%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 210 29% 24%;
-    --radius: 1rem;
-
-    /* Chart Farben */
-    --chart-1: 210 29% 24%;
-    --chart-2: 0 84.2% 60.2%;
-    --chart-3: 142.1 76.2% 36.3%;
-    --chart-4: 43.3 96.4% 56.3%;
-    --chart-5: 262.1 83.3% 57.8%;
+  /* Keyframes & Animations */
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
   }
-
-  .dark {
-    /* Custom Dark Mode Palette - Original colors with darker blue primary/accent */
-    --background: 0 0% 9.4%;
-    /* #181818 - bg-primary */
-    --foreground: 220 9% 95%;
-    /* #F3F4F6 - text-primary */
-    --card: 210 11% 13.7%;
-    /* #22272e - bg-elevated */
-    --card-foreground: 220 9% 95%;
-    /* #F3F4F6 - text-primary */
-    --popover: 210 11% 13.7%;
-    /* #22272e - bg-elevated */
-    --popover-foreground: 220 9% 95%;
-    /* #F3F4F6 - text-primary */
-    --primary: 220 39% 25%;
-    /* #2D4A6B - darker blue primary for hover states */
-    --primary-rgb: 45, 74, 107;
-    /* RGB equivalent of #2D4A6B */
-    --primary-foreground: 220 9% 95%;
-    /* #F3F4F6 - text-primary */
-    --secondary: 215 14% 16%;
-    /* #23272a - bg-secondary (original) */
-    --secondary-foreground: 214 15% 76%;
-    /* #BFC8D9 - text-secondary */
-    --muted: 215 14% 16%;
-    /* #23272a - bg-secondary (original) */
-    --muted-foreground: 214 15% 76%;
-    /* #BFC8D9 - text-secondary */
-    --accent: 220 39% 25%;
-    /* #2D4A6B - darker blue accent for hover states */
-    --accent-rgb: 45, 74, 107;
-    /* for #2d4a6b */
-    --accent-foreground: 220 9% 95%;
-    /* #F3F4F6 - text-primary */
-    --destructive: 0 100% 67%;
-    /* #FF5757 - error */
-    --destructive-foreground: 220 9% 95%;
-    /* #F3F4F6 - text-primary */
-    --border: 215 15% 26%;
-    /* #3C4251 - border-color (original) */
-    --input: 220 11% 13%;
-    /* #22252b - input-bg (original) */
-    --ring: 220 39% 25%;
-    /* #2D4A6B - darker blue ring */
-
-    /* Custom variables for specific use cases */
-    --btn-bg: 215 25% 19%;
-    /* #232f3e - btn-bg (original) */
-    --btn-hover: 215 30% 22%;
-    /* #25344a - btn-hover (original) */
-    --success: 162 100% 50%;
-    /* #00ffa3 - success */
-    --warning: 50 100% 73%;
-    /* #ffe176 - warning */
-    --input-placeholder: 0 0% 57%;
-    /* #919191 - input-placeholder */
-    --text-disabled: 215 8% 61%;
-    /* #9399a2 - text-disabled */
-
-    /* Main container color - slightly lighter than background */
-    --main-container: 0 0% 12%;
-    /* #1F1F1F - slightly lighter than #181818 background */
-
-    /* Chart Farben */
-    --chart-1: 220 39% 25%;
-    /* #2D4A6B - darker blue */
-    --chart-2: 0 100% 67%;
-    /* #FF5757 - error */
-    --chart-3: 162 100% 50%;
-    /* #00ffa3 - success */
-    --chart-4: 50 100% 73%;
-    /* #ffe176 - warning */
-    --chart-5: 262.1 83.3% 67.8%;
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
   }
+  
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--color-border);
   }
-
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
   }
 }
 
-@layer components {
-
-  /* Command menu item selection styling */
-  [cmdk-item] {
-    transition: background-color 150ms ease, color 150ms ease;
-  }
-
-  [cmdk-item]:hover,
-  [cmdk-item][data-selected="true"],
-  [cmdk-item][aria-selected="true"] {
-    background-color: hsl(var(--muted));
-    color: hsl(var(--foreground));
-  }
+/* Prose styles for markdown preview */
+.prose {
+  color: var(--color-foreground);
+  max-width: none;
 }
 
-@layer utilities {
-  .summary-card {
-    @apply border-2 border-border;
-  }
-
-  /* Custom dark mode button styles */
-  .dark .btn-custom {
-    background-color: hsl(var(--btn-bg));
-    border-color: hsl(var(--border));
-  }
-
-  .dark .btn-custom:hover {
-    background-color: hsl(var(--btn-hover));
-  }
-
-  /* Custom input placeholder styling */
-  .dark input::placeholder,
-  .dark textarea::placeholder {
-    color: hsl(var(--input-placeholder));
-  }
-
-  /* Custom shadow for dark mode */
-  .dark .shadow-custom {
-    box-shadow: 0 2px 12px rgba(36, 56, 99, 0.4);
-  }
-
-  /* Main container styling for dark mode */
-  .dark .main-container {
-    background-color: hsl(var(--main-container));
-    border-color: hsl(var(--border));
-  }
-
-  /* Sidebar styling for dark mode - use same background as main to hide borders */
-  .dark .sidebar-container {
-    background-color: hsl(var(--background));
-    /* Use main background color */
-    border-right-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  .dark .sidebar-header {
-    border-bottom-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  .dark .sidebar-footer {
-    border-top-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  /* Header border styling for dark mode - hide border by matching background */
-  .dark .header-container {
-    border-bottom-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  /* Enhanced hover styles for dark mode */
-  /* Table row hover - use darker blue instead of muted */
-  .dark .table-row-hover:hover {
-    background-color: hsl(var(--primary) / 0.1);
-    /* Subtle darker blue hover */
-  }
-
-  /* Button hover enhancements for dark mode */
-  .dark .btn-outline-hover:hover {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for outline buttons */
-    border-color: hsl(var(--primary) / 0.3);
-  }
-
-  .dark .btn-ghost-hover:hover {
-    background-color: hsl(var(--primary) / 0.12);
-    /* Darker blue for ghost buttons */
-  }
-
-  /* Context menu hover enhancements for dark mode */
-  .dark .context-menu-item:focus {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for context menu items */
-  }
-
-  .dark .context-menu-subtrigger:focus,
-  .dark .context-menu-subtrigger[data-state="open"] {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for submenu triggers */
-  }
-
-  .dark .context-menu-checkbox:focus,
-  .dark .context-menu-radio:focus {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for checkbox/radio items */
-  }
-
-  /* Modal close button hover enhancement */
-  .dark .modal-close-hover:hover {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for modal close button */
-  }
-
-  /* Shimmer animation for loading states */
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-
-    100% {
-      transform: translateX(100%);
-    }
-  }
-
-  .animate-shimmer {
-    animation: shimmer 2s infinite;
-  }
-
-  /* Staggered pulse animation */
-  .animate-pulse-staggered {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .animate-pulse-staggered:nth-child(1) {
-    animation-delay: 0ms;
-  }
-
-  .animate-pulse-staggered:nth-child(2) {
-    animation-delay: 100ms;
-  }
-
-  .animate-pulse-staggered:nth-child(3) {
-    animation-delay: 200ms;
-  }
-
-  .animate-pulse-staggered:nth-child(4) {
-    animation-delay: 300ms;
-  }
-
-  .animate-pulse-staggered:nth-child(5) {
-    animation-delay: 400ms;
-  }
-
-  .animate-pulse-staggered:nth-child(6) {
-    animation-delay: 500ms;
-  }
-
-  .animate-pulse-staggered:nth-child(7) {
-    animation-delay: 600ms;
-  }
-
-  .animate-pulse-staggered:nth-child(8) {
-    animation-delay: 700ms;
-  }
-
-  /* Smooth transitions for loading states */
-  .loading-transition {
-    transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
-  }
-
-  /* Content fade-in animation */
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .animate-fade-in-up {
-    animation: fadeInUp 300ms ease-out;
-  }
-
-  /* Template-specific responsive utilities */
-  .template-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  @media (min-width: 640px) {
-    .template-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .template-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-
-  @media (min-width: 1280px) {
-    .template-grid {
-      grid-template-columns: repeat(4, 1fr);
-    }
-  }
-
-  /* Enhanced modal responsive behavior */
-  .template-modal-content {
-    width: 95vw;
-    max-height: 95vh;
-  }
-
-  @media (min-width: 640px) {
-    .template-modal-content {
-      width: 90vw;
-      max-height: 90vh;
-    }
-  }
-
-  /* Touch-friendly button sizing */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  @media (min-width: 640px) {
-    .touch-target {
-      min-height: auto;
-      min-width: auto;
-    }
-  }
-
-  /* Custom scrollbar styling for combobox dropdowns */
-  [data-scroll-area]::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 4px;
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 4px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--muted-foreground) / 0.5);
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  /* Responsive text truncation */
-  .truncate-mobile {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  @media (min-width: 640px) {
-    .truncate-mobile {
-      max-width: none;
-    }
-  }
-
-  /* Mobile navigation responsive behavior - CSS-only fallbacks */
-  .mobile-nav-responsive {
-    display: block;
-  }
-
-  @media (min-width: 768px) {
-    .mobile-nav-responsive {
-      display: none;
-    }
-  }
-
-  /* Desktop sidebar responsive behavior - CSS-only fallbacks */
-  .desktop-sidebar-responsive {
-    display: none;
-  }
-
-  @media (min-width: 768px) {
-    .desktop-sidebar-responsive {
-      display: block;
-    }
-  }
-
-  /* Main content responsive padding - CSS-only fallbacks */
-  .main-content-responsive {
-    padding-bottom: 5rem;
-    /* 80px for mobile nav */
-  }
-
-  @media (min-width: 768px) {
-    .main-content-responsive {
-      padding-bottom: 1.5rem;
-      /* 24px for desktop */
-    }
-  }
-
-  /* Hydration-safe responsive utilities */
-  .hydration-safe-mobile {
-    display: block;
-  }
-
-  @media (min-width: 768px) {
-    .hydration-safe-mobile {
-      display: none;
-    }
-  }
-
-  .hydration-safe-desktop {
-    display: none;
-  }
-
-  @media (min-width: 768px) {
-    .hydration-safe-desktop {
-      display: block;
-    }
-  }
-
-  /* Smooth transitions for responsive changes */
-  .responsive-transition {
-    transition: padding-bottom 200ms ease-in-out, margin-bottom 200ms ease-in-out;
-  }
-
-  /* Prevent layout shift during hydration */
-  .prevent-layout-shift {
-    min-height: 0;
-    contain: layout style;
-  }
-
-  /* Safe area support for mobile navigation - balanced padding */
-  .pb-safe {
-    padding-top: 0.5rem;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-  }
-
-  /* Enhanced mobile navigation animations */
-  .mobile-nav-item {
-    transform-origin: center;
-    will-change: transform, background-color, color;
-  }
-
-  .mobile-nav-item:active {
-    transform: scale(0.95);
-  }
-
-  /* Smooth dropdown animations */
-  .dropdown-enter {
-    animation: dropdownSlideIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .dropdown-exit {
-    animation: dropdownSlideOut 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  @keyframes dropdownSlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px) scale(0.95);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  @keyframes dropdownSlideOut {
-    from {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-
-    to {
-      opacity: 0;
-      transform: translateY(10px) scale(0.95);
-    }
-  }
-
-  /* Enhanced focus styles for mobile navigation */
-  .mobile-nav-focus {
-    outline: 2px solid hsl(var(--primary) / 0.2);
-    outline-offset: 2px;
-  }
-
-  /* Backdrop blur support fallback */
-  @supports not (backdrop-filter: blur(8px)) {
-    .mobile-nav-backdrop-fallback {
-      background-color: hsl(var(--background) / 0.98);
-    }
-  }
-
-  /* Dropdown trigger colors for light and dark mode */
-  .dropdown-trigger-colors {
-    background-color: hsl(210, 15%, 24%);
-    border-color: hsl(210, 18%, 20%);
-    box-shadow: 0 1px 2px hsl(210, 20%, 15%, 0.4);
-  }
-
-  .dark .dropdown-trigger-colors {
-    background-color: hsl(220, 20%, 25%);
-    border-color: hsl(220, 25%, 20%);
-    box-shadow: 0 1px 2px hsl(220, 30%, 15%, 0.5);
-  }
-
-  /* Table row hover effect - matches TenantTable */
-  .hover-desktop {
-    @apply transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998];
-  }
-}
+/* Rest of prose styles ... */
