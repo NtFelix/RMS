@@ -1,11 +1,6 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef, useTransition } from "react"
-
-// Module-level constants to avoid new array references on every render
-const EMPTY_FILES: StorageObject[] = []
-const EMPTY_FOLDERS: VirtualFolder[] = []
-const EMPTY_BREADCRUMBS: BreadcrumbItem[] = []
 import { posthogLogger } from "@/lib/posthog-logger"
 import {
     Upload,
@@ -30,6 +25,11 @@ import { CloudStorageItemCard } from "@/components/cloud-storage/cloud-storage-i
 import { DocumentsSummaryCards } from "@/components/common/documents-summary-cards"
 import { useStorageUsage } from "@/hooks/use-storage-usage"
 import { useUserProfile } from "@/hooks/use-user-profile"
+
+// Module-level constants to avoid new array references on every render
+const EMPTY_FILES: StorageObject[] = []
+const EMPTY_FOLDERS: VirtualFolder[] = []
+const EMPTY_BREADCRUMBS: BreadcrumbItem[] = []
 
 interface CloudStorageProps {
     userId: string
