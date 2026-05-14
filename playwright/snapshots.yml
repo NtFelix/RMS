@@ -17,17 +17,17 @@ snapshots:
     chromium-dashboard-dashboard-light:
         hash: v1.k04ffa068.1fdfd62db63cfd111c93fe5c005258bea3e1370b9a40af0fa140e33e0f86f4d2.1iosfo0emPtklYsfiDjVEkdLHzU4twkE_obc2Piuuq0
     chromium-dashboard-dateien-dark:
-        hash: v1.k04ffa068.636b8157ef86a77e2de58c3853d8e61ef26b7d2ae2255015d31c4fe4bbff2e1f.jZqTf2urfN2gmoYrOI7PUtpHs3T-zvUoPzUJtfY3Dw8
+        hash: v1.k04ffa068.2fa52565e70ea85bd2e843567d8f0c8b287f0631aee587a2c1a6321a68b4bd09.F8drz_duat5utt3AakFqa6HrcERIt-I1XhEOTBb9pQs
     chromium-dashboard-dateien-light:
-        hash: v1.k04ffa068.4241ca07d8467e5758a0095e952bc8228c67c8fe291344e76b04fd6fe8696a17.RQBNCkqbnXvgKDFacqPA42EeeSc4JKLVNgrMABlUOW4
+        hash: v1.k04ffa068.446c14da9f31de9b90d6433db24a0fe8775ac66d9c22ddb9d4f4c15a828cbf30.K4AaW_ym6qeVJ68FXLrV-RQbC1mx5CJ-gieUrLU7wrc
     chromium-dashboard-finanzen-dark:
         hash: v1.k04ffa068.032646d236d7c146f1d508781957092925370436aeb357420ffb33771159e2fb.ucLp_dBVYKTrb9RKQwIEAO48clvoo5e9LM7ikY3muYg
     chromium-dashboard-finanzen-light:
         hash: v1.k04ffa068.af10267901653202de14ac6edf0ea387cdc7f3422c9d7bb7275510c9d9c508d4.NPgGFJ3GSWPHuV02E5rDxeWHMJpBR7zSjXR7vjpnHjg
     chromium-dashboard-haeuser-dark:
-        hash: v1.k04ffa068.cd30ab68b7194b9a79e84ce14ad48d77e6120267cfbe2f9b906cf7177ba2929d.a5CT--odLRv3lhIIr2JK4T_NgC9TIUptPDgnsgLiSmY
+        hash: v1.k04ffa068.384c9ba24d914dd7764d814e2fd7bfdbe642bf6bdc7b2d4d5bd01343f27de2a9.EF2_bbImxmDfRPmpKnGOfOv2ABfF_PHECLyJRlrI02Q
     chromium-dashboard-haeuser-light:
-        hash: v1.k04ffa068.dbffcae22dae92aed339b55cc321ecf2a67a27403f8efb140d47f22ddd97862f.nwpoLQOq9yr2lpnm9tLNS_kHXINHwJrWve0Bq7xqvyI
+        hash: v1.k04ffa068.5eb07aead8a76a3fe042eebc1987bd9d84404184580d7ecc457389f8bfbbd91b.FoQAlJWL3WWgNzdwE14AG0olfouhW-NHIXk021YwNas
     chromium-dashboard-mails-dark:
         hash: v1.k04ffa068.0aa2e96155016eef488bff8991a9fb96aa122b3b68ec3d907c71382de74efd5e.PVckPuTOhtzxioDkFmH2M90__O5B4352s0gvTVMcbbY
     chromium-dashboard-mails-light:
@@ -65,9 +65,9 @@ snapshots:
     chromium-impressum-light:
         hash: v1.k04ffa068.d4cd4f444efdca4c255459f96b5483fa777df87b952aa3a5a9c868b79b501abd.oYCge4oT9h7yty1PkcPh6-ax-sO8FMwd42FBqK0ayx4
     chromium-landing-dark:
-        hash: v1.k04ffa068.181df230f48c47206ec3e5e12562c183773d48f70b97e28cb7f57e14fcbd72b8.7c9MIh17jAky8_ssuiAuk77oqN083qV9CUqF3mB2AbY
+        hash: v1.k04ffa068.d30650e58a19bd067b2b6724edac98b0042b5947ed2779953ced2f160bad9825.8vcNgz_SLKyE8JUeqcn9fMBdnB13u7nK0sF8A-Va3os
     chromium-landing-light:
-        hash: v1.k04ffa068.4357e4ae617c92ea9c92d1e38ad3405753e7c32a518cc0144171ddff08df68c2.rkb0a_3Ah6mrLlQGcuajKOXp9mPLEkH_tsYEHfFKu88
+        hash: v1.k04ffa068.e4b6596827a60d640798a534e4683150d6f3fa07d6cda5495ab18614b81d4f46.8GM2hY38r2QAalHLsWOlRdlwtMdcqLx8xsl2DWdxLBE
     chromium-loesungen-grosse-hausverwaltungen-dark:
         hash: v1.k04ffa068.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.Ycu7_QURAeFXa1lOQoItK76ROACWg-doiJHHFMYdYCk
     chromium-loesungen-grosse-hausverwaltungen-light:
@@ -81,9 +81,9 @@ snapshots:
     chromium-loesungen-privatvermieter-light:
         hash: v1.k04ffa068.1c51054f6b0226df063ec4f88bd548520d1e13b30e398a01a9eeeeb0142490f8.XckNXobk6LK0D6ZbnIbAFptVe1FpN6v19Wr272sdlUA
     chromium-preise-dark:
-        hash: v1.k04ffa068.b831e6bcdfedcc133c44fc892bf8d57f5b580312ddf2f70b9223657ae58a67dd.EuEBPoz9rjRcKEN1gCdg22-dR1JuaQLrCmSbuM8JwMQ
+        hash: v1.k04ffa068.7bea47dae8a795a5864cf8f600a5d26f008cf2209135f3c9d382b0a850ed1267.QxbDR9cpoEJRO1pVvB_YSh1cj6a1ZJ_G7JbEu_VLPsQ
     chromium-preise-light:
-        hash: v1.k04ffa068.0f295b7d859f7c0a7f1c9476e0bc48cae6092b0d0ff99a85a460b5b0bd769e7a.T-4lsATduGRBQNe3cdsFjEpaplm3BGwTc_XDn_fzirI
+        hash: v1.k04ffa068.239d889653a5894e092c1c9a0cfd28d8908ed3d25906257a5a69087eed399669.zeF9GcTeRCSCiut38czl2TrWZtDfPUJTdeUCdHPoRyE
     chromium-warteliste-browser-erweiterung-dark:
         hash: v1.k04ffa068.f734ad26f4ac9991e4601d4691d1fe68cb1730ac8b03310aa452817d34fe5dd3.2wrLeuU5uoAuX51dSNcZfhbzJX5avZKGcVZhxk7EFdo
     chromium-warteliste-browser-erweiterung-light:
