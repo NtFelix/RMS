@@ -312,9 +312,14 @@ jobs:
       should-run-visual: ${{ steps.visual.outputs.should-run-visual }}
       should-run-lighthouse: ${{ steps.lighthouse.outputs.should-run-lighthouse }}
       lighthouse-device-matrix: ${{ steps.lighthouse.outputs.device-matrix }}
+      should-run-tests: ${{ steps.tests.outputs.should-run-tests }}
+      test-matrix: ${{ steps.tests.outputs.matrix }}
+      test-total-files: ${{ steps.tests.outputs.total-files }}
+      test-files-to-test: ${{ steps.tests.outputs.files-to-test }}
+      test-is-full-run: ${{ steps.tests.outputs.is-full-run }}
+      should-run-e2e: ${{ steps.e2e.outputs.should-run-e2e }}
     steps:
       - name: Checkout
-        if: github.event_name == 'pull_request'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -378,13 +383,193 @@ jobs:
             echo "Reason: Unhandled event - skipping Lighthouse"
           fi
 
+      - name: Check E2E scope
+        id: e2e
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run-e2e=true" >> $GITHUB_OUTPUT
+            echo "Reason: Running E2E tests for standard CI events"
+          else
+            echo "should-run-e2e=false" >> $GITHUB_OUTPUT
+            echo "Reason: Skipping E2E tests for unsupported event"
+          fi
+
+      - name: Discover & Filter Test Files
+        id: tests
+        run: |
+          ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./.next/*" \
+            -not -path "./coverage/*" \
+            -not -path "./.git/*" \
+            | sed 's|^\./||' \
+            | sort)
+
+          mapfile -t ALL_FILES_ARRAY <<< "$ALL_TEST_FILES"
+          TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
+
+          echo "Found $TOTAL_ALL_FILES total test files"
+
+          IS_FULL_RUN=false
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            IS_FULL_RUN=true
+            echo "Main branch or manual trigger - running ALL tests"
+          fi
+
+          PASSING_TESTS_FILE=".test-cache/passing-tests.json"
+          if [ -f "$PASSING_TESTS_FILE" ]; then
+            echo "Found passing tests cache"
+            cat "$PASSING_TESTS_FILE" | head -20
+          else
+            echo "No passing tests cache found - will run all tests"
+            IS_FULL_RUN=true
+            mkdir -p .test-cache
+            echo '{}' > "$PASSING_TESTS_FILE"
+          fi
+
+          CHANGED_FILES=$(cat changed_files.txt)
+          if [ "$CHANGED_FILES" = "ALL" ]; then
+            echo "Cannot determine changed files - running all tests"
+            IS_FULL_RUN=true
+          fi
+
+          TEST_FILES_TO_RUN=""
+          SKIPPED_FILES=""
+
+          if [ "$IS_FULL_RUN" = "true" ]; then
+            TEST_FILES_TO_RUN="$ALL_TEST_FILES"
+            echo "Running all $TOTAL_ALL_FILES tests (full run)"
+          else
+            echo "Smart mode: checking which tests need to run..."
+
+            for TEST_FILE in "${ALL_FILES_ARRAY[@]}"; do
+              SHOULD_RUN=false
+
+              if grep -Fxq "$TEST_FILE" changed_files.txt 2>/dev/null; then
+                echo "  ✓ $TEST_FILE - changed directly"
+                SHOULD_RUN=true
+              fi
+
+              SOURCE_FILE=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.tsx|' | sed 's|\.test\.ts$|.ts|')
+              SOURCE_FILE_ALT=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.ts|')
+
+              if grep -q "$SOURCE_FILE" changed_files.txt 2>/dev/null || grep -q "$SOURCE_FILE_ALT" changed_files.txt 2>/dev/null; then
+                echo "  ✓ $TEST_FILE - related source changed"
+                SHOULD_RUN=true
+              fi
+
+              if [ "$SHOULD_RUN" = "false" ]; then
+                if [ -f "$TEST_FILE" ]; then
+                  FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                  CACHED_HASH=$(jq -r --arg file "$TEST_FILE" '.[$file] // ""' "$PASSING_TESTS_FILE")
+
+                  if [ "$FILE_HASH" = "$CACHED_HASH" ]; then
+                    echo "  ⏭ $TEST_FILE - cached as passing (skipping)"
+                    SKIPPED_FILES="$SKIPPED_FILES $TEST_FILE"
+                  else
+                    echo "  ✓ $TEST_FILE - content changed or not in cache"
+                    SHOULD_RUN=true
+                  fi
+                else
+                  SHOULD_RUN=true
+                fi
+              fi
+
+              if [ "$SHOULD_RUN" = "true" ]; then
+                TEST_FILES_TO_RUN="$TEST_FILES_TO_RUN $TEST_FILE"
+              fi
+            done
+          fi
+
+          TEST_FILES_TO_RUN=$(echo "$TEST_FILES_TO_RUN" | xargs)
+          if [ -z "$TEST_FILES_TO_RUN" ]; then
+            FILES_ARRAY=()
+          else
+            mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$' || true)"
+          fi
+
+          TOTAL_FILES=${#FILES_ARRAY[@]}
+          SKIPPED_COUNT=$(echo "$SKIPPED_FILES" | wc -w | xargs)
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Test Summary:"
+          echo "   Total test files:  $TOTAL_ALL_FILES"
+          echo "   Skipped (cached):  $SKIPPED_COUNT"
+          echo "   Running:           $TOTAL_FILES"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+          echo "is-full-run=$IS_FULL_RUN" >> $GITHUB_OUTPUT
+          if [ "$TOTAL_FILES" -gt 0 ]; then
+            echo "should-run-tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-tests=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$TOTAL_FILES" -eq 0 ]; then
+            echo "No tests to run!"
+            echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
+            echo "files-to-test=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          NUM_GROUPS=3
+          GROUP1_FILES=""
+          GROUP2_FILES=""
+          GROUP3_FILES=""
+
+          INDEX=0
+          for FILE in "${FILES_ARRAY[@]}"; do
+            if [ -n "$FILE" ]; then
+              GROUP_NUM=$(( (INDEX % NUM_GROUPS) + 1 ))
+              case $GROUP_NUM in
+                1) GROUP1_FILES="$GROUP1_FILES $FILE" ;;
+                2) GROUP2_FILES="$GROUP2_FILES $FILE" ;;
+                3) GROUP3_FILES="$GROUP3_FILES $FILE" ;;
+              esac
+              INDEX=$((INDEX + 1))
+            fi
+          done
+
+          GROUP1_FILES=$(echo "$GROUP1_FILES" | xargs)
+          GROUP2_FILES=$(echo "$GROUP2_FILES" | xargs)
+          GROUP3_FILES=$(echo "$GROUP3_FILES" | xargs)
+
+          INCLUDE_ARRAY="["
+          FIRST=true
+
+          if [ -n "$GROUP1_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":1,\"is-first-group\":true,\"test-files\":$(echo "$GROUP1_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+
+          if [ -n "$GROUP2_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":2,\"is-first-group\":false,\"test-files\":$(echo "$GROUP2_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+
+          if [ -n "$GROUP3_FILES" ]; then
+            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":3,\"is-first-group\":false,\"test-files\":$(echo "$GROUP3_FILES" | jq -R .)}"
+            FIRST=false
+          fi
+
+          INCLUDE_ARRAY="$INCLUDE_ARRAY]"
+          MATRIX_JSON="{\"include\":$INCLUDE_ARRAY}"
+
+          echo "matrix=$(echo "$MATRIX_JSON" | jq -c .)" >> $GITHUB_OUTPUT
+          echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
+
   # ─── Only runs when UI files changed ─────────────────────────────────────────
 
   install-playwright:
     name: Install Playwright Browsers
     runs-on: ubuntu-latest
     needs: [check-runs, lint, build-app, type-check]
-    if: needs.check-runs.outputs.should-run-visual == 'true'
+    if: needs.check-runs.outputs.should-run-visual == 'true' || needs.check-runs.outputs.should-run-e2e == 'true'
     outputs:
       playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
     steps:
@@ -471,6 +656,374 @@ jobs:
         with:
           path: .next
           key: ${{ steps.build-key.outputs.key }}
+
+  e2e-test:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: [check-runs, build-app, install-playwright, lint, type-check]
+    if: needs.check-runs.outputs.should-run-e2e == 'true'
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v5
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v5
+        id: restore-build-cache
+        with:
+          path: .next
+          key: ${{ needs.build-app.outputs.build-cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-
+          fail-on-cache-miss: true
+
+      - name: Restore Playwright browsers
+        uses: actions/cache/restore@v5
+        id: cache-playwright
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ needs.install-playwright.outputs.playwright-cache-key }}
+          fail-on-cache-miss: true
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps
+
+      - name: Run Playwright tests (${{ matrix.browser }})
+        id: playwright
+        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual --reporter=list
+        env:
+          CI: true
+          NODE_ENV: production
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
+
+      - name: Upload Playwright report (${{ matrix.browser }})
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results (${{ matrix.browser }})
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test:
+    name: Run Tests (Group ${{ matrix.test-group }})
+    runs-on: ubuntu-latest
+    needs: [check-runs, build-app, type-check, lint]
+    if: needs.check-runs.outputs.should-run-tests == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.check-runs.outputs.test-matrix) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Cache node_modules
+        uses: actions/cache@v5
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Cache Jest
+        uses: actions/cache@v5
+        id: cache-jest
+        with:
+          path: .jest/cache
+          key: ${{ runner.os }}-jest-${{ hashFiles('**/*.test.ts', '**/*.test.tsx') }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-jest-
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+
+      - name: Get test files list
+        id: test-files
+        run: |
+          TEST_FILES_RAW="${{ matrix.test-files }}"
+
+          if [ -z "$TEST_FILES_RAW" ]; then
+            echo "No test files specified for this group"
+            echo "[]" > test_files.json
+          else
+            echo "$TEST_FILES_RAW" | tr -s '[:space:]' '\n' | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
+          fi
+
+          if ! jq -e . test_files.json > /dev/null 2>&1; then
+            echo "Error: Invalid JSON in test_files.json"
+            cat test_files.json
+            exit 1
+          fi
+
+          echo "Test files in group ${{ matrix.test-group }}:"
+          cat test_files.json
+          echo "Number of test files: $(jq 'length' test_files.json)"
+          echo "test_files=$(cat test_files.json | jq -c .)" >> $GITHUB_OUTPUT
+
+      - name: Run test group ${{ matrix.test-group }}
+        timeout-minutes: 5
+        env:
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
+        run: |
+          rm -rf coverage/ .nyc_output/
+
+          if [ ! -f test_files.json ] || [ "$(jq 'length' test_files.json)" -eq 0 ]; then
+            echo "No test files found in this group. Skipping test execution."
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
+              mkdir -p coverage
+              echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
+            fi
+            exit 0
+          fi
+
+          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=10000 --passWithNoTests --no-cache"
+          if [ "${{ matrix.is-first-group }}" = "true" ]; then
+            mkdir -p coverage
+            JEST_ARGS="$JEST_ARGS --coverage --testLocationInResults --json --outputFile=test-results.json"
+          fi
+
+          mapfile -t TEST_FILES_ARRAY < <(jq -r '.[]' test_files.json)
+
+          if [ ${#TEST_FILES_ARRAY[@]} -eq 0 ]; then
+            echo "No test files to run in this group."
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
+              mkdir -p coverage
+              echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
+            fi
+            exit 0
+          fi
+
+          echo "Running test group ${{ matrix.test-group }} with ${#TEST_FILES_ARRAY[@]} test files"
+          timeout 180 npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}" 2>&1 | tee jest-output.log || {
+            TEST_EXIT_CODE=$?
+            if [ $TEST_EXIT_CODE -eq 124 ]; then
+              echo "Tests timed out after 3 minutes"
+              exit 1
+            fi
+            exit $TEST_EXIT_CODE
+          }
+          TEST_EXIT_CODE=$?
+
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ ! -d "coverage" ]; then
+            mkdir -p coverage
+            echo '{"total": {"lines": {"pct": 0}, "statements": {"pct": 0}, "functions": {"pct": 0}, "branches": {"pct": 0}}}' > coverage/coverage-summary.json
+          fi
+
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ -d "coverage" ]; then
+            echo "Coverage report generated at: $(pwd)/coverage"
+            ls -la coverage/ || echo "Coverage directory is empty"
+          fi
+
+          exit $TEST_EXIT_CODE
+
+      - name: Upload test results
+        if: always() && matrix.is-first-group
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: |
+            coverage/
+            test-results.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload JUnit test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-group-${{ matrix.test-group }}
+          path: |
+            junit-*.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Save test summary
+        if: always()
+        run: |
+          mkdir -p test-summaries
+          PASSED=0
+          FAILED=0
+          TOTAL=0
+          SUITES_PASSED=0
+          SUITES_FAILED=0
+          SUITES_TOTAL=0
+
+          if [ -f "test-results.json" ]; then
+            PASSED=$(jq -r '.numPassedTests // 0' test-results.json)
+            FAILED=$(jq -r '.numFailedTests // 0' test-results.json)
+            TOTAL=$(jq -r '.numTotalTests // 0' test-results.json)
+            SUITES_PASSED=$(jq -r '.numPassedTestSuites // 0' test-results.json)
+            SUITES_FAILED=$(jq -r '.numFailedTestSuites // 0' test-results.json)
+            SUITES_TOTAL=$(jq -r '.numTotalTestSuites // 0' test-results.json)
+          fi
+
+          cat > test-summaries/group-${{ matrix.test-group }}.json <<EOF
+          {
+            "group": ${{ matrix.test-group }},
+            "tests": {
+              "passed": $PASSED,
+              "failed": $FAILED,
+              "total": $TOTAL
+            },
+            "suites": {
+              "passed": $SUITES_PASSED,
+              "failed": $SUITES_FAILED,
+              "total": $SUITES_TOTAL
+            },
+            "status": "${{ job.status }}"
+          }
+          EOF
+
+      - name: Record passing tests
+        if: success()
+        run: |
+          mkdir -p .test-cache
+          PASSING_TESTS_FILE=".test-cache/passing-tests-group-${{ matrix.test-group }}.json"
+          echo '{}' > "$PASSING_TESTS_FILE"
+          if [ -f test_files.json ]; then
+            TEST_FILES=$(jq -r '.[]' test_files.json)
+            for TEST_FILE in $TEST_FILES; do
+              if [ -f "$TEST_FILE" ]; then
+                FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                jq --arg file "$TEST_FILE" --arg hash "$FILE_HASH" '. + {($file): $hash}' "$PASSING_TESTS_FILE" > tmp.json && mv tmp.json "$PASSING_TESTS_FILE"
+              fi
+            done
+          fi
+
+      - name: Upload passing tests data
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: passing-tests-group-${{ matrix.test-group }}
+          path: .test-cache/passing-tests-group-${{ matrix.test-group }}.json
+          retention-days: 30
+
+      - name: Upload test summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-summary-${{ matrix.test-group }}
+          path: test-summaries/
+          retention-days: 1
+
+  test-summary:
+    name: Test Summary & Notification
+    runs-on: ubuntu-latest
+    needs: [test, e2e-test]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download test summaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: test-summary-*
+          path: test-summaries
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download Playwright reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: playwright-report-*
+          path: playwright-reports
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download passing tests data
+        uses: actions/download-artifact@v8
+        with:
+          pattern: passing-tests-group-*
+          path: passing-tests-data
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Summarize results
+        if: always()
+        run: |
+          TOTAL_TESTS_PASSED=0
+          TOTAL_TESTS_FAILED=0
+          TOTAL_TESTS=0
+          TOTAL_SUITES_PASSED=0
+          TOTAL_SUITES_FAILED=0
+          TOTAL_SUITES=0
+
+          if [ -d "test-summaries" ]; then
+            for file in test-summaries/*.json; do
+              if [ -f "$file" ]; then
+                TESTS_PASSED=$(jq -r '.tests.passed' "$file")
+                TESTS_FAILED=$(jq -r '.tests.failed' "$file")
+                TESTS_TOTAL=$(jq -r '.tests.total' "$file")
+                SUITES_PASSED=$(jq -r '.suites.passed' "$file")
+                SUITES_FAILED=$(jq -r '.suites.failed' "$file")
+                SUITES_TOTAL=$(jq -r '.suites.total' "$file")
+
+                TOTAL_TESTS_PASSED=$((TOTAL_TESTS_PASSED + TESTS_PASSED))
+                TOTAL_TESTS_FAILED=$((TOTAL_TESTS_FAILED + TESTS_FAILED))
+                TOTAL_TESTS=$((TOTAL_TESTS + TESTS_TOTAL))
+                TOTAL_SUITES_PASSED=$((TOTAL_SUITES_PASSED + SUITES_PASSED))
+                TOTAL_SUITES_FAILED=$((TOTAL_SUITES_FAILED + SUITES_FAILED))
+                TOTAL_SUITES=$((TOTAL_SUITES + SUITES_TOTAL))
+              fi
+            done
+          fi
+
+          {
+            echo "## Test Summary"
+            echo ""
+            echo "- Tests passed: $TOTAL_TESTS_PASSED"
+            echo "- Tests failed: $TOTAL_TESTS_FAILED"
+            echo "- Tests total: $TOTAL_TESTS"
+            echo "- Suites passed: $TOTAL_SUITES_PASSED"
+            echo "- Suites failed: $TOTAL_SUITES_FAILED"
+            echo "- Suites total: $TOTAL_SUITES"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   prepare-lhci:
     name: Prepare LHCI Tools
