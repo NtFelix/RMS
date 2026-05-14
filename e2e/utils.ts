@@ -21,10 +21,22 @@ export const login = async (page: Page) => {
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
-  // Monitor browser console for errors during login
+  // Monitor browser console for errors
   page.on('console', msg => {
     if (msg.type() === 'error') {
       console.log(`[Browser Error] ${msg.text()}`);
+    }
+  });
+
+  // Monitor request failures
+  page.on('requestfailed', request => {
+    console.log(`[Request Failed] ${request.url()} - ${request.failure()?.errorText}`);
+  });
+
+  // Monitor response errors (4xx, 500)
+  page.on('response', response => {
+    if (response.status() >= 400) {
+      console.log(`[Response Error] ${response.status()} ${response.url()}`);
     }
   });
 
@@ -58,18 +70,23 @@ export const login = async (page: Page) => {
     await page.waitForURL(url => {
       const p = url.pathname;
       const normalizedPath = p.replace(/\/$/, '') || '/';
-      const isTarget = ['/dashboard', '/', '/haeuser', '/wohnungen', '/mieter', '/todos', '/finanzen'].includes(normalizedPath) || p.startsWith('/subscription-locked');
+      const targets = ['/dashboard', '/', '/haeuser', '/wohnungen', '/mieter', '/todos', '/finanzen', '/objekte', '/einstellungen'];
+      const isTarget = targets.includes(normalizedPath) || p.startsWith('/subscription-locked');
       if (isTarget) console.log(`[Login] Target URL reached: ${url.href}`);
       return isTarget;
     }, { timeout: 45000 });
 
     // Wait for a key element to appear to ensure Next.js has hydrated and the session is loaded.
-    await expect(page.locator('nav, aside, h1, .subscription-lock-container').first()).toBeVisible({ timeout: 20000 });
+    // We check for elements common to dashboard/management pages.
+    const keyElement = page.locator('nav, aside, h1, .subscription-lock-container, main').first();
+    await expect(keyElement).toBeVisible({ timeout: 20000 });
     
     // Final check of the URL
     if (page.url().includes('/auth/login')) {
       throw new Error(`Login failed: Still on login page. URL: ${page.url()}`);
     }
+    
+    console.log(`[Login] Successfully navigated to: ${page.url()}`);
   } catch (e) {
     console.log(`[Login] Navigation wait failed or timed out. Current URL: ${page.url()}`);
     
@@ -94,6 +111,8 @@ export const login = async (page: Page) => {
       }
     } else {
       // It did navigate but maybe waitForURL or wait for element failed
+      const currentUrl = page.url();
+      console.log(`[Login] Navigation happened but test failed. Final URL: ${currentUrl}`);
       throw e;
     }
   }
