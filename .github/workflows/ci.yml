@@ -475,7 +475,7 @@ jobs:
   prepare-lhci:
     name: Prepare LHCI Tools
     runs-on: ubuntu-latest
-    needs: [check-runs, build-app]
+    needs: [check-runs, build-app, lint, type-check]
     if: needs.check-runs.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 3
     steps:
