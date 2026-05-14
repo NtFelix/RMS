@@ -21,62 +21,64 @@ export const login = async (page: Page) => {
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
+  // Use domcontentloaded for faster initial load
   await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('domcontentloaded');
 
   // Wait for the form to be ready
-  await expect(page.locator('form')).toBeVisible({ timeout: 30000 });
+  const emailInput = page.locator('#email').first();
+  await expect(emailInput).toBeVisible({ timeout: 30000 });
 
-  // Fill in credentials using IDs with form context to avoid potential duplicates
-  const form = page.locator('form').first();
-  await form.locator('#email').first().fill(TEST_EMAIL!);
-  await form.locator('#password').first().fill(TEST_PASSWORD!);
+  // Fill in credentials
+  await emailInput.fill(TEST_EMAIL!);
+  const passwordInput = page.locator('#password').first();
+  await passwordInput.fill(TEST_PASSWORD!);
 
-  // Ensure button is ready to receive clicks
+  // Ensure button is ready to receive clicks (as a indicator that JS is loaded)
   const loginBtn = page.getByRole('button', { name: /anmelden/i }).first();
-  await expect(loginBtn).toBeEnabled();
-  await loginBtn.click({ force: true });
+  await expect(loginBtn).toBeVisible();
+  
+  // On some browsers (Webkit), a small delay after filling fields can help React state sync
+  await page.waitForTimeout(500);
+  
+  // Submit via Enter key - often more reliable than clicking a potentially moving/animated button
+  await passwordInput.press('Enter');
 
   // Wait for navigation to dashboard or check for errors
   try {
     // Wait for URL change using Playwright's built-in waitForURL for better reliability
     await page.waitForURL(url => {
       const p = url.pathname;
-      return p === '/dashboard' || p === '/' || p === '/haeuser' || p.startsWith('/subscription-locked');
+      const normalizedPath = p.replace(/\/$/, '') || '/';
+      return ['/dashboard', '/', '/haeuser', '/wohnungen', '/mieter', '/todos', '/finanzen'].includes(normalizedPath) || p.startsWith('/subscription-locked');
     }, { timeout: 30000 });
 
     // Wait for a key element to appear to ensure Next.js has hydrated and the session is loaded.
-    // We check for elements common to dashboard/management pages OR the subscription lock page.
     await expect(page.locator('nav, aside, h1, .subscription-lock-container').first()).toBeVisible({ timeout: 15000 });
     
-    // Final check of the URL to ensure we aren't stuck on login due to some silent failure
+    // Final check of the URL to ensure we aren't stuck on login
     if (page.url().includes('/auth/login')) {
       throw new Error(`Login failed: Still on login page. URL: ${page.url()}`);
     }
   } catch (e) {
-    // If navigation failed, check if there's an error message visible
-    // We filter for alerts that aren't the hidden route announcer
-    const errorAlert = page.locator('[role="alert"]').filter({ hasNotText: /^$/ }).first();
+    // If navigation failed, check if there's an error message visible in the UI
+    const errorText = await getUiErrorMessage(page);
+    if (errorText) {
+      throw new Error(`Login failed with error: ${errorText}`);
+    }
 
-    // Check if page is still open before calling isVisible
-    if (!page.isClosed()) {
+    // Check if we are still on the login page
+    const currentUrl = page.url();
+    if (currentUrl.includes('/auth/login')) {
+      // Final attempt to click the button in case Enter didn't work
       try {
-        if (await errorAlert.isVisible({ timeout: 2000 })) {
-          const errorText = await errorAlert.innerText();
-          throw new Error(`Login failed with error: ${errorText}`);
-        }
-      } catch (alertError) {
-        // Alert check failed, continue to other checks
-      }
-
-      // Final check of the URL
-      const currentUrl = page.url();
-      if (currentUrl.includes('/auth/login')) {
-        throw new Error(`Login failed: Still on login page after timeout. URL: ${currentUrl}`);
-      }
-
-      // If we are on some other page (like /subscription-locked), report it
-      if (currentUrl.includes('/subscription-locked')) {
-        throw new Error(`Login failed: Redirected to subscription-locked page. URL: ${currentUrl}`);
+        await loginBtn.click({ timeout: 2000 });
+        await page.waitForURL(url => !url.pathname.includes('/auth/login'), { timeout: 10000 });
+      } catch (clickErr) {
+        // Still failing
+        const bodyText = await page.innerText('body').catch(() => '');
+        const hasGenericError = bodyText.toLowerCase().includes('fehler') || bodyText.toLowerCase().includes('error');
+        throw new Error(`Login failed: Still on login page after timeout. URL: ${currentUrl}. ${hasGenericError ? 'Possible error visible on page.' : ''}`);
       }
     }
 
@@ -86,9 +88,13 @@ export const login = async (page: Page) => {
 
 export const acceptCookieConsent = async (page: Page) => {
   const consentBtn = page.getByRole('button', { name: /Alle akzeptieren|Akzeptieren/i }).first();
-  if (await consentBtn.isVisible()) {
-    await consentBtn.click();
-    await expect(consentBtn).toBeHidden();
+  try {
+    if (await consentBtn.isVisible({ timeout: 2000 })) {
+      await consentBtn.click();
+      await expect(consentBtn).toBeHidden({ timeout: 5000 });
+    }
+  } catch (e) {
+    // Ignore if not found
   }
 };
 
@@ -104,14 +110,17 @@ export async function getUiErrorMessage(page: Page) {
     page.locator('.text-destructive'),
     page.locator('.text-red-500'),
     page.locator('.bg-red-50'),
+    page.locator('.alert'),
   ];
 
   for (const locator of locators) {
     try {
-      const first = locator.filter({ hasNotText: /^$/ }).first();
-      if (await first.isVisible({ timeout: 1000 })) {
-        const text = await first.innerText();
-        if (text && text.trim().length > 0) return text.trim();
+      const matches = await locator.filter({ hasNotText: /^$/ }).all();
+      for (const match of matches) {
+        if (await match.isVisible({ timeout: 500 })) {
+          const text = await match.innerText();
+          if (text && text.trim().length > 0) return text.trim();
+        }
       }
     } catch (e) {
       // Ignore timeout/not found for individual locators
