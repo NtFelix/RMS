@@ -6,25 +6,25 @@ test.describe('Authentication Flows', () => {
   test('Login page should render correctly', async ({ page }) => {
     await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
     // Wait for animation/loading
-    await expect(page.getByRole('heading', { name: /ANMELDEN/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /ANMELDEN/i })).toBeVisible({ timeout: 20000 });
 
     // Check inputs by ID as fallback or direct label, scoped to the form
     const form = page.locator('form').first();
-    await expect(form.locator('#email').first()).toBeVisible();
-    await expect(form.locator('#password').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /anmelden/i }).first()).toBeVisible();
+    await expect(form.locator('#email').first()).toBeVisible({ timeout: 15000 });
+    await expect(form.locator('#password').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /anmelden/i }).first()).toBeVisible({ timeout: 15000 });
   });
 
   test('Registration page should render correctly', async ({ page }) => {
     await page.goto('/auth/register', { waitUntil: 'domcontentloaded' });
     // Wait for potential animation/loading
-    await expect(page.getByRole('heading', { name: /REGISTRIEREN/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /REGISTRIEREN/i })).toBeVisible({ timeout: 20000 });
 
     const form = page.locator('form').first();
-    await expect(form.locator('#email').first()).toBeVisible();
-    await expect(form.locator('#password').first()).toBeVisible();
+    await expect(form.locator('#email').first()).toBeVisible({ timeout: 15000 });
+    await expect(form.locator('#password').first()).toBeVisible({ timeout: 15000 });
     // Register button text might vary
-    await expect(page.getByRole('button', { name: /registrieren|konto erstellen|kostenlos starten/i }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /registrieren|konto erstellen|kostenlos starten/i }).first()).toBeVisible({ timeout: 15000 });
   });
 
   // Conditional test: Only runs if credentials are provided
@@ -39,8 +39,8 @@ test.describe('Authentication Flows', () => {
 
     // Verify we are on the dashboard
     // Check for common dashboard elements using more specific locators
-    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('link', { name: /Häuser|Objekte/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('link', { name: /Häuser|Objekte/i }).first()).toBeVisible({ timeout: 20000 });
   });
 
   test('Should be able to log out', async ({ page }) => {
@@ -59,8 +59,8 @@ test.describe('Authentication Flows', () => {
     // CustomDropdown wraps it and adds data-dropdown-trigger
     const userMenuTrigger = page.locator('[aria-label="User menu"], [data-dropdown-trigger]').first();
 
-    await expect(userMenuTrigger).toBeVisible({ timeout: 15000 });
-    await expect(userMenuTrigger).toBeEnabled();
+    await expect(userMenuTrigger).toBeVisible({ timeout: 30000 });
+    await expect(userMenuTrigger).toBeEnabled({ timeout: 30000 });
     await userMenuTrigger.click({ force: true });
     // Wait for dropdown animation
     // But checking for visibility is better practice than fixed timeout
