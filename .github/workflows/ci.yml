@@ -2,6 +2,7 @@ name: CI
 
 permissions:
   contents: read
+  packages: write
 
 on:
   push:
@@ -15,9 +16,11 @@ on:
     paths-ignore:
       - 'playwright/snapshots.yml'
       - '**/snapshots.yml'
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '22'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ─── Always runs on every PR ─────────────────────────────────────────────────
@@ -60,25 +63,263 @@ jobs:
       - name: Run TypeScript check
         run: npx tsc --noEmit
 
+  # ─── Docker Build and Smoke Test ─────────────────────────────────────────────
+
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, build-app]
+    outputs:
+      start_time: ${{ steps.start-timer.outputs.start_time }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .next
+          key: ${{ needs.build-app.outputs.build-cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-
+
+      - name: Comment Build Started
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        id: start-timer
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const marker = '<!-- preview-deploy-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existingComment = comments.find(c => c.body.includes(marker));
+            const body = `${marker}\n⏳ **Building Docker container...** It won't take long!`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+            core.setOutput('start_time', new Date().toISOString());
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate Docker to Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Set Image Name & Tag
+        id: image
+        run: |
+          IMAGE_BASE="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAG="latest"
+          else
+            TAG="branch-${{ github.ref_name }}"
+          fi
+          echo "full_name=$IMAGE_BASE:$TAG" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.image.outputs.full_name }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ github.event_name == 'pull_request' && secrets.STAGING_STRIPE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
+            NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }}
+            NEXT_PUBLIC_MIETEVO_MCP_URL=${{ secrets.NEXT_PUBLIC_MIETEVO_MCP_URL }}
+            POSTHOG_PROJECT_ID=${{ secrets.POSTHOG_PROJECT_ID }}
+            POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
+          secrets: |
+            "POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
+          cache-from: type=gha,scope=docker-build
+          cache-to: type=gha,mode=max,scope=docker-build
+
+      - name: Smoke test
+        id: smoke-test
+        run: |
+          docker pull ${{ steps.image.outputs.full_name }}
+          docker run -d \
+            --name mietevo-smoke \
+            -p 3000:3000 \
+            --health-cmd='node -e "require(\"http\").get({hostname:\"localhost\",port:process.env.PORT||3000,path:\"/\",timeout:2000},(res)=>{process.exit(res.statusCode===200?0:1)}).on(\"error\",()=>process.exit(1))"' \
+            --health-interval=10s \
+            --health-timeout=5s \
+            --health-start-period=40s \
+            --health-retries=3 \
+            -e NODE_ENV=production \
+            -e NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
+            -e NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
+            ${{ steps.image.outputs.full_name }}
+
+          # Give container a moment to start
+          sleep 2
+
+          # Check 1: Verify container is still running
+          INITIAL_STATUS=$(docker inspect --format='{{.State.Status}}' mietevo-smoke 2>/dev/null || echo "not_found")
+          if [ "$INITIAL_STATUS" != "running" ]; then
+            echo "❌ Container failed to start (status: $INITIAL_STATUS)"
+            echo "Container logs:"
+            docker logs mietevo-smoke
+            exit 1
+          fi
+          echo "✓ Container started successfully"
+
+          # Check 2: Scan logs for critical errors during startup
+          STARTUP_ERRORS=$(docker logs mietevo-smoke 2>&1 | grep -iE "^.*error|^.*fatal|^.*panic|^.*uncaught|^.*exception" | grep -v "warning\|WarningLogLevel\|deprecated" | head -10 || true)
+          if [ -n "$STARTUP_ERRORS" ]; then
+            echo "⚠️  Critical errors detected in logs:"
+            echo "$STARTUP_ERRORS"
+            # Log full output for debugging
+            echo "---"
+            echo "Full container logs:"
+            docker logs mietevo-smoke | tail -50
+            exit 1
+          fi
+          echo "✓ No critical startup errors"
+
+          # Check 3: Wait for HTTP endpoint to be responsive
+          echo "Waiting for HTTP endpoint..."
+          HTTP_SUCCESS=false
+          for i in $(seq 1 30); do
+            STATUS=$(docker inspect --format='{{.State.Status}}' mietevo-smoke 2>/dev/null || echo "not_found")
+            if [ "$STATUS" != "running" ]; then
+              echo "❌ Container stopped unexpectedly (status: $STATUS)"
+              docker logs mietevo-smoke
+              exit 1
+            fi
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "307" ] || [ "$HTTP_CODE" = "302" ]; then
+              echo "✓ HTTP endpoint healthy (HTTP $HTTP_CODE)"
+              HTTP_SUCCESS=true
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "❌ HTTP endpoint did not respond after 60s"
+              echo "Last HTTP code: $HTTP_CODE"
+              echo "Container logs:"
+              docker logs mietevo-smoke
+              exit 1
+            fi
+            echo "  Attempt $i/30: HTTP $HTTP_CODE — retrying in 2s..."
+            sleep 2
+          done
+          
+          if [ "$HTTP_SUCCESS" != "true" ]; then
+            exit 1
+          fi
+
+          # Check 4: Validate response content
+          echo "Validating response content..."
+          RESPONSE_HEADERS=$(curl -s -i http://localhost:3000 2>/dev/null | head -20)
+          CONTENT_TYPE=$(echo "$RESPONSE_HEADERS" | grep -i "content-type" || true)
+          if [ -z "$CONTENT_TYPE" ]; then
+            echo "⚠️  Warning: No content-type header found"
+          else
+            echo "✓ Content-Type header present: $(echo "$CONTENT_TYPE" | cut -d: -f2- | xargs)"
+          fi
+          
+          # Check for HTML content
+          BODY=$(curl -s http://localhost:3000 2>/dev/null | head -c 500)
+          if echo "$BODY" | grep -qi "<!doctype\|<html"; then
+            echo "✓ Valid HTML response received"
+          else
+            echo "⚠️  Warning: No HTML doctype found in response"
+          fi
+
+          # Check 5: Verify Next.js assets are served
+          echo "Checking Next.js assets availability..."
+          ASSETS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/_next/static/ 2>/dev/null || echo "000")
+          if [ "$ASSETS_CHECK" = "200" ] || [ "$ASSETS_CHECK" = "404" ]; then
+            echo "✓ Next.js static assets endpoint accessible (HTTP $ASSETS_CHECK)"
+          else
+            echo "⚠️  Warning: Unexpected response from _next/static/ (HTTP $ASSETS_CHECK)"
+          fi
+          
+          # Check 6: Verify healthcheck endpoint
+          echo "Checking Docker healthcheck status..."
+          sleep 1
+          HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' mietevo-smoke 2>/dev/null || echo "none")
+          echo "Container health status: $HEALTH_STATUS"
+          if [ "$HEALTH_STATUS" = "healthy" ] || [ "$HEALTH_STATUS" = "starting" ]; then
+            echo "✓ Healthcheck passed or in progress"
+          elif [ "$HEALTH_STATUS" = "unhealthy" ]; then
+            echo "❌ Container healthcheck failed"
+            docker inspect mietevo-smoke | grep -A 10 '"Health"'
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All smoke tests passed!"
+
+      - name: Cleanup smoke test container
+        if: always()
+        run: |
+          if docker inspect mietevo-smoke &>/dev/null; then
+            echo "Stopping smoke test container..."
+            docker stop mietevo-smoke || true
+            docker rm -f mietevo-smoke || true
+            echo "✓ Cleanup complete"
+          fi
+
   # ─── Detects whether UI-relevant files changed ───────────────────────────────
-  # Runs in parallel with lint/type-check. Downstream visual jobs check its
-  # output and skip entirely if no UI files changed — preserving PostHog baseline
-  # integrity (partial submissions would corrupt the baseline comparison).
 
   check-visual-run:
     name: Check for Visual Run
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     outputs:
-      should-run: ${{ steps.filter.outputs.run }}
+      should-run: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.run == 'true' }}
     steps:
       - name: Checkout
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Check for relevant file changes
         id: filter
+        if: github.event_name == 'pull_request'
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
@@ -96,12 +337,13 @@ jobs:
             echo "run=false" >> $GITHUB_OUTPUT
           fi
 
+
   # ─── Only runs when UI files changed ─────────────────────────────────────────
 
   install-playwright:
     name: Install Playwright Browsers
     runs-on: ubuntu-latest
-    needs: check-visual-run
+    needs: [check-visual-run, lint, build-app, type-check]
     if: needs.check-visual-run.outputs.should-run == 'true'
     outputs:
       playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
@@ -116,7 +358,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --prefer-offline
+        run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
 
       - name: Generate Playwright cache key
         id: playwright-key
@@ -138,8 +380,6 @@ jobs:
   build-app:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: check-visual-run
-    if: needs.check-visual-run.outputs.should-run == 'true'
     outputs:
       build-cache-key: ${{ steps.build-key.outputs.key }}
     steps:
@@ -153,13 +393,18 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --prefer-offline
+        run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
 
       - name: Generate build cache key
         id: build-key
         run: |
-          SOURCE_HASH=$(find app components lib hooks types public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.css" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
-          echo "key=${{ runner.os }}-nextjs-build-${SOURCE_HASH}-${{ hashFiles('**/package-lock.json', 'next.config.*', 'tsconfig.json', 'tailwind.config.*') }}" >> $GITHUB_OUTPUT
+          # Deterministic cache key based on critical build inputs
+          # Includes: package-lock.json, config files, and source code hash
+          LOCK_HASH=${{ hashFiles('**/package-lock.json') }}
+          CONFIG_HASH=${{ hashFiles('next.config.*', 'tsconfig.json', 'tailwind.config.*', '.env.example') }}
+          SOURCE_HASH=$(find app components lib hooks types -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-source")
+          echo "key=${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}" >> $GITHUB_OUTPUT
+          echo "Cache key: ${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}"
 
       - name: Restore build cache
         id: build-cache
@@ -194,12 +439,10 @@ jobs:
     needs: [lint, type-check, check-visual-run, install-playwright, build-app]
     if: needs.check-visual-run.outputs.should-run == 'true'
     steps:
-      # Checkout the branch tip by ref name (not SHA) so re-runs always get
-      # the latest commit on the branch, not the stale SHA from the original trigger.
       - name: Checkout (latest branch tip)
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -208,7 +451,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --prefer-offline
+        run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
 
       - name: Restore Playwright browsers
         uses: actions/cache/restore@v5
@@ -229,7 +472,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nextjs-build-
 
-      # Rebuild if cache missed (e.g. on a re-run after new commits)
       - name: Build Next.js app (cache miss fallback)
         if: steps.restore-build.outputs.cache-hit != 'true'
         run: npm run build
@@ -261,24 +503,17 @@ jobs:
           cd products/visual_review/cli
           npm ci
 
-      # Use the shard-based flow (run create → upload → complete) instead of the
-      # monolithic `submit` command. This lets us fire the completeRun API call
-      # (which triggers PostHog's diff processing) and immediately exit without
-      # waiting for the diff result. PostHog processes asynchronously in the background.
-      # The diff result is visible in the PostHog dashboard regardless.
-
       - name: Create PostHog Visual Review run
         if: always()
         id: vr-run
-        # `run create` writes only the run ID to stdout (all logs go to stderr).
         run: |
           RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
             --type playwright \
             --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
-            --branch ${{ github.event.pull_request.head.ref }} \
+            --branch ${{ github.event.pull_request.head.ref || github.ref_name }} \
             --commit $(git rev-parse HEAD) \
-            --pr ${{ github.event.pull_request.number }})
+            ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }})
           echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Created PostHog VR run: $RUN_ID"
 
@@ -294,9 +529,6 @@ jobs:
       - name: Wait for PostHog diff processing
         if: always() && steps.vr-run.outputs.run-id != ''
         id: vr-complete
-        # We now wait for completion since we reduced the image count to 44 (Chromium only).
-        # We capture the output to parse the summary for the GitHub Action summary.
-        # timeout 300 is a safety net (5 mins). || true ensures we still generate the summary.
         run: |
           npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
@@ -307,15 +539,10 @@ jobs:
         if: always() && steps.vr-run.outputs.run-id != ''
         run: |
           REVIEW_URL="https://eu.posthog.com/project/76914/visual_review/runs/${{ steps.vr-run.outputs.run-id }}"
-          
-          # Extract summary stats from the log if they exist
           STATS=$(grep "Done:" vr-output.txt || true)
-          
           echo "### 🎨 PostHog Visual Review" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
           if [ -n "$STATS" ]; then
-            # Format: [run:...] Done: 44 snapshots — 44 unchanged, 0 changed, 0 new, 0 removed
             SUMMARY=$(echo "$STATS" | sed 's/.*Done: //')
             echo "✅ **Processing Complete**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -325,22 +552,160 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "The diff engine is still working or encountered an issue. Please check the dashboard manually." >> $GITHUB_STEP_SUMMARY
           fi
-          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔍 **[Review Visual Changes on PostHog]($REVIEW_URL)**" >> $GITHUB_STEP_SUMMARY
-          
-          # If changes were detected, we want to inform the user clearly
           if grep -q "Visual changes detected" vr-output.txt; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "> [!IMPORTANT]" >> $GITHUB_STEP_SUMMARY
             echo "> **Visual regressions or new snapshots detected.** Please review and approve them in PostHog to update the baseline." >> $GITHUB_STEP_SUMMARY
           fi
-
-          # Fail the step if visual changes were detected (CLI returned 1)
           if [ "${{ steps.vr-complete.outputs.exit_code }}" == "1" ]; then
              echo "Visual changes detected. Review required."
              exit 1
           fi
 
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Comment Deployment Starting
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const marker = '<!-- preview-deploy-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existingComment = comments.find(c => c.body.includes(marker));
+            const body = `${marker}\n⏳ **Build finished. Deploying to Cloud Run...**`;
 
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            }
 
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy Preview to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        id: deploy
+        with:
+          service: mietevo
+          region: europe-west1
+          image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:pr-${{ github.event.pull_request.number }}
+          tag: pr-${{ github.event.pull_request.number }}
+          labels: pr=pr-${{ github.event.pull_request.number }}
+          no_traffic: true
+          env_vars: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
+            STRIPE_SECRET_KEY=${{ secrets.STAGING_STRIPE_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STAGING_STRIPE_WEBHOOK_SECRET }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+            TOKEN_ENCRYPTION_KEY=${{ secrets.STAGING_TOKEN_ENCRYPTION_KEY }}
+            WORKER_AUTH_KEY=${{ secrets.WORKER_AUTH_KEY }}
+            USER_HEADER_SECRET=${{ secrets.USER_HEADER_SECRET }}
+            OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
+            OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
+            OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
+
+      - name: Comment Preview URL on PR
+        uses: actions/github-script@v7
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          START_TIME: ${{ needs.docker-build.outputs.start_time }}
+        with:
+          script: |
+            const startTimeStr = process.env.START_TIME;
+            const startTime = (startTimeStr && startTimeStr !== 'null') ? new Date(startTimeStr) : new Date();
+            const endTime = new Date();
+            const durationMs = endTime - startTime;
+            const durationSec = Math.floor(durationMs / 1000);
+            const durationStr = durationSec > 60
+              ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`
+              : `${durationSec}s`;
+
+            const prNumber = context.issue.number;
+            const marker = '<!-- preview-deploy-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existingComment = comments.find(c => c.body.includes(marker));
+
+            const timestamp = endTime.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
+            const body = `${marker}\n✅ **New version is live!**\n\n🔗 **[Preview #${prNumber}](${process.env.DEPLOY_URL})**\n\n🕒 **Deployed at:** ${timestamp}\n⏱️ **Duration:** ${durationStr} (Build + Deploy)`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: mietevo
+          region: europe-west1
+          image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:latest
+          env_vars: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            TOKEN_ENCRYPTION_KEY=${{ secrets.TOKEN_ENCRYPTION_KEY }}
+            WORKER_AUTH_KEY=${{ secrets.WORKER_AUTH_KEY }}
+            USER_HEADER_SECRET=${{ secrets.USER_HEADER_SECRET }}
+            OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
+            OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
+            OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}

@@ -37,6 +37,7 @@ will not resolve to uploaded sourcemaps for this deployment.
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
