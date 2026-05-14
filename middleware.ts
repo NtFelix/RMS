@@ -33,10 +33,15 @@ export async function middleware(request: NextRequest) {
   const needsManagedHeaders = MANAGED_ROUTE_PREFIXES.some((prefix) =>
     matchesRoutePrefix(pathname, prefix),
   )
-  const nonce = needsManagedHeaders ? crypto.randomUUID() : null
+  
+  // Disable strict nonce in dev/test to fix Webkit CSS issues with Next.js
+  const isDevOrTest = process.env.NODE_ENV !== 'production' || process.env.CI === 'true';
+  const nonce = (needsManagedHeaders && !isDevOrTest) ? crypto.randomUUID() : null;
 
   // Content Security Policy
-  const scriptSrc = `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+  const scriptSrc = nonce
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
+    : `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com`;
 
   const csp = [
     "default-src 'self'",
