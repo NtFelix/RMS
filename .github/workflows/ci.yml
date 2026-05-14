@@ -596,8 +596,6 @@ jobs:
   install-playwright:
     name: Install Playwright Browsers
     runs-on: ubuntu-latest
-    needs: [check-runs, lint, build-app, type-check]
-    if: needs.check-runs.outputs.should-run-visual == 'true' || needs.check-runs.outputs.should-run-e2e == 'true'
     outputs:
       playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
     steps:
@@ -1056,8 +1054,6 @@ jobs:
   prepare-lhci:
     name: Prepare LHCI Tools
     runs-on: ubuntu-latest
-    needs: [check-runs, build-app, lint, type-check]
-    if: needs.check-runs.outputs.should-run-lighthouse == 'true'
     timeout-minutes: 3
     steps:
       - name: Setup Node.js
