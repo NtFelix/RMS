@@ -711,7 +711,7 @@ export class DirectoryCacheManager {
 
   private loadNavigationPatterns(): void {
     try {
-      const stored = localStorage.getItem('directory-cache-navigation-patterns')
+      const stored = localStorage.getItem('directory-cache-navigation-patterns:v1')
       if (stored) {
         const patterns = JSON.parse(stored)
         this.navigationPatterns = new Map(patterns)
@@ -724,7 +724,7 @@ export class DirectoryCacheManager {
   private saveNavigationPatterns(): void {
     try {
       const patterns = Array.from(this.navigationPatterns.entries())
-      localStorage.setItem('directory-cache-navigation-patterns', JSON.stringify(patterns))
+      localStorage.setItem('directory-cache-navigation-patterns:v1', JSON.stringify(patterns))
     } catch (error) {
       console.warn('Failed to save navigation patterns:', error)
     }

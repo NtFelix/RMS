@@ -1,6 +1,11 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef, useTransition } from "react"
+
+// Module-level constants to avoid new array references on every render
+const EMPTY_FILES: StorageObject[] = []
+const EMPTY_FOLDERS: VirtualFolder[] = []
+const EMPTY_BREADCRUMBS: BreadcrumbItem[] = []
 import { posthogLogger } from "@/lib/posthog-logger"
 import {
     Upload,
@@ -50,14 +55,14 @@ type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent'
  */
 export function CloudStorage({
     userId,
-    initialFiles = [],
-    initialFolders = [],
+    initialFiles = EMPTY_FILES,
+    initialFolders = EMPTY_FOLDERS,
     initialPath = `user_${userId}`,
-    initialBreadcrumbs = [],
+    initialBreadcrumbs = EMPTY_BREADCRUMBS,
     initialTotalSize = 0,
     initialStorageLimit
 }: CloudStorageProps) {
-    const router = useRouter()
+    const { push } = useRouter()
     const { toast } = useToast()
     const { openUploadModal, openCreateFolderModal, openCreateFileModal } = useModalStore()
 
@@ -204,9 +209,9 @@ export function CloudStorage({
                 }
             }
         } else {
-            router.push(pathToUrl(path))
+            push(pathToUrl(path))
         }
-    }, [localCurrentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+    }, [localCurrentPath, navigate, pathToUrl, push, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
 
     /**
      * Handle folder navigation
@@ -346,7 +351,7 @@ export function CloudStorage({
      * Sort items
      */
     const sortItems = useCallback(<T extends { name: string; updated_at?: string; size?: number }>(items: T[]): T[] => {
-        return [...items].sort((a, b) => {
+        return items.toSorted((a, b) => {
             switch (sortBy) {
                 case 'name':
                     return a.name.localeCompare(b.name)
@@ -586,9 +591,9 @@ export function CloudStorage({
             />
 
             {/* Main File Container */}
-            <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem] h-full flex flex-col">
+            <div className="bg-zinc-50 dark:bg-[#22272e] border border-zinc-200 dark:border-[#3C4251] shadow-sm rounded-[2rem] h-full flex flex-col">
                 {/* Header */}
-                <div className="border-b border-gray-200 dark:border-gray-700">
+                <div className="border-b border-zinc-200 dark:border-zinc-700">
                     <div className="p-6">
                         <div className="flex flex-row items-start justify-between mb-6">
                             <div>
@@ -620,8 +625,8 @@ export function CloudStorage({
                         />
 
                         {/* Breadcrumb Navigation */}
-                        <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
-                            <ol className="flex items-center space-x-1">
+                        <nav className="flex items-center gap-x-1 text-base mt-4" aria-label="Breadcrumb">
+                            <ol className="flex items-center gap-x-1">
                                 {breadcrumbs.map((breadcrumb, index) => {
                                     const isLast = index === breadcrumbs.length - 1
 
@@ -640,7 +645,7 @@ export function CloudStorage({
                                                     aria-current="page"
                                                 >
                                                     {breadcrumb.type === 'root' && (
-                                                        <FolderOpen className="h-4 w-4 mr-1.5" />
+                                                        <FolderOpen className="size-4 mr-1.5" />
                                                     )}
                                                     <span className="truncate max-w-[120px] sm:max-w-[200px]">
                                                         {breadcrumb.name}
@@ -657,7 +662,7 @@ export function CloudStorage({
                                                     )}
                                                 >
                                                     {breadcrumb.type === 'root' && (
-                                                        <FolderOpen className="h-4 w-4 mr-1.5" />
+                                                        <FolderOpen className="size-4 mr-1.5" />
                                                     )}
                                                     <span className="truncate max-w-[120px] sm:max-w-[200px]">
                                                         {breadcrumb.name}
@@ -678,7 +683,7 @@ export function CloudStorage({
                                             disabled={isNavigating}
                                             className="h-8 px-2"
                                         >
-                                            <ArrowUp className="h-4 w-4" />
+                                            <ArrowUp className="size-4" />
                                         </Button>
                                     </li>
                                 )}
@@ -695,8 +700,8 @@ export function CloudStorage({
                         {showLoading && (
                             <div className="animate-in fade-in duration-300">
                                 {stats.retryCount > 0 && isNavigating && (
-                                    <div className="flex items-center justify-center space-x-2 text-amber-600 mb-6 bg-amber-50 dark:bg-amber-900/10 py-3 rounded-xl border border-amber-100 dark:border-amber-900/20 animate-pulse">
-                                        <RefreshCw className="h-4 w-4 animate-spin" />
+                                    <div className="flex items-center justify-center gap-x-2 text-amber-600 mb-6 bg-amber-50 dark:bg-amber-900/10 py-3 rounded-xl border border-amber-100 dark:border-amber-900/20 animate-pulse">
+                                        <RefreshCw className="size-4 animate-spin" />
                                         <span className="text-sm font-medium">
                                             Verbindungsproblem. Erneuter Versuch ({stats.retryCount}/{MAX_RETRIES})...
                                         </span>
@@ -712,14 +717,14 @@ export function CloudStorage({
                         {/* Error State */}
                         {displayError && !showLoading && (
                             <div className="text-center py-16">
-                                <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                    <AlertCircle className="h-8 w-8 text-destructive" />
+                                <div className="bg-destructive/10 rounded-full p-4 size-16 mx-auto mb-4 flex items-center justify-center">
+                                    <AlertCircle className="size-8 text-destructive" />
                                 </div>
                                 <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
                                 <p className="text-muted-foreground mb-4 max-w-md mx-auto">{displayError}</p>
-                                <div className="flex items-center justify-center space-x-3">
+                                <div className="flex items-center justify-center gap-x-3">
                                     <Button onClick={() => handleRefresh(true)}>
-                                        <RefreshCw className="h-4 w-4 mr-2" />
+                                        <RefreshCw className="size-4 mr-2" />
                                         Erneut versuchen
                                     </Button>
                                     <Button variant="outline" onClick={clearNavigationError}>
@@ -732,8 +737,8 @@ export function CloudStorage({
                         {/* Empty State */}
                         {!showLoading && !displayError && sortedFolders.length === 0 && sortedFiles.length === 0 && (
                             <div className="text-center py-16">
-                                <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
+                                <div className="bg-muted/50 rounded-full p-6 size-24 mx-auto mb-6 flex items-center justify-center">
+                                    <FolderOpen className="size-12 text-muted-foreground" />
                                 </div>
                                 <h3 className="text-xl font-semibold mb-2">
                                     {searchQuery ? 'Keine Ergebnisse gefunden' : 'Noch keine Dateien'}
@@ -745,13 +750,13 @@ export function CloudStorage({
                                     }
                                 </p>
                                 {!searchQuery && (
-                                    <div className="flex items-center justify-center space-x-3">
+                                    <div className="flex items-center justify-center gap-x-3">
                                         <Button onClick={handleUpload}>
-                                            <Upload className="h-4 w-4 mr-2" />
+                                            <Upload className="size-4 mr-2" />
                                             Dateien hochladen
                                         </Button>
                                         <Button variant="outline" onClick={handleCreateFolder}>
-                                            <Plus className="h-4 w-4 mr-2" />
+                                            <Plus className="size-4 mr-2" />
                                             Ordner erstellen
                                         </Button>
                                     </div>
