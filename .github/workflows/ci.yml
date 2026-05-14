@@ -669,8 +669,8 @@ jobs:
   lighthouse-report:
     name: Generate Lighthouse Report
     runs-on: ubuntu-latest
-    needs: [check-runs, build-app, lighthouse]
-    if: always() && needs.check-runs.outputs.should-run-lighthouse == 'true'
+    needs: [lighthouse]
+    if: always() && needs.lighthouse.result != 'skipped'
     timeout-minutes: 5
     permissions:
       contents: read
