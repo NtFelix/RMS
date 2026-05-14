@@ -21,7 +21,7 @@ export const login = async (page: Page) => {
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
-  await page.goto('/auth/login', { waitUntil: 'networkidle' });
+  await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
 
   // Wait for the form to be ready
   await expect(page.locator('form')).toBeVisible({ timeout: 30000 });
