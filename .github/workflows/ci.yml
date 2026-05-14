@@ -20,7 +20,6 @@ on:
 
 env:
   NODE_VERSION: '22'
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ─── Always runs on every PR ─────────────────────────────────────────────────
@@ -90,7 +89,7 @@ jobs:
 
       - name: Comment Build Started
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         id: start-timer
         with:
           script: |
@@ -122,13 +121,13 @@ jobs:
             core.setOutput('start_time', new Date().toISOString());
 
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Authenticate Docker to Artifact Registry
         run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
@@ -148,10 +147,10 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -166,6 +165,7 @@ jobs:
             NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
             NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }}
             NEXT_PUBLIC_MIETEVO_MCP_URL=${{ secrets.NEXT_PUBLIC_MIETEVO_MCP_URL }}
+            ROBOTS_INDEXING=${{ github.event_name == 'pull_request' && 'false' || 'true' }}
             POSTHOG_PROJECT_ID=${{ secrets.POSTHOG_PROJECT_ID }}
             POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
           secrets: |
@@ -575,7 +575,7 @@ jobs:
       id-token: write
     steps:
       - name: Comment Deployment Starting
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = context.issue.number;
@@ -597,14 +597,17 @@ jobs:
               });
             }
 
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Deploy Preview to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         id: deploy
         with:
           service: mietevo
@@ -618,6 +621,7 @@ jobs:
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            ROBOTS_INDEXING=false
             NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
             STRIPE_SECRET_KEY=${{ secrets.STAGING_STRIPE_KEY }}
             STRIPE_WEBHOOK_SECRET=${{ secrets.STAGING_STRIPE_WEBHOOK_SECRET }}
@@ -630,7 +634,7 @@ jobs:
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
 
       - name: Comment Preview URL on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
           START_TIME: ${{ needs.docker-build.outputs.start_time }}
@@ -682,23 +686,29 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: mietevo
           region: europe-west1
           image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:latest
+          tag: latest
+          revision_traffic: LATEST=100
           env_vars: |
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
             NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            ROBOTS_INDEXING=true
             NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
             STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
             STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}

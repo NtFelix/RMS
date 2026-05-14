@@ -4,31 +4,46 @@ on:
   pull_request:
     types: [closed]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   cleanup-preview:
-    name: Cleanup Preview Tag
+    name: Cleanup Preview Deployment
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
-      - name: Remove Preview Tag
+      - name: Remove Preview and Merged Branch Tags
         run: |
-          gcloud run services update-traffic mietevo \
-            --remove-tags=pr-${{ github.event.pull_request.number }} \
-            --region=europe-west1 || echo "Tag not found or already removed"
+          PR_TAG="pr-${{ github.event.pull_request.number }}"
+          BRANCH_TAG=$(printf '%s' "branch-${{ github.event.pull_request.head.ref }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' \
+            | cut -c1-63 \
+            | sed -E 's/-+$//')
+
+          TAGS=("$PR_TAG")
+          if [ "${{ github.event.pull_request.merged }}" = "true" ] && [ -n "$BRANCH_TAG" ]; then
+            TAGS+=("$BRANCH_TAG")
+          fi
+
+          for TAG in "${TAGS[@]}"; do
+            echo "Removing Cloud Run tag: $TAG"
+            gcloud run services update-traffic mietevo \
+              --remove-tags="$TAG" \
+              --region=europe-west1 || echo "Tag $TAG not found or already removed"
+          done
 
       - name: Delete Preview Revision
         run: |
