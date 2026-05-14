@@ -76,10 +76,15 @@ export const login = async (page: Page) => {
       return isTarget;
     }, { timeout: 45000 });
 
+    // Handle RSC fallback navigation which causes a full page reload in Webkit
+    // If the RSC fetch fails, Next.js does a hard window.location.href change
+    await page.waitForLoadState('domcontentloaded');
+
     // Wait for a key element to appear to ensure Next.js has hydrated and the session is loaded.
     // We check for elements common to dashboard/management pages.
     const keyElement = page.locator('nav, aside, h1, .subscription-lock-container, main').first();
     await expect(keyElement).toBeVisible({ timeout: 20000 });
+
     
     // Final check of the URL
     if (page.url().includes('/auth/login')) {
