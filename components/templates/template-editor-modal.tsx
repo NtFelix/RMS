@@ -59,9 +59,8 @@ import { Badge } from '@/components/ui/badge';
 // Enhanced form validation schemas
 const categorySchema = z.object({
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-    required_error: 'Bitte wählen Sie eine Kategorie aus.',
-    invalid_type_error: 'Ungültige Kategorie ausgewählt.',
-  }),
+      error: (issue) => issue.input === undefined ? 'Bitte wählen Sie eine Kategorie aus.' : 'Ungültige Kategorie ausgewählt.'
+}),
 });
 
 const templateSchema = z.object({
@@ -92,9 +91,8 @@ const templateSchema = z.object({
     }
   ),
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-    required_error: 'Bitte wählen Sie eine Kategorie aus.',
-    invalid_type_error: 'Ungültige Kategorie ausgewählt.',
-  }),
+      error: (issue) => issue.input === undefined ? 'Bitte wählen Sie eine Kategorie aus.' : 'Ungültige Kategorie ausgewählt.'
+}),
 });
 
 type CategoryFormData = z.infer<typeof categorySchema>;
@@ -214,7 +212,7 @@ export function TemplateEditorModal({
       if (!editorContent) {
         templateForm.setError('inhalt', {
           type: 'required',
-          message: 'Der Inhalt darf nicht leer sein.',
+          message: 'Der Inhalt darf nicht leer sein.'
         });
         return;
       }
@@ -258,7 +256,7 @@ export function TemplateEditorModal({
         setValidationErrors(mentionErrors);
 
         templateForm.setError('inhalt', {
-          message: 'Der Inhalt enthält ungültige Variablen.',
+          message: 'Der Inhalt enthält ungültige Variablen.'
         });
 
         toast({
