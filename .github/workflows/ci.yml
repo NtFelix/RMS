@@ -594,41 +594,6 @@ jobs:
 
   # ─── Only runs when UI files changed ─────────────────────────────────────────
 
-  install-playwright:
-    name: Install Playwright Browsers
-    runs-on: ubuntu-latest
-    outputs:
-      playwright-cache-key: ${{ steps.playwright-key.outputs.key }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
-
-      - name: Generate Playwright cache key
-        id: playwright-key
-        run: echo "key=${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ steps.playwright-key.outputs.key }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps
-
   build-app:
     name: Build Application
     runs-on: ubuntu-latest
@@ -687,7 +652,9 @@ jobs:
   e2e-test:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
-    needs: [check-runs, build-app, install-playwright, lint, type-check]
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    needs: [check-runs, build-app, lint, type-check]
     if: needs.check-runs.outputs.should-run-e2e == 'true'
     timeout-minutes: 30
     strategy:
@@ -723,20 +690,9 @@ jobs:
             ${{ runner.os }}-nextjs-build-
           fail-on-cache-miss: true
 
-      - name: Restore Playwright browsers
-        uses: actions/cache/restore@v5
-        id: cache-playwright
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ needs.install-playwright.outputs.playwright-cache-key }}
-          fail-on-cache-miss: true
-
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
-
-      - name: Install Playwright system dependencies
-        run: npx playwright install-deps
 
       - name: Run Playwright tests (${{ matrix.browser }})
         id: playwright
@@ -1606,7 +1562,9 @@ jobs:
     name: Visual Review (PostHog)
     timeout-minutes: 30
     runs-on: ubuntu-latest
-    needs: [lint, type-check, check-runs, install-playwright, build-app]
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    needs: [lint, type-check, check-runs, build-app]
     if: needs.check-runs.outputs.should-run-visual == 'true'
     steps:
       - name: Checkout (latest branch tip)
@@ -1622,16 +1580,6 @@ jobs:
 
       - name: Install dependencies
         run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
-
-      - name: Restore Playwright browsers
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ needs.install-playwright.outputs.playwright-cache-key }}
-          fail-on-cache-miss: true
-
-      - name: Install Playwright system dependencies
-        run: npx playwright install-deps
 
       - name: Restore build cache
         id: restore-build
