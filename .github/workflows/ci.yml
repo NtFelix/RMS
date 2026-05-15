@@ -20,7 +20,6 @@ on:
 
 env:
   NODE_VERSION: '22'
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ─── Always runs on every PR ─────────────────────────────────────────────────
@@ -679,11 +678,19 @@ jobs:
           cache: 'npm'
 
       - name: Restore build cache
+        id: build-cache
         uses: actions/cache/restore@v4
         with:
           path: .next
           key: ${{ needs.build-app.outputs.build-cache-key }}
-          fail-on-cache-miss: true
+
+      - name: Verify Cache Restore
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "❌ ERROR: Failed to restore build cache!"
+          echo "Target Key: ${{ needs.build-app.outputs.build-cache-key }}"
+          echo "Please ensure the 'build-app' job succeeded and saved the cache."
+          exit 1
 
       - name: Install dependencies
         run: npm ci --prefer-offline
@@ -727,11 +734,19 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Restore build cache
+        id: build-cache
         uses: actions/cache/restore@v4
         with:
           path: .next
           key: ${{ needs.build-app.outputs.build-cache-key }}
-          fail-on-cache-miss: true
+
+      - name: Verify Cache Restore
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "❌ ERROR: Failed to restore build cache!"
+          echo "Target Key: ${{ needs.build-app.outputs.build-cache-key }}"
+          echo "Please ensure the 'build-app' job succeeded and saved the cache."
+          exit 1
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
@@ -1124,11 +1139,19 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Restore build cache
+        id: build-cache
         uses: actions/cache/restore@v4
         with:
           path: .next
           key: ${{ needs.build-app.outputs.build-cache-key }}
-          fail-on-cache-miss: true
+
+      - name: Verify Cache Restore
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "❌ ERROR: Failed to restore build cache!"
+          echo "Target Key: ${{ needs.build-app.outputs.build-cache-key }}"
+          echo "Please ensure the 'build-app' job succeeded and saved the cache."
+          exit 1
 
       - name: Install dependencies (if not cached)
         run: |
