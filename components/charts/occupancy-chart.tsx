@@ -30,11 +30,8 @@ export function OccupancyChart({ initialData }: OccupancyChartProps) {
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (initialData) {
-      setOccupancyData(initialData);
-    }
-  }, [initialData]);
+  // Display data is either from props or from internal state
+  const displayData = initialData || occupancyData;
 
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
@@ -52,7 +49,7 @@ export function OccupancyChart({ initialData }: OccupancyChartProps) {
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={occupancyData}
+              data={displayData}
               margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />

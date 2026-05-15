@@ -8,9 +8,41 @@ import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-export function useTenantPayments() {
-    const [data, setData] = useState<TenantBentoItem[]>([])
-    const [loading, setLoading] = useState(true)
+const formatTenantsData = (tenants: any[]) => {
+    // Filter for active tenants only
+    const activeTenants = tenants.filter((tenant: any) =>
+        !tenant.auszug || new Date(tenant.auszug) > new Date()
+    )
+
+    return activeTenants.map((mieter: any) => {
+        const mieteRaw = Number(mieter.Wohnungen?.miete) || 0
+        const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
+
+        return {
+            id: mieter.id,
+            tenant: mieter.name,
+            apartment: mieter.Wohnungen?.name || 'Unbekannt',
+            apartmentId: mieter.Wohnungen?.id,
+            mieteRaw,
+            nebenkostenRaw,
+            actualRent: mieter.actualRent || 0,
+            actualNebenkosten: mieter.actualNebenkosten || 0,
+            missedPayments: mieter.missedPayments || {
+                rentMonths: 0,
+                nebenkostenMonths: 0,
+                totalAmount: 0
+            },
+            einzug: mieter.einzug,
+            paid: mieter.paid || false
+        }
+    })
+}
+
+export function useTenantPayments(initialTenantsData?: any[]) {
+    const [data, setData] = useState<TenantBentoItem[]>(() => 
+        initialTenantsData ? formatTenantsData(initialTenantsData) : []
+    )
+    const [loading, setLoading] = useState(!initialTenantsData)
     const [error, setError] = useState<string | null>(null)
     const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
@@ -24,41 +56,11 @@ export function useTenantPayments() {
         }
     }
 
-    const formatData = useCallback((tenants: any[]) => {
-        // Filter for active tenants only
-        const activeTenants = tenants.filter((tenant: any) =>
-            !tenant.auszug || new Date(tenant.auszug) > new Date()
-        )
-
-        return activeTenants.map((mieter: any) => {
-            const mieteRaw = Number(mieter.Wohnungen?.miete) || 0
-            const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
-
-            return {
-                id: mieter.id,
-                tenant: mieter.name,
-                apartment: mieter.Wohnungen?.name || 'Unbekannt',
-                apartmentId: mieter.Wohnungen?.id,
-                mieteRaw,
-                nebenkostenRaw,
-                actualRent: mieter.actualRent || 0,
-                actualNebenkosten: mieter.actualNebenkosten || 0,
-                missedPayments: mieter.missedPayments || {
-                    rentMonths: 0,
-                    nebenkostenMonths: 0,
-                    totalAmount: 0
-                },
-                einzug: mieter.einzug,
-                paid: mieter.paid || false
-            }
-        })
-    }, [])
-
     const setInitialData = useCallback((tenants: any[]) => {
-        const formatted = formatData(tenants)
+        const formatted = formatTenantsData(tenants)
         setData(formatted)
         setLoading(false)
-    }, [formatData])
+    }, [])
 
     const fetchData = useCallback(async () => {
         try {
@@ -71,7 +73,7 @@ export function useTenantPayments() {
             }
 
             const { tenants } = await response.json()
-            const formatted = formatData(tenants)
+            const formatted = formatTenantsData(tenants)
             setData(formatted)
         } catch (error) {
             console.error("Fehler beim Laden der Mietdaten:", error)
@@ -79,7 +81,7 @@ export function useTenantPayments() {
         } finally {
             setLoading(false)
         }
-    }, [formatData])
+    }, [])
 
     const toggleRentPayment = async (tenant: TenantBentoItem) => {
         if (updatingStatus === tenant.id) return

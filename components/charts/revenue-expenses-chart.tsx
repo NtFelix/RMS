@@ -30,11 +30,8 @@ export function RevenueExpensesChart({ initialData }: RevenueExpensesChartProps)
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (initialData) {
-      setRevenueData(initialData);
-    }
-  }, [initialData]);
+  // Display data is either from props or from internal state
+  const displayData = initialData || revenueData;
 
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
@@ -52,7 +49,7 @@ export function RevenueExpensesChart({ initialData }: RevenueExpensesChartProps)
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={revenueData}
+              data={displayData}
               margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />

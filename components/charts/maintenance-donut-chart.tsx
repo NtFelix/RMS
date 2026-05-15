@@ -81,16 +81,15 @@ interface MaintenanceDonutChartProps {
 }
 
 export function MaintenanceDonutChart({ initialData }: MaintenanceDonutChartProps) {
+  // Derive state from props if available to avoid unnecessary re-renders via useEffect
   const [state, dispatch] = useReducer(chartReducer, {
     data: initialData || initialDataPlaceholder,
     loading: !initialData,
   });
 
-  useEffect(() => {
-    if (initialData) {
-      dispatch({ type: 'FETCH_SUCCESS', payload: initialData });
-    }
-  }, [initialData]);
+  // Display data is either from props or from internal state (if fetching was needed)
+  const displayData = initialData || state.data;
+  const isLoading = initialData ? false : state.loading;
 
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
@@ -99,7 +98,7 @@ export function MaintenanceDonutChart({ initialData }: MaintenanceDonutChartProp
         <CardDescription>Verteilung der Betriebskosten</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0">
-        {state.loading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
@@ -107,7 +106,7 @@ export function MaintenanceDonutChart({ initialData }: MaintenanceDonutChartProp
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={state.data}
+                data={displayData}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -117,7 +116,7 @@ export function MaintenanceDonutChart({ initialData }: MaintenanceDonutChartProp
                 fill="#8884d8"
                 paddingAngle={2}
               >
-                {state.data.map((entry, idx) => (
+                {displayData.map((entry, idx) => (
                   <Cell key={`cell-${entry.name}`} fill={COLORS[idx % COLORS.length]} />
                 ))}
               </Pie>

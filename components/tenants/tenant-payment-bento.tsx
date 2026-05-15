@@ -19,9 +19,8 @@ export function TenantPaymentBento({ initialTenantsData }: TenantPaymentBentoPro
     loading,
     updatingStatus,
     fetchData,
-    toggleRentPayment,
-    setInitialData
-  } = useTenantPayments()
+    toggleRentPayment
+  } = useTenantPayments(initialTenantsData)
 
   const { openTenantPaymentEditModal, openTenantPaymentOverviewModal } = useModalStore()
 
@@ -32,14 +31,12 @@ export function TenantPaymentBento({ initialTenantsData }: TenantPaymentBentoPro
     return rentDiffers || nebenkostenDiffers
   }
 
-  // Initial data load
+  // Initial data load - only if no initial data was provided
   useEffect(() => {
-    if (initialTenantsData) {
-      setInitialData(initialTenantsData)
-    } else {
+    if (!initialTenantsData) {
       fetchData()
     }
-  }, [fetchData, initialTenantsData, setInitialData])
+  }, [fetchData, initialTenantsData])
 
   return (
     <Card className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">

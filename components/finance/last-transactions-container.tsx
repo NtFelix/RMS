@@ -31,12 +31,9 @@ export function LastTransactionsContainer({ initialTransactions }: LastTransacti
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions || []);
   const [loading, setLoading] = useState(!initialTransactions);
 
-  useEffect(() => {
-    if (initialTransactions) {
-      setTransactions(initialTransactions);
-      setLoading(false);
-    }
-  }, [initialTransactions]);
+  // Derive data from props if available to avoid unnecessary re-renders
+  const displayTransactions = initialTransactions || transactions;
+  const isLoading = initialTransactions ? false : loading;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "-";
@@ -59,7 +56,7 @@ export function LastTransactionsContainer({ initialTransactions }: LastTransacti
           <div>
             <CardTitle className="text-lg">Letzte Transaktionen</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              {loading ? "Lade Daten…" : `${transactions.length} neueste Einträge`}
+              {isLoading ? "Lade Daten…" : `${displayTransactions.length} neueste Einträge`}
             </p>
           </div>
           <Link href="/finanzen">
@@ -71,14 +68,14 @@ export function LastTransactionsContainer({ initialTransactions }: LastTransacti
         </div>
       </CardHeader>
       <CardContent className="flex-1 p-3 min-h-0 overflow-hidden">
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
           <div className="space-y-2 overflow-y-auto h-full pr-2">
-            {transactions.length > 0 ? (
-              transactions.map((transaction) => (
+            {displayTransactions.length > 0 ? (
+              displayTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
                   className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 dark:table-row-hover transition-colors"
