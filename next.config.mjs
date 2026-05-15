@@ -113,7 +113,8 @@ const nextConfig = {
 
     return [
       {
-        source: '/:path*',
+        // Apply noindex to all routes except internal Next.js assets and common static files
+        source: '/((?!api|_next/static|_next/image|favicon.ico|robots.txt).*)',
         headers: [
           {
             key: 'X-Robots-Tag',
