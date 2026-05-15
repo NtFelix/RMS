@@ -214,7 +214,7 @@ function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndSt
                 <Button
                   onClick={() => onSelectPlan(planVariant.priceId)}
                   className="w-full rounded-xl"
-                  variant={plan.popular ? "default" : "outline"}
+                  variant={plan.popular ? "default" : "outline-solid"}
                   size="lg"
                   disabled={disabled}
                 >
@@ -447,7 +447,7 @@ export default function Pricing({
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl -z-10" />
 
         <div className="max-w-3xl mx-auto">
-          <Card className="border-primary/20 shadow-2xl bg-card/50 backdrop-blur-sm relative overflow-hidden rounded-[2.5rem]">
+          <Card className="border-primary/20 shadow-2xl bg-card/50 backdrop-blur-xs relative overflow-hidden rounded-[2.5rem]">
 
             <CardContent className="flex flex-col items-center text-center p-12 space-y-8">
               <div className="rounded-full bg-primary/10 p-4 ring-1 ring-primary/20">
@@ -511,7 +511,7 @@ export default function Pricing({
                   <Skeleton className="h-4 w-48 mx-auto mt-4" />
                 </CardHeader>
 
-                <CardContent className="flex-grow">
+                <CardContent className="grow">
                   <div className="space-y-3">
                     {[1, 2, 3, 4].map((j) => (
                       <div key={j} className="flex items-center gap-3">
@@ -638,11 +638,11 @@ export default function Pricing({
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent className="flex-grow">
+                  <CardContent className="grow">
                     <ul className="space-y-3">
                       {group.features.map((feature, featureIndex) => (
                         <li key={featureIndex} className="flex items-center gap-3">
-                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                          <Check className="h-4 w-4 text-primary shrink-0" />
                           <span className="text-sm">{feature}</span>
                         </li>
                       ))}
@@ -662,7 +662,7 @@ export default function Pricing({
                         onSelectPlan(planToDisplay.priceId)
                       }}
                       className="w-full rounded-xl"
-                      variant={group.popular ? "default" : "outline"}
+                      variant={group.popular ? "default" : "outline-solid"}
                       size="lg"
                       disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
                     >

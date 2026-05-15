@@ -73,7 +73,7 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 pt-1">
+            <div className="shrink-0 pt-1">
               <Checkbox
                 checked={task.ist_erledigt}
                 onCheckedChange={onToggleStatus}
@@ -97,7 +97,7 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
                 <span>Geändert: {task.updatedAt}</span>
               </div>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Badge
                 variant="outline"
                 className={`${statusColor}`}

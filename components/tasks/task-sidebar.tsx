@@ -50,7 +50,7 @@ export function TaskItemCard({
             className={cn(
                 "flex items-start gap-2 p-2 rounded-lg transition-all duration-200 group border border-transparent",
                 !isOverlay && [
-                    "hover:bg-primary/5 hover:border-primary/20 hover:shadow-sm cursor-grab active:cursor-grabbing",
+                    "hover:bg-primary/5 hover:border-primary/20 hover:shadow-xs cursor-grab active:cursor-grabbing",
                     "dark:hover:bg-primary/10 dark:hover:border-primary/30"
                 ],
                 isOverlay && "bg-white dark:bg-[#181818] border-gray-200 dark:border-[#3C4251] shadow-lg rotate-2 scale-105",
@@ -67,7 +67,7 @@ export function TaskItemCard({
                 checked={task.ist_erledigt}
                 onCheckedChange={(checked) => onTaskToggle?.(task.id, checked as boolean)}
                 onClick={(e) => e.stopPropagation()}
-                className="mt-0.5 flex-shrink-0"
+                className="mt-0.5 shrink-0"
             />
             <div className="flex-1 min-w-0">
                 <p
@@ -85,9 +85,9 @@ export function TaskItemCard({
                 )}
             </div>
             {task.ist_erledigt ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             ) : (
-                <Circle className="h-4 w-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Circle className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             )}
         </div>
     );
@@ -210,7 +210,7 @@ export function TaskSidebar({
                         <div className="p-2 rounded-xl bg-red-50 dark:bg-red-950/20 text-red-500 border border-red-100 dark:border-red-900/30">
                             <Clock className="h-5 w-5" />
                         </div>
-                        <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] scale-90">
+                        <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 min-w-5 px-1 flex items-center justify-center text-[10px] scale-90">
                             {overdueTasks.length}
                         </Badge>
                         <span className="text-[10px] font-medium text-red-600/70 dark:text-red-400/70 hidden group-hover/rail:block absolute left-12 bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
@@ -223,7 +223,7 @@ export function TaskSidebar({
                     <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-500 border border-orange-100 dark:border-orange-900/30">
                         <Clock className="h-5 w-5" />
                     </div>
-                    <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] scale-90 bg-orange-500 text-white">
+                    <Badge variant="secondary" className="absolute -top-2 -right-2 h-5 min-w-5 px-1 flex items-center justify-center text-[10px] scale-90 bg-orange-500 text-white">
                         {upcomingTasks.length}
                     </Badge>
                     <span className="text-[10px] font-medium text-orange-600/70 dark:text-orange-400/70 hidden group-hover/rail:block absolute left-12 bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
@@ -239,7 +239,7 @@ export function TaskSidebar({
                     )}
                 >
                     <CalendarOff className="h-5 w-5" />
-                    <Badge variant="outline" className="absolute -top-2 -right-2 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] scale-90 bg-gray-200 dark:bg-gray-700">
+                    <Badge variant="outline" className="absolute -top-2 -right-2 h-5 min-w-5 px-1 flex items-center justify-center text-[10px] scale-90 bg-gray-200 dark:bg-gray-700">
                         {noDateTasks.length}
                     </Badge>
                     <span className="text-[10px] font-medium text-gray-600/70 dark:text-gray-400/70 hidden group-hover/rail:block absolute left-12 bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
@@ -259,7 +259,7 @@ export function TaskSidebar({
             {/* Overdue Section */}
             {overdueTasks.length > 0 && (
                 <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-red-50/50 hover:border-red-100 hover:shadow-sm dark:hover:bg-red-950/20 dark:hover:border-red-900/30 group/trigger border border-transparent">
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-red-50/50 hover:border-red-100 hover:shadow-xs dark:hover:bg-red-950/20 dark:hover:border-red-900/30 group/trigger border border-transparent">
                         <div className="flex items-center gap-2">
                             <ChevronRight className={cn(
                                 "h-4 w-4 text-red-500 transition-transform duration-200",
@@ -289,7 +289,7 @@ export function TaskSidebar({
 
             {/* Upcoming Section */}
             <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-orange-50/50 hover:border-orange-100 hover:shadow-sm dark:hover:bg-orange-950/20 dark:hover:border-orange-900/30 group/trigger border border-transparent">
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-orange-50/50 hover:border-orange-100 hover:shadow-xs dark:hover:bg-orange-950/20 dark:hover:border-orange-900/30 group/trigger border border-transparent">
                     <div className="flex items-center gap-2">
                         <ChevronRight className={cn(
                             "h-4 w-4 text-muted-foreground transition-transform duration-200",
@@ -323,7 +323,7 @@ export function TaskSidebar({
             {/* Later Section */}
             {laterTasks.length > 0 && (
                 <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
-                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-blue-50/50 hover:border-blue-100 hover:shadow-sm dark:hover:bg-blue-950/20 dark:hover:border-blue-900/30 group/trigger border border-transparent">
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 hover:bg-blue-50/50 hover:border-blue-100 hover:shadow-xs dark:hover:bg-blue-950/20 dark:hover:border-blue-900/30 group/trigger border border-transparent">
                         <div className="flex items-center gap-2">
                             <ChevronRight className={cn(
                                 "h-4 w-4 text-muted-foreground transition-transform duration-200",
@@ -356,7 +356,7 @@ export function TaskSidebar({
                     ref={setNoDateRef}
                     className={cn(
                         "flex items-center justify-between w-full p-2 rounded-lg transition-all duration-200 border border-transparent group/trigger",
-                        !isNoDateOver && "hover:bg-gray-100/50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-gray-800/30 dark:hover:border-gray-700/50",
+                        !isNoDateOver && "hover:bg-gray-100/50 hover:border-gray-200 hover:shadow-xs dark:hover:bg-gray-800/30 dark:hover:border-gray-700/50",
                         isNoDateOver && "bg-primary/5 border-primary/20 dark:bg-primary/10 dark:border-primary/30"
                     )}
                 >

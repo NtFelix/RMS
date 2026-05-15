@@ -23,21 +23,21 @@ export function ApartmentFilters({ onFilterChange, onSearchChange }: ApartmentFi
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
+            variant={activeFilter === "all" ? "default" : "outline-solid"}
             onClick={() => handleFilterClick("all")}
             className="h-9"
           >
             Alle
           </Button>
           <Button
-            variant={activeFilter === "rented" ? "default" : "outline"}
+            variant={activeFilter === "rented" ? "default" : "outline-solid"}
             onClick={() => handleFilterClick("rented")}
             className="h-9"
           >
             Vermietet
           </Button>
           <Button
-            variant={activeFilter === "free" ? "default" : "outline"}
+            variant={activeFilter === "free" ? "default" : "outline-solid"}
             onClick={() => handleFilterClick("free")}
             className="h-9"
           >

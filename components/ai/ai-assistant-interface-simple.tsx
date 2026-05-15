@@ -188,7 +188,7 @@ export default function AIAssistantInterfaceSimple({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
@@ -201,7 +201,7 @@ export default function AIAssistantInterfaceSimple({
                       : "bg-muted border border-border"
                   )}
                 >
-                  <p className="text-sm whitespace-pre-wrap break-words">
+                  <p className="text-sm whitespace-pre-wrap wrap-break-word">
                     {message.content}
                   </p>
                   <p className={cn(
@@ -213,7 +213,7 @@ export default function AIAssistantInterfaceSimple({
                 </div>
 
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1">
                     <User className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
@@ -227,7 +227,7 @@ export default function AIAssistantInterfaceSimple({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-primary" />
                 </div>
                 <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">

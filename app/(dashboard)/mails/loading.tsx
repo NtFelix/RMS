@@ -22,7 +22,7 @@ export default function Loading() {
         ].map((stat, i) => (
           <Card
             key={i}
-            className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl flex-1 min-w-[200px]"
+            className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl flex-1 min-w-[200px]"
           >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -40,7 +40,7 @@ export default function Loading() {
       </div>
 
       {/* Main Card Skeleton */}
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>

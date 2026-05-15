@@ -374,7 +374,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           {!hasChildren && <div className="w-4 mr-1" />}
 
           <Icon className={cn(
-            "h-4 w-4 mr-2 flex-shrink-0",
+            "h-4 w-4 mr-2 shrink-0",
             node.type === 'house' && "text-blue-500",
             node.type === 'apartment' && "text-green-500",
             node.type === 'tenant' && "text-purple-500",

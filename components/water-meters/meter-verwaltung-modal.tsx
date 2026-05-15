@@ -112,7 +112,7 @@ export function MeterVerwaltungModal({
               {wohnungen.map((wohnung) => (
                 <Card
                   key={wohnung.id}
-                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300"
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300"
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">

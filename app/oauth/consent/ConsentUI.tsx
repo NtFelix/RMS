@@ -98,7 +98,7 @@ function FullScreenLayout({
 }) {
     return (
         <div className={cn("min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans", className)}>
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
 
             {showGlow && (
                 <motion.div
@@ -431,7 +431,7 @@ export default function ConsentUI({
         >
             <div className="relative group">
                 {/* Gradient glowing border effect (adapted for light/dark) */}
-                <div className="absolute -inset-0.5 bg-gradient-to-br from-primary/30 to-primary/0 dark:from-primary/40 dark:to-primary/5 rounded-[2.5rem] blur-md opacity-30 dark:opacity-50 group-hover:opacity-60 dark:group-hover:opacity-80 transition duration-1000 group-hover:duration-300" />
+                <div className="absolute -inset-0.5 bg-linear-to-br from-primary/30 to-primary/0 dark:from-primary/40 dark:to-primary/5 rounded-[2.5rem] blur-md opacity-30 dark:opacity-50 group-hover:opacity-60 dark:group-hover:opacity-80 transition duration-1000 group-hover:duration-300" />
 
                 <Card className="relative border-border/50 dark:border-border/30 bg-background/80 dark:bg-background/60 backdrop-blur-2xl shadow-xl dark:shadow-2xl rounded-[2.5rem] overflow-hidden">
                     <CardHeader className="text-center pt-10 px-8">
@@ -445,16 +445,16 @@ export default function ConsentUI({
                             >
                                 <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
                                 {clientIcon ? (
-                                    <div className="w-16 h-16 rounded-[1.25rem] bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden flex-shrink-0 relative z-10">
-                                        <div className="absolute inset-0 bg-gradient-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
+                                    <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
+                                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
                                         <img
                                             src={clientIcon}
                                             alt={clientName}
-                                            className="w-10 h-10 object-contain drop-shadow-sm relative z-10"
+                                            className="w-10 h-10 object-contain drop-shadow-xs relative z-10"
                                         />
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 rounded-[1.25rem] bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden z-10">
+                                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
                                         <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
                                         <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
                                     </div>
@@ -467,7 +467,7 @@ export default function ConsentUI({
                                 transition={{ delay: 0.4, type: "spring" }}
                                 className="flex flex-col items-center justify-center"
                             >
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted dark:bg-secondary/50 border border-border/30 dark:border-border/50 shadow-sm dark:shadow-inner">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted dark:bg-secondary/50 border border-border/30 dark:border-border/50 shadow-xs dark:shadow-inner">
                                     <div className="w-1.5 h-1.5 rounded-full bg-primary/80 animate-pulse" />
                                     <div className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-pulse" style={{ animationDelay: '200ms' }} />
                                     <div className="w-1.5 h-1.5 rounded-full bg-primary/30 animate-pulse" style={{ animationDelay: '400ms' }} />
@@ -481,8 +481,8 @@ export default function ConsentUI({
                                 className="relative"
                             >
                                 <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                <div className="w-16 h-16 rounded-[1.25rem] bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden z-10">
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-black/5 dark:from-black/20 to-transparent" />
+                                <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
+                                    <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
                                     <img
                                         src={LOGO_URL}
                                         alt={BRAND_NAME}
@@ -491,7 +491,7 @@ export default function ConsentUI({
                                 </div>
                             </motion.div>
                         </div>
-                        <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-gradient-to-br from-foreground to-muted-foreground pb-1">
+                        <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-linear-to-br from-foreground to-muted-foreground pb-1">
                             Verknüpfung erlauben
                         </CardTitle>
                         <CardDescription className="text-base mt-2 max-w-sm mx-auto text-muted-foreground">
@@ -504,12 +504,12 @@ export default function ConsentUI({
                                 <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
                                     Diese Anwendung darf:
                                 </h3>
-                                <div className="relative rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden flex flex-col shadow-inner backdrop-blur-sm">
+                                <div className="relative rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden flex flex-col shadow-inner backdrop-blur-xs">
                                     {/* Top scroll fade */}
                                     {showTopFade && (
                                         <motion.div
                                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                            className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none"
+                                            className="absolute top-0 left-0 right-0 h-6 bg-linear-to-b from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none"
                                         />
                                     )}
 
@@ -526,9 +526,9 @@ export default function ConsentUI({
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ delay: 0.1 * index }}
                                                     key={scope}
-                                                    className="group/scope flex items-start gap-4 p-3.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 dark:border-border/30 dark:hover:border-border/80 hover:bg-card hover:shadow-sm dark:hover:shadow-md transition-all duration-300"
+                                                    className="group/scope flex items-start gap-4 p-3.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 dark:border-border/30 dark:hover:border-border/80 hover:bg-card hover:shadow-xs dark:hover:shadow-md transition-all duration-300"
                                                 >
-                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover/scope:bg-primary/20 group-hover/scope:scale-110 transition-all duration-300">
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 group-hover/scope:bg-primary/20 group-hover/scope:scale-110 transition-all duration-300">
                                                         <Check className="w-4 h-4 text-primary" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
@@ -548,12 +548,12 @@ export default function ConsentUI({
                                     {showBottomFade && (
                                         <motion.div
                                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                            className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none flex items-end justify-center pb-1.5"
+                                            className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none flex items-end justify-center pb-1.5"
                                         >
                                             <motion.div
                                                 animate={{ y: [0, 3, 0] }}
                                                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                                                className="w-5 h-5 rounded-full bg-background/50 border border-border/50 flex items-center justify-center backdrop-blur-md shadow-sm"
+                                                className="w-5 h-5 rounded-full bg-background/50 border border-border/50 flex items-center justify-center backdrop-blur-md shadow-xs"
                                             >
                                                 <div className="w-1.5 h-1.5 border-b-2 border-r-2 border-muted-foreground rotate-45 mb-0.5" />
                                             </motion.div>

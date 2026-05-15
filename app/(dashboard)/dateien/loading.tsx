@@ -15,7 +15,7 @@ export default function DateienLoading() {
       {/* Summary Cards Skeleton - 3 equal flex cards */}
       <div className="flex flex-wrap gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="relative overflow-hidden rounded-3xl shadow-sm flex-1 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]">
+          <div key={i} className="relative overflow-hidden rounded-3xl shadow-xs flex-1 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]">
             <div className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-32" />
@@ -31,7 +31,7 @@ export default function DateienLoading() {
       </div>
       
       {/* Main File Container Skeleton */}
-      <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem] flex flex-col">
+      <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="p-6">

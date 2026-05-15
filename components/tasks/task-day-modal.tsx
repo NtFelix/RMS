@@ -180,7 +180,7 @@ function TaskDayItem({
             <Checkbox
                 checked={task.ist_erledigt}
                 onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
-                className="mt-0.5 flex-shrink-0"
+                className="mt-0.5 shrink-0"
             />
 
             <div

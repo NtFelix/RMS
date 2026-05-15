@@ -308,7 +308,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           ))}
                         </div>
                         <div className="p-2">
-                          <div className="h-full w-full rounded-xl bg-gradient-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
+                          <div className="h-full w-full rounded-xl bg-linear-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
                             {/* Abstract shapes/illustration */}
                             <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
                             <div className="absolute right-2 top-2 opacity-[0.08] group-hover/card:opacity-[0.15] transition-all duration-500 transform group-hover/card:scale-110 group-hover/card:-rotate-6">
@@ -507,7 +507,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-background/80 backdrop-blur-xs z-40"
               onClick={() => setIsOpen(false)}
             />
 

@@ -13,11 +13,11 @@ export default function CTA({ onGetStarted }: CTAProps) {
     <section className="py-32 px-4 relative overflow-hidden bg-background text-foreground">
       {/* Animated Background - Adjusted for theme */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background" />
+        <div className="absolute inset-0 bg-linear-to-r from-background via-background/95 to-background" />
 
         {/* Animated Gradient Orbs - Adjusted for theme */}
         <motion.div
-          className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
+          className="absolute top-20 left-20 w-96 h-96 bg-linear-to-r from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
           animate={{
             scale: [1, 1.2, 1],
             opacity: [0.3, 0.5, 0.3],
@@ -29,7 +29,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           }}
         />
         <motion.div
-          className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-l from-secondary/20 to-primary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
+          className="absolute bottom-20 right-20 w-80 h-80 bg-linear-to-l from-secondary/20 to-primary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
           animate={{
             scale: [1.2, 1, 1.2],
             opacity: [0.5, 0.3, 0.5],
@@ -61,7 +61,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           viewport={{ once: true }}
           className="mb-8"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-xs mb-8">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm text-muted-foreground">Bereit zur Vereinfachung?</span>
           </div>
@@ -72,11 +72,11 @@ export default function CTA({ onGetStarted }: CTAProps) {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
           viewport={{ once: true }}
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-8 bg-linear-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
         >
           Übernehmen Sie die Kontrolle über Ihre
           <br />
-          <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
             Immobilien noch heute
           </span>
         </motion.h2>

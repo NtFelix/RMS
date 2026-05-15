@@ -29,11 +29,11 @@ const CommandDialog = ({ children, ...props }: DialogProps) => {
       <DialogContent className="overflow-hidden p-0 shadow-none border-none bg-transparent max-w-[640px]" hideCloseButton>
         <DialogTitle className="sr-only">Befehlsmenü</DialogTitle>
         <Command className={cn(
-          "shadow-2xl border border-border/40 bg-popover/95 backdrop-blur-xl supports-[backdrop-filter]:bg-popover/80",
-          "[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:py-2",
-          "[&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2",
-          "[&_[cmdk-input-wrapper]_svg]:h-6 [&_[cmdk-input-wrapper]_svg]:w-6 [&_[cmdk-input]]:h-14 [&_[cmdk-input]]:text-lg",
-          "[&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 [&_[cmdk-item]]:my-0.5"
+          "shadow-2xl border border-border/40 bg-popover/95 backdrop-blur-xl supports-backdrop-filter:bg-popover/80",
+          "**:[[cmdk-group-heading]]:px-4 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground **:[[cmdk-group-heading]]:py-2",
+          "[&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 **:[[cmdk-group]]:px-2",
+          "[&_[cmdk-input-wrapper]_svg]:h-6 [&_[cmdk-input-wrapper]_svg]:w-6 **:[[cmdk-input]]:h-14 **:[[cmdk-input]]:text-lg",
+          "**:[[cmdk-item]]:px-3 **:[[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 **:[[cmdk-item]]:my-0.5"
         )}>
           {children}
         </Command>
@@ -54,7 +54,7 @@ const CommandInput = React.forwardRef<
     <CommandPrimitive.Input
       ref={ref}
       className={cn(
-        "flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 pointer-events-auto",
+        "flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 pointer-events-auto",
         className
       )}
       cmdk-input=""
@@ -100,7 +100,7 @@ const CommandGroup = React.forwardRef<
   <CommandPrimitive.Group
     ref={ref}
     className={cn(
-      "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground mb-6 last:mb-0",
+      "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground mb-6 last:mb-0",
       className
     )}
     {...props}
@@ -128,7 +128,7 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "group relative flex cursor-default gap-3 select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 pointer-events-auto transition-colors",
+      "group relative flex cursor-default gap-3 select-none items-center rounded-lg px-2 py-1.5 text-sm outline-hidden data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 pointer-events-auto transition-colors",
       className
     )}
     cmdk-item=""
@@ -149,7 +149,7 @@ const CommandShortcut = ({
         // Base styles for keys (applied to span children)
         "[&_span]:flex [&_span]:h-5 [&_span]:min-w-[20px] [&_span]:items-center [&_span]:justify-center [&_span]:rounded [&_span]:border [&_span]:border-border/50 [&_span]:bg-muted/50 [&_span]:px-1 [&_span]:font-mono [&_span]:text-[10px] [&_span]:font-medium [&_span]:text-muted-foreground [&_span]:select-none [&_span]:pointer-events-none",
         // Selection state styles (using group-data from parent Item)
-        "group-data-[selected=true]:[&_span]:text-accent-foreground group-data-[selected=true]:[&_span]:border-accent-foreground/30 group-data-[selected=true]:[&_span]:bg-accent-foreground/10",
+        "[&_span]:group-data-[selected=true]:text-accent-foreground [&_span]:group-data-[selected=true]:border-accent-foreground/30 [&_span]:group-data-[selected=true]:bg-accent-foreground/10",
         className
       )}
       {...props}

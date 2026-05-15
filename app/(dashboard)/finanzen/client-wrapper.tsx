@@ -506,7 +506,7 @@ export default function FinanzenClientWrapper({
       {/* Fallback Year Notification Banner */}
       {isUsingFallbackYear && initialYear && (
         <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
-          <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
               Daten aus {initialYear} werden angezeigt
@@ -625,7 +625,7 @@ export default function FinanzenClientWrapper({
         )}
       </div>
 
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>

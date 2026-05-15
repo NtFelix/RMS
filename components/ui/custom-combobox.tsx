@@ -200,7 +200,7 @@ export function CustomCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-sm bg-popover z-[100]", width)}
+        className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-xs bg-popover z-100", width)}
         align="start"
         sideOffset={8}
         // Removed onOpenAutoFocus prevention to allow natural focus behavior
@@ -235,7 +235,7 @@ export function CustomCombobox({
                 }
                 // For all other keys, let the browser handle them naturally
               }}
-              className="flex h-9 w-full rounded-md bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-9 w-full rounded-md bg-transparent px-2 py-2 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
@@ -267,7 +267,7 @@ export function CustomCombobox({
                   aria-selected={value === option.value}
                   aria-disabled={option.disabled}
                   className={cn(
-                    "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg p-2 text-sm outline-none transition-all duration-150 active:scale-[0.98]",
+                    "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg p-2 text-sm outline-hidden transition-all duration-150 active:scale-[0.98]",
                     option.disabled
                       ? "pointer-events-none opacity-50"
                       : [

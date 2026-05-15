@@ -69,7 +69,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    optimizeCss: true,
+    inlineCss: true,
     scrollRestoration: true,
     optimizePackageImports: [
       'recharts',

@@ -58,7 +58,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">
       {/* Animated grid background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
 
       {/* Gradient orbs in background */}
       <motion.div
@@ -91,20 +91,20 @@ export default function ResetPasswordPage() {
         className="relative z-10 w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]"
       >
         {/* Left side - Hero/Branding */}
-        <div className="relative lg:w-1/2 bg-gradient-to-br from-primary via-secondary to-primary p-8 md:p-12 flex flex-col justify-between overflow-hidden perspective-[1000px]">
+        <div className="relative lg:w-1/2 bg-linear-to-br from-primary via-secondary to-primary p-8 md:p-12 flex flex-col justify-between overflow-hidden perspective-[1000px]">
           {/* Gradient mesh overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,hsl(var(--accent)/0.3)_0%,transparent_50%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(var(--primary)/0.4)_0%,transparent_50%)]" />
 
           {/* Tilted Grid pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:3rem_3rem] [transform:perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-size-[3rem_3rem] transform-[perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
 
           {/* 3D Decorative elements (shared component) */}
           <Auth3DDecorations />
 
           {/* Logo */}
           <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="p-1 rounded-xl bg-white/10 backdrop-blur-sm">
+            <div className="p-1 rounded-xl bg-white/10 backdrop-blur-xs">
               {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN. 
                   next/image adds unnecessary overhead for small, pre-optimized images. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm mb-6"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-xs mb-6"
             >
               <Mail className="h-4 w-4 text-white" />
               <span className="text-white/90 text-sm font-medium">Passwort vergessen?</span>

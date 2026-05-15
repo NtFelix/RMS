@@ -133,11 +133,11 @@ describe('MobileBottomNavigation Accessibility', () => {
     const links = screen.getAllByRole('link')
 
     buttons.forEach(button => {
-      expect(button).toHaveClass('focus:outline-none', 'focus:ring-2', 'focus:ring-accent')
+      expect(button).toHaveClass('focus:outline-hidden', 'focus:ring-2', 'focus:ring-accent')
     })
 
     links.forEach(link => {
-      expect(link).toHaveClass('focus:outline-none', 'focus:ring-2', 'focus:ring-accent')
+      expect(link).toHaveClass('focus:outline-hidden', 'focus:ring-2', 'focus:ring-accent')
     })
   })
 
