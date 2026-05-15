@@ -20,6 +20,9 @@ on:
 
 env:
   NODE_VERSION: '22'
+  # Opt into Node 24 for actions to avoid deprecation warnings
+  # and ensure future compatibility as Node 20 is being retired.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ─── Always runs on every PR ─────────────────────────────────────────────────
@@ -79,13 +82,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Restore build cache
-        uses: actions/cache/restore@v4
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
         with:
+          name: nextjs-build
           path: .next
-          key: ${{ needs.build-app.outputs.build-cache-key }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-build-
+
+      - name: Verify Build Artifact
+        run: |
+          if [ ! -d ".next" ] || [ ! "$(ls -A .next)" ]; then
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
 
       - name: Comment Build Started
         if: github.event_name == 'pull_request'
@@ -659,6 +667,13 @@ jobs:
           path: .next
           key: ${{ steps.build-key.outputs.key }}
 
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next
+          retention-days: 1
+
   e2e-smoke:
     name: E2E Smoke Check
     runs-on: ubuntu-latest
@@ -677,20 +692,21 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Restore build cache
-        id: build-cache
-        uses: actions/cache/restore@v4
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
         with:
+          name: nextjs-build
           path: .next
-          key: ${{ needs.build-app.outputs.build-cache-key }}
 
-      - name: Verify Cache Restore
-        if: steps.build-cache.outputs.cache-hit != 'true'
+      - name: Verify Build Artifact
         run: |
-          echo "❌ ERROR: Failed to restore build cache!"
-          echo "Target Key: ${{ needs.build-app.outputs.build-cache-key }}"
-          echo "Please ensure the 'build-app' job succeeded and saved the cache."
-          exit 1
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm ci --prefer-offline
@@ -733,20 +749,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-modules-
 
-      - name: Restore build cache
-        id: build-cache
-        uses: actions/cache/restore@v4
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
         with:
+          name: nextjs-build
           path: .next
-          key: ${{ needs.build-app.outputs.build-cache-key }}
 
-      - name: Verify Cache Restore
-        if: steps.build-cache.outputs.cache-hit != 'true'
+      - name: Verify Build Artifact
         run: |
-          echo "❌ ERROR: Failed to restore build cache!"
-          echo "Target Key: ${{ needs.build-app.outputs.build-cache-key }}"
-          echo "Please ensure the 'build-app' job succeeded and saved the cache."
-          exit 1
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
@@ -1138,20 +1155,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-modules-
 
-      - name: Restore build cache
-        id: build-cache
-        uses: actions/cache/restore@v4
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
         with:
+          name: nextjs-build
           path: .next
-          key: ${{ needs.build-app.outputs.build-cache-key }}
 
-      - name: Verify Cache Restore
-        if: steps.build-cache.outputs.cache-hit != 'true'
+      - name: Verify Build Artifact
         run: |
-          echo "❌ ERROR: Failed to restore build cache!"
-          echo "Target Key: ${{ needs.build-app.outputs.build-cache-key }}"
-          echo "Please ensure the 'build-app' job succeeded and saved the cache."
-          exit 1
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
 
       - name: Install dependencies (if not cached)
         run: |
@@ -1644,24 +1662,21 @@ jobs:
       - name: Install dependencies
         run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
 
-      - name: Restore build cache
-        id: restore-build
-        uses: actions/cache/restore@v4
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
         with:
+          name: nextjs-build
           path: .next
-          key: ${{ needs.build-app.outputs.build-cache-key }}
-          restore-keys: |
-            ${{ runner.os }}-nextjs-build-
 
-      - name: Build Next.js app (cache miss fallback)
-        if: steps.restore-build.outputs.cache-hit != 'true'
-        run: npm run build
-        env:
-          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
-          NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      - name: Verify Build Artifact
+        run: |
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
 
       - name: Run Playwright visual tests
         run: npx playwright test --project=chromium --grep @visual --reporter=list
