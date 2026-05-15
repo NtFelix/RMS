@@ -156,6 +156,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ${{ steps.image.outputs.full_name }}
+          provenance: false
+          sbom: false
           build-args: |
             NEXT_PUBLIC_SUPABASE_URL=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

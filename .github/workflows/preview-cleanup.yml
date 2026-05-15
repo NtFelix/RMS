@@ -47,6 +47,15 @@ jobs:
 
       - name: Delete Docker Image from Artifact Registry
         run: |
+          # Delete the specific PR image
           gcloud artifacts docker images delete \
             europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:pr-${{ github.event.pull_request.number }} \
-            --quiet || echo "Image not found"
+            --quiet || echo "PR Image not found"
+
+          # Cleanup: Delete all untagged images (orphaned versions)
+          # These are created whenever a tag (like 'latest' or 'pr-X') is moved to a new image
+          echo "Cleaning up untagged images..."
+          gcloud artifacts docker images delete \
+            europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo \
+            --filter='-tags:*' \
+            --quiet || echo "No untagged images to clean up"
