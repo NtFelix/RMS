@@ -42,7 +42,7 @@ export function OccupancyChart({ initialData }: OccupancyChartProps) {
   const displayData = initialData || occupancyData;
 
   return (
-    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+    <Card className="h-full flex flex-col bg-zinc-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
       <CardHeader className="flex-shrink-0 pb-2">
         <CardTitle className="text-lg">Belegung</CardTitle>
         <CardDescription>Wohnungsbelegung nach Monat</CardDescription>
