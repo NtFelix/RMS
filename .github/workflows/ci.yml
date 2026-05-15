@@ -673,6 +673,7 @@ jobs:
           name: nextjs-build
           path: .next
           retention-days: 1
+          include-hidden-files: true
 
   e2e-smoke:
     name: E2E Smoke Check
