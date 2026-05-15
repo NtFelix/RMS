@@ -256,6 +256,186 @@ export async function fetchFinanzenByMonth() {
   return Object.values(monthlyData).slice(-12);
 }
 
+export async function fetchExpensesByCategory() {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("Finanzen")
+    .select('*')
+    .eq("ist_einnahmen", false)
+    .order("datum", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching expenses by category:", error);
+    return [];
+  }
+
+  const categories = {
+    instandhaltung: 0,
+    reparatur: 0,
+    steuern: 0,
+    sonstige: 0,
+  };
+
+  (data as Finanzen[]).forEach((item) => {
+    const name = item.name?.toLowerCase() || "";
+    const betrag = Number(item.betrag) || 0;
+
+    if (name.includes("instandhaltung") || name.includes("wartung") || name.includes("pflege")) {
+      categories.instandhaltung += betrag;
+    } else if (name.includes("reparatur") || name.includes("reparieren") || name.includes("defekt")) {
+      categories.reparatur += betrag;
+    } else if (name.includes("steuer") || name.includes("abgabe") || name.includes("gebühr")) {
+      categories.steuern += betrag;
+    } else {
+      categories.sonstige += betrag;
+    }
+  });
+
+  const formattedData = [
+    { name: "Instandhaltung", value: categories.instandhaltung },
+    { name: "Reparatur", value: categories.reparatur },
+    { name: "Steuern", value: categories.steuern },
+    { name: "Sonstige", value: categories.sonstige },
+  ].filter(item => item.value > 0);
+
+  return formattedData.length > 0 ? formattedData : [{ name: "Keine Daten", value: 1 }];
+}
+
+export async function fetchLastTransactions(limit = 8) {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("Finanzen")
+    .select(`
+      id,
+      name,
+      datum,
+      betrag,
+      ist_einnahmen,
+      Wohnungen ( name )
+    `)
+    .order("datum", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching last transactions:", error);
+    return [];
+  }
+
+  return (data || []).map(item => ({
+    id: item.id,
+    name: item.name || 'Unbenannte Transaktion',
+    datum: item.datum || new Date().toISOString(),
+    betrag: Number(item.betrag) || 0,
+    ist_einnahmen: Boolean(item.ist_einnahmen),
+    wohnung_name: (item.Wohnungen as any)?.[0]?.name || null,
+  }));
+}
+
+import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
+import { PAYMENT_KEYWORDS } from "@/utils/constants"
+
+export async function fetchTenantsDataForBento() {
+  const supabase = createSupabaseServerClient();
+  
+  // Try optimized RPC first
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "fetch_tenant_payment_dashboard_data"
+    )
+
+    if (!rpcError && rpcData) {
+      return processTenantsData(rpcData.tenants || [], rpcData.finances || []);
+    }
+  } catch (rpcException) {
+    console.error("RPC call threw exception in fetchTenantsDataForBento", rpcException);
+  }
+
+  // Fallback
+  const { data: tenants, error: tenantsError } = await supabase
+    .from("Mieter")
+    .select(`
+      *,
+      Wohnungen (
+        id,
+        name,
+        miete,
+        groesse,
+        haus_id,
+        Haeuser (
+          id,
+          name
+        )
+      )
+    `)
+    .order("name")
+
+  if (tenantsError) {
+    console.error("Error fetching tenants for bento:", tenantsError);
+    return [];
+  }
+
+  const { data: finances, error: financesError } = await supabase
+    .from("Finanzen")
+    .select("*")
+    .eq("ist_einnahmen", true)
+    .order("datum", { ascending: false })
+
+  if (financesError) {
+    console.error("Error fetching finances for bento:", financesError);
+    return [];
+  }
+
+  return processTenantsData(tenants || [], finances || []);
+}
+
+function processTenantsData(tenantsData: any[], financesData: any[]) {
+  // Group finances by wohnung_id for O(1) lookup
+  const financesByWohnungId = new Map<string, any[]>();
+  for (const finance of financesData) {
+    if (finance.wohnung_id) {
+      const group = financesByWohnungId.get(finance.wohnung_id) || [];
+      group.push(finance);
+      financesByWohnungId.set(finance.wohnung_id, group);
+    }
+  }
+
+  // Calculate current month range for payment status
+  const currentDate = new Date()
+  const currentMonth = currentDate.getMonth() + 1
+  const currentYear = currentDate.getFullYear()
+  const currentMonthStart = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
+  const currentMonthEnd = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+
+  return tenantsData.map(tenant => {
+    const tenantId = tenant.wohnung_id || tenant.Wohnungen?.id;
+    const tenantFinances = tenantId ? (financesByWohnungId.get(tenantId) || []) : [];
+
+    const missedPayments = calculateMissedPayments(tenant, tenantFinances)
+
+    const currentMonthFinances = tenantFinances.filter((f: any) =>
+      f.datum && f.datum >= currentMonthStart && f.datum <= currentMonthEnd
+    )
+
+    const actualRent = currentMonthFinances
+      .filter((f: any) => f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.RENT))
+      .reduce((sum: number, f: any) => sum + (f.betrag || 0), 0)
+
+    const actualNebenkosten = currentMonthFinances
+      .filter((f: any) => f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.NEBENKOSTEN))
+      .reduce((sum: number, f: any) => sum + (f.betrag || 0), 0)
+
+    const paid = actualRent > 0 || actualNebenkosten > 0
+
+    return {
+      ...tenant,
+      missedPayments,
+      actualRent,
+      actualNebenkosten,
+      paid
+    }
+  })
+}
+
 export async function getMietstatistik() {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();

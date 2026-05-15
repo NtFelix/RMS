@@ -3,7 +3,6 @@ import { useEffect, useState, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { createClient } from "@/utils/supabase/client";
 
 const initialRevenueData = Array.from({ length: 12 }, (_, i) => ({
   month: ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"][i],
@@ -11,8 +10,12 @@ const initialRevenueData = Array.from({ length: 12 }, (_, i) => ({
   ausgaben: 0,
 }));
 
-export function RevenueExpensesChart() {
-  const [revenueData, setRevenueData] = useState(initialRevenueData);
+interface RevenueExpensesChartProps {
+  initialData?: Array<{ month: string; einnahmen: number; ausgaben: number }>;
+}
+
+export function RevenueExpensesChart({ initialData }: RevenueExpensesChartProps) {
+  const [revenueData, setRevenueData] = useState(initialData || initialRevenueData);
 
   // Dynamic tick count for Y axis
   const [tickCount, setTickCount] = useState(5);
@@ -28,78 +31,10 @@ export function RevenueExpensesChart() {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const supabase = createClient();
-      
-      // Fetch ALL finance data without any limits
-      let allFinanzenData: any[] = [];
-      let page = 0;
-      const pageSize = 1000;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from("Finanzen")
-          .select("*")
-          .order("datum", { ascending: true })
-          .range(page * pageSize, (page + 1) * pageSize - 1);
-
-        if (error) {
-          console.error("Error fetching finance data:", error);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          allFinanzenData = [...allFinanzenData, ...data];
-          page++;
-          if (data.length < pageSize) {
-            hasMore = false;
-          }
-        } else {
-          hasMore = false;
-        }
-      }
-
-      const finanzenData = allFinanzenData;
-
-      // Finanzdaten nach Monaten gruppieren
-      type MonthlyData = { month: string; einnahmen: number; ausgaben: number; };
-      const monthlyFinances = finanzenData.reduce<Record<string, MonthlyData>>((acc, item) => {
-        if (!item.datum) return acc;
-        const date = new Date(item.datum);
-        const month = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date);
-        const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
-        if (!acc[monthKey]) {
-          acc[monthKey] = { month, einnahmen: 0, ausgaben: 0 };
-        }
-        if (item.ist_einnahmen) {
-          acc[monthKey].einnahmen += Number(item.betrag);
-        } else {
-          acc[monthKey].ausgaben += Number(item.betrag);
-        }
-        return acc;
-      }, {});
-
-      const lastMonths = Array.from({ length: 12 }, (_, i) => {
-        const date = new Date();
-        date.setMonth(date.getMonth() - (11 - i));
-        return `${date.getFullYear()}-${date.getMonth() + 1}`;
-      });
-
-      const formattedRevenueData = lastMonths.map(monthKey =>
-        monthlyFinances[monthKey] || {
-          month: new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(
-            new Date(parseInt(monthKey.split('-')[0]), parseInt(monthKey.split('-')[1]) - 1, 1)
-          ),
-          einnahmen: 0,
-          ausgaben: 0,
-        }
-      );
-
-      setRevenueData(formattedRevenueData);
-    };
-    fetchData();
-  }, []);
+    if (initialData) {
+      setRevenueData(initialData);
+    }
+  }, [initialData]);
 
   return (
     <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">

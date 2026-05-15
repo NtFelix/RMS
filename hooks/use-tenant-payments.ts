@@ -24,6 +24,42 @@ export function useTenantPayments() {
         }
     }
 
+    const formatData = useCallback((tenants: any[]) => {
+        // Filter for active tenants only
+        const activeTenants = tenants.filter((tenant: any) =>
+            !tenant.auszug || new Date(tenant.auszug) > new Date()
+        )
+
+        return activeTenants.map((mieter: any) => {
+            const mieteRaw = Number(mieter.Wohnungen?.miete) || 0
+            const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
+
+            return {
+                id: mieter.id,
+                tenant: mieter.name,
+                apartment: mieter.Wohnungen?.name || 'Unbekannt',
+                apartmentId: mieter.Wohnungen?.id,
+                mieteRaw,
+                nebenkostenRaw,
+                actualRent: mieter.actualRent || 0,
+                actualNebenkosten: mieter.actualNebenkosten || 0,
+                missedPayments: mieter.missedPayments || {
+                    rentMonths: 0,
+                    nebenkostenMonths: 0,
+                    totalAmount: 0
+                },
+                einzug: mieter.einzug,
+                paid: mieter.paid || false
+            }
+        })
+    }, [])
+
+    const setInitialData = useCallback((tenants: any[]) => {
+        const formatted = formatData(tenants)
+        setData(formatted)
+        setLoading(false)
+    }, [formatData])
+
     const fetchData = useCallback(async () => {
         try {
             setLoading(true)
@@ -35,43 +71,15 @@ export function useTenantPayments() {
             }
 
             const { tenants } = await response.json()
-
-            // Filter for active tenants only
-            const activeTenants = tenants.filter((tenant: any) =>
-                !tenant.auszug || new Date(tenant.auszug) > new Date()
-            )
-
-            const formattedData: TenantBentoItem[] = activeTenants.map((mieter: any) => {
-                const mieteRaw = Number(mieter.Wohnungen.miete) || 0
-                const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
-
-                return {
-                    id: mieter.id,
-                    tenant: mieter.name,
-                    apartment: mieter.Wohnungen.name,
-                    apartmentId: mieter.Wohnungen.id,
-                    mieteRaw,
-                    nebenkostenRaw,
-                    actualRent: mieter.actualRent || 0,
-                    actualNebenkosten: mieter.actualNebenkosten || 0,
-                    missedPayments: mieter.missedPayments || {
-                        rentMonths: 0,
-                        nebenkostenMonths: 0,
-                        totalAmount: 0
-                    },
-                    einzug: mieter.einzug,
-                    paid: mieter.paid || false
-                }
-            })
-
-            setData(formattedData)
+            const formatted = formatData(tenants)
+            setData(formatted)
         } catch (error) {
             console.error("Fehler beim Laden der Mietdaten:", error)
             setError(error instanceof Error ? error.message : 'Unbekannter Fehler')
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [formatData])
 
     const toggleRentPayment = async (tenant: TenantBentoItem) => {
         if (updatingStatus === tenant.id) return
@@ -155,14 +163,6 @@ export function useTenantPayments() {
                 })
             }
 
-            // We could re-fetch here to be sure, but optimistic update + success is usually enough.
-            // However, to get exact DB state (ids etc), a refetch is good.
-            // But for UI responsiveness, we already updated.
-            // The original code in Bento didn't refetch on success (except for error revert).
-            // The original code in Modal DID refetch on success.
-            // Let's stick to optimistic update and maybe background refresh if needed.
-            // For now, just optimistic is fine as per Bento implementation.
-
         } catch (error) {
             console.error("Fehler beim Aktualisieren des Mietstatus:", error)
             setData(originalData) // Revert
@@ -183,6 +183,7 @@ export function useTenantPayments() {
         updatingStatus,
         fetchData,
         toggleRentPayment,
-        setData
+        setData,
+        setInitialData
     }
 }

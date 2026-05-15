@@ -1827,22 +1827,32 @@ async function getAbrechnungModalDataFallback(
     return { success: false, message: "Nebenkosten-Eintrag nicht gefunden." };
   }
 
-  // Fetch tenants overlapping the billing period for the same house
-  const { data: tenants, error: tenantsError } = await supabase
-    .from("Mieter")
-    .select(`
-      *,
-      Wohnungen!inner (
-        name,
-        groesse,
-        miete,
-        haus_id
-      )
-    `)
-    .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
-    .eq("user_id", userId)
-    .lte("einzug", nebenkostenData.enddatum)
-    .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
+  // Fetch tenants, rechnungen and water meters in parallel
+  const [tenantsResult, rechnungenResult] = await Promise.all([
+    supabase
+      .from("Mieter")
+      .select(`
+        *,
+        Wohnungen!inner (
+          name,
+          groesse,
+          miete,
+          haus_id
+        )
+      `)
+      .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
+      .eq("user_id", userId)
+      .lte("einzug", nebenkostenData.enddatum)
+      .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`),
+    supabase
+      .from("Rechnungen")
+      .select("*")
+      .eq("nebenkosten_id", nebenkostenId)
+      .eq("user_id", userId)
+  ]);
+
+  const { data: tenants, error: tenantsError } = tenantsResult;
+  const { data: rechnungen, error: rechnungenError } = rechnungenResult;
 
   if (tenantsError) {
     logger.error('Failed to fetch tenants in fallback', tenantsError || undefined, {
@@ -1852,13 +1862,6 @@ async function getAbrechnungModalDataFallback(
     return { success: false, message: "Fehler beim Laden der Mieterdaten." };
   }
 
-  // Fetch rechnungen
-  const { data: rechnungen, error: rechnungenError } = await supabase
-    .from("Rechnungen")
-    .select("*")
-    .eq("nebenkosten_id", nebenkostenId)
-    .eq("user_id", userId);
-
   if (rechnungenError) {
     logger.error('Failed to fetch rechnungen in fallback', rechnungenError || undefined, {
       userId,
@@ -1866,9 +1869,7 @@ async function getAbrechnungModalDataFallback(
     });
   }
 
-  // Legacy wasserzaehler readings are no longer used - replaced by new water meter structure
-
-  // Fetch water meters for apartments in this house
+  // Fetch water meters and readings
   const apartmentIds = (tenants || []).map((t: any) => t.wohnung_id).filter(Boolean);
   let waterMeters: WasserZaehler[] = [];
   let waterReadings: WasserAblesung[] = [];
@@ -1890,29 +1891,46 @@ async function getAbrechnungModalDataFallback(
     } else if (metersData) {
       waterMeters = metersData as WasserZaehler[];
 
-      // Fetch water readings for these meters within the billing period
+      // Fetch water readings and actual prepayments in parallel
       const meterIds = waterMeters.map((m: { id: string }) => m.id);
-      if (meterIds.length > 0) {
-        const { data: readingsData, error: readingsError } = await supabase
-          .from("Zaehler_Ablesungen")
-          .select("*")
-          .in("zaehler_id", meterIds)
-          .gte("ablese_datum", nebenkostenData.startdatum)
-          .lte("ablese_datum", nebenkostenData.enddatum)
-          .eq("user_id", userId);
+      
+      const promises: [Promise<any>, Promise<any>?] = [
+        meterIds.length > 0 
+          ? supabase
+              .from("Zaehler_Ablesungen")
+              .select("*")
+              .in("zaehler_id", meterIds)
+              .gte("ablese_datum", nebenkostenData.startdatum)
+              .lte("ablese_datum", nebenkostenData.enddatum)
+              .eq("user_id", userId)
+          : Promise.resolve({ data: [] })
+      ];
 
-        if (readingsError) {
-          logger.error('Failed to fetch water readings in fallback', readingsError || undefined, {
-            userId,
-            nebenkostenId,
-            meterIds,
-            periodStart: nebenkostenData.startdatum,
-            periodEnd: nebenkostenData.enddatum
-          });
-        } else if (readingsData) {
-          waterReadings = readingsData as WasserAblesung[];
-        }
+      if ((nebenkostenData as any).vorauszahlungs_art === 'ist') {
+        promises.push(fetchActualPrepayments(
+          supabase,
+          apartmentIds,
+          nebenkostenData.startdatum,
+          nebenkostenData.enddatum,
+          nebenkostenId
+        ));
       }
+
+      const [readingsResult, actualPaymentsResult] = await Promise.all(promises);
+      
+      if (readingsResult.error) {
+        logger.error('Failed to fetch water readings in fallback', readingsResult.error, {
+          userId,
+          nebenkostenId,
+          meterIds
+        });
+      } else {
+        waterReadings = readingsResult.data as WasserAblesung[];
+      }
+
+      var actualPayments = (nebenkostenData as any).vorauszahlungs_art === 'ist' 
+        ? (actualPaymentsResult as any) || []
+        : [];
     }
   }
 
@@ -1931,19 +1949,9 @@ async function getAbrechnungModalDataFallback(
     tenants: tenants || [],
     rechnungen: rechnungen || [],
     meters: waterMeters,
-    readings: waterReadings
+    readings: waterReadings,
+    actualPayments: (nebenkostenData as any).vorauszahlungs_art === 'ist' ? actualPayments : undefined
   };
-
-  // Fetch actual payments if mode is 'ist'
-  if ((nebenkostenData as any).vorauszahlungs_art === 'ist' && apartmentIds.length > 0) {
-    modalData.actualPayments = await fetchActualPrepayments(
-      supabase,
-      apartmentIds,
-      nebenkostenData.startdatum,
-      nebenkostenData.enddatum,
-      nebenkostenId
-    );
-  }
 
   logger.info('Successfully fetched Abrechnung modal data (fallback)', {
     userId,
