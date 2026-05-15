@@ -683,6 +683,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
+    env:
+      HOME: /root
     needs: [check-runs, build-app, lint, type-check]
     if: needs.check-runs.outputs.should-run-e2e == 'true' || needs.check-runs.outputs.should-run-visual == 'true'
     timeout-minutes: 5
@@ -732,6 +734,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
+    env:
+      HOME: /root
     needs: [check-runs, build-app, lint, type-check, e2e-smoke]
     if: needs.check-runs.outputs.should-run-e2e == 'true'
     timeout-minutes: 30
@@ -1654,6 +1658,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
+    env:
+      HOME: /root
     needs: [lint, type-check, check-runs, build-app, e2e-smoke]
     if: needs.check-runs.outputs.should-run-visual == 'true'
     steps:
