@@ -3,6 +3,9 @@
  * Provides intelligent caching for cloud storage directory contents
  */
 
+// localStorage key constants
+const NAVIGATION_PATTERNS_KEY = 'directory-cache-navigation-patterns:v1'
+
 export interface DirectoryContents {
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -711,10 +714,13 @@ export class DirectoryCacheManager {
 
   private loadNavigationPatterns(): void {
     try {
-      const stored = localStorage.getItem('directory-cache-navigation-patterns:v1')
+      const stored = localStorage.getItem(NAVIGATION_PATTERNS_KEY)
       if (stored) {
         const patterns = JSON.parse(stored)
-        this.navigationPatterns = new Map(patterns)
+        // Validate that patterns is an array before creating Map
+        if (Array.isArray(patterns)) {
+          this.navigationPatterns = new Map(patterns)
+        }
       }
     } catch (error) {
       console.warn('Failed to load navigation patterns:', error)
@@ -724,7 +730,7 @@ export class DirectoryCacheManager {
   private saveNavigationPatterns(): void {
     try {
       const patterns = Array.from(this.navigationPatterns.entries())
-      localStorage.setItem('directory-cache-navigation-patterns:v1', JSON.stringify(patterns))
+      localStorage.setItem(NAVIGATION_PATTERNS_KEY, JSON.stringify(patterns))
     } catch (error) {
       console.warn('Failed to save navigation patterns:', error)
     }
