@@ -3,6 +3,7 @@ name: Preview Cleanup
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
 
 jobs:
   cleanup-preview:
@@ -11,6 +12,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      pull-requests: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -25,6 +27,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v3
 
       - name: Remove Preview and Merged Branch Tags
+        if: github.event_name == 'pull_request'
         run: |
           PR_TAG="pr-${{ github.event.pull_request.number }}"
           BRANCH_TAG=$(printf '%s' "branch-${{ github.event.pull_request.head.ref }}" \
@@ -46,16 +49,49 @@ jobs:
           done
 
       - name: Delete Docker Image from Artifact Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Delete the specific PR image
-          gcloud artifacts docker images delete \
-            europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:pr-${{ github.event.pull_request.number }} \
-            --quiet || echo "PR Image not found"
+          # 1. Delete the specific PR image (fast path if triggered by PR close)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_TAG="pr-${{ github.event.pull_request.number }}"
+            echo "Deleting image for PR: $PR_TAG"
+            gcloud artifacts docker images delete \
+              europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:$PR_TAG \
+              --quiet || echo "PR Image $PR_TAG not found"
+          fi
 
-          # Cleanup: Delete all untagged images (orphaned versions)
+          # 2. Cleanup: Delete all untagged images (orphaned versions)
           # These are created whenever a tag (like 'latest' or 'pr-X') is moved to a new image
-          echo "Cleaning up untagged images..."
+          echo "Cleaning up all untagged images..."
           gcloud artifacts docker images delete \
             europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo \
             --filter='-tags:*' \
-            --quiet || echo "No untagged images to clean up"
+            --quiet || echo "No untagged images found"
+
+          # 3. Smart Cleanup: Find tagged pr-* images that no longer have an open PR
+          # This catches cases where previous cleanup jobs failed or were skipped
+          echo "Checking for orphaned pr-* tags in the registry..."
+          
+          # Get list of open PR numbers (as a space-separated string for easy matching)
+          OPEN_PRS=$(gh pr list --state open --limit 1000 --json number -q '.[].number' | tr '\n' ' ')
+          echo "Currently open PRs: $OPEN_PRS"
+
+          # Get all pr-* tags currently in the registry
+          # We extract the tags, split them into lines, and filter for pr- prefixes
+          ALL_PR_TAGS=$(gcloud artifacts docker images list \
+            europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo \
+            --filter="tags:pr-*" --format="value(tags)" | tr ',' '\n' | grep '^pr-' | sort -u || true)
+
+          for TAG in $ALL_PR_TAGS; do
+            PR_NUM=${TAG#pr-}
+            # Check if this PR number is in the list of open PRs
+            if [[ ! " $OPEN_PRS " =~ " $PR_NUM " ]]; then
+              echo "🗑️  Deleting orphaned tag: $TAG (PR #$PR_NUM is closed/merged)"
+              gcloud artifacts docker images delete \
+                europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:$TAG \
+                --quiet || echo "Failed to delete $TAG"
+            fi
+          done
+          
+          echo "✅ Smart cleanup complete"
