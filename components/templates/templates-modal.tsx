@@ -20,7 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TemplateCard } from '@/components/templates/template-card';
-import { TemplateEditorModal } from '@/components/templates/template-editor-modal';
+import dynamic from 'next/dynamic';
+
+const TemplateEditorModal = dynamic(
+  () => import('@/components/templates/template-editor-modal').then((mod) => mod.TemplateEditorModal),
+  { ssr: false }
+);
+
 import { useTemplates, useTemplateFilters } from '@/hooks/use-templates';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useModalKeyboardNavigation } from '@/hooks/use-modal-keyboard-navigation';
@@ -327,7 +333,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
             </div>
           </div>
         ))}
-        <div className="sr-only">Vorlagen werden geladen...</div>
+        <div className="sr-only">Vorlagen werden geladen…</div>
       </div>
     </div>
   );
@@ -361,7 +367,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
   const renderEmptyState = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-medium mb-2">
+      <h3 className="text-lg font-semibold mb-2">
         {searchQuery || selectedCategory ? 'Keine Vorlagen gefunden' : 'Noch keine Vorlagen erstellt'}
       </h3>
       <p className="text-muted-foreground mb-4">
@@ -383,12 +389,12 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
         >
           {isCreating ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
-              Erstellt...
+              <Loader2 className="size-4 mr-2 animate-spin" aria-hidden="true" />
+              Erstellt…
             </>
           ) : (
             <>
-              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+              <Plus className="size-4 mr-2" aria-hidden="true" />
               Erste Vorlage erstellen
             </>
           )}
@@ -565,13 +571,13 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                 >
                   {isCreating ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" aria-hidden="true" />
-                      <span className="hidden sm:inline">Erstellt...</span>
-                      <span className="sm:hidden">Erstelle...</span>
+                      <Loader2 className="size-4 mr-1 sm:mr-2 animate-spin" aria-hidden="true" />
+                      <span className="hidden sm:inline">Erstellt…</span>
+                      <span className="sm:hidden">Erstelle…</span>
                     </>
                   ) : (
                     <>
-                      <Plus className="h-4 w-4 mr-1 sm:mr-2" aria-hidden="true" />
+                      <Plus className="size-4 mr-1 sm:mr-2" aria-hidden="true" />
                       <span className="hidden sm:inline">Neue Vorlage</span>
                       <span className="sm:hidden">Neu</span>
                     </>

@@ -34,7 +34,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { TemplateEditor } from '@/components/templates/template-editor';
+import dynamic from 'next/dynamic';
+
+const TemplateEditor = dynamic(
+  () => import('@/components/templates/template-editor').then((mod) => mod.TemplateEditor),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <Spinner className="h-8 w-8" />
+      </div>
+    )
+  }
+);
+
 import { TEMPLATE_CATEGORIES, TemplateCategory, TEMPLATE_TYPE_CONFIGS, TEMPLATE_ICON_MAP } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorModalProps } from '@/types/template';
@@ -388,11 +401,11 @@ export function TemplateEditorModal({
               <Button
                 variant="ghost"
                 size="icon"
-                className="-ml-2 h-8 w-8 text-muted-foreground hover:text-primary rounded-full transition-colors"
+                className="-ml-2 size-8 text-muted-foreground hover:text-primary rounded-full transition-colors"
                 onClick={handleBackToCategory}
                 aria-label="Zurück zur Kategorieauswahl"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="size-4" />
               </Button>
             )}
             <div className="text-primary">
@@ -416,7 +429,7 @@ export function TemplateEditorModal({
                               handleTitleChange(e.target.value);
                             }}
                             placeholder="Titel der Vorlage eingeben"
-                            className="text-xl font-bold text-foreground bg-transparent border-none outline-none focus-visible:ring-2 focus-visible:ring-primary/10 focus-visible:bg-primary/5 rounded-xl px-2 py-1 w-full max-w-md transition-all placeholder:text-muted-foreground/30 h-auto"
+                            className="text-xl font-semibold text-foreground bg-transparent border-none outline-none focus-visible:ring-2 focus-visible:ring-primary/10 focus-visible:bg-primary/5 rounded-xl px-2 py-1 w-full max-w-md transition-all placeholder:text-muted-foreground/30 h-auto"
                             aria-label="Titel der Vorlage"
                           />
                           {templateForm.formState.errors.titel && (
@@ -518,15 +531,15 @@ export function TemplateEditorModal({
                                       )}
                                     >
                                       <div className={cn(
-                                        "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
+                                        "size-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
                                         isSelected ? "bg-primary text-primary-foreground scale-110 rotate-3" : "bg-background text-primary/40"
                                       )}>
-                                        <Icon className="h-7 w-7" />
+                                        <Icon className="size-7" />
                                       </div>
 
                                       <div className="space-y-2">
                                         <h4 className={cn(
-                                          "font-bold text-xl tracking-tight",
+                                          "font-semibold text-xl tracking-tight",
                                           isSelected ? "text-primary" : "text-foreground/80"
                                         )}>{meta.label}</h4>
                                         <p className="text-sm text-muted-foreground leading-relaxed">
@@ -535,10 +548,11 @@ export function TemplateEditorModal({
                                       </div>
 
                                       {isSelected && (
-                                        <div className="absolute top-6 right-6 text-primary h-8 w-8 rounded-full bg-white flex items-center justify-center shadow-lg animate-in zoom-in-0">
-                                          <Check className="h-5 w-5" />
+                                        <div className="absolute top-6 right-6 text-primary size-8 rounded-full bg-white flex items-center justify-center shadow-lg animate-in zoom-in-0">
+                                          <Check className="size-5" />
                                         </div>
                                       )}
+
                                     </button>
                                   </motion.div>
                                 );
@@ -587,7 +601,7 @@ export function TemplateEditorModal({
                           <TemplateEditor
                             content={editorContent}
                             onChange={handleEditorChange}
-                            placeholder="Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen wie @Mieter.Name"
+                            placeholder="Beginnen Sie mit der Eingabe… Verwenden Sie @ für Variablen wie @Mieter.Name"
                             className="flex-1 border-0 focus-within:ring-0 rounded-none h-full"
                           />
                           {templateForm.formState.errors.inhalt && (
@@ -620,8 +634,8 @@ export function TemplateEditorModal({
                       >
                         {isLoading ? (
                           <>
-                            <Spinner className="h-5 w-5 mr-2" />
-                            Speichert...
+                            <Spinner className="size-5 mr-2" />
+                            Speichert…
                           </>
                         ) : (
                           <>

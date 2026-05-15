@@ -9,9 +9,33 @@ import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Calendar as CalendarIcon, List, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { TaskCalendar, CalendarTaskPill } from "@/components/tasks/task-calendar";
-import { TaskSidebar, TaskItemCard } from "@/components/tasks/task-sidebar";
-import { TaskDayModal } from "@/components/tasks/task-day-modal";
+import dynamic from "next/dynamic";
+
+const TaskCalendar = dynamic(
+  () => import("@/components/tasks/task-calendar").then((mod) => mod.TaskCalendar),
+  { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-muted rounded-2xl" /> }
+);
+
+const TaskSidebar = dynamic(
+  () => import("@/components/tasks/task-sidebar").then((mod) => mod.TaskSidebar),
+  { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-muted rounded-2xl" /> }
+);
+
+const TaskDayModal = dynamic(
+  () => import("@/components/tasks/task-day-modal").then((mod) => mod.TaskDayModal),
+  { ssr: false }
+);
+
+const CalendarTaskPill = dynamic(
+  () => import("@/components/tasks/task-calendar").then((mod) => mod.CalendarTaskPill),
+  { ssr: false }
+);
+
+const TaskItemCard = dynamic(
+  () => import("@/components/tasks/task-sidebar").then((mod) => mod.TaskItemCard),
+  { ssr: false }
+);
+
 import { TaskBoardTask } from "@/types/Task";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { toggleTaskStatusAction, deleteTaskAction, updateTaskDueDateAction } from "@/app/todos-actions";
@@ -263,7 +287,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
               <div className="mt-0 sm:mt-1">
                 <ResponsiveButtonWithTooltip
                   onClick={() => handleAddTask()}
-                  icon={<PlusCircle className="h-4 w-4" />}
+                  icon={<PlusCircle className="size-4" />}
                   shortText="Hinzufügen"
                 >
                   Aufgabe hinzufügen
@@ -296,25 +320,25 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
                           key="header-title"
                           initial={{ opacity: 0, width: 0 }}
                           animate={{ opacity: 1, width: "auto" }}
-                          exit={{ opacity: 0, width: 0 }}
+                          exit={{ opacity: 0, width: "auto" }}
                           transition={{ duration: 0.2 }}
                           className="flex items-center gap-2 flex-1 overflow-hidden"
                         >
-                          <List className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <h3 className="font-medium whitespace-nowrap">Aufgabenliste</h3>
+                          <List className="size-5 text-muted-foreground shrink-0" />
+                          <h3 className="font-semibold whitespace-nowrap">Aufgabenliste</h3>
                         </motion.div>
                       )}
                     </AnimatePresence>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="size-8 shrink-0 hover:bg-gray-100 dark:hover:bg-gray-800"
                       onClick={() => setSidebarOpen(!isSidebarOpen)}
                     >
                       {isSidebarOpen ? (
-                        <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+                        <PanelLeftClose className="size-4 text-muted-foreground" />
                       ) : (
-                        <PanelLeftOpen className="h-4 w-4 text-muted-foreground" />
+                        <PanelLeftOpen className="size-4 text-muted-foreground" />
                       )}
                     </Button>
                   </div>
@@ -346,9 +370,9 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
                   {searchQuery && filteredTasks.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                       <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-full mb-3">
-                        <PlusCircle className="h-6 w-6 text-muted-foreground/50 rotate-45" />
+                        <PlusCircle className="size-6 text-muted-foreground/50 rotate-45" />
                       </div>
-                      <p className="text-sm font-medium">Keine Aufgaben gefunden</p>
+                      <p className="text-sm font-semibold">Keine Aufgaben gefunden</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Ihre Suche ergab keine Treffer.
                       </p>
@@ -375,8 +399,8 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
               {/* Calendar */}
               <div className="order-1 lg:order-2 bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 flex flex-col h-full overflow-hidden">
                 <div className="flex items-center gap-2 mb-4 shrink-0">
-                  <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="font-medium">Kalender</h3>
+                  <CalendarIcon className="size-5 text-muted-foreground" />
+                  <h3 className="font-semibold">Kalender</h3>
                 </div>
                 <TaskCalendar
                   tasks={filteredTasks}

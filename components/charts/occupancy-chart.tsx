@@ -1,7 +1,15 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
+import dynamic from "next/dynamic";
+
+const Line = dynamic(() => import("recharts").then((mod) => mod.Line), { ssr: false });
+const LineChart = dynamic(() => import("recharts").then((mod) => mod.LineChart), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then((mod) => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then((mod) => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then((mod) => mod.CartesianGrid), { ssr: false });
+const Legend = dynamic(() => import("recharts").then((mod) => mod.Legend), { ssr: false });
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 const initialOccupancyData = Array.from({ length: 12 }, (_, i) => ({
