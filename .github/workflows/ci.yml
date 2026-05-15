@@ -307,6 +307,7 @@ jobs:
   check-runs:
     name: Check Runs
     runs-on: ubuntu-latest
+    needs: [lint, type-check, build-app]
     timeout-minutes: 1
     outputs:
       should-run-visual: ${{ steps.visual.outputs.should-run-visual }}
