@@ -214,7 +214,7 @@ function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndSt
                 <Button
                   onClick={() => onSelectPlan(planVariant.priceId)}
                   className="w-full rounded-xl"
-                  variant={plan.popular ? "default" : "outline-solid"}
+                  variant={plan.popular ? "default" : "outline"}
                   size="lg"
                   disabled={disabled}
                 >
@@ -662,7 +662,7 @@ export default function Pricing({
                         onSelectPlan(planToDisplay.priceId)
                       }}
                       className="w-full rounded-xl"
-                      variant={group.popular ? "default" : "outline-solid"}
+                      variant={group.popular ? "default" : "outline"}
                       size="lg"
                       disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
                     >

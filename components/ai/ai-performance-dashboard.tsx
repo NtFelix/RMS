@@ -186,9 +186,9 @@ export function AIPerformanceDashboard() {
       case 'medium':
         return 'secondary';
       case 'low':
-        return 'outline-solid';
+        return 'outline';
       default:
-        return 'outline-solid';
+        return 'outline';
     }
   };
 

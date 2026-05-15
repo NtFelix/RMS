@@ -23,21 +23,21 @@ export function HouseFilters({ onFilterChange, onSearchChange }: HouseFiltersPro
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           <Button
-            variant={activeFilter === "all" ? "default" : "outline-solid"}
+            variant={activeFilter === "all" ? "default" : "outline"}
             onClick={() => handleFilterClick("all")}
             className="h-9"
           >
             Alle
           </Button>
           <Button
-            variant={activeFilter === "full" ? "default" : "outline-solid"}
+            variant={activeFilter === "full" ? "default" : "outline"}
             onClick={() => handleFilterClick("full")}
             className="h-9"
           >
             Voll
           </Button>
           <Button
-            variant={activeFilter === "vacant" ? "default" : "outline-solid"}
+            variant={activeFilter === "vacant" ? "default" : "outline"}
             onClick={() => handleFilterClick("vacant")}
             className="h-9"
           >

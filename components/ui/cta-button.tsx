@@ -66,7 +66,7 @@ export function CTAButton({
     return (
       <Button
         asChild
-        variant={variant === 'primary' ? 'default' : 'outline-solid'}
+        variant={variant === 'primary' ? 'default' : 'outline'}
         size={size}
         className={buttonClasses}
         disabled={disabled}
@@ -85,7 +85,7 @@ export function CTAButton({
 
   return (
     <Button
-      variant={variant === 'primary' ? 'default' : 'outline-solid'}
+      variant={variant === 'primary' ? 'default' : 'outline'}
       size={size}
       className={buttonClasses}
       onClick={onClick}

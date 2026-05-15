@@ -14,7 +14,7 @@ interface ExportAbrechnungDropdownProps {
   onZipClick: () => void;
   className?: string;
   buttonText?: string;
-  buttonVariant?: "default" | "outline-solid" | "ghost" | "link";
+  buttonVariant?: "default" | "outline" | "ghost" | "link";
   align?: "center" | "start" | "end";
   isGeneratingPDF?: boolean;
   hasMultipleTenants?: boolean; // Kept for backward compatibility

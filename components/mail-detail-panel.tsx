@@ -464,14 +464,14 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
               {emailBody.html && emailBody.plain && (
                 <div className="flex gap-2 mb-4">
                   <Button
-                    variant={showHtml ? "default" : "outline-solid"}
+                    variant={showHtml ? "default" : "outline"}
                     size="sm"
                     onClick={() => setShowHtml(true)}
                   >
                     HTML
                   </Button>
                   <Button
-                    variant={!showHtml ? "default" : "outline-solid"}
+                    variant={!showHtml ? "default" : "outline"}
                     size="sm"
                     onClick={() => setShowHtml(false)}
                   >

@@ -268,7 +268,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
 
             {/* Status Badges */}
             {result.type === 'tenant' && result.metadata?.status && (
-              <Badge variant={result.metadata.status === 'active' ? 'outline-solid' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.status === 'active' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
+              <Badge variant={result.metadata.status === 'active' ? 'outline' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.status === 'active' && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
                 {result.metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
               </Badge>
             )}
@@ -286,7 +286,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
               </Badge>
             )}
             {result.type === 'task' && result.metadata?.completed !== undefined && (
-              <Badge variant={result.metadata.completed ? 'outline-solid' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.completed && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
+              <Badge variant={result.metadata.completed ? 'outline' : 'secondary'} className={cn("text-[10px] h-5 px-1.5 font-normal", result.metadata.completed && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")}>
                 {result.metadata.completed ? 'Erledigt' : 'Offen'}
               </Badge>
             )}

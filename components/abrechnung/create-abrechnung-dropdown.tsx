@@ -16,7 +16,7 @@ interface CreateAbrechnungDropdownProps {
   onTemplateClick: () => void;
   className?: string;
   buttonText?: string;
-  buttonVariant?: "default" | "outline-solid" | "ghost" | "link";
+  buttonVariant?: "default" | "outline" | "ghost" | "link";
   align?: "center" | "start" | "end";
 }
 
