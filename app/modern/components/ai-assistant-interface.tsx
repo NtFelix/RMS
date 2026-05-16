@@ -322,7 +322,7 @@ export default function AIAssistantInterface({
                   ) : (
                     <>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm whitespace-pre-wrap wrap-break-word flex-1">
+                        <p className="text-sm whitespace-pre-wrap break-words flex-1">
                           {message.content}
                         </p>
                         {/* Show streaming indicator for assistant messages that are being updated */}

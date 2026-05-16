@@ -459,7 +459,7 @@ export function MeterCard({
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs text-muted-foreground mb-1">Kommentar</p>
-                                            <p className="text-sm text-foreground wrap-break-word">
+                                            <p className="text-sm text-foreground break-words">
                                                 {zaehler.kommentar}
                                             </p>
                                         </div>

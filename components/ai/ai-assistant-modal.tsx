@@ -145,7 +145,7 @@ export function AIAssistantModal() {
                       : "bg-muted border border-border"
                   )}
                 >
-                  <p className="text-sm whitespace-pre-wrap wrap-break-word">
+                  <p className="text-sm whitespace-pre-wrap break-words">
                     {message.content}
                   </p>
                   <p className={cn(

@@ -151,7 +151,7 @@ export function NKCarousel() {
                 className={cn(
                   "absolute rounded-full border transform-gpu transition-all duration-1000",
                   isOuter
-                    ? "border-primary/20 bg-primary/1"
+                    ? "border-primary/20 bg-primary/1%"
                     : "border-primary/10"
                 )}
                 style={{
