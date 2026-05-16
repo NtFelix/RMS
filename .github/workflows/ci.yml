@@ -401,7 +401,7 @@ jobs:
           # Deterministic cache key based on critical build inputs
           # Includes: package-lock.json, config files, and source code hash
           LOCK_HASH=${{ hashFiles('**/package-lock.json') }}
-          CONFIG_HASH=${{ hashFiles('next.config.*', 'tsconfig.json', 'tailwind.config.*', '.env.example') }}
+          CONFIG_HASH=${{ hashFiles('next.config.*', 'tsconfig.json', '.env.example') }}
           SOURCE_HASH=$(find app components lib hooks types -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-source")
           echo "key=${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}" >> $GITHUB_OUTPUT
           echo "Cache key: ${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}"
