@@ -16,6 +16,9 @@ jobs:
       id-token: write
       pull-requests: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v3
         with:
@@ -60,7 +63,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_TAG="pr-${{ github.event.pull_request.number }}"
             echo "Deleting image for PR: $PR_TAG"
-            gcloud artifacts docker images delete "$REPO:$PR_TAG" --quiet || echo "PR Image $PR_TAG not found"
+            gcloud artifacts docker images delete "$REPO:$PR_TAG" --quiet || echo "PR Image $PR_TAG not found or permission denied"
           fi
 
           # 2. Cleanup: Delete all untagged images (orphaned versions)
