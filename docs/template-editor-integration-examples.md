@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
 
+// Zod 4 Schema
 const templateSchema = z.object({
   name: z.string().min(1, 'Name ist erforderlich'),
   category: z.enum(TEMPLATE_CATEGORIES),

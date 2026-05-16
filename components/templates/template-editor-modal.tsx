@@ -59,16 +59,14 @@ import { Badge } from '@/components/ui/badge';
 // Enhanced form validation schemas
 const categorySchema = z.object({
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-    required_error: 'Bitte wählen Sie eine Kategorie aus.',
-    invalid_type_error: 'Ungültige Kategorie ausgewählt.',
+    message: 'Bitte wählen Sie eine Kategorie aus.',
   }),
 });
 
 const templateSchema = z.object({
   titel: z
     .string({
-      required_error: 'Der Titel ist erforderlich.',
-      invalid_type_error: 'Der Titel muss ein Text sein.',
+        error: (issue) => issue.input === undefined ? 'Der Titel ist erforderlich.' : 'Der Titel muss ein Text sein.'
     })
     .min(3, 'Der Titel muss mindestens 3 Zeichen lang sein.')
     .max(100, 'Der Titel darf maximal 100 Zeichen lang sein.')
@@ -92,8 +90,7 @@ const templateSchema = z.object({
     }
   ),
   kategorie: z.enum(TEMPLATE_CATEGORIES, {
-    required_error: 'Bitte wählen Sie eine Kategorie aus.',
-    invalid_type_error: 'Ungültige Kategorie ausgewählt.',
+    message: 'Bitte wählen Sie eine Kategorie aus.',
   }),
 });
 
@@ -214,7 +211,7 @@ export function TemplateEditorModal({
       if (!editorContent) {
         templateForm.setError('inhalt', {
           type: 'required',
-          message: 'Der Inhalt darf nicht leer sein.',
+          message: 'Der Inhalt darf nicht leer sein.'
         });
         return;
       }
@@ -258,7 +255,7 @@ export function TemplateEditorModal({
         setValidationErrors(mentionErrors);
 
         templateForm.setError('inhalt', {
-          message: 'Der Inhalt enthält ungültige Variablen.',
+          message: 'Der Inhalt enthält ungültige Variablen.'
         });
 
         toast({
