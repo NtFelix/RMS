@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "node scripts/generate-llms-txt.mjs && next build --no-lint",
-    "start": "node .next/standalone/server.js",
+    "start": "next start",
     "lint": "next lint",
     "setup": "npm install && npm run setup:skills",
     "setup:skills": "bash scripts/setup-skills.sh",
