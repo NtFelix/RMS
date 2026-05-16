@@ -347,10 +347,9 @@ jobs:
           retention-days: 90
 
       - name: Secret scan with TruffleHog
-        uses: trufflesecurity/trufflehog-action@v1
+        uses: trufflesecurity/trufflehog@main
         with:
-          image: ${{ steps.image.outputs.full_name }}
-          extraArgs: --only-verified
+          extra_args: docker --image=${{ steps.image.outputs.full_name }} --only-verified
 
       - name: Dive image layer analysis
         run: |
