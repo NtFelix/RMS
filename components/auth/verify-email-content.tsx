@@ -235,7 +235,7 @@ export default function VerifyEmailContent() {
                                 >
                                     {/* Icon with pulsing indicator */}
                                     <div className="relative p-4 rounded-2xl bg-white/10 backdrop-blur-md mb-6 shadow-xl">
-                                        <Mail className="h-12 w-12 text-white" />
+                                        <Mail className="size-12 text-white" />
                                         <motion.div
                                             className="absolute -top-1 -right-1 w-4 h-4 bg-white/30 rounded-full"
                                             animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
@@ -305,7 +305,7 @@ export default function VerifyEmailContent() {
                                         transition={{ type: "spring", stiffness: 300, damping: 20 }}
                                         className="relative p-4 rounded-2xl bg-green-500/20 backdrop-blur-md mb-6 shadow-xl"
                                     >
-                                        <MailCheck className="h-12 w-12 text-green-300" />
+                                        <MailCheck className="size-12 text-green-300" />
                                         {/* Celebration particles */}
                                         {[...Array(6)].map((_, i) => (
                                             <motion.div
@@ -367,7 +367,7 @@ export default function VerifyEmailContent() {
                                             Weiterleitung in {countdown} Sekunden…
                                         </div>
                                         {/* Progress bar */}
-                                        <div className="w-32 h-1 bg-white/20 rounded-full overflow-hidden">
+                                        <div className="size-32 bg-white/20 rounded-full overflow-hidden">
                                             <motion.div
                                                 className="h-full bg-white/80 rounded-full"
                                                 initial={{ width: '0%' }}

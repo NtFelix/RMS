@@ -8,6 +8,7 @@ import { ShieldAlert, Check, Loader2, AlertTriangle, X } from 'lucide-react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 // Scope descriptions mapping
 const SCOPE_DETAILS: Record<string, { title: string; description: string }> = {
@@ -357,7 +358,7 @@ export default function ConsentUI({
             <FullScreenLayout>
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
                     <CardContent className="flex flex-col items-center justify-center py-16">
-                        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                        <Loader2 className="size-12 text-primary animate-spin mb-4" />
                         <p className="text-muted-foreground">Laden...</p>
                     </CardContent>
                 </Card>
@@ -372,7 +373,7 @@ export default function ConsentUI({
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
                     <CardHeader className="text-center pt-8">
                         <div className="mx-auto w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center mb-6 border border-destructive/20 p-4">
-                            <AlertTriangle className="w-10 h-10 text-destructive" />
+                            <AlertTriangle className="size-10 text-destructive" />
                         </div>
                         <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
                             Autorisierung fehlgeschlagen
@@ -398,7 +399,7 @@ export default function ConsentUI({
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
                     <CardHeader className="text-center pt-8">
                         <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mb-6 border border-green-500/20 p-4">
-                            <Check className="w-10 h-10 text-green-500" />
+                            <Check className="size-10 text-green-500" />
                         </div>
                         <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
                             Verbindung hergestellt
@@ -445,16 +446,18 @@ export default function ConsentUI({
                             >
                                 <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
                                 {clientIcon ? (
-                                    <div className="w-16 h-16 rounded-[1.25rem] bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden flex-shrink-0 relative z-10">
+                                    <div className="size-16 rounded-[1.25rem] bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden flex-shrink-0 relative z-10">
                                         <div className="absolute inset-0 bg-gradient-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
-                                        <img
+                                        <Image
                                             src={clientIcon}
                                             alt={clientName}
-                                            className="w-10 h-10 object-contain drop-shadow-sm relative z-10"
+                                            width={40}
+                                            height={40}
+                                            className="size-10 object-contain drop-shadow-sm relative z-10"
                                         />
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 rounded-[1.25rem] bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden z-10">
+                                    <div className="size-16 rounded-[1.25rem] bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden z-10">
                                         <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
                                         <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
                                     </div>
@@ -468,9 +471,9 @@ export default function ConsentUI({
                                 className="flex flex-col items-center justify-center"
                             >
                                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted dark:bg-secondary/50 border border-border/30 dark:border-border/50 shadow-sm dark:shadow-inner">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/80 animate-pulse" />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-pulse" style={{ animationDelay: '200ms' }} />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/30 animate-pulse" style={{ animationDelay: '400ms' }} />
+                                    <div className="size-1.5 rounded-full bg-primary/80 animate-pulse" />
+                                    <div className="size-1.5 rounded-full bg-primary/50 animate-pulse" style={{ animationDelay: '200ms' }} />
+                                    <div className="size-1.5 rounded-full bg-primary/30 animate-pulse" style={{ animationDelay: '400ms' }} />
                                 </div>
                             </motion.div>
 
@@ -481,12 +484,12 @@ export default function ConsentUI({
                                 className="relative"
                             >
                                 <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                <div className="w-16 h-16 rounded-[1.25rem] bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden z-10">
+                                <div className="size-16 rounded-[1.25rem] bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden z-10">
                                     <div className="absolute inset-0 bg-gradient-to-tr from-black/5 dark:from-black/20 to-transparent" />
                                     <img
                                         src={LOGO_URL}
                                         alt={BRAND_NAME}
-                                        className="w-10 h-10 object-contain relative z-10 dark:brightness-110"
+                                        className="size-10 object-contain relative z-10 dark:brightness-110"
                                     />
                                 </div>
                             </motion.div>
@@ -555,7 +558,7 @@ export default function ConsentUI({
                                                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                                                 className="w-5 h-5 rounded-full bg-background/50 border border-border/50 flex items-center justify-center backdrop-blur-md shadow-sm"
                                             >
-                                                <div className="w-1.5 h-1.5 border-b-2 border-r-2 border-muted-foreground rotate-45 mb-0.5" />
+                                                <div className="size-1.5 border-b-2 border-r-2 border-muted-foreground rotate-45 mb-0.5" />
                                             </motion.div>
                                         </motion.div>
                                     )}
