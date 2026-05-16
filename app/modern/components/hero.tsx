@@ -267,7 +267,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                           className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/5 hover:bg-muted/10 cursor-pointer h-[72px]"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground">
+                            <div className="size-10 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground">
                               <item.icon size={18} />
                             </div>
                             <div className="flex flex-col justify-center">

@@ -47,8 +47,8 @@ export default function ApartmentManagementPage() {
       {/* Hero Section */}
       <div className="container mx-auto px-4 pt-48 pb-16">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight">
-            <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground leading-tight tracking-tight">
+            <span className="text-primary">
               Verwalten Sie ihre Wohnungen
             </span>
           </h1>

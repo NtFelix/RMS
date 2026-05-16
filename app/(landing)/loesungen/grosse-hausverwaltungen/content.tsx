@@ -69,7 +69,7 @@ export default function LargePropertyManagementPage() {
           {/* Hero Section */}
           <div className="text-center mb-16">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-2xl mb-6">
-              <TrendingUp className="w-10 h-10 text-primary" />
+              <TrendingUp className="size-100 text-primary" />
             </div>
             <h1 className="text-5xl font-bold mb-4">Für große Hausverwaltungen</h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -85,7 +85,7 @@ export default function LargePropertyManagementPage() {
                 const Icon = feature.icon;
                 return (
                   <div key={index} className="bg-card border rounded-2xl p-6 hover:shadow-lg transition-shadow">
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
+                    <div className="size-122 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
                       <Icon className="w-6 h-6 text-primary" />
                     </div>
                     <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>

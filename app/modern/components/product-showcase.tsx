@@ -121,7 +121,7 @@ export default function ProductShowcase() {
                                             <div className="flex items-start gap-4">
                                                 <div
                                                     className={cn(
-                                                        "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
+                                                        "size-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300",
                                                         isSelected
                                                             ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-110"
                                                             : "bg-muted/50 text-muted-foreground group-hover:bg-muted group-hover:text-foreground"

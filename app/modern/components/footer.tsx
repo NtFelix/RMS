@@ -92,7 +92,7 @@ export default function Footer() {
                     rel={social.href.startsWith("http") ? "noopener noreferrer" : undefined}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    className="group w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border hover:border-white dark:hover:border-primary/50"
+                    className="group size-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border hover:border-white dark:hover:border-primary/50"
                     aria-label={social.label}
                     onClick={() => trackFooterSocialClicked(social.platform, social.href)}
                   >

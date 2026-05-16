@@ -451,7 +451,7 @@ export default function Pricing({
 
             <CardContent className="flex flex-col items-center text-center p-12 space-y-8">
               <div className="rounded-full bg-primary/10 p-4 ring-1 ring-primary/20">
-                <Sparkles className="w-12 h-12 text-primary" />
+                <Sparkles className="size-12 text-primary" />
               </div>
 
               <div className="space-y-4 max-w-xl">

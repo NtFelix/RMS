@@ -78,6 +78,7 @@ export function TagInput({
 }: TagInputProps) {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState("");
+    const listboxId = React.useId();
 
     const handleTagToggle = (tag: string) => {
         if (value.includes(tag)) {
@@ -182,6 +183,8 @@ export function TagInput({
                 </div>
 
                 <div
+                    id={listboxId}
+                    role="listbox"
                     className="max-h-[350px] overflow-y-auto p-3 pb-4 space-y-5 custom-scrollbar"
                     onPointerDown={(e) => e.stopPropagation()}
                     onWheel={(e) => e.stopPropagation()}
