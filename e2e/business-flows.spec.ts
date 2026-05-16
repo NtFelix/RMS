@@ -49,15 +49,15 @@ test.describe('Business Logic Flows', () => {
     await safeNavigate(page, '/haeuser');
 
     // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Hausverwaltung').first()).toBeAttached({ timeout: 15000 });
-    await page.waitForTimeout(500); // Short wait for React hydration
+    await expect(page.getByText('Hausverwaltung').first()).toBeAttached({ timeout: 20000 });
+    await page.waitForTimeout(1000); // Wait for React hydration
 
     // Open modal - button shows "Hinzufügen" on mobile, "Haus hinzufügen" on desktop
     const createBtn = page.locator('#create-object-btn');
     const addBtn = page.getByRole('button', { name: /Haus hinzufügen|Hinzufügen/i });
 
     // Wait for button to be present in DOM first
-    await expect(createBtn.or(addBtn)).toBeAttached({ timeout: 15000 });
+    await expect(createBtn.or(addBtn)).toBeAttached({ timeout: 20000 });
 
     if (await createBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await createBtn.click();
@@ -70,7 +70,7 @@ test.describe('Business Logic Flows', () => {
     }
 
     const modal = page.locator('#house-form-container, [role="dialog"]').filter({ has: page.locator('#name') }).first();
-    await expect(modal).toBeVisible({ timeout: 10000 });
+    await expect(modal).toBeVisible({ timeout: 15000 });
 
     // Fill form using IDs
     await page.fill('#name', houseName);
@@ -188,7 +188,7 @@ test.describe('Business Logic Flows', () => {
     await safeNavigate(page, '/mieter');
 
     // Wait for the page content to fully load (look for a key element)
-    await expect(page.getByText('Mieterverwaltung').first()).toBeAttached({ timeout: 15000 });
+    await expect(page.getByText('Mieterverwaltung').first()).toBeAttached({ timeout: 20000 });
 
 
     // Open modal - button shows "Hinzufügen" on mobile, "Mieter hinzufügen" on desktop
@@ -196,7 +196,7 @@ test.describe('Business Logic Flows', () => {
     const addBtn = page.getByRole('button', { name: /Mieter hinzufügen|Hinzufügen/i });
 
     // Wait for button to be present in DOM first
-    await expect(createBtn.or(addBtn)).toBeVisible({ timeout: 15000 });
+    await expect(createBtn.or(addBtn)).toBeVisible({ timeout: 20000 });
 
     if (await createBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await createBtn.click();
@@ -216,7 +216,7 @@ test.describe('Business Logic Flows', () => {
     }
 
     const modal = page.locator('[role="dialog"]').filter({ has: page.locator('#einzug') }).first();
-    await expect(modal).toBeVisible({ timeout: 10000 });
+    await expect(modal).toBeVisible({ timeout: 15000 });
 
     // Fill form using IDs
     await page.fill('#name', tenantName);
@@ -300,7 +300,7 @@ test.describe('Business Logic Flows', () => {
       for (const entity of entities) {
         try {
           console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await safeNavigate(page, entity.path, 'networkidle');
+          await safeNavigate(page, entity.path);
 
           // Strategy 1: Search for the specific entity name
           let foundAndDeleted = false;

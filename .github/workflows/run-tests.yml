@@ -10,8 +10,6 @@ on:
       - '**/*.jsx'
       - '**/package.json'
       - '**/package-lock.json'
-    paths-ignore:
-      - 'playwright/snapshots.yml'
   pull_request:
     branches: [main, develop]
     paths-ignore:

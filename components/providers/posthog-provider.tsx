@@ -44,18 +44,20 @@ async function initializePostHog(nonce?: string) {
         };
         console.log('PostHog config fetched from API');
       } else {
-        console.warn('Failed to fetch PostHog config from API');
-        return;
+        // A 404 is expected in environments without PostHog configured (like E2E tests).
+        // Log a debug message instead of a warning to reduce CI noise.
+        console.log(`PostHog API returned ${response.status}. This is expected if PostHog is not configured.`);
+        // Don't return here. Let the code fall through to the next check which handles unconfigured states safely.
       }
     } catch (error) {
-      console.error('Error fetching PostHog config:', error);
-      return;
+      console.log('Error fetching PostHog config. This can happen in test environments:', error);
+      // Again, don't return. Let it fall through.
     }
   }
 
   if (!config.key || config.key === 'phc_placeholder_key') {
     // ... logic same as before ...
-    console.warn('PostHog is not initialized. Environment check:', {
+    console.log('PostHog is not initialized. Environment check:', {
       hasWindow: typeof window !== 'undefined',
       posthogKey: config.key ? config.key.substring(0, 10) + '...' : 'undefined',
       posthogHost: config.host,

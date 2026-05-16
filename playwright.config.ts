@@ -21,8 +21,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Use 2 workers in CI to avoid overwhelming the server */
-  workers: process.env.CI ? 2 : undefined,
+  /* Use 1 worker in CI to avoid overwhelming the server, especially with Webkit */
+  workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Global timeout for all tests */
