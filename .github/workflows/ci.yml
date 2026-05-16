@@ -25,11 +25,254 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ─── Orchestrator ──────────────────────────────────────────────────────────
+
+  check-runs:
+    name: Check Runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      should-run-visual: ${{ steps.visual.outputs.should-run-visual }}
+      should-run-lighthouse: ${{ steps.lighthouse.outputs.should-run-lighthouse }}
+      lighthouse-device-matrix: ${{ steps.lighthouse.outputs.device-matrix }}
+      should-run-tests: ${{ steps.tests.outputs.should-run-tests }}
+      test-matrix: ${{ steps.tests.outputs.matrix }}
+      test-total-files: ${{ steps.tests.outputs.total-files }}
+      test-files-to-test: ${{ steps.tests.outputs.files-to-test }}
+      test-is-full-run: ${{ steps.tests.outputs.is-full-run }}
+      should-run-e2e: ${{ steps.e2e.outputs.should-run-e2e }}
+      should-run-deploy-preview: ${{ steps.deploy.outputs.should-run-deploy-preview }}
+      should-run-deploy-production: ${{ steps.deploy.outputs.should-run-deploy-production }}
+      should-run-docker: ${{ steps.deploy.outputs.should-run-docker }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+            fi
+          fi
+
+          if [ -n "$BASE_SHA" ]; then
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' || echo "")
+          else
+            CHANGED_FILES="ALL"
+          fi
+
+          echo "$CHANGED_FILES" > changed_files.txt
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "changed-count=0" >> $GITHUB_OUTPUT
+          else
+            echo "changed-count=$(echo "$CHANGED_FILES" | grep -c -v '^$' 2>/dev/null || echo 0)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check visual review scope
+        id: visual
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run-visual=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "should-run-visual=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E \
+            '^(app|components|lib|hooks|public|styles|playwright)/|\.css$|playwright\.config\.ts$' \
+            || true)
+
+          if [ -n "$CHANGED" ]; then
+            echo "should-run-visual=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-visual=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Lighthouse audit scope
+        id: lighthouse
+        run: |
+          FULL_MATRIX='["mobile", "desktop", "tablet"]'
+          DESKTOP_ONLY='["desktop"]'
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-lighthouse=false" >> $GITHUB_OUTPUT
+            echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check E2E scope
+        id: e2e
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run-e2e=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-e2e=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Discover & Filter Test Files
+        id: tests
+        run: |
+          ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./.next/*" \
+            -not -path "./coverage/*" \
+            -not -path "./.git/*" \
+            | sed 's|^\./||' \
+            | sort)
+
+          mapfile -t ALL_FILES_ARRAY <<< "$ALL_TEST_FILES"
+          TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
+
+          IS_FULL_RUN=false
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            IS_FULL_RUN=true
+          fi
+
+          PASSING_TESTS_FILE=".test-cache/passing-tests.json"
+          if [ ! -f "$PASSING_TESTS_FILE" ]; then
+            IS_FULL_RUN=true
+          fi
+
+          CHANGED_FILES=$(cat changed_files.txt)
+          if [ "$CHANGED_FILES" = "ALL" ]; then
+            IS_FULL_RUN=true
+          fi
+
+          TEST_FILES_TO_RUN=""
+          if [ "$IS_FULL_RUN" = "true" ]; then
+            TEST_FILES_TO_RUN="$ALL_TEST_FILES"
+          else
+            for TEST_FILE in "${ALL_FILES_ARRAY[@]}"; do
+              SHOULD_RUN=false
+              if grep -Fxq "$TEST_FILE" changed_files.txt 2>/dev/null; then
+                SHOULD_RUN=true
+              fi
+              SOURCE_FILE=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.tsx|' | sed 's|\.test\.ts$|.ts|')
+              if grep -q "$SOURCE_FILE" changed_files.txt 2>/dev/null; then
+                SHOULD_RUN=true
+              fi
+              if [ "$SHOULD_RUN" = "false" ]; then
+                if [ -f "$TEST_FILE" ]; then
+                  FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                  CACHED_HASH=$(jq -r --arg file "$TEST_FILE" '.[$file] // ""' "$PASSING_TESTS_FILE")
+                  if [ "$FILE_HASH" != "$CACHED_HASH" ]; then
+                    SHOULD_RUN=true
+                  fi
+                fi
+              fi
+              if [ "$SHOULD_RUN" = "true" ]; then
+                TEST_FILES_TO_RUN="$TEST_FILES_TO_RUN $TEST_FILE"
+              fi
+            done
+          fi
+
+          TEST_FILES_TO_RUN=$(echo "$TEST_FILES_TO_RUN" | xargs)
+          if [ -z "$TEST_FILES_TO_RUN" ]; then
+            FILES_ARRAY=()
+          else
+            mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$' || true)"
+          fi
+
+          TOTAL_FILES=${#FILES_ARRAY[@]}
+          echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+          echo "is-full-run=$IS_FULL_RUN" >> $GITHUB_OUTPUT
+          if [ "$TOTAL_FILES" -gt 0 ]; then
+            echo "should-run-tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-tests=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$TOTAL_FILES" -eq 0 ]; then
+            echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
+            echo "files-to-test=" >> $GITHUB_OUTPUT
+          else
+            NUM_GROUPS=3
+            GROUP1_FILES=""; GROUP2_FILES=""; GROUP3_FILES=""
+            INDEX=0
+            for FILE in "${FILES_ARRAY[@]}"; do
+              GROUP_NUM=$(( (INDEX % NUM_GROUPS) + 1 ))
+              case $GROUP_NUM in
+                1) GROUP1_FILES="$GROUP1_FILES $FILE" ;;
+                2) GROUP2_FILES="$GROUP2_FILES $FILE" ;;
+                3) GROUP3_FILES="$GROUP3_FILES $FILE" ;;
+              esac
+              INDEX=$((INDEX + 1))
+            done
+            GROUP1_FILES=$(echo "$GROUP1_FILES" | xargs); GROUP2_FILES=$(echo "$GROUP2_FILES" | xargs); GROUP3_FILES=$(echo "$GROUP3_FILES" | xargs)
+            INCLUDE_ARRAY="["
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":1,\"is-first-group\":true,\"test-files\":$(echo "$GROUP1_FILES" | jq -R .)}"
+            [ -n "$GROUP2_FILES" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,{\"test-group\":2,\"is-first-group\":false,\"test-files\":$(echo "$GROUP2_FILES" | jq -R .)}"
+            [ -n "$GROUP3_FILES" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,{\"test-group\":3,\"is-first-group\":false,\"test-files\":$(echo "$GROUP3_FILES" | jq -R .)}"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY]"
+            echo "matrix={\"include\":$INCLUDE_ARRAY}" >> $GITHUB_OUTPUT
+            echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check deployment scope
+        id: deploy
+        run: |
+          IS_MAIN_BRANCH=$([[ "${{ github.ref }}" == "refs/heads/main" ]] && echo "true" || echo "false")
+          IS_PR=$([[ "${{ github.event_name }}" == "pull_request" ]] && echo "true" || echo "false")
+          
+          if [[ "$IS_PR" == "true" ]]; then
+            APP_CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" 2>/dev/null | grep -E '^(app|components|lib|hooks|public|styles|playwright|types|utils|supabase)/|\.css$|\.js$|\.tsx?$|package.*\.json|next\.config.*|tailwind\.config.*|Dockerfile|\.github/workflows' || true)
+          else
+            APP_CHANGED="true"
+          fi
+
+          RUN_DEPLOY_PREVIEW="false"
+          RUN_DEPLOY_PRODUCTION="false"
+          
+          if [[ "$IS_PR" == "true" && -n "$APP_CHANGED" ]]; then
+            RUN_DEPLOY_PREVIEW="true"
+          fi
+          
+          if [[ "$IS_MAIN_BRANCH" == "true" ]]; then
+            RUN_DEPLOY_PRODUCTION="true"
+          fi
+          
+          RUN_DOCKER="false"
+          if [[ "$RUN_DEPLOY_PREVIEW" == "true" || "$RUN_DEPLOY_PRODUCTION" == "true" || "${{ steps.e2e.outputs.should-run-e2e }}" == "true" || "${{ steps.visual.outputs.should-run-visual }}" == "true" ]]; then
+            RUN_DOCKER="true"
+          fi
+
+          echo "should-run-deploy-preview=$RUN_DEPLOY_PREVIEW" >> $GITHUB_OUTPUT
+          echo "should-run-deploy-production=$RUN_DEPLOY_PRODUCTION" >> $GITHUB_OUTPUT
+          echo "should-run-docker=$RUN_DOCKER" >> $GITHUB_OUTPUT
+
   # ─── Always runs on every PR ─────────────────────────────────────────────────
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    needs: check-runs
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,6 +292,7 @@ jobs:
   type-check:
     name: Type Check
     runs-on: ubuntu-latest
+    needs: check-runs
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,7 +314,8 @@ jobs:
   docker-build:
     name: Docker Build & Push
     runs-on: ubuntu-latest
-    needs: [lint, type-check, build-app]
+    needs: [lint, type-check, build-app, check-runs]
+    if: needs.check-runs.outputs.should-run-docker == 'true'
     outputs:
       start_time: ${{ steps.start-timer.outputs.start_time }}
     permissions:
@@ -391,304 +636,13 @@ jobs:
           docker push ${{ steps.image.outputs.full_name }}
           echo "✓ Image pushed successfully"
 
-  # ─── Detects which frontend quality jobs should run ─────────────────────────
-
-  check-runs:
-    name: Check Runs
-    runs-on: ubuntu-latest
-    needs: [lint, type-check, build-app]
-    timeout-minutes: 1
-    defaults:
-      run:
-        shell: bash
-    outputs:
-      should-run-visual: ${{ steps.visual.outputs.should-run-visual }}
-      should-run-lighthouse: ${{ steps.lighthouse.outputs.should-run-lighthouse }}
-      lighthouse-device-matrix: ${{ steps.lighthouse.outputs.device-matrix }}
-      should-run-tests: ${{ steps.tests.outputs.should-run-tests }}
-      test-matrix: ${{ steps.tests.outputs.matrix }}
-      test-total-files: ${{ steps.tests.outputs.total-files }}
-      test-files-to-test: ${{ steps.tests.outputs.files-to-test }}
-      test-is-full-run: ${{ steps.tests.outputs.is-full-run }}
-      should-run-e2e: ${{ steps.e2e.outputs.should-run-e2e }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get changed files
-        id: changed-files
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.sha }}"
-
-            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
-            fi
-          fi
-
-          if [ -n "$BASE_SHA" ]; then
-            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' || echo "")
-          else
-            CHANGED_FILES="ALL"
-          fi
-
-          echo "$CHANGED_FILES" > changed_files.txt
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "changed-count=0" >> $GITHUB_OUTPUT
-          else
-            echo "changed-count=$(echo "$CHANGED_FILES" | grep -c -v '^$' 2>/dev/null || echo 0)" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Check visual review scope
-        id: visual
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "should-run-visual=true" >> $GITHUB_OUTPUT
-            echo "Reason: Manual trigger - running visual review"
-            exit 0
-          fi
-
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "should-run-visual=false" >> $GITHUB_OUTPUT
-            echo "Reason: Visual review only runs on pull requests or manual dispatch"
-            exit 0
-          fi
-
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-
-          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E \
-            '^(app|components|lib|hooks|public|styles|playwright)/|\.css$|playwright\.config\.ts$' \
-            || true)
-
-          if [ -n "$CHANGED" ]; then
-            echo "Relevant files changed:"
-            echo "$CHANGED"
-            echo "should-run-visual=true" >> $GITHUB_OUTPUT
-          else
-            echo "No relevant files changed — skipping visual review"
-            echo "should-run-visual=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Check Lighthouse audit scope
-        id: lighthouse
-        run: |
-          FULL_MATRIX='["mobile", "desktop", "tablet"]'
-          DESKTOP_ONLY='["desktop"]'
-
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
-            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-            echo "Reason: Manual trigger - running Lighthouse on all devices"
-          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
-            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-            echo "Reason: Push to main - running Lighthouse on all devices"
-          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
-            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
-            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-            echo "Reason: PR opened/reopened - running Lighthouse on all devices"
-          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "synchronize" ]]; then
-            echo "should-run-lighthouse=false" >> $GITHUB_OUTPUT
-            echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
-            echo "Reason: PR synchronize - skipping Lighthouse because it already ran on PR open"
-          else
-            echo "should-run-lighthouse=false" >> $GITHUB_OUTPUT
-            echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
-            echo "Reason: Unhandled event - skipping Lighthouse"
-          fi
-
-      - name: Check E2E scope
-        id: e2e
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "should-run-e2e=true" >> $GITHUB_OUTPUT
-            echo "Reason: Running E2E tests for standard CI events"
-          else
-            echo "should-run-e2e=false" >> $GITHUB_OUTPUT
-            echo "Reason: Skipping E2E tests for unsupported event"
-          fi
-
-      - name: Discover & Filter Test Files
-        id: tests
-        run: |
-          ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
-            -not -path "./node_modules/*" \
-            -not -path "./.next/*" \
-            -not -path "./coverage/*" \
-            -not -path "./.git/*" \
-            | sed 's|^\./||' \
-            | sort)
-
-          mapfile -t ALL_FILES_ARRAY <<< "$ALL_TEST_FILES"
-          TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
-
-          echo "Found $TOTAL_ALL_FILES total test files"
-
-          IS_FULL_RUN=false
-          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            IS_FULL_RUN=true
-            echo "Main branch or manual trigger - running ALL tests"
-          fi
-
-          PASSING_TESTS_FILE=".test-cache/passing-tests.json"
-          if [ -f "$PASSING_TESTS_FILE" ]; then
-            echo "Found passing tests cache"
-            cat "$PASSING_TESTS_FILE" | head -20
-          else
-            echo "No passing tests cache found - will run all tests"
-            IS_FULL_RUN=true
-            mkdir -p .test-cache
-            echo '{}' > "$PASSING_TESTS_FILE"
-          fi
-
-          CHANGED_FILES=$(cat changed_files.txt)
-          if [ "$CHANGED_FILES" = "ALL" ]; then
-            echo "Cannot determine changed files - running all tests"
-            IS_FULL_RUN=true
-          fi
-
-          TEST_FILES_TO_RUN=""
-          SKIPPED_FILES=""
-
-          if [ "$IS_FULL_RUN" = "true" ]; then
-            TEST_FILES_TO_RUN="$ALL_TEST_FILES"
-            echo "Running all $TOTAL_ALL_FILES tests (full run)"
-          else
-            echo "Smart mode: checking which tests need to run..."
-
-            for TEST_FILE in "${ALL_FILES_ARRAY[@]}"; do
-              SHOULD_RUN=false
-
-              if grep -Fxq "$TEST_FILE" changed_files.txt 2>/dev/null; then
-                echo "  ✓ $TEST_FILE - changed directly"
-                SHOULD_RUN=true
-              fi
-
-              SOURCE_FILE=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.tsx|' | sed 's|\.test\.ts$|.ts|')
-              SOURCE_FILE_ALT=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.ts|')
-
-              if grep -q "$SOURCE_FILE" changed_files.txt 2>/dev/null || grep -q "$SOURCE_FILE_ALT" changed_files.txt 2>/dev/null; then
-                echo "  ✓ $TEST_FILE - related source changed"
-                SHOULD_RUN=true
-              fi
-
-              if [ "$SHOULD_RUN" = "false" ]; then
-                if [ -f "$TEST_FILE" ]; then
-                  FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
-                  CACHED_HASH=$(jq -r --arg file "$TEST_FILE" '.[$file] // ""' "$PASSING_TESTS_FILE")
-
-                  if [ "$FILE_HASH" = "$CACHED_HASH" ]; then
-                    echo "  ⏭ $TEST_FILE - cached as passing (skipping)"
-                    SKIPPED_FILES="$SKIPPED_FILES $TEST_FILE"
-                  else
-                    echo "  ✓ $TEST_FILE - content changed or not in cache"
-                    SHOULD_RUN=true
-                  fi
-                else
-                  SHOULD_RUN=true
-                fi
-              fi
-
-              if [ "$SHOULD_RUN" = "true" ]; then
-                TEST_FILES_TO_RUN="$TEST_FILES_TO_RUN $TEST_FILE"
-              fi
-            done
-          fi
-
-          TEST_FILES_TO_RUN=$(echo "$TEST_FILES_TO_RUN" | xargs)
-          if [ -z "$TEST_FILES_TO_RUN" ]; then
-            FILES_ARRAY=()
-          else
-            mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$' || true)"
-          fi
-
-          TOTAL_FILES=${#FILES_ARRAY[@]}
-          SKIPPED_COUNT=$(echo "$SKIPPED_FILES" | wc -w | xargs)
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📊 Test Summary:"
-          echo "   Total test files:  $TOTAL_ALL_FILES"
-          echo "   Skipped (cached):  $SKIPPED_COUNT"
-          echo "   Running:           $TOTAL_FILES"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
-          echo "is-full-run=$IS_FULL_RUN" >> $GITHUB_OUTPUT
-          if [ "$TOTAL_FILES" -gt 0 ]; then
-            echo "should-run-tests=true" >> $GITHUB_OUTPUT
-          else
-            echo "should-run-tests=false" >> $GITHUB_OUTPUT
-          fi
-
-          if [ "$TOTAL_FILES" -eq 0 ]; then
-            echo "No tests to run!"
-            echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
-            echo "files-to-test=" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          NUM_GROUPS=3
-          GROUP1_FILES=""
-          GROUP2_FILES=""
-          GROUP3_FILES=""
-
-          INDEX=0
-          for FILE in "${FILES_ARRAY[@]}"; do
-            if [ -n "$FILE" ]; then
-              GROUP_NUM=$(( (INDEX % NUM_GROUPS) + 1 ))
-              case $GROUP_NUM in
-                1) GROUP1_FILES="$GROUP1_FILES $FILE" ;;
-                2) GROUP2_FILES="$GROUP2_FILES $FILE" ;;
-                3) GROUP3_FILES="$GROUP3_FILES $FILE" ;;
-              esac
-              INDEX=$((INDEX + 1))
-            fi
-          done
-
-          GROUP1_FILES=$(echo "$GROUP1_FILES" | xargs)
-          GROUP2_FILES=$(echo "$GROUP2_FILES" | xargs)
-          GROUP3_FILES=$(echo "$GROUP3_FILES" | xargs)
-
-          INCLUDE_ARRAY="["
-          FIRST=true
-
-          if [ -n "$GROUP1_FILES" ]; then
-            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
-            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":1,\"is-first-group\":true,\"test-files\":$(echo "$GROUP1_FILES" | jq -R .)}"
-            FIRST=false
-          fi
-
-          if [ -n "$GROUP2_FILES" ]; then
-            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
-            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":2,\"is-first-group\":false,\"test-files\":$(echo "$GROUP2_FILES" | jq -R .)}"
-            FIRST=false
-          fi
-
-          if [ -n "$GROUP3_FILES" ]; then
-            [ "$FIRST" = "false" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,"
-            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":3,\"is-first-group\":false,\"test-files\":$(echo "$GROUP3_FILES" | jq -R .)}"
-            FIRST=false
-          fi
-
-          INCLUDE_ARRAY="$INCLUDE_ARRAY]"
-          MATRIX_JSON="{\"include\":$INCLUDE_ARRAY}"
-
-          echo "matrix=$(echo "$MATRIX_JSON" | jq -c .)" >> $GITHUB_OUTPUT
-          echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
-
   # ─── Only runs when UI files changed ─────────────────────────────────────────
 
   build-app:
     name: Build Application
     runs-on: ubuntu-latest
+    needs: check-runs
+    if: needs.check-runs.outputs.should-run-tests == 'true' || needs.check-runs.outputs.should-run-docker == 'true' || needs.check-runs.outputs.should-run-lighthouse == 'true'
     outputs:
       build-cache-key: ${{ steps.build-key.outputs.key }}
     steps:
@@ -1860,8 +1814,8 @@ jobs:
   deploy-preview:
     name: Deploy Preview
     runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.event_name == 'pull_request'
+    needs: [docker-build, check-runs]
+    if: needs.check-runs.outputs.should-run-deploy-preview == 'true'
     permissions:
       contents: read
       pull-requests: write
@@ -1973,8 +1927,8 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.ref == 'refs/heads/main'
+    needs: [docker-build, check-runs]
+    if: needs.check-runs.outputs.should-run-deploy-production == 'true'
     permissions:
       contents: read
       id-token: write
