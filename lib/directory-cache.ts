@@ -713,6 +713,9 @@ export class DirectoryCacheManager {
   }
 
   private loadNavigationPatterns(): void {
+    // Guard against SSR - localStorage is not available on the server
+    if (typeof window === 'undefined') return;
+    
     try {
       const stored = localStorage.getItem(NAVIGATION_PATTERNS_KEY)
       if (stored) {
@@ -728,6 +731,9 @@ export class DirectoryCacheManager {
   }
 
   private saveNavigationPatterns(): void {
+    // Guard against SSR - localStorage is not available on the server
+    if (typeof window === 'undefined') return;
+    
     try {
       const patterns = Array.from(this.navigationPatterns.entries())
       localStorage.setItem(NAVIGATION_PATTERNS_KEY, JSON.stringify(patterns))
