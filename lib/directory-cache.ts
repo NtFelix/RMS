@@ -720,8 +720,8 @@ export class DirectoryCacheManager {
       const stored = localStorage.getItem(NAVIGATION_PATTERNS_KEY)
       if (stored) {
         const patterns = JSON.parse(stored)
-        // Validate that patterns is an array before creating Map
-        if (Array.isArray(patterns)) {
+        // Validate that patterns is an array and each entry is a valid key-value pair
+        if (Array.isArray(patterns) && patterns.every(p => Array.isArray(p) && p.length === 2)) {
           this.navigationPatterns = new Map(patterns)
         }
       }
