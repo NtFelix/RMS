@@ -10,6 +10,12 @@ When writing a git commit message, you MUST follow the Conventional Commits spec
 ## Format
 `<type>[optional scope]: <description>`
 
+## Important Rule
+**NEVER use the `@` symbol in the description or scope unless you explicitly intend to mention a user.**
+- **Incorrect:** `fix: move @utility out of @layer`
+- **Correct:** `fix: move utility out of layer`
+- **Reason:** This prevents accidental user tags in notification systems like GitHub, Discord, or Slack.
+
 ## Allowed Types
 - **feat**: A new feature
 - **fix**: A bug fix
