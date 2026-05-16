@@ -122,25 +122,24 @@ export function OccupancyChart() {
       <CardContent className="flex-1 p-2 min-h-0" ref={containerRef}>
         <ChartContainer
           className="w-full h-full"
+          minHeight={300}
           config={{
             vermietet: { label: "Vermietet", color: "hsl(var(--chart-1))" },
             frei: { label: "Frei", color: "hsl(var(--chart-3))" },
           }}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={occupancyData}
-              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 9 }} />
-              <YAxis tick={{ fontSize: 9 }} width={25} tickCount={tickCount} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend wrapperStyle={{ fontSize: 9 }} />
-              <Line type="monotone" dataKey="vermietet" stroke="var(--color-vermietet)" strokeWidth={2} />
-              <Line type="monotone" dataKey="frei" stroke="var(--chart-3)" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+          <LineChart
+            data={occupancyData}
+            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+            <YAxis tick={{ fontSize: 9 }} width={25} tickCount={tickCount} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Legend wrapperStyle={{ fontSize: 9 }} />
+            <Line type="monotone" dataKey="vermietet" stroke="var(--color-vermietet)" strokeWidth={2} />
+            <Line type="monotone" dataKey="frei" stroke="var(--chart-3)" strokeWidth={2} />
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>

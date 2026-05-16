@@ -367,17 +367,16 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           color: "hsl(var(--chart-1))",
                         },
                       }}
+                      minHeight={400}
                     >
-                      <ResponsiveContainer width="100%" aspect={16 / 9}>
-                        <LineChart data={displayData.monthlyIncome}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend />
-                          <Line type="monotone" dataKey="einnahmen" stroke="var(--color-einnahmen)" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <LineChart data={displayData.monthlyIncome}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Line type="monotone" dataKey="einnahmen" stroke="var(--color-einnahmen)" strokeWidth={2} />
+                      </LineChart>
                     </ChartContainer>
                   </div>
                 </CardContent>
@@ -409,18 +408,17 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           color: "hsl(var(--chart-2))",
                         },
                       }}
+                      minHeight={400}
                     >
-                      <ResponsiveContainer width="100%" aspect={16 / 9}>
-                        <BarChart data={displayData.incomeExpenseRatio}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend />
-                          <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-                          <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <BarChart data={displayData.incomeExpenseRatio}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
+                        <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
+                      </BarChart>
                     </ChartContainer>
                   </div>
                 </CardContent>
