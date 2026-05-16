@@ -7,14 +7,20 @@ import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, Maximize2 } from "lu
 import { useTenantPayments } from "@/hooks/use-tenant-payments"
 import { TenantBentoItem } from "@/types/tenant-payment"
 
-export function TenantPaymentBento() {
+interface TenantPaymentBentoProps {
+  initialTenantsData?: any[]
+}
+
+const currencyFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+
+export function TenantPaymentBento({ initialTenantsData }: TenantPaymentBentoProps) {
   const {
     data,
     loading,
     updatingStatus,
     fetchData,
     toggleRentPayment
-  } = useTenantPayments()
+  } = useTenantPayments(initialTenantsData)
 
   const { openTenantPaymentEditModal, openTenantPaymentOverviewModal } = useModalStore()
 
@@ -25,13 +31,15 @@ export function TenantPaymentBento() {
     return rentDiffers || nebenkostenDiffers
   }
 
-  // Initial data load
+  // Initial data load - only if no initial data was provided
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    if (!initialTenantsData) {
+      fetchData()
+    }
+  }, [fetchData, initialTenantsData])
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+    <Card className="h-full flex flex-col overflow-hidden bg-zinc-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
       <CardHeader className="flex-shrink-0 pb-2">
         <div className="flex items-center justify-between">
           <div>
@@ -44,14 +52,14 @@ export function TenantPaymentBento() {
             onClick={() => openTenantPaymentOverviewModal()}
             title="Maximieren"
           >
-            <Maximize2 className="h-4 w-4" />
+            <Maximize2 className="size-4" />
           </button>
         </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+            <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -71,24 +79,24 @@ export function TenantPaymentBento() {
                     {/* Left side: Tenant name and apartment */}
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1 font-semibold text-foreground">
-                        <User className="h-3.5 w-3.5" />
+                        <User className="size-3.5" />
                         <span>{tenant.tenant}</span>
                       </div>
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Home className="h-3.5 w-3.5" />
+                        <Home className="size-3.5" />
                         <span>{tenant.apartment}</span>
                       </div>
 
                       {/* Missed payments history */}
                       {(tenant.missedPayments.rentMonths > 0 || tenant.missedPayments.nebenkostenMonths > 0) && (
                         <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
-                          <AlertCircle className="h-3 w-3" />
+                          <AlertCircle className="size-3" />
                           <span>
                             {[
                               tenant.missedPayments.rentMonths > 0 ? `${tenant.missedPayments.rentMonths} Miete` : null,
                               tenant.missedPayments.nebenkostenMonths > 0 ? `${tenant.missedPayments.nebenkostenMonths} NK` : null
                             ].filter(Boolean).join(', ')} ausstehend
-                            {' '}({new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.missedPayments.totalAmount)})
+                            {' '}({currencyFormatter.format(tenant.missedPayments.totalAmount)})
                           </span>
                         </div>
                       )}
@@ -101,16 +109,16 @@ export function TenantPaymentBento() {
                         hasDifferentPayments(tenant) ? 'text-orange-600 dark:text-orange-400' :
                           'text-green-600 dark:text-green-400'
                         }`}>
-                        <Tag className="h-3 w-3" />
+                        <Tag className="size-3" />
                         {tenant.actualRent && tenant.actualRent !== tenant.mieteRaw ? (
                           <div className="flex items-center gap-1">
                             <span className="line-through text-sm opacity-60">
-                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}
+                              {currencyFormatter.format(tenant.mieteRaw)}
                             </span>
-                            <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.actualRent)}</span>
+                            <span>{currencyFormatter.format(tenant.actualRent)}</span>
                           </div>
                         ) : (
-                          <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
+                          <span>{currencyFormatter.format(tenant.mieteRaw)}</span>
                         )}
                       </div>
 
@@ -120,16 +128,16 @@ export function TenantPaymentBento() {
                           hasDifferentPayments(tenant) ? 'text-orange-600/70 dark:text-orange-400/70' :
                             'text-green-600/70 dark:text-green-400/70'
                           }`}>
-                          <Wrench className="h-2.5 w-2.5" />
+                          <Wrench className="size-2.5" />
                           {tenant.actualNebenkosten && tenant.actualNebenkosten !== tenant.nebenkostenRaw ? (
                             <div className="flex items-center gap-1">
                               <span className="line-through opacity-60">
-                                NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.nebenkostenRaw)}
+                                NK: {currencyFormatter.format(tenant.nebenkostenRaw)}
                               </span>
-                              <span>NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.actualNebenkosten)}</span>
+                              <span>NK: {currencyFormatter.format(tenant.actualNebenkosten)}</span>
                             </div>
                           ) : (
-                            <span>NK: {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.nebenkostenRaw)}</span>
+                            <span>NK: {currencyFormatter.format(tenant.nebenkostenRaw)}</span>
                           )}
                         </div>
                       )}
@@ -141,7 +149,7 @@ export function TenantPaymentBento() {
                     {/* Anpassen button (left) */}
                     <button
                       type="button"
-                      className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
+                      className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-zinc-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
                       disabled={updatingStatus === tenant.id}
                       onClick={() => openTenantPaymentEditModal({
                         id: tenant.id,
@@ -153,7 +161,7 @@ export function TenantPaymentBento() {
                         einzug: tenant.einzug
                       }, fetchData)}
                     >
-                      <Edit className="h-3 w-3" />
+                      <Edit className="size-3" />
                       Anpassen
                     </button>
 
@@ -173,12 +181,12 @@ export function TenantPaymentBento() {
                     >
                       {updatingStatus === tenant.id ? (
                         <>
-                          <div className="animate-spin rounded-full h-3 w-3 border-t border-b border-current"></div>
-                          Aktualisiere...
+                          <div className="animate-spin rounded-full size-3 border-t border-b border-current"></div>
+                          Aktualisiere…
                         </>
                       ) : (
                         <>
-                          <Check className="h-3 w-3" />
+                          <Check className="size-3" />
                           {tenant.paid ? 'Bezahlt' : 'Unbezahlt'}
                         </>
                       )}

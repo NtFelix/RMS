@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Template, TemplatePayload } from '@/types/template';
 import { TemplateService, OptimisticTemplateService, UseTemplatesOptions } from '@/lib/template-service';
 import { toast } from '@/hooks/use-toast';
@@ -146,29 +146,38 @@ export function useTemplates(): UseTemplatesReturn {
 /**
  * Hook for template filtering and searching
  */
-export function useTemplateFilters(templates: Template[]) {
+export function useTemplateFilters(templates: Template[], initialCategory: string = 'all') {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
 
-  const filteredTemplates = templates.filter(template => {
-    const matchesSearch = !searchQuery || 
-      template.titel.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = !selectedCategory || selectedCategory === 'all' || 
-      template.kategorie === selectedCategory;
+  // Sync with initialCategory prop if it changes
+  useEffect(() => {
+    setSelectedCategory(initialCategory);
+  }, [initialCategory]);
 
-    return matchesSearch && matchesCategory;
-  });
+  const filteredTemplates = useMemo(() => {
+    return templates.filter(template => {
+      const matchesSearch = !searchQuery || 
+        template.titel.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesCategory = !selectedCategory || selectedCategory === 'all' || 
+        template.kategorie === selectedCategory;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [templates, searchQuery, selectedCategory]);
 
   // Group templates by category
-  const groupedTemplates = filteredTemplates.reduce((groups, template) => {
-    const category = template.kategorie;
-    if (!groups[category]) {
-      groups[category] = [];
-    }
-    groups[category].push(template);
-    return groups;
-  }, {} as Record<string, Template[]>);
+  const groupedTemplates = useMemo(() => {
+    return filteredTemplates.reduce((groups, template) => {
+      const category = template.kategorie;
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(template);
+      return groups;
+    }, {} as Record<string, Template[]>);
+  }, [filteredTemplates]);
 
   return {
     searchQuery,

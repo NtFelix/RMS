@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { LogOut, Settings, FileText } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { m, AnimatePresence, LazyMotion, domAnimation } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
 
 import { useUserProfile } from "@/hooks/use-user-profile"
@@ -16,7 +16,18 @@ import { ARIA_LABELS } from "@/lib/accessibility-constants"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { SettingsModal } from "@/components/modals/settings-modal"
+import dynamic from "next/dynamic"
+
+const SettingsModal = dynamic(
+  () => import("@/components/modals/settings-modal").then((mod) => mod.SettingsModal),
+  { ssr: false }
+)
+
+const TemplatesModal = dynamic(
+  () => import("@/components/templates/templates-modal").then((mod) => mod.TemplatesModal),
+  { ssr: false }
+)
+
 import { SidebarUserData } from "@/lib/server/user-data"
 import {
   CustomDropdown,
@@ -36,14 +47,18 @@ export function UserSettings({
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
   const [openModal, setOpenModal] = useState(false)
-  const { openTemplatesModal } = useModalStore()
+  const { 
+    openTemplatesModal, 
+    isTemplatesModalOpen, 
+    closeTemplatesModal, 
+    templatesModalInitialCategory 
+  } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   // Use custom hooks for data fetching
   const {
     user,
     userName,
-    userEmail,
     userInitials,
     isLoading: isLoadingUser
   } = useUserProfile(initialData)
@@ -73,8 +88,6 @@ export function UserSettings({
       }
 
       // Perform cleanup API calls
-      // We use allSettled to ensure we wait for them to finish (success or fail)
-      // before navigating away, which prevents ECONNRESET on the server
       await Promise.allSettled([
         fetch('/api/auth/logout', {
           method: 'POST',
@@ -98,7 +111,7 @@ export function UserSettings({
   }
 
   return (
-    <>
+    <LazyMotion features={domAnimation}>
       <CustomDropdown
         align={collapsed ? "start" : "end"}
         className="w-56"
@@ -106,17 +119,17 @@ export function UserSettings({
           <div
             className={cn(
               "flex items-center hover:bg-white hover:text-gray-900 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md dark:hover:bg-gray-800 dark:hover:text-gray-100",
-              collapsed ? "justify-center rounded-full p-0 h-10 w-10 mx-auto" : "space-x-3 px-3 py-2 rounded-xl"
+              collapsed ? "justify-center rounded-full p-0 size-10 mx-auto" : "space-x-3 px-3 py-2 rounded-xl"
             )}
             aria-label="User menu"
           >
-            <Avatar className="h-10 w-10">
+            <Avatar className="size-10">
               <AvatarFallback className="bg-accent text-accent-foreground">
                 {isLoadingUser ? "" : userInitials}
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
@@ -124,7 +137,7 @@ export function UserSettings({
                 className="flex flex-col flex-1 text-left min-w-0 overflow-hidden"
               >
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                  {isLoadingUser ? "Lade..." : userName}
+                  {isLoadingUser ? "Lade…" : userName}
                 </span>
                 {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && apartmentLimit !== Infinity && (
                   <div className="flex flex-col gap-1 mt-1">
@@ -147,7 +160,7 @@ export function UserSettings({
                     <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             )}
           </div>
         }
@@ -159,12 +172,12 @@ export function UserSettings({
             onClick={() => openTemplatesModal()}
             aria-label={ARIA_LABELS.templatesModal}
           >
-            <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+            <FileText className="mr-2 size-4" aria-hidden="true" />
             <span>Vorlagen</span>
           </CustomDropdownItem>
         )}
         <CustomDropdownItem onClick={() => setOpenModal(true)}>
-          <Settings className="mr-2 h-4 w-4" />
+          <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>
         <CustomDropdownSeparator />
@@ -172,11 +185,18 @@ export function UserSettings({
           onClick={handleLogout}
           disabled={isLoadingLogout}
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
+          <LogOut className="mr-2 size-4" />
+          <span>{isLoadingLogout ? "Wird abgemeldet…" : "Abmelden"}</span>
         </CustomDropdownItem>
       </CustomDropdown>
       <SettingsModal open={openModal} onOpenChange={setOpenModal} />
-    </>
+      {isTemplatesModalOpen && (
+        <TemplatesModal 
+          isOpen={isTemplatesModalOpen} 
+          onClose={closeTemplatesModal} 
+          initialCategory={templatesModalInitialCategory}
+        />
+      )}
+    </LazyMotion>
   )
 }

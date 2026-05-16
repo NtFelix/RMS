@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { isTestEnv } from "./test-utils";
+import { cache } from "react";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -48,7 +49,7 @@ import type {
 } from "./types";
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-export async function fetchHaeuser() {
+export const fetchHaeuser = cache(async () => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Haeuser")
@@ -60,9 +61,9 @@ export async function fetchHaeuser() {
   }
 
   return data as Haus[];
-}
+});
 
-export async function fetchWohnungen() {
+export const fetchWohnungen = cache(async () => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Wohnungen")
@@ -74,9 +75,9 @@ export async function fetchWohnungen() {
   }
 
   return data as Wohnung[];
-}
+});
 
-export async function fetchMieter() {
+export const fetchMieter = cache(async () => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Mieter")
@@ -88,9 +89,9 @@ export async function fetchMieter() {
   }
 
   return data as Mieter[];
-}
+});
 
-export async function fetchAufgaben() {
+export const fetchAufgaben = cache(async () => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Aufgaben")
@@ -103,9 +104,9 @@ export async function fetchAufgaben() {
   }
 
   return data as Aufgabe[];
-}
+});
 
-export async function fetchFinanzen() {
+export const fetchFinanzen = cache(async () => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Finanzen")
@@ -117,9 +118,9 @@ export async function fetchFinanzen() {
   }
 
   return data as Finanzen[];
-}
+});
 
-export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
+export const fetchNebenkosten = cache(async (year?: string): Promise<Nebenkosten[]> => {
   const supabase = createSupabaseServerClient();
   let query = supabase.from("Nebenkosten").select('*');
 
@@ -140,9 +141,9 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   }
 
   return data as Nebenkosten[];
-}
+});
 
-export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
+export const getNebenkostenChartData = cache(async (): Promise<NebenkostenChartData> => {
   const supabase = createSupabaseServerClient();
 
   // First, get the most recent year with data
@@ -205,7 +206,7 @@ export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
     year: latestYear,
     data: formattedData
   };
-}
+});
 
 // getHausGesamtFlaeche function removed - replaced by get_nebenkosten_with_metrics database function
 // This eliminates O(n) database calls and improves performance significantly
@@ -216,7 +217,7 @@ export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
 // fetchNebenkostenDetailsById function removed - replaced by optimized database functions
 // Use getAbrechnungModalDataAction or similar optimized functions instead
 
-export async function fetchFinanzenByMonth() {
+export const fetchFinanzenByMonth = cache(async () => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Finanzen")
@@ -254,9 +255,189 @@ export async function fetchFinanzenByMonth() {
 
   // Convert to array and sort by month
   return Object.values(monthlyData).slice(-12);
+});
+
+export const fetchExpensesByCategory = cache(async () => {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("Finanzen")
+    .select('*')
+    .eq("ist_einnahmen", false)
+    .order("datum", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching expenses by category:", error);
+    return [];
+  }
+
+  const categories = {
+    instandhaltung: 0,
+    reparatur: 0,
+    steuern: 0,
+    sonstige: 0,
+  };
+
+  (data as Finanzen[]).forEach((item) => {
+    const name = item.name?.toLowerCase() || "";
+    const betrag = Number(item.betrag) || 0;
+
+    if (name.includes("instandhaltung") || name.includes("wartung") || name.includes("pflege")) {
+      categories.instandhaltung += betrag;
+    } else if (name.includes("reparatur") || name.includes("reparieren") || name.includes("defekt")) {
+      categories.reparatur += betrag;
+    } else if (name.includes("steuer") || name.includes("abgabe") || name.includes("gebühr")) {
+      categories.steuern += betrag;
+    } else {
+      categories.sonstige += betrag;
+    }
+  });
+
+  const formattedData = [
+    { name: "Instandhaltung", value: categories.instandhaltung },
+    { name: "Reparatur", value: categories.reparatur },
+    { name: "Steuern", value: categories.steuern },
+    { name: "Sonstige", value: categories.sonstige },
+  ].filter(item => item.value > 0);
+
+  return formattedData.length > 0 ? formattedData : [{ name: "Keine Daten", value: 1 }];
+});
+
+export const fetchLastTransactions = cache(async (limit = 8) => {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("Finanzen")
+    .select(`
+      id,
+      name,
+      datum,
+      betrag,
+      ist_einnahmen,
+      Wohnungen ( name )
+    `)
+    .order("datum", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching last transactions:", error);
+    return [];
+  }
+
+  return (data || []).map(item => ({
+    id: item.id,
+    name: item.name || 'Unbenannte Transaktion',
+    datum: item.datum || new Date().toISOString(),
+    betrag: Number(item.betrag) || 0,
+    ist_einnahmen: Boolean(item.ist_einnahmen),
+    wohnung_name: (item.Wohnungen as any)?.[0]?.name || null,
+  }));
+});
+
+import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
+import { PAYMENT_KEYWORDS } from "@/utils/constants"
+
+export const fetchTenantsDataForBento = cache(async () => {
+  const supabase = createSupabaseServerClient();
+  
+  // Try optimized RPC first
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "fetch_tenant_payment_dashboard_data"
+    )
+
+    if (!rpcError && rpcData) {
+      return processTenantsData(rpcData.tenants || [], rpcData.finances || []);
+    }
+  } catch (rpcException) {
+    console.error("RPC call threw exception in fetchTenantsDataForBento", rpcException);
+  }
+
+  // Fallback
+  const { data: tenants, error: tenantsError } = await supabase
+    .from("Mieter")
+    .select(`
+      *,
+      Wohnungen (
+        id,
+        name,
+        miete,
+        groesse,
+        haus_id,
+        Haeuser (
+          id,
+          name
+        )
+      )
+    `)
+    .order("name")
+
+  if (tenantsError) {
+    console.error("Error fetching tenants for bento:", tenantsError);
+    return [];
+  }
+
+  const { data: finances, error: financesError } = await supabase
+    .from("Finanzen")
+    .select("*")
+    .eq("ist_einnahmen", true)
+    .order("datum", { ascending: false })
+
+  if (financesError) {
+    console.error("Error fetching finances for bento:", financesError);
+    return [];
+  }
+
+  return processTenantsData(tenants || [], finances || []);
+});
+
+function processTenantsData(tenantsData: any[], financesData: any[]) {
+  // Group finances by wohnung_id for O(1) lookup
+  const financesByWohnungId = new Map<string, any[]>();
+  for (const finance of financesData) {
+    if (finance.wohnung_id) {
+      const group = financesByWohnungId.get(finance.wohnung_id) || [];
+      group.push(finance);
+      financesByWohnungId.set(finance.wohnung_id, group);
+    }
+  }
+
+  // Calculate current month range for payment status
+  const currentDate = new Date()
+  const currentMonth = currentDate.getMonth() + 1
+  const currentYear = currentDate.getFullYear()
+  const currentMonthStart = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
+  const currentMonthEnd = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+
+  return tenantsData.map(tenant => {
+    const tenantId = tenant.wohnung_id || tenant.Wohnungen?.id;
+    const tenantFinances = tenantId ? (financesByWohnungId.get(tenantId) || []) : [];
+
+    const missedPayments = calculateMissedPayments(tenant, tenantFinances)
+
+    const currentMonthFinances = tenantFinances.filter((f: any) =>
+      f.datum && f.datum >= currentMonthStart && f.datum <= currentMonthEnd
+    )
+
+    const actualRent = currentMonthFinances
+      .filter((f: any) => f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.RENT))
+      .reduce((sum: number, f: any) => sum + (f.betrag || 0), 0)
+
+    const actualNebenkosten = currentMonthFinances
+      .filter((f: any) => f.name?.toLowerCase().includes(PAYMENT_KEYWORDS.NEBENKOSTEN))
+      .reduce((sum: number, f: any) => sum + (f.betrag || 0), 0)
+
+    const paid = actualRent > 0 || actualNebenkosten > 0
+
+    return {
+      ...tenant,
+      missedPayments,
+      actualRent,
+      actualNebenkosten,
+      paid
+    }
+  })
 }
 
-export async function getMietstatistik() {
+export const getMietstatistik = cache(async () => {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
 
@@ -284,9 +465,9 @@ export async function getMietstatistik() {
   }
 
   return monthsData;
-}
+});
 
-export async function getDashboardSummary() {
+export const getDashboardSummary = cache(async () => {
   const haeuser = await fetchHaeuser();
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
@@ -317,7 +498,7 @@ export async function getDashboardSummary() {
     jaehrlicheAusgaben,
     offeneAufgabenCount: aufgaben.length
   };
-}
+});
 
 // Make sure Profile type is defined if you use it, or adjust return types
 // For example:
@@ -331,7 +512,7 @@ type Profile = {
   stripe_current_period_end?: string | null; // Consider Date type if you parse it
 };
 
-export async function fetchUserProfile(): Promise<Profile | null> {
+export const fetchUserProfile = cache(async (): Promise<Profile | null> => {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -400,7 +581,7 @@ export async function fetchUserProfile(): Promise<Profile | null> {
   };
 
   return finalProfile;
-}
+});
 
 // Wasserzaehler type is defined earlier in the file (line ~132)
 
@@ -412,14 +593,14 @@ export async function fetchUserProfile(): Promise<Profile | null> {
  * @param year The year to fetch data for (e.g., '2024')
  * @returns Object containing mieter list and existing readings for the specified house and year
  */
-export async function fetchMeterReadingsByHausAndYear(
+export const fetchMeterReadingsByHausAndYear = cache(async (
   hausId: string,
   year: string
-): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> => {
   const startdatum = `${year}-01-01`;
   const enddatum = `${year}-12-31`;
   return fetchMeterReadingsByHausAndDateRange(hausId, startdatum, enddatum);
-}
+});
 
 // Backward compatibility alias
 export const fetchWasserzaehlerByHausAndYear = fetchMeterReadingsByHausAndYear;
@@ -431,11 +612,11 @@ export const fetchWasserzaehlerByHausAndYear = fetchMeterReadingsByHausAndYear;
  * @param enddatum The end date of the billing period (YYYY-MM-DD)
  * @returns Object containing mieter list and existing readings for the specified house and date range
  */
-export async function fetchMeterReadingsByHausAndDateRange(
+export const fetchMeterReadingsByHausAndDateRange = cache(async (
   hausId: string,
   startdatum: string,
   enddatum: string
-): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> => {
   const supabase = createSupabaseServerClient();
 
   try {
@@ -523,7 +704,7 @@ export async function fetchMeterReadingsByHausAndDateRange(
     console.error('Unexpected error in fetchMeterReadingsByHausAndDateRange:', error);
     return { mieterList: [], existingReadings: [] };
   }
-}
+});
 
 // Backward compatibility alias
 export const fetchWasserzaehlerByHausAndDateRange = fetchMeterReadingsByHausAndDateRange;
@@ -533,7 +714,7 @@ export const fetchWasserzaehlerByHausAndDateRange = fetchMeterReadingsByHausAndD
  * @param nebenkostenId The ID of the Nebenkosten entry
  * @returns Object containing mieter list and existing readings for the specified Nebenkosten
  */
-export async function fetchMeterReadingsModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+export const fetchMeterReadingsModalData = cache(async (nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> => {
   const supabase = createSupabaseServerClient();
 
   try {
@@ -568,7 +749,7 @@ export async function fetchMeterReadingsModalData(nebenkostenId: string): Promis
     console.error('Unexpected error in fetchMeterReadingsModalData:', error);
     return { mieterList: [], existingReadings: [] };
   }
-}
+});
 
 // Backward compatibility alias
 export const fetchWasserzaehlerModalData = fetchMeterReadingsModalData;
@@ -576,7 +757,7 @@ export const fetchWasserzaehlerModalData = fetchMeterReadingsModalData;
 // getAbrechnungModalData function removed - replaced by getAbrechnungModalDataAction in betriebskosten-actions.ts
 // The optimized version uses get_abrechnung_modal_data database function for better performance
 
-export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, userId: string): Promise<number> {
+export const getCurrentWohnungenCount = cache(async (supabaseClient: SupabaseClient, userId: string): Promise<number> => {
   if (!userId) {
     console.error("getCurrentWohnungenCount: userId is required");
     return 0;
@@ -598,4 +779,4 @@ export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, u
     console.error("Unexpected error in getCurrentWohnungenCount:", error);
     return 0;
   }
-}
+});

@@ -2,7 +2,6 @@
 import React, { useEffect, useReducer } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import dynamic from "next/dynamic";
-import { createClient } from "@/utils/supabase/client";
 
 // Dynamically import Recharts components to reduce bundle size
 const PieChart = dynamic(() => import("recharts").then((mod) => mod.PieChart), { ssr: false });
@@ -11,19 +10,6 @@ const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), { ssr: fa
 const Legend = dynamic(() => import("recharts").then((mod) => mod.Legend), { ssr: false });
 const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), { ssr: false });
 const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
-
-type FinanzDaten = {
-  id: string;
-  name: string | null;
-  betrag: string | number | null;
-  ist_einnahmen: boolean;
-  datum: string | null;
-  wohnung_id: string | null;
-  notiz?: string | null;
-  kategorie?: string | null;
-  created_at?: string;
-  updated_at?: string;
-};
 
 const COLORS = ["#34d399", "#f59e42", "#818cf8", "#f87171"];
 
@@ -38,7 +24,7 @@ type MaintenanceData = {
   value: number;
 };
 
-const initialData: MaintenanceData[] = [
+const initialDataPlaceholder: MaintenanceData[] = [
   { name: "Instandhaltung", value: 0 },
   { name: "Reparatur", value: 0 },
   { name: "Steuern", value: 0 },
@@ -90,111 +76,37 @@ function chartReducer(state: ChartState, action: ChartAction): ChartState {
   }
 }
 
-export function MaintenanceDonutChart() {
+interface MaintenanceDonutChartProps {
+  initialData?: MaintenanceData[];
+}
+
+export function MaintenanceDonutChart({ initialData }: MaintenanceDonutChartProps) {
+  // Derive state from props if available to avoid unnecessary re-renders via useEffect
   const [state, dispatch] = useReducer(chartReducer, {
-    data: initialData,
-    loading: true,
+    data: initialData || initialDataPlaceholder,
+    loading: !initialData,
   });
 
-  useEffect(() => {
-    const fetchMaintenanceData = async () => {
-      const supabase = createClient();
-      
-      try {
-        // Fetch ALL finance data without limits - expenses only
-        let allFinanzenData: FinanzDaten[] = [];
-        let page = 0;
-        const pageSize = 5000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from("Finanzen")
-            .select("*")
-            .eq("ist_einnahmen", false) // Only expenses
-            .order("datum", { ascending: false })
-            .range(page * pageSize, (page + 1) * pageSize - 1);
-
-          if (error) {
-            console.error("Error fetching maintenance data:", error);
-            dispatch({ type: 'FETCH_ERROR' });
-            return;
-          }
-
-          if (data && data.length > 0) {
-            allFinanzenData = [...allFinanzenData, ...data];
-            page++;
-            if (data.length < pageSize) {
-              hasMore = false;
-            }
-          } else {
-            hasMore = false;
-          }
-        }
-
-        // Categorize expenses based on keywords in the name
-        const categories = {
-          instandhaltung: 0,
-          reparatur: 0,
-          steuern: 0,
-          sonstige: 0,
-        };
-
-        allFinanzenData.forEach((item) => {
-          const name = item.name?.toLowerCase() || "";
-          const betrag = Number(item.betrag) || 0;
-
-          if (name.includes("instandhaltung") || name.includes("wartung") || name.includes("pflege")) {
-            categories.instandhaltung += betrag;
-          } else if (name.includes("reparatur") || name.includes("reparieren") || name.includes("defekt")) {
-            categories.reparatur += betrag;
-          } else if (name.includes("steuer") || name.includes("abgabe") || name.includes("gebühr")) {
-            categories.steuern += betrag;
-          } else {
-            categories.sonstige += betrag;
-          }
-        });
-
-        // Format data for the chart
-        const formattedData: MaintenanceData[] = [
-          { name: "Instandhaltung", value: categories.instandhaltung },
-          { name: "Reparatur", value: categories.reparatur },
-          { name: "Steuern", value: categories.steuern },
-          { name: "Sonstige", value: categories.sonstige },
-        ];
-
-        // Only show categories with values > 0
-        const filteredData = formattedData.filter(item => item.value > 0);
-        
-        dispatch({
-          type: 'FETCH_SUCCESS',
-          payload: filteredData.length > 0 ? filteredData : [{ name: "Keine Daten", value: 1 }]
-        });
-      } catch (error) {
-        console.error("Error processing maintenance data:", error);
-        dispatch({ type: 'FETCH_ERROR' });
-      }
-    };
-
-    fetchMaintenanceData();
-  }, []);
+  // Display data is either from props or from internal state (if fetching was needed)
+  const displayData = initialData || state.data;
+  const isLoading = initialData ? false : state.loading;
 
   return (
-    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+    <Card className="h-full flex flex-col bg-zinc-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
       <CardHeader className="flex-shrink-0 pb-2">
         <CardTitle className="text-lg">Ausgaben nach Kategorie</CardTitle>
         <CardDescription>Verteilung der Betriebskosten</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0">
-        {state.loading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+            <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={state.data}
+                data={displayData}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -204,7 +116,7 @@ export function MaintenanceDonutChart() {
                 fill="#8884d8"
                 paddingAngle={2}
               >
-                {state.data.map((entry, idx) => (
+                {displayData.map((entry, idx) => (
                   <Cell key={`cell-${entry.name}`} fill={COLORS[idx % COLORS.length]} />
                 ))}
               </Pie>
