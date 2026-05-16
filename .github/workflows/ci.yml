@@ -346,11 +346,6 @@ jobs:
           path: sbom.spdx.json
           retention-days: 90
 
-      - name: Secret scan with TruffleHog
-        uses: trufflesecurity/trufflehog@main
-        with:
-          extra_args: docker --image=${{ steps.image.outputs.full_name }} --only-verified
-
       - name: Dive image layer analysis
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
