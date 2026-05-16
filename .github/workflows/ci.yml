@@ -78,6 +78,7 @@ jobs:
       packages: write
       id-token: write
       pull-requests: write
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -157,11 +158,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build and Push Docker image
+      - name: Build Docker image (local only)
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
+          push: false
+          load: true
           platforms: linux/amd64
           tags: ${{ steps.image.outputs.full_name }}
           provenance: false
@@ -186,7 +188,6 @@ jobs:
       - name: Smoke test
         id: smoke-test
         run: |
-          docker pull ${{ steps.image.outputs.full_name }}
           docker run -d \
             --name mietevo-smoke \
             -p 3000:3000 \
@@ -311,6 +312,90 @@ jobs:
             docker rm -f mietevo-smoke || true
             echo "✓ Cleanup complete"
           fi
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.image.outputs.full_name }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 0
+          timeout: 10m
+          scanners: vuln,secret
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-docker
+
+      - name: Generate SBOM
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --format spdx-json \
+            --output sbom.spdx.json \
+            ${{ steps.image.outputs.full_name }}
+          echo "✓ SBOM generated"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: Secret scan with TruffleHog
+        uses: trufflesecurity/trufflehog-action@v1
+        with:
+          image: ${{ steps.image.outputs.full_name }}
+          extraArgs: --only-verified
+
+      - name: Dive image layer analysis
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            wagoodman/dive:latest \
+            ${{ steps.image.outputs.full_name }} --ci --lowestEfficiency 0.85 \
+            > dive-output.txt 2>&1 || true
+
+          EFFICIENCY=$(grep "efficiency" dive-output.txt | grep -oP '\d+\.?\d*%' || echo "unknown")
+          WASTED=$(grep "wasted" dive-output.txt | grep -oP '\d+\s*\w+' || echo "unknown")
+
+          {
+            echo "## Dive Image Analysis"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Efficiency | ${EFFICIENCY} |"
+            echo "| Wasted Space | ${WASTED} |"
+            echo ""
+            echo "💡 *Efficiency unter 85%? Prüfe: \`npm ci --production\`, \`rm -rf /var/lib/apt/lists/*\`, \`.dockerignore\`*"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Check non-root user
+        run: |
+          USER=$(docker inspect --format='.Config.User' ${{ steps.image.outputs.full_name }})
+          if [ -z "$USER" ] || [ "$USER" = "root" ] || [ "$USER" = "0" ]; then
+            echo "## Security: Root User Check" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Container runs as root!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo 'Add to Dockerfile:' >> $GITHUB_STEP_SUMMARY
+            echo '```dockerfile' >> $GITHUB_STEP_SUMMARY
+            echo 'RUN addgroup -S appgroup && adduser -S appuser -G appgroup' >> $GITHUB_STEP_SUMMARY
+            echo 'USER appuser' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✓ Container runs as non-root user: **$USER**"
+
+      - name: Push Docker image to Artifact Registry
+        if: success()
+        run: |
+          echo "Pushing ${{ steps.image.outputs.full_name }}..."
+          docker push ${{ steps.image.outputs.full_name }}
+          echo "✓ Image pushed successfully"
 
   # ─── Detects which frontend quality jobs should run ─────────────────────────
 
