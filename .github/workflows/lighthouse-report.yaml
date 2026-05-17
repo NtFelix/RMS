@@ -81,7 +81,7 @@ jobs:
         run: |
           # Create a hash of all files that affect the build
           BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
-          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
+          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json') }}"
           CACHE_KEY="build-${BUILD_HASH}-${PACKAGE_HASH}"
           echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
           echo "Build cache key: ${CACHE_KEY}"

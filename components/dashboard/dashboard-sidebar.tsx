@@ -186,7 +186,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       </Button>
       <div
         className={cn(
-          "fixed inset-0 z-30 bg-background/80 backdrop-blur-sm transition-all duration-100 md:hidden",
+          "fixed inset-0 z-30 bg-background/80 backdrop-blur-xs transition-all duration-100 md:hidden",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={() => setIsOpen(false)}
@@ -197,7 +197,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
         animate={isCollapsed ? "collapsed" : "expanded"}
         variants={sidebarVariants}
         className={cn(
-          "hidden md:flex flex-col z-30 ml-6 my-6 h-[calc(100vh-3rem)] rounded-[2.5rem] border bg-white dark:bg-background shadow-sm sticky top-6 overflow-hidden",
+          "hidden md:flex flex-col z-30 ml-6 my-6 h-[calc(100vh-3rem)] rounded-[2.5rem] border bg-white dark:bg-background shadow-xs sticky top-6 overflow-hidden",
         )}
         style={{
           willChange: "width, transform",
@@ -228,7 +228,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       {/* Mobile Drawer */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[49] flex flex-col bg-background border-r transition-transform duration-300 ease-in-out w-72 md:hidden",
+          "fixed inset-y-0 left-0 z-49 flex flex-col bg-background border-r transition-transform duration-300 ease-in-out w-72 md:hidden",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -282,7 +282,7 @@ function SidebarContent({
       {/* Header section */}
       <div className="flex items-center pt-6 pb-2 pl-6 pr-6 justify-between">
         <Link href="/" className="flex items-center gap-3 font-semibold overflow-hidden">
-          <div className="relative w-8 h-8 min-w-[2rem] rounded-full overflow-hidden shadow-sm flex-shrink-0">
+          <div className="relative w-8 h-8 min-w-8 rounded-full overflow-hidden shadow-xs shrink-0">
             <Image
               src={LOGO_URL}
               alt="IV Logo"
@@ -319,12 +319,12 @@ function SidebarContent({
                   {!isMobile && iconVariants ? (
                     <motion.div
                       variants={iconVariants}
-                      className="flex-shrink-0"
+                      className="shrink-0"
                     >
-                      <Search className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                      <Search className="h-4 w-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
                     </motion.div>
                   ) : (
-                    <Search className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                    <Search className="h-4 w-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
                   )}
                   {!isMobile && textVariants && (
                     <motion.div
@@ -387,12 +387,12 @@ function SidebarContent({
                         {!isMobile && iconVariants ? (
                           <motion.div
                             variants={iconVariants}
-                            className="flex-shrink-0"
+                            className="shrink-0"
                           >
-                            <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                            <item.icon className="h-4 w-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
                           </motion.div>
                         ) : (
-                          <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                          <item.icon className="h-4 w-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
                         )}
                         {!isMobile && textVariants && (
                           <motion.span
@@ -427,7 +427,7 @@ function SidebarContent({
             )}
             onClick={toggleCollapse}
           >
-            {isCollapsed ? <ChevronRight className="h-4 w-4 flex-shrink-0" /> : <ChevronLeft className="h-4 w-4 flex-shrink-0" />}
+            {isCollapsed ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronLeft className="h-4 w-4 shrink-0" />}
             {!isCollapsed && textVariants && (
               <motion.span variants={textVariants}>Einklappen</motion.span>
             )}

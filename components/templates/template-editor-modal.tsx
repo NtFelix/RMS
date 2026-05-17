@@ -382,7 +382,7 @@ export function TemplateEditorModal({
         </DialogDescription>
 
         {/* Header Section */}
-        <div className="flex-shrink-0 px-6 pt-1 pb-3 border-b flex items-center justify-between bg-muted/20 backdrop-blur-md">
+        <div className="shrink-0 px-6 pt-1 pb-3 border-b flex items-center justify-between bg-muted/20 backdrop-blur-md">
           <div className="flex items-center gap-4 flex-1">
             {!template && step === 'editor' && (
               <Button
@@ -396,7 +396,7 @@ export function TemplateEditorModal({
               </Button>
             )}
             <div className="text-primary">
-              <FileText size={24} className="stroke-[2]" />
+              <FileText size={24} className="stroke-2" />
             </div>
 
             <div className="flex-1 min-w-0">
@@ -416,7 +416,7 @@ export function TemplateEditorModal({
                               handleTitleChange(e.target.value);
                             }}
                             placeholder="Titel der Vorlage eingeben"
-                            className="text-xl font-bold text-foreground bg-transparent border-none outline-none focus-visible:ring-2 focus-visible:ring-primary/10 focus-visible:bg-primary/5 rounded-xl px-2 py-1 w-full max-w-md transition-all placeholder:text-muted-foreground/30 h-auto"
+                            className="text-xl font-bold text-foreground bg-transparent border-none outline-hidden focus-visible:ring-2 focus-visible:ring-primary/10 focus-visible:bg-primary/5 rounded-xl px-2 py-1 w-full max-w-md transition-all placeholder:text-muted-foreground/30 h-auto"
                             aria-label="Titel der Vorlage"
                           />
                           {templateForm.formState.errors.titel && (
@@ -426,7 +426,7 @@ export function TemplateEditorModal({
                       )}
                     />
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <Controller
                       control={templateForm.control}
                       name="kategorie"
@@ -518,7 +518,7 @@ export function TemplateEditorModal({
                                       )}
                                     >
                                       <div className={cn(
-                                        "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
+                                        "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-xs",
                                         isSelected ? "bg-primary text-primary-foreground scale-110 rotate-3" : "bg-background text-primary/40"
                                       )}>
                                         <Icon className="h-7 w-7" />
@@ -603,7 +603,7 @@ export function TemplateEditorModal({
                     />
 
                     {/* Row 2: Footer with Save & Abort */}
-                    <footer className="flex-shrink-0 flex items-center justify-end gap-3 px-6 pb-4 pt-4 bg-transparent border-t">
+                    <footer className="shrink-0 flex items-center justify-end gap-3 px-6 pb-4 pt-4 bg-transparent border-t">
                       <Button
                         type="button"
                         variant="ghost"

@@ -435,7 +435,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
 
                                     <div className="pt-6 border-t border-border/50">
                                         <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Absender</div>
-                                        <div className="min-h-[1.5rem]">
+                                        <div className="min-h-6">
                                             <p className="text-sm font-bold text-foreground transition-all duration-300">
                                                 {firstName || lastName ? `${firstName} ${lastName}` : 'Ihr Name'}
                                             </p>

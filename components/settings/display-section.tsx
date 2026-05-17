@@ -59,7 +59,7 @@ const DisplaySection = () => {
                 Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Switch
                 checked={betriebskostenGuideEnabled}
                 onCheckedChange={(checked) => {

@@ -142,7 +142,7 @@ const isChartDataEmpty = (data: ChartData): boolean => {
 
 // Empty state component
 const EmptyChartState = ({ title, description }: { title: string; description: string }) => (
-  <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+  <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
     <CardHeader>
       <CardTitle>{title}</CardTitle>
       <CardDescription>{description}</CardDescription>
@@ -240,7 +240,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
   }, [chartData])
 
   return (
-    <Card className="p-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl">
+    <Card className="p-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <ToggleGroup type="single" value={selectedChart} onValueChange={setSelectedChart} className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <ToggleGroupItem value="apartment-income">Wohnung</ToggleGroupItem>
@@ -367,17 +367,16 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           color: "hsl(var(--chart-1))",
                         },
                       }}
+                      minHeight={400}
                     >
-                      <ResponsiveContainer width="100%" aspect={16 / 9}>
-                        <LineChart data={displayData.monthlyIncome}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend />
-                          <Line type="monotone" dataKey="einnahmen" stroke="var(--color-einnahmen)" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <LineChart data={displayData.monthlyIncome}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Line type="monotone" dataKey="einnahmen" stroke="var(--color-einnahmen)" strokeWidth={2} />
+                      </LineChart>
                     </ChartContainer>
                   </div>
                 </CardContent>
@@ -409,18 +408,17 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           color: "hsl(var(--chart-2))",
                         },
                       }}
+                      minHeight={400}
                     >
-                      <ResponsiveContainer width="100%" aspect={16 / 9}>
-                        <BarChart data={displayData.incomeExpenseRatio}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend />
-                          <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-                          <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <BarChart data={displayData.incomeExpenseRatio}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Legend />
+                        <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
+                        <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
+                      </BarChart>
                     </ChartContainer>
                   </div>
                 </CardContent>

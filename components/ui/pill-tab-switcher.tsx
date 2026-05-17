@@ -97,9 +97,9 @@ const PillTabSwitcher = React.forwardRef<
       className={cn(
         "relative inline-flex items-center",
         "h-12 p-2 rounded-full",
-        "bg-muted/60 backdrop-blur-sm",
+        "bg-muted/60 backdrop-blur-xs",
         "border border-border/50",
-        "shadow-sm",
+        "shadow-xs",
         "select-none",
         className
       )}
@@ -109,7 +109,7 @@ const PillTabSwitcher = React.forwardRef<
       <div
         className={cn(
           "absolute top-2 bottom-2 left-2 rounded-full",
-          "bg-primary shadow-sm",
+          "bg-primary shadow-xs",
           "transition-all duration-200 ease-out",
           "z-0"
         )}
@@ -131,7 +131,7 @@ const PillTabSwitcher = React.forwardRef<
               "px-4 py-2 rounded-full",
               "text-sm font-medium",
               "transition-colors duration-200",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+              "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50",
               "disabled:pointer-events-none disabled:opacity-50",
               isActive
                 ? "text-primary-foreground"

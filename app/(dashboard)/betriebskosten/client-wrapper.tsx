@@ -216,7 +216,7 @@ export default function BetriebskostenClientView({
       />
       {/* Instruction Guide */}
       {showGuide && (
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="pb-4">
             <div className="flex items-start justify-between">
               <div>
@@ -239,7 +239,7 @@ export default function BetriebskostenClientView({
             <div className="space-y-4">
               {instructionSteps.map((step, index) => (
                 <div key={step.id} className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
                     <span className="text-sm font-semibold text-primary dark:text-primary-foreground">{index + 1}</span>
                   </div>
                   <div className="flex-1 pt-0.5">
@@ -270,7 +270,7 @@ export default function BetriebskostenClientView({
       )}
 
       {/* Main Content Area including Card, Table, Modals */}
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>

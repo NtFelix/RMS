@@ -35,7 +35,7 @@ export function PageSkeleton({
 
       {/* Instruction Guide Skeleton (optional) */}
       {showInstructionGuide && (
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="pb-4">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -49,7 +49,7 @@ export function PageSkeleton({
             <div className="space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex gap-4">
-                  <Skeleton className="flex-shrink-0 w-8 h-8 rounded-full" />
+                  <Skeleton className="shrink-0 w-8 h-8 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-48" />
                     <Skeleton className="h-3 w-full" />
@@ -66,7 +66,7 @@ export function PageSkeleton({
       )}
 
       {/* Main Card Structure Skeleton */}
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>

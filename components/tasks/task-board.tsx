@@ -318,7 +318,7 @@ export function TaskBoard({
           }`}>
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 pt-1">
+                <div className="shrink-0 pt-1">
                   <Checkbox
                     checked={activeTask.ist_erledigt}
                     className="h-4 w-4"

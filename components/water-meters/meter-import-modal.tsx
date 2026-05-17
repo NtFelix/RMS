@@ -561,10 +561,10 @@ export function MeterImportModal({
                 </Alert>
               )}
 
-              <div className="border border-gray-200 dark:border-[#3C4251] rounded-2xl overflow-hidden bg-white dark:bg-[#22272e] shadow-sm">
+              <div className="border border-gray-200 dark:border-[#3C4251] rounded-2xl overflow-hidden bg-white dark:bg-[#22272e] shadow-xs">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+                    <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                       <TableHead>Status</TableHead>
                       <TableHead>Zähler ID</TableHead>
                       <TableHead>Datum</TableHead>

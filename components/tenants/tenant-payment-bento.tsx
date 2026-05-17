@@ -31,8 +31,8 @@ export function TenantPaymentBento() {
   }, [fetchData])
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
-      <CardHeader className="flex-shrink-0 pb-2">
+    <Card className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
+      <CardHeader className="shrink-0 pb-2">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg">Mietzahlungen</CardTitle>
