@@ -49,7 +49,7 @@ jobs:
       should-run-docker: ${{ steps.deploy.outputs.should-run-docker }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -275,10 +275,10 @@ jobs:
     needs: check-runs
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -295,10 +295,10 @@ jobs:
     needs: check-runs
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -326,10 +326,10 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nextjs-build
           path: .next
@@ -570,7 +570,7 @@ jobs:
           scanners: vuln,secret
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -579,13 +579,14 @@ jobs:
       - name: Generate SBOM
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $(pwd):/workspace -w /workspace \
             aquasec/trivy image --format spdx-json \
             --output sbom.spdx.json \
             ${{ steps.image.outputs.full_name }}
           echo "✓ SBOM generated"
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.spdx.json
@@ -647,10 +648,10 @@ jobs:
       build-cache-key: ${{ steps.build-key.outputs.key }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -671,7 +672,7 @@ jobs:
 
       - name: Restore build cache
         id: build-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .next
           key: ${{ steps.build-key.outputs.key }}
@@ -701,13 +702,13 @@ jobs:
 
       - name: Save build cache
         if: steps.build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .next
           key: ${{ steps.build-key.outputs.key }}
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nextjs-build
           path: .next
@@ -726,16 +727,16 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nextjs-build
           path: .next
@@ -781,17 +782,17 @@ jobs:
         browser: [chromium, firefox, webkit]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -799,7 +800,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nextjs-build
           path: .next
@@ -832,7 +833,7 @@ jobs:
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
       - name: Upload Playwright report (${{ matrix.browser }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.browser }}
@@ -841,7 +842,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Playwright test results (${{ matrix.browser }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-test-results-${{ matrix.browser }}
@@ -859,15 +860,15 @@ jobs:
       matrix: ${{ fromJson(needs.check-runs.outputs.test-matrix) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
       - name: Cache node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-node-modules
         with:
           path: node_modules
@@ -876,7 +877,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Cache Jest
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-jest
         with:
           path: .jest/cache
@@ -970,7 +971,7 @@ jobs:
 
       - name: Upload test results
         if: always() && matrix.is-first-group
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: |
@@ -981,7 +982,7 @@ jobs:
 
       - name: Upload JUnit test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-group-${{ matrix.test-group }}
           path: |
@@ -1044,7 +1045,7 @@ jobs:
 
       - name: Upload passing tests data
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: passing-tests-group-${{ matrix.test-group }}
           path: .test-cache/passing-tests-group-${{ matrix.test-group }}.json
@@ -1052,7 +1053,7 @@ jobs:
 
       - name: Upload test summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-summary-${{ matrix.test-group }}
           path: test-summaries/
@@ -1065,10 +1066,10 @@ jobs:
     if: always()
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download test summaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: test-summary-*
           path: test-summaries
@@ -1076,7 +1077,7 @@ jobs:
         continue-on-error: true
 
       - name: Download Playwright reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: playwright-report-*
           path: playwright-reports
@@ -1084,7 +1085,7 @@ jobs:
         continue-on-error: true
 
       - name: Download passing tests data
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: passing-tests-group-*
           path: passing-tests-data
@@ -1138,13 +1139,13 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Restore LHCI tools cache
         id: lhci-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             lhci-tools/node_modules
@@ -1187,17 +1188,17 @@ jobs:
       contents: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -1205,7 +1206,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nextjs-build
           path: .next
@@ -1230,7 +1231,7 @@ jobs:
           fi
 
       - name: Restore LHCI tools cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             lhci-tools/node_modules
@@ -1323,7 +1324,7 @@ jobs:
 
       - name: Upload Lighthouse report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lighthouse-${{ matrix.device }}
           path: lighthouse-reports/
@@ -1342,13 +1343,13 @@ jobs:
       issues: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: lighthouse-results
 
       - name: Generate PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -1420,7 +1421,7 @@ jobs:
 
       - name: Generate Actions Summary
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -1484,7 +1485,7 @@ jobs:
       - name: Prepare Discord notification
         if: always()
         id: prepare-discord
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -1700,12 +1701,12 @@ jobs:
     if: needs.check-runs.outputs.should-run-visual == 'true'
     steps:
       - name: Checkout (latest branch tip)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1714,7 +1715,7 @@ jobs:
         run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nextjs-build
           path: .next
