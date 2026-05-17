@@ -1905,7 +1905,15 @@ jobs:
             });
             const existingComment = comments.find(c => c.body.includes(marker));
 
-            const timestamp = endTime.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
+            const timestamp = endTime.toLocaleString('de-DE', {
+              timeZone: 'Europe/Berlin',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            }) + ' (Berlin Time)';
             const body = `${marker}\n✅ **New version is live!**\n\n🔗 **[Preview #${prNumber}](${process.env.DEPLOY_URL})**\n\n🕒 **Deployed at:** ${timestamp}\n⏱️ **Duration:** ${durationStr} (Build + Deploy)`;
 
             if (existingComment) {
