@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from 'next/navigation'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ import { BILLING_COUNTRIES } from "@/lib/constants";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 
 const ProfileSection = () => {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast()
   const router = useRouter()
   const [firstName, setFirstName] = useState<string>("")
