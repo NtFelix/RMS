@@ -73,7 +73,7 @@ async function initializePostHog(nonce?: string) {
     api_host: config.host,
     ui_host: config.uiHost,
     capture_pageview: false, // We'll handle this manually
-    capture_pageleave: true, // Enable pageleave tracking explicitly since capture_pageview is false
+    capture_pageleave: false, // We'll handle this manually along with pageview
     persistence: 'localStorage',
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
     // GDPR: Always opt-out by default, require explicit consent
@@ -164,8 +164,10 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
     handleUserIdentification();
   }, [pathname, consentTrigger]); // Re-run when consent is granted
 
-  // Track pageviews
+  // Track pageviews and pageleaves
   useEffect(() => {
+    let currentIsAuthenticated = false;
+
     const trackPageview = async () => {
       if (!pathname || !posthog.has_opted_in_capturing?.()) return;
 
@@ -175,25 +177,38 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
       }
 
       // Determine user type by checking actual auth state
-      let isAuthenticated = false;
       try {
         const { createClient } = await import('@/utils/supabase/client');
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        isAuthenticated = !!user;
+        currentIsAuthenticated = !!user;
       } catch {
         // If we can't check auth, assume anonymous
-        isAuthenticated = false;
+        currentIsAuthenticated = false;
       }
 
       posthog.capture('$pageview', {
         $current_url: url,
-        user_type: isAuthenticated ? 'authenticated' : 'anonymous',
-        is_anonymous: !isAuthenticated,
+        user_type: currentIsAuthenticated ? 'authenticated' : 'anonymous',
+        is_anonymous: !currentIsAuthenticated,
       });
     };
 
     trackPageview();
+
+    return () => {
+      if (pathname && posthog.has_opted_in_capturing?.()) {
+        let url = window.origin + pathname;
+        if (searchParams.toString()) {
+          url = url + `?${searchParams.toString()}`;
+        }
+        posthog.capture('$pageleave', {
+          $current_url: url,
+          user_type: currentIsAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: !currentIsAuthenticated,
+        });
+      }
+    };
   }, [pathname, searchParams, consentTrigger]); // Re-run when consent is granted
 
   // Handle login tracking from auth callback
