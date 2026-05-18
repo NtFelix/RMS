@@ -40,6 +40,10 @@ const mockUseTemplates = useTemplates as jest.MockedFunction<typeof useTemplates
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 const mockToast = toast as jest.MockedFunction<typeof toast>;
 
+// Mock useTemplateFilters as well
+import { useTemplateFilters } from '@/hooks/use-templates';
+const mockUseTemplateFilters = useTemplateFilters as jest.MockedFunction<typeof useTemplateFilters>;
+
 describe('Template Management E2E Workflow', () => {
   let mockTemplates: Template[];
   let mockCreateTemplate: jest.Mock;
@@ -113,6 +117,15 @@ describe('Template Management E2E Workflow', () => {
       deleteTemplate: mockDeleteTemplate,
       getTemplate: jest.fn(),
       refreshTemplates: mockRefreshTemplates,
+    });
+
+    mockUseTemplateFilters.mockReturnValue({
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectedCategory: 'all',
+      setSelectedCategory: jest.fn(),
+      filteredTemplates: mockTemplates,
+      groupedTemplates: { 'Dokumente': mockTemplates },
     });
 
     mockUseModalStore.mockReturnValue({
