@@ -73,6 +73,7 @@ async function initializePostHog(nonce?: string) {
     api_host: config.host,
     ui_host: config.uiHost,
     capture_pageview: false, // We'll handle this manually
+    capture_pageleave: true, // Enable pageleave tracking explicitly since capture_pageview is false
     persistence: 'localStorage',
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
     // GDPR: Always opt-out by default, require explicit consent
