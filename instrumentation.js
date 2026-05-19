@@ -3,8 +3,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     process.on('uncaughtException', (err) => {
       // Ignore ECONNRESET errors from aborted requests which are common in Next.js 15
-      const isAborted = err?.message === 'aborted' || err?.message?.includes('aborted');
-      const isEconnReset = err?.code === 'ECONNRESET' || err?.['code'] === 'ECONNRESET';
+      const isAborted = err?.message?.includes('aborted');
+      const isEconnReset = err?.code === 'ECONNRESET';
       
       if (isAborted && isEconnReset) {
         // Ignore ECONNRESET errors which are common in Next.js/Node during client aborts
