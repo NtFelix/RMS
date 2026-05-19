@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { requireAuthenticatedUser } from '@/lib/server/route-access';
 
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
@@ -32,10 +33,13 @@ const currencyFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', cu
 const formatCurrency = (amount: number) => currencyFormatter.format(amount);
 
 export default async function Dashboard() {
+  // Ensure authentication first to avoid database errors during pre-fetching
+  const { supabase } = await requireAuthenticatedUser();
+
   // Fetch real data from database
   const [summary, nebenkostenData] = await Promise.all([
-    getDashboardSummary(),
-    getNebenkostenChartData()
+    getDashboardSummary(supabase),
+    getNebenkostenChartData(supabase)
   ]);
 
   const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
