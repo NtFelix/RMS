@@ -115,7 +115,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "9.39.2",
+    "eslint": "10.4.0",
     "eslint-config-next": "15.5.18",
     "identity-obj-proxy": "3.0.0",
     "jest": "30.2.0",
