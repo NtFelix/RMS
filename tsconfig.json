@@ -9,7 +9,6 @@
     "target": "ES2018",
     "skipLibCheck": true,
     "strict": true,
-    "stableTypeOrdering": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
