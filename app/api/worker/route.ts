@@ -52,16 +52,34 @@ export async function POST(request: Request) {
             });
         }
 
-        const backendUrl = (process.env.MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
+        const url = new URL(request.url);
+        const subPath = url.pathname.replace('/api/worker', '');
+        const backendBaseUrl = (process.env.MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim().replace(/\/$/, '');
+        const backendUrl = backendBaseUrl + subPath + url.search;
+        const workerAuthKey = process.env.WORKER_AUTH_KEY;
 
         console.log('[WorkerProxy] Proxying request to:', backendUrl, 'for user:', user.id);
 
-        const body = await request.json();
+        let body;
+        try {
+            body = await request.json();
+            // Ensure the request is attributed to the authenticated user
+            if (body && typeof body === 'object') {
+                body.user_id = user.id;
+            }
+        } catch (e) {
+            console.warn('[WorkerProxy] Invalid JSON body:', (e as Error).message);
+            return NextResponse.json({ error: 'Invalid JSON body' }, { 
+                status: 400, 
+                headers: NO_CACHE_HEADERS 
+            });
+        }
 
         const response = await fetchWithRetry(backendUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(workerAuthKey ? { 'x-worker-auth': workerAuthKey } : {})
             },
             body: JSON.stringify(body),
         });
