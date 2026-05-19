@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from "@/utils/supabase/server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 export const runtime = 'edge';
 
@@ -39,11 +40,22 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
 }
 
 export async function POST(request: Request) {
-    const backendUrl = (process.env.MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
-
-    console.log('[WorkerProxy] Proxying request to:', backendUrl);
-
     try {
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+            console.error('[WorkerProxy] Authentication failed:', authError?.message || 'No user');
+            return NextResponse.json({ error: 'Unauthorized' }, { 
+                status: 401,
+                headers: NO_CACHE_HEADERS
+            });
+        }
+
+        const backendUrl = (process.env.MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
+
+        console.log('[WorkerProxy] Proxying request to:', backendUrl, 'for user:', user.id);
+
         const body = await request.json();
 
         const response = await fetchWithRetry(backendUrl, {
