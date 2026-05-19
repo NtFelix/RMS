@@ -68,10 +68,6 @@ jest.mock('@/components/tasks/task-board', () => ({
   TaskBoard: () => <div role="table">Task Board</div>
 }));
 
-jest.mock('@/components/finance-transactions', () => ({
-  FinanceTransactions: () => <div role="table">Finance Transactions</div>
-}));
-
 jest.mock('@/components/finance/finance-visualization', () => ({
   FinanceVisualization: () => <div>Finance Visualization</div>
 }));

@@ -1,4 +1,11 @@
 import nextJest from 'next/jest.js'
+import { pathsToModuleNameMapper } from 'ts-jest'
+import fs from 'fs'
+
+const tsconfig = JSON.parse(
+  fs.readFileSync('./tsconfig.json', 'utf-8')
+    .replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m)
+)
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
@@ -12,14 +19,8 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     // Handle CSS imports (if you use CSS modules)
-    '\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    // Handle module aliases (if you have them in tsconfig.json)
-    // These should match paths in tsconfig.json
-    '^@/components/(.*)$': '<rootDir>/components/$1',
-    '^@/lib/(.*)$': '<rootDir>/lib/$1',
-    '^@/utils/(.*)$': '<rootDir>/utils/$1',
-    '^@/app/(.*)$': '<rootDir>/app/$1',
-    '^@/hooks/(.*)$': '<rootDir>/hooks/$1', // Added specific mapping for hooks
+    "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+    ...pathsToModuleNameMapper(tsconfig.compilerOptions?.paths || {}, { prefix: '<rootDir>/' }),
   },
   // If you're using TypeScript with a baseUrl to set up directory aliases,
   // you need to tell Jest about these paths too.
