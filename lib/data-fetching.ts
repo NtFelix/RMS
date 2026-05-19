@@ -50,6 +50,11 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 export async function fetchHaeuser() {
   const supabase = createSupabaseServerClient();
+  
+  // Check auth first to avoid "permission denied" noise during pre-fetching
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("Haeuser")
     .select('*, groesse');
@@ -64,6 +69,10 @@ export async function fetchHaeuser() {
 
 export async function fetchWohnungen() {
   const supabase = createSupabaseServerClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("Wohnungen")
     .select('*');
@@ -78,6 +87,10 @@ export async function fetchWohnungen() {
 
 export async function fetchMieter() {
   const supabase = createSupabaseServerClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("Mieter")
     .select('*, Wohnungen(name, groesse, miete)');
@@ -92,6 +105,10 @@ export async function fetchMieter() {
 
 export async function fetchAufgaben() {
   const supabase = createSupabaseServerClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("Aufgaben")
     .select('*')
@@ -107,6 +124,10 @@ export async function fetchAufgaben() {
 
 export async function fetchFinanzen() {
   const supabase = createSupabaseServerClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("Finanzen")
     .select('*');
@@ -121,6 +142,11 @@ export async function fetchFinanzen() {
 
 export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   const supabase = createSupabaseServerClient();
+  
+  // Check auth first to avoid "permission denied" noise during pre-fetching
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   let query = supabase.from("Nebenkosten").select('*');
 
   // If year is provided, filter by date range that overlaps with that year
@@ -144,6 +170,10 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
 
 export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
   const supabase = createSupabaseServerClient();
+
+  // Check auth first to avoid "permission denied" noise during pre-fetching
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { year: new Date().getFullYear(), data: [] };
 
   // First, get the most recent year with data
   const { data: latestYearData } = await supabase
@@ -218,6 +248,10 @@ export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
 
 export async function fetchFinanzenByMonth() {
   const supabase = createSupabaseServerClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from("Finanzen")
     .select('*')
@@ -437,6 +471,10 @@ export async function fetchMeterReadingsByHausAndDateRange(
   enddatum: string
 ): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const supabase = createSupabaseServerClient();
+  
+  // Check auth first to avoid "permission denied" noise during pre-fetching
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { mieterList: [], existingReadings: [] };
 
   try {
     // Optimized: Run queries in parallel using joins instead of waterfall
