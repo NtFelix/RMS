@@ -19,7 +19,7 @@ export default async function BetriebskostenPage() {
   const nebenkostenResult = await fetchNebenkostenListOptimized();
   const nebenkostenData: OptimizedNebenkosten[] = nebenkostenResult.success ? nebenkostenResult.data || [] : [];
   
-  const haeuserData: Haus[] = await fetchHaeuserServer();
+  const haeuserData: Haus[] = await fetchHaeuserServer(supabase);
 
   let ownerName = "Vermieter Name";
   if (user) {

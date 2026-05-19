@@ -48,12 +48,8 @@ import type {
 } from "./types";
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-export async function fetchHaeuser() {
-  const supabase = createSupabaseServerClient();
-  
-  // Check auth first to avoid "permission denied" noise during pre-fetching
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchHaeuser(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("Haeuser")
@@ -67,11 +63,8 @@ export async function fetchHaeuser() {
   return data as Haus[];
 }
 
-export async function fetchWohnungen() {
-  const supabase = createSupabaseServerClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchWohnungen(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("Wohnungen")
@@ -85,11 +78,8 @@ export async function fetchWohnungen() {
   return data as Wohnung[];
 }
 
-export async function fetchMieter() {
-  const supabase = createSupabaseServerClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchMieter(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("Mieter")
@@ -103,11 +93,8 @@ export async function fetchMieter() {
   return data as Mieter[];
 }
 
-export async function fetchAufgaben() {
-  const supabase = createSupabaseServerClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchAufgaben(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("Aufgaben")
@@ -122,11 +109,8 @@ export async function fetchAufgaben() {
   return data as Aufgabe[];
 }
 
-export async function fetchFinanzen() {
-  const supabase = createSupabaseServerClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchFinanzen(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("Finanzen")
@@ -140,12 +124,8 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
-export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
-  const supabase = createSupabaseServerClient();
-  
-  // Check auth first to avoid "permission denied" noise during pre-fetching
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchNebenkosten(year?: string, supabaseClient?: SupabaseClient): Promise<Nebenkosten[]> {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   let query = supabase.from("Nebenkosten").select('*');
 
@@ -168,12 +148,8 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   return data as Nebenkosten[];
 }
 
-export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
-  const supabase = createSupabaseServerClient();
-
-  // Check auth first to avoid "permission denied" noise during pre-fetching
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { year: new Date().getFullYear(), data: [] };
+export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): Promise<NebenkostenChartData> {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   // First, get the most recent year with data
   const { data: latestYearData } = await supabase
@@ -246,11 +222,8 @@ export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
 // fetchNebenkostenDetailsById function removed - replaced by optimized database functions
 // Use getAbrechnungModalDataAction or similar optimized functions instead
 
-export async function fetchFinanzenByMonth() {
-  const supabase = createSupabaseServerClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchFinanzenByMonth(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("Finanzen")
@@ -290,9 +263,9 @@ export async function fetchFinanzenByMonth() {
   return Object.values(monthlyData).slice(-12);
 }
 
-export async function getMietstatistik() {
-  const wohnungen = await fetchWohnungen();
-  const mieter = await fetchMieter();
+export async function getMietstatistik(supabaseClient?: SupabaseClient) {
+  const wohnungen = await fetchWohnungen(supabaseClient);
+  const mieter = await fetchMieter(supabaseClient);
 
   // Calculate occupancy data by month (last 12 months)
   const now = new Date();
@@ -320,11 +293,11 @@ export async function getMietstatistik() {
   return monthsData;
 }
 
-export async function getDashboardSummary() {
-  const haeuser = await fetchHaeuser();
-  const wohnungen = await fetchWohnungen();
-  const mieter = await fetchMieter();
-  const aufgaben = await fetchAufgaben();
+export async function getDashboardSummary(supabaseClient?: SupabaseClient) {
+  const haeuser = await fetchHaeuser(supabaseClient);
+  const wohnungen = await fetchWohnungen(supabaseClient);
+  const mieter = await fetchMieter(supabaseClient);
+  const aufgaben = await fetchAufgaben(supabaseClient);
 
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
@@ -332,7 +305,7 @@ export async function getDashboardSummary() {
   // Calculate yearly expenses from Nebenkosten - fetch only last year's data
   const currentYear = new Date().getFullYear();
   const lastYear = (currentYear - 1).toString();
-  const nebenkosten = await fetchNebenkosten(lastYear);
+  const nebenkosten = await fetchNebenkosten(lastYear, supabaseClient);
 
   const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
     const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
@@ -468,13 +441,10 @@ export const fetchWasserzaehlerByHausAndYear = fetchMeterReadingsByHausAndYear;
 export async function fetchMeterReadingsByHausAndDateRange(
   hausId: string,
   startdatum: string,
-  enddatum: string
+  enddatum: string,
+  supabaseClient?: SupabaseClient
 ): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
-  const supabase = createSupabaseServerClient();
-  
-  // Check auth first to avoid "permission denied" noise during pre-fetching
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { mieterList: [], existingReadings: [] };
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   try {
     // Optimized: Run queries in parallel using joins instead of waterfall

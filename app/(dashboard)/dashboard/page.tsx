@@ -34,12 +34,12 @@ const formatCurrency = (amount: number) => currencyFormatter.format(amount);
 
 export default async function Dashboard() {
   // Ensure authentication first to avoid database errors during pre-fetching
-  await requireAuthenticatedUser();
+  const { supabase } = await requireAuthenticatedUser();
 
   // Fetch real data from database
   const [summary, nebenkostenData] = await Promise.all([
-    getDashboardSummary(),
-    getNebenkostenChartData()
+    getDashboardSummary(supabase),
+    getNebenkostenChartData(supabase)
   ]);
 
   const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
