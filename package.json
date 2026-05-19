@@ -132,10 +132,10 @@
     "test-exclude": "7.0.1",
     "@posthog/cli": {
       "axios": "1.15.2",
-      "minimatch": "10.2.4",
+      "minimatch": "10.2.5",
       "follow-redirects": "1.16.0"
     },
-    "minimatch": "10.2.4",
+    "minimatch": "10.2.5",
     "axios": "1.15.2",
     "postcss": "8.5.14"
   }
