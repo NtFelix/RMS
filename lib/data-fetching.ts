@@ -391,7 +391,7 @@ export async function fetchUserProfile(): Promise<Profile | null> {
     if (profileError.code === 'PGRST116') {
       // Profile not found in 'profiles' table - this is expected for new users
     } else {
-      console.error('Unhandled error fetching profile data for user %s:', user.id, profileError);
+      console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
     }
     return baseUserProfile;
   }
