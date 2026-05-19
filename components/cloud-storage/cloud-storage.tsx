@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo, useRef, useTransition } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef, useTransition, useEffectEvent } from "react"
 import { posthogLogger } from "@/lib/posthog-logger"
 import {
     Upload,
@@ -174,7 +174,7 @@ export function CloudStorage({
      * window.history.pushState to avoid Next.js RSC re-fetching.
      * This provides instant client-side navigation with proper URL updates.
      */
-    const handleNavigate = useCallback(async (path: string, useClientSide = true, skipHistoryPush = false) => {
+    const handleNavigate = useEffectEvent(async (path: string, useClientSide = true, skipHistoryPush = false) => {
         // Use local path tracking for accurate navigation detection
         if (path === localCurrentPath) return
 
@@ -211,21 +211,21 @@ export function CloudStorage({
         } else {
             push(pathToUrl(path))
         }
-    }, [localCurrentPath, navigate, pathToUrl, push, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+    })
 
     /**
      * Handle folder navigation
      */
     const handleFolderClick = useCallback((folder: VirtualFolder) => {
         handleNavigate(folder.path, true)
-    }, [handleNavigate])
+    }, [])
 
     /**
      * Handle breadcrumb navigation
      */
     const handleBreadcrumbClick = useCallback((breadcrumb: BreadcrumbItem) => {
         handleNavigate(breadcrumb.path, true, false)
-    }, [handleNavigate])
+    }, [])
 
     /**
      * Handle navigate up
@@ -238,7 +238,7 @@ export function CloudStorage({
                 handleNavigate(parentPath, true, false)
             }
         }
-    }, [localCurrentPath, handleNavigate])
+    }, [localCurrentPath])
 
     /**
      * Optimized refresh that syncs both store and UI
@@ -300,7 +300,7 @@ export function CloudStorage({
 
         window.addEventListener('popstate', handlePopState)
         return () => window.removeEventListener('popstate', handlePopState)
-    }, [handleNavigate, userId, localCurrentPath])
+    }, [userId, localCurrentPath])
 
     /**
      * Filter and sort items
