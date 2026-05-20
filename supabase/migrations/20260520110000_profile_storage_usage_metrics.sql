@@ -1,82 +1,78 @@
--- Migration: Profile Storage Usage and Document Count Caching
--- Adds pre-calculated columns to profiles and maintains them via database triggers on Dokumente_Metadaten.
--- Optimizes calculate_storage_usage() and get_folder_contents() to read from the cached profile metrics.
+-- Migration: Profile Storage Usage and Document Count Caching (Optimized & Self-Healing)
+-- Version: 2.0 (Incremental Updates + Weekly Sync)
 
--- 1. Add columns to profiles
+-- 1. Add columns to profiles (if not exist)
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS document_count bigint NOT NULL DEFAULT 0;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS storage_usage bigint NOT NULL DEFAULT 0;
 
--- 2. Backfill existing profiles
-UPDATE public.profiles p
-SET 
-  document_count = COALESCE((
-    SELECT count(*) 
-    FROM public."Dokumente_Metadaten" d 
-    WHERE d.user_id = p.id AND d.dateiname != '.keep'
-  ), 0),
-  storage_usage = COALESCE((
-    SELECT sum(d.dateigroesse) 
-    FROM public."Dokumente_Metadaten" d 
-    WHERE d.user_id = p.id
-  ), 0);
+-- 2. Function to refresh ALL profile metrics (The "Self-Healing" mechanism)
+CREATE OR REPLACE FUNCTION public.refresh_all_profile_metrics()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.profiles p
+  SET 
+    document_count = COALESCE((
+      SELECT count(*) 
+      FROM public."Dokumente_Metadaten" d 
+      WHERE d.user_id = p.id AND d.dateiname != '.keep'
+    ), 0),
+    storage_usage = COALESCE((
+      SELECT sum(d.dateigroesse) 
+      FROM public."Dokumente_Metadaten" d 
+      WHERE d.user_id = p.id
+    ), 0);
+END;
+$$;
 
--- 3. Create or replace trigger function
+-- 3. Perform initial backfill
+SELECT public.refresh_all_profile_metrics();
+
+-- 4. Create optimized incremental trigger function
+-- This maintains metrics in O(1) time by adding/subtracting differences.
 CREATE OR REPLACE FUNCTION public.update_profile_storage_metrics()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-DECLARE
-  v_user_id uuid;
 BEGIN
-  -- Handle INSERT/UPDATE
-  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
-    v_user_id := NEW.user_id;
-    IF v_user_id IS NOT NULL THEN
-      UPDATE public.profiles
-      SET 
-        document_count = COALESCE((
-          SELECT count(*) 
-          FROM public."Dokumente_Metadaten" 
-          WHERE user_id = v_user_id AND dateiname != '.keep'
-        ), 0),
-        storage_usage = COALESCE((
-          SELECT sum(dateigroesse) 
-          FROM public."Dokumente_Metadaten" 
-          WHERE user_id = v_user_id
-        ), 0)
-      WHERE id = v_user_id;
+    -- Handle DELETE or UPDATE (old values)
+    IF (TG_OP = 'DELETE' OR TG_OP = 'UPDATE') THEN
+        IF OLD.user_id IS NOT NULL THEN
+            UPDATE public.profiles
+            SET 
+                document_count = CASE 
+                    WHEN OLD.dateiname != '.keep' THEN document_count - 1 
+                    ELSE document_count 
+                END,
+                storage_usage = storage_usage - COALESCE(OLD.dateigroesse, 0)
+            WHERE id = OLD.user_id;
+        END IF;
     END IF;
-  END IF;
 
-  -- Handle UPDATE (where user_id changes) or DELETE
-  IF (TG_OP = 'UPDATE' OR TG_OP = 'DELETE') THEN
-    IF (TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND OLD.user_id IS DISTINCT FROM NEW.user_id)) THEN
-      v_user_id := OLD.user_id;
-      IF v_user_id IS NOT NULL THEN
-        UPDATE public.profiles
-        SET 
-          document_count = COALESCE((
-            SELECT count(*) 
-            FROM public."Dokumente_Metadaten" 
-            WHERE user_id = v_user_id AND dateiname != '.keep'
-          ), 0),
-          storage_usage = COALESCE((
-            SELECT sum(dateigroesse) 
-            FROM public."Dokumente_Metadaten" 
-            WHERE user_id = v_user_id
-          ), 0)
-        WHERE id = v_user_id;
-      END IF;
+    -- Handle INSERT or UPDATE (new values)
+    IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+        IF NEW.user_id IS NOT NULL THEN
+            UPDATE public.profiles
+            SET 
+                document_count = CASE 
+                    WHEN NEW.dateiname != '.keep' THEN document_count + 1 
+                    ELSE document_count 
+                END,
+                storage_usage = storage_usage + COALESCE(NEW.dateigroesse, 0)
+            WHERE id = NEW.user_id;
+        END IF;
     END IF;
-  END IF;
 
-  RETURN NULL;
+    RETURN NULL;
 END;
 $$;
 
--- 4. Attach trigger
+-- 5. Attach trigger
 DROP TRIGGER IF EXISTS update_profile_storage_metrics_trigger ON public."Dokumente_Metadaten";
 
 CREATE TRIGGER update_profile_storage_metrics_trigger
@@ -84,7 +80,7 @@ AFTER INSERT OR UPDATE OR DELETE ON public."Dokumente_Metadaten"
 FOR EACH ROW
 EXECUTE FUNCTION public.update_profile_storage_metrics();
 
--- 5. Optimize calculate_storage_usage() RPC
+-- 6. Optimize calculate_storage_usage() RPC with robust NULL handling
 CREATE OR REPLACE FUNCTION public.calculate_storage_usage()
  RETURNS bigint
  LANGUAGE plpgsql
@@ -99,16 +95,16 @@ begin
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  select coalesce(storage_usage, 0)
+  select storage_usage
   into total_size
   from public.profiles
   where id = v_uid;
   
-  return total_size;
+  return COALESCE(total_size, 0);
 end;
 $$;
 
--- 6. Optimize get_folder_contents() RPC
+-- 7. Optimize get_folder_contents() RPC with case-insensitive UUID matching and NULL safety
 CREATE OR REPLACE FUNCTION public.get_folder_contents(p_current_path text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -123,7 +119,8 @@ DECLARE
   v_house_id uuid;
   v_apartment_id uuid;
   v_tenant_id uuid;
-  v_uuid_pattern text := '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+  -- Case-insensitive UUID pattern
+  v_uuid_pattern text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
   v_result jsonb;
   v_folders jsonb := '[]'::jsonb;
   v_files jsonb := '[]'::jsonb;
@@ -361,7 +358,7 @@ BEGIN
     END IF;
   END IF;
   
-  -- DISCOVER CUSTOM STORAGE FOLDERS (Recursive File Count & jsonb_agg)
+  -- DISCOVER CUSTOM STORAGE FOLDERS
   v_folders := v_folders || (
     WITH folder_stats AS (
       SELECT 
@@ -384,7 +381,7 @@ BEGIN
       SELECT 
         folder_name,
         p_current_path || '/' || folder_name as path,
-        SUM(direct_file_count) as file_count -- REMOVED FILTER: Recursive count across all sub-paths
+        SUM(direct_file_count) as file_count
       FROM immediate_subfolders
       WHERE folder_name != ''
       GROUP BY folder_name
@@ -403,7 +400,7 @@ BEGIN
       AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(v_folders) f WHERE f->>'name' = folder_name)
   );
   
-  -- Fetch total size from profiles (optimized)
+  -- Fetch total size from profiles (optimized with NULL safety)
   SELECT COALESCE(storage_usage, 0) INTO v_total_size
   FROM public.profiles
   WHERE id = v_uid;
@@ -412,8 +409,30 @@ BEGIN
     'folders', v_folders,
     'files', v_files,
     'breadcrumbs', v_breadcrumbs,
-    'totalSize', v_total_size,
+    'totalSize', COALESCE(v_total_size, 0),
     'error', null
   );
+END;
+$$;
+
+-- 8. Enable pg_cron and schedule weekly sync (Self-Healing)
+-- We wrap this in a DO block to make it safe if pg_cron is not yet enabled in the env
+DO $$
+BEGIN
+  -- Try to enable extension
+  CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
+  
+  -- Remove existing schedule if it exists to avoid duplicates
+  PERFORM cron.unschedule('sync-profile-storage-metrics');
+  
+  -- Schedule Sunday at 00:00
+  PERFORM cron.schedule(
+    'sync-profile-storage-metrics',
+    '0 0 * * 0',
+    'SELECT public.refresh_all_profile_metrics()'
+  );
+EXCEPTION
+  WHEN others THEN
+    RAISE NOTICE 'Could not schedule pg_cron job. Please ensure pg_cron is enabled in your Supabase project.';
 END;
 $$;
