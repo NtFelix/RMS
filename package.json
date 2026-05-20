@@ -22,11 +22,11 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.10.0",
-    "@opentelemetry/api-logs": "^0.217.0",
-    "@opentelemetry/exporter-logs-otlp-http": "^0.217.0",
+    "@opentelemetry/api-logs": "^0.218.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.218.0",
     "@opentelemetry/resources": "^2.7.1",
-    "@opentelemetry/sdk-logs": "^0.217.0",
-    "@opentelemetry/sdk-node": "^0.217.0",
+    "@opentelemetry/sdk-logs": "^0.218.0",
+    "@opentelemetry/sdk-node": "^0.218.0",
     "@posthog/cli": "^0.7.11",
     "@posthog/nextjs-config": "^1.8.23",
     "@radix-ui/react-accordion": "1.2.12",
@@ -121,7 +121,7 @@
     "jest": "30.2.0",
     "jest-axe": "10.0.0",
     "jest-environment-jsdom": "30.2.0",
-    "postcss": "^8",
+    "postcss": "8.5.14",
     "tailwindcss": "^4.3.0",
     "ts-jest": "29.4.9",
     "ts-node": "^10.9.2",
@@ -130,7 +130,15 @@
   },
   "overrides": {
     "test-exclude": "7.0.1",
-    "minimatch": "^10.2.2",
-    "@posthog/cli": "$@posthog/cli"
+    "@posthog/cli": {
+      "axios": "1.15.2",
+      "minimatch": "10.2.5",
+      "follow-redirects": "1.16.0"
+    },
+    "minimatch": "10.2.5",
+    "axios": "1.15.2",
+    "postcss": "8.5.14",
+    "brace-expansion": "5.0.6",
+    "protobufjs": "7.5.8"
   }
 }
