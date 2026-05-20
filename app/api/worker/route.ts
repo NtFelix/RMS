@@ -64,7 +64,8 @@ export async function POST(request: Request) {
         try {
             body = await request.json();
             // Ensure the request is attributed to the authenticated user
-            if (body && typeof body === 'object') {
+            // We check !Array.isArray because JSON.stringify ignores custom properties on arrays
+            if (body && typeof body === 'object' && !Array.isArray(body)) {
                 body.user_id = user.id;
             }
         } catch (e) {
