@@ -421,10 +421,22 @@ BEGIN
   -- 1. Ensure the extension is enabled
   CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
   
-  -- 2. Safely remove existing job if it exists
-  DELETE FROM cron.job WHERE jobname = 'sync-profile-storage-metrics';
+  -- 2. Grant permissions to the postgres user (essential for migrations)
+  GRANT USAGE ON SCHEMA cron TO postgres;
+  GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA cron TO postgres;
+  GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA cron TO postgres;
+  GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA cron TO postgres;
+
+  -- 3. Safely remove existing job if it exists (Idempotency)
+  -- We use an inner block to ignore "job not found" errors
+  BEGIN
+    PERFORM cron.unschedule('sync-profile-storage-metrics');
+  EXCEPTION WHEN others THEN
+    NULL;
+  END;
   
-  -- 3. Schedule the job (Sunday at 00:00)
+  -- 4. Schedule the job (Sunday at 00:00)
+  -- We explicitly target the 'postgres' database which is the Supabase default
   PERFORM cron.schedule(
     'sync-profile-storage-metrics',
     '0 0 * * 0',
