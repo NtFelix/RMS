@@ -300,7 +300,7 @@ test.describe('Business Logic Flows', () => {
       for (const entity of entities) {
         try {
           console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await safeNavigate(page, entity.path, 'networkidle');
+          await safeNavigate(page, entity.path, 'domcontentloaded');
 
           // Strategy 1: Search for the specific entity name
           let foundAndDeleted = false;
