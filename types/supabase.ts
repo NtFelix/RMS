@@ -10,6 +10,8 @@ export interface Profile {
   stripe_current_period_end?: string | null; // Or Date
   onboarding_completed?: boolean;
   setup_completed?: boolean;
+  document_count?: number;
+  storage_usage?: number;
 }
 
 export interface SupabaseAuthWithOAuth {
