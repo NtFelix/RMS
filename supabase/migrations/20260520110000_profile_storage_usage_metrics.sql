@@ -416,16 +416,15 @@ END;
 $$;
 
 -- 8. Enable pg_cron and schedule weekly sync (Self-Healing)
--- We wrap this in a DO block to make it safe if pg_cron is not yet enabled in the env
 DO $$
 BEGIN
-  -- Try to enable extension
+  -- 1. Ensure the extension is enabled
   CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
   
-  -- Remove existing schedule if it exists to avoid duplicates
-  PERFORM cron.unschedule('sync-profile-storage-metrics');
+  -- 2. Safely remove existing job if it exists
+  DELETE FROM cron.job WHERE jobname = 'sync-profile-storage-metrics';
   
-  -- Schedule Sunday at 00:00
+  -- 3. Schedule the job (Sunday at 00:00)
   PERFORM cron.schedule(
     'sync-profile-storage-metrics',
     '0 0 * * 0',
