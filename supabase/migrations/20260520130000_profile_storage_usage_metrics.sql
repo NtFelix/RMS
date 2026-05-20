@@ -432,6 +432,6 @@ BEGIN
   );
 EXCEPTION
   WHEN others THEN
-    RAISE NOTICE 'Could not schedule pg_cron job. Please ensure pg_cron is enabled in your Supabase project.';
+    RAISE NOTICE 'Could not schedule pg_cron job. Error: %', SQLERRM;
 END;
 $$;
