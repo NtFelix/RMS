@@ -418,17 +418,23 @@ $$;
 -- 8. Enable pg_cron and schedule weekly sync (Self-Healing)
 DO $$
 BEGIN
-  -- 1. Ensure the extension is enabled
-  CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
+  -- 1. Ensure the extension is enabled (matching existing schema from remote_schema.sql)
+  CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
   
-  -- 2. Grant permissions to the postgres user (essential for migrations)
+  -- 2. Grant permissions to management roles
   GRANT USAGE ON SCHEMA cron TO postgres;
+  GRANT USAGE ON SCHEMA cron TO service_role;
+  
   GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA cron TO postgres;
+  GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA cron TO service_role;
+  
   GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA cron TO postgres;
+  GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA cron TO service_role;
+  
   GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA cron TO postgres;
+  GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA cron TO service_role;
 
   -- 3. Safely remove existing job if it exists (Idempotency)
-  -- We use an inner block to ignore "job not found" errors
   BEGIN
     PERFORM cron.unschedule('sync-profile-storage-metrics');
   EXCEPTION WHEN others THEN
@@ -436,7 +442,6 @@ BEGIN
   END;
   
   -- 4. Schedule the job (Sunday at 00:00)
-  -- We explicitly target the 'postgres' database which is the Supabase default
   PERFORM cron.schedule(
     'sync-profile-storage-metrics',
     '0 0 * * 0',
