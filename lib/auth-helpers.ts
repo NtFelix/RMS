@@ -17,7 +17,7 @@ export async function handleGoogleSignIn(flow: AuthFlow): Promise<{ error: strin
     const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: `${origin}/auth/callback`,
+            redirectTo: `${origin}/auth/callback?origin=${encodeURIComponent(origin)}`,
             queryParams: {
                 access_type: 'offline',
             },
@@ -48,7 +48,7 @@ export async function handleMicrosoftSignIn(flow: AuthFlow): Promise<{ error: st
     const { error } = await supabase.auth.signInWithOAuth({
         provider: 'azure',
         options: {
-            redirectTo: `${origin}/auth/callback`,
+            redirectTo: `${origin}/auth/callback?origin=${encodeURIComponent(origin)}`,
             scopes: 'email profile openid',
         },
     })

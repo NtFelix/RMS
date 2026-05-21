@@ -89,7 +89,7 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${origin}/auth/callback`,
+        emailRedirectTo: `${origin}/auth/callback?origin=${encodeURIComponent(origin)}`,
       },
     })
 

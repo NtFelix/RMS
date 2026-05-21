@@ -10,22 +10,53 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
   
-  // Resolve origin robustly supporting proxies, custom hosts, and rewriting local meta-addresses
-  const forwardedHost = request.headers.get("x-forwarded-host")
-  const hostHeader = request.headers.get("host")
-  const forwardedProto = request.headers.get("x-forwarded-proto") || (requestUrl.protocol === 'https:' ? 'https' : 'http')
-  
-  let origin = requestUrl.origin
-  
-  // Helper to safely extract the first host in case of comma-separated proxy headers
-  const getFirstHost = (headerValue: string | null) => {
-    if (!headerValue) return null
-    return headerValue.split(",")[0].trim()
+  // Resolve origin robustly supporting:
+  // 1. Client-passed query parameter (highest priority, dynamically computed on browser side)
+  // 2. Proxies/headers (x-forwarded-host)
+  // 3. Request URL fallback
+  const clientOrigin = requestUrl.searchParams.get("origin")
+  let origin = ""
+
+  if (clientOrigin) {
+    try {
+      const parsedOrigin = new URL(clientOrigin)
+      const hostname = parsedOrigin.hostname
+      
+      const isValid = 
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '0.0.0.0' ||
+        hostname === 'mietevo.de' ||
+        hostname.endsWith('.mietevo.de') ||
+        hostname.endsWith('.vercel.app') ||
+        hostname.endsWith('.railway.app') ||
+        hostname.endsWith('.render.com')
+
+      if (isValid) {
+        origin = parsedOrigin.origin
+      }
+    } catch {
+      // Invalid URL format in search param, ignore and fallback
+    }
   }
 
-  const activeHost = getFirstHost(forwardedHost) || getFirstHost(hostHeader)
-  if (activeHost) {
-    origin = `${forwardedProto}://${activeHost}`
+  if (!origin) {
+    const forwardedHost = request.headers.get("x-forwarded-host")
+    const hostHeader = request.headers.get("host")
+    const forwardedProto = request.headers.get("x-forwarded-proto") || (requestUrl.protocol === 'https:' ? 'https' : 'http')
+    
+    origin = requestUrl.origin
+    
+    // Helper to safely extract the first host in case of comma-separated proxy headers
+    const getFirstHost = (headerValue: string | null) => {
+      if (!headerValue) return null
+      return headerValue.split(",")[0].trim()
+    }
+
+    const activeHost = getFirstHost(forwardedHost) || getFirstHost(hostHeader)
+    if (activeHost) {
+      origin = `${forwardedProto}://${activeHost}`
+    }
   }
 
   // Handle local meta-address resolving (0.0.0.0 / 127.0.0.1) in docker or dev environments
