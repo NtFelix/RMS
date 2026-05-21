@@ -10,21 +10,38 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
   
-  // Resolve origin robustly (supporting proxies and rewriting local 0.0.0.0 meta-address)
+  // Resolve origin robustly supporting proxies, custom hosts, and rewriting local meta-addresses
   const forwardedHost = request.headers.get("x-forwarded-host")
+  const hostHeader = request.headers.get("host")
   const forwardedProto = request.headers.get("x-forwarded-proto") || (requestUrl.protocol === 'https:' ? 'https' : 'http')
   
   let origin = requestUrl.origin
-  if (forwardedHost) {
-    origin = `${forwardedProto}://${forwardedHost}`
-  }
   
-  if (origin.includes("0.0.0.0")) {
-    if (process.env.NODE_ENV === "production") {
+  // Helper to safely extract the first host in case of comma-separated proxy headers
+  const getFirstHost = (headerValue: string | null) => {
+    if (!headerValue) return null
+    return headerValue.split(",")[0].trim()
+  }
+
+  const activeHost = getFirstHost(forwardedHost) || getFirstHost(hostHeader)
+  if (activeHost) {
+    origin = `${forwardedProto}://${activeHost}`
+  }
+
+  // Handle local meta-address resolving (0.0.0.0 / 127.0.0.1) in docker or dev environments
+  if (origin.includes("0.0.0.0") || origin.includes("127.0.0.1")) {
+    if (BASE_URL && !BASE_URL.includes("0.0.0.0") && !BASE_URL.includes("127.0.0.1")) {
       origin = BASE_URL
     } else {
-      origin = origin.replace("0.0.0.0", "localhost")
+      origin = origin
+        .replace("0.0.0.0", "localhost")
+        .replace("127.0.0.1", "localhost")
     }
+  }
+
+  // Securely enforce HTTPS protocol for public domains (avoid mixed content in SSL-terminated environments)
+  if (!origin.includes("localhost") && !origin.includes("127.0.0.1") && !origin.includes("0.0.0.0")) {
+    origin = origin.replace("http://", "https://")
   }
 
   if (!code) {

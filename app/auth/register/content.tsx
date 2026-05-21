@@ -84,11 +84,12 @@ export default function RegisterPage() {
     // Track registration started (GDPR-compliant - checks consent internally)
     trackRegisterStarted('email')
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : BASE_URL
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${BASE_URL}/auth/callback`,
+        emailRedirectTo: `${origin}/auth/callback`,
       },
     })
 
