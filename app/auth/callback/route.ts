@@ -22,15 +22,16 @@ export async function GET(request: Request) {
       const parsedOrigin = new URL(clientOrigin)
       const hostname = parsedOrigin.hostname
       
+      // Security evaluation: By validating against the active request hostname,
+      // we securely permit preview environments (e.g. Vercel, Railway, Render)
+      // without opening a redirect vulnerability to generic attacker subdomains.
       const isValid = 
-        hostname === 'localhost' ||
-        hostname === '127.0.0.1' ||
-        hostname === '0.0.0.0' ||
+        hostname === requestUrl.hostname ||
         hostname === 'mietevo.de' ||
         hostname.endsWith('.mietevo.de') ||
-        hostname.endsWith('.vercel.app') ||
-        hostname.endsWith('.railway.app') ||
-        hostname.endsWith('.render.com')
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === '0.0.0.0'
 
       if (isValid) {
         origin = parsedOrigin.origin
@@ -59,20 +60,48 @@ export async function GET(request: Request) {
     }
   }
 
-  // Handle local meta-address resolving (0.0.0.0 / 127.0.0.1) in docker or dev environments
-  if (origin.includes("0.0.0.0") || origin.includes("127.0.0.1")) {
-    if (BASE_URL && !BASE_URL.includes("0.0.0.0") && !BASE_URL.includes("127.0.0.1")) {
-      origin = BASE_URL
-    } else {
-      origin = origin
-        .replace("0.0.0.0", "localhost")
-        .replace("127.0.0.1", "localhost")
+  // Handle local meta-address resolving (0.0.0.0 / 127.0.0.1) in docker or dev environments using proper URL parsing
+  try {
+    const originUrl = new URL(origin)
+    const hostname = originUrl.hostname
+    
+    if (hostname === '0.0.0.0' || hostname === '127.0.0.1') {
+      let baseHasLocal = false
+      if (BASE_URL) {
+        try {
+          const baseUrlParsed = new URL(BASE_URL)
+          const baseHostname = baseUrlParsed.hostname
+          if (baseHostname === '0.0.0.0' || baseHostname === '127.0.0.1' || baseHostname === 'localhost') {
+            baseHasLocal = true
+          }
+        } catch {
+          baseHasLocal = true
+        }
+      }
+
+      if (BASE_URL && !baseHasLocal) {
+        origin = BASE_URL
+      } else {
+        originUrl.hostname = 'localhost'
+        origin = originUrl.origin
+      }
     }
+  } catch {
+    // URL parsing failed, leave origin as is
   }
 
-  // Securely enforce HTTPS protocol for public domains (avoid mixed content in SSL-terminated environments)
-  if (!origin.includes("localhost") && !origin.includes("127.0.0.1") && !origin.includes("0.0.0.0")) {
-    origin = origin.replace("http://", "https://")
+  // Securely enforce HTTPS protocol for public domains using proper URL parsing
+  try {
+    const originUrl = new URL(origin)
+    const hostname = originUrl.hostname
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0'
+    
+    if (!isLocal && originUrl.protocol === 'http:') {
+      originUrl.protocol = 'https:'
+      origin = originUrl.origin
+    }
+  } catch {
+    // URL parsing failed, leave origin as is
   }
 
   if (!code) {
