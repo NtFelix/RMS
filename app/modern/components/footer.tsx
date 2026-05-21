@@ -90,7 +90,7 @@ export default function Footer() {
       className="relative py-16 px-4 md:py-24 overflow-hidden bg-background"
     >
       {/* Huge Watermark Background Logo, partially cut off at the bottom */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-[-80px] md:bottom-[-160px] text-[10rem] md:text-[22rem] font-black text-foreground/[0.05] dark:text-foreground/[0.03] tracking-tighter select-none font-sans uppercase pointer-events-none z-0">
+      <div className="hidden md:block absolute left-1/2 -translate-x-1/2 bottom-[-160px] text-[22rem] font-black text-foreground/[0.05] dark:text-foreground/[0.03] tracking-tighter select-none font-sans uppercase pointer-events-none z-0 whitespace-nowrap">
         {BRAND_NAME}
       </div>
 
