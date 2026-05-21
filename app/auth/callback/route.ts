@@ -2,14 +2,30 @@ import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
 import { logApiRoute } from "@/lib/logging-middleware"
 import { capturePostHogEvent } from "@/lib/posthog-helpers"
-import { ROUTES } from "@/lib/constants"
+import { ROUTES, BASE_URL } from "@/lib/constants"
 
 export const runtime = 'edge'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
-  const origin = requestUrl.origin
+  
+  // Resolve origin robustly (supporting proxies and rewriting local 0.0.0.0 meta-address)
+  const forwardedHost = request.headers.get("x-forwarded-host")
+  const forwardedProto = request.headers.get("x-forwarded-proto") || (requestUrl.protocol === 'https:' ? 'https' : 'http')
+  
+  let origin = requestUrl.origin
+  if (forwardedHost) {
+    origin = `${forwardedProto}://${forwardedHost}`
+  }
+  
+  if (origin.includes("0.0.0.0")) {
+    if (process.env.NODE_ENV === "production") {
+      origin = BASE_URL
+    } else {
+      origin = origin.replace("0.0.0.0", "localhost")
+    }
+  }
 
   if (!code) {
     logApiRoute('/auth/callback', 'GET', 'error', {
