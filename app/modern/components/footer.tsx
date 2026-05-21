@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
+import { motion, useMotionValue, useSpring, AnimatePresence } from "framer-motion"
 import { ChevronDown, Mail } from "lucide-react"
 import Link from "next/link"
 import { useFeatureFlagEnabled } from "posthog-js/react"
@@ -41,7 +41,7 @@ const socialLinks = [
 const categoryMap: Record<string, FooterCategory> = {
   "Funktionen": "funktionen",
   "Ressourcen": "ressourcen",
-  "Mietevo für": "loesungen" as FooterCategory,
+  "Mietevo für": "loesungen",
 }
 
 export default function Footer() {
@@ -68,14 +68,19 @@ export default function Footer() {
     } : {})
   }
 
-  // Custom cursor spotlight tracking
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  // Custom cursor spotlight tracking using MotionValues for performance (0 re-renders)
+  const mouseX = useMotionValue(0)
+  const mouseY = useMotionValue(0)
+  
+  // Smooth out the mouse movement
+  const springConfig = { damping: 25, stiffness: 700 }
+  const smoothX = useSpring(mouseX, springConfig)
+  const smoothY = useSpring(mouseY, springConfig)
+
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    setMousePos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    })
+    mouseX.set(e.clientX - rect.left)
+    mouseY.set(e.clientY - rect.top)
   }
 
   // Mobile Accordion state
@@ -96,15 +101,19 @@ export default function Footer() {
 
       <div className="max-w-6xl mx-auto relative z-10">
         {/* Floating Card Container */}
-        <div 
+        <motion.div 
           onMouseMove={handleMouseMove}
           className="bg-card dark:bg-card/45 backdrop-blur-md rounded-[2.5rem] border border-border/80 p-8 md:p-12 shadow-2xl hover:shadow-[0_20px_50px_rgba(99,102,241,0.03)] transition-all duration-500 overflow-hidden relative group"
         >
           {/* Subtle Dynamic Glow Spotlight inside the card (visible in dark mode) */}
-          <div 
+          <motion.div 
             className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 dark:block hidden"
             style={{
-              background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(99,102,241,0.04), transparent 80%)`
+              background: `radial-gradient(600px circle at var(--x) var(--y), rgba(99,102,241,0.04), transparent 80%)`,
+              // Using CSS variables with motion values to avoid re-renders
+              // @ts-expect-error - Custom properties are supported by Framer Motion but not in base types
+              "--x": smoothX,
+              "--y": smoothY,
             }}
           />
 
@@ -164,35 +173,51 @@ export default function Footer() {
                         className={`w-4 h-4 text-muted-foreground md:hidden transition-transform duration-300 ${isAccordionOpen ? "rotate-180 text-primary" : ""}`} 
                       />
                     </button>
-                    <ul className={`space-y-3 mt-3 md:mt-0 ${isAccordionOpen ? "block" : "hidden md:block"} transition-all duration-300`}>
-                      {links.map((link) => {
-                        const specialLink = specialLinks[link]
-                        const footerCategory = categoryMap[category]
-                        return (
-                          <li key={link}>
-                            {specialLink ? (
-                              <Link
-                                href={specialLink.href}
-                                target={specialLink.target}
-                                rel={specialLink.rel}
-                                className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
-                                onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
-                              >
-                                {specialLink.text}
-                              </Link>
-                            ) : (
-                              <button
-                                type="button"
-                                className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
-                                onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
-                              >
-                                {link}
-                              </button>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
+                    
+                    {/* AnimatePresence for smooth height transitions on mobile */}
+                    <AnimatePresence initial={false}>
+                      {(isAccordionOpen || typeof window !== 'undefined' && window.innerWidth >= 768) && (
+                        <motion.ul 
+                          initial="collapsed"
+                          animate="open"
+                          exit="collapsed"
+                          variants={{
+                            open: { opacity: 1, height: "auto", marginTop: 12 },
+                            collapsed: { opacity: 0, height: 0, marginTop: 0 }
+                          }}
+                          transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                          className="space-y-3 overflow-hidden md:!opacity-100 md:!h-auto md:!mt-0"
+                        >
+                          {links.map((link) => {
+                            const specialLink = specialLinks[link]
+                            const footerCategory = categoryMap[category]
+                            return (
+                              <li key={link}>
+                                {specialLink ? (
+                                  <Link
+                                    href={specialLink.href}
+                                    target={specialLink.target}
+                                    rel={specialLink.rel}
+                                    className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
+                                    onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
+                                  >
+                                    {specialLink.text}
+                                  </Link>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
+                                    onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
+                                  >
+                                    {link}
+                                  </button>
+                                )}
+                              </li>
+                            )
+                          })}
+                        </motion.ul>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )
               })}
@@ -207,15 +232,33 @@ export default function Footer() {
               <span>© {new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</span>
             </div>
             
-            {/* Inline right-aligned legal links */}
+            {/* Inline right-aligned legal links with analytics tracking restored */}
             <div className="flex flex-wrap justify-center gap-6">
-              <Link href={ROUTES.PRIVACY} className="hover:text-foreground transition-colors hover:underline">Datenschutz</Link>
-              <Link href={ROUTES.TERMS} className="hover:text-foreground transition-colors hover:underline">AGB</Link>
-              <Link href={ROUTES.IMPRESSUM} className="hover:text-foreground transition-colors hover:underline">Impressum</Link>
+              <Link 
+                href={ROUTES.PRIVACY} 
+                className="hover:text-foreground transition-colors hover:underline"
+                onClick={() => trackFooterLinkClicked("Datenschutz", "rechtliches", ROUTES.PRIVACY)}
+              >
+                Datenschutz
+              </Link>
+              <Link 
+                href={ROUTES.TERMS} 
+                className="hover:text-foreground transition-colors hover:underline"
+                onClick={() => trackFooterLinkClicked("AGB", "rechtliches", ROUTES.TERMS)}
+              >
+                AGB
+              </Link>
+              <Link 
+                href={ROUTES.IMPRESSUM} 
+                className="hover:text-foreground transition-colors hover:underline"
+                onClick={() => trackFooterLinkClicked("Impressum", "rechtliches", ROUTES.IMPRESSUM)}
+              >
+                Impressum
+              </Link>
             </div>
           </div>
 
-        </div>
+        </motion.div>
       </div>
     </footer>
   )
