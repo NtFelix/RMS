@@ -13,10 +13,11 @@ export async function handleGoogleSignIn(flow: AuthFlow): Promise<{ error: strin
     trackGoogleAuthInitiated(flow)
 
     const supabase = createClient()
+    const origin = typeof window !== 'undefined' ? window.location.origin : BASE_URL
     const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: `${BASE_URL}/auth/callback`,
+            redirectTo: `${origin}/auth/callback?origin=${encodeURIComponent(origin)}`,
             queryParams: {
                 access_type: 'offline',
             },
@@ -43,10 +44,11 @@ export async function handleMicrosoftSignIn(flow: AuthFlow): Promise<{ error: st
     trackSocialAuthInitiated('microsoft', flow)
 
     const supabase = createClient()
+    const origin = typeof window !== 'undefined' ? window.location.origin : BASE_URL
     const { error } = await supabase.auth.signInWithOAuth({
         provider: 'azure',
         options: {
-            redirectTo: `${BASE_URL}/auth/callback`,
+            redirectTo: `${origin}/auth/callback?origin=${encodeURIComponent(origin)}`,
             scopes: 'email profile openid',
         },
     })

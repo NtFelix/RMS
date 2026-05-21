@@ -44,7 +44,7 @@ describe('auth-helpers', () => {
       expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
         options: {
-          redirectTo: 'https://test-url.com/auth/callback',
+          redirectTo: 'http://localhost/auth/callback?origin=http%3A%2F%2Flocalhost',
           queryParams: {
             access_type: 'offline',
           },
@@ -76,7 +76,7 @@ describe('auth-helpers', () => {
       expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
         provider: 'azure',
         options: {
-          redirectTo: 'https://test-url.com/auth/callback',
+          redirectTo: 'http://localhost/auth/callback?origin=http%3A%2F%2Flocalhost',
           scopes: 'email profile openid',
         },
       });
