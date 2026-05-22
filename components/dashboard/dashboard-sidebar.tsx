@@ -266,7 +266,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
           }
         }}
         className={cn(
-          "hidden md:flex flex-col z-30 ml-4 my-4 h-[calc(100vh-2rem)] sticky top-4 overflow-hidden bg-white/75 dark:bg-zinc-950/75 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-2xl rounded-[2.25rem] py-6",
+          "hidden md:flex flex-col z-30 h-screen sticky top-0 py-8",
         )}
         style={{
           willChange: "width, transform",

@@ -53,7 +53,7 @@ export function DashboardLayout({
   // Render CSS-only fallback during hydration to prevent mismatches
   if (!mounted) {
     return (
-      <div className="flex h-screen overflow-hidden bg-background">
+      <div className="flex min-h-screen bg-background">
         {/* CSS-only fallback layout with enhanced responsive behavior */}
         <div className="desktop-sidebar-responsive hydration-safe-desktop w-64 prevent-layout-shift">
           <div className="flex h-full flex-col">
@@ -68,10 +68,10 @@ export function DashboardLayout({
             </div>
           </div>
         </div>
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col">
 
-          <main className="flex flex-1 flex-col min-h-0 p-4 pt-4 md:pt-4 main-content-responsive responsive-transition prevent-layout-shift">
-            <div className="flex-1 overflow-y-auto rounded-2xl border shadow-xs mb-4 md:mb-0">
+        <main className="flex flex-1 flex-col min-h-0 p-4 responsive-transition prevent-layout-shift">
+            <div className="flex-1 rounded-2xl border shadow-xs mb-0">
               <div className="p-6">
                 <div className="space-y-4">
                   <div className="h-8 bg-muted rounded animate-pulse" />
@@ -103,7 +103,7 @@ export function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar - hidden on mobile with enhanced CSS-only fallbacks */}
       <div 
         className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out"
@@ -114,29 +114,22 @@ export function DashboardLayout({
         <DashboardSidebar sidebarData={sidebarData} />
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col">
 
         <main className={cn(
           "flex flex-1 flex-col min-h-0",
-          // Enhanced responsive padding with CSS-only fallbacks
-          "main-content-responsive",
           "responsive-transition",
-          // Responsive padding: no top padding on mobile since header is hidden
-          "p-4 md:p-4",
-          "pt-4 md:pt-4",
-          // JavaScript-enhanced responsive padding
-          isMobile ? "pb-20 pt-4" : "pb-4 pt-4"
+          "p-4"
         )}>
           <div className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden border shadow-xs",
+            "flex-1 border shadow-xs bg-white dark:bg-[#181818]",
             "rounded-[2rem] md:rounded-[2.5rem]",
-            // Enhanced CSS-only fallback for mobile bottom margin
-            "mb-4 md:mb-0",
             "responsive-transition",
             "prevent-layout-shift",
             "mobile-smooth-scroll",
-            // JavaScript-enhanced mobile spacing
-            isMobile ? "mb-4" : "mb-0"
+            "mb-0",
+            // Padding inside the container on mobile to avoid content being hidden by fixed nav
+            isMobile && "pb-20"
           )}>
             {children}
           </div>

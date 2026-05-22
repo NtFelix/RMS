@@ -275,7 +275,7 @@ export default function MieterClientView({
   };
 
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
 
       {/* Tab Selector */}
       <Tabs value={currentTab} onValueChange={(v) => {

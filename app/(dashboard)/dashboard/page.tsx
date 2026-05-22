@@ -45,7 +45,7 @@ export default async function Dashboard() {
   const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-8 p-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Dashboard</h1>
       </div>
