@@ -6,6 +6,7 @@ import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
 import { SidebarUserData } from "@/lib/server/user-data"
+import { useSidebarStore } from "@/hooks/use-sidebar-store"
 
 export function DashboardLayout({ 
   children,
@@ -16,6 +17,7 @@ export function DashboardLayout({
 }) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const { preference } = useSidebarStore()
 
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
@@ -103,7 +105,12 @@ export function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar - hidden on mobile with enhanced CSS-only fallbacks */}
-      <div className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift">
+      <div 
+        className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out"
+        style={{
+          width: preference === 'expanded' ? "18rem" : "5rem"
+        }}
+      >
         <DashboardSidebar sidebarData={sidebarData} />
       </div>
 

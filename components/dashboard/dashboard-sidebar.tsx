@@ -17,6 +17,7 @@ import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
+import { useSidebarStore } from "@/hooks/use-sidebar-store"
 
 type SidebarNavItemType = {
   title: string;
@@ -89,7 +90,13 @@ const sidebarNavItems: SidebarNavItemType[] = [
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const { preference, setPreference, isHovered, setIsHovered } = useSidebarStore()
+  const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(false)
+  
+  const isCollapsed = isResponsiveCollapsed || 
+                      preference === 'collapsed' || 
+                      (preference === 'automatic' && !isHovered)
+
   const [activeTab, setActiveTab] = useState<'home' | 'tasks' | 'inbox'>('home')
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   const { setOpen } = useCommandMenu()
@@ -108,19 +115,24 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
     const mediaQuery = window.matchMedia('(max-width: 1023px)');
 
     const handleMediaChange = (e: MediaQueryListEvent) => {
-      if (e.matches) {
-        setIsCollapsed(true);
-      }
+      setIsResponsiveCollapsed(e.matches);
     };
 
-    if (mediaQuery.matches) {
-      setIsCollapsed(true);
-    }
-
+    setIsResponsiveCollapsed(mediaQuery.matches);
     mediaQuery.addEventListener('change', handleMediaChange);
 
     return () => mediaQuery.removeEventListener('change', handleMediaChange);
   }, [])
+
+  const toggleCollapse = () => {
+    if (preference === 'expanded') {
+      setPreference('collapsed');
+    } else if (preference === 'collapsed') {
+      setPreference('expanded');
+    } else {
+      setPreference(isCollapsed ? 'expanded' : 'collapsed');
+    }
+  }
 
   const sidebarVariants: Variants = {
     expanded: {
@@ -215,11 +227,21 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       />
 
       <motion.aside
-        initial="expanded"
+        initial={false}
         animate={isCollapsed ? "collapsed" : "expanded"}
         variants={sidebarVariants}
+        onMouseEnter={() => {
+          if (preference === 'automatic') {
+            setIsHovered(true);
+          }
+        }}
+        onMouseLeave={() => {
+          if (preference === 'automatic') {
+            setIsHovered(false);
+          }
+        }}
         className={cn(
-          "hidden md:flex flex-col z-30 ml-4 my-4 h-[calc(100vh-2rem)] sticky top-4 overflow-hidden",
+          "hidden md:flex flex-col z-30 ml-4 my-4 h-[calc(100vh-2rem)] sticky top-4 overflow-hidden bg-background border border-border/80 shadow-md rounded-[2rem] py-4",
         )}
         style={{
           willChange: "width, transform",
@@ -239,7 +261,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
             getActiveStateClasses={getActiveStateClasses}
             isMobile={false}
             setIsOpen={setIsOpen}
-            toggleCollapse={() => setIsCollapsed(!isCollapsed)}
+            toggleCollapse={toggleCollapse}
             textVariants={textVariants}
             iconVariants={iconVariants}
             activeTab={activeTab}
