@@ -216,7 +216,7 @@ const FeaturePreviewSection = () => {
           resolve()
         }
 
-        const unsubscribeReload = posthog.on('featureFlagsReloading', () => {
+        const unsubscribeReload = (posthog as any).on('featureFlagsReloading', () => {
           sawReloadStart = true
         })
 

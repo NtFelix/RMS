@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown } from "lucide-react"
-import { motion, Variants } from "framer-motion"
+import { motion, Variants, AnimatePresence } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
@@ -340,7 +340,7 @@ function SidebarContent({
         {isCollapsed && !isMobile ? (
           <button
             onClick={toggleCollapse}
-            className="group relative flex items-center justify-center w-8 h-8 rounded-full shadow-xs shrink-0 focus:outline-none overflow-hidden"
+            className="group relative flex items-center justify-center w-8 h-8 rounded-full shadow-xs shrink-0 focus:outline-none overflow-hidden cursor-pointer"
             title="Menü ausklappen"
           >
             <div className="absolute inset-0 transition-opacity duration-300 group-hover:opacity-0 bg-background">
@@ -353,13 +353,13 @@ function SidebarContent({
                 unoptimized
               />
             </div>
-            <div className="absolute inset-0 bg-muted flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-              <PanelLeft className="h-4 w-4 text-foreground cursor-pointer" />
+            <div className="absolute inset-0 bg-muted flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 cursor-pointer">
+              <PanelLeft className="h-4 w-4 text-foreground" />
             </div>
           </button>
         ) : (
           <>
-            <Link href="/" className="flex items-center gap-3 font-semibold overflow-hidden">
+            <Link href="/" className="flex items-center gap-3 font-semibold overflow-hidden cursor-pointer">
               <div className="relative w-8 h-8 min-w-8 rounded-full overflow-hidden shadow-xs shrink-0">
                 <Image
                   src={LOGO_URL}
@@ -383,7 +383,7 @@ function SidebarContent({
             {!isMobile && (
               <button
                 onClick={toggleCollapse}
-                className="flex items-center justify-center rounded-lg w-8 h-8 text-muted-foreground hover:bg-muted transition-colors ml-auto shrink-0 z-50 focus:outline-none"
+                className="flex items-center justify-center rounded-lg w-8 h-8 text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 ml-auto shrink-0 z-50 focus:outline-none cursor-pointer hover:scale-105 active:scale-95"
                 title="Menü einklappen"
               >
                 <PanelLeft className="h-5 w-5" />
@@ -395,27 +395,49 @@ function SidebarContent({
 
       {/* Tab Switcher & Search Row */}
       <div className={cn("px-5 pb-4 pt-1 flex items-center justify-between", isCollapsed && "flex-col justify-center gap-2")}>
-        <div className={cn("flex items-center gap-1.5", isCollapsed && "flex-col")}>
+        <div className={cn("flex items-center gap-1.5 bg-muted/20 dark:bg-muted/5 p-1 rounded-full", isCollapsed && "flex-col p-1.5")}>
           <TooltipProvider delayDuration={100}>
             {/* Home Tab */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <motion.button
                   onClick={() => setActiveTab('home')}
                   className={cn(
-                    "flex items-center justify-center rounded-full h-9 transition-all duration-300 ease-in-out relative outline-none",
-                    activeTab === 'home' ? "px-3 bg-secondary text-secondary-foreground" : "w-9 px-0 text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                    isCollapsed && "px-0 w-9"
+                    "flex items-center justify-start rounded-full h-9 relative outline-none cursor-pointer select-none z-0 px-[10px] transition-colors duration-300",
+                    activeTab === 'home' ? "text-secondary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                   )}
+                  animate={{
+                    width: isCollapsed ? 36 : (activeTab === 'home' ? 92 : 36)
+                  }}
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 >
-                  <Home className="h-4 w-4 shrink-0 transition-transform duration-300" />
-                  <div className={cn(
-                    "overflow-hidden transition-all duration-300 ease-in-out flex items-center",
-                    (activeTab === 'home' && !isCollapsed) ? "max-w-[100px] opacity-100 ml-1.5" : "max-w-0 opacity-0 ml-0"
-                  )}>
-                    <span className="font-medium text-sm whitespace-nowrap">Home</span>
-                  </div>
-                </button>
+                  {/* Sliding Background Indicator */}
+                  {activeTab === 'home' && (
+                    <motion.div
+                      layoutId="active-tab-pill"
+                      className="absolute inset-0 bg-secondary rounded-full -z-10"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  
+                  <Home className="h-4 w-4 shrink-0" />
+                  
+                  <AnimatePresence initial={false}>
+                    {activeTab === 'home' && !isCollapsed && (
+                      <motion.span
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: "auto", opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        className="overflow-hidden flex items-center whitespace-nowrap pl-1.5"
+                      >
+                        <span className="font-medium text-sm">
+                          Home
+                        </span>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
               </TooltipTrigger>
               {isCollapsed && <TooltipContent side="right">Home</TooltipContent>}
             </Tooltip>
@@ -424,26 +446,49 @@ function SidebarContent({
             {notificationCenterEnabled && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <motion.button
                     onClick={() => setActiveTab('inbox')}
                     className={cn(
-                      "flex items-center justify-center rounded-full h-9 transition-all duration-300 ease-in-out relative outline-none",
-                      activeTab === 'inbox' ? "px-3 bg-secondary text-secondary-foreground" : "w-9 px-0 text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                      isCollapsed && "px-0 w-9"
+                      "flex items-center justify-start rounded-full h-9 relative outline-none cursor-pointer select-none z-0 px-[10px] transition-colors duration-300",
+                      activeTab === 'inbox' ? "text-secondary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                     )}
+                    animate={{
+                      width: isCollapsed ? 36 : (activeTab === 'inbox' ? 92 : 36)
+                    }}
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   >
-                    <Inbox className={cn("h-4 w-4 shrink-0 transition-transform duration-300", activeTab === 'inbox' && "fill-current")} />
-                    <div className={cn(
-                      "overflow-hidden transition-all duration-300 ease-in-out flex items-center",
-                      (activeTab === 'inbox' && !isCollapsed) ? "max-w-[100px] opacity-100 ml-1.5" : "max-w-0 opacity-0 ml-0"
-                    )}>
-                      <span className="font-medium text-sm whitespace-nowrap">Inbox</span>
-                    </div>
+                    {/* Sliding Background Indicator */}
+                    {activeTab === 'inbox' && (
+                      <motion.div
+                        layoutId="active-tab-pill"
+                        className="absolute inset-0 bg-secondary rounded-full -z-10"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    
+                    <Inbox className={cn("h-4 w-4 shrink-0 relative", activeTab === 'inbox' && "fill-current")} />
+                    
+                    <AnimatePresence initial={false}>
+                      {activeTab === 'inbox' && !isCollapsed && (
+                        <motion.span
+                          initial={{ width: 0, opacity: 0 }}
+                          animate={{ width: "auto", opacity: 1 }}
+                          exit={{ width: 0, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          className="overflow-hidden flex items-center whitespace-nowrap pl-1.5"
+                        >
+                          <span className="font-medium text-sm">
+                            Inbox
+                          </span>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                    
                     {/* Notification Badge */}
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white z-10 border-2 border-background shadow-xs">
+                    <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white z-10 border-2 border-background shadow-xs">
                       5
                     </span>
-                  </button>
+                  </motion.button>
                 </TooltipTrigger>
                 {activeTab !== 'inbox' && !isCollapsed && <TooltipContent side="bottom">Inbox</TooltipContent>}
                 {isCollapsed && <TooltipContent side="right">Inbox</TooltipContent>}
@@ -458,9 +503,9 @@ function SidebarContent({
             <TooltipTrigger asChild>
               <button
                 onClick={() => setOpen(true)}
-                className="flex items-center justify-center rounded-full w-9 h-9 text-muted-foreground transition-all duration-300 hover:text-foreground hover:bg-muted/50 mt-auto mb-auto shrink-0"
+                className="flex items-center justify-center rounded-full w-9 h-9 text-muted-foreground transition-all duration-300 hover:text-foreground hover:bg-muted/50 mt-auto mb-auto shrink-0 cursor-pointer hover:scale-105 active:scale-95"
               >
-                <Search className="h-[18px] w-[18px] shrink-0 transition-all duration-300 hover:scale-110" />
+                <Search className="h-[18px] w-[18px] shrink-0 transition-all duration-300" />
               </button>
             </TooltipTrigger>
             <TooltipContent side={isCollapsed ? "right" : "bottom"}>Suche (⌘K)</TooltipContent>
@@ -502,7 +547,7 @@ function SidebarContent({
                               }
                             }}
                             className={cn(
-                              "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2 relative",
+                              "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2 relative cursor-pointer",
                               getActiveStateClasses(item.href),
                             )}
                             data-active={isActive}
@@ -536,7 +581,7 @@ function SidebarContent({
                               <button
                                 onClick={(e) => toggleExpanded(item.title, e)}
                                 className={cn(
-                                  "ml-auto p-1 -mr-1 rounded-md opacity-80 hover:opacity-100 hover:bg-white/20 transition-transform duration-200",
+                                  "ml-auto p-1 -mr-1 rounded-md opacity-80 hover:opacity-100 hover:bg-white/20 transition-transform duration-200 cursor-pointer",
                                   isExpanded ? "rotate-180" : "rotate-0"
                                 )}
                               >
@@ -585,7 +630,7 @@ function SidebarContent({
                                     href={child.href}
                                     onClick={() => setIsOpen(false)}
                                     className={cn(
-                                      "text-sm px-3 md:py-2 py-2.5 ml-[42px] mr-2 flex-1 rounded-xl transition-all duration-200 flex items-center gap-2",
+                                      "text-sm px-3 md:py-2 py-2.5 ml-[42px] mr-2 flex-1 rounded-xl transition-all duration-200 flex items-center gap-2 cursor-pointer",
                                       isChildActive
                                         ? "bg-white dark:bg-zinc-800 text-foreground shadow-xs ring-1 ring-black/5 dark:ring-white/10 font-semibold"
                                         : "text-muted-foreground hover:bg-muted hover:text-foreground font-medium"
