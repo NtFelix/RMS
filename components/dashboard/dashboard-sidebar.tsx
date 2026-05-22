@@ -29,63 +29,88 @@ type SidebarNavItemType = {
   }[];
 };
 
-const sidebarNavItems: SidebarNavItemType[] = [
+type SidebarNavGroupType = {
+  label: string;
+  items: SidebarNavItemType[];
+};
+
+const sidebarNavGroups: SidebarNavGroupType[] = [
   {
-    title: "Dashboard",
-    href: ROUTES.HOME,
-    icon: BarChart3,
-  },
-  {
-    title: "Häuser",
-    href: "/haeuser",
-    icon: Building2,
-  },
-  {
-    title: "Wohnungen",
-    href: "/wohnungen",
-    icon: Home,
-  },
-  {
-    title: "Mieter",
-    href: "/mieter",
-    icon: Users,
-    children: [
+    label: "Allgemein",
+    items: [
       {
-        title: "Übersicht",
-        href: "/mieter",
+        title: "Dashboard",
+        href: ROUTES.HOME,
+        icon: BarChart3,
       },
-      {
-        title: "Bewerber",
-        href: "#bewerber",
-      }
     ]
   },
   {
-    title: "Finanzen",
-    href: "/finanzen",
-    icon: Wallet,
+    label: "Objekte",
+    items: [
+      {
+        title: "Häuser",
+        href: "/haeuser",
+        icon: Building2,
+      },
+      {
+        title: "Wohnungen",
+        href: "/wohnungen",
+        icon: Home,
+      },
+      {
+        title: "Mieter",
+        href: "/mieter",
+        icon: Users,
+        children: [
+          {
+            title: "Übersicht",
+            href: "/mieter",
+          },
+          {
+            title: "Bewerber",
+            href: "#bewerber",
+          }
+        ]
+      },
+    ]
   },
   {
-    title: "Betriebskosten",
-    href: "/betriebskosten",
-    icon: FileSpreadsheet,
+    label: "Finanzen",
+    items: [
+      {
+        title: "Finanzen",
+        href: "/finanzen",
+        icon: Wallet,
+      },
+      {
+        title: "Betriebskosten",
+        href: "/betriebskosten",
+        icon: FileSpreadsheet,
+      },
+    ]
   },
   {
-    title: "Aufgaben",
-    href: "/todos",
-    icon: CheckSquare,
-  },
-  {
-    title: "Dokumente",
-    href: "/dateien",
-    icon: Folder,
-  },
-  {
-    title: "E-Mails",
-    href: "/mails",
-    icon: Mail,
-  },
-]
+    label: "Tools",
+    items: [
+      {
+        title: "Aufgaben",
+        href: "/todos",
+        icon: CheckSquare,
+      },
+      {
+        title: "Dokumente",
+        href: "/dateien",
+        icon: Folder,
+      },
+      {
+        title: "E-Mails",
+        href: "/mails",
+        icon: Mail,
+      },
+    ]
+  }
+];
 
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
   const pathname = usePathname()
@@ -241,7 +266,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
           }
         }}
         className={cn(
-          "hidden md:flex flex-col z-30 ml-4 my-4 h-[calc(100vh-2rem)] sticky top-4 overflow-hidden bg-background border border-border/80 shadow-md rounded-[2rem] py-4",
+          "hidden md:flex flex-col z-30 ml-4 my-4 h-[calc(100vh-2rem)] sticky top-4 overflow-hidden bg-white/75 dark:bg-zinc-950/75 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-2xl rounded-[2.25rem] py-6",
         )}
         style={{
           willChange: "width, transform",
@@ -337,11 +362,13 @@ function SidebarContent({
 
   useEffect(() => {
     const newExpanded = { ...expandedItems };
-    sidebarNavItems.forEach(item => {
-      const hasActiveChild = item.children?.some(c => pathname === c.href || (c.href !== '/' && pathname.startsWith(c.href)));
-      if (pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) || hasActiveChild) {
-        newExpanded[item.title] = true;
-      }
+    sidebarNavGroups.forEach(group => {
+      group.items.forEach(item => {
+        const hasActiveChild = item.children?.some(c => pathname === c.href || (c.href !== '/' && pathname.startsWith(c.href)));
+        if (pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) || hasActiveChild) {
+          newExpanded[item.title] = true;
+        }
+      });
     });
     setExpandedItems(newExpanded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -355,6 +382,46 @@ function SidebarContent({
       [title]: !prev[title]
     }));
   };
+
+  const tabIconVariants: Variants = {
+    hover: { 
+      scale: 1.15, 
+      rotate: 8, 
+      transition: { type: "spring", stiffness: 450, damping: 12 } 
+    },
+    tap: { 
+      scale: 0.92 
+    }
+  };
+
+  const headingVariants: Variants = {
+    expanded: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      display: "block",
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 20,
+        delay: 0.05,
+      }
+    },
+    collapsed: {
+      opacity: 0,
+      x: -15,
+      scale: 0.85,
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+      },
+      transitionEnd: {
+        display: "none"
+      }
+    }
+  };
+
   return (
     <div className="h-full w-full flex flex-col relative">
       {/* Header section */}
@@ -416,20 +483,26 @@ function SidebarContent({
       </div>
 
       {/* Tab Switcher & Search Row */}
-      <div className={cn("px-5 pb-4 pt-1 flex items-center justify-between", isCollapsed && "flex-col justify-center gap-2")}>
-        <div className={cn("flex items-center gap-1.5 bg-muted/20 dark:bg-muted/5 p-1 rounded-full", isCollapsed && "flex-col p-1.5")}>
+      <div className={cn("px-5 pb-4 pt-1 flex items-center justify-between gap-2", isCollapsed && "flex-col justify-center gap-2")}>
+        <div 
+          className={cn(
+            "flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-0.5 rounded-full relative", 
+            isCollapsed && "flex-col p-1"
+          )}
+        >
           <TooltipProvider delayDuration={100}>
             {/* Home Tab */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <motion.button
+                  layout
                   onClick={() => setActiveTab('home')}
                   className={cn(
-                    "flex items-center justify-start rounded-full h-9 relative outline-none cursor-pointer select-none z-0 px-[10px] transition-colors duration-300",
-                    activeTab === 'home' ? "text-secondary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                    "flex items-center justify-start rounded-full h-8 relative outline-none cursor-pointer select-none z-0 px-2.5 transition-colors duration-300",
+                    activeTab === 'home' ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
                   )}
                   animate={{
-                    width: isCollapsed ? 36 : (activeTab === 'home' ? 92 : 36)
+                    width: isCollapsed ? "2.25rem" : (activeTab === 'home' ? "6.25rem" : "2.25rem")
                   }}
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 >
@@ -437,12 +510,14 @@ function SidebarContent({
                   {activeTab === 'home' && (
                     <motion.div
                       layoutId="active-tab-pill"
-                      className="absolute inset-0 bg-secondary rounded-full -z-10"
+                      className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
                   
-                  <Home className="h-4 w-4 shrink-0" />
+                  <motion.div whileHover="hover" whileTap="tap" variants={tabIconVariants} className="flex items-center justify-center">
+                    <Home className="h-4 w-4 shrink-0" />
+                  </motion.div>
                   
                   <AnimatePresence initial={false}>
                     {activeTab === 'home' && !isCollapsed && (
@@ -453,7 +528,7 @@ function SidebarContent({
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         className="overflow-hidden flex items-center whitespace-nowrap pl-1.5"
                       >
-                        <span className="font-medium text-sm">
+                        <span className="font-medium text-xs">
                           Home
                         </span>
                       </motion.span>
@@ -468,13 +543,14 @@ function SidebarContent({
             <Tooltip>
               <TooltipTrigger asChild>
                 <motion.button
+                  layout
                   onClick={() => setActiveTab('tasks')}
                   className={cn(
-                    "flex items-center justify-start rounded-full h-9 relative outline-none cursor-pointer select-none z-0 px-[10px] transition-colors duration-300",
-                    activeTab === 'tasks' ? "text-secondary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                    "flex items-center justify-start rounded-full h-8 relative outline-none cursor-pointer select-none z-0 px-2.5 transition-colors duration-300",
+                    activeTab === 'tasks' ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
                   )}
                   animate={{
-                    width: isCollapsed ? 36 : (activeTab === 'tasks' ? 92 : 36)
+                    width: isCollapsed ? "2.25rem" : (activeTab === 'tasks' ? "6.25rem" : "2.25rem")
                   }}
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 >
@@ -482,12 +558,14 @@ function SidebarContent({
                   {activeTab === 'tasks' && (
                     <motion.div
                       layoutId="active-tab-pill"
-                      className="absolute inset-0 bg-secondary rounded-full -z-10"
+                      className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
                   
-                  <CheckSquare className="h-4 w-4 shrink-0" />
+                  <motion.div whileHover="hover" whileTap="tap" variants={tabIconVariants} className="flex items-center justify-center">
+                    <CheckSquare className="h-4 w-4 shrink-0" />
+                  </motion.div>
                   
                   <AnimatePresence initial={false}>
                     {activeTab === 'tasks' && !isCollapsed && (
@@ -498,7 +576,7 @@ function SidebarContent({
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         className="overflow-hidden flex items-center whitespace-nowrap pl-1.5"
                       >
-                        <span className="font-medium text-sm">
+                        <span className="font-medium text-xs">
                           Aufgaben
                         </span>
                       </motion.span>
@@ -514,13 +592,14 @@ function SidebarContent({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <motion.button
+                    layout
                     onClick={() => setActiveTab('inbox')}
                     className={cn(
-                      "flex items-center justify-start rounded-full h-9 relative outline-none cursor-pointer select-none z-0 px-[10px] transition-colors duration-300",
-                      activeTab === 'inbox' ? "text-secondary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                      "flex items-center justify-start rounded-full h-8 relative outline-none cursor-pointer select-none z-0 px-2.5 transition-colors duration-300",
+                      activeTab === 'inbox' ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
                     )}
                     animate={{
-                      width: isCollapsed ? 36 : (activeTab === 'inbox' ? 92 : 36)
+                      width: isCollapsed ? "2.25rem" : (activeTab === 'inbox' ? "6.25rem" : "2.25rem")
                     }}
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   >
@@ -528,12 +607,14 @@ function SidebarContent({
                     {activeTab === 'inbox' && (
                       <motion.div
                         layoutId="active-tab-pill"
-                        className="absolute inset-0 bg-secondary rounded-full -z-10"
+                        className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                       />
                     )}
                     
-                    <Inbox className={cn("h-4 w-4 shrink-0 relative", activeTab === 'inbox' && "fill-current")} />
+                    <motion.div whileHover="hover" whileTap="tap" variants={tabIconVariants} className="flex items-center justify-center relative">
+                      <Inbox className={cn("h-4 w-4 shrink-0", activeTab === 'inbox' && "fill-current")} />
+                    </motion.div>
                     
                     <AnimatePresence initial={false}>
                       {activeTab === 'inbox' && !isCollapsed && (
@@ -544,7 +625,7 @@ function SidebarContent({
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                           className="overflow-hidden flex items-center whitespace-nowrap pl-1.5"
                         >
-                          <span className="font-medium text-sm">
+                          <span className="font-medium text-xs">
                             Inbox
                           </span>
                         </motion.span>
@@ -552,7 +633,7 @@ function SidebarContent({
                     </AnimatePresence>
                     
                     {/* Notification Badge */}
-                    <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white z-10 border-2 border-background shadow-xs">
+                    <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white z-10 border border-background shadow-xs">
                       5
                     </span>
                   </motion.button>
@@ -564,18 +645,50 @@ function SidebarContent({
           </TooltipProvider>
         </div>
 
-        {/* Search Input Button */}
+        {/* Search Command Input */}
         <TooltipProvider delayDuration={100} skipDelayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
+              <motion.button
+                layout
                 onClick={() => setOpen(true)}
-                className="flex items-center justify-center rounded-full w-9 h-9 text-muted-foreground transition-all duration-300 hover:text-foreground hover:bg-muted/50 mt-auto mb-auto shrink-0 cursor-pointer hover:scale-105 active:scale-95"
+                className={cn(
+                  "flex items-center text-muted-foreground hover:text-foreground transition-all duration-300 hover:bg-zinc-100/60 dark:hover:bg-zinc-900/80 border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs cursor-pointer select-none outline-none overflow-hidden shrink-0",
+                  isCollapsed 
+                    ? "justify-center rounded-full w-8 h-8 p-0" 
+                    : "flex-1 justify-between rounded-xl px-2.5 h-8 bg-zinc-50/50 dark:bg-zinc-900/30"
+                )}
               >
-                <Search className="h-[18px] w-[18px] shrink-0 transition-all duration-300" />
-              </button>
+                <div className="flex items-center gap-1.5">
+                  <Search className="h-[14px] w-[14px] shrink-0" />
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: "auto" }}
+                        exit={{ opacity: 0, width: 0 }}
+                        className="text-xs font-medium whitespace-nowrap"
+                      >
+                        Suche...
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.kbd
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="pointer-events-none hidden h-4.5 select-none items-center gap-0.5 rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-1 font-mono text-[9px] font-medium text-muted-foreground opacity-100 sm:flex"
+                    >
+                      <span>⌘</span>K
+                    </motion.kbd>
+                  )}
+                </AnimatePresence>
+              </motion.button>
             </TooltipTrigger>
-            <TooltipContent side={isCollapsed ? "right" : "bottom"}>Suche (⌘K)</TooltipContent>
+            {isCollapsed && <TooltipContent side="right">Suche (⌘K)</TooltipContent>}
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -597,130 +710,160 @@ function SidebarContent({
             )}
           </div>
         ) : (
-          <nav className="grid gap-1.5 px-5">
+          <nav className="grid gap-4 px-5">
             <TooltipProvider delayDuration={100} skipDelayDuration={300}>
+              {sidebarNavGroups.map((group) => {
+                const visibleItems = group.items.filter(
+                  item => !featureFlags.has(item.href) || featureFlags.get(item.href)
+                );
 
-              {sidebarNavItems
-                .filter(item => !featureFlags.has(item.href) || featureFlags.get(item.href))
-                .map((item) => {
-                  const isActive = isRouteActive(item.href);
-                  const hasChildren = !!item.children && item.children.length > 0;
-                  const isExpanded = expandedItems[item.title];
+                if (visibleItems.length === 0) return null;
 
-                  return (
-                    <div key={item.href} className="flex flex-col">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link
-                            href={item.href}
-                            id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
-                            onClick={() => {
-                              if (!hasChildren) setIsOpen(false)
-                              if (item.href === ROUTES.HOME) {
-                                useOnboardingStore.getState().completeStep('overview-open')
-                              }
-                            }}
-                            className={cn(
-                              "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2 relative cursor-pointer",
-                              getActiveStateClasses(item.href),
-                            )}
-                            data-active={isActive}
-                            aria-current={isActive ? "page" : undefined}
-                          >
-                            {!isMobile && iconVariants ? (
-                              <motion.div
-                                variants={iconVariants}
-                                className="shrink-0"
-                              >
-                                <item.icon className="h-4 w-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
-                              </motion.div>
-                            ) : (
-                              <item.icon className="h-4 w-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
-                            )}
-                            {!isMobile && textVariants && (
-                              <motion.span
-                                variants={textVariants}
-                                className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1"
-                              >
-                                {item.title}
-                              </motion.span>
-                            )}
-                            {isMobile && (
-                              <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1">
-                                {item.title}
-                              </span>
-                            )}
+                return (
+                  <div key={group.label} className="flex flex-col gap-1">
+                    {/* Section Header */}
+                    <motion.div
+                      variants={headingVariants}
+                      animate={isCollapsed ? "collapsed" : "expanded"}
+                      className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 px-3 py-1 cursor-default select-none"
+                    >
+                      {group.label}
+                    </motion.div>
 
-                            {hasChildren && !isCollapsed && (
-                              <button
-                                onClick={(e) => toggleExpanded(item.title, e)}
-                                className={cn(
-                                  "ml-auto p-1 -mr-1 rounded-md opacity-80 hover:opacity-100 hover:bg-white/20 transition-transform duration-200 cursor-pointer",
-                                  isExpanded ? "rotate-180" : "rotate-0"
-                                )}
-                              >
-                                <ChevronDown className="h-4 w-4" />
-                              </button>
-                            )}
-                          </Link>
-                        </TooltipTrigger>
-                        {isCollapsed && <TooltipContent side="right" className="font-medium">{item.title}</TooltipContent>}
-                      </Tooltip>
+                    {/* Group Items */}
+                    <div className="flex flex-col gap-1">
+                      {visibleItems.map((item) => {
+                        const isActive = isRouteActive(item.href);
+                        const hasChildren = !!item.children && item.children.length > 0;
+                        const isExpanded = expandedItems[item.title];
 
-                      {hasChildren && !isCollapsed && (
-                        <motion.div
-                          initial={false}
-                          animate={{ height: isExpanded ? "auto" : 0, opacity: isExpanded ? 1 : 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="flex flex-col relative mt-1 pb-1">
-                            {item.children!.map((child, index) => {
-                              const isChildActive = pathname === child.href || (pathname === item.href && child.href === item.href);
-                              const isLast = index === item.children!.length - 1;
-
-                              return (
-                                <div key={child.href} className="relative flex items-center mt-1">
-                                  {/* Branch Curve pointing to the item */}
-                                  <div
-                                    className="absolute left-[19px] w-[23px] border-l-[2px] border-b-[2px] border-zinc-300 dark:border-zinc-800 rounded-bl-[16px] bg-transparent pointer-events-none transition-colors duration-300"
-                                    style={{
-                                      top: index === 0 ? '-16px' : '0',
-                                      height: index === 0 ? 'calc(50% + 16px)' : '50%'
-                                    }}
-                                  />
-                                  {/* Vertical line continuing down past the curve (only if not last) */}
-                                  {!isLast && (
-                                    <div
-                                      className="absolute left-[19px] w-[2px] bg-zinc-300 dark:bg-zinc-800 pointer-events-none transition-colors duration-300"
-                                      style={{
-                                        top: index === 0 ? '-16px' : '0',
-                                        // Connects to the next item's top (4px bridges the mt-1 gap)
-                                        bottom: '-4px'
-                                      }}
-                                    />
+                        return (
+                          <div key={item.href} className="flex flex-col">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link
+                                  href={item.href}
+                                  id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
+                                  onClick={() => {
+                                    if (!hasChildren) setIsOpen(false)
+                                    if (item.href === ROUTES.HOME) {
+                                      useOnboardingStore.getState().completeStep('overview-open')
+                                    }
+                                  }}
+                                  className={cn(
+                                    "group flex items-center gap-3 rounded-xl pl-3 pr-3 h-10 text-sm font-medium transition-all duration-500 ease-out hover:bg-accent hover:text-white hover:ml-2 hover:mr-0 hover:shadow-lg hover:shadow-accent/20 mr-2 relative cursor-pointer active:scale-98 hover:translate-x-0.5",
+                                    getActiveStateClasses(item.href),
+                                  )}
+                                  data-active={isActive}
+                                  aria-current={isActive ? "page" : undefined}
+                                >
+                                  {!isMobile && iconVariants ? (
+                                    <motion.div
+                                      variants={iconVariants}
+                                      className="shrink-0"
+                                    >
+                                      <item.icon className="h-4 w-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
+                                    </motion.div>
+                                  ) : (
+                                    <item.icon className="h-4 w-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-115 group-hover:rotate-3" />
+                                  )}
+                                  {!isMobile && textVariants && (
+                                    <motion.span
+                                      variants={textVariants}
+                                      className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1"
+                                    >
+                                      {item.title}
+                                    </motion.span>
+                                  )}
+                                  {isMobile && (
+                                    <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1">
+                                      {item.title}
+                                    </span>
                                   )}
 
-                                  <Link
-                                    href={child.href}
-                                    onClick={() => setIsOpen(false)}
-                                    className={cn(
-                                      "text-sm px-3 md:py-2 py-2.5 ml-[42px] mr-2 flex-1 rounded-xl transition-all duration-200 flex items-center gap-2 cursor-pointer",
-                                      isChildActive
-                                        ? "bg-white dark:bg-zinc-800 text-foreground shadow-xs ring-1 ring-black/5 dark:ring-white/10 font-semibold"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground font-medium"
-                                    )}
-                                  >
-                                    <span className="truncate">{child.title}</span>
-                                  </Link>
+                                  {hasChildren && !isCollapsed && (
+                                    <button
+                                      onClick={(e) => toggleExpanded(item.title, e)}
+                                      className={cn(
+                                        "ml-auto p-1 -mr-1 rounded-md opacity-80 hover:opacity-100 hover:bg-white/20 transition-transform duration-200 cursor-pointer",
+                                        isExpanded ? "rotate-180" : "rotate-0"
+                                      )}
+                                    >
+                                      <ChevronDown className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </Link>
+                              </TooltipTrigger>
+                              {isCollapsed && <TooltipContent side="right" className="font-medium">{item.title}</TooltipContent>}
+                            </Tooltip>
+
+                            {hasChildren && !isCollapsed && (
+                              <motion.div
+                                initial={false}
+                                animate={{ height: isExpanded ? "auto" : 0, opacity: isExpanded ? 1 : 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="flex flex-col relative mt-1 pb-1">
+                                  {item.children!.map((child, index) => {
+                                    const isChildActive = pathname === child.href || (pathname === item.href && child.href === item.href);
+                                    const isLast = index === item.children!.length - 1;
+
+                                    return (
+                                      <div key={child.href} className="relative flex items-center mt-1">
+                                        {/* Branch Curve pointing to the item with active glow */}
+                                        <div
+                                          className={cn(
+                                            "absolute left-[19px] w-[23px] border-l-[2px] border-b-[2px] rounded-bl-[16px] bg-transparent pointer-events-none transition-all duration-300",
+                                            isChildActive
+                                              ? "border-accent dark:border-accent shadow-[0_0_8px_rgba(59,130,246,0.3)]"
+                                              : "border-zinc-300 dark:border-zinc-800"
+                                          )}
+                                          style={{
+                                            top: index === 0 ? '-16px' : '0',
+                                            height: index === 0 ? 'calc(50% + 16px)' : '50%'
+                                          }}
+                                        />
+                                        {/* Vertical line continuing down past the curve (only if not last) */}
+                                        {!isLast && (
+                                          <div
+                                            className={cn(
+                                              "absolute left-[19px] w-[2px] pointer-events-none transition-all duration-300",
+                                              isChildActive
+                                                ? "bg-accent/40 dark:bg-accent/55"
+                                                : "bg-zinc-300 dark:bg-zinc-800"
+                                            )}
+                                            style={{
+                                              top: index === 0 ? '-16px' : '0',
+                                              bottom: '-4px'
+                                            }}
+                                          />
+                                        )}
+
+                                        <Link
+                                          href={child.href}
+                                          onClick={() => setIsOpen(false)}
+                                          className={cn(
+                                            "text-sm px-3 md:py-2 py-2.5 ml-[42px] mr-2 flex-1 rounded-xl transition-all duration-200 flex items-center gap-2 cursor-pointer active:scale-98",
+                                            isChildActive
+                                              ? "bg-white dark:bg-zinc-800 text-foreground shadow-xs ring-1 ring-black/5 dark:ring-white/10 font-semibold"
+                                              : "text-muted-foreground hover:bg-muted hover:text-foreground font-medium"
+                                          )}
+                                        >
+                                          <span className="truncate">{child.title}</span>
+                                        </Link>
+                                      </div>
+                                    )
+                                  })}
                                 </div>
-                              )
-                            })}
+                              </motion.div>
+                            )}
                           </div>
-                        </motion.div>
-                      )}
+                        )
+                      })}
                     </div>
-                  )
-                })}
+                  </div>
+                );
+              })}
             </TooltipProvider>
           </nav>
         )}

@@ -105,16 +105,23 @@ export function UserSettings({
         trigger={
           <div
             className={cn(
-              "flex items-center hover:bg-white hover:text-gray-900 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md dark:hover:bg-gray-800 dark:hover:text-gray-100",
-              collapsed ? "justify-center rounded-full p-0 h-10 w-10 mx-auto" : "space-x-3 px-3 py-2 rounded-xl"
+              "flex items-center cursor-pointer transition-all duration-300 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20",
+              collapsed 
+                ? "justify-center rounded-full p-0 h-10 w-10 mx-auto bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90" 
+                : "space-x-3 px-3 py-2.5 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
             )}
             aria-label="User menu"
           >
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-accent text-accent-foreground">
-                {isLoadingUser ? "" : userInitials}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative shrink-0">
+              <Avatar className="h-10 w-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
+                <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
+                  {isLoadingUser ? "" : userInitials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-0 right-0 flex h-3 w-3 rounded-full border-2 border-white dark:border-zinc-950 bg-emerald-500 shadow-xs">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+              </span>
+            </div>
             {!collapsed && (
               <motion.div
                 initial={{ opacity: 0, width: 0 }}
