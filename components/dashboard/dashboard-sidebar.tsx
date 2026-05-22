@@ -90,7 +90,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [activeTab, setActiveTab] = useState<'home' | 'inbox'>('home')
+  const [activeTab, setActiveTab] = useState<'home' | 'tasks' | 'inbox'>('home')
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   const { setOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
@@ -288,8 +288,8 @@ interface SidebarContentProps {
   toggleCollapse?: () => void
   textVariants?: Variants
   iconVariants?: Variants
-  activeTab: 'home' | 'inbox'
-  setActiveTab: (tab: 'home' | 'inbox') => void
+  activeTab: 'home' | 'tasks' | 'inbox'
+  setActiveTab: (tab: 'home' | 'tasks' | 'inbox') => void
   notificationCenterEnabled: boolean
   sidebarData: SidebarUserData
 }
@@ -442,6 +442,51 @@ function SidebarContent({
               {isCollapsed && <TooltipContent side="right">Home</TooltipContent>}
             </Tooltip>
 
+            {/* Aufgaben Tab */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.button
+                  onClick={() => setActiveTab('tasks')}
+                  className={cn(
+                    "flex items-center justify-start rounded-full h-9 relative outline-none cursor-pointer select-none z-0 px-[10px] transition-colors duration-300",
+                    activeTab === 'tasks' ? "text-secondary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  )}
+                  animate={{
+                    width: isCollapsed ? 36 : (activeTab === 'tasks' ? 92 : 36)
+                  }}
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                >
+                  {/* Sliding Background Indicator */}
+                  {activeTab === 'tasks' && (
+                    <motion.div
+                      layoutId="active-tab-pill"
+                      className="absolute inset-0 bg-secondary rounded-full -z-10"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  
+                  <CheckSquare className="h-4 w-4 shrink-0" />
+                  
+                  <AnimatePresence initial={false}>
+                    {activeTab === 'tasks' && !isCollapsed && (
+                      <motion.span
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: "auto", opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        className="overflow-hidden flex items-center whitespace-nowrap pl-1.5"
+                      >
+                        <span className="font-medium text-sm">
+                          Aufgaben
+                        </span>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              </TooltipTrigger>
+              {isCollapsed && <TooltipContent side="right">Aufgaben</TooltipContent>}
+            </Tooltip>
+
             {/* Inbox Tab (Controlled by Feature Flag) */}
             {notificationCenterEnabled && (
               <Tooltip>
@@ -520,6 +565,13 @@ function SidebarContent({
             <Inbox className="h-8 w-8 opacity-20" />
             {!isCollapsed && (
               <p className="text-sm">Keine neuen Benachrichtigungen.</p>
+            )}
+          </div>
+        ) : activeTab === 'tasks' ? (
+          <div className="flex flex-col items-center justify-start pt-8 h-full px-5 text-center text-muted-foreground space-y-3">
+            <CheckSquare className="h-8 w-8 opacity-20" />
+            {!isCollapsed && (
+              <p className="text-sm">Keine anstehenden Aufgaben.</p>
             )}
           </div>
         ) : (
