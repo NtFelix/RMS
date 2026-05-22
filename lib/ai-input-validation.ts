@@ -40,12 +40,45 @@ const SPAM_PATTERNS = [
 // Excessive punctuation patterns
 const EXCESSIVE_PUNCTUATION = /[!?]{3,}|[.]{4,}/g;
 
-// HTML/Script injection patterns
+/**
+ * Robustly strips HTML tags from a string, handling nested/broken tags
+ */
+function stripHtml(input: string): string {
+  if (!input) return '';
+  
+  // Handle both browser and Node.js environments
+  if (typeof window !== 'undefined') {
+    // Dynamically require DOMPurify to prevent SSR issues during module load
+    const DOMPurify = require('dompurify');
+    // Use DOMPurify for robust, industry-standard HTML stripping in the browser
+    return DOMPurify.sanitize(input, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+      KEEP_CONTENT: true,
+      RETURN_DOM_FRAGMENT: false,
+      RETURN_DOM: false,
+    });
+  } else {
+    // For Node.js/Server-side without JSDOM, use recursive stripping
+    // Heuristic: only strip if it looks like a tag (starts with < and a letter or /)
+    // and ends with >. This avoids mangling math like "a < b".
+    let previous;
+    let current = input;
+    do {
+      previous = current;
+      current = current.replace(/<[a-z\/][^>]*>/gi, '');
+    } while (current !== previous);
+    return current;
+  }
+}
+
+// HTML/Script injection patterns - improved to be more robust and avoid ReDoS
 const INJECTION_PATTERNS = [
-  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-  /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
-  /javascript:/gi,
-  /on\w+\s*=/gi
+  /<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi,
+  /<iframe\b[^>]*>[\s\S]*?<\/iframe[^>]*>/gi,
+  /<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi,
+  /(?:javascript|data|vbscript):/gi,
+  /\bon\w*\s*=/gi
 ];
 
 /**
@@ -87,6 +120,7 @@ export function validateAIInput(
 
   // Check for injection attempts
   for (const pattern of INJECTION_PATTERNS) {
+    pattern.lastIndex = 0; // Reset regex state
     if (pattern.test(trimmedInput)) {
       return {
         isValid: false,
@@ -110,7 +144,7 @@ export function validateAIInput(
     }
 
     // Remove potential HTML tags (but preserve common symbols)
-    sanitizedInput = sanitizedInput.replace(/<[^>]*>/g, '');
+    sanitizedInput = stripHtml(sanitizedInput);
   }
 
   // Spam detection
@@ -231,13 +265,25 @@ export function validateAIContext(input: string): ValidationResult {
 export function sanitizeInput(input: string): string {
   if (!input) return '';
 
-  return input
+  let previous;
+  let current = input;
+
+  // Repeat until no more dangerous patterns are found
+  // to handle cases like javasjavascript:cript:
+  do {
+    previous = current;
+    // Step 1: Strip HTML tags and attributes (handles on* handlers)
+    current = stripHtml(current);
+    
+    // Step 2: Remove dangerous URL schemes
+    current = current.replace(/(?:javascript|data|vbscript):/gi, '');
+  } while (current !== previous);
+
+  // Final cleanup: remove control characters, trim and enforce length
+  return current
+    .replace(/[\x00-\x1F\x7F]/g, '')
     .trim()
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/javascript:/gi, '') // Remove javascript: URLs
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
-    .substring(0, 2000); // Enforce max length
+    .substring(0, 2000);
 }
 
 /**

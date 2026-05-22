@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -8,7 +9,10 @@ export async function POST(request: NextRequest) {
     const { filePath, fileName, content } = await request.json()
 
     if (!filePath || !fileName || content === undefined) {
-      return NextResponse.json({ error: 'File path, name, and content are required' }, { status: 400 })
+      return NextResponse.json({ error: 'File path, name, and content are required' }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
     const supabase = await createClient()
@@ -16,12 +20,18 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { 
+        status: 401,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
     // Validate that the path belongs to the user
     if (!filePath.startsWith(`user_${user.id}`)) {
-      return NextResponse.json({ error: 'Invalid path' }, { status: 403 })
+      return NextResponse.json({ error: 'Invalid path' }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      })
     }
 
     // Construct the full file path
@@ -84,7 +94,10 @@ export async function POST(request: NextRequest) {
 
       if (!uploadSuccess) {
         console.error('Error uploading file after delete (all retries failed):', lastError)
-        return NextResponse.json({ error: 'Failed to save file' }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to save file' }, { 
+          status: 500,
+          headers: NO_CACHE_HEADERS
+        })
       }
     }
 
@@ -111,20 +124,22 @@ export async function POST(request: NextRequest) {
       // Notify client about the partial failure
       return NextResponse.json(
         { error: 'File content was updated, but metadata failed to save. Please try refreshing.' },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: NO_CACHE_HEADERS
+        }
       )
     }
 
     // Return with cache-busting headers
     return NextResponse.json({ success: true }, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
+      headers: NO_CACHE_HEADERS
     })
   } catch (error) {
     console.error('Error updating file:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    })
   }
 }

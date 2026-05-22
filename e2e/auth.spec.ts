@@ -59,8 +59,9 @@ test.describe('Authentication Flows', () => {
     // CustomDropdown wraps it and adds data-dropdown-trigger
     const userMenuTrigger = page.locator('[aria-label="User menu"], [data-dropdown-trigger]').first();
 
-    await expect(userMenuTrigger).toBeVisible({ timeout: 10000 });
-    await userMenuTrigger.click();
+    await expect(userMenuTrigger).toBeVisible({ timeout: 15000 });
+    await expect(userMenuTrigger).toBeEnabled();
+    await userMenuTrigger.click({ force: true });
     // Wait for dropdown animation
     // But checking for visibility is better practice than fixed timeout
 

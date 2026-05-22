@@ -6,15 +6,12 @@ import { useAICacheClient, useAICacheWarming } from './use-ai-cache-client';
 import { validateAIInput, validateAIContext, sanitizeInput, getInputSuggestions } from '@/lib/ai-input-validation';
 import { categorizeAIError, trackAIRequestFailure, type AIErrorDetails } from '@/lib/ai-documentation-context';
 import { createAIPerformanceMonitor, type AIPerformanceMetrics } from '@/lib/ai-performance-monitor';
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  isRetry?: boolean;
-  validationWarning?: string;
-}
+import { 
+  AIDocumentationContext, 
+  DocumentationContextItem, 
+  CategoryItem, 
+  type ChatMessage 
+} from '@/types/ai';
 
 export interface AIAssistantState {
   messages: ChatMessage[];
@@ -27,7 +24,6 @@ export interface AIAssistantState {
   validationError: string | null;
   validationWarning: string | null;
   inputSuggestions: string[];
-  fallbackToSearch: boolean;
 }
 
 export interface UseEnhancedAIAssistantReturn {
@@ -38,22 +34,22 @@ export interface UseEnhancedAIAssistantReturn {
     clearMessages: () => void;
     setInputValue: (value: string) => void;
     validateInput: (input: string) => boolean;
-    fallbackToDocumentationSearch: () => void;
-    resetFallback: () => void;
   };
   networkStatus: ReturnType<typeof useNetworkStatus>;
   retryState: ReturnType<typeof useRetry>['state'];
 }
 
-const generateSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// crypto.randomUUID() requires a secure context (HTTPS/localhost) in the browser
+// and is available in Node.js >=14.17.
+const generateSessionId = () => `session_${crypto.randomUUID()}`;
+const generateMessageId = () => `msg_${crypto.randomUUID()}`;
 
 /**
  * Enhanced AI Assistant hook with comprehensive error handling
  * Includes network detection, retry mechanisms, input validation, and fallback options
  */
 export function useEnhancedAIAssistant(
-  documentationContext: any[] = []
+  documentationContext: AIDocumentationContext = { articles: [] }
 ): UseEnhancedAIAssistantReturn {
   const [state, setState] = useState<AIAssistantState>({
     messages: [],
@@ -65,8 +61,7 @@ export function useEnhancedAIAssistant(
     sessionStartTime: null,
     validationError: null,
     validationWarning: null,
-    inputSuggestions: [],
-    fallbackToSearch: false
+    inputSuggestions: []
   });
 
   const posthog = usePostHog();
@@ -95,7 +90,7 @@ export function useEnhancedAIAssistant(
 
   // Preload frequent queries when documentation context changes
   useEffect(() => {
-    if (documentationContext.length > 0 && networkStatus.isOnline) {
+    if (documentationContext.articles.length > 0 && networkStatus.isOnline) {
       const contextHash = generateContextHash(documentationContext);
 
       // Preload common queries in the background
@@ -132,8 +127,7 @@ export function useEnhancedAIAssistant(
       // Clear network-related errors when coming back online
       setState(prev => ({
         ...prev,
-        error: null,
-        fallbackToSearch: false
+        error: null
       }));
     }
   }, [networkStatus.isOnline, state.error]);
@@ -191,7 +185,6 @@ export function useEnhancedAIAssistant(
       setState(prev => ({
         ...prev,
         error: 'Keine Internetverbindung verfügbar. Bitte überprüfen Sie Ihre Netzwerkverbindung.',
-        fallbackToSearch: true
       }));
       return;
     }
@@ -257,8 +250,7 @@ export function useEnhancedAIAssistant(
         error: null,
         validationError: null,
         validationWarning: null,
-        inputSuggestions: [],
-        fallbackToSearch: false
+        inputSuggestions: []
       }));
 
       return;
@@ -269,7 +261,7 @@ export function useEnhancedAIAssistant(
       posthog.capture('ai_question_submitted', {
         question_length: sanitizedMessage.length,
         session_id: sessionId,
-        has_context: documentationContext.length > 0,
+        has_context: documentationContext.articles.length > 0,
         message_count: state.messages.length + 1,
         is_retry: false,
         network_type: networkStatus.connectionType,
@@ -295,7 +287,6 @@ export function useEnhancedAIAssistant(
       validationError: null,
       validationWarning: null,
       inputSuggestions: [],
-      fallbackToSearch: false
     }));
 
     // Create placeholder assistant message for streaming
@@ -413,16 +404,6 @@ export function useEnhancedAIAssistant(
 
       // Get user-friendly error message in German
       let errorMessage = getGermanErrorMessage(errorDetails);
-      let shouldFallback = false;
-
-      // Determine if we should suggest fallback to documentation search
-      if (errorDetails.errorType === 'network_error' ||
-        errorDetails.errorType === 'timeout_error' ||
-        errorDetails.errorType === 'server_error' ||
-        errorDetails.errorType === 'model_overloaded') {
-        shouldFallback = true;
-        errorMessage += ' Sie können stattdessen die normale Dokumentationssuche verwenden.';
-      }
 
       // Track failed response
       if (posthog && posthog.has_opted_in_capturing?.()) {
@@ -432,8 +413,8 @@ export function useEnhancedAIAssistant(
           sessionId: sessionId,
           responseTimeMs: responseTime,
           questionLength: sanitizedMessage.length,
-          hasContext: documentationContext.length > 0,
-          contextArticlesCount: documentationContext.length,
+          hasContext: documentationContext.articles.length > 0,
+          contextArticlesCount: documentationContext.articles.length,
           messageCount: state.messages.length + 1
         });
       }
@@ -443,7 +424,6 @@ export function useEnhancedAIAssistant(
         ...prev,
         messages: prev.messages.filter(msg => msg.id !== assistantMessageId),
         error: errorMessage,
-        fallbackToSearch: shouldFallback
       }));
 
     } finally {
@@ -485,21 +465,10 @@ export function useEnhancedAIAssistant(
       validationError: null,
       validationWarning: null,
       inputSuggestions: [],
-      fallbackToSearch: false,
       streamingMessageId: null
     }));
     resetRetry();
   }, [resetRetry]);
-
-  // Fallback to documentation search
-  const fallbackToDocumentationSearch = useCallback(() => {
-    setState(prev => ({ ...prev, fallbackToSearch: true }));
-  }, []);
-
-  // Reset fallback state
-  const resetFallback = useCallback(() => {
-    setState(prev => ({ ...prev, fallbackToSearch: false }));
-  }, []);
 
   // Helper function to update assistant message
   const updateAssistantMessage = useCallback((messageId: string, content: string) => {
@@ -629,9 +598,7 @@ export function useEnhancedAIAssistant(
       retryLastMessage,
       clearMessages,
       setInputValue,
-      validateInput,
-      fallbackToDocumentationSearch,
-      resetFallback
+      validateInput
     },
     networkStatus,
     retryState
@@ -641,14 +608,14 @@ export function useEnhancedAIAssistant(
 /**
  * Generate context hash for caching
  */
-function generateContextHash(documentationContext: any[]): string {
-  if (!documentationContext || documentationContext.length === 0) {
+function generateContextHash(documentationContext: AIDocumentationContext): string {
+  if (!documentationContext || documentationContext.articles.length === 0) {
     return 'no-context';
   }
 
   const contextString = JSON.stringify({
-    articleIds: documentationContext.map(article => article.id || article.titel).sort(),
-    count: documentationContext.length
+    articleIds: documentationContext.articles.map(article => article.id || article.titel).sort(),
+    count: documentationContext.articles.length
   });
 
   // Simple hash function
@@ -671,7 +638,9 @@ function getGermanErrorMessage(errorDetails: AIErrorDetails): string {
     case 'rate_limit':
       return 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
     case 'server_error':
-      return 'Serverfehler. Bitte versuchen Sie es später erneut.';
+      return 'Serverfehler. Der AI-Dienst ist momentan nicht erreichbar. Bitte versuchen Sie es später erneut.';
+    case 'inference_error':
+      return 'Fehler bei der AI-Verarbeitung. Bitte versuchen Sie es erneut.';
     case 'authentication_error':
       return 'Authentifizierungsfehler. Der Service ist momentan nicht verfügbar.';
     case 'content_safety_error':

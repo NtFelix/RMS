@@ -12,21 +12,20 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useEnhancedAIAssistant } from "@/hooks/use-enhanced-ai-assistant";
 import { BRAND_NAME } from "@/lib/constants";
+import { AIDocumentationContext } from "@/types/ai";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
   onClose: () => void;
-  documentationContext?: any[];
+  documentationContext?: AIDocumentationContext;
   className?: string;
-  onFallbackToSearch?: () => void;
 }
 
 export default function AIAssistantInterface({
   isOpen,
   onClose,
-  documentationContext = [],
-  className,
-  onFallbackToSearch
+  documentationContext = { articles: [] },
+  className
 }: AIAssistantInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -297,7 +296,7 @@ export default function AIAssistantInterface({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
@@ -328,7 +327,7 @@ export default function AIAssistantInterface({
                         </p>
                         {/* Show streaming indicator for assistant messages that are being updated */}
                         {message.role === 'assistant' && state.streamingMessageId === message.id && (
-                          <div className="flex-shrink-0 mt-1">
+                          <div className="shrink-0 mt-1">
                             <div className="w-2 h-2 bg-primary rounded-full animate-pulse"
                               title="Nachricht wird empfangen..." />
                           </div>
@@ -345,7 +344,7 @@ export default function AIAssistantInterface({
                 </div>
 
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1">
                     <User className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
@@ -359,7 +358,7 @@ export default function AIAssistantInterface({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-primary" />
                 </div>
                 <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
@@ -391,17 +390,6 @@ export default function AIAssistantInterface({
                   <AlertDescription className="flex items-center justify-between">
                     <span>{state.error}</span>
                     <div className="flex items-center gap-2">
-                      {state.fallbackToSearch && onFallbackToSearch && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={onFallbackToSearch}
-                          className="h-auto p-1 text-destructive-foreground hover:bg-destructive/20"
-                          title="Zur normalen Suche wechseln"
-                        >
-                          <Search className="w-3 h-3" />
-                        </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -432,24 +420,6 @@ export default function AIAssistantInterface({
                   <RefreshCw className="h-4 w-4 animate-spin" />
                   <AlertDescription>
                     Wiederholung in {retryState.nextRetryIn} Sekunden... (Versuch {retryState.attemptCount})
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Fallback Suggestion */}
-              {state.fallbackToSearch && onFallbackToSearch && (
-                <Alert className="mb-2">
-                  <Search className="h-4 w-4" />
-                  <AlertDescription className="flex items-center justify-between">
-                    <span>Sie können stattdessen die normale Dokumentationssuche verwenden.</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={onFallbackToSearch}
-                      className="ml-2"
-                    >
-                      Zur Suche
-                    </Button>
                   </AlertDescription>
                 </Alert>
               )}

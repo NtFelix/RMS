@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { useAIAssistantStore, type ChatMessage } from '@/hooks/use-ai-assistant-store';
+import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
+import { AIDocumentationContext, type ChatMessage } from '@/types/ai';
 import {
   startAIGeneration,
   completeAIGeneration,
@@ -11,8 +12,7 @@ import {
 } from '@/lib/posthog-llm-tracking';
 
 interface AIConversationOptions {
-  documentationContext?: any;
-  onFallbackToSearch?: () => void;
+  documentationContext?: AIDocumentationContext;
   interface?: 'modal' | 'simple';
 }
 
@@ -32,7 +32,7 @@ interface AIConversationReturn {
  * Used by both AIAssistantModal and AIAssistantInterfaceSimple
  */
 export function useAIConversation(options: AIConversationOptions = {}): AIConversationReturn {
-  const { documentationContext, onFallbackToSearch, interface: interfaceType = 'modal' } = options;
+  const { documentationContext, interface: interfaceType = 'modal' } = options;
 
   // Local state for the interface
   const [inputValue, setInputValue] = useState('');

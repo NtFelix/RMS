@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { calculateFinancialSummary, type FinanceTransaction } from "@/utils/financeCalculations";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 interface FinanceRecord {
   betrag: number;
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
         console.log(`📈 [Finance Analytics] Chart data action deprecated - use /api/finanzen/charts instead`);
         return NextResponse.json({ 
           error: 'Chart data action deprecated. Use /api/finanzen/charts endpoint instead.' 
-        }, { status: 410 });
+        }, { status: 410, headers: NO_CACHE_HEADERS });
         break;
       case 'available-years':
         console.log(`📅 [Finance Analytics] Handling available years request`);
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
         break;
       default:
         console.log(`❌ [Finance Analytics] Invalid action: ${action}`);
-        return NextResponse.json({ error: 'Invalid action parameter' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid action parameter' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
     const totalDuration = Date.now() - requestStartTime;
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
     
   } catch (error) {
     console.error('❌ [Finance Analytics] API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -80,7 +81,7 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
       const result = processRpcFinancialSummary(summaryData[0], year);
 
       console.log(`💰 [Finance Analytics] Summary results: Income: €${result.totalIncome}, Expenses: €${result.totalExpenses}, Cashflow: €${result.totalCashflow}`);
-      return NextResponse.json(result, { status: 200 });
+      return NextResponse.json(result, { status: 200, headers: NO_CACHE_HEADERS });
     } else {
       console.log(`⚠️ [Finance Analytics] Summary: RPC function failed or returned no data, using fallback`);
     }
@@ -100,7 +101,7 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
 
   if (error) {
     console.error('❌ [Finance Analytics] Summary fallback database error:', error);
-    return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Database query failed' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 
   console.log(`📈 [Finance Analytics] Summary: Fallback retrieved ${data?.length || 0} transactions (${fallbackDuration}ms)`);
@@ -112,7 +113,7 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
   console.log(`🧮 [Finance Analytics] Summary: Calculations completed (${calcDuration}ms)`);
   console.log(`💰 [Finance Analytics] Summary results: Income: €${summary.totalIncome}, Expenses: €${summary.totalExpenses}, Cashflow: €${summary.totalCashflow}`);
   
-  return NextResponse.json(summary, { status: 200 });
+  return NextResponse.json(summary, { status: 200, headers: NO_CACHE_HEADERS });
 }
 
 async function handleFilteredSummary(supabase: any, searchParams: URLSearchParams): Promise<Response> {
@@ -179,7 +180,7 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
     
     if (error) {
       console.error('❌ [Finance Analytics] Filtered summary database error:', error);
-      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+      return NextResponse.json({ error: 'Database query failed' }, { status: 500, headers: NO_CACHE_HEADERS });
     }
     
     if (data && data.length > 0) {
@@ -202,7 +203,7 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
   const summary = calculateFilteredSummary(allRecords);
   console.log(`💰 [Finance Analytics] Filtered results: Balance: €${summary.totalBalance}, Income: €${summary.totalIncome}, Expenses: €${summary.totalExpenses}`);
   
-  return NextResponse.json(summary, { status: 200 });
+  return NextResponse.json(summary, { status: 200, headers: NO_CACHE_HEADERS });
 }
 
 
@@ -223,7 +224,7 @@ async function handleAvailableYears(supabase: any): Promise<Response> {
       console.log(`📊 [Finance Analytics] Available Years: Found ${data.length} years: ${data.map((item: any) => item.year).join(', ')}`);
       
       const years = data.map((item: any) => item.year).sort((a: number, b: number) => b - a);
-      return NextResponse.json(years, { status: 200 });
+      return NextResponse.json(years, { status: 200, headers: NO_CACHE_HEADERS });
     } else {
       console.log(`⚠️ [Finance Analytics] Available Years: RPC function not available, using fallback`);
     }
@@ -243,10 +244,10 @@ async function handleAvailableYears(supabase: any): Promise<Response> {
     console.log(`📊 [Finance Analytics] Available Years: Fallback completed (${fallbackDuration}ms)`);
     console.log(`📅 [Finance Analytics] Available Years: Processed years: ${years.join(', ')}`);
     
-    return NextResponse.json(years, { status: 200 });
+    return NextResponse.json(years, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error('❌ [Finance Analytics] Available Years: Fallback error:', error);
-    return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 

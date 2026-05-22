@@ -58,7 +58,6 @@ export function OperatingCostsOverviewModal({
     }
   }, [isOpen, nebenkosten?.id])
 
-  if (!nebenkosten) return null
 
   // Helper function to format currency
   const formatCurrency = (value: number | null | undefined) => {
@@ -175,6 +174,9 @@ export function OperatingCostsOverviewModal({
       mode
     );
   }, [abrechnungData, nebenkosten]);
+
+  // Early return must come AFTER all hooks to satisfy Rules of Hooks
+  if (!nebenkosten) return null;
 
   const totalBalance = totalCosts - (summaryTotals?.totalVorauszahlungen || 0);
   const isNachzahlung = totalBalance >= 0;

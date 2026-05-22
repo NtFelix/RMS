@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
+import { de } from "date-fns/locale";
+import { CalendarIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,28 +17,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/hooks/use-toast"; // Changed import path
-import { Checkbox } from "@/components/ui/checkbox"; // Added for ist_erledigt
+import { toast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { useModalStore } from "@/hooks/use-modal-store";
+import { TaskBoardTask } from "@/types/Task";
 
-// Define interfaces based on expected data structure
 interface AufgabePayload {
   name: string;
   beschreibung?: string | null;
   ist_erledigt?: boolean;
+  faelligkeitsdatum?: string | null;
 }
 
-// Import useModalStore
-import { useModalStore } from "@/hooks/use-modal-store";
-
 interface AufgabeEditModalProps {
-  // open: boolean; // Now from useModalStore: isAufgabeModalOpen
-  // onOpenChange: (open: boolean) => void; // Now from useModalStore: closeAufgabeModal
-  // initialData?: AufgabePayload & { id?: string }; // Now from useModalStore: aufgabeInitialData
   serverAction: (
     id: string | null,
     data: AufgabePayload
-  ) => Promise<{ success: boolean; error?: any; data?: any }>;
-  // onSuccess?: (data: any) => void; // Now from useModalStore: aufgabeModalOnSuccess
+  ) => Promise<{ success: boolean; error?: { message: string }; data?: Partial<TaskBoardTask> }>;
 }
 
 export function AufgabeEditModal({
@@ -50,22 +55,31 @@ export function AufgabeEditModal({
     setAufgabeModalDirty,
   } = useModalStore();
 
-  const router = useRouter(); // Keep if used, though not in current snippet for direct use
+  const router = useRouter();
   const [name, setName] = useState("");
   const [beschreibung, setBeschreibung] = useState("");
-  const [istErledigt, setIstErledigt] = useState(false); // This is part of AufgabePayload
+  const [istErledigt, setIstErledigt] = useState(false);
+  const [faelligkeitsdatum, setFaelligkeitsdatum] = useState<Date | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   useEffect(() => {
     if (isAufgabeModalOpen && aufgabeInitialData) {
       setName(aufgabeInitialData.name || "");
       setBeschreibung(aufgabeInitialData.beschreibung || "");
       setIstErledigt(aufgabeInitialData.ist_erledigt || false);
+      // Handle due date from initial data
+      if (aufgabeInitialData.faelligkeitsdatum) {
+        setFaelligkeitsdatum(parseISO(aufgabeInitialData.faelligkeitsdatum));
+      } else {
+        setFaelligkeitsdatum(undefined);
+      }
       setAufgabeModalDirty(false);
     } else if (isAufgabeModalOpen && !aufgabeInitialData) {
       setName("");
       setBeschreibung("");
       setIstErledigt(false);
+      setFaelligkeitsdatum(undefined);
       setAufgabeModalDirty(false);
     }
   }, [isAufgabeModalOpen, aufgabeInitialData, setAufgabeModalDirty]);
@@ -85,21 +99,51 @@ export function AufgabeEditModal({
     setAufgabeModalDirty(true);
   };
 
+  const handleDateChange = (date: Date | undefined) => {
+    setFaelligkeitsdatum(date);
+    setAufgabeModalDirty(true);
+    setIsDatePickerOpen(false);
+  };
+
+  const handleClearDate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFaelligkeitsdatum(undefined);
+    setAufgabeModalDirty(true);
+  };
+
   const attemptClose = () => {
-    closeAufgabeModal(); // Store handles confirmation for outside click/X
+    closeAufgabeModal();
   };
 
   const handleCancelClick = () => {
-    closeAufgabeModal({ force: true }); // Force close for "Abbrechen" button
+    closeAufgabeModal({ force: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) { // Beschreibung can be optional
+    if (!name.trim()) {
       toast({
         title: "Fehler",
         description: "Bitte geben Sie einen Namen für die Aufgabe ein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (name.trim().length > 100) {
+      toast({
+        title: "Fehler",
+        description: "Der Name darf maximal 100 Zeichen lang sein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (beschreibung.trim().length > 1000) {
+      toast({
+        title: "Fehler",
+        description: "Die Beschreibung darf maximal 1000 Zeichen lang sein.",
         variant: "destructive",
       });
       return;
@@ -110,6 +154,9 @@ export function AufgabeEditModal({
       name: name.trim(),
       beschreibung: beschreibung.trim() || null,
       ist_erledigt: istErledigt,
+      faelligkeitsdatum: faelligkeitsdatum
+        ? format(faelligkeitsdatum, "yyyy-MM-dd")
+        : null,
     };
 
     const isEditing = !!aufgabeInitialData?.id;
@@ -121,7 +168,7 @@ export function AufgabeEditModal({
         description: `Die Aufgabe "${payload.name}" wurde erfolgreich ${isEditing ? "aktualisiert" : "erstellt"}.`,
         variant: "success",
       });
-      
+
       setAufgabeModalDirty(false);
       if (aufgabeModalOnSuccess) {
         const returnedData = result.data || {};
@@ -139,7 +186,7 @@ export function AufgabeEditModal({
         description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
-      setAufgabeModalDirty(true); // Keep dirty on error
+      setAufgabeModalDirty(true);
     }
     setIsSubmitting(false);
   };
@@ -163,24 +210,74 @@ export function AufgabeEditModal({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Name Field */}
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="name">Name</Label>
+                <span className={cn("text-xs", name.length >= 100 ? "text-red-500" : "text-muted-foreground")}>
+                  {name.length}/100
+                </span>
+              </div>
               <Input
                 id="name"
                 value={name}
-                onChange={handleNameChange} // Use handler
+                onChange={handleNameChange}
                 placeholder="Aufgabentitel eingeben"
                 required
+                maxLength={100}
                 disabled={isSubmitting}
               />
             </div>
-            {aufgabeInitialData && ( // Use aufgabeInitialData from store
+
+            {/* Due Date Field */}
+            <div className="space-y-2">
+              <Label htmlFor="faelligkeitsdatum">Fälligkeitsdatum (optional)</Label>
+              <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="faelligkeitsdatum"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !faelligkeitsdatum && "text-muted-foreground"
+                    )}
+                    disabled={isSubmitting}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {faelligkeitsdatum ? (
+                      <span className="flex-1">
+                        {format(faelligkeitsdatum, "dd. MMMM yyyy", { locale: de })}
+                      </span>
+                    ) : (
+                      <span className="flex-1">Datum auswählen</span>
+                    )}
+                    {faelligkeitsdatum && (
+                      <X
+                        className="h-4 w-4 opacity-50 hover:opacity-100"
+                        onClick={handleClearDate}
+                      />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={faelligkeitsdatum}
+                    onSelect={handleDateChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Completed Checkbox (only for editing) */}
+            {aufgabeInitialData && (
               <div className="grid gap-2">
                 <div className="flex items-center space-x-2 pt-1">
                   <Checkbox
                     id="ist_erledigt"
                     checked={istErledigt}
-                    onCheckedChange={handleErledigtChange} // Use handler
+                    onCheckedChange={handleErledigtChange}
                     disabled={isSubmitting}
                     className="h-5 w-5"
                   />
@@ -190,14 +287,22 @@ export function AufgabeEditModal({
                 </div>
               </div>
             )}
+
+            {/* Description Field */}
             <div className="space-y-2">
-              <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
+                <span className={cn("text-xs", beschreibung.length >= 1000 ? "text-red-500" : "text-muted-foreground")}>
+                  {beschreibung.length}/1000
+                </span>
+              </div>
               <Textarea
                 id="beschreibung"
                 value={beschreibung}
-                onChange={handleBeschreibungChange} // Use handler
+                onChange={handleBeschreibungChange}
                 placeholder="Detaillierte Beschreibung der Aufgabe..."
                 className="min-h-[100px]"
+                maxLength={1000}
                 disabled={isSubmitting}
               />
             </div>

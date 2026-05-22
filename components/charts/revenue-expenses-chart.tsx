@@ -102,33 +102,32 @@ export function RevenueExpensesChart() {
   }, []);
 
   return (
-    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
-      <CardHeader className="flex-shrink-0 pb-2">
+    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
+      <CardHeader className="shrink-0 pb-2">
         <CardTitle className="text-lg">Einnahmen & Ausgaben</CardTitle>
         <CardDescription>Monatliche Übersicht der Finanzen</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-3 min-h-0" ref={containerRef}>
         <ChartContainer
           className="w-full h-full"
+          minHeight={300}
           config={{
             einnahmen: { label: "Einnahmen", color: "hsl(var(--chart-1))" },
             ausgaben: { label: "Ausgaben", color: "hsl(var(--chart-2))" },
           }}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={revenueData}
-              margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} width={40} tickCount={tickCount} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-              <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-            </BarChart>
-          </ResponsiveContainer>
+          <BarChart
+            data={revenueData}
+            margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} width={40} tickCount={tickCount} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
+            <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
+          </BarChart>
         </ChartContainer>
       </CardContent>
     </Card>

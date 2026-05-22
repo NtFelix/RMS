@@ -1137,7 +1137,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                       type="button"
                       onClick={() => { setVorauszahlungsArt('soll'); setBetriebskostenModalDirty(true); }}
                       disabled={isSaving || isFormLoading}
-                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'soll' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
+                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'soll' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
                     >
                       <div className="flex items-start justify-between w-full">
                         <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
@@ -1157,7 +1157,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                       type="button"
                       onClick={() => { setVorauszahlungsArt('ist'); setBetriebskostenModalDirty(true); }}
                       disabled={isSaving || isFormLoading}
-                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'ist' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
+                      className={`group relative flex flex-col gap-2 p-3 rounded-2xl border text-left transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed ${vorauszahlungsArt === 'ist' ? 'bg-primary/5 border-primary/50 shadow-primary/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-gray-800 hover:border-primary/30 hover:shadow-md'}`}
                     >
                       <div className="flex items-start justify-between w-full">
                         <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
@@ -1201,7 +1201,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                           return (
                             <div
                               key={typ}
-                              className="group flex flex-col gap-2 p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm transition-all hover:border-primary/30"
+                              className="group flex flex-col gap-2 p-3 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xs transition-all hover:border-primary/30"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">

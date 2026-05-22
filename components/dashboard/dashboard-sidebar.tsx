@@ -16,6 +16,7 @@ import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
+import { SidebarUserData } from "@/lib/server/user-data"
 
 type SidebarNavItemType = {
   title: string;
@@ -85,7 +86,7 @@ const sidebarNavItems: SidebarNavItemType[] = [
   },
 ]
 
-export function DashboardSidebar() {
+export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -207,7 +208,7 @@ export function DashboardSidebar() {
       </Button>
       <div
         className={cn(
-          "fixed inset-0 z-30 bg-background/80 backdrop-blur-sm transition-all duration-100 md:hidden",
+          "fixed inset-0 z-30 bg-background/80 backdrop-blur-xs transition-all duration-100 md:hidden",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={() => setIsOpen(false)}
@@ -244,6 +245,7 @@ export function DashboardSidebar() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             notificationCenterEnabled={!!notificationCenterEnabled}
+            sidebarData={sidebarData}
           />
         </div>
       </motion.aside>
@@ -251,7 +253,7 @@ export function DashboardSidebar() {
       {/* Mobile Drawer */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[49] flex flex-col bg-background border-r transition-transform duration-300 ease-in-out w-72 md:hidden",
+          "fixed inset-y-0 left-0 z-49 flex flex-col bg-background border-r transition-transform duration-300 ease-in-out w-72 md:hidden",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -267,6 +269,7 @@ export function DashboardSidebar() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           notificationCenterEnabled={!!notificationCenterEnabled}
+          sidebarData={sidebarData}
         />
       </aside>
     </>
@@ -288,6 +291,7 @@ interface SidebarContentProps {
   activeTab: 'home' | 'inbox'
   setActiveTab: (tab: 'home' | 'inbox') => void
   notificationCenterEnabled: boolean
+  sidebarData: SidebarUserData
 }
 
 function SidebarContent({
@@ -304,7 +308,8 @@ function SidebarContent({
   iconVariants,
   activeTab,
   setActiveTab,
-  notificationCenterEnabled
+  notificationCenterEnabled,
+  sidebarData
 }: SidebarContentProps) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
@@ -335,7 +340,7 @@ function SidebarContent({
         {isCollapsed && !isMobile ? (
           <button
             onClick={toggleCollapse}
-            className="group relative flex items-center justify-center w-8 h-8 rounded-full shadow-sm flex-shrink-0 focus:outline-none overflow-hidden"
+            className="group relative flex items-center justify-center w-8 h-8 rounded-full shadow-xs shrink-0 focus:outline-none overflow-hidden"
             title="Menü ausklappen"
           >
             <div className="absolute inset-0 transition-opacity duration-300 group-hover:opacity-0 bg-background">
@@ -355,7 +360,7 @@ function SidebarContent({
         ) : (
           <>
             <Link href="/" className="flex items-center gap-3 font-semibold overflow-hidden">
-              <div className="relative w-8 h-8 min-w-[2rem] rounded-full overflow-hidden shadow-sm flex-shrink-0">
+              <div className="relative w-8 h-8 min-w-8 rounded-full overflow-hidden shadow-xs shrink-0">
                 <Image
                   src={LOGO_URL}
                   alt="IV Logo"
@@ -435,7 +440,7 @@ function SidebarContent({
                       <span className="font-medium text-sm whitespace-nowrap">Inbox</span>
                     </div>
                     {/* Notification Badge */}
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white z-10 border-2 border-background shadow-sm">
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white z-10 border-2 border-background shadow-xs">
                       5
                     </span>
                   </button>
@@ -506,12 +511,12 @@ function SidebarContent({
                             {!isMobile && iconVariants ? (
                               <motion.div
                                 variants={iconVariants}
-                                className="flex-shrink-0"
+                                className="shrink-0"
                               >
-                                <item.icon className="h-4 w-4 min-w-[1rem] transition-all duration-300 ease-out group-hover:rotate-3" />
+                                <item.icon className="h-4 w-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
                               </motion.div>
                             ) : (
-                              <item.icon className="h-4 w-4 min-w-[1rem] flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
+                              <item.icon className="h-4 w-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-125 group-hover:rotate-3" />
                             )}
                             {!isMobile && textVariants && (
                               <motion.span
@@ -582,7 +587,7 @@ function SidebarContent({
                                     className={cn(
                                       "text-sm px-3 md:py-2 py-2.5 ml-[42px] mr-2 flex-1 rounded-xl transition-all duration-200 flex items-center gap-2",
                                       isChildActive
-                                        ? "bg-white dark:bg-zinc-800 text-foreground shadow-sm ring-1 ring-black/5 dark:ring-white/10 font-semibold"
+                                        ? "bg-white dark:bg-zinc-800 text-foreground shadow-xs ring-1 ring-black/5 dark:ring-white/10 font-semibold"
                                         : "text-muted-foreground hover:bg-muted hover:text-foreground font-medium"
                                     )}
                                   >
@@ -604,7 +609,7 @@ function SidebarContent({
 
       {/* Profile section */}
       <div className="pt-2 pb-4 flex flex-col gap-2 px-5">
-        <UserSettings collapsed={isCollapsed} />
+        <UserSettings collapsed={isCollapsed} initialData={sidebarData} />
       </div>
     </div>
   )

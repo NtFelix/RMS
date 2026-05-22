@@ -135,25 +135,6 @@ jest.mock('@/components/tasks/task-board', () => ({
   )
 }));
 
-jest.mock('@/components/finance-transactions', () => ({
-  FinanceTransactions: () => (
-    <table role="table" aria-label="Finance Transactions">
-      <thead role="rowgroup">
-        <tr role="row">
-          <th role="columnheader">Date</th>
-          <th role="columnheader">Amount</th>
-        </tr>
-      </thead>
-      <tbody role="rowgroup">
-        <tr role="row">
-          <td role="cell">2023-01-01</td>
-          <td role="cell">€500</td>
-        </tr>
-      </tbody>
-    </table>
-  )
-}));
-
 jest.mock('@/components/finance/finance-visualization', () => ({
   FinanceVisualization: () => <div>Finance Visualization</div>
 }));
@@ -178,10 +159,6 @@ jest.mock('@/components/apartments/apartment-filters', () => ({
 
 jest.mock('@/components/houses/house-filters', () => ({
   HouseFilters: () => <div>House Filters</div>
-}));
-
-jest.mock('@/components/tenants/tenant-filters', () => ({
-  TenantFilters: () => <div>Tenant Filters</div>
 }));
 
 jest.mock('@/components/finance/operating-costs-filters', () => ({

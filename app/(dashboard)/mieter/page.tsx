@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
-import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 
@@ -11,13 +11,18 @@ import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
-  if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
+  const { supabase } = await requireAuthenticatedUser();
 
-  const { data: rawMieter, error: mieterError } = await supabase
-    .from('Mieter')
-    .select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+  // Load data in parallel to eliminate waterfalls
+  const [
+    { data: rawWohnungen, error: wohnungenError },
+    { data: rawMieter, error: mieterError }
+  ] = await Promise.all([
+    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
+    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id')
+  ]);
+
+  if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
   if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
 
   const today = new Date();

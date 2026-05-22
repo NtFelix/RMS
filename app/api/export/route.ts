@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 // Define the tables and columns to export based on the LATEST provided schema.
 // Exclude ALL ID columns (primary and foreign keys) as requested.
@@ -50,24 +51,38 @@ export async function GET() {
 
     if (Object.keys(exportData).length === 0) {
       console.error('No data could be exported. All table queries might have failed or returned no data.');
-      return new NextResponse(JSON.stringify({ error: 'Keine Daten exportiert.', details: 'Möglicherweise sind alle Tabellen leer oder es gab Fehler beim Datenabruf für alle Tabellen.' }), {
+      return NextResponse.json({ 
+        error: 'Keine Daten exportiert.', 
+        details: 'Möglicherweise sind alle Tabellen leer oder es gab Fehler beim Datenabruf für alle Tabellen.' 
+      }, {
         status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: NO_CACHE_HEADERS
       });
     }
 
     // Offload ZIP generation to Worker
     const { generateZIP } = await import('@/lib/worker-client');
-    return await generateZIP(exportData, 'datenexport.zip');
+    const zipResponse = await generateZIP(exportData, 'datenexport.zip');
+    
+    // Add no-cache headers to the ZIP response
+    const headers = new Headers(zipResponse.headers);
+    Object.entries(NO_CACHE_HEADERS).forEach(([key, value]) => {
+        headers.set(key, value);
+    });
+    
+    return new NextResponse(zipResponse.body, {
+        status: zipResponse.status,
+        statusText: zipResponse.statusText,
+        headers
+    });
   } catch (error) {
     console.error('Error during data export process:', error);
-    return new NextResponse(JSON.stringify({ error: 'Fehler beim Exportieren der Daten.', details: (error as Error).message }), {
+    return NextResponse.json({ 
+        error: 'Fehler beim Exportieren der Daten.', 
+        details: (error as Error).message 
+    }, {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: NO_CACHE_HEADERS
     });
   }
 }

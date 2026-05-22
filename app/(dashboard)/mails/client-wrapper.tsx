@@ -386,22 +386,22 @@ export default function MailsClientView({
           title="E-Mails Gesamt"
           value={summary.total}
           icon={<MailIcon className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
         <StatCard
           title="Ungelesen"
           value={summary.unread}
           icon={<Inbox className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
         <StatCard
           title="Gesendet / Entwurf"
           value={`${summary.sent} / ${summary.drafts}`}
           icon={<Send className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
       </div>
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>

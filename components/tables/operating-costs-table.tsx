@@ -422,7 +422,7 @@ export function OperatingCostsTable({
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                 <TableHead className="w-12 pl-0 pr-0 -ml-2">
                   <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox

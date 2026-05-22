@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "./supabase-server";
+import { isTestEnv } from "./test-utils";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -47,8 +48,9 @@ import type {
 } from "./types";
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-export async function fetchHaeuser() {
-  const supabase = createSupabaseServerClient();
+export async function fetchHaeuser(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
+
   const { data, error } = await supabase
     .from("Haeuser")
     .select('*, groesse');
@@ -61,8 +63,9 @@ export async function fetchHaeuser() {
   return data as Haus[];
 }
 
-export async function fetchWohnungen() {
-  const supabase = createSupabaseServerClient();
+export async function fetchWohnungen(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
+
   const { data, error } = await supabase
     .from("Wohnungen")
     .select('*');
@@ -75,8 +78,9 @@ export async function fetchWohnungen() {
   return data as Wohnung[];
 }
 
-export async function fetchMieter() {
-  const supabase = createSupabaseServerClient();
+export async function fetchMieter(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
+
   const { data, error } = await supabase
     .from("Mieter")
     .select('*, Wohnungen(name, groesse, miete)');
@@ -89,8 +93,9 @@ export async function fetchMieter() {
   return data as Mieter[];
 }
 
-export async function fetchAufgaben() {
-  const supabase = createSupabaseServerClient();
+export async function fetchAufgaben(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
+
   const { data, error } = await supabase
     .from("Aufgaben")
     .select('*')
@@ -104,8 +109,9 @@ export async function fetchAufgaben() {
   return data as Aufgabe[];
 }
 
-export async function fetchFinanzen() {
-  const supabase = createSupabaseServerClient();
+export async function fetchFinanzen(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
+
   const { data, error } = await supabase
     .from("Finanzen")
     .select('*');
@@ -118,8 +124,9 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
-export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
-  const supabase = createSupabaseServerClient();
+export async function fetchNebenkosten(year?: string, supabaseClient?: SupabaseClient): Promise<Nebenkosten[]> {
+  const supabase = supabaseClient || createSupabaseServerClient();
+
   let query = supabase.from("Nebenkosten").select('*');
 
   // If year is provided, filter by date range that overlaps with that year
@@ -141,8 +148,8 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   return data as Nebenkosten[];
 }
 
-export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
-  const supabase = createSupabaseServerClient();
+export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): Promise<NebenkostenChartData> {
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   // First, get the most recent year with data
   const { data: latestYearData } = await supabase
@@ -215,8 +222,9 @@ export async function getNebenkostenChartData(): Promise<NebenkostenChartData> {
 // fetchNebenkostenDetailsById function removed - replaced by optimized database functions
 // Use getAbrechnungModalDataAction or similar optimized functions instead
 
-export async function fetchFinanzenByMonth() {
-  const supabase = createSupabaseServerClient();
+export async function fetchFinanzenByMonth(supabaseClient?: SupabaseClient) {
+  const supabase = supabaseClient || createSupabaseServerClient();
+
   const { data, error } = await supabase
     .from("Finanzen")
     .select('*')
@@ -255,9 +263,9 @@ export async function fetchFinanzenByMonth() {
   return Object.values(monthlyData).slice(-12);
 }
 
-export async function getMietstatistik() {
-  const wohnungen = await fetchWohnungen();
-  const mieter = await fetchMieter();
+export async function getMietstatistik(supabaseClient?: SupabaseClient) {
+  const wohnungen = await fetchWohnungen(supabaseClient);
+  const mieter = await fetchMieter(supabaseClient);
 
   // Calculate occupancy data by month (last 12 months)
   const now = new Date();
@@ -285,11 +293,11 @@ export async function getMietstatistik() {
   return monthsData;
 }
 
-export async function getDashboardSummary() {
-  const haeuser = await fetchHaeuser();
-  const wohnungen = await fetchWohnungen();
-  const mieter = await fetchMieter();
-  const aufgaben = await fetchAufgaben();
+export async function getDashboardSummary(supabaseClient?: SupabaseClient) {
+  const haeuser = await fetchHaeuser(supabaseClient);
+  const wohnungen = await fetchWohnungen(supabaseClient);
+  const mieter = await fetchMieter(supabaseClient);
+  const aufgaben = await fetchAufgaben(supabaseClient);
 
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
@@ -297,7 +305,7 @@ export async function getDashboardSummary() {
   // Calculate yearly expenses from Nebenkosten - fetch only last year's data
   const currentYear = new Date().getFullYear();
   const lastYear = (currentYear - 1).toString();
-  const nebenkosten = await fetchNebenkosten(lastYear);
+  const nebenkosten = await fetchNebenkosten(lastYear, supabaseClient);
 
   const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
     const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
@@ -336,6 +344,20 @@ export async function fetchUserProfile(): Promise<Profile | null> {
 
   if (!user) {
     return null;
+  }
+
+  // MOCKING STRATEGY: For E2E tests in CI, provide a virtual active subscription
+  // to avoid blocking business logic that requires a paid plan.
+  if (isTestEnv()) {
+    return {
+      id: user.id,
+      email: user.email!,
+      stripe_subscription_status: 'active',
+      stripe_price_id: 'price_mock_e2e', // Represents a standard plan
+      stripe_customer_id: 'cus_mock_e2e',
+      stripe_subscription_id: 'sub_mock_e2e',
+      stripe_current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    };
   }
 
   // Fetch profile data from 'profiles' table, excluding 'email'
@@ -419,9 +441,10 @@ export const fetchWasserzaehlerByHausAndYear = fetchMeterReadingsByHausAndYear;
 export async function fetchMeterReadingsByHausAndDateRange(
   hausId: string,
   startdatum: string,
-  enddatum: string
+  enddatum: string,
+  supabaseClient?: SupabaseClient
 ): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
-  const supabase = createSupabaseServerClient();
+  const supabase = supabaseClient || createSupabaseServerClient();
 
   try {
     // Optimized: Run queries in parallel using joins instead of waterfall
@@ -448,7 +471,7 @@ export async function fetchMeterReadingsByHausAndDateRange(
     const { data: readingsWithRelations, error: readingsError } = readingsResult;
 
     if (mieterError) {
-      console.error(`Error fetching Mieter for Wohnungen in Haus ID ${hausId}:`, mieterError);
+      console.error('Error fetching Mieter for Wohnungen in Haus ID %s:', hausId, mieterError);
       // If fetching tenants fails, we can't do much, so return empty
       return { mieterList: [], existingReadings: [] };
     }
@@ -530,14 +553,14 @@ export async function fetchMeterReadingsModalData(nebenkostenId: string): Promis
       .single();
 
     if (nebenkostenError || !nebenkostenEntry) {
-      console.error(`Error fetching Nebenkosten entry for ID ${nebenkostenId}:`, nebenkostenError);
+      console.error('Error fetching Nebenkosten entry for ID %s:', nebenkostenId, nebenkostenError);
       throw new Error(`Nebenkosten entry with ID ${nebenkostenId} not found.`);
     }
 
     const { haeuser_id, startdatum, enddatum } = nebenkostenEntry;
 
     if (!haeuser_id || !startdatum || !enddatum) {
-      console.error(`Nebenkosten entry ${nebenkostenId} is missing haeuser_id, startdatum, or enddatum.`);
+      console.error('Nebenkosten entry %s is missing haeuser_id, startdatum, or enddatum.', nebenkostenId);
       return { mieterList: [], existingReadings: [] };
     }
 

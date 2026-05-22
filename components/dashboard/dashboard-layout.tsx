@@ -1,13 +1,19 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
+import { SidebarUserData } from "@/lib/server/user-data"
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export function DashboardLayout({ 
+  children,
+  sidebarData
+}: { 
+  children: React.ReactNode
+  sidebarData: SidebarUserData
+}) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -63,7 +69,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 flex-col overflow-hidden">
 
           <main className="flex flex-1 flex-col min-h-0 p-4 pt-4 md:pt-4 main-content-responsive responsive-transition prevent-layout-shift">
-            <div className="flex-1 overflow-y-auto rounded-2xl border shadow-sm mb-4 md:mb-0">
+            <div className="flex-1 overflow-y-auto rounded-2xl border shadow-xs mb-4 md:mb-0">
               <div className="p-6">
                 <div className="space-y-4">
                   <div className="h-8 bg-muted rounded animate-pulse" />
@@ -98,7 +104,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar - hidden on mobile with enhanced CSS-only fallbacks */}
       <div className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift">
-        <DashboardSidebar />
+        <DashboardSidebar sidebarData={sidebarData} />
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -115,7 +121,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           isMobile ? "pb-20 pt-4" : "pb-4 pt-4"
         )}>
           <div className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden border shadow-sm",
+            "flex-1 overflow-y-auto overflow-x-hidden border shadow-xs",
             "rounded-[2rem] md:rounded-[2.5rem]",
             // Enhanced CSS-only fallback for mobile bottom margin
             "mb-4 md:mb-0",

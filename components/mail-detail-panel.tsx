@@ -297,7 +297,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/20 dark:bg-black/40 z-[9998] transition-opacity duration-200 ${isResizing ? 'cursor-ew-resize' : ''}`}
+        className={`fixed inset-0 bg-black/20 dark:bg-black/40 z-9998 transition-opacity duration-200 ${isResizing ? 'cursor-ew-resize' : ''}`}
         style={{
           opacity: isAnimating || isClosing ? 0 : 1
         }}
@@ -307,7 +307,7 @@ export function MailDetailPanel({ mail, onClose, userId }: MailDetailPanelProps)
       {/* Panel */}
       <div
         ref={panelRef}
-        className="fixed right-0 top-0 h-screen bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-[9999] flex flex-col origin-right"
+        className="fixed right-0 top-0 h-screen bg-white dark:bg-[#22272e] border-l border-gray-200 dark:border-gray-700 shadow-2xl z-9999 flex flex-col origin-right"
         style={{
           width: `${panelWidth}%`,
           transform: isAnimating || isClosing

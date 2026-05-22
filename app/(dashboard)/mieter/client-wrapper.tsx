@@ -298,7 +298,7 @@ export default function MieterClientView({
               title={currentTab === 'mieter' ? "Mieter gesamt" : "Bewerber gesamt"}
               value={summary.total}
               icon={<Users className="h-4 w-4 text-muted-foreground" />}
-              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             {currentTab === 'mieter' && (
               <>
@@ -306,7 +306,7 @@ export default function MieterClientView({
                   title="Aktiv / Ehemalig"
                   value={`${summary.activeCount} / ${summary.formerCount}`}
                   icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
-                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                 />
                 <StatCard
                   title="Ø Nebenkosten"
@@ -314,13 +314,13 @@ export default function MieterClientView({
                   unit="€"
                   decimals
                   icon={<Euro className="h-4 w-4 text-muted-foreground" />}
-                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                 />
               </>
             )}
           </div>
 
-          <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+          <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
             <CardHeader>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -330,35 +330,42 @@ export default function MieterClientView({
                   </p>
                 </div>
                 <div className="mt-0 sm:mt-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button className="w-full sm:w-auto gap-2">
-                        <PlusCircle className="h-4 w-4" />
-                        Hinzufügen
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64">
-                      <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                        <div className="flex items-center font-medium">
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Manuell hinzufügen
-                        </div>
-                        <span className="text-xs text-muted-foreground ml-6">
-                          Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
-                        </span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                        <div className="flex items-center font-medium">
-                          <Mail className="mr-2 h-4 w-4" />
-                          Aus E-Mails importieren
-                        </div>
-                        <span className="text-xs text-muted-foreground ml-6">
-                          Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
-                        </span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {showTenantTabs ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button className="w-full sm:w-auto gap-2">
+                          <PlusCircle className="h-4 w-4" />
+                          Hinzufügen
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                          <div className="flex items-center font-medium">
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Manuell hinzufügen
+                          </div>
+                          <span className="text-xs text-muted-foreground ml-6">
+                            Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
+                          </span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                          <div className="flex items-center font-medium">
+                            <Mail className="mr-2 h-4 w-4" />
+                            Aus E-Mails importieren
+                          </div>
+                          <span className="text-xs text-muted-foreground ml-6">
+                            Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
+                          </span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button onClick={handleAddTenant} className="w-full sm:w-auto gap-2">
+                      <PlusCircle className="h-4 w-4" />
+                      Hinzufügen
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>

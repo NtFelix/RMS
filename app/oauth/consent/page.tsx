@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ConsentUI from './ConsentUI';
+import { getAuthorizationDetailsAction } from './actions';
+import { safeServerRedirect } from '@/lib/oauth-utils';
 
 export const runtime = 'edge';
 
@@ -60,13 +62,47 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         redirect(`/login?redirect=/oauth/consent?authorization_id=${authorizationId}`);
     }
 
-    // Just pass the authorization_id to the client component
-    // The client will call getAuthorizationDetails and approveAuthorization
-    // This avoids any potential issues with server-side calls consuming the authorization
+    // When Supabase has already auto-approved the app, it responds with a ConsentResponse
+    // (which includes redirect_url) instead of an AuthorizationDetailsResponse.
+    // It does NOT include an `auto_approved` property in the JSON, nor does it include `client`.
+    // We must NOT POST a decision in this case — Supabase returns 405 Method Not Allowed
+    // or 400 Validation Failed. Instead, redirect directly.
+    const { success, data, error: fetchError, alreadyProcessed } = await getAuthorizationDetailsAction(authorizationId);
+
+    // When the authorization was already consumed (400 from Supabase or already processed), it means
+    // the auto_approved redirect already completed the OAuth flow successfully.
+    // Show a success screen instead of an error.
+    if (alreadyProcessed) {
+        return <ConsentUI type="success" />;
+    }
+
+    // Detect auto-approval: The response has a redirect URL but no client details
+    const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
+    const isAutoApproved = success && autoRedirectUrl && !data?.client;
+
+    if (isAutoApproved) {
+        console.info('[OAuth SSR] auto_approved detected', {
+            authorizationId,
+            redirect_to: data?.redirect_to,
+            redirect_url: data?.redirect_url,
+            resolved: autoRedirectUrl,
+        });
+
+        if (autoRedirectUrl) {
+            safeServerRedirect(autoRedirectUrl as string);
+        }
+
+        // auto_approved but no redirect url — redirect to a user-friendly error page
+        // instead of silently rendering the consent UI which would cause a 400 on approve.
+        redirect(`/oauth/consent?error=true&message=${encodeURIComponent('Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden.')}`);
+    }
+
     return (
         <ConsentUI
             type="consent"
             authorizationId={authorizationId}
+            initialData={success ? (data || undefined) : undefined}
+            initialError={!success ? (fetchError || undefined) : undefined}
         />
     );
 }

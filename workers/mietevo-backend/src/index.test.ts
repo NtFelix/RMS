@@ -114,7 +114,7 @@ describe('Backend Worker Tests', () => {
             });
 
             const response = await handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
-            expect(response.status).toBe(404);
+            expect(response.status).toBe(400);
         });
     });
 
@@ -147,6 +147,50 @@ describe('Backend Worker Tests', () => {
             const response = await processQueue(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
             // It should probably hit the Supabase client creation and then fail on an RPC call
             expect(response.status).not.toBe(401);
+        });
+    });
+
+    describe('Main Router (fetch)', () => {
+        it('should route to /ai correctly', async () => {
+            // Mocking handleAIRequest indirectly by checking the response or using spies
+            // Since we export 'default', we can test that.
+            const request = new Request('https://worker.com/ai', {
+                method: 'POST',
+                body: JSON.stringify({ message: 'Hello' })
+            });
+
+            // We expect this to fail with 500 or similar because Gemini key is test-key
+            // but it proves it hit the AI handler rather than file generation.
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            
+            // handleAIRequest returns 500 if Gemini fails, or starts a stream.
+            // File generation would return 400 for this body because 'type' is missing.
+            expect(response.status).not.toBe(400);
+        });
+
+        it('should route to /process-queue correctly', async () => {
+            const request = new Request('https://worker.com/process-queue', {
+                method: 'POST',
+                headers: { 'x-worker-auth': 'test-auth-key' },
+                body: JSON.stringify({ user_id: 'test-user' })
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            
+            // processQueue would hit auth check then fail on Supabase
+            expect(response.status).not.toBe(404);
+            expect(response.status).not.toBe(400);
+        });
+
+        it('should fallback to file generation for other paths', async () => {
+            const request = new Request('https://worker.com/some-random-path', {
+                method: 'POST',
+                body: JSON.stringify({ type: 'csv', data: [] })
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            expect(response.status).toBe(200);
+            expect(response.headers.get('Content-Type')).toBe('text/csv');
         });
     });
 

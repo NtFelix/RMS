@@ -415,7 +415,7 @@ export function WohnungOverviewModal() {
   return (
     <Dialog open={isWohnungOverviewModalOpen} onOpenChange={(open) => !open && closeWohnungOverviewModal()}>
       <DialogContent className="sm:max-w-5xl md:max-w-6xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl">
             {wohnungOverviewData ? `Wohnungs-Übersicht: ${wohnungOverviewData.name}` : 'Wohnungs-Übersicht'}
           </DialogTitle>

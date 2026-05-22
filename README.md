@@ -50,8 +50,14 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 STRIPE_WEBHOOK_SIGNING_SECRET=your_stripe_webhook_signing_secret
 
 # PostHog (Analytics)
-NEXT_PUBLIC_POSTHOG_KEY=your_posthog_key
-NEXT_PUBLIC_POSTHOG_HOST=your_posthog_host
+NEXT_PUBLIC_POSTHOG_KEY=phc_your_public_project_key
+NEXT_PUBLIC_POSTHOG_HOST=/assets/v2
+NEXT_PUBLIC_POSTHOG_UI_HOST=https://eu.posthog.com
+POSTHOG_API_KEY=phc_your_server_project_key
+POSTHOG_HOST=https://eu.i.posthog.com
+POSTHOG_PERSONAL_API_KEY=phx_your_personal_api_key
+# Optional: force the route-handler proxy if edge rewrites fail
+# POSTHOG_PROXY_MODE=route
 ```
 
 ## Running the Application
@@ -102,7 +108,21 @@ While the code and documentation are in English, the database schema and busines
 -   `Betriebskosten` (Operating Costs)
 
 ### Deployment
-The project is configured for deployment on Cloudflare Pages. API routes and Edge Functions should be compatible with the Edge Runtime where specified.
+The project is containerized using **Docker** and deployed to **Google Cloud Run**. 
+
+- **CI/CD:** GitHub Actions handles building the Docker image, pushing it to **Artifact Registry**, and deploying preview environments for pull requests.
+- **Production:** The `main` branch is automatically deployed to production upon passing CI checks.
+
+### Docker Support
+You can build and run the application locally using Docker:
+
+```bash
+# Build the image
+docker build -t mietevo .
+
+# Run the container
+docker run -p 3000:3000 --env-file .env.local mietevo
+```
 
 ## Testing
 

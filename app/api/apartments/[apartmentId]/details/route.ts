@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET(
   request: Request,
@@ -12,7 +13,7 @@ export async function GET(
     const { apartmentId } = await params;
 
     if (!apartmentId) {
-      return NextResponse.json({ error: "Apartment ID ist erforderlich." }, { status: 400 });
+      return NextResponse.json({ error: "Apartment ID ist erforderlich." }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     // Fetch apartment details with house information
@@ -40,12 +41,12 @@ export async function GET(
       if (apartmentError.code === 'PGRST116' || apartmentError.message?.includes('No rows returned')) {
         return NextResponse.json(
           { error: "Wohnung nicht gefunden." }, 
-          { status: 404 }
+          { status: 404, headers: NO_CACHE_HEADERS }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." }, 
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -104,15 +105,15 @@ export async function GET(
       } : undefined,
     };
 
-    return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+    return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
+    } catch (error) {
     const logger = createRequestLogger(request);
     logger.error("Unexpected error in GET /api/apartments/[apartmentId]/details", error instanceof Error ? error : new Error(String(error)), {
       apartmentId: (await params).apartmentId
     });
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Details." }, 
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
-  }
-}
+    }
+    }

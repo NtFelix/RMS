@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET() {
   try {
@@ -8,12 +9,21 @@ export async function GET() {
     const { data, error } = await supabase.from('Mieter').select('*');
     if (error) {
       console.error('GET /api/mieter error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS 
+      });
     }
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json(data, { 
+      status: 200,
+      headers: NO_CACHE_HEADERS 
+    });
   } catch (e) {
     console.error('Server error GET /api/mieter:', e);
-    return NextResponse.json({ error: 'Serverfehler bei Mieter-Abfrage.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler bei Mieter-Abfrage.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS 
+    });
   }
 }
 
@@ -25,12 +35,21 @@ export async function POST(request: Request) {
     const { data, error } = await supabase.from('Mieter').insert(m).select();
     if (error) {
       console.error('POST /api/mieter error:', error);
-      return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 400 });
+      return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { 
+        status: 400,
+        headers: NO_CACHE_HEADERS 
+      });
     }
-    return NextResponse.json(data[0], { status: 201 });
+    return NextResponse.json(data[0], { 
+      status: 201,
+      headers: NO_CACHE_HEADERS 
+    });
   } catch (e) {
     console.error('Server error POST /api/mieter:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Erstellen des Mieters.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler beim Erstellen des Mieters.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS 
+    });
   }
 }
 
@@ -43,12 +62,21 @@ export async function PUT(request: Request) {
     const { data, error } = await supabase.from('Mieter').update(m).match({ id }).select();
     if (error) {
       console.error('PUT /api/mieter error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS 
+      });
     }
-    return NextResponse.json(data[0], { status: 200 });
+    return NextResponse.json(data[0], { 
+      status: 200,
+      headers: NO_CACHE_HEADERS 
+    });
   } catch (e) {
     console.error('Server error PUT /api/mieter:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Aktualisieren des Mieters.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler beim Aktualisieren des Mieters.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS 
+    });
   }
 }
 
@@ -56,16 +84,28 @@ export async function DELETE(request: Request) {
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Mieter-ID erforderlich.' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: 'Mieter-ID erforderlich.' }, { 
+      status: 400,
+      headers: NO_CACHE_HEADERS 
+    });
     const supabase = await createClient();
     const { error } = await supabase.from('Mieter').delete().match({ id });
     if (error) {
       console.error('DELETE /api/mieter error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
+        headers: NO_CACHE_HEADERS 
+      });
     }
-    return NextResponse.json({ message: 'Mieter gelöscht' }, { status: 200 });
+    return NextResponse.json({ message: 'Mieter gelöscht' }, { 
+      status: 200,
+      headers: NO_CACHE_HEADERS 
+    });
   } catch (e) {
     console.error('Server error DELETE /api/mieter:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Löschen des Mieters.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler beim Löschen des Mieters.' }, { 
+      status: 500,
+      headers: NO_CACHE_HEADERS 
+    });
   }
 }

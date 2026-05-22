@@ -1,5 +1,5 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -10,6 +10,7 @@ interface HouseData {
   ort: string;
   strasse?: string | null;
   groesse: number | null;
+  user_id?: string;
 }
 
 export async function handleSubmit(id: string | null, formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
@@ -18,7 +19,14 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
   logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
   try {
     // Process groesse field
@@ -54,7 +62,8 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       const { error } = await supabase
         .from("Haeuser")
         .update(houseData)
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
 
       if (error) {
         logAction(actionName, 'error', { house_id: id, house_name: houseName, error_message: error.message });
@@ -63,7 +72,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     } else {
       const { error: insertError } = await supabase
         .from("Haeuser")
-        .insert(houseData);
+        .insert({ ...houseData, user_id: user.id });
 
       if (insertError) {
         logAction(actionName, 'error', { house_name: houseName, error_message: insertError.message });
@@ -73,9 +82,10 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     revalidatePath("/haeuser");
     logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
     return { success: true };
-  } catch (e) {
-    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: (e as Error).message });
-    return { success: false, error: { message: (e as Error).message } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -84,11 +94,13 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   logAction(actionName, 'start', { house_id: houseId });
 
   try {
-    const supabase = await createClient();
+    const { user, supabase } = await ensureAuth();
+
     const { error } = await supabase
       .from("Haeuser")
       .delete()
-      .eq("id", houseId);
+      .eq("id", houseId)
+      .eq("user_id", user.id);
 
     if (error) {
       logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
@@ -111,10 +123,12 @@ import { fetchWasserzaehlerModalData, Mieter, Wasserzaehler } from "@/lib/data-f
 
 export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   try {
+    await ensureAuth();
+
     const data = await fetchWasserzaehlerModalData(nebenkostenId);
     return data;
-  } catch (error) {
-    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error);
+  } catch (error: unknown) {
+    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error instanceof Error ? error.message : error);
     // Return empty data on error, consistent with fetchWasserzaehlerModalData's own error handling for some cases.
     return { mieterList: [], existingReadings: [] };
   }

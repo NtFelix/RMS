@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { SettingsModal } from "@/components/modals/settings-modal"
+import { SidebarUserData } from "@/lib/server/user-data"
 import {
   CustomDropdown,
   CustomDropdownItem,
@@ -24,7 +25,13 @@ import {
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
 
-export function UserSettings({ collapsed }: { collapsed?: boolean }) {
+export function UserSettings({ 
+  collapsed,
+  initialData 
+}: { 
+  collapsed?: boolean;
+  initialData: SidebarUserData;
+}) {
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
@@ -39,14 +46,17 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
     userEmail,
     userInitials,
     isLoading: isLoadingUser
-  } = useUserProfile()
+  } = useUserProfile(initialData)
 
   const {
     count: apartmentCount,
     limit: apartmentLimit,
     progressPercentage,
     isLoading: isLoadingApartmentData
-  } = useApartmentUsage(user)
+  } = useApartmentUsage(user, {
+    count: initialData.apartmentCount,
+    limit: initialData.apartmentLimit
+  })
 
   const handleLogout = async () => {
     setIsLoadingLogout(true)
@@ -116,7 +126,7 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {isLoadingUser ? "Lade..." : userName}
                 </span>
-                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && (
+                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && apartmentLimit !== Infinity && (
                   <div className="flex flex-col gap-1 mt-1">
                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span>{apartmentCount} / {apartmentLimit} Wohnungen</span>
@@ -127,7 +137,7 @@ export function UserSettings({ collapsed }: { collapsed?: boolean }) {
                     />
                   </div>
                 )}
-                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit === null && (
+                {!isLoadingUser && !isLoadingApartmentData && (apartmentLimit === null || apartmentLimit === Infinity) && (
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     Unbegrenzte Wohnungen
                   </span>

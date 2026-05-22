@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { usePathname } from 'next/navigation'
 import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar'
+import { SidebarUserData } from '@/lib/server/user-data'
 
 // Mock Next.js navigation
 jest.mock('next/navigation', () => ({
@@ -23,6 +24,15 @@ jest.mock('@/utils/supabase/client', () => ({
 
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>
 
+const mockSidebarData: SidebarUserData = {
+  user: null,
+  userName: 'Test User',
+  userEmail: 'test@example.com',
+  userInitials: 'TU',
+  apartmentCount: 5,
+  apartmentLimit: 10,
+}
+
 describe('DashboardSidebar Navigation', () => {
   beforeEach(() => {
     mockUsePathname.mockReturnValue('/dashboard')
@@ -33,7 +43,7 @@ describe('DashboardSidebar Navigation', () => {
   })
 
   it('renders all navigation items including Cloud Storage', () => {
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
     // Check that all navigation items are present
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
@@ -47,7 +57,7 @@ describe('DashboardSidebar Navigation', () => {
   })
 
   it('renders Cloud Storage navigation item with correct href', () => {
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
     const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
     expect(cloudStorageLink).toBeInTheDocument()
@@ -56,7 +66,7 @@ describe('DashboardSidebar Navigation', () => {
 
   it('applies active styling to current route', () => {
     mockUsePathname.mockReturnValue('/dateien')
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
     const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
     expect(cloudStorageLink).toHaveClass('bg-accent', 'text-accent-foreground')
@@ -64,7 +74,7 @@ describe('DashboardSidebar Navigation', () => {
 
   it('applies inactive styling to non-current routes', () => {
     mockUsePathname.mockReturnValue('/dashboard')
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
     const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
     expect(cloudStorageLink).toHaveClass('text-muted-foreground')
@@ -72,7 +82,7 @@ describe('DashboardSidebar Navigation', () => {
   })
 
   it('renders navigation items in correct order', () => {
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
     const navLinks = screen.getAllByRole('link')
     const navTexts = navLinks.map(link => link.textContent)
@@ -95,7 +105,7 @@ describe('DashboardSidebar Navigation', () => {
   })
 
   it('renders with proper accessibility attributes', () => {
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar sidebarData={mockSidebarData} />)
 
     const cloudStorageLink = screen.getByRole('link', { name: /cloud storage/i })
     expect(cloudStorageLink).toBeInTheDocument()
@@ -103,4 +113,4 @@ describe('DashboardSidebar Navigation', () => {
     // Check that the link is properly accessible
     expect(cloudStorageLink).toHaveAttribute('href', '/dateien')
   })
-})
+})

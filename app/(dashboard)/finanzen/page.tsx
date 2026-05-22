@@ -2,14 +2,13 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import FinanzenClientWrapper from "./client-wrapper";
-import { createClient } from "@/utils/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 import { PAGINATION } from "@/constants";
 
-async function getSummaryData(year: number) {
-  const supabase = await createClient();
-
+async function getSummaryData(supabase: SupabaseClient, year: number) {
   try {
     // Use the optimized Supabase function that handles pagination internally
     const { data, error } = await supabase.rpc('get_financial_year_summary', {
@@ -19,7 +18,7 @@ async function getSummaryData(year: number) {
     if (error) {
       console.error('Error fetching summary data with RPC:', error);
       // Fallback to the function that returns raw data for client-side calculation
-      return await getSummaryDataFallback(year);
+      return await getSummaryDataFallback(supabase, year);
     }
 
     if (!data || data.length === 0) {
@@ -32,13 +31,11 @@ async function getSummaryData(year: number) {
     return processRpcFinancialSummary(data[0], year);
   } catch (error) {
     console.error('Error in getSummaryData:', error);
-    return await getSummaryDataFallback(year);
+    return await getSummaryDataFallback(supabase, year);
   }
 }
 
-async function getSummaryDataFallback(year: number) {
-  const supabase = await createClient();
-
+async function getSummaryDataFallback(supabase: SupabaseClient, year: number) {
   try {
     // Fallback: Use the function that returns all transactions for the year
     const { data, error } = await supabase.rpc('get_financial_summary_data', {
@@ -59,8 +56,7 @@ async function getSummaryDataFallback(year: number) {
   }
 }
 
-async function getAvailableYears() {
-  const supabase = await createClient();
+async function getAvailableYears(supabase: SupabaseClient) {
   const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
   return await fetchAvailableFinanceYears(supabase);
 }
@@ -96,7 +92,7 @@ function determineInitialYear(
 }
 
 export default async function FinanzenPage() {
-  const supabase = await createClient();
+  const { supabase } = await requireAuthenticatedUser();
 
   const currentYear = new Date().getFullYear();
 
@@ -118,13 +114,13 @@ export default async function FinanzenPage() {
       .range(0, PAGINATION.DEFAULT_PAGE_SIZE - 1),
 
     // Available years laden (needed for fallback logic)
-    getAvailableYears().catch((error) => {
+    getAvailableYears(supabase).catch((error) => {
       console.error('Failed to fetch available years:', error);
       return []; // Fallback to an empty array to prevent page crash.
     }),
 
     // Summary-Daten für das aktuelle Jahr laden
-    getSummaryData(currentYear)
+    getSummaryData(supabase, currentYear)
   ]);
 
   if (wohnungenResult.error) {
@@ -144,7 +140,7 @@ export default async function FinanzenPage() {
 
   // If we're falling back to a previous year, load that year's summary data
   if (initialYear !== currentYear) {
-    summaryData = await getSummaryData(initialYear);
+    summaryData = await getSummaryData(supabase, initialYear);
   }
 
   return <FinanzenClientWrapper

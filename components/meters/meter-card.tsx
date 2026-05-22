@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { ZaehlerTyp, ZAEHLER_CONFIG } from "@/lib/zaehler-types"
+import { formatNumber } from "@/utils/format"
 
 // Types
 export interface Zaehler {
@@ -197,7 +198,7 @@ export function MeterCard({
     }, [onSaveEdit, onCancelEdit, zaehler.id, editingMeter?.kommentar])
 
     return (
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
             <CardContent className="p-0">
                 <AnimatePresence mode="wait">
                     {isEditing && editingMeter ? (
@@ -384,14 +385,14 @@ export function MeterCard({
                                     transition={{ duration: 0.3, delay: 0.1 }}
                                     className="flex items-start gap-2"
                                 >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                         <Gauge className="h-4 w-4 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                         {zaehler.latest_reading ? (
                                             <p className="text-sm font-medium">
-                                                {zaehler.latest_reading.zaehlerstand} {einheit}
+                                                {formatNumber(zaehler.latest_reading.zaehlerstand, 3)} {einheit}
                                             </p>
                                         ) : (
                                             <p className="text-sm font-medium text-muted-foreground italic">
@@ -408,7 +409,7 @@ export function MeterCard({
                                     transition={{ duration: 0.3, delay: 0.2 }}
                                     className="flex items-start gap-2"
                                 >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -428,7 +429,7 @@ export function MeterCard({
                                     transition={{ duration: 0.3, delay: 0.3 }}
                                     className="flex items-start gap-2"
                                 >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                         <Clock className="h-4 w-4 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -453,7 +454,7 @@ export function MeterCard({
                                         transition={{ duration: 0.3, delay: 0.4 }}
                                         className="col-span-1 sm:col-span-3 flex items-start gap-2 pt-2 border-t border-gray-100 dark:border-gray-800"
                                     >
-                                        <div className="flex-shrink-0 mt-0.5">
+                                        <div className="shrink-0 mt-0.5">
                                             <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                         </div>
                                         <div className="flex-1 min-w-0">
