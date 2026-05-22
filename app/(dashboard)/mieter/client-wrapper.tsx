@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
@@ -287,10 +289,53 @@ export default function MieterClientView({
 
         <div className="flex flex-col gap-6">
           {showTenantTabs && (
-            <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
-              <TabsTrigger value="mieter">Mieter</TabsTrigger>
-              <TabsTrigger value="bewerber">Bewerber</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
+              <motion.button
+                layout
+                onClick={() => {
+                  setCurrentTab("mieter");
+                  setFilter("current");
+                  setSelectedTenants(new Set());
+                }}
+                className={cn(
+                  "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                  currentTab === "mieter" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {currentTab === "mieter" && (
+                  <motion.div
+                    layoutId="active-tenant-tab-pill"
+                    className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <Users className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                <span>Mieter</span>
+              </motion.button>
+
+              <motion.button
+                layout
+                onClick={() => {
+                  setCurrentTab("bewerber");
+                  setFilter("current");
+                  setSelectedTenants(new Set());
+                }}
+                className={cn(
+                  "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                  currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {currentTab === "bewerber" && (
+                  <motion.div
+                    layoutId="active-tenant-tab-pill"
+                    className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                <span>Bewerber</span>
+              </motion.button>
+            </div>
           )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
