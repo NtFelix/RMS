@@ -118,9 +118,6 @@ export function UserSettings({
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>
               </Avatar>
-              <span className="absolute bottom-0 right-0 flex h-3 w-3 rounded-full border-2 border-white dark:border-zinc-950 bg-emerald-500 shadow-xs">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-              </span>
             </div>
             {!collapsed && (
               <motion.div

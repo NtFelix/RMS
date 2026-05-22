@@ -55,7 +55,7 @@ export function DashboardLayout({
     return (
       <div className="flex min-h-screen bg-background">
         {/* CSS-only fallback layout with enhanced responsive behavior */}
-        <div className="desktop-sidebar-responsive hydration-safe-desktop w-64 prevent-layout-shift">
+        <div className="desktop-sidebar-responsive hydration-safe-desktop w-64 prevent-layout-shift h-screen sticky top-0">
           <div className="flex h-full flex-col">
             {/* Sidebar placeholder with basic structure */}
             <div className="flex h-14 items-center border-b px-4">
@@ -103,21 +103,20 @@ export function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background w-full max-w-full">
       {/* Desktop sidebar - hidden on mobile with enhanced CSS-only fallbacks */}
       <div 
-        className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out"
+        className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
         style={{
-          width: preference === 'expanded' ? "18rem" : "5rem"
+          width: preference === 'expanded' ? "23rem" : "5rem"
         }}
       >
         <DashboardSidebar sidebarData={sidebarData} />
       </div>
 
-      <div className="flex flex-1 flex-col">
-
+      <div className="flex flex-1 flex-col min-w-0">
         <main className={cn(
-          "flex flex-1 flex-col min-h-0",
+          "flex flex-1 flex-col min-h-0 min-w-0",
           "responsive-transition",
           "p-4"
         )}>

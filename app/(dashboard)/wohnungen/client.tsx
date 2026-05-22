@@ -112,12 +112,18 @@ export default function WohnungenClientView({
       if (res.ok) {
         const data: Wohnung[] = await res.json();
         setApartments(data);
+        window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
       } else {
         console.error('Failed to fetch wohnungen for refreshTable, status:', res.status);
       }
     } catch (error) {
       console.error('Error fetching wohnungen in refreshTable:', error);
     }
+  }, []);
+
+  // Dispatch initial statistics refresh to the sidebar on mount
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
   }, []);
 
   const escapeCsvValue = useCallback((value: string | null | undefined): string => {

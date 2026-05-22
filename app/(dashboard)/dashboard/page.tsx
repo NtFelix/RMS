@@ -46,9 +46,6 @@ export default async function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Dashboard</h1>
-      </div>
       <div className="grid gap-4 grid-cols-1 auto-rows-auto md:grid-cols-6 md:auto-rows-[140px]">
         {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
         <Link href="/haeuser" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1">
