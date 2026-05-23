@@ -4,7 +4,7 @@ import { login, hasTestCredentials, acceptCookieConsent } from './utils';
 test.describe('Authentication Flows', () => {
 
   test('Login page should render correctly', async ({ page }) => {
-    await page.goto('/auth/login', { waitUntil: 'networkidle' });
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
     // Wait for animation/loading
     await expect(page.getByRole('heading', { name: /ANMELDEN/i })).toBeVisible({ timeout: 10000 });
 
@@ -16,7 +16,7 @@ test.describe('Authentication Flows', () => {
   });
 
   test('Registration page should render correctly', async ({ page }) => {
-    await page.goto('/auth/register', { waitUntil: 'networkidle' });
+    await page.goto('/auth/register', { waitUntil: 'domcontentloaded', timeout: 30000 });
     // Wait for potential animation/loading
     await expect(page.getByRole('heading', { name: /REGISTRIEREN/i })).toBeVisible({ timeout: 10000 });
 
