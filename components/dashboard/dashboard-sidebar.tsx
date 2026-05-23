@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserSettings } from "@/components/common/user-settings"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
@@ -802,24 +803,92 @@ function SidebarContent({
           {/* Bottom Actions section for Profile, Notification, and Messages */}
           <div className="flex flex-col items-center gap-3 w-full px-2 mt-auto">
             {/* Messages */}
-            <button className={cn(
-              "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-              "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-              "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-            )}>
-              <MessageCircle className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-white dark:border-[#181818]" />
-            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className={cn(
+                  "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                  "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                  "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+                )}>
+                  <MessageCircle className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-white dark:border-[#181818]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent 
+                side="right" 
+                align="end" 
+                sideOffset={12} 
+                className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
+              >
+                <div className="flex flex-col space-y-4">
+                  <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+                    <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Nachrichten</h3>
+                    <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Neu</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                      <MessageCircle className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                    </div>
+                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine neuen Nachrichten</h4>
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
+                      Sobald dir Mieter oder Bewerber schreiben, erscheinen ihre Nachrichten hier.
+                    </p>
+                  </div>
+                  <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                    <Link 
+                      href="/inbox" 
+                      className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+                    >
+                      Posteingang öffnen
+                    </Link>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Notifications */}
-            <button className={cn(
-              "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-              "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-              "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-            )}>
-              <Bell className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
-              <span className="absolute top-2.5 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#181818]" />
-            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className={cn(
+                  "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                  "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                  "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+                )}>
+                  <Bell className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                  <span className="absolute top-2.5 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#181818]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent 
+                side="right" 
+                align="end" 
+                sideOffset={12} 
+                className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
+              >
+                <div className="flex flex-col space-y-4">
+                  <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+                    <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
+                    <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                      <Bell className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                    </div>
+                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
+                      Du bist auf dem neuesten Stand. Hier zeigen wir dir wichtige Updates zu deinen Immobilien.
+                    </p>
+                  </div>
+                  <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                    <Link 
+                      href="/settings/notifications" 
+                      className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+                    >
+                      Einstellungen öffnen
+                    </Link>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Profile Avatar / Settings */}
             <div className={cn(
