@@ -517,6 +517,225 @@ function MetersDonutChart({ metersByType, metersTotal, metersActive }: MetersDon
   );
 }
 
+interface HousesDonutChartProps {
+  houses: any[];
+  apartments: any[];
+}
+
+function HousesDonutChart({ houses, apartments }: HousesDonutChartProps) {
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const colors = useMemo(() => [
+    { strokeColor: '#3b82f6', colorClass: 'text-blue-500 bg-blue-500/10' },
+    { strokeColor: '#10b981', colorClass: 'text-emerald-500 bg-emerald-500/10' },
+    { strokeColor: '#a855f7', colorClass: 'text-purple-500 bg-purple-500/10' },
+    { strokeColor: '#f97316', colorClass: 'text-orange-500 bg-orange-500/10' },
+    { strokeColor: '#eab308', colorClass: 'text-yellow-500 bg-yellow-500/10' },
+    { strokeColor: '#ec4899', colorClass: 'text-pink-500 bg-pink-500/10' },
+    { strokeColor: '#06b6d4', colorClass: 'text-cyan-500 bg-cyan-500/10' }
+  ], []);
+
+  const segmentsData = useMemo(() => {
+    const rawSegments = houses.map((house) => {
+      const totalRentOfHouse = apartments
+        .filter(a => a.haus_id === house.id)
+        .reduce((sum, apt) => sum + Number(apt.miete || 0), 0);
+      return {
+        key: house.id,
+        label: house.name,
+        count: totalRentOfHouse,
+        icon: Building2
+      };
+    }).filter(s => s.count > 0);
+
+    // Sort by count (rent contribution) descending
+    rawSegments.sort((a, b) => b.count - a.count);
+
+    let finalSegments = [];
+    if (rawSegments.length <= 5) {
+      finalSegments = rawSegments.map((s, idx) => {
+        const color = colors[idx % colors.length];
+        return { ...s, ...color };
+      });
+    } else {
+      const top4 = rawSegments.slice(0, 4).map((s, idx) => {
+        const color = colors[idx % colors.length];
+        return { ...s, ...color };
+      });
+      const others = rawSegments.slice(4);
+      const othersCount = others.reduce((sum, s) => sum + s.count, 0);
+      finalSegments = [
+        ...top4,
+        {
+          key: 'other',
+          label: 'Andere',
+          count: othersCount,
+          icon: Building2,
+          strokeColor: '#6b7280',
+          colorClass: 'text-zinc-500 bg-zinc-500/10'
+        }
+      ];
+    }
+    return finalSegments;
+  }, [houses, apartments, colors]);
+
+  const totalApartmentsInHouses = useMemo(() => {
+    return segmentsData.reduce((sum, s) => sum + s.count, 0);
+  }, [segmentsData]);
+
+  // Donut chart parameters
+  const RADIUS = 36;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+  const segments = useMemo(() => {
+    let currentOffset = 0;
+    return segmentsData.map(s => {
+      const percentage = totalApartmentsInHouses > 0 ? s.count / totalApartmentsInHouses : 0;
+      const strokeDasharray = `${percentage * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
+      const strokeDashoffset = -currentOffset * CIRCUMFERENCE;
+      currentOffset += percentage;
+
+      return {
+        ...s,
+        percentage,
+        strokeDasharray,
+        strokeDashoffset
+      };
+    });
+  }, [segmentsData, totalApartmentsInHouses, CIRCUMFERENCE]);
+
+  // Find info for current active item (either hovered or default to total overview)
+  const activeInfo = useMemo(() => {
+    if (hoveredKey) {
+      const match = segments.find(s => s.key === hoveredKey);
+      if (match) {
+        return {
+          label: match.label,
+          count: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(match.count),
+          icon: match.icon,
+          colorClass: match.colorClass
+        };
+      }
+    }
+    return {
+      label: 'Soll-Miete',
+      count: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalApartmentsInHouses),
+      icon: Wallet,
+      colorClass: 'text-accent bg-accent/10'
+    };
+  }, [hoveredKey, segments, totalApartmentsInHouses]);
+
+  const ActiveIcon = activeInfo.icon;
+
+  if (houses.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Häuser erfasst.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Active Houses Summary row */}
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-zinc-800 dark:text-zinc-200">Mietverteilung</span>
+        <span className="font-bold text-accent">
+          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalApartmentsInHouses)} / Mon.
+        </span>
+      </div>
+
+      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
+
+      {/* Main interactive visualization panel */}
+      <div className="flex items-center gap-4">
+        {/* Left: Interactive Donut Chart */}
+        <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+          <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+            {/* Background base circle */}
+            <circle
+              cx="50"
+              cy="50"
+              r={RADIUS}
+              fill="transparent"
+              stroke="var(--zinc-100)"
+              className="stroke-zinc-100 dark:stroke-zinc-800/60"
+              strokeWidth="9"
+            />
+            {/* Active segments */}
+            {segments.map((s) => {
+              const isHovered = hoveredKey === s.key;
+              return (
+                <circle
+                  key={s.key}
+                  cx="50"
+                  cy="50"
+                  r={RADIUS}
+                  fill="transparent"
+                  stroke={s.strokeColor}
+                  strokeWidth={isHovered ? 12 : 9}
+                  strokeDasharray={s.strokeDasharray}
+                  strokeDashoffset={s.strokeDashoffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
+                  onMouseEnter={() => setHoveredKey(s.key)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                />
+              );
+            })}
+          </svg>
+
+          {/* Central tooltip card inside the donut */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-1.5 animate-in fade-in duration-200">
+            <div className={cn("p-1 rounded-lg mb-0.5", activeInfo.colorClass)}>
+              <ActiveIcon className="h-3.5 w-3.5" />
+            </div>
+            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[75px]">
+              {activeInfo.label}
+            </p>
+            <p className="text-xs font-black text-zinc-800 dark:text-zinc-100">
+              {activeInfo.count}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Legend list that also triggers hover */}
+        <div className="flex-1 max-w-[125px] flex flex-col gap-1 min-w-0">
+          {segments.map((s) => {
+            const isHovered = hoveredKey === s.key;
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.key}
+                className={cn(
+                  "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer animate-in fade-in zoom-in-95 duration-200",
+                  isHovered
+                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs translate-x-0.5 scale-[1.02]"
+                    : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
+                )}
+                onMouseEnter={() => setHoveredKey(s.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
+                    <Icon className="h-3 w-3" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
+                    {s.label}
+                  </span>
+                </div>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
+                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(s.count)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SidebarContent({
   isCollapsed,
   pathname,
@@ -548,6 +767,7 @@ function SidebarContent({
   const [apartments, setApartments] = useState<any[]>([])
   const [tenants, setTenants] = useState<any[]>([])
   const [meters, setMeters] = useState<any[]>([])
+  const [houses, setHouses] = useState<any[]>([])
   const [isDataLoading, setIsDataLoading] = useState(false)
 
   const fetchApartmentData = async () => {
@@ -558,15 +778,17 @@ function SidebarContent({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [aptsRes, tenantsRes, metersRes] = await Promise.all([
+      const [aptsRes, tenantsRes, metersRes, housesRes] = await Promise.all([
         supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id').eq('user_id', user.id),
         supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name').eq('user_id', user.id),
-        supabase.from('Zaehler').select('id,zaehler_typ,ist_aktiv,wohnung_id').eq('user_id', user.id)
+        supabase.from('Zaehler').select('id,zaehler_typ,ist_aktiv,wohnung_id').eq('user_id', user.id),
+        supabase.from('Haeuser').select('id,name,strasse,ort,groesse').eq('user_id', user.id)
       ])
 
       if (aptsRes.data) setApartments(aptsRes.data)
       if (tenantsRes.data) setTenants(tenantsRes.data)
       if (metersRes.data) setMeters(metersRes.data)
+      if (housesRes.data) setHouses(housesRes.data)
     } catch (err) {
       console.error("Error fetching sidebar apartments data:", err)
     } finally {
@@ -575,12 +797,12 @@ function SidebarContent({
   }
 
   useEffect(() => {
-    if (pathname === '/wohnungen') {
+    if (pathname === '/wohnungen' || pathname === '/haeuser') {
       fetchApartmentData()
     }
     
     const handleRefresh = () => {
-      if (pathname === '/wohnungen') {
+      if (pathname === '/wohnungen' || pathname === '/haeuser') {
         fetchApartmentData()
       }
     }
@@ -662,6 +884,87 @@ function SidebarContent({
       metersByType,
     }
   }, [apartments, tenants, meters])
+
+  // Compute stats for houses side panel
+  const houseStats = useMemo(() => {
+    if (!houses || houses.length === 0) {
+      return {
+        total: 0,
+        fullyOccupied: 0,
+        occupancyRate: 0,
+        totalRent: 0,
+        totalSize: 0,
+        avgRentPerSqm: 0,
+        avgSize: 0,
+      }
+    }
+
+    const today = new Date()
+    const tenantMap = tenants.reduce((map, t) => {
+      if (t.wohnung_id && !map.has(t.wohnung_id)) {
+        map.set(t.wohnung_id, t)
+      }
+      return map
+    }, new Map<string, any>())
+
+    const houseListWithStats = houses.map(house => {
+      const apts = apartments.filter(a => a.haus_id === house.id)
+      const totalApartments = apts.length
+      const freeApartments = apts.reduce((acc, apt) => {
+        const tenant = tenantMap.get(apt.id)
+        const occupied = tenant && (!tenant.auszug || new Date(tenant.auszug) > today)
+        return acc + (occupied ? 0 : 1)
+      }, 0)
+
+      return {
+        ...house,
+        totalApartments,
+        freeApartments,
+      }
+    })
+
+    const total = houses.length
+    const fullyOccupied = houseListWithStats.filter(h => h.totalApartments > 0 && h.freeApartments === 0).length
+
+    // Portfolio occupancy rate
+    const totalApartmentsCount = apartments.length
+    const totalFreeApartmentsCount = houseListWithStats.reduce((sum, h) => sum + h.freeApartments, 0)
+    const totalOccupiedApartmentsCount = totalApartmentsCount - totalFreeApartmentsCount
+    const occupancyRate = totalApartmentsCount > 0 
+      ? Math.round((totalOccupiedApartmentsCount / totalApartmentsCount) * 100) 
+      : 0
+
+    let totalRent = 0
+    let totalSize = 0
+
+    apartments.forEach(apt => {
+      totalRent += Number(apt.miete || 0)
+    })
+
+    houses.forEach(house => {
+      const apts = apartments.filter(a => a.haus_id === house.id)
+      let displaySize = 0;
+      if (house.groesse && !isNaN(Number(house.groesse))) {
+        displaySize = Number(house.groesse)
+      } else {
+        displaySize = apts.reduce((sum, apt) => sum + Number(apt.groesse || 0), 0)
+      }
+      totalSize += displaySize
+    })
+
+    const avgRentPerSqm = totalSize > 0 ? totalRent / totalSize : 0
+    const avgSize = totalApartmentsCount > 0 ? Math.round((totalSize / totalApartmentsCount) * 10) / 10 : 0
+
+    return {
+      total,
+      fullyOccupied,
+      occupancyRate,
+      totalRent,
+      totalSize,
+      avgRentPerSqm,
+      avgSize
+    }
+  }, [houses, apartments, tenants])
 
   useEffect(() => {
     const newExpanded = { ...expandedItems };
@@ -924,7 +1227,7 @@ function SidebarContent({
             isCollapsed ? "w-0 opacity-0 pointer-events-none" : "w-[18rem] opacity-100"
           )}
         >
-          {pathname === '/wohnungen' ? (
+          {pathname === '/wohnungen' || pathname === '/haeuser' ? (
             <>
               <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
                 <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Übersicht</span>
@@ -950,27 +1253,48 @@ function SidebarContent({
                   <>
                     {/* Section 1 & 2: Unified Overview Container (Stats & Progress) */}
                     <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Rented Units */}
-                        <div>
-                          <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Vermietet</div>
-                          <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
-                            {apartmentStats.rentedCount}
-                            <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+                      {pathname === '/wohnungen' ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Rented Units */}
+                          <div>
+                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Vermietet</div>
+                            <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                              {apartmentStats.rentedCount}
+                              <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+                            </div>
+                          </div>
+                          {/* Vacant Units */}
+                          <div>
+                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Freistehend</div>
+                            <div className={cn(
+                              "text-xl font-bold flex items-baseline gap-1",
+                              apartmentStats.freeCount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-900 dark:text-zinc-100"
+                            )}>
+                              {apartmentStats.freeCount}
+                              <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+                            </div>
                           </div>
                         </div>
-                        {/* Vacant Units */}
-                        <div>
-                          <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Freistehend</div>
-                          <div className={cn(
-                            "text-xl font-bold flex items-baseline gap-1",
-                            apartmentStats.freeCount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-900 dark:text-zinc-100"
-                          )}>
-                            {apartmentStats.freeCount}
-                            <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Houses count */}
+                          <div>
+                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Häuser</div>
+                            <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                              {houseStats.total}
+                              <span className="text-xs font-normal text-zinc-400">Objekte</span>
+                            </div>
+                          </div>
+                          {/* Portfolio total size */}
+                          <div>
+                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Gesamtfläche</div>
+                            <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                              {new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(houseStats.totalSize)}
+                              <span className="text-xs font-normal text-zinc-400">m²</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Divider */}
                       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
@@ -979,16 +1303,22 @@ function SidebarContent({
                       <div className="space-y-3">
                         <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
                           <span>Auslastung</span>
-                          <span className="text-accent">{apartmentStats.occupancyRate}%</span>
+                          <span className="text-accent">
+                            {pathname === '/wohnungen' ? apartmentStats.occupancyRate : houseStats.occupancyRate}%
+                          </span>
                         </div>
                         <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
                           <div 
                             className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                            style={{ width: `${apartmentStats.occupancyRate}%` }}
+                            style={{ width: `${pathname === '/wohnungen' ? apartmentStats.occupancyRate : houseStats.occupancyRate}%` }}
                           />
                         </div>
                         <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
-                          {apartmentStats.rentedCount} von {apartmentStats.total} Einheiten vermietet
+                          {pathname === '/wohnungen' ? (
+                            <>{apartmentStats.rentedCount} von {apartmentStats.total} Einheiten vermietet</>
+                          ) : (
+                            <>{houseStats.fullyOccupied} von {houseStats.total} Häusern voll belegt</>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -998,40 +1328,67 @@ function SidebarContent({
                       <div>
                         <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">Soll-Miete (monatlich)</div>
                         <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(apartmentStats.totalRent)}
+                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                            pathname === '/wohnungen' ? apartmentStats.totalRent : houseStats.totalRent
+                          )}
                         </div>
                       </div>
                       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800 w-full" />
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
-                          <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Ø Miete / Einheit</div>
+                          <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">
+                            {pathname === '/wohnungen' ? 'Ø Miete / Einheit' : 'Ø Miete / m²'}
+                          </div>
                           <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(apartmentStats.avgRent)}
+                            {pathname === '/wohnungen' ? (
+                              new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(apartmentStats.avgRent)
+                            ) : (
+                              <>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(houseStats.avgRentPerSqm)}/m²</>
+                            )}
                           </div>
                         </div>
                         <div>
-                          <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Ø Wohnungsgröße</div>
+                          <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">
+                            {pathname === '/wohnungen' ? 'Ø Wohnungsgröße' : 'Gesamtfläche'}
+                          </div>
                           <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5 flex items-baseline gap-0.5">
-                            {apartmentStats.avgSize}
-                            <span className="text-[10px] font-normal text-zinc-400">m²</span>
+                            {pathname === '/wohnungen' ? (
+                              <>{apartmentStats.avgSize} <span className="text-[10px] font-normal text-zinc-400 font-normal">m²</span></>
+                            ) : (
+                              <>{new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(houseStats.totalSize)} <span className="text-[10px] font-normal text-zinc-400 font-normal">m²</span></>
+                            )}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Section 3.5: Utility Meters Donut Insight Card */}
-                    <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
-                        <span>Zähler & Messgeräte</span>
-                        <span className="text-zinc-500 font-semibold">{apartmentStats.metersTotal} Gesamt</span>
+                    {/* Section 3.5: Utility Meters / Houses Donut Insight Card */}
+                    {pathname === '/wohnungen' ? (
+                      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                          <span>Zähler & Messgeräte</span>
+                          <span className="text-zinc-500 font-semibold">{apartmentStats.metersTotal} Gesamt</span>
+                        </div>
+                        
+                        <MetersDonutChart 
+                          metersByType={apartmentStats.metersByType}
+                          metersTotal={apartmentStats.metersTotal}
+                          metersActive={apartmentStats.metersActive}
+                        />
                       </div>
-                      
-                      <MetersDonutChart 
-                        metersByType={apartmentStats.metersByType}
-                        metersTotal={apartmentStats.metersTotal}
-                        metersActive={apartmentStats.metersActive}
-                      />
-                    </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                          <span>Wohnungsverteilung</span>
+                          <span className="text-zinc-500 font-semibold">{houses.length} Gesamt</span>
+                        </div>
+                        
+                        <HousesDonutChart 
+                          houses={houses}
+                          apartments={apartments}
+                        />
+                      </div>
+                    )}
 
                     {/* Section 4: Quick Navigation / Shortcuts */}
                     <div className="space-y-3">
