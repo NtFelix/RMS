@@ -4,10 +4,7 @@ import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lu
 
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-      <div>
-        <Skeleton className="h-9 w-48" />
-      </div>
+    <div className="flex flex-col gap-8 p-8 rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
       <div className="grid gap-4 grid-cols-1 auto-rows-auto md:grid-cols-6 md:auto-rows-[140px]">
         {/* Row 1: Three summary cards + Tenant Payment List */}
         <Card className="col-span-1 row-span-1 md:col-span-1 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
