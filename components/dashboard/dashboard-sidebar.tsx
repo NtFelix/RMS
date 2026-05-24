@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle } from "lucide-react"
 import { motion, Variants, AnimatePresence } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
@@ -14,6 +14,10 @@ import { Button } from "@/components/ui/button"
 import { UserSettings } from "@/components/common/user-settings"
 import { SettingsModal } from "@/components/modals/settings-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import { toggleTaskStatusAction } from "@/app/todos-actions"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
@@ -1453,6 +1457,193 @@ function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProps) {
   );
 }
 
+interface SidebarTaskListProps {
+  tasks: any[];
+  onTaskClick: (task: any) => void;
+  onTaskToggle: (taskId: string, completed: boolean) => void;
+}
+
+function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListProps) {
+  const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
+  const [isNoDateOpen, setIsNoDateOpen] = useState(true);
+  const [isOverdueOpen, setIsOverdueOpen] = useState(true);
+  const [isLaterOpen, setIsLaterOpen] = useState(false);
+
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const nextWeek = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 7);
+    return d;
+  }, [today]);
+
+  const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
+  const nextWeekStr = useMemo(() => nextWeek.toISOString().split('T')[0], [nextWeek]);
+
+  const { upcomingTasks, noDateTasks, overdueTasks, laterTasks } = useMemo(() => {
+    const upcoming: any[] = [];
+    const noDate: any[] = [];
+    const overdue: any[] = [];
+    const later: any[] = [];
+
+    tasks.forEach((task) => {
+      if (task.ist_erledigt) return;
+      if (!task.faelligkeitsdatum) {
+        noDate.push(task);
+      } else if (task.faelligkeitsdatum < todayStr) {
+        overdue.push(task);
+      } else if (task.faelligkeitsdatum <= nextWeekStr) {
+        upcoming.push(task);
+      } else {
+        later.push(task);
+      }
+    });
+
+    upcoming.sort((a, b) => (a.faelligkeitsdatum ?? '').localeCompare(b.faelligkeitsdatum ?? ''));
+    overdue.sort((a, b) => (b.faelligkeitsdatum ?? '').localeCompare(a.faelligkeitsdatum ?? ''));
+    later.sort((a, b) => (a.faelligkeitsdatum ?? '').localeCompare(b.faelligkeitsdatum ?? ''));
+    noDate.sort((a, b) => new Date(b.erstellungsdatum ?? 0).getTime() - new Date(a.erstellungsdatum ?? 0).getTime());
+
+    return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later };
+  }, [tasks, todayStr, nextWeekStr]);
+
+  const formatDueDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  function TaskRow({ task }: { task: any }) {
+    return (
+      <div
+        className={cn(
+          "flex items-start gap-2 p-2 rounded-xl transition-all duration-200 group border border-transparent cursor-pointer",
+          "hover:bg-primary/5 hover:border-primary/10 dark:hover:bg-primary/10",
+          task.ist_erledigt && "opacity-60"
+        )}
+        onClick={() => onTaskClick(task)}
+      >
+        <Checkbox
+          checked={task.ist_erledigt}
+          onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
+          onClick={(e) => e.stopPropagation()}
+          className="mt-0.5 shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <p className={cn("text-xs font-medium truncate", task.ist_erledigt && "line-through text-muted-foreground")}>
+            {task.name}
+          </p>
+          {task.faelligkeitsdatum && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {formatDueDate(task.faelligkeitsdatum)}
+            </p>
+          )}
+        </div>
+        {task.ist_erledigt ? (
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        ) : (
+          <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        )}
+      </div>
+    );
+  }
+
+  const totalVisible = overdueTasks.length + upcomingTasks.length + laterTasks.length + noDateTasks.length;
+  if (totalVisible === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <CheckCircle2 className="h-8 w-8 text-emerald-400 mb-2" />
+        <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Alle Aufgaben erledigt!</p>
+        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Keine offenen Aufgaben vorhanden.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1 pb-1">Aufgabenliste</div>
+
+      {/* Overdue */}
+      {overdueTasks.length > 0 && (
+        <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent group/trigger">
+            <div className="flex items-center gap-1.5">
+              <ChevronRight className={cn("h-3.5 w-3.5 text-red-500 transition-transform duration-200", isOverdueOpen && "rotate-90")} />
+              <Clock className="h-3.5 w-3.5 text-red-500" />
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400">Überfällig</span>
+            </div>
+            <Badge variant="destructive" className="h-4.5 px-1.5 text-[10px]">{overdueTasks.length}</Badge>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
+            {overdueTasks.map(task => <TaskRow key={task.id} task={task} />)}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* Upcoming */}
+      <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-transparent group/trigger">
+          <div className="flex items-center gap-1.5">
+            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isUpcomingOpen && "rotate-90")} />
+            <Clock className="h-3.5 w-3.5 text-yellow-600" />
+            <span className="text-xs font-semibold">Anstehend</span>
+          </div>
+          <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px]">{upcomingTasks.length}</Badge>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
+          {upcomingTasks.length === 0 ? (
+            <p className="text-xs text-muted-foreground px-2 py-2 text-center">Keine anstehenden Aufgaben</p>
+          ) : (
+            upcomingTasks.map(task => <TaskRow key={task.id} task={task} />)
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Later */}
+      {laterTasks.length > 0 && (
+        <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-transparent group/trigger">
+            <div className="flex items-center gap-1.5">
+              <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isLaterOpen && "rotate-90")} />
+              <Clock className="h-3.5 w-3.5 text-blue-500" />
+              <span className="text-xs font-semibold">Später</span>
+            </div>
+            <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-900/50">{laterTasks.length}</Badge>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
+            {laterTasks.map(task => <TaskRow key={task.id} task={task} />)}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* No Date */}
+      <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 border border-transparent group/trigger">
+          <div className="flex items-center gap-1.5">
+            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isNoDateOpen && "rotate-90")} />
+            <CalendarOff className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold">Ohne Datum</span>
+          </div>
+          <Badge variant="outline" className="h-4.5 px-1.5 text-[10px]">{noDateTasks.length}</Badge>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
+          {noDateTasks.length === 0 ? (
+            <p className="text-xs text-muted-foreground px-2 py-2 text-center">Alle Aufgaben haben ein Datum</p>
+          ) : (
+            noDateTasks.map(task => <TaskRow key={task.id} task={task} />)
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
+
 function SidebarContent({
   isCollapsed,
   pathname,
@@ -1508,7 +1699,7 @@ function SidebarContent({
         supabase.from('Haeuser').select('id,name,strasse,ort,groesse').eq('user_id', user.id),
         supabase.from('Finanzen').select('id,wohnung_id,name,datum,betrag,ist_einnahmen,tags').eq('user_id', user.id),
         supabase.from('Nebenkosten').select('id,startdatum,enddatum,nebenkostenart,betrag,zaehlerkosten,haeuser_id').eq('user_id', user.id),
-        supabase.from('Aufgaben').select('id,name,beschreibung,ist_erledigt,faelligkeitsdatum').eq('user_id', user.id)
+        supabase.from('Aufgaben').select('id,name,beschreibung,ist_erledigt,faelligkeitsdatum,erstellungsdatum').eq('user_id', user.id)
       ])
 
       if (aptsRes.data) setApartments(aptsRes.data)
@@ -2849,7 +3040,7 @@ function SidebarContent({
                     )}
                   </div>
 
-                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-4 custom-scrollbar">
                     {isDataLoading && tasks.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
                         <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
@@ -2898,27 +3089,29 @@ function SidebarContent({
                           </div>
                         </div>
 
-                        {/* Overdue Banner if overdue > 0 */}
-                        {taskStats.overdue > 0 && (
-                          <div className="p-3.5 rounded-2xl border border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-950/10 flex items-start gap-3">
-                            <Activity className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                            <div className="text-xs text-red-700 dark:text-red-400 leading-relaxed font-semibold">
-                              Du hast {taskStats.overdue} überfällige {taskStats.overdue === 1 ? 'Aufgabe' : 'Aufgaben'}. Bitte erledige oder verschiebe diese zeitnah!
-                            </div>
-                          </div>
-                        )}
+                        {/* New Task Button */}
+                        <button
+                          onClick={() => openAufgabeModal(undefined, (newTask) => {
+                            setTasks(prev => [newTask, ...prev])
+                          })}
+                          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 hover:border-accent/60 dark:border-zinc-800 dark:hover:border-accent/40 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-900/20 dark:hover:bg-zinc-900/60 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent transition-all duration-300 active:scale-98 cursor-pointer"
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                          Neue Aufgabe erstellen
+                        </button>
 
-                        {/* Quick Shortcuts */}
-                        <div className="space-y-3">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Aktionen</div>
-                          <button
-                            onClick={() => openAufgabeModal()}
-                            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 hover:border-accent/60 dark:border-zinc-800 dark:hover:border-accent/40 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-900/20 dark:hover:bg-zinc-900/60 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent transition-all duration-300 active:scale-98 cursor-pointer"
-                          >
-                            <PlusCircle className="h-4 w-4" />
-                            Neue Aufgabe erstellen
-                          </button>
-                        </div>
+                        {/* Section 3: Task List */}
+                        <SidebarTaskList
+                          tasks={tasks}
+                          onTaskClick={(task) => openAufgabeModal(task, (updated) => {
+                            setTasks(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t))
+                          })}
+                          onTaskToggle={async (taskId, completed) => {
+                            // Optimistic update
+                            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ist_erledigt: completed } : t))
+                            await toggleTaskStatusAction(taskId, completed)
+                          }}
+                        />
                       </>
                     )}
                   </div>
