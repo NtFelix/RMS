@@ -7,6 +7,7 @@ import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation
 import { cn } from "@/lib/utils"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
+import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
 
 export function DashboardLayout({ 
   children,
@@ -103,40 +104,40 @@ export function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background w-full max-w-full">
-      {/* Desktop sidebar - hidden on mobile with enhanced CSS-only fallbacks */}
-      <div 
-        className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
-        style={{
-          width: preference === 'expanded' ? "23rem" : "5rem"
-        }}
-      >
-        <DashboardSidebar sidebarData={sidebarData} />
-      </div>
+    <TaskDndProvider>
+      <div className="flex min-h-screen bg-background w-full max-w-full">
+        {/* Desktop sidebar */}
+        <div 
+          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
+          style={{
+            width: preference === 'expanded' ? "23rem" : "5rem"
+          }}
+        >
+          <DashboardSidebar sidebarData={sidebarData} />
+        </div>
 
-      <div className="flex flex-1 flex-col min-w-0">
-        <main className={cn(
-          "flex flex-1 flex-col min-h-0 min-w-0",
-          "responsive-transition",
-          "p-4"
-        )}>
-          <div className={cn(
-            "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
-            "rounded-[2rem] md:rounded-[2.5rem]",
+        <div className="flex flex-1 flex-col min-w-0">
+          <main className={cn(
+            "flex flex-1 flex-col min-h-0 min-w-0",
             "responsive-transition",
-            "prevent-layout-shift",
-            "mobile-smooth-scroll",
-            "mb-0",
-            // Padding inside the container on mobile to avoid content being hidden by fixed nav
-            isMobile && "pb-20"
+            "p-4"
           )}>
-            {children}
-          </div>
-        </main>
-      </div>
+            <div className={cn(
+              "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
+              "rounded-[2rem] md:rounded-[2.5rem]",
+              "responsive-transition",
+              "prevent-layout-shift",
+              "mobile-smooth-scroll",
+              "mb-0",
+              isMobile && "pb-20"
+            )}>
+              {children}
+            </div>
+          </main>
+        </div>
 
-      {/* Mobile bottom navigation - shown only on mobile with enhanced safety */}
-      {mounted && isMobile && <MobileBottomNavigation />}
-    </div>
+        {mounted && isMobile && <MobileBottomNavigation />}
+      </div>
+    </TaskDndProvider>
   )
 }

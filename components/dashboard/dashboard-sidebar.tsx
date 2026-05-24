@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle, GripVertical } from "lucide-react"
 import { motion, Variants, AnimatePresence } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
@@ -18,6 +19,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { toggleTaskStatusAction } from "@/app/todos-actions"
+import {
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core"
+import { CSS } from "@dnd-kit/utilities"
+import { useTaskDnd } from "@/components/tasks/task-dnd-provider"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
@@ -1459,15 +1466,121 @@ function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProps) {
 
 interface SidebarTaskListProps {
   tasks: any[];
+  setTasks: (updater: (prev: any[]) => any[]) => void;
   onTaskClick: (task: any) => void;
   onTaskToggle: (taskId: string, completed: boolean) => void;
 }
 
-function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListProps) {
+// Inner draggable task row — uses the shared TaskDndProvider DndContext
+function DraggableTaskRow({
+  task,
+  onTaskClick,
+  onTaskToggle,
+  formatDueDate,
+}: {
+  task: any;
+  onTaskClick: (t: any) => void;
+  onTaskToggle: (id: string, v: boolean) => void;
+  formatDueDate: (s: string) => string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `sidebar-task-${task.id}`,
+    data: { task },
+  });
+  const style = { transform: CSS.Translate.toString(transform) };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={cn(
+        "flex items-center gap-2 p-2 rounded-xl transition-all duration-200 group border border-transparent",
+        "hover:bg-primary/5 hover:border-primary/10 dark:hover:bg-primary/10",
+        "cursor-grab active:cursor-grabbing select-none",
+        isDragging && "opacity-40 scale-95 cursor-grabbing",
+        task.ist_erledigt && "opacity-60"
+      )}
+    >
+      {/* Grip handle indicator */}
+      <GripVertical className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+      <Checkbox
+        checked={task.ist_erledigt}
+        onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
+        onClick={(e) => { e.stopPropagation(); }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="shrink-0"
+      />
+      <div
+        className="flex-1 min-w-0"
+        onClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <p draggable={false} className={cn("text-xs font-medium truncate pointer-events-none", task.ist_erledigt && "line-through text-muted-foreground")}>
+          {task.name}
+        </p>
+        {task.faelligkeitsdatum && (
+          <p draggable={false} className="text-[10px] text-muted-foreground mt-0.5 pointer-events-none">
+            {formatDueDate(task.faelligkeitsdatum)}
+          </p>
+        )}
+      </div>
+      {task.ist_erledigt ? (
+        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+      ) : (
+        <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+      )}
+    </div>
+  );
+}
+
+// Droppable no-date zone header
+function DroppableNoDateTrigger({
+  isNoDateOpen,
+  noDateCount,
+}: {
+  isNoDateOpen: boolean;
+  noDateCount: number;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: "sidebar-remove-date-zone" });
+  return (
+    <CollapsibleTrigger
+      ref={setNodeRef}
+      className={cn(
+        "flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 border group/trigger",
+        isOver
+          ? "bg-primary/8 border-primary/30 dark:bg-primary/10 dark:border-primary/40 shadow-sm"
+          : "border-transparent hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30"
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isNoDateOpen && "rotate-90")} />
+        <CalendarOff className={cn("h-3.5 w-3.5 transition-colors", isOver ? "text-primary" : "text-muted-foreground")} />
+        <span className={cn("text-xs font-semibold transition-colors", isOver && "text-primary")}>Ohne Datum</span>
+        {isOver && <span className="text-[9px] font-bold text-primary animate-pulse">– Datum entfernen</span>}
+      </div>
+      <Badge variant="outline" className="h-4.5 px-1.5 text-[10px]">{noDateCount}</Badge>
+    </CollapsibleTrigger>
+  );
+}
+
+function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: SidebarTaskListProps) {
   const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
   const [isNoDateOpen, setIsNoDateOpen] = useState(true);
   const [isOverdueOpen, setIsOverdueOpen] = useState(true);
   const [isLaterOpen, setIsLaterOpen] = useState(false);
+  const [isDoneOpen, setIsDoneOpen] = useState(false);
+
+  // Subscribe to date changes from the shared DnD provider
+  const { addDateChangeListener, removeDateChangeListener } = useTaskDnd();
+  useEffect(() => {
+    const handler = (taskId: string, date: string | null) => {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, faelligkeitsdatum: date } : t));
+    };
+    addDateChangeListener(handler);
+    return () => removeDateChangeListener(handler);
+  }, [addDateChangeListener, removeDateChangeListener, setTasks]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -1483,14 +1596,18 @@ function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListPr
   const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
   const nextWeekStr = useMemo(() => nextWeek.toISOString().split('T')[0], [nextWeek]);
 
-  const { upcomingTasks, noDateTasks, overdueTasks, laterTasks } = useMemo(() => {
+  const { upcomingTasks, noDateTasks, overdueTasks, laterTasks, doneTasks } = useMemo(() => {
     const upcoming: any[] = [];
     const noDate: any[] = [];
     const overdue: any[] = [];
     const later: any[] = [];
+    const done: any[] = [];
 
     tasks.forEach((task) => {
-      if (task.ist_erledigt) return;
+      if (task.ist_erledigt) {
+        done.push(task);
+        return;
+      }
       if (!task.faelligkeitsdatum) {
         noDate.push(task);
       } else if (task.faelligkeitsdatum < todayStr) {
@@ -1506,8 +1623,9 @@ function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListPr
     overdue.sort((a, b) => (b.faelligkeitsdatum ?? '').localeCompare(a.faelligkeitsdatum ?? ''));
     later.sort((a, b) => (a.faelligkeitsdatum ?? '').localeCompare(b.faelligkeitsdatum ?? ''));
     noDate.sort((a, b) => new Date(b.erstellungsdatum ?? 0).getTime() - new Date(a.erstellungsdatum ?? 0).getTime());
+    done.sort((a, b) => new Date(b.aenderungsdatum ?? b.erstellungsdatum ?? 0).getTime() - new Date(a.aenderungsdatum ?? a.erstellungsdatum ?? 0).getTime());
 
-    return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later };
+    return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later, doneTasks: done };
   }, [tasks, todayStr, nextWeekStr]);
 
   const formatDueDate = (dateStr: string) => {
@@ -1519,55 +1637,18 @@ function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListPr
     }
   };
 
-  function TaskRow({ task }: { task: any }) {
-    return (
-      <div
-        className={cn(
-          "flex items-start gap-2 p-2 rounded-xl transition-all duration-200 group border border-transparent cursor-pointer",
-          "hover:bg-primary/5 hover:border-primary/10 dark:hover:bg-primary/10",
-          task.ist_erledigt && "opacity-60"
-        )}
-        onClick={() => onTaskClick(task)}
-      >
-        <Checkbox
-          checked={task.ist_erledigt}
-          onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
-          onClick={(e) => e.stopPropagation()}
-          className="mt-0.5 shrink-0"
-        />
-        <div className="flex-1 min-w-0">
-          <p className={cn("text-xs font-medium truncate", task.ist_erledigt && "line-through text-muted-foreground")}>
-            {task.name}
-          </p>
-          {task.faelligkeitsdatum && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              {formatDueDate(task.faelligkeitsdatum)}
-            </p>
-          )}
-        </div>
-        {task.ist_erledigt ? (
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        ) : (
-          <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        )}
-      </div>
-    );
-  }
-
-  const totalVisible = overdueTasks.length + upcomingTasks.length + laterTasks.length + noDateTasks.length;
-  if (totalVisible === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <CheckCircle2 className="h-8 w-8 text-emerald-400 mb-2" />
-        <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Alle Aufgaben erledigt!</p>
-        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">Keine offenen Aufgaben vorhanden.</p>
-      </div>
-    );
-  }
+  const totalOpen = overdueTasks.length + upcomingTasks.length + laterTasks.length + noDateTasks.length;
 
   return (
     <div className="space-y-1">
       <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1 pb-1">Aufgabenliste</div>
+
+      {totalOpen === 0 && doneTasks.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <CheckCircle2 className="h-8 w-8 text-emerald-400 mb-2" />
+          <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Keine Aufgaben vorhanden</p>
+        </div>
+      )}
 
       {/* Overdue */}
       {overdueTasks.length > 0 && (
@@ -1581,7 +1662,9 @@ function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListPr
             <Badge variant="destructive" className="h-4.5 px-1.5 text-[10px]">{overdueTasks.length}</Badge>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
-            {overdueTasks.map(task => <TaskRow key={task.id} task={task} />)}
+            {overdueTasks.map(task => (
+              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            ))}
           </CollapsibleContent>
         </Collapsible>
       )}
@@ -1600,7 +1683,9 @@ function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListPr
           {upcomingTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground px-2 py-2 text-center">Keine anstehenden Aufgaben</p>
           ) : (
-            upcomingTasks.map(task => <TaskRow key={task.id} task={task} />)
+            upcomingTasks.map(task => (
+              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            ))
           )}
         </CollapsibleContent>
       </Collapsible>
@@ -1617,32 +1702,50 @@ function SidebarTaskList({ tasks, onTaskClick, onTaskToggle }: SidebarTaskListPr
             <Badge variant="outline" className="h-4.5 px-1.5 text-[10px] text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-900/50">{laterTasks.length}</Badge>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
-            {laterTasks.map(task => <TaskRow key={task.id} task={task} />)}
+            {laterTasks.map(task => (
+              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            ))}
           </CollapsibleContent>
         </Collapsible>
       )}
 
-      {/* No Date */}
+      {/* Ohne Datum – droppable target to clear due dates */}
       <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
-        <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 border border-transparent group/trigger">
-          <div className="flex items-center gap-1.5">
-            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isNoDateOpen && "rotate-90")} />
-            <CalendarOff className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-semibold">Ohne Datum</span>
-          </div>
-          <Badge variant="outline" className="h-4.5 px-1.5 text-[10px]">{noDateTasks.length}</Badge>
-        </CollapsibleTrigger>
+        <DroppableNoDateTrigger isNoDateOpen={isNoDateOpen} noDateCount={noDateTasks.length} />
         <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
           {noDateTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground px-2 py-2 text-center">Alle Aufgaben haben ein Datum</p>
           ) : (
-            noDateTasks.map(task => <TaskRow key={task.id} task={task} />)
+            noDateTasks.map(task => (
+              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            ))
           )}
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Erledigt */}
+      {doneTasks.length > 0 && (
+        <Collapsible open={isDoneOpen} onOpenChange={setIsDoneOpen}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent group/trigger">
+            <div className="flex items-center gap-1.5">
+              <ChevronRight className={cn("h-3.5 w-3.5 text-emerald-500 transition-transform duration-200", isDoneOpen && "rotate-90")} />
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Erledigt</span>
+            </div>
+            <Badge className="h-4.5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">{doneTasks.length}</Badge>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
+            {doneTasks.map(task => (
+              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   );
 }
+
+
 
 function SidebarContent({
   isCollapsed,
@@ -3103,12 +3206,15 @@ function SidebarContent({
                         {/* Section 3: Task List */}
                         <SidebarTaskList
                           tasks={tasks}
+                          setTasks={setTasks}
                           onTaskClick={(task) => openAufgabeModal(task, (updated) => {
                             setTasks(prev => prev.map(t => t.id === updated.id ? { ...t, ...updated } : t))
                           })}
                           onTaskToggle={async (taskId, completed) => {
                             // Optimistic update
                             setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ist_erledigt: completed } : t))
+                            // Notify calendar view
+                            window.dispatchEvent(new CustomEvent('sidebar-task-toggled', { detail: { taskId, completed } }))
                             await toggleTaskStatusAction(taskId, completed)
                           }}
                         />
