@@ -4,7 +4,7 @@ export const runtime = 'edge'
 
 export default function DateienLoading() {
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-8 rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
       
       {/* Summary Cards Skeleton - 3 equal flex cards */}
       <div className="flex flex-wrap gap-4">

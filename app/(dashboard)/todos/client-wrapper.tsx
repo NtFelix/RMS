@@ -242,8 +242,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      return (
-        <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
+      <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
 
         <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader>

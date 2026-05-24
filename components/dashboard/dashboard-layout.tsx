@@ -121,7 +121,7 @@ export function DashboardLayout({
           "p-4"
         )}>
           <div className={cn(
-            "flex-1 border shadow-xs bg-white dark:bg-[#181818]",
+            "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
             "rounded-[2rem] md:rounded-[2.5rem]",
             "responsive-transition",
             "prevent-layout-shift",
