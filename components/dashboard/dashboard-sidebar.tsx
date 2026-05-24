@@ -429,9 +429,9 @@ function MetersDonutChart({ metersByType, metersTotal, metersActive }: MetersDon
       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
 
       {/* Main interactive visualization panel */}
-      <div className="flex items-center gap-4">
-        {/* Left: Interactive Donut Chart */}
-        <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+      <div className="flex flex-col items-center gap-3">
+        {/* Donut Chart — full width, centered */}
+        <div className="relative w-40 h-40 flex items-center justify-center">
           <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
             {/* Background base circle */}
             <circle
@@ -467,21 +467,21 @@ function MetersDonutChart({ metersByType, metersTotal, metersActive }: MetersDon
           </svg>
 
           {/* Central tooltip card inside the donut */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-1.5">
-            <div className={cn("p-1 rounded-lg mb-0.5", activeInfo.colorClass)}>
-              <ActiveIcon className="h-3.5 w-3.5" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2">
+            <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
+              <ActiveIcon className="h-4 w-4" />
             </div>
-            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[75px]">
+            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
               {activeInfo.label}
             </p>
-            <p className="text-xs font-black text-zinc-800 dark:text-zinc-100">
+            <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
               {activeInfo.count}
             </p>
           </div>
         </div>
 
-        {/* Right: Legend list that also triggers hover */}
-        <div className="flex-1 max-w-[125px] flex flex-col gap-1 min-w-0">
+        {/* Legend list below the chart */}
+        <div className="w-full flex flex-col gap-1">
           {segments.map((s) => {
             const isHovered = hoveredKey === s.key;
             const Icon = s.icon;
@@ -491,7 +491,7 @@ function MetersDonutChart({ metersByType, metersTotal, metersActive }: MetersDon
                 className={cn(
                   "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer",
                   isHovered
-                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs translate-x-0.5 scale-[1.02]"
+                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs scale-[1.01]"
                     : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
                 )}
                 onMouseEnter={() => setHoveredKey(s.key)}
@@ -648,9 +648,9 @@ function HousesDonutChart({ houses, apartments }: HousesDonutChartProps) {
       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
 
       {/* Main interactive visualization panel */}
-      <div className="flex items-center gap-4">
-        {/* Left: Interactive Donut Chart */}
-        <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+      <div className="flex flex-col items-center gap-3">
+        {/* Donut Chart — full width, centered */}
+        <div className="relative w-40 h-40 flex items-center justify-center">
           <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
             {/* Background base circle */}
             <circle
@@ -686,21 +686,21 @@ function HousesDonutChart({ houses, apartments }: HousesDonutChartProps) {
           </svg>
 
           {/* Central tooltip card inside the donut */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-1.5 animate-in fade-in duration-200">
-            <div className={cn("p-1 rounded-lg mb-0.5", activeInfo.colorClass)}>
-              <ActiveIcon className="h-3.5 w-3.5" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
+            <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
+              <ActiveIcon className="h-4 w-4" />
             </div>
-            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[75px]">
+            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
               {activeInfo.label}
             </p>
-            <p className="text-xs font-black text-zinc-800 dark:text-zinc-100">
+            <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
               {activeInfo.count}
             </p>
           </div>
         </div>
 
-        {/* Right: Legend list that also triggers hover */}
-        <div className="flex-1 max-w-[125px] flex flex-col gap-1 min-w-0">
+        {/* Legend list below the chart */}
+        <div className="w-full flex flex-col gap-1">
           {segments.map((s) => {
             const isHovered = hoveredKey === s.key;
             const Icon = s.icon;
@@ -710,7 +710,733 @@ function HousesDonutChart({ houses, apartments }: HousesDonutChartProps) {
                 className={cn(
                   "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer animate-in fade-in zoom-in-95 duration-200",
                   isHovered
-                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs translate-x-0.5 scale-[1.02]"
+                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs scale-[1.01]"
+                    : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
+                )}
+                onMouseEnter={() => setHoveredKey(s.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
+                    <Icon className="h-3 w-3" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
+                    {s.label}
+                  </span>
+                </div>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
+                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(s.count)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface FinanceDonutChartProps {
+  finanzen: any[]
+}
+
+function FinanceDonutChart({ finanzen }: FinanceDonutChartProps) {
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const colors = useMemo(() => [
+    { strokeColor: '#f59e0b', colorClass: 'text-amber-500 bg-amber-500/10' }, // Instandhaltung
+    { strokeColor: '#3b82f6', colorClass: 'text-blue-500 bg-blue-500/10' },   // Heizung / Strom
+    { strokeColor: '#8b5cf6', colorClass: 'text-purple-500 bg-purple-500/10' }, // Versicherung
+    { strokeColor: '#ec4899', colorClass: 'text-pink-500 bg-pink-500/10' },   // Verwaltung
+    { strokeColor: '#eab308', colorClass: 'text-yellow-500 bg-yellow-500/10' }, // Sonstiges
+    { strokeColor: '#06b6d4', colorClass: 'text-cyan-500 bg-cyan-500/10' }
+  ], []);
+
+  const segmentsData = useMemo(() => {
+    const expenseTags: Record<string, number> = {}
+    let totalExpense = 0
+
+    finanzen.forEach(item => {
+      if (!item.ist_einnahmen) {
+        const amount = Number(item.betrag || 0)
+        totalExpense += amount
+        const tags = item.tags || []
+        if (tags.length > 0) {
+          tags.forEach((t: string) => {
+            const cleanTag = t.trim()
+            expenseTags[cleanTag] = (expenseTags[cleanTag] || 0) + amount
+          })
+        } else {
+          expenseTags['Sonstiges'] = (expenseTags['Sonstiges'] || 0) + amount
+        }
+      }
+    })
+
+    if (totalExpense === 0) {
+      const incomeTags: Record<string, number> = {}
+      let totalIncome = 0
+      finanzen.forEach(item => {
+        if (item.ist_einnahmen) {
+          const amount = Number(item.betrag || 0)
+          totalIncome += amount
+          const tags = item.tags || []
+          if (tags.length > 0) {
+            tags.forEach((t: string) => {
+              const cleanTag = t.trim()
+              incomeTags[cleanTag] = (incomeTags[cleanTag] || 0) + amount
+            })
+          } else {
+            incomeTags['Miete'] = (incomeTags['Miete'] || 0) + amount
+          }
+        }
+      })
+
+      const rawSegments = Object.entries(incomeTags).map(([tag, amount]) => ({
+        key: tag,
+        label: tag,
+        count: amount,
+        icon: Wallet
+      }))
+      rawSegments.sort((a, b) => b.count - a.count)
+
+      return {
+        isExpense: false,
+        total: totalIncome,
+        segments: rawSegments.map((s, idx) => ({
+          ...s,
+          ...colors[idx % colors.length]
+        }))
+      }
+    }
+
+    const rawSegments = Object.entries(expenseTags).map(([tag, amount]) => ({
+      key: tag,
+      label: tag,
+      count: amount,
+      icon: Wallet
+    }))
+    rawSegments.sort((a, b) => b.count - a.count)
+
+    let finalSegments = []
+    if (rawSegments.length <= 5) {
+      finalSegments = rawSegments.map((s, idx) => ({
+        ...s,
+        ...colors[idx % colors.length]
+      }))
+    } else {
+      const top4 = rawSegments.slice(0, 4).map((s, idx) => ({
+        ...s,
+        ...colors[idx % colors.length]
+      }))
+      const others = rawSegments.slice(4)
+      const othersCount = others.reduce((sum, s) => sum + s.count, 0)
+      finalSegments = [
+        ...top4,
+        {
+          key: 'other',
+          label: 'Andere',
+          count: othersCount,
+          icon: Wallet,
+          strokeColor: '#6b7280',
+          colorClass: 'text-zinc-500 bg-zinc-500/10'
+        }
+      ]
+    }
+
+    return {
+      isExpense: true,
+      total: totalExpense,
+      segments: finalSegments
+    }
+  }, [finanzen, colors])
+
+  const totalValue = segmentsData.total
+  const segmentsList = segmentsData.segments
+
+  const RADIUS = 36;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+  const segments = useMemo(() => {
+    let currentOffset = 0;
+    return segmentsList.map(s => {
+      const percentage = totalValue > 0 ? s.count / totalValue : 0;
+      const strokeDasharray = `${percentage * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
+      const strokeDashoffset = -currentOffset * CIRCUMFERENCE;
+      currentOffset += percentage;
+
+      return {
+        ...s,
+        percentage,
+        strokeDasharray,
+        strokeDashoffset
+      };
+    });
+  }, [segmentsList, totalValue, CIRCUMFERENCE]);
+
+  const activeInfo = useMemo(() => {
+    if (hoveredKey) {
+      const match = segments.find(s => s.key === hoveredKey);
+      if (match) {
+        return {
+          label: match.label,
+          count: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(match.count),
+          icon: match.icon,
+          colorClass: match.colorClass
+        };
+      }
+    }
+    return {
+      label: segmentsData.isExpense ? 'Ausgaben Gesamt' : 'Einnahmen Gesamt',
+      count: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalValue),
+      icon: Wallet,
+      colorClass: segmentsData.isExpense ? 'text-red-500 bg-red-500/10' : 'text-emerald-500 bg-emerald-500/10'
+    };
+  }, [hoveredKey, segments, totalValue, segmentsData.isExpense]);
+
+  const ActiveIcon = activeInfo.icon;
+
+  if (finanzen.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Transaktionen erfasst.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+          {segmentsData.isExpense ? 'Ausgaben-Verteilung' : 'Einnahmen-Verteilung'}
+        </span>
+        <span className={cn("font-bold", segmentsData.isExpense ? 'text-red-500' : 'text-emerald-500')}>
+          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalValue)}
+        </span>
+      </div>
+
+      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
+
+      <div className="flex flex-col items-center gap-3">
+        <div className="relative w-40 h-40 flex items-center justify-center">
+          <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+            <circle
+              cx="50"
+              cy="50"
+              r={RADIUS}
+              fill="transparent"
+              stroke="var(--zinc-100)"
+              className="stroke-zinc-100 dark:stroke-zinc-800/60"
+              strokeWidth="9"
+            />
+            {segments.map((s) => {
+              const isHovered = hoveredKey === s.key;
+              return (
+                <circle
+                  key={s.key}
+                  cx="50"
+                  cy="50"
+                  r={RADIUS}
+                  fill="transparent"
+                  stroke={s.strokeColor}
+                  strokeWidth={isHovered ? 12 : 9}
+                  strokeDasharray={s.strokeDasharray}
+                  strokeDashoffset={s.strokeDashoffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
+                  onMouseEnter={() => setHoveredKey(s.key)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                />
+              );
+            })}
+          </svg>
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
+            <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
+              <ActiveIcon className="h-4 w-4" />
+            </div>
+            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
+              {activeInfo.label}
+            </p>
+            <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
+              {activeInfo.count}
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full flex flex-col gap-1">
+          {segments.map((s) => {
+            const isHovered = hoveredKey === s.key;
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.key}
+                className={cn(
+                  "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer animate-in fade-in zoom-in-95 duration-200",
+                  isHovered
+                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs scale-[1.01]"
+                    : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
+                )}
+                onMouseEnter={() => setHoveredKey(s.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
+                    <Icon className="h-3 w-3" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
+                    {s.label}
+                  </span>
+                </div>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
+                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(s.count)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface TenantsDonutChartProps {
+  tenants: any[]
+}
+
+function TenantsDonutChart({ tenants }: TenantsDonutChartProps) {
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const colors = useMemo(() => [
+    { strokeColor: '#10b981', colorClass: 'text-emerald-500 bg-emerald-500/10' }, // Erhalten
+    { strokeColor: '#f59e0b', colorClass: 'text-amber-500 bg-amber-500/10' },     // Ausstehend
+    { strokeColor: '#3b82f6', colorClass: 'text-blue-500 bg-blue-500/10' },       // Zurückgezahlt
+    { strokeColor: '#6b7280', colorClass: 'text-zinc-500 bg-zinc-500/10' }
+  ], []);
+
+  const segmentsData = useMemo(() => {
+    let hasKautionData = false
+    const depositStatusCount: Record<string, number> = {}
+
+    tenants.forEach(t => {
+      if (t.kaution) {
+        const amount = typeof t.kaution.amount === 'string'
+          ? parseFloat(t.kaution.amount)
+          : Number(t.kaution.amount || 0);
+
+        if (!isNaN(amount) && amount > 0) {
+          hasKautionData = true
+          const status = t.kaution.status || 'Ausstehend'
+          depositStatusCount[status] = (depositStatusCount[status] || 0) + amount
+        }
+      }
+    })
+
+    if (!hasKautionData) {
+      const statusCounts: Record<string, number> = {}
+      tenants.forEach(t => {
+        const status = t.status || 'mieter'
+        const label = status === 'mieter' ? 'Aktive Mieter' : status === 'bewerber' ? 'Bewerber' : 'Ehemalige'
+        statusCounts[label] = (statusCounts[label] || 0) + 1
+      })
+
+      const rawSegments = Object.entries(statusCounts).map(([status, count]) => ({
+        key: status,
+        label: status,
+        count,
+        icon: Users
+      }))
+
+      return {
+        isDeposit: false,
+        total: tenants.length,
+        segments: rawSegments.map((s, idx) => ({
+          ...s,
+          ...colors[idx % colors.length]
+        }))
+      }
+    }
+
+    const rawSegments = Object.entries(depositStatusCount).map(([status, amount]) => ({
+      key: status,
+      label: status,
+      count: amount,
+      icon: Users
+    }))
+
+    return {
+      isDeposit: true,
+      total: Object.values(depositStatusCount).reduce((sum, v) => sum + v, 0),
+      segments: rawSegments.map((s, idx) => ({
+        ...s,
+        ...colors[idx % colors.length]
+      }))
+    }
+  }, [tenants, colors])
+
+  const totalValue = segmentsData.total
+  const segmentsList = segmentsData.segments
+
+  const RADIUS = 36;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+  const segments = useMemo(() => {
+    let currentOffset = 0;
+    return segmentsList.map(s => {
+      const percentage = totalValue > 0 ? s.count / totalValue : 0;
+      const strokeDasharray = `${percentage * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
+      const strokeDashoffset = -currentOffset * CIRCUMFERENCE;
+      currentOffset += percentage;
+
+      return {
+        ...s,
+        percentage,
+        strokeDasharray,
+        strokeDashoffset
+      };
+    });
+  }, [segmentsList, totalValue, CIRCUMFERENCE]);
+
+  const activeInfo = useMemo(() => {
+    if (hoveredKey) {
+      const match = segments.find(s => s.key === hoveredKey);
+      if (match) {
+        return {
+          label: match.label,
+          count: segmentsData.isDeposit
+            ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(match.count)
+            : `${match.count} Mieter`,
+          icon: match.icon,
+          colorClass: match.colorClass
+        };
+      }
+    }
+    return {
+      label: segmentsData.isDeposit ? 'Kautionen Gesamt' : 'Mieter Gesamt',
+      count: segmentsData.isDeposit
+        ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalValue)
+        : `${totalValue} Mieter`,
+      icon: Users,
+      colorClass: 'text-accent bg-accent/10'
+    };
+  }, [hoveredKey, segments, totalValue, segmentsData.isDeposit]);
+
+  const ActiveIcon = activeInfo.icon;
+
+  if (tenants.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Mieter erfasst.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+          {segmentsData.isDeposit ? 'Kautions-Abdeckung' : 'Mieter-Verteilung'}
+        </span>
+        <span className="font-bold text-accent">
+          {segmentsData.isDeposit
+            ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalValue)
+            : `${totalValue} Mieter`}
+        </span>
+      </div>
+
+      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
+
+      <div className="flex flex-col items-center gap-3">
+        <div className="relative w-40 h-40 flex items-center justify-center">
+          <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+            <circle
+              cx="50"
+              cy="50"
+              r={RADIUS}
+              fill="transparent"
+              stroke="var(--zinc-100)"
+              className="stroke-zinc-100 dark:stroke-zinc-800/60"
+              strokeWidth="9"
+            />
+            {segments.map((s) => {
+              const isHovered = hoveredKey === s.key;
+              return (
+                <circle
+                  key={s.key}
+                  cx="50"
+                  cy="50"
+                  r={RADIUS}
+                  fill="transparent"
+                  stroke={s.strokeColor}
+                  strokeWidth={isHovered ? 12 : 9}
+                  strokeDasharray={s.strokeDasharray}
+                  strokeDashoffset={s.strokeDashoffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
+                  onMouseEnter={() => setHoveredKey(s.key)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                />
+              );
+            })}
+          </svg>
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
+            <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
+              <ActiveIcon className="h-4 w-4" />
+            </div>
+            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
+              {activeInfo.label}
+            </p>
+            <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
+              {activeInfo.count}
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full flex flex-col gap-1">
+          {segments.map((s) => {
+            const isHovered = hoveredKey === s.key;
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.key}
+                className={cn(
+                  "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer animate-in fade-in zoom-in-95 duration-200",
+                  isHovered
+                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs scale-[1.01]"
+                    : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
+                )}
+                onMouseEnter={() => setHoveredKey(s.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
+                    <Icon className="h-3 w-3" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
+                    {s.label}
+                  </span>
+                </div>
+                <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
+                  {segmentsData.isDeposit
+                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(s.count)
+                    : `${s.count}x`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface NebenkostenDonutChartProps {
+  nebenkosten: any[]
+}
+
+function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProps) {
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const colors = useMemo(() => [
+    { strokeColor: '#ef4444', colorClass: 'text-red-500 bg-red-500/10' },     // Heizkosten
+    { strokeColor: '#3b82f6', colorClass: 'text-blue-500 bg-blue-500/10' },   // Kaltwasser
+    { strokeColor: '#eab308', colorClass: 'text-yellow-500 bg-yellow-500/10' }, // Allgemeinstrom
+    { strokeColor: '#f97316', colorClass: 'text-orange-500 bg-orange-500/10' }, // Müllabfuhr
+    { strokeColor: '#a855f7', colorClass: 'text-purple-500 bg-purple-500/10' }, // Hausmeister
+    { strokeColor: '#06b6d4', colorClass: 'text-cyan-500 bg-cyan-500/10' }
+  ], []);
+
+  const segmentsData = useMemo(() => {
+    const categoryTotals: Record<string, number> = {}
+    let totalCosts = 0
+
+    nebenkosten.forEach(item => {
+      const arten = item.nebenkostenart || []
+      const betraege = item.betrag || []
+
+      arten.forEach((art: string, idx: number) => {
+        const amount = Number(betraege[idx] || 0)
+        if (amount > 0) {
+          totalCosts += amount
+          const cleanArt = art.trim()
+          categoryTotals[cleanArt] = (categoryTotals[cleanArt] || 0) + amount
+        }
+      })
+
+      if (item.zaehlerkosten) {
+        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+          const amount = Number(val || 0)
+          if (amount > 0) {
+            totalCosts += amount
+            const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1)
+            categoryTotals[capitalizedKey] = (categoryTotals[capitalizedKey] || 0) + amount
+          }
+        })
+      }
+    })
+
+    const rawSegments = Object.entries(categoryTotals).map(([name, amount]) => ({
+      key: name,
+      label: name,
+      count: amount,
+      icon: FileSpreadsheet
+    }))
+    rawSegments.sort((a, b) => b.count - a.count)
+
+    let finalSegments = []
+    if (rawSegments.length <= 5) {
+      finalSegments = rawSegments.map((s, idx) => ({
+        ...s,
+        ...colors[idx % colors.length]
+      }))
+    } else {
+      const top4 = rawSegments.slice(0, 4).map((s, idx) => ({
+        ...s,
+        ...colors[idx % colors.length]
+      }))
+      const others = rawSegments.slice(4)
+      const othersSum = others.reduce((sum, s) => sum + s.count, 0)
+      finalSegments = [
+        ...top4,
+        {
+          key: 'other',
+          label: 'Andere',
+          count: othersSum,
+          icon: FileSpreadsheet,
+          strokeColor: '#6b7280',
+          colorClass: 'text-zinc-500 bg-zinc-500/10'
+        }
+      ]
+    }
+
+    return {
+      total: totalCosts,
+      segments: finalSegments
+    }
+  }, [nebenkosten, colors])
+
+  const totalValue = segmentsData.total
+  const segmentsList = segmentsData.segments
+
+  const RADIUS = 36;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+  const segments = useMemo(() => {
+    let currentOffset = 0;
+    return segmentsList.map(s => {
+      const percentage = totalValue > 0 ? s.count / totalValue : 0;
+      const strokeDasharray = `${percentage * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
+      const strokeDashoffset = -currentOffset * CIRCUMFERENCE;
+      currentOffset += percentage;
+
+      return {
+        ...s,
+        percentage,
+        strokeDasharray,
+        strokeDashoffset
+      };
+    });
+  }, [segmentsList, totalValue, CIRCUMFERENCE]);
+
+  const activeInfo = useMemo(() => {
+    if (hoveredKey) {
+      const match = segments.find(s => s.key === hoveredKey);
+      if (match) {
+        return {
+          label: match.label,
+          count: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(match.count),
+          icon: match.icon,
+          colorClass: match.colorClass
+        };
+      }
+    }
+    return {
+      label: 'Kosten Gesamt',
+      count: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalValue),
+      icon: FileSpreadsheet,
+      colorClass: 'text-accent bg-accent/10'
+    };
+  }, [hoveredKey, segments, totalValue]);
+
+  const ActiveIcon = activeInfo.icon;
+
+  if (nebenkosten.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Nebenkosten erfasst.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-zinc-800 dark:text-zinc-200">Kostenaufteilung</span>
+        <span className="font-bold text-accent">
+          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalValue)}
+        </span>
+      </div>
+
+      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
+
+      <div className="flex flex-col items-center gap-3">
+        <div className="relative w-40 h-40 flex items-center justify-center">
+          <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+            <circle
+              cx="50"
+              cy="50"
+              r={RADIUS}
+              fill="transparent"
+              stroke="var(--zinc-100)"
+              className="stroke-zinc-100 dark:stroke-zinc-800/60"
+              strokeWidth="9"
+            />
+            {segments.map((s) => {
+              const isHovered = hoveredKey === s.key;
+              return (
+                <circle
+                  key={s.key}
+                  cx="50"
+                  cy="50"
+                  r={RADIUS}
+                  fill="transparent"
+                  stroke={s.strokeColor}
+                  strokeWidth={isHovered ? 12 : 9}
+                  strokeDasharray={s.strokeDasharray}
+                  strokeDashoffset={s.strokeDashoffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
+                  onMouseEnter={() => setHoveredKey(s.key)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                />
+              );
+            })}
+          </svg>
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
+            <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
+              <ActiveIcon className="h-4 w-4" />
+            </div>
+            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
+              {activeInfo.label}
+            </p>
+            <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
+              {activeInfo.count}
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full flex flex-col gap-1">
+          {segments.map((s) => {
+            const isHovered = hoveredKey === s.key;
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.key}
+                className={cn(
+                  "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer animate-in fade-in zoom-in-95 duration-200",
+                  isHovered
+                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs scale-[1.01]"
                     : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
                 )}
                 onMouseEnter={() => setHoveredKey(s.key)}
@@ -768,6 +1494,8 @@ function SidebarContent({
   const [tenants, setTenants] = useState<any[]>([])
   const [meters, setMeters] = useState<any[]>([])
   const [houses, setHouses] = useState<any[]>([])
+  const [finanzen, setFinanzen] = useState<any[]>([])
+  const [nebenkosten, setNebenkosten] = useState<any[]>([])
   const [isDataLoading, setIsDataLoading] = useState(false)
 
   const fetchApartmentData = async () => {
@@ -778,17 +1506,21 @@ function SidebarContent({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [aptsRes, tenantsRes, metersRes, housesRes] = await Promise.all([
+      const [aptsRes, tenantsRes, metersRes, housesRes, finanzenRes, nebenkostenRes] = await Promise.all([
         supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id').eq('user_id', user.id),
-        supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name').eq('user_id', user.id),
+        supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,status,kaution').eq('user_id', user.id),
         supabase.from('Zaehler').select('id,zaehler_typ,ist_aktiv,wohnung_id').eq('user_id', user.id),
-        supabase.from('Haeuser').select('id,name,strasse,ort,groesse').eq('user_id', user.id)
+        supabase.from('Haeuser').select('id,name,strasse,ort,groesse').eq('user_id', user.id),
+        supabase.from('Finanzen').select('id,wohnung_id,name,datum,betrag,ist_einnahmen,tags').eq('user_id', user.id),
+        supabase.from('Nebenkosten').select('id,startdatum,enddatum,nebenkostenart,betrag,zaehlerkosten,haeuser_id').eq('user_id', user.id)
       ])
 
       if (aptsRes.data) setApartments(aptsRes.data)
       if (tenantsRes.data) setTenants(tenantsRes.data)
       if (metersRes.data) setMeters(metersRes.data)
       if (housesRes.data) setHouses(housesRes.data)
+      if (finanzenRes.data) setFinanzen(finanzenRes.data)
+      if (nebenkostenRes.data) setNebenkosten(nebenkostenRes.data)
     } catch (err) {
       console.error("Error fetching sidebar apartments data:", err)
     } finally {
@@ -797,12 +1529,13 @@ function SidebarContent({
   }
 
   useEffect(() => {
-    if (pathname === '/wohnungen' || pathname === '/haeuser') {
+    const isTargetRoute = ['/wohnungen', '/haeuser', '/finanzen', '/mieter', '/betriebskosten'].includes(pathname)
+    if (isTargetRoute) {
       fetchApartmentData()
     }
     
     const handleRefresh = () => {
-      if (pathname === '/wohnungen' || pathname === '/haeuser') {
+      if (isTargetRoute) {
         fetchApartmentData()
       }
     }
@@ -965,6 +1698,202 @@ function SidebarContent({
       avgSize
     }
   }, [houses, apartments, tenants])
+
+  // Compute stats for finance side panel
+  const financeStats = useMemo(() => {
+    if (!finanzen || finanzen.length === 0) {
+      return {
+        totalIncome: 0,
+        totalExpenses: 0,
+        netCashflow: 0,
+        cashflowRatio: 0,
+        avgTransaction: 0,
+        expenseTags: {} as Record<string, number>,
+      }
+    }
+
+    let totalIncome = 0
+    let totalExpenses = 0
+    const expenseTags: Record<string, number> = {}
+
+    finanzen.forEach(item => {
+      const amount = Number(item.betrag || 0)
+      if (item.ist_einnahmen) {
+        totalIncome += amount
+      } else {
+        totalExpenses += amount
+        const tags = item.tags || []
+        if (tags.length > 0) {
+          tags.forEach((t: string) => {
+            const cleanTag = t.trim()
+            expenseTags[cleanTag] = (expenseTags[cleanTag] || 0) + amount
+          })
+        } else {
+          expenseTags['Sonstiges'] = (expenseTags['Sonstiges'] || 0) + amount
+        }
+      }
+    })
+
+    const netCashflow = totalIncome - totalExpenses
+    const totalTransactions = totalIncome + totalExpenses
+    const cashflowRatio = totalIncome > 0 ? Math.round((netCashflow / totalIncome) * 100) : 0
+    const avgTransaction = finanzen.length > 0 ? Math.round(totalTransactions / finanzen.length) : 0
+
+    return {
+      totalIncome,
+      totalExpenses,
+      netCashflow,
+      cashflowRatio,
+      avgTransaction,
+      expenseTags,
+    }
+  }, [finanzen])
+
+  // Compute stats for tenants side panel
+  const tenantStats = useMemo(() => {
+    if (!tenants || tenants.length === 0) {
+      return {
+        total: 0,
+        activeCount: 0,
+        applicantCount: 0,
+        pastCount: 0,
+        totalDeposit: 0,
+        depositReceived: 0,
+        depositOutstanding: 0,
+        depositStatusCount: {} as Record<string, number>,
+      }
+    }
+
+    let activeCount = 0
+    let applicantCount = 0
+    let pastCount = 0
+
+    let totalDeposit = 0
+    let depositReceived = 0
+    let depositOutstanding = 0
+    const depositStatusCount: Record<string, number> = {}
+
+    tenants.forEach(t => {
+      const status = t.status || 'mieter'
+      if (status === 'mieter') {
+        activeCount++
+      } else if (status === 'bewerber') {
+        applicantCount++
+      } else {
+        pastCount++
+      }
+
+      if (t.kaution) {
+        const amount = typeof t.kaution.amount === 'string'
+          ? parseFloat(t.kaution.amount)
+          : Number(t.kaution.amount || 0);
+
+        if (!isNaN(amount) && amount > 0) {
+          totalDeposit += amount
+          const statusLabel = t.kaution.status || 'Ausstehend'
+          depositStatusCount[statusLabel] = (depositStatusCount[statusLabel] || 0) + amount
+
+          if (statusLabel === 'Erhalten' || statusLabel === 'Bezahlt') {
+            depositReceived += amount
+          } else if (statusLabel === 'Ausstehend' || statusLabel === 'Offen') {
+            depositOutstanding += amount
+          }
+        }
+      }
+    })
+
+    const total = tenants.length
+
+    return {
+      total,
+      activeCount,
+      applicantCount,
+      pastCount,
+      totalDeposit,
+      depositReceived,
+      depositOutstanding,
+      depositStatusCount,
+    }
+  }, [tenants])
+
+  // Compute stats for operating costs side panel
+  const nebenkostenStats = useMemo(() => {
+    if (!nebenkosten || nebenkosten.length === 0) {
+      return {
+        totalCosts: 0,
+        billsCount: 0,
+        avgCostPerBill: 0,
+        avgCostPerSqm: 0,
+        categoryTotals: {} as Record<string, number>,
+        housesCoverage: 0,
+      }
+    }
+
+    let totalCosts = 0
+    const categoryTotals: Record<string, number> = {}
+    const houseIdsWithNebenkosten = new Set<string>()
+
+    nebenkosten.forEach(item => {
+      if (item.haeuser_id) {
+        houseIdsWithNebenkosten.add(item.haeuser_id)
+      }
+
+      const arten = item.nebenkostenart || []
+      const betraege = item.betrag || []
+      let billSum = 0
+
+      arten.forEach((art: string, idx: number) => {
+        const amount = Number(betraege[idx] || 0)
+        if (amount > 0) {
+          billSum += amount
+          const cleanArt = art.trim()
+          categoryTotals[cleanArt] = (categoryTotals[cleanArt] || 0) + amount
+        }
+      })
+
+      if (item.zaehlerkosten) {
+        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+          const amount = Number(val || 0)
+          if (amount > 0) {
+            billSum += amount
+            const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1)
+            categoryTotals[capitalizedKey] = (categoryTotals[capitalizedKey] || 0) + amount
+          }
+        })
+      }
+
+      totalCosts += billSum
+    })
+
+    const billsCount = nebenkosten.length
+    const avgCostPerBill = billsCount > 0 ? Math.round(totalCosts / billsCount) : 0
+
+    const totalArea = houses.reduce((sum, h) => {
+      let displaySize = 0;
+      if (h.groesse && !isNaN(Number(h.groesse))) {
+        displaySize = Number(h.groesse)
+      } else {
+        const apts = apartments.filter(a => a.haus_id === h.id)
+        displaySize = apts.reduce((s, apt) => s + Number(apt.groesse || 0), 0)
+      }
+      return sum + displaySize
+    }, 0)
+
+    const avgCostPerSqm = totalArea > 0 ? Number((totalCosts / totalArea).toFixed(2)) : 0
+    
+    const housesCoverage = houses.length > 0
+      ? Math.round((houseIdsWithNebenkosten.size / houses.length) * 100)
+      : 0
+
+    return {
+      totalCosts,
+      billsCount,
+      avgCostPerBill,
+      avgCostPerSqm,
+      categoryTotals,
+      housesCoverage,
+    }
+  }, [nebenkosten, houses, apartments])
 
   useEffect(() => {
     const newExpanded = { ...expandedItems };
@@ -1227,352 +2156,740 @@ function SidebarContent({
             isCollapsed ? "w-0 opacity-0 pointer-events-none" : "w-[18rem] opacity-100"
           )}
         >
-          {pathname === '/wohnungen' || pathname === '/haeuser' ? (
-            <>
-              <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
-                <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Übersicht</span>
-                {toggleCollapse && (
-                  <button
-                    onClick={toggleCollapse}
-                    className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    title="Menü einklappen"
-                  >
-                    <PanelLeft className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Scrollable contents panel */}
-              <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
-                {isDataLoading && apartments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
-                    <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
-                    <span className="text-xs">Lade Kennzahlen...</span>
+          {(() => {
+            if (pathname === '/wohnungen' || pathname === '/haeuser') {
+              return (
+                <>
+                  <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Übersicht</span>
+                    {toggleCollapse && (
+                      <button
+                        onClick={toggleCollapse}
+                        className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        title="Menü einklappen"
+                      >
+                        <PanelLeft className="h-5 w-5" />
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    {/* Section 1 & 2: Unified Overview Container (Stats & Progress) */}
-                    <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
-                      {pathname === '/wohnungen' ? (
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* Rented Units */}
-                          <div>
-                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Vermietet</div>
-                            <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
-                              {apartmentStats.rentedCount}
-                              <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+
+                  {/* Scrollable contents panel */}
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                    {isDataLoading && apartments.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
+                        <span className="text-xs">Lade Kennzahlen...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Section 1 & 2: Unified Overview Container (Stats & Progress) */}
+                        <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                          {pathname === '/wohnungen' ? (
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* Rented Units */}
+                              <div>
+                                <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Vermietet</div>
+                                <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                  {apartmentStats.rentedCount}
+                                  <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+                                </div>
+                              </div>
+                              {/* Vacant Units */}
+                              <div>
+                                <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Freistehend</div>
+                                <div className={cn(
+                                  "text-xl font-bold flex items-baseline gap-1",
+                                  apartmentStats.freeCount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-900 dark:text-zinc-100"
+                                )}>
+                                  {apartmentStats.freeCount}
+                                  <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* Houses count */}
+                              <div>
+                                <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Häuser</div>
+                                <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                  {houseStats.total}
+                                  <span className="text-xs font-normal text-zinc-400">Objekte</span>
+                                </div>
+                              </div>
+                              {/* Portfolio total size */}
+                              <div>
+                                <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Gesamtfläche</div>
+                                <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                  {new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(houseStats.totalSize)}
+                                  <span className="text-xs font-normal text-zinc-400">m²</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Divider */}
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
+
+                          {/* Progress Widget (Occupancy) */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                              <span>Auslastung</span>
+                              <span className="text-accent">
+                                {pathname === '/wohnungen' ? apartmentStats.occupancyRate : houseStats.occupancyRate}%
+                              </span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                              <div 
+                                className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                                style={{ width: `${pathname === '/wohnungen' ? apartmentStats.occupancyRate : houseStats.occupancyRate}%` }}
+                              />
+                            </div>
+                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                              {pathname === '/wohnungen' ? (
+                                <>{apartmentStats.rentedCount} von {apartmentStats.total} Einheiten vermietet</>
+                              ) : (
+                                <>{houseStats.fullyOccupied} von {houseStats.total} Häusern voll belegt</>
+                              )}
                             </div>
                           </div>
-                          {/* Vacant Units */}
+                        </div>
+
+                        {/* Section 3: Financial Summary Box */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
                           <div>
-                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Freistehend</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">Soll-Miete (monatlich)</div>
+                            <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                                pathname === '/wohnungen' ? apartmentStats.totalRent : houseStats.totalRent
+                              )}
+                            </div>
+                          </div>
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800 w-full" />
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">
+                                {pathname === '/wohnungen' ? 'Ø Miete / Einheit' : 'Ø Miete / m²'}
+                              </div>
+                              <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">
+                                {pathname === '/wohnungen' ? (
+                                  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(apartmentStats.avgRent)
+                                ) : (
+                                  <>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(houseStats.avgRentPerSqm)}/m²</>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">
+                                {pathname === '/wohnungen' ? 'Ø Wohnungsgröße' : 'Gesamtfläche'}
+                              </div>
+                              <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5 flex items-baseline gap-0.5">
+                                {pathname === '/wohnungen' ? (
+                                  <>{apartmentStats.avgSize} <span className="text-[10px] font-normal text-zinc-400 font-normal">m²</span></>
+                                ) : (
+                                  <>{new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(houseStats.totalSize)} <span className="text-[10px] font-normal text-zinc-400 font-normal">m²</span></>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 3.5: Utility Meters / Houses Donut Insight Card */}
+                        {pathname === '/wohnungen' ? (
+                          <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                              <span>Zähler & Messgeräte</span>
+                              <span className="text-zinc-500 font-semibold">{apartmentStats.metersTotal} Gesamt</span>
+                            </div>
+                            
+                            <MetersDonutChart 
+                              metersByType={apartmentStats.metersByType}
+                              metersTotal={apartmentStats.metersTotal}
+                              metersActive={apartmentStats.metersActive}
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                              <span>Wohnungsverteilung</span>
+                              <span className="text-zinc-500 font-semibold">{houses.length} Gesamt</span>
+                            </div>
+                            
+                            <HousesDonutChart 
+                              houses={houses}
+                              apartments={apartments}
+                            />
+                          </div>
+                        )}
+
+                        {/* Section 4: Quick Navigation / Shortcuts */}
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Verknüpfte Bereiche</div>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Link
+                              href="/haeuser"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Building2 className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Häuser</span>
+                            </Link>
+                            <Link
+                              href="/mieter"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Users className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Mieter</span>
+                            </Link>
+                            <Link
+                              href="/finanzen"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Wallet className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Finanzen</span>
+                            </Link>
+                            <Link
+                              href="/betriebskosten"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <FileSpreadsheet className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Nebenkosten</span>
+                            </Link>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            } else if (pathname === '/finanzen') {
+              return (
+                <>
+                  <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Finanzen</span>
+                    {toggleCollapse && (
+                      <button
+                        onClick={toggleCollapse}
+                        className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        title="Menü einklappen"
+                      >
+                        <PanelLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                    {isDataLoading && finanzen.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
+                        <span className="text-xs">Lade Kennzahlen...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Section 1 & 2: Unified Overview Container (Stats & Progress) */}
+                        <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Einnahmen */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Einnahmen</div>
+                              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 flex items-baseline gap-1">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(financeStats.totalIncome)}
+                              </div>
+                            </div>
+                            {/* Ausgaben */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Ausgaben</div>
+                              <div className="text-xl font-bold text-red-600 dark:text-red-400 flex items-baseline gap-1">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(financeStats.totalExpenses)}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
+
+                          {/* Progress Widget (Cashflow Ratio) */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                              <span>Flow-Quote</span>
+                              <span className="text-accent">{financeStats.cashflowRatio}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                              <div 
+                                className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                                style={{ width: `${Math.min(100, Math.max(0, financeStats.cashflowRatio))}%` }}
+                              />
+                            </div>
+                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                              Überschuss von {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(financeStats.netCashflow)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 3: Financial Summary Card */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">Netto-Cashflow (Portfolio)</div>
                             <div className={cn(
-                              "text-xl font-bold flex items-baseline gap-1",
-                              apartmentStats.freeCount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-900 dark:text-zinc-100"
+                              "text-2xl font-black tracking-tight",
+                              financeStats.netCashflow >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                             )}>
-                              {apartmentStats.freeCount}
-                              <span className="text-xs font-normal text-zinc-400">Einheiten</span>
+                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(financeStats.netCashflow)}
+                            </div>
+                          </div>
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800 w-full" />
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Soll-Miete / Mon.</div>
+                              <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(apartmentStats.totalRent)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Ø Transaktion</div>
+                              <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(financeStats.avgTransaction)}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* Houses count */}
-                          <div>
-                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Häuser</div>
-                            <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
-                              {houseStats.total}
-                              <span className="text-xs font-normal text-zinc-400">Objekte</span>
+
+                        {/* Section 3.5: Finance Donut Chart */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                            <span>Ausgaben-Verteilung</span>
+                            <span className="text-zinc-500 font-semibold">{finanzen.length} Posten</span>
+                          </div>
+                          
+                          <FinanceDonutChart finanzen={finanzen} />
+                        </div>
+
+                        {/* Quick Navigation / Shortcuts */}
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Verknüpfte Bereiche</div>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Link
+                              href="/wohnungen"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Home className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Wohnungen</span>
+                            </Link>
+                            <Link
+                              href="/betriebskosten"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <FileSpreadsheet className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Nebenkosten</span>
+                            </Link>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            } else if (pathname === '/mieter') {
+              return (
+                <>
+                  <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Mieter</span>
+                    {toggleCollapse && (
+                      <button
+                        onClick={toggleCollapse}
+                        className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        title="Menü einklappen"
+                      >
+                        <PanelLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                    {isDataLoading && tenants.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
+                        <span className="text-xs">Lade Kennzahlen...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Section 1 & 2: Unified Overview Container (Stats & Progress) */}
+                        <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Active tenants */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Mieter</div>
+                              <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                {tenantStats.activeCount}
+                                <span className="text-xs font-normal text-zinc-400">Aktive</span>
+                              </div>
+                            </div>
+                            {/* Applicants pipeline */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Bewerber</div>
+                              <div className="text-xl font-bold text-accent flex items-baseline gap-1">
+                                {tenantStats.applicantCount}
+                                <span className="text-xs font-normal text-zinc-400">Pipeline</span>
+                              </div>
                             </div>
                           </div>
-                          {/* Portfolio total size */}
-                          <div>
-                            <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Gesamtfläche</div>
-                            <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
-                              {new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(houseStats.totalSize)}
-                              <span className="text-xs font-normal text-zinc-400">m²</span>
+
+                          {/* Divider */}
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
+
+                          {/* Progress Widget (Occupancy) */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                              <span>Auslastung (Wohnungen)</span>
+                              <span className="text-accent">{apartmentStats.occupancyRate}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                              <div 
+                                className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                                style={{ width: `${apartmentStats.occupancyRate}%` }}
+                              />
+                            </div>
+                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                              {apartmentStats.rentedCount} von {apartmentStats.total} Wohnungen aktuell vermietet
                             </div>
                           </div>
                         </div>
-                      )}
+
+                        {/* Section 3: Deposit (Kaution) Summary Card */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">Mietkautionen (Gesamt)</div>
+                            <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenantStats.totalDeposit)}
+                            </div>
+                          </div>
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800 w-full" />
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Bezahlt</div>
+                              <div className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(tenantStats.depositReceived)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Ausstehend</div>
+                              <div className="font-bold text-amber-500 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(tenantStats.depositOutstanding)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 3.5: Tenants Donut Chart */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                            <span>Kautionen-Abdeckung</span>
+                            <span className="text-zinc-500 font-semibold">{tenants.length} Personen</span>
+                          </div>
+                          
+                          <TenantsDonutChart tenants={tenants} />
+                        </div>
+
+                        {/* Quick Navigation / Shortcuts */}
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Verknüpfte Bereiche</div>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Link
+                              href="/wohnungen"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Home className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Wohnungen</span>
+                            </Link>
+                            <Link
+                              href="/haeuser"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Building2 className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Häuser</span>
+                            </Link>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            } else if (pathname === '/betriebskosten') {
+              return (
+                <>
+                  <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Nebenkosten</span>
+                    {toggleCollapse && (
+                      <button
+                        onClick={toggleCollapse}
+                        className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        title="Menü einklappen"
+                      >
+                        <PanelLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                    {isDataLoading && nebenkosten.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
+                        <span className="text-xs">Lade Kennzahlen...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Section 1 & 2: Unified Overview Container (Stats & Progress) */}
+                        <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Total costs */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Gesamtkosten</div>
+                              <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(nebenkostenStats.totalCosts)}
+                              </div>
+                            </div>
+                            {/* Total billings */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Abrechnungen</div>
+                              <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                {nebenkostenStats.billsCount}
+                                <span className="text-xs font-normal text-zinc-400">Jahre</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
+
+                          {/* Progress Widget (Houses coverage) */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                              <span>Objekt-Abdeckung</span>
+                              <span className="text-accent">{nebenkostenStats.housesCoverage}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                              <div 
+                                className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                                style={{ width: `${nebenkostenStats.housesCoverage}%` }}
+                              />
+                            </div>
+                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                              Abrechnungen erfasst für {Math.round((nebenkostenStats.housesCoverage / 100) * houses.length)} von {houses.length} Objekten
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 3: Financial Summary Card */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">Ø Betriebskosten-Index</div>
+                            <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(nebenkostenStats.avgCostPerSqm)} / m²
+                            </div>
+                          </div>
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800 w-full" />
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Ø pro Abrechnung</div>
+                              <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(nebenkostenStats.avgCostPerBill)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Gesamtfläche</div>
+                              <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(houses.reduce((sum, h) => {
+                                  if (h.groesse && !isNaN(Number(h.groesse))) return sum + Number(h.groesse);
+                                  const apts = apartments.filter(a => a.haus_id === h.id);
+                                  return sum + apts.reduce((s, a) => s + Number(a.groesse || 0), 0);
+                                }, 0))} m²
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 3.5: Operating Costs Donut Chart */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                            <span>Betriebskosten-Verteilung</span>
+                            <span className="text-zinc-500 font-semibold">{nebenkosten.length} Belege</span>
+                          </div>
+                          
+                          <NebenkostenDonutChart nebenkosten={nebenkosten} />
+                        </div>
+
+                        {/* Quick Navigation / Shortcuts */}
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Verknüpfte Bereiche</div>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Link
+                              href="/wohnungen"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Home className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Wohnungen</span>
+                            </Link>
+                            <Link
+                              href="/finanzen"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Wallet className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Finanzen</span>
+                            </Link>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            } else {
+              return (
+                <>
+                  <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Logistics</span>
+                    {toggleCollapse && (
+                      <button
+                        onClick={toggleCollapse}
+                        className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        title="Menü einklappen"
+                      >
+                        <PanelLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Scrollable contents panel */}
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                    {/* Section 1 & 2: Unified Logistics Container (Stats & Progress) */}
+                    <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Deliveries Card */}
+                        <div>
+                          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Deliveries</div>
+                          <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100">25.9k</div>
+                        </div>
+                        {/* On the way Card */}
+                        <div>
+                          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mb-1">On the way</div>
+                          <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100">4.6k</div>
+                        </div>
+                      </div>
 
                       {/* Divider */}
                       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
 
-                      {/* Progress Widget (Occupancy) */}
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                          <span>Auslastung</span>
-                          <span className="text-accent">
-                            {pathname === '/wohnungen' ? apartmentStats.occupancyRate : houseStats.occupancyRate}%
-                          </span>
+                      {/* Progress Widget */}
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Delivery Process</div>
+                        <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-zinc-950 dark:bg-zinc-50 rounded-full w-[30%]" />
                         </div>
-                        <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
-                          <div 
-                            className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                            style={{ width: `${pathname === '/wohnungen' ? apartmentStats.occupancyRate : houseStats.occupancyRate}%` }}
-                          />
-                        </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
-                          {pathname === '/wohnungen' ? (
-                            <>{apartmentStats.rentedCount} von {apartmentStats.total} Einheiten vermietet</>
-                          ) : (
-                            <>{houseStats.fullyOccupied} von {houseStats.total} Häusern voll belegt</>
-                          )}
-                        </div>
+                        <div className="text-xs text-zinc-400 dark:text-zinc-500">Reached 30% from target</div>
                       </div>
                     </div>
 
-                    {/* Section 3: Financial Summary Box */}
-                    <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
-                      <div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">Soll-Miete (monatlich)</div>
-                        <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
-                            pathname === '/wohnungen' ? apartmentStats.totalRent : houseStats.totalRent
-                          )}
-                        </div>
-                      </div>
-                      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800 w-full" />
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">
-                            {pathname === '/wohnungen' ? 'Ø Miete / Einheit' : 'Ø Miete / m²'}
-                          </div>
-                          <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5">
-                            {pathname === '/wohnungen' ? (
-                              new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(apartmentStats.avgRent)
-                            ) : (
-                              <>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(houseStats.avgRentPerSqm)}/m²</>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">
-                            {pathname === '/wohnungen' ? 'Ø Wohnungsgröße' : 'Gesamtfläche'}
-                          </div>
-                          <div className="font-bold text-zinc-800 dark:text-zinc-200 mt-0.5 flex items-baseline gap-0.5">
-                            {pathname === '/wohnungen' ? (
-                              <>{apartmentStats.avgSize} <span className="text-[10px] font-normal text-zinc-400 font-normal">m²</span></>
-                            ) : (
-                              <>{new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(houseStats.totalSize)} <span className="text-[10px] font-normal text-zinc-400 font-normal">m²</span></>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section 3.5: Utility Meters / Houses Donut Insight Card */}
-                    {pathname === '/wohnungen' ? (
-                      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
-                          <span>Zähler & Messgeräte</span>
-                          <span className="text-zinc-500 font-semibold">{apartmentStats.metersTotal} Gesamt</span>
-                        </div>
-                        
-                        <MetersDonutChart 
-                          metersByType={apartmentStats.metersByType}
-                          metersTotal={apartmentStats.metersTotal}
-                          metersActive={apartmentStats.metersActive}
-                        />
-                      </div>
-                    ) : (
-                      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
-                          <span>Wohnungsverteilung</span>
-                          <span className="text-zinc-500 font-semibold">{houses.length} Gesamt</span>
-                        </div>
-                        
-                        <HousesDonutChart 
-                          houses={houses}
-                          apartments={apartments}
-                        />
-                      </div>
-                    )}
-
-                    {/* Section 4: Quick Navigation / Shortcuts */}
+                    {/* Section 3: Navigation Grid */}
                     <div className="space-y-3">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Verknüpfte Bereiche</div>
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Pages</div>
+                      <div className="grid grid-cols-2 gap-3">
                         <Link
-                          href="/haeuser"
-                          className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                          href="/user-profile"
+                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
                         >
-                          <Building2 className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
-                          <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Häuser</span>
+                          <User className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">User Profile</span>
                         </Link>
                         <Link
-                          href="/mieter"
-                          className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                          href="/vehicle"
+                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
                         >
-                          <Users className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
-                          <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Mieter</span>
+                          <Truck className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Vehicle</span>
                         </Link>
                         <Link
-                          href="/finanzen"
-                          className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                          href="/inventory"
+                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
                         >
-                          <Wallet className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
-                          <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Finanzen</span>
+                          <Package className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Inventory</span>
                         </Link>
                         <Link
-                          href="/betriebskosten"
-                          className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                          href="/tracking"
+                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
                         >
-                          <FileSpreadsheet className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
-                          <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Nebenkosten</span>
+                          <MapPin className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Tracking</span>
+                        </Link>
+                        <Link
+                          href="/warehouse"
+                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
+                        >
+                          <Home className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Warehouse</span>
+                        </Link>
+                        <Link
+                          href="/order"
+                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
+                        >
+                          <ShoppingCart className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Order</span>
                         </Link>
                       </div>
                     </div>
-                  </>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
-                <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Logistics</span>
-                {toggleCollapse && (
-                  <button
-                    onClick={toggleCollapse}
-                    className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    title="Menü einklappen"
-                  >
-                    <PanelLeft className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
 
-              {/* Scrollable contents panel */}
-              <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
-                {/* Section 1 & 2: Unified Logistics Container (Stats & Progress) */}
-                <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Deliveries Card */}
-                    <div>
-                      <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Deliveries</div>
-                      <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100">25.9k</div>
+                    {/* Section 4: Secondary Links List */}
+                    <div className="space-y-3 pt-2">
+                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Settings & Profile</div>
+                      <div className="flex flex-col gap-1">
+                        <Link
+                          href="/settings/profile"
+                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        >
+                          <User className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                          <span>User Profile</span>
+                        </Link>
+                        <Link
+                          href="/settings/password"
+                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        >
+                          <Lock className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                          <span>Change Password</span>
+                        </Link>
+                        <Link
+                          href="/settings/notifications"
+                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        >
+                          <Bell className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                          <span>Notification Settings</span>
+                        </Link>
+                        <Link
+                          href="/settings/app"
+                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        >
+                          <Settings className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                          <span>App Settings</span>
+                        </Link>
+                        <Link
+                          href="/shipments/create"
+                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        >
+                          <PlusCircle className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                          <span>Create Shipment</span>
+                        </Link>
+                        <Link
+                          href="/fleet"
+                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        >
+                          <Activity className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                          <span>Fleet Status Overview</span>
+                        </Link>
+                      </div>
                     </div>
-                    {/* On the way Card */}
-                    <div>
-                      <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mb-1">On the way</div>
-                      <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100">4.6k</div>
-                    </div>
                   </div>
-
-                  {/* Divider */}
-                  <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
-
-                  {/* Progress Widget */}
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Delivery Process</div>
-                    <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-zinc-950 dark:bg-zinc-50 rounded-full w-[30%]" />
-                    </div>
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">Reached 30% from target</div>
-                  </div>
-                </div>
-
-                {/* Section 3: Navigation Grid */}
-                <div className="space-y-3">
-                  <div className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Pages</div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Link
-                      href="/user-profile"
-                      className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                    >
-                      <User className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">User Profile</span>
-                    </Link>
-                    <Link
-                      href="/vehicle"
-                      className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                    >
-                      <Truck className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Vehicle</span>
-                    </Link>
-                    <Link
-                      href="/inventory"
-                      className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                    >
-                      <Package className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Inventory</span>
-                    </Link>
-                    <Link
-                      href="/tracking"
-                      className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                    >
-                      <MapPin className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Tracking</span>
-                    </Link>
-                    <Link
-                      href="/warehouse"
-                      className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                    >
-                      <Home className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Warehouse</span>
-                    </Link>
-                    <Link
-                      href="/order"
-                      className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                    >
-                      <ShoppingCart className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Order</span>
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Section 4: Secondary Links List */}
-                <div className="space-y-3 pt-2">
-                  <div className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Settings & Profile</div>
-                  <div className="flex flex-col gap-1">
-                    <Link
-                      href="/settings/profile"
-                      className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    >
-                      <User className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                      <span>User Profile</span>
-                    </Link>
-                    <Link
-                      href="/settings/password"
-                      className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    >
-                      <Lock className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                      <span>Change Password</span>
-                    </Link>
-                    <Link
-                      href="/settings/notifications"
-                      className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    >
-                      <Bell className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                      <span>Notification Settings</span>
-                    </Link>
-                    <Link
-                      href="/settings/app"
-                      className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    >
-                      <Settings className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                      <span>App Settings</span>
-                    </Link>
-                    <Link
-                      href="/shipments/create"
-                      className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    >
-                      <PlusCircle className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                      <span>Create Shipment</span>
-                    </Link>
-                    <Link
-                      href="/fleet"
-                      className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                    >
-                      <Activity className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                      <span>Fleet Status Overview</span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+                </>
+              );
+            }
+          })()}
         </div>
       </div>
     );
