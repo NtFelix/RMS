@@ -25,13 +25,6 @@ const sidebarOptions = [
     icon: ChevronRight,
     description: "Immer eingeklappt",
     subtitle: "Nur Symbole"
-  },
-  {
-    value: "automatic",
-    label: "Automatisch",
-    icon: MousePointer,
-    description: "Erweitert sich bei Hover",
-    subtitle: "Hover-Aktiviert"
   }
 ] as const
 
@@ -78,24 +71,6 @@ const getIconVariants = (iconType: typeof sidebarOptions[number]['value']) => {
           opacity: 0.6,
         }
       }
-    case "automatic":
-      return {
-        ...baseVariants,
-        active: {
-          y: -4,
-          x: 4,
-          scale: 1.15,
-          rotate: 15,
-          opacity: 1,
-        },
-        exit: {
-          y: 0,
-          x: 0,
-          scale: 0.9,
-          rotate: 0,
-          opacity: 0.6,
-        }
-      }
   }
 }
 
@@ -124,7 +99,7 @@ export function SidebarSwitcherCards({ className }: SidebarSwitcherCardsProps) {
   }
 
   return (
-    <div className={cn("grid grid-cols-3 gap-3", className)}>
+    <div className={cn("grid grid-cols-2 gap-3", className)}>
       {sidebarOptions.map((option) => {
         const Icon = option.icon
         const isActive = preference === option.value

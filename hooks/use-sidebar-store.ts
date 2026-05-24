@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type SidebarPreference = 'expanded' | 'collapsed' | 'automatic';
+export type SidebarPreference = 'expanded' | 'collapsed';
 
 interface SidebarState {
   preference: SidebarPreference;

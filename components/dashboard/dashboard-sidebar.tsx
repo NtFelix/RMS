@@ -12,6 +12,7 @@ import { createClient as createBrowserClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserSettings } from "@/components/common/user-settings"
+import { SettingsModal } from "@/components/modals/settings-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
@@ -122,14 +123,13 @@ const sidebarNavGroups: SidebarNavGroupType[] = [
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const { preference, setPreference, isHovered, setIsHovered } = useSidebarStore()
+  const { preference, setPreference } = useSidebarStore()
   const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(false)
   
   const isCollapsed = isResponsiveCollapsed || 
-                      preference === 'collapsed' || 
-                      (preference === 'automatic' && !isHovered)
+                      preference === 'collapsed'
 
-  const [activeTab, setActiveTab] = useState<'home' | 'tasks' | 'inbox'>('home')
+  const [activeTab, setActiveTab] = useState<'home' | 'tasks'>('home')
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   const { setOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
@@ -259,16 +259,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       />
 
       <aside
-        onMouseEnter={() => {
-          if (preference === 'automatic') {
-            setIsHovered(true);
-          }
-        }}
-        onMouseLeave={() => {
-          if (preference === 'automatic') {
-            setIsHovered(false);
-          }
-        }}
         className={cn(
           "hidden md:flex flex-col z-30 h-screen sticky top-0 py-4 w-full",
         )}
@@ -333,8 +323,8 @@ interface SidebarContentProps {
   toggleCollapse?: () => void
   textVariants?: Variants
   iconVariants?: Variants
-  activeTab: 'home' | 'tasks' | 'inbox'
-  setActiveTab: (tab: 'home' | 'tasks' | 'inbox') => void
+  activeTab: 'home' | 'tasks'
+  setActiveTab: (tab: 'home' | 'tasks') => void
   notificationCenterEnabled: boolean
   sidebarData: SidebarUserData
 }
@@ -1497,6 +1487,8 @@ function SidebarContent({
   const [finanzen, setFinanzen] = useState<any[]>([])
   const [nebenkosten, setNebenkosten] = useState<any[]>([])
   const [isDataLoading, setIsDataLoading] = useState(false)
+  const [openSettingsModal, setOpenSettingsModal] = useState(false)
+  const [settingsInitialTab, setSettingsInitialTab] = useState("profile")
 
   const fetchApartmentData = async () => {
     try {
@@ -1529,7 +1521,20 @@ function SidebarContent({
   }
 
   useEffect(() => {
-    const isTargetRoute = ['/wohnungen', '/haeuser', '/finanzen', '/mieter', '/betriebskosten'].includes(pathname)
+    const isTargetRoute = [
+      '/',
+      '/dashboard',
+      '/wohnungen',
+      '/haeuser',
+      '/finanzen',
+      '/mieter',
+      '/betriebskosten',
+      '/dateien',
+      '/todos',
+      '/suche',
+      '/mails'
+    ].some(route => pathname === route || (route !== '/' && pathname.startsWith(route)))
+    
     if (isTargetRoute) {
       fetchApartmentData()
     }
@@ -1698,6 +1703,61 @@ function SidebarContent({
       avgSize
     }
   }, [houses, apartments, tenants])
+
+  // Compute stats for dashboard / portfolio overview panel
+  const dashboardStats = useMemo(() => {
+    const totalHouses = houses.length
+    const totalApartments = apartments.length
+    
+    // Active tenants
+    const today = new Date()
+    const activeTenants = tenants.filter(t => {
+      const occupied = !t.auszug || new Date(t.auszug) > today
+      return occupied
+    }).length
+
+    // Target (expected) rent
+    let expectedRent = 0
+    apartments.forEach(apt => {
+      expectedRent += Number(apt.miete || 0)
+    })
+
+    // Actual (real) rent collected in current month
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth() // 0-indexed
+
+    let realRent = 0
+    finanzen.forEach(item => {
+      if (!item.ist_einnahmen) return
+      
+      const date = item.datum ? new Date(item.datum) : null
+      if (!date || date.getFullYear() !== currentYear || date.getMonth() !== currentMonth) return
+
+      const nameLower = (item.name || '').toLowerCase()
+      const tags = (item.tags || []).map((t: string) => t.toLowerCase())
+      
+      // Filter strictly: check tags first. If tags is not empty, check if any tag matches rent/miete/mietzahlung.
+      // If tags is empty, fall back to checking the name.
+      const hasRent = tags.length > 0
+        ? tags.some((t: string) => t === 'miete' || t === 'mietzahlung' || t.includes('miete') || t.includes('mietzahlung'))
+        : (nameLower.includes('miete') || nameLower.includes('mietzahlung') || nameLower.includes('mietingang') || nameLower.includes('mieteingang'))
+
+      if (hasRent) {
+        realRent += Number(item.betrag || 0)
+      }
+    })
+
+    const rentCollectionProgress = expectedRent > 0 ? Math.round((realRent / expectedRent) * 100) : 0
+
+    return {
+      totalHouses,
+      totalApartments,
+      activeTenants,
+      expectedRent,
+      realRent,
+      rentCollectionProgress
+    }
+  }, [houses, apartments, tenants, finanzen])
 
   // Compute stats for finance side panel
   const financeStats = useMemo(() => {
@@ -1959,6 +2019,7 @@ function SidebarContent({
 
   if (!isMobile) {
     return (
+      <>
       <div className="h-full w-full flex flex-row relative">
         {/* Left Column: Primary Icon Strip (always visible on desktop, w-20) */}
         <div className="w-20 h-full flex flex-col justify-between items-center pt-0 pb-4 border-r border-border/80 shrink-0">
@@ -2746,7 +2807,7 @@ function SidebarContent({
               return (
                 <>
                   <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
-                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Logistics</span>
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Dashboard</span>
                     {toggleCollapse && (
                       <button
                         onClick={toggleCollapse}
@@ -2758,133 +2819,137 @@ function SidebarContent({
                     )}
                   </div>
 
-                  {/* Scrollable contents panel */}
                   <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
-                    {/* Section 1 & 2: Unified Logistics Container (Stats & Progress) */}
-                    <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Deliveries Card */}
-                        <div>
-                          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Deliveries</div>
-                          <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100">25.9k</div>
+                    {isDataLoading && (apartments.length === 0 || finanzen.length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
+                        <span className="text-xs">Lade Kennzahlen...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Section 1 & 2: Unified Overview Container (Stats & Progress) */}
+                        <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                          <div className="grid grid-cols-3 gap-2">
+                            {/* Houses */}
+                            <div className="text-center">
+                              <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Häuser</div>
+                              <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                {dashboardStats.totalHouses}
+                              </div>
+                            </div>
+                            {/* Apartments */}
+                            <div className="text-center border-x border-zinc-100 dark:border-zinc-800/60 px-1">
+                              <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Wohnungen</div>
+                              <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                {dashboardStats.totalApartments}
+                              </div>
+                            </div>
+                            {/* Tenants */}
+                            <div className="text-center">
+                              <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Mieter</div>
+                              <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                {dashboardStats.activeTenants}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        {/* On the way Card */}
-                        <div>
-                          <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mb-1">On the way</div>
-                          <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100">4.6k</div>
+
+                        {/* Section 3: Financial Summary Card (Rent Collection) */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
+                          <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                            <span>Mieteingang ({new Date().toLocaleString('de-DE', { month: 'long' })})</span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Ist-Miete</div>
+                              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(dashboardStats.realRent)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium">Soll-Miete</div>
+                              <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(dashboardStats.expectedRent)}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className="space-y-2 pt-1.5">
+                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                              <span>Eingangsquote</span>
+                              <span className="text-accent">{dashboardStats.rentCollectionProgress}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                              <div 
+                                className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                                style={{ width: `${Math.min(100, Math.max(0, dashboardStats.rentCollectionProgress))}%` }}
+                              />
+                            </div>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Divider */}
-                      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
+                        {/* Donut Chart: Portfolio-Verteilung by Expected Rent */}
+                        {apartments.length > 0 && (
+                          <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300">
+                            <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-3">
+                              <span>Soll-Miete nach Häusern</span>
+                            </div>
+                            <HousesDonutChart houses={houses} apartments={apartments} />
+                          </div>
+                        )}
 
-                      {/* Progress Widget */}
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Delivery Process</div>
-                        <div className="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-zinc-950 dark:bg-zinc-50 rounded-full w-[30%]" />
+                        {/* Navigation Grid (Quick Shortcuts) */}
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Verknüpfte Bereiche</div>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Link
+                              href="/wohnungen"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Home className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Wohnungen</span>
+                            </Link>
+                            <Link
+                              href="/haeuser"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Building2 className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Häuser</span>
+                            </Link>
+                          </div>
                         </div>
-                        <div className="text-xs text-zinc-400 dark:text-zinc-500">Reached 30% from target</div>
-                      </div>
-                    </div>
 
-                    {/* Section 3: Navigation Grid */}
-                    <div className="space-y-3">
-                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Pages</div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Link
-                          href="/user-profile"
-                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                        >
-                          <User className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">User Profile</span>
-                        </Link>
-                        <Link
-                          href="/vehicle"
-                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                        >
-                          <Truck className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Vehicle</span>
-                        </Link>
-                        <Link
-                          href="/inventory"
-                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                        >
-                          <Package className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Inventory</span>
-                        </Link>
-                        <Link
-                          href="/tracking"
-                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                        >
-                          <MapPin className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Tracking</span>
-                        </Link>
-                        <Link
-                          href="/warehouse"
-                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                        >
-                          <Home className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Warehouse</span>
-                        </Link>
-                        <Link
-                          href="/order"
-                          className="group flex flex-col items-center justify-center p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 hover:shadow-xs transition-all duration-200 cursor-pointer active:scale-95 text-center"
-                        >
-                          <ShoppingCart className="h-5 w-5 mb-2 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" />
-                          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Order</span>
-                        </Link>
-                      </div>
-                    </div>
-
-                    {/* Section 4: Secondary Links List */}
-                    <div className="space-y-3 pt-2">
-                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Settings & Profile</div>
-                      <div className="flex flex-col gap-1">
-                        <Link
-                          href="/settings/profile"
-                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                        >
-                          <User className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                          <span>User Profile</span>
-                        </Link>
-                        <Link
-                          href="/settings/password"
-                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                        >
-                          <Lock className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                          <span>Change Password</span>
-                        </Link>
-                        <Link
-                          href="/settings/notifications"
-                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                        >
-                          <Bell className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                          <span>Notification Settings</span>
-                        </Link>
-                        <Link
-                          href="/settings/app"
-                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                        >
-                          <Settings className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                          <span>App Settings</span>
-                        </Link>
-                        <Link
-                          href="/shipments/create"
-                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                        >
-                          <PlusCircle className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                          <span>Create Shipment</span>
-                        </Link>
-                        <Link
-                          href="/fleet"
-                          className="group flex items-center gap-3 px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
-                        >
-                          <Activity className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                          <span>Fleet Status Overview</span>
-                        </Link>
-                      </div>
-                    </div>
+                        {/* Section 4: Secondary Links List */}
+                        <div className="space-y-3 pt-2">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Einstellungen & Profil</div>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => { setSettingsInitialTab("profile"); setOpenSettingsModal(true); }}
+                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
+                            >
+                              <User className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                              <span>Mein Profil</span>
+                            </button>
+                            <button
+                              onClick={() => { setSettingsInitialTab("security"); setOpenSettingsModal(true); }}
+                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
+                            >
+                              <Lock className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                              <span>Passwort ändern</span>
+                            </button>
+                            <button
+                              onClick={() => { setSettingsInitialTab("display"); setOpenSettingsModal(true); }}
+                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
+                            >
+                              <Settings className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                              <span>App-Einstellungen</span>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               );
@@ -2892,10 +2957,13 @@ function SidebarContent({
           })()}
         </div>
       </div>
+      <SettingsModal open={openSettingsModal} onOpenChange={setOpenSettingsModal} initialTab={settingsInitialTab} />
+      </>
     );
   }
 
   return (
+    <>
     <div className="h-full w-full flex flex-col relative">
       {/* Header section */}
       <div className={cn("flex items-center pb-4", isCollapsed ? "justify-center px-0" : "pl-4 pr-4 justify-between")}>
@@ -3059,75 +3127,13 @@ function SidebarContent({
               {isCollapsed && <TooltipContent side="right">Aufgaben</TooltipContent>}
             </Tooltip>
 
-            {/* Inbox Tab (Controlled by Feature Flag) */}
-            {notificationCenterEnabled && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <motion.button
-                    layout
-                    onClick={() => setActiveTab('inbox')}
-                    className={cn(
-                      "flex items-center justify-start rounded-full h-8 relative outline-none cursor-pointer select-none z-0 px-2.5 transition-colors duration-300",
-                      activeTab === 'inbox' ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-                    )}
-                    animate={{
-                      width: isCollapsed ? "2.25rem" : (activeTab === 'inbox' ? "6.25rem" : "2.25rem")
-                    }}
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  >
-                    {/* Sliding Background Indicator */}
-                    {activeTab === 'inbox' && (
-                      <motion.div
-                        layoutId="active-tab-pill"
-                        className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                      />
-                    )}
-                    
-                    <motion.div whileHover="hover" whileTap="tap" variants={tabIconVariants} className="flex items-center justify-center relative">
-                      <Inbox className={cn("h-4 w-4 shrink-0", activeTab === 'inbox' && "fill-current")} />
-                    </motion.div>
-                    
-                    <AnimatePresence initial={false}>
-                      {activeTab === 'inbox' && !isCollapsed && (
-                        <motion.span
-                          initial={{ width: 0, opacity: 0 }}
-                          animate={{ width: "auto", opacity: 1 }}
-                          exit={{ width: 0, opacity: 0 }}
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                          className="overflow-hidden flex items-center whitespace-nowrap pl-1.5"
-                        >
-                          <span className="font-medium text-xs">
-                            Inbox
-                          </span>
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                    
-                    {/* Notification Badge */}
-                    <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white z-10 border border-background shadow-xs">
-                      5
-                    </span>
-                  </motion.button>
-                </TooltipTrigger>
-                {activeTab !== 'inbox' && !isCollapsed && <TooltipContent side="bottom">Inbox</TooltipContent>}
-                {isCollapsed && <TooltipContent side="right">Inbox</TooltipContent>}
-              </Tooltip>
-            )}
           </TooltipProvider>
         </div>
       </div>
 
       {/* Navigation section */}
       <div className="flex-1 overflow-y-auto min-h-0 py-2 custom-scrollbar">
-        {activeTab === 'inbox' ? (
-          <div className="flex flex-col items-center justify-start pt-8 h-full px-5 text-center text-muted-foreground space-y-3">
-            <Inbox className="h-8 w-8 opacity-20" />
-            {!isCollapsed && (
-              <p className="text-sm">Keine neuen Benachrichtigungen.</p>
-            )}
-          </div>
-        ) : activeTab === 'tasks' ? (
+        {activeTab === 'tasks' ? (
           <div className="flex flex-col items-center justify-start pt-8 h-full px-5 text-center text-muted-foreground space-y-3">
             <CheckSquare className="h-8 w-8 opacity-20" />
             {!isCollapsed && (
@@ -3306,5 +3312,7 @@ function SidebarContent({
         </div>
       )}
     </div>
+    <SettingsModal open={openSettingsModal} onOpenChange={setOpenSettingsModal} initialTab={settingsInitialTab} />
+    </>
   )
 }
