@@ -21,6 +21,7 @@ import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
+import { useModalStore } from "@/hooks/use-modal-store"
 
 type SidebarNavItemType = {
   title: string;
@@ -1486,9 +1487,11 @@ function SidebarContent({
   const [houses, setHouses] = useState<any[]>([])
   const [finanzen, setFinanzen] = useState<any[]>([])
   const [nebenkosten, setNebenkosten] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
   const [isDataLoading, setIsDataLoading] = useState(false)
   const [openSettingsModal, setOpenSettingsModal] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = useState("profile")
+  const { openAufgabeModal } = useModalStore()
 
   const fetchApartmentData = async () => {
     try {
@@ -1498,13 +1501,14 @@ function SidebarContent({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [aptsRes, tenantsRes, metersRes, housesRes, finanzenRes, nebenkostenRes] = await Promise.all([
+      const [aptsRes, tenantsRes, metersRes, housesRes, finanzenRes, nebenkostenRes, tasksRes] = await Promise.all([
         supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id').eq('user_id', user.id),
         supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,status,kaution').eq('user_id', user.id),
         supabase.from('Zaehler').select('id,zaehler_typ,ist_aktiv,wohnung_id').eq('user_id', user.id),
         supabase.from('Haeuser').select('id,name,strasse,ort,groesse').eq('user_id', user.id),
         supabase.from('Finanzen').select('id,wohnung_id,name,datum,betrag,ist_einnahmen,tags').eq('user_id', user.id),
-        supabase.from('Nebenkosten').select('id,startdatum,enddatum,nebenkostenart,betrag,zaehlerkosten,haeuser_id').eq('user_id', user.id)
+        supabase.from('Nebenkosten').select('id,startdatum,enddatum,nebenkostenart,betrag,zaehlerkosten,haeuser_id').eq('user_id', user.id),
+        supabase.from('Aufgaben').select('id,name,beschreibung,ist_erledigt,faelligkeitsdatum').eq('user_id', user.id)
       ])
 
       if (aptsRes.data) setApartments(aptsRes.data)
@@ -1513,6 +1517,7 @@ function SidebarContent({
       if (housesRes.data) setHouses(housesRes.data)
       if (finanzenRes.data) setFinanzen(finanzenRes.data)
       if (nebenkostenRes.data) setNebenkosten(nebenkostenRes.data)
+      if (tasksRes.data) setTasks(tasksRes.data)
     } catch (err) {
       console.error("Error fetching sidebar apartments data:", err)
     } finally {
@@ -1954,6 +1959,31 @@ function SidebarContent({
       housesCoverage,
     }
   }, [nebenkosten, houses, apartments])
+
+  // Compute stats for tasks side panel
+  const taskStats = useMemo(() => {
+    const total = tasks.length
+    const completed = tasks.filter(t => t.ist_erledigt).length
+    const open = total - completed
+    
+    // Overdue tasks: open tasks where due date is in the past
+    const todayStr = new Date().toISOString().split('T')[0]
+    const overdue = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum < todayStr).length
+
+    // Today's tasks: open tasks due today
+    const dueToday = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum === todayStr).length
+
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+
+    return {
+      total,
+      completed,
+      open,
+      overdue,
+      dueToday,
+      completionRate
+    }
+  }, [tasks])
 
   useEffect(() => {
     const newExpanded = { ...expandedItems };
@@ -2797,6 +2827,97 @@ function SidebarContent({
                               <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Finanzen</span>
                             </Link>
                           </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            } else if (pathname === '/todos') {
+              return (
+                <>
+                  <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Aufgaben</span>
+                    {toggleCollapse && (
+                      <button
+                        onClick={toggleCollapse}
+                        className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        title="Menü einklappen"
+                      >
+                        <PanelLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                    {isDataLoading && tasks.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
+                        <span className="text-xs">Lade Aufgaben...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Section 1: Unified Task Stats Grid */}
+                        <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                          <div className="grid grid-cols-3 gap-2">
+                            {/* Open Tasks */}
+                            <div className="text-center">
+                              <div className="text-[10px] font-semibold text-amber-500 dark:text-amber-400 mb-1">Offen</div>
+                              <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                {taskStats.open}
+                              </div>
+                            </div>
+                            {/* Overdue Tasks */}
+                            <div className="text-center border-x border-zinc-100 dark:border-zinc-800/60 px-1">
+                              <div className="text-[10px] font-semibold text-red-500 dark:text-red-400 mb-1">Überfällig</div>
+                              <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                {taskStats.overdue}
+                              </div>
+                            </div>
+                            {/* Completed Tasks */}
+                            <div className="text-center">
+                              <div className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-400 mb-1">Erledigt</div>
+                              <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                {taskStats.completed}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 2: Progress (Fortschritt) */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
+                          <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                            <span>Erfüllungsquote</span>
+                            <span className="text-accent">{taskStats.completionRate}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                            <div 
+                              className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                              style={{ width: `${Math.min(100, Math.max(0, taskStats.completionRate))}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Overdue Banner if overdue > 0 */}
+                        {taskStats.overdue > 0 && (
+                          <div className="p-3.5 rounded-2xl border border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-950/10 flex items-start gap-3">
+                            <Activity className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                            <div className="text-xs text-red-700 dark:text-red-400 leading-relaxed font-semibold">
+                              Du hast {taskStats.overdue} überfällige {taskStats.overdue === 1 ? 'Aufgabe' : 'Aufgaben'}. Bitte erledige oder verschiebe diese zeitnah!
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quick Shortcuts */}
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Aktionen</div>
+                          <button
+                            onClick={() => openAufgabeModal()}
+                            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 hover:border-accent/60 dark:border-zinc-800 dark:hover:border-accent/40 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-900/20 dark:hover:bg-zinc-900/60 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent transition-all duration-300 active:scale-98 cursor-pointer"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                            Neue Aufgabe erstellen
+                          </button>
                         </div>
                       </>
                     )}
