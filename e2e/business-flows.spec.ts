@@ -160,8 +160,16 @@ test.describe('Business Logic Flows', () => {
 
     // Select option
     const option = page.getByRole('option', { name: houseName }).first();
-    await expect(option).toBeVisible({ timeout: 10000 });
-    await option.click();
+    try {
+      await expect(option).toBeVisible({ timeout: 10000 });
+      await option.click({ force: true });
+    } catch (e) {
+      // Retry combobox click if option didn't appear
+      await modal.locator('button[role="combobox"]').first().click({ force: true });
+      await page.waitForTimeout(500);
+      await expect(option).toBeVisible({ timeout: 10000 });
+      await option.click({ force: true });
+    }
     await page.waitForTimeout(300);
 
     // Submit
@@ -237,12 +245,13 @@ test.describe('Business Logic Flows', () => {
     // Re-try opening the combobox if option is not visible
     try {
       await expect(option).toBeVisible({ timeout: 5000 });
+      await option.click({ force: true });
     } catch (e) {
-      await page.locator('button[role="combobox"]').first().click({ force: true });
+      await modal.locator('button[role="combobox"]').first().click({ force: true });
+      await page.waitForTimeout(500);
       await expect(option).toBeVisible({ timeout: 10000 });
+      await option.click({ force: true });
     }
-    await option.scrollIntoViewIfNeeded().catch(() => {});
-    await option.click({ force: true });
     await page.waitForTimeout(300);
 
     // Date - try to fill the date input

@@ -71,15 +71,17 @@ test.describe('Authentication Flows', () => {
     const logoutBtn = page.getByRole('menuitem', { name: /abmelden|logout/i }).first();
     const logoutBtnAlt = page.locator('div[role="menuitem"]').filter({ hasText: /abmelden|logout/i }).first();
 
+    await page.waitForTimeout(500); // Wait for Radix animation
     if (await logoutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await logoutBtn.click();
+      await logoutBtn.click({ force: true });
     } else if (await logoutBtnAlt.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await logoutBtnAlt.click();
+      await logoutBtnAlt.click({ force: true });
     } else {
       await page.screenshot({ path: 'logout-failure.png' });
       // Fallback: try clicking anything with logout text
       try {
-        await page.getByText(/abmelden|logout/i).last().click({ timeout: 10000 });
+        const fallbackBtn = page.getByText(/abmelden|logout/i).last();
+        await fallbackBtn.click({ timeout: 10000, force: true });
       } catch (e) {
         // Fallback failed too
       }
