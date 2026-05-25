@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle, GripVertical, FileText, HardDrive, File } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, FolderOpen, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle, GripVertical, FileText, HardDrive, File, Archive } from "lucide-react"
 import { motion, Variants, AnimatePresence } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
@@ -27,13 +27,17 @@ import { CSS } from "@dnd-kit/utilities"
 import { useTaskDnd } from "@/components/tasks/task-dnd-provider"
 import { useStorageUsage } from "@/hooks/use-storage-usage"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
+import { useSidebarActiveState, useDirectoryActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { useModalStore } from "@/hooks/use-modal-store"
+import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
+import { useFolderNavigation } from "@/components/common/navigation-interceptor"
+import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
+import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
 
 type SidebarNavItemType = {
   title: string;
@@ -1754,6 +1758,378 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
+interface SidebarFileTreeProps {
+  userId: string
+}
+
+interface SidebarTreeNode {
+  id: string
+  name: string
+  path: string
+  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category' | 'archive'
+  children: SidebarTreeNode[]
+}
+
+function SidebarFileTree({ userId }: SidebarFileTreeProps) {
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root', 'haeuser']))
+  const [filterQuery, setFilterQuery] = useState('')
+  const { houses, apartments, tenants, isLoading, error } = usePropertyHierarchy()
+  const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
+  const { currentPath } = useCloudStorageStore()
+  const { isDirectoryActive } = useDirectoryActiveState()
+
+  const treeData = useMemo(() => {
+    if (isLoading || error) return []
+
+    const rootNode: SidebarTreeNode = {
+      id: 'root',
+      name: 'Cloud Storage',
+      path: buildUserPath(userId),
+      type: 'root',
+      children: [],
+    }
+
+    // Häuser category
+    const haeuserNode: SidebarTreeNode = {
+      id: 'haeuser',
+      name: 'Häuser',
+      path: buildUserPath(userId, 'haeuser'),
+      type: 'category',
+      children: [],
+    }
+
+    houses.forEach(house => {
+      const houseNode: SidebarTreeNode = {
+        id: `house-${house.id}`,
+        name: house.name,
+        path: buildHousePath(userId, house.id),
+        type: 'house',
+        children: [],
+      }
+
+      // House documents
+      houseNode.children.push({
+        id: `house-docs-${house.id}`,
+        name: 'Hausdokumente',
+        path: buildUserPath(userId, house.id, 'house_documents'),
+        type: 'category',
+        children: [],
+      })
+
+      // Apartments for this house
+      const houseApartments = apartments.filter(apt => apt.haus_id === house.id)
+      houseApartments.forEach(apartment => {
+        const apartmentNode: SidebarTreeNode = {
+          id: `apartment-${apartment.id}`,
+          name: apartment.name,
+          path: buildApartmentPath(userId, house.id, apartment.id),
+          type: 'apartment',
+          children: [],
+        }
+
+        // Apartment documents
+        apartmentNode.children.push({
+          id: `apartment-docs-${apartment.id}`,
+          name: 'Wohnungsdokumente',
+          path: buildUserPath(userId, house.id, apartment.id, 'apartment_documents'),
+          type: 'category',
+          children: [],
+        })
+
+        // Tenants
+        const apartmentTenants = tenants.filter(t => t.wohnung_id === apartment.id)
+        apartmentTenants.forEach(tenant => {
+          apartmentNode.children.push({
+            id: `tenant-${tenant.id}`,
+            name: tenant.name,
+            path: buildTenantPath(userId, house.id, apartment.id, tenant.id),
+            type: 'tenant',
+            children: [],
+          })
+        })
+
+        houseNode.children.push(apartmentNode)
+      })
+
+      haeuserNode.children.push(houseNode)
+    })
+
+    // Sonstiges
+    const miscNode: SidebarTreeNode = {
+      id: 'miscellaneous',
+      name: 'Sonstiges',
+      path: buildUserPath(userId, 'Miscellaneous'),
+      type: 'category',
+      children: [],
+    }
+
+    // Archiv
+    const archiveNode: SidebarTreeNode = {
+      id: 'archive',
+      name: 'Archiv',
+      path: buildUserPath(userId, '__archive__'),
+      type: 'archive',
+      children: [],
+    }
+
+    rootNode.children = [haeuserNode, miscNode, archiveNode]
+    return [rootNode]
+  }, [userId, houses, apartments, tenants, isLoading, error])
+
+  const handleToggleExpand = useCallback((nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpandedNodes(prev => {
+      const next = new Set(prev)
+      if (next.has(nodeId)) {
+        next.delete(nodeId)
+      } else {
+        next.add(nodeId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleNodeClick = useCallback(async (node: SidebarTreeNode) => {
+    try {
+      await handleFolderClick(node.path)
+    } catch (err) {
+      console.error('Sidebar file tree navigation failed:', err)
+    }
+  }, [handleFolderClick])
+
+  const getNodeIcon = useCallback((node: SidebarTreeNode, isExpanded: boolean) => {
+    switch (node.type) {
+      case 'root':
+        return isExpanded ? FolderOpen : Folder
+      case 'house':
+        return Building2
+      case 'apartment':
+        return Home
+      case 'tenant':
+        return Users
+      case 'archive':
+        return Archive
+      case 'category':
+        return FileText
+      default:
+        return Folder
+    }
+  }, [])
+
+  const getNodeColor = useCallback((type: SidebarTreeNode['type'], isSelected: boolean) => {
+    if (isSelected) {
+      return 'text-white'
+    }
+    switch (type) {
+      case 'archive':
+        return 'text-zinc-400 dark:text-zinc-600 transition-colors'
+      default:
+        return 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors'
+    }
+  }, [])
+
+  const handleCollapseAll = useCallback(() => {
+    setExpandedNodes(new Set(['root']))
+  }, [])
+
+  const handleExpandAll = useCallback(() => {
+    const allIds = new Set<string>()
+    const collectIds = (nodes: SidebarTreeNode[]) => {
+      nodes.forEach(n => {
+        allIds.add(n.id)
+        if (n.children.length > 0) collectIds(n.children)
+      })
+    }
+    collectIds(treeData)
+    setExpandedNodes(allIds)
+  }, [treeData])
+
+  // Filtered tree data based on query
+  const filteredTreeData = useMemo(() => {
+    if (!filterQuery.trim()) return treeData
+
+    const query = filterQuery.toLowerCase().trim()
+    const filterNodes = (nodes: SidebarTreeNode[]): SidebarTreeNode[] => {
+      return nodes
+        .map(node => {
+          const matches = node.name.toLowerCase().includes(query)
+          const filteredChildren = filterNodes(node.children)
+          
+          if (matches || filteredChildren.length > 0) {
+            return {
+              ...node,
+              children: filteredChildren
+            }
+          }
+          return null
+        })
+        .filter((n): n is SidebarTreeNode => n !== null)
+    }
+
+    return filterNodes(treeData)
+  }, [treeData, filterQuery])
+
+  // Automatic expansion when searching
+  useEffect(() => {
+    if (filterQuery.trim()) {
+      const allIds = new Set<string>()
+      const collectIds = (nodes: SidebarTreeNode[]) => {
+        nodes.forEach(n => {
+          allIds.add(n.id)
+          if (n.children.length > 0) collectIds(n.children)
+        })
+      }
+      collectIds(filteredTreeData)
+      setExpandedNodes(allIds)
+    }
+  }, [filterQuery, filteredTreeData])
+
+  const renderNode = useCallback((node: SidebarTreeNode, depth: number = 0): React.ReactNode => {
+    const hasChildren = node.children.length > 0
+    const isExpanded = expandedNodes.has(node.id)
+    const isSelected = currentPath === node.path
+    const isActive = isDirectoryActive(node.path)
+    const Icon = getNodeIcon(node, isExpanded)
+    const colorClass = getNodeColor(node.type, isSelected)
+
+    return (
+      <div key={node.id} className="w-full">
+        <div
+          className={cn(
+            "group relative flex items-center gap-1.5 py-1 px-1.5 rounded-lg cursor-pointer transition-all duration-150 ease-out select-none active:scale-[0.99]",
+            isSelected 
+              ? "bg-accent text-white font-semibold shadow-md shadow-accent/15"
+              : isActive && !isSelected
+                ? "bg-zinc-50/50 dark:bg-zinc-900/10 text-zinc-800 dark:text-zinc-300"
+                : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200",
+            isNavigating && "opacity-50 pointer-events-none"
+          )}
+          onClick={() => handleNodeClick(node)}
+          data-folder-path={node.path}
+        >
+          {/* Expand/collapse chevron */}
+          {hasChildren ? (
+            <button
+              className={cn(
+                "shrink-0 p-0.5 rounded transition-colors z-10",
+                isSelected
+                  ? "hover:bg-white/20 text-white/80"
+                  : "hover:bg-zinc-200/50 dark:hover:bg-zinc-700/40 text-zinc-400 dark:text-zinc-500"
+              )}
+              onClick={(e) => handleToggleExpand(node.id, e)}
+            >
+              <ChevronRight 
+                className={cn(
+                  "h-3 w-3 transition-transform duration-200", 
+                  isExpanded && "rotate-90"
+                )} 
+              />
+            </button>
+          ) : (
+            <div className="w-4 shrink-0" />
+          )}
+
+          {/* Icon */}
+          <Icon className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", colorClass)} />
+
+          {/* Label */}
+          <span className="text-[11px] truncate flex-1 tracking-wide leading-none">
+            {node.name}
+          </span>
+        </div>
+
+        {/* Children container with dynamic fade in, top/bottom margins, and left border */}
+        {hasChildren && isExpanded && (
+          <div className="ml-3 pl-3.5 mt-0.5 mb-1 border-l border-zinc-200/60 dark:border-zinc-800/40 space-y-0.5 animate-in fade-in slide-in-from-top-0.5 duration-100">
+            {node.children.map(child => renderNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }, [expandedNodes, currentPath, isDirectoryActive, isNavigating, getNodeIcon, getNodeColor, handleNodeClick, handleToggleExpand])
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2 py-3 px-1">
+        <div className="animate-pulse flex flex-col gap-2.5">
+          <div className="h-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl w-full" />
+          <div className="space-y-2 pl-2">
+            <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded-lg w-2/3" />
+            <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded-lg w-1/2 ml-4" />
+            <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded-lg w-3/5 ml-4" />
+            <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded-lg w-2/5 ml-8" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-[11px] text-red-500 dark:text-red-400 py-3 px-1 italic bg-red-50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/50 rounded-2xl text-center">
+        Fehler beim Laden der Ordnerstruktur
+      </div>
+    )
+  }
+
+  if (treeData.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* File Tree Toolbar */}
+      <div className="flex items-center gap-1.5 px-0.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/40">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+          <input
+            type="text"
+            placeholder="Ordner filtern..."
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            className="w-full pl-7.5 pr-6.5 py-1.5 text-[10.5px] bg-zinc-50 dark:bg-[#121212] border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40 transition-all font-medium"
+          />
+          {filterQuery && (
+            <button
+              onClick={() => setFilterQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-1">
+          <button
+            onClick={handleExpandAll}
+            title="Alle ausklappen"
+            className="p-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+          >
+            <FolderOpen className="h-3 w-3" />
+          </button>
+          <button
+            onClick={handleCollapseAll}
+            title="Alle einklappen"
+            className="p-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+          >
+            <Folder className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* File Tree Body */}
+      <div className="space-y-0.5 max-h-[350px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+        {filteredTreeData.length === 0 ? (
+          <div className="text-[11px] text-zinc-400 dark:text-zinc-500 py-6 text-center italic">
+            Keine Ordner gefunden
+          </div>
+        ) : (
+          filteredTreeData.map(node => renderNode(node))
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SidebarContent({
   isCollapsed,
   pathname,
@@ -3283,7 +3659,7 @@ function SidebarContent({
                   </div>
                 </>
               );
-            } else if (pathname === '/dateien') {
+            } else if (pathname?.startsWith('/dateien')) {
               return (
                 <>
                   <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
@@ -3437,6 +3813,16 @@ function SidebarContent({
                             </div>
                           </div>
                         </div>
+
+                        {/* Section 3: File Tree Navigation */}
+                        {currentUser?.id && (
+                          <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                              Ordnerstruktur
+                            </div>
+                            <SidebarFileTree userId={currentUser.id} />
+                          </div>
+                        )}
 
                         {/* Quick Navigation / Shortcuts */}
                         <div className="space-y-3">
