@@ -25,6 +25,7 @@ import {
 } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 import { useTaskDnd } from "@/components/tasks/task-dnd-provider"
+import { useStorageUsage } from "@/hooks/use-storage-usage"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
@@ -1745,6 +1746,14 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
 
 
 
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
+}
+
 function SidebarContent({
   isCollapsed,
   pathname,
@@ -1785,6 +1794,17 @@ function SidebarContent({
   const [openSettingsModal, setOpenSettingsModal] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = useState("profile")
   const { openAufgabeModal } = useModalStore()
+
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
+  useEffect(() => {
+    const supabase = createBrowserClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUser(user)
+    })
+  }, [])
+
+  const storageUsage = useStorageUsage(currentUser, documents.reduce((sum, doc) => sum + Number(doc.dateigroesse || 0), 0))
 
   const fetchApartmentData = async () => {
     try {
@@ -2287,16 +2307,7 @@ function SidebarContent({
     // Total size of all files in bytes
     const totalSizeBytes = documents.reduce((sum, doc) => sum + Number(doc.dateigroesse || 0), 0)
     
-    // Format helper
-    const formatBytes = (bytes: number): string => {
-      if (bytes === 0) return '0 B'
-      const k = 1024
-      const sizes = ['B', 'KB', 'MB', 'GB']
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-    }
-
-    const totalSizeFormatted = formatBytes(totalSizeBytes)
+    const totalSizeFormatted = formatFileSize(totalSizeBytes)
 
     // Break down by mime types
     let pdfCount = 0
@@ -2317,10 +2328,6 @@ function SidebarContent({
       }
     })
 
-    // User limit: 2 GB (2147483648 bytes)
-    const storageLimitBytes = 2 * 1024 * 1024 * 1024
-    const storageUsagePercent = Math.min(100, Math.round((totalSizeBytes / storageLimitBytes) * 100))
-
     return {
       totalFiles,
       totalSizeBytes,
@@ -2328,9 +2335,7 @@ function SidebarContent({
       pdfCount,
       imageCount,
       spreadsheetCount,
-      otherCount,
-      storageLimitBytes,
-      storageUsagePercent
+      otherCount
     }
   }, [documents])
 
@@ -3326,21 +3331,58 @@ function SidebarContent({
                           <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
 
                           {/* Progress Widget (Storage Limit Usage) */}
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              <span>Speichernutzung</span>
-                              <span className="text-accent">{documentStats.storageUsagePercent}%</span>
+                          {storageUsage.isLoading ? (
+                            <div className="animate-pulse space-y-2 pt-1">
+                              <div className="flex justify-between">
+                                <div className="h-3 bg-zinc-200 dark:bg-zinc-800 rounded w-1/4" />
+                                <div className="h-3 bg-zinc-200 dark:bg-zinc-800 rounded w-10" />
+                              </div>
+                              <div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full w-full" />
+                              <div className="h-2.5 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2" />
                             </div>
-                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
-                              <div 
-                                className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                                style={{ width: `${documentStats.storageUsagePercent}%` }}
-                              />
+                          ) : storageUsage.hasNoStorageAccess ? (
+                            <div className="space-y-1.5 text-center py-2.5 bg-red-500/5 dark:bg-red-500/10 border border-red-500/20 rounded-xl">
+                              <div className="text-[11px] font-semibold text-red-500 dark:text-red-400 flex items-center gap-1.5 justify-center">
+                                <Lock className="h-3.5 w-3.5 shrink-0" />
+                                <span>Nicht verfügbar im Tarif</span>
+                              </div>
+                              <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium px-2">
+                                Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten.
+                              </div>
                             </div>
-                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
-                              {documentStats.totalSizeFormatted} von 2,0 GB verwendet
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                <span>Speichernutzung</span>
+                                <span className={cn(
+                                  storageUsage.isOverLimit ? "text-red-500" : storageUsage.isNearLimit ? "text-amber-500" : "text-accent"
+                                )}>
+                                  {storageUsage.percentage.toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                                <div 
+                                  className={cn(
+                                    "h-full rounded-full transition-all duration-500",
+                                    storageUsage.isOverLimit 
+                                      ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" 
+                                      : storageUsage.isNearLimit 
+                                      ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" 
+                                      : "bg-accent shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                                  )}
+                                  style={{ width: `${storageUsage.percentage}%` }}
+                                />
+                              </div>
+                              <div className={cn(
+                                "text-[11px] font-medium",
+                                storageUsage.isOverLimit ? "text-red-500" : storageUsage.isNearLimit ? "text-amber-500" : "text-zinc-500 dark:text-zinc-400"
+                              )}>
+                                {storageUsage.isOverLimit 
+                                  ? "Speicherlimit vollständig erreicht" 
+                                  : `${documentStats.totalSizeFormatted} von ${formatFileSize(storageUsage.limit)} verwendet`}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
 
                         {/* Section 2: Distribution by File Type */}
