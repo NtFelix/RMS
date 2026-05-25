@@ -1483,23 +1483,21 @@ function DraggableTaskRow({
   onTaskToggle: (id: string, v: boolean) => void;
   formatDueDate: (s: string) => string;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `sidebar-task-${task.id}`,
     data: { task },
   });
-  const style = { transform: CSS.Translate.toString(transform) };
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
       className={cn(
         "flex items-center gap-2 p-2 rounded-xl transition-all duration-200 group border border-transparent",
         "hover:bg-primary/5 hover:border-primary/10 dark:hover:bg-primary/10",
         "cursor-grab active:cursor-grabbing select-none",
-        isDragging && "opacity-40 scale-95 cursor-grabbing",
+        isDragging && "opacity-40 scale-95 cursor-grabbing bg-primary/5",
         task.ist_erledigt && "opacity-60"
       )}
     >
