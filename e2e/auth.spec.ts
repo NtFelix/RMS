@@ -39,8 +39,8 @@ test.describe('Authentication Flows', () => {
 
     // Verify we are on the dashboard
     // Check for common dashboard elements using more specific locators
-    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('link', { name: /Häuser|Objekte/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#sidebar-nav-dashboard, a[href="/dashboard"]').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#sidebar-nav-haeuser, a[href="/haeuser"]').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Should be able to log out', async ({ page }) => {
