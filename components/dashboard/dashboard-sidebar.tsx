@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle, GripVertical } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle, GripVertical, FileText, HardDrive, File } from "lucide-react"
 import { motion, Variants, AnimatePresence } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
@@ -1780,6 +1780,7 @@ function SidebarContent({
   const [finanzen, setFinanzen] = useState<any[]>([])
   const [nebenkosten, setNebenkosten] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
+  const [documents, setDocuments] = useState<any[]>([])
   const [isDataLoading, setIsDataLoading] = useState(false)
   const [openSettingsModal, setOpenSettingsModal] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = useState("profile")
@@ -1793,14 +1794,15 @@ function SidebarContent({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [aptsRes, tenantsRes, metersRes, housesRes, finanzenRes, nebenkostenRes, tasksRes] = await Promise.all([
+      const [aptsRes, tenantsRes, metersRes, housesRes, finanzenRes, nebenkostenRes, tasksRes, docsRes] = await Promise.all([
         supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id').eq('user_id', user.id),
         supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,status,kaution').eq('user_id', user.id),
         supabase.from('Zaehler').select('id,zaehler_typ,ist_aktiv,wohnung_id').eq('user_id', user.id),
         supabase.from('Haeuser').select('id,name,strasse,ort,groesse').eq('user_id', user.id),
         supabase.from('Finanzen').select('id,wohnung_id,name,datum,betrag,ist_einnahmen,tags').eq('user_id', user.id),
         supabase.from('Nebenkosten').select('id,startdatum,enddatum,nebenkostenart,betrag,zaehlerkosten,haeuser_id').eq('user_id', user.id),
-        supabase.from('Aufgaben').select('id,name,beschreibung,ist_erledigt,faelligkeitsdatum,erstellungsdatum').eq('user_id', user.id)
+        supabase.from('Aufgaben').select('id,name,beschreibung,ist_erledigt,faelligkeitsdatum,erstellungsdatum').eq('user_id', user.id),
+        supabase.from('Dokumente_Metadaten').select('id,dateigroesse,mime_type,erstellungsdatum').eq('user_id', user.id)
       ])
 
       if (aptsRes.data) setApartments(aptsRes.data)
@@ -1810,6 +1812,7 @@ function SidebarContent({
       if (finanzenRes.data) setFinanzen(finanzenRes.data)
       if (nebenkostenRes.data) setNebenkosten(nebenkostenRes.data)
       if (tasksRes.data) setTasks(tasksRes.data)
+      if (docsRes.data) setDocuments(docsRes.data)
     } catch (err) {
       console.error("Error fetching sidebar apartments data:", err)
     } finally {
@@ -2276,6 +2279,60 @@ function SidebarContent({
       completionRate
     }
   }, [tasks])
+
+  // Compute stats for documents side panel
+  const documentStats = useMemo(() => {
+    const totalFiles = documents.length
+    
+    // Total size of all files in bytes
+    const totalSizeBytes = documents.reduce((sum, doc) => sum + Number(doc.dateigroesse || 0), 0)
+    
+    // Format helper
+    const formatBytes = (bytes: number): string => {
+      if (bytes === 0) return '0 B'
+      const k = 1024
+      const sizes = ['B', 'KB', 'MB', 'GB']
+      const i = Math.floor(Math.log(bytes) / Math.log(k))
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+    }
+
+    const totalSizeFormatted = formatBytes(totalSizeBytes)
+
+    // Break down by mime types
+    let pdfCount = 0
+    let imageCount = 0
+    let spreadsheetCount = 0 // csv, xls, xlsx
+    let otherCount = 0
+
+    documents.forEach(doc => {
+      const mime = (doc.mime_type || '').toLowerCase()
+      if (mime.includes('pdf')) {
+        pdfCount++
+      } else if (mime.includes('image') || mime.includes('png') || mime.includes('jpeg') || mime.includes('jpg')) {
+        imageCount++
+      } else if (mime.includes('excel') || mime.includes('spreadsheet') || mime.includes('sheet') || mime.includes('csv') || mime.includes('xlsx')) {
+        spreadsheetCount++
+      } else {
+        otherCount++
+      }
+    })
+
+    // User limit: 2 GB (2147483648 bytes)
+    const storageLimitBytes = 2 * 1024 * 1024 * 1024
+    const storageUsagePercent = Math.min(100, Math.round((totalSizeBytes / storageLimitBytes) * 100))
+
+    return {
+      totalFiles,
+      totalSizeBytes,
+      totalSizeFormatted,
+      pdfCount,
+      imageCount,
+      spreadsheetCount,
+      otherCount,
+      storageLimitBytes,
+      storageUsagePercent
+    }
+  }, [documents])
 
   useEffect(() => {
     const newExpanded = { ...expandedItems };
@@ -3216,6 +3273,177 @@ function SidebarContent({
                             await toggleTaskStatusAction(taskId, completed)
                           }}
                         />
+                      </>
+                    )}
+                  </div>
+                </>
+              );
+            } else if (pathname === '/dateien') {
+              return (
+                <>
+                  <div className="flex items-center justify-between pl-2 pr-1 h-11 shrink-0">
+                    <span className="font-bold text-2xl tracking-tight text-zinc-900 dark:text-zinc-50 leading-none">Dateien</span>
+                    {toggleCollapse && (
+                      <button
+                        onClick={toggleCollapse}
+                        className="flex items-center justify-center rounded-2xl w-11 h-11 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer"
+                        title="Menü einklappen"
+                      >
+                        <PanelLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-6 space-y-6 custom-scrollbar">
+                    {isDataLoading && documents.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2 text-accent" />
+                        <span className="text-xs">Lade Dateien...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Section 1: Unified Document Stats Grid */}
+                        <div className="mt-5 p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Total files count */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Dateien</div>
+                              <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                {documentStats.totalFiles}
+                                <span className="text-xs font-normal text-zinc-400">Gesamt</span>
+                              </div>
+                            </div>
+                            {/* Total storage usage */}
+                            <div>
+                              <div className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 mb-1">Speicherplatz</div>
+                              <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-baseline gap-1">
+                                {documentStats.totalSizeFormatted}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full" />
+
+                          {/* Progress Widget (Storage Limit Usage) */}
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                              <span>Speichernutzung</span>
+                              <span className="text-accent">{documentStats.storageUsagePercent}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                              <div 
+                                className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                                style={{ width: `${documentStats.storageUsagePercent}%` }}
+                              />
+                            </div>
+                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                              {documentStats.totalSizeFormatted} von 2,0 GB verwendet
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 2: Distribution by File Type */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3.5">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                            Verteilung nach Dateityp
+                          </div>
+                          
+                          <div className="flex flex-col gap-2.5">
+                            {/* PDF files */}
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-red-500/10 text-red-500">
+                                  <FileText className="h-4 w-4" />
+                                </div>
+                                <span className="font-semibold text-zinc-700 dark:text-zinc-300">PDF-Dokumente</span>
+                              </div>
+                              <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.pdfCount}</span>
+                            </div>
+
+                            {/* Spreadsheets (Excel) */}
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+                                  <FileSpreadsheet className="h-4 w-4" />
+                                </div>
+                                <span className="font-semibold text-zinc-700 dark:text-zinc-300">Tabellen & Excel</span>
+                              </div>
+                              <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.spreadsheetCount}</span>
+                            </div>
+
+                            {/* Images */}
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-500">
+                                  <HardDrive className="h-4 w-4" />
+                                </div>
+                                <span className="font-semibold text-zinc-700 dark:text-zinc-300">Bilder & Scans</span>
+                              </div>
+                              <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.imageCount}</span>
+                            </div>
+
+                            {/* Others */}
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-zinc-500/10 text-zinc-500">
+                                  <File className="h-4 w-4" />
+                                </div>
+                                <span className="font-semibold text-zinc-700 dark:text-zinc-300">Sonstige Dateien</span>
+                              </div>
+                              <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.otherCount}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick Navigation / Shortcuts */}
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">Verknüpfte Bereiche</div>
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <Link
+                              href="/haeuser"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Building2 className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Häuser</span>
+                            </Link>
+                            <Link
+                              href="/mieter"
+                              className="group flex flex-col items-center justify-center p-3.5 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 hover:border-accent/40 dark:hover:border-accent/40 shadow-xs hover:shadow-sm transition-all duration-300 cursor-pointer active:scale-95 text-center"
+                            >
+                              <Users className="h-5 w-5 mb-1.5 text-zinc-500 group-hover:text-accent dark:group-hover:text-accent transition-colors" />
+                              <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">Mieter</span>
+                            </Link>
+                          </div>
+                        </div>
+
+                        {/* Section 4: Secondary Links List */}
+                        <div className="space-y-3 pt-2">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Einstellungen & Profil</div>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => { setSettingsInitialTab("profile"); setOpenSettingsModal(true); }}
+                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
+                            >
+                              <User className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                              <span>Mein Profil</span>
+                            </button>
+                            <button
+                              onClick={() => { setSettingsInitialTab("security"); setOpenSettingsModal(true); }}
+                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
+                            >
+                              <Lock className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                              <span>Passwort ändern</span>
+                            </button>
+                            <button
+                              onClick={() => { setSettingsInitialTab("display"); setOpenSettingsModal(true); }}
+                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
+                            >
+                              <Settings className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
+                              <span>App-Einstellungen</span>
+                            </button>
+                          </div>
+                        </div>
                       </>
                     )}
                   </div>
