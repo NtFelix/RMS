@@ -155,7 +155,7 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(300);
 
     // Type to search
-    const houseSearchbox = page.getByRole('searchbox').first();
+    const houseSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
     await houseSearchbox.fill(houseName);
     await page.waitForTimeout(500);
 
@@ -230,7 +230,7 @@ test.describe('Business Logic Flows', () => {
     await combobox.click();
     await page.waitForTimeout(300);
 
-    const aptSearchbox = page.getByRole('searchbox').first();
+    const aptSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
     await aptSearchbox.fill(aptName);
     await page.waitForTimeout(500);
 
@@ -240,8 +240,8 @@ test.describe('Business Logic Flows', () => {
       await expect(option).toBeVisible({ timeout: 5000 });
     } catch (e) {
       await modal.locator('#wohnung_id').first().click({ force: true });
-      await expect(page.getByRole('searchbox').first()).toBeVisible({ timeout: 5000 });
-      await page.getByRole('searchbox').first().fill(aptName);
+      await expect(aptSearchbox).toBeVisible({ timeout: 5000 });
+      await aptSearchbox.fill(aptName);
       await expect(option).toBeVisible({ timeout: 10000 });
     }
     await option.scrollIntoViewIfNeeded().catch(() => {});
