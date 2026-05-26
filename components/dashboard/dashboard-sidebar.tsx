@@ -1245,12 +1245,12 @@ function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProps) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   const colors = useMemo(() => [
-    { strokeColor: '#ef4444', colorClass: 'text-red-500 bg-red-500/10' },     // Heizkosten
-    { strokeColor: '#3b82f6', colorClass: 'text-blue-500 bg-blue-500/10' },   // Kaltwasser
-    { strokeColor: '#eab308', colorClass: 'text-yellow-500 bg-yellow-500/10' }, // Allgemeinstrom
-    { strokeColor: '#f97316', colorClass: 'text-orange-500 bg-orange-500/10' }, // Müllabfuhr
-    { strokeColor: '#a855f7', colorClass: 'text-purple-500 bg-purple-500/10' }, // Hausmeister
-    { strokeColor: '#06b6d4', colorClass: 'text-cyan-500 bg-cyan-500/10' }
+    { strokeColor: '#3b82f6', colorClass: 'text-blue-500 dark:text-blue-400 bg-blue-500/10' },
+    { strokeColor: '#2563eb', colorClass: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
+    { strokeColor: '#4f46e5', colorClass: 'text-indigo-500 dark:text-indigo-400 bg-indigo-500/10' },
+    { strokeColor: '#0ea5e9', colorClass: 'text-sky-500 dark:text-sky-400 bg-sky-500/10' },
+    { strokeColor: '#475569', colorClass: 'text-slate-600 dark:text-slate-400 bg-slate-500/10' },
+    { strokeColor: '#0d9488', colorClass: 'text-teal-500 dark:text-teal-400 bg-teal-500/10' }
   ], []);
 
   const segmentsData = useMemo(() => {
