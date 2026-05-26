@@ -224,9 +224,8 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(300);
 
     // Select Apartment
-    // It's a CustomCombobox. ID might be on the hidden input, not the trigger.
-    // We look for the combobox trigger again.
-    const combobox = modal.getByRole('combobox').first();
+    // It's a CustomCombobox with id="wohnung_id" on the button trigger.
+    const combobox = modal.locator('#wohnung_id').first();
     await expect(combobox).toBeVisible({ timeout: 10000 });
     await combobox.click();
     await page.waitForTimeout(300);
@@ -240,7 +239,7 @@ test.describe('Business Logic Flows', () => {
     try {
       await expect(option).toBeVisible({ timeout: 5000 });
     } catch (e) {
-      await page.locator('button[role="combobox"]').first().click({ force: true });
+      await modal.locator('#wohnung_id').first().click({ force: true });
       await expect(page.getByRole('searchbox').first()).toBeVisible({ timeout: 5000 });
       await page.getByRole('searchbox').first().fill(aptName);
       await expect(option).toBeVisible({ timeout: 10000 });
