@@ -34,7 +34,8 @@ export async function POST(request: Request) {
     // Get return URL from request body or use default
     const body = await request.json();
     const origin = request.headers.get('origin') || 'http://localhost:3000';
-    const returnUrl = body.return_url || `${origin}/dashboard`;
+    const rawReturnUrl = body.return_url || `${origin}/dashboard`;
+    const returnUrl = typeof rawReturnUrl === 'string' ? rawReturnUrl.replace(/[\r\n]/g, '') : '';
     
     if (process.env.NODE_ENV === 'development') {
       console.log('Creating Stripe portal session with return_url:', returnUrl);

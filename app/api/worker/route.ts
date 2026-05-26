@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         const backendUrl = backendBaseUrl + subPath + url.search;
         const workerAuthKey = process.env.WORKER_AUTH_KEY;
 
-        console.log('[WorkerProxy] Proxying request to:', backendUrl, 'for user:', user.id);
+        console.log('[WorkerProxy] Proxying request to:', backendUrl.replace(/[\r\n]/g, ''), 'for user:', user.id);
 
         let body;
         try {
