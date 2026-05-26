@@ -277,7 +277,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
 
       <aside
         className={cn(
-          "hidden md:flex flex-col z-30 h-screen sticky top-0 py-4 w-full",
+          "hidden md:flex flex-col z-30 h-screen sticky top-0 py-4 pl-4 w-full",
         )}
       >
         {/* Desktop Content */}
@@ -2781,8 +2781,8 @@ function SidebarContent({
     return (
       <>
       <div className="h-full w-full flex flex-row relative">
-        {/* Left Column: Primary Icon Strip (always visible on desktop, w-20) */}
-        <div className="w-20 h-full flex flex-col justify-between items-center pt-0 pb-4 border-r border-border/80 shrink-0">
+        {/* Left Column: Primary Icon Strip (always visible on desktop, w-16) */}
+        <div className="w-16 h-full flex flex-col justify-between items-center pt-0 pb-4 border-r border-border/80 shrink-0">
           <div className="flex flex-col items-center gap-2 w-full pt-0">
             {isCollapsed && toggleCollapse ? (
               <button
