@@ -2011,7 +2011,7 @@ function SidebarFileTree({ userId }: SidebarFileTreeProps) {
           {hasChildren ? (
             <button
               className={cn(
-                "shrink-0 p-0.5 rounded transition-colors z-10",
+                "shrink-0 p-0.5 rounded-md transition-colors z-10",
                 isSelected
                   ? "hover:bg-white/20 text-white/80"
                   : "hover:bg-zinc-200/50 dark:hover:bg-zinc-700/40 text-zinc-400 dark:text-zinc-500"
