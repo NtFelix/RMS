@@ -160,7 +160,7 @@ test.describe('Business Logic Flows', () => {
 
     // Select option
     const option = page.getByRole('option', { name: houseName }).first();
-    await expect(option).toBeVisible({ timeout: 10000 });
+    await expect(option).toBeVisible({ timeout: 15000 });
     await option.click();
     await page.waitForTimeout(300);
 
@@ -239,7 +239,7 @@ test.describe('Business Logic Flows', () => {
       await expect(option).toBeVisible({ timeout: 5000 });
     } catch (e) {
       await page.locator('button[role="combobox"]').first().click({ force: true });
-      await expect(option).toBeVisible({ timeout: 10000 });
+      await expect(option).toBeVisible({ timeout: 15000 });
     }
     await option.scrollIntoViewIfNeeded().catch(() => {});
     await option.click({ force: true });

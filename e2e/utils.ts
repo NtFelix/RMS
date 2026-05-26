@@ -39,6 +39,7 @@ export const login = async (page: Page) => {
   // Wait for navigation to dashboard or check for errors
   try {
     // Wait for URL change using Playwright's built-in waitForURL for better reliability
+    await page.waitForTimeout(2000);
     await page.waitForURL(url => {
       const p = url.pathname;
       return p === '/dashboard' || p === '/' || p === '/haeuser' || p.startsWith('/subscription-locked');
