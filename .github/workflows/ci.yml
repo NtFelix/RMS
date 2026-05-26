@@ -1753,14 +1753,23 @@ jobs:
       - name: Create PostHog Visual Review run
         if: always()
         id: vr-run
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          POSTHOG_VR_TOKEN: ${{ secrets.POSTHOG_VR_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
+          PR_ARG=""
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            PR_ARG="--pr $PR_NUMBER"
+          fi
           RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
             --type playwright \
             --baseline playwright/snapshots.yml \
-            --token ${{ secrets.POSTHOG_VR_TOKEN }} \
-            --branch ${{ github.event.pull_request.head.ref || github.ref_name }} \
+            --token "$POSTHOG_VR_TOKEN" \
+            --branch "$BRANCH_NAME" \
             --commit $(git rev-parse HEAD) \
-            ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }})
+            $PR_ARG)
           echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Created PostHog VR run: $RUN_ID"
 
