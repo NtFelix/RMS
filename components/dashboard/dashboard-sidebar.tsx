@@ -3844,34 +3844,6 @@ function SidebarContent({
                             </Link>
                           </div>
                         </div>
-
-                        {/* Section 4: Secondary Links List */}
-                        <div className="space-y-3 pt-2">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Einstellungen & Profil</div>
-                          <div className="flex flex-col gap-1">
-                            <button
-                              onClick={() => { setSettingsInitialTab("profile"); setOpenSettingsModal(true); }}
-                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
-                            >
-                              <User className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                              <span>Mein Profil</span>
-                            </button>
-                            <button
-                              onClick={() => { setSettingsInitialTab("security"); setOpenSettingsModal(true); }}
-                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
-                            >
-                              <Lock className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                              <span>Passwort ändern</span>
-                            </button>
-                            <button
-                              onClick={() => { setSettingsInitialTab("display"); setOpenSettingsModal(true); }}
-                              className="group flex items-center gap-3 w-full px-1 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 cursor-pointer text-left"
-                            >
-                              <Settings className="h-4 w-4 text-zinc-400 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors" />
-                              <span>App-Einstellungen</span>
-                            </button>
-                          </div>
-                        </div>
                       </>
                     )}
                   </div>
