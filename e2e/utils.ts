@@ -21,7 +21,12 @@ export const login = async (page: Page) => {
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
-  await page.goto('/auth/login', { waitUntil: 'networkidle' });
+  await page.goto('/auth/login', { waitUntil: 'load' });
+
+  // Wait for Next.js hydration to be complete.
+  // The social login buttons are only rendered client-side after component mount/hydration.
+  const socialBtn = page.getByRole('button', { name: /Google|Microsoft/i }).first();
+  await expect(socialBtn).toBeVisible({ timeout: 15000 });
 
   // Wait for the form to be ready
   await expect(page.locator('form')).toBeVisible({ timeout: 30000 });
@@ -34,7 +39,7 @@ export const login = async (page: Page) => {
   // Ensure button is ready to receive clicks
   const loginBtn = page.getByRole('button', { name: /anmelden/i }).first();
   await expect(loginBtn).toBeEnabled();
-  await loginBtn.click({ force: true });
+  await loginBtn.click();
 
   // Wait for navigation to dashboard or check for errors
   try {
