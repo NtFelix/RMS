@@ -14,11 +14,11 @@ export async function updateSession(request: NextRequest, response: NextResponse
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
             const secureOptions = { ...options }
-            if (secureOptions.sameSite === 'none' || secureOptions.sameSite === 'None') {
+            if (secureOptions.sameSite === 'none') {
               secureOptions.sameSite = 'lax'
             }
-            request.cookies.set(name, value, secureOptions)
             response.cookies.set(name, value, secureOptions)
           })
           
