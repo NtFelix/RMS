@@ -80,19 +80,19 @@ describe('wohnungServerAction', () => {
     it('requires name', async () => {
       const result = await wohnungServerAction(null, { name: '', groesse: 50, miete: 500 });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Name ist erforderlich');
+      expect(result.error?.message).toContain('Name ist erforderlich');
     });
 
     it('requires positive size', async () => {
       const result = await wohnungServerAction(null, { name: 'Test', groesse: -10, miete: 500 });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Größe muss eine positive Zahl sein');
+      expect(result.error?.message).toContain('Größe muss eine positive Zahl sein');
     });
 
     it('requires numeric rent', async () => {
       const result = await wohnungServerAction(null, { name: 'Test', groesse: 50, miete: 'invalid' });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Miete muss eine Zahl sein');
+      expect(result.error?.message).toContain('Miete muss eine Zahl sein');
     });
   });
 
@@ -135,14 +135,14 @@ describe('wohnungServerAction', () => {
       mockAuth.getUser.mockResolvedValue({ data: { user: null }, error: null });
       const result = await wohnungServerAction(null, { name: 'Test Apt', groesse: 50, miete: 500 });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Benutzer nicht gefunden');
+      expect(result.error?.message).toContain('Nicht authentifiziert');
     });
 
     it('fails if user profile not found', async () => {
       (fetchUserProfile as jest.Mock).mockResolvedValue(null);
       const result = await wohnungServerAction(null, { name: 'Test Apt', groesse: 50, miete: 500 });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Benutzerprofil nicht gefunden');
+      expect(result.error?.message).toContain('Benutzerprofil nicht gefunden');
     });
 
     it('fails if user is not eligible (no sub/trial)', async () => {
@@ -152,7 +152,7 @@ describe('wohnungServerAction', () => {
       });
       const result = await wohnungServerAction(null, { name: 'Test Apt', groesse: 50, miete: 500 });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Ein aktives Abonnement');
+      expect(result.error?.message).toContain('Ein aktives Abonnement');
     });
 
     it('fails if apartment limit reached', async () => {
@@ -163,7 +163,7 @@ describe('wohnungServerAction', () => {
 
       const result = await wohnungServerAction(null, { name: 'Test Apt', groesse: 50, miete: 500 });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('maximale Anzahl an Wohnungen');
+      expect(result.error?.message).toContain('maximale Anzahl an Wohnungen');
     });
 
     it('allows creation if limit is Infinity', async () => {
@@ -202,7 +202,7 @@ describe('wohnungServerAction', () => {
 
       const result = await wohnungServerAction('apt-1', { name: 'Updated Apt', groesse: 60, miete: 600 });
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Update failed');
+      expect(result.error?.message).toBe('Update failed');
     });
   });
 });

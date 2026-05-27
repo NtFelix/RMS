@@ -191,7 +191,7 @@ export function TaskCalendar({
                             {view === v && (
                                 <motion.div
                                     layoutId="activeViewPill"
-                                    className="absolute inset-0 bg-background rounded-full shadow-sm border border-border/50 -z-10"
+                                    className="absolute inset-0 bg-background rounded-full shadow-xs border border-border/50 -z-10"
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                 />
                             )}
@@ -322,7 +322,7 @@ export function CalendarTaskPill({
     return (
         <div
             className={cn(
-                "group relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all border cursor-grab active:cursor-grabbing w-full shadow-sm",
+                "group relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all border cursor-grab active:cursor-grabbing w-full shadow-xs",
                 task.ist_erledigt
                     ? "bg-gray-100 text-gray-500 border-transparent line-through dark:bg-gray-800 dark:text-gray-400"
                     : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:shadow-md dark:bg-[#1e1e1e] dark:text-gray-300 dark:border-gray-700 dark:hover:border-primary",
@@ -388,12 +388,12 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
             className={cn(
                 "relative w-full h-full p-1 rounded-lg border transition-all duration-200 group/day",
                 "flex flex-col items-start justify-start overflow-hidden",
-                "hover:bg-primary/5 hover:border-primary/20 hover:shadow-sm hover:scale-[1.01] hover:z-10",
+                "hover:bg-primary/5 hover:border-primary/20 hover:shadow-xs hover:scale-[1.01] hover:z-10",
                 "dark:hover:bg-primary/10 dark:hover:border-primary/30",
                 !isCurrentMonth && !isWeekView && "opacity-50 grayscale-[0.5] bg-muted/20 hover:opacity-100 hover:grayscale-0",
                 (isCurrentMonth || isWeekView) && "bg-card",
                 isSelected && "ring-2 ring-primary bg-primary/5",
-                isDayToday && !isSelected && "border-primary shadow-sm",
+                isDayToday && !isSelected && "border-primary shadow-xs",
                 isOver && "ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10 z-10 scale-[1.02] shadow-md"
             )}
         >
@@ -402,7 +402,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
                 <span
                     className={cn(
                         "text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 transition-colors",
-                        isDayToday && "bg-red-500 text-white shadow-sm",
+                        isDayToday && "bg-red-500 text-white shadow-xs",
                         isSelected && !isDayToday && "bg-primary text-primary-foreground"
                     )}
                 >
@@ -431,7 +431,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
                         <div 
                             key={task.id} 
                             className={cn(
-                                "w-1.5 h-1.5 rounded-full shadow-sm ring-1 ring-inset",
+                                "w-1.5 h-1.5 rounded-full shadow-xs ring-1 ring-inset",
                                 task.ist_erledigt 
                                     ? "bg-gray-200 ring-gray-300 dark:bg-gray-800 dark:ring-gray-700" 
                                     : "bg-primary ring-primary/20"
@@ -439,7 +439,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
                         />
                     ))}
                     {tasks.length > (isWeekView ? 8 : 4) && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shadow-sm ring-1 ring-inset ring-black/5" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shadow-xs ring-1 ring-inset ring-black/5" />
                     )}
                 </div>
             </div>

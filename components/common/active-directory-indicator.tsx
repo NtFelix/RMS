@@ -75,7 +75,7 @@ export function ActiveDirectoryIndicator({
       aria-label={`Current directory: ${displayPath}`}
     >
       {showIcon && (
-        <MapPin className="h-4 w-4 text-accent flex-shrink-0" />
+        <MapPin className="h-4 w-4 text-accent shrink-0" />
       )}
       
       <span className="font-medium text-accent-foreground truncate">
@@ -83,7 +83,7 @@ export function ActiveDirectoryIndicator({
       </span>
       
       {showPath && (
-        <Folder className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+        <Folder className="h-3 w-3 text-muted-foreground shrink-0" />
       )}
     </div>
   )

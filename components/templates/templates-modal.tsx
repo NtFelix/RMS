@@ -416,13 +416,13 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
               <div className="py-6 first:pt-2">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "flex items-center gap-2.5 px-3 py-1.5 rounded-full border bg-background/50 backdrop-blur-sm shadow-sm transition-all hover:bg-background/80",
+                    "flex items-center gap-2.5 px-3 py-1.5 rounded-full border bg-background/50 backdrop-blur-xs shadow-xs transition-all hover:bg-background/80",
                     config ? "border-current/20" : "border-border",
                     config?.color.text
                   )}>
                     <Icon className="h-3.5 w-3.5" />
                     <h3
-                      className="text-[11px] font-bold uppercase tracking-[0.1em] text-foreground/90"
+                      className="text-[11px] font-bold uppercase tracking-widest text-foreground/90"
                       id={`${modalId}-category-${category}`}
                     >
                       {category}
@@ -434,7 +434,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                       {groupedTemplates[category].length}
                     </span>
                   </div>
-                  <div className="flex-1 h-px bg-gradient-to-r from-border/60 to-transparent" />
+                  <div className="flex-1 h-px bg-linear-to-r from-border/60 to-transparent" />
                 </div>
               </div>
               <div
@@ -457,7 +457,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                     />
                     {isDeleting === template.id && (
                       <div
-                        className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-20"
+                        className="absolute inset-0 bg-background/80 backdrop-blur-xs flex items-center justify-center rounded-lg z-20"
                         role="status"
                         aria-label={ARIA_LABELS.deletingTemplate}
                       >
@@ -487,7 +487,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
           aria-labelledby={`${modalId}-title`}
           aria-describedby={`${modalId}-description`}
         >
-          <DialogHeader className="flex-shrink-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle
               id={`${modalId}-title`}
               className="flex items-center gap-2"
@@ -502,7 +502,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
 
           <div className="flex-1 overflow-hidden flex flex-col p-1" ref={containerRef}>
             {/* Search, Filter and Actions Section */}
-            <div className="flex-shrink-0 pb-4 sm:pb-6 border-b space-y-3 px-2 pt-1">
+            <div className="shrink-0 pb-4 sm:pb-6 border-b space-y-3 px-2 pt-1">
               {/* Single Row: Search, Filter, and Create Button */}
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Search Bar - Takes most space */}
@@ -538,7 +538,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                         aria-expanded={false}
                       >
                         <div className="flex items-center gap-2">
-                          <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                          <Filter className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
                           <SelectValue placeholder="Alle Kategorien" />
                         </div>
                       </SelectTrigger>
@@ -558,7 +558,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
                 <Button
                   data-create-template-button
                   onClick={handleCreateTemplate}
-                  className="flex-shrink-0 min-w-[100px] sm:min-w-[120px]"
+                  className="shrink-0 min-w-[100px] sm:min-w-[120px]"
                   disabled={isCreating || loading}
                   aria-label={ARIA_LABELS.createTemplateButton}
                   aria-describedby={`${modalId}-create-help`}

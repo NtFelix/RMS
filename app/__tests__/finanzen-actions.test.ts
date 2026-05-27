@@ -110,13 +110,13 @@ describe('finanzen-actions', () => {
     it('validates name', async () => {
       const result = await financeServerAction(null, { ...validData, name: '' });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Name ist erforderlich');
+      expect(result.error?.message).toContain('Name ist erforderlich');
     });
 
     it('validates amount', async () => {
       const result = await financeServerAction(null, { ...validData, betrag: 'invalid' as any });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Betrag muss eine Zahl sein');
+      expect(result.error?.message).toContain('Betrag muss eine Zahl sein');
     });
 
     it('handles database error', async () => {
@@ -126,7 +126,7 @@ describe('finanzen-actions', () => {
       const result = await financeServerAction(null, validData);
 
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('DB Error');
+      expect(result.error?.message).toBe('DB Error');
     });
   });
 
@@ -152,7 +152,7 @@ describe('finanzen-actions', () => {
       const result = await toggleFinanceStatusAction('fin-1', true);
 
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Update failed');
+      expect(result.error?.message).toBe('Update failed');
     });
   });
 

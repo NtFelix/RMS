@@ -4,7 +4,7 @@ import { login, hasTestCredentials, acceptCookieConsent } from './utils';
 test.describe('Authentication Flows', () => {
 
   test('Login page should render correctly', async ({ page }) => {
-    await page.goto('/auth/login', { waitUntil: 'networkidle' });
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' });
     // Wait for animation/loading
     await expect(page.getByRole('heading', { name: /ANMELDEN/i })).toBeVisible({ timeout: 10000 });
 
@@ -16,7 +16,7 @@ test.describe('Authentication Flows', () => {
   });
 
   test('Registration page should render correctly', async ({ page }) => {
-    await page.goto('/auth/register', { waitUntil: 'networkidle' });
+    await page.goto('/auth/register', { waitUntil: 'domcontentloaded' });
     // Wait for potential animation/loading
     await expect(page.getByRole('heading', { name: /REGISTRIEREN/i })).toBeVisible({ timeout: 10000 });
 
@@ -39,8 +39,8 @@ test.describe('Authentication Flows', () => {
 
     // Verify we are on the dashboard
     // Check for common dashboard elements using more specific locators
-    await expect(page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('link', { name: /Häuser|Objekte/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#sidebar-nav-dashboard, a[href="/dashboard"]').filter({ visible: true }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#sidebar-nav-haeuser, a[href="/haeuser"]').filter({ visible: true }).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Should be able to log out', async ({ page }) => {

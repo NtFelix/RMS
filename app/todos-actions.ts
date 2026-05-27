@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -26,7 +27,14 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
   const actionName = id ? 'updateTask' : 'createTask';
   logAction(actionName, 'start', { task_id: id, task_name: data.name });
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
   const payload: Record<string, any> = {
     name: data.name,
@@ -63,9 +71,6 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Nicht authentifiziert");
-
     let dbResponse;
     if (id) {
       // Update existing record - ensuring it belongs to the user
@@ -96,11 +101,16 @@ export async function toggleTaskStatusAction(
   const actionName = 'toggleTaskStatus';
   logAction(actionName, 'start', { task_id: taskId, new_status: newStatus });
 
+  let user, supabase;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Nicht authentifiziert");
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
+  try {
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
@@ -141,11 +151,16 @@ export async function bulkUpdateTaskStatusesAction(
     return { success: false, error: { message: "Keine Aufgaben zum Aktualisieren ausgewählt." } };
   }
 
+  let user, supabase;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Nicht authentifiziert");
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
+  try {
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
@@ -185,11 +200,16 @@ export async function bulkDeleteTasksAction(
     return { success: false, error: { message: "Keine Aufgaben zum Löschen ausgewählt." } };
   }
 
+  let user, supabase;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Nicht authentifiziert");
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
+  try {
     const { count, error } = await supabase
       .from("Aufgaben")
       .delete()
@@ -217,11 +237,16 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   const actionName = 'deleteTask';
   logAction(actionName, 'start', { task_id: taskId });
 
+  let user, supabase;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Nicht authentifiziert");
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
+  try {
     const { error } = await supabase
       .from("Aufgaben")
       .delete()
@@ -245,7 +270,6 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   }
 }
 
-
 export async function updateTaskDueDateAction(
   taskId: string,
   dueDate: string | null
@@ -253,11 +277,16 @@ export async function updateTaskDueDateAction(
   const actionName = 'updateTaskDueDate';
   logAction(actionName, 'start', { task_id: taskId, due_date: dueDate });
 
+  let user, supabase;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Nicht authentifiziert");
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
+  try {
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({

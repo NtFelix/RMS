@@ -30,7 +30,7 @@ export function SearchInput({
 
   return (
     <div className={cn(
-      "relative transition-all duration-200 has-[:focus-visible]:scale-[1.01]",
+      "relative transition-all duration-200 has-focus-visible:scale-[1.01]",
       modeClasses[mode],
       wrapperClassName
     )}>

@@ -586,7 +586,7 @@ export function CloudStorage({
             />
 
             {/* Main File Container */}
-            <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem] h-full flex flex-col">
+            <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] h-full flex flex-col">
                 {/* Header */}
                 <div className="border-b border-gray-200 dark:border-gray-700">
                     <div className="p-6">

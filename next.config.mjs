@@ -12,6 +12,7 @@ const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 const posthogPersonalApiKey = process.env.POSTHOG_PERSONAL_API_KEY;
 const posthogProjectId = process.env.POSTHOG_PROJECT_ID;
 const posthogSourcemapsEnabled = Boolean(posthogPersonalApiKey && posthogProjectId);
+const robotsIndexingEnabled = process.env.ROBOTS_INDEXING !== 'false';
 const missingPostHogSourcemapVars = [
   !posthogPersonalApiKey ? 'POSTHOG_PERSONAL_API_KEY' : null,
   !posthogProjectId ? 'POSTHOG_PROJECT_ID' : null,
@@ -37,6 +38,7 @@ will not resolve to uploaded sourcemaps for this deployment.
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
@@ -68,7 +70,6 @@ const nextConfig = {
     ],
   },
   experimental: {
-    optimizeCss: true,
     scrollRestoration: true,
     optimizePackageImports: [
       'recharts',
@@ -103,6 +104,24 @@ const nextConfig = {
         },
       ],
     };
+  },
+  async headers() {
+    if (robotsIndexingEnabled) {
+      return [];
+    }
+
+    return [
+      {
+        // Apply noindex to all routes except internal assets and common static files
+        source: '/((?!api/|_next/|favicon.ico|robots.txt).*)',
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow, noarchive',
+          },
+        ],
+      },
+    ];
   },
   webpack: (config, { isServer, webpack }) => {
     // Stub ws module on the client side only to prevent breaking server components

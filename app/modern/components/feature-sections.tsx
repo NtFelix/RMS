@@ -25,7 +25,7 @@ const features: Feature[] = [
     icon: ListTodo,
     mock: (
       <div className="w-full h-full p-6 flex flex-col gap-3 select-none">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/50 shadow-sm backdrop-blur-sm group-hover:translate-x-1 transition-transform duration-500">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/50 shadow-xs backdrop-blur-xs group-hover:translate-x-1 transition-transform duration-500">
           <div className="w-5 h-5 rounded-full border-2 border-primary/60 flex items-center justify-center shrink-0">
             <div className="w-2.5 h-2.5 rounded-full bg-primary" />
           </div>
@@ -38,7 +38,7 @@ const features: Feature[] = [
           </div>
         </div>
 
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/50 shadow-sm backdrop-blur-sm opacity-80 group-hover:translate-x-1 transition-transform duration-500 delay-75">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/50 shadow-xs backdrop-blur-xs opacity-80 group-hover:translate-x-1 transition-transform duration-500 delay-75">
           <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="h-2 w-20 bg-foreground/20 rounded-full mb-1.5" />
@@ -46,7 +46,7 @@ const features: Feature[] = [
           </div>
         </div>
 
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/50 shadow-sm backdrop-blur-sm opacity-60 group-hover:translate-x-1 transition-transform duration-500 delay-150">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/50 shadow-xs backdrop-blur-xs opacity-60 group-hover:translate-x-1 transition-transform duration-500 delay-150">
           <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="h-2 w-28 bg-foreground/20 rounded-full" />
@@ -109,7 +109,7 @@ const features: Feature[] = [
       <div className="w-full h-full p-6 flex flex-col items-center justify-center gap-6 select-none">
         <div className="flex gap-4">
           <div className="group/export relative cursor-pointer">
-            <div className="w-20 h-24 bg-background border border-border rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-transform duration-300">
+            <div className="w-20 h-24 bg-background border border-border rounded-xl shadow-xs flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-transform duration-300">
               <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
                 <FileText size={16} />
               </div>
@@ -121,7 +121,7 @@ const features: Feature[] = [
           </div>
 
           <div className="group/export relative cursor-pointer">
-            <div className="w-20 h-24 bg-background border border-border rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-transform duration-300 delay-75">
+            <div className="w-20 h-24 bg-background border border-border rounded-xl shadow-xs flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-transform duration-300 delay-75">
               <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <FileSpreadsheet size={16} />
               </div>
@@ -154,10 +154,10 @@ const features: Feature[] = [
             <Server className="w-10 h-10 text-primary" />
           </div>
           {/* Floating Badges */}
-          <div className="absolute -top-3 -right-8 px-3 py-1 bg-background border border-border shadow-sm rounded-full text-[10px] font-bold text-foreground flex items-center gap-1 group-hover:translate-x-1 transition-transform whitespace-nowrap">
+          <div className="absolute -top-3 -right-8 px-3 py-1 bg-background border border-border shadow-xs rounded-full text-[10px] font-bold text-foreground flex items-center gap-1 group-hover:translate-x-1 transition-transform whitespace-nowrap">
             <CheckCircle2 size={10} className="text-emerald-500" /> Frankfurt (EU)
           </div>
-          <div className="absolute -bottom-3 -left-8 px-3 py-1 bg-background border border-border shadow-sm rounded-full text-[10px] font-bold text-foreground flex items-center gap-1 group-hover:-translate-x-1 transition-transform whitespace-nowrap">
+          <div className="absolute -bottom-3 -left-8 px-3 py-1 bg-background border border-border shadow-xs rounded-full text-[10px] font-bold text-foreground flex items-center gap-1 group-hover:-translate-x-1 transition-transform whitespace-nowrap">
             <CheckCircle2 size={10} className="text-emerald-500" /> AES-256 / SSL
           </div>
         </div>
@@ -178,7 +178,7 @@ export default function FeatureSections() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-sm mb-6"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-xs mb-6"
             >
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-primary">Mehr Features</span>
@@ -189,7 +189,7 @@ export default function FeatureSections() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
+              className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-linear-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
             >
               Tools für Profis
             </motion.h2>
@@ -216,10 +216,10 @@ export default function FeatureSections() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className={`group relative rounded-3xl overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 ${feature.colSpan}`}
+                className={`group relative rounded-3xl overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500 ${feature.colSpan}`}
               >
                 {/* Card Background Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
+                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
 
                 <div className="relative h-full flex flex-col">
                   {/* Card Header Content */}

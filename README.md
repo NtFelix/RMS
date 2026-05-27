@@ -108,7 +108,21 @@ While the code and documentation are in English, the database schema and busines
 -   `Betriebskosten` (Operating Costs)
 
 ### Deployment
-The project is configured for deployment on Cloudflare Pages. API routes and Edge Functions should be compatible with the Edge Runtime where specified.
+The project is containerized using **Docker** and deployed to **Google Cloud Run**. 
+
+- **CI/CD:** GitHub Actions handles building the Docker image, pushing it to **Artifact Registry**, and deploying preview environments for pull requests.
+- **Production:** The `main` branch is automatically deployed to production upon passing CI checks.
+
+### Docker Support
+You can build and run the application locally using Docker:
+
+```bash
+# Build the image
+docker build -t mietevo .
+
+# Run the container
+docker run -p 3000:3000 --env-file .env.local mietevo
+```
 
 ## Testing
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
@@ -9,7 +9,6 @@ import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
 import { posthogLogger } from '@/lib/posthog-logger';
-import { isTestEnv } from "@/lib/test-utils";
 
 interface WohnungPayload {
   name: string;
@@ -79,13 +78,21 @@ async function determineApartmentEligibility(userProfile: any): Promise<Apartmen
   return defaultIneligible;
 }
 
-export async function wohnungServerAction(id: string | null, data: WohnungPayload): Promise<{ success: boolean; error?: any; data?: WohnungDbRecord }> {
+export async function wohnungServerAction(id: string | null, data: WohnungPayload): Promise<{ success: boolean; error?: { message: string }; data?: WohnungDbRecord }> {
   const actionName = id ? 'updateApartment' : 'createApartment';
   logAction(actionName, 'start', { apartment_id: id, apartment_name: data.name });
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
 
   const payload = {
+
     name: data.name,
     groesse: Number(data.groesse), // Ensure conversion to number
     miete: Number(data.miete),     // Ensure conversion to number
@@ -109,15 +116,6 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   // }
 
   try {
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) throw userError;
-    if (!user) {
-      return {
-        success: false,
-        error: { message: "Benutzer nicht gefunden. Bitte melden Sie sich erneut an." }
-      };
-    }
 
     // Only check limits when creating a new apartment
     if (!id) {
@@ -176,6 +174,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         .from("Wohnungen")
         .update(fullPayload)
         .eq("id", id)
+        .eq("user_id", user.id)
         .select()
         .single();
     } else {
@@ -227,12 +226,13 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     }
 
     return { success: true, data: dbResponse.data as WohnungDbRecord };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', {
       apartment_id: id,
-      error_message: error.message
+      error_message: errorMessage
     });
     console.error("Error in wohnungServerAction:", error);
-    return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
+    return { success: false, error: { message: errorMessage } };
   }
 }

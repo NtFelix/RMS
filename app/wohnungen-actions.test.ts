@@ -139,7 +139,7 @@ describe('Wohnungen Server Actions', () => {
       const result = await wohnungServerAction(null, validData);
 
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Maximale Anzahl an Wohnungen');
+      expect(result.error?.message).toContain('Maximale Anzahl an Wohnungen');
     });
 
     it('should create an apartment if user is eligible (Active Subscription)', async () => {
@@ -178,7 +178,7 @@ describe('Wohnungen Server Actions', () => {
       const result = await wohnungServerAction(null, validData);
 
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('maximale Anzahl an Wohnungen');
+      expect(result.error?.message).toContain('maximale Anzahl an Wohnungen');
     });
 
     it('should fail if user has no subscription and no trial', async () => {
@@ -190,7 +190,7 @@ describe('Wohnungen Server Actions', () => {
       const result = await wohnungServerAction(null, validData);
 
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Abonnement oder eine gültige Testphase ist erforderlich');
+      expect(result.error?.message).toContain('Abonnement oder eine gültige Testphase ist erforderlich');
     });
 
     it('should update an existing apartment without checking limits', async () => {
@@ -206,12 +206,12 @@ describe('Wohnungen Server Actions', () => {
       const invalidData = { ...validData, name: '' };
       const result = await wohnungServerAction(null, invalidData);
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Name ist erforderlich.');
+      expect(result.error?.message).toBe('Name ist erforderlich.');
 
       const invalidSize = { ...validData, groesse: -10 };
       const result2 = await wohnungServerAction(null, invalidSize);
       expect(result2.success).toBe(false);
-      expect(result2.error.message).toBe('Größe muss eine positive Zahl sein.');
+      expect(result2.error?.message).toBe('Größe muss eine positive Zahl sein.');
     });
   });
 });

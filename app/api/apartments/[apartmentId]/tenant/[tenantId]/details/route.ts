@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 interface ApartmentTenantDetailsResponse {
   apartment: {
@@ -66,7 +67,7 @@ export async function GET(
     if (!apartmentId || !tenantId) {
       return NextResponse.json(
         { error: "Apartment ID und Tenant ID sind erforderlich." }, 
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -75,7 +76,7 @@ export async function GET(
     if (!uuidRegex.test(apartmentId) || !uuidRegex.test(tenantId)) {
       return NextResponse.json(
         { error: "Ungültige ID-Formate." }, 
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -108,12 +109,12 @@ export async function GET(
       if (apartmentError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Wohnung nicht gefunden." }, 
-          { status: 404 }
+          { status: 404, headers: NO_CACHE_HEADERS }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." }, 
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -137,12 +138,12 @@ export async function GET(
       if (tenantError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Mieter nicht gefunden oder nicht dieser Wohnung zugeordnet." }, 
-          { status: 404 }
+          { status: 404, headers: NO_CACHE_HEADERS }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Mieterdaten." }, 
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -235,9 +236,9 @@ export async function GET(
       },
     };
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
 
-  } catch (error) {
+    } catch (error) {
     const logger = createRequestLogger(request);
     const errorContext: Record<string, any> = {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -245,15 +246,15 @@ export async function GET(
       ...(apartmentId && { apartmentId }),
       ...(tenantId && { tenantId })
     };
-    
+
     logger.error("Failed to fetch apartment/tenant details", 
       error instanceof Error ? error : new Error(String(error)),
       errorContext
     );
-    
+
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Details." }, 
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
-  }
-}
+    }
+    }

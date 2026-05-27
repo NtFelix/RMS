@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
 import { KautionData, KautionStatus, TenantStatus } from "@/types/Tenant";
@@ -13,9 +14,14 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   const id = formData.get('id');
   const actionName = id ? 'updateTenant' : 'createTenant';
   const tenantName = formData.get('name') as string;
-  logAction(actionName, 'start', { tenant_id: id as string | null, tenant_name: tenantName });
-
-  const supabase = await createClient();
+  
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
 
   try {
     const payload: any = {
@@ -45,12 +51,12 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     let finalTenantId = id as string | null;
 
     if (id) {
-      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
+      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string).eq('user_id', user.id);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
+      const { data: newTenant, error } = await supabase.from('Mieter').insert({ ...payload, user_id: user.id }).select('id').single();
       if (error) {
         return { success: false, error: { message: error.message } };
       }
@@ -64,7 +70,6 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     try {
       const posthog = getPostHogServer();
       const eventName = id ? 'tenant_updated' : 'tenant_added';
-      const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
         await posthog.capture({
@@ -91,19 +96,27 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     }
 
     return { success: true };
-  } catch (e) {
-    logAction(actionName, 'error', { tenant_name: tenantName, error_message: (e as Error).message });
-    return { success: false, error: { message: (e as Error).message } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { tenant_name: tenantName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
 export async function deleteTenantAction(tenantId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
-    const supabase = await createClient();
+    let user, supabase;
+    try {
+      ({ user, supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
+    }
     const { error } = await supabase
       .from("Mieter")
       .delete()
-      .eq("id", tenantId);
+      .eq("id", tenantId)
+      .eq("user_id", user.id);
 
     if (error) {
       console.error("Error deleting tenant from Supabase:", error);
@@ -138,7 +151,13 @@ export async function getMieterByHausIdAction(
     return { success: false, error: "Haus ID is required.", data: null };
   }
 
-  const supabase = await createClient();
+  let supabase;
+  try {
+    ({ supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: errorMessage, data: null };
+  }
 
   // Validate date parameters if provided
   if (startdatum && enddatum) {
@@ -207,14 +226,21 @@ export async function getMieterByHausIdAction(
     // This is also a successful query with no results.
     return { success: true, data: mieterData || [] };
 
-  } catch (e: any) {
-    console.error("Unexpected error in getMieterByHausIdAction:", e.message);
-    return { success: false, error: e.message || "An unexpected error occurred.", data: null };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+    console.error("Unexpected error in getMieterByHausIdAction:", errorMessage);
+    return { success: false, error: errorMessage, data: null };
   }
 }
 
 export async function updateKautionAction(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
 
   try {
     // Extract form data
@@ -260,6 +286,7 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
       .from('Mieter')
       .select('kaution')
       .eq('id', tenantId)
+      .eq('user_id', user.id)
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
@@ -276,7 +303,8 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
     const { error: updateError } = await supabase
       .from('Mieter')
       .update({ kaution: kautionData })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .eq('user_id', user.id);
 
     if (updateError) {
       console.error("Error updating kaution data:", updateError);
@@ -288,20 +316,28 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
 
     return { success: true };
 
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unexpected error in updateKautionAction";
     console.error("Unexpected error in updateKautionAction:", e);
-    return { success: false, error: { message: (e as Error).message } };
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
 export async function updateTenantApartment(tenantId: string, apartmentId: string): Promise<{ success: boolean; error?: { message: string } }> {
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
 
   try {
     const { error } = await supabase
       .from('Mieter')
       .update({ wohnung_id: apartmentId || null })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error updating tenant apartment:', error);
@@ -310,7 +346,7 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 
     revalidatePath('/mieter');
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Unexpected error updating tenant apartment:', error);
     return {
       success: false,
@@ -322,7 +358,13 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 }
 
 export async function getSuggestedKautionAmount(tenantId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: { message: string } }> {
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
 
   try {
     // Fetch tenant with associated apartment data
@@ -330,6 +372,7 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
       .from('Mieter')
       .select('wohnung_id, Wohnungen(miete)')
       .eq('id', tenantId)
+      .eq('user_id', user.id)
       .single();
 
     if (tenantError) {
@@ -350,20 +393,21 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
     const suggestedAmount = wohnung.miete * 3;
 
     return { success: true, suggestedAmount };
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unexpected error in getSuggestedKautionAmount";
     console.error("Unexpected error in getSuggestedKautionAmount:", e);
-    return { success: false, error: { message: (e as Error).message } };
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
 export async function deleteAllApplicantsAction(): Promise<{ success: boolean; error?: { message: string } }> {
-  const supabase = await createClient();
-
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { success: false, error: { message: "Unauthorized" } };
+    let user, supabase;
+    try {
+      ({ user, supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
     }
 
     const { error } = await supabase
@@ -379,7 +423,7 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
 
     revalidatePath('/mieter');
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Unexpected error deleting all applicants:', error);
     return {
       success: false,

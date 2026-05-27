@@ -68,8 +68,7 @@ export async function GET(request: Request) {
     const rpcStartTime = Date.now()
     try {
       const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "fetch_tenant_payment_dashboard_data",
-        { p_user_id: user.id }
+        "fetch_tenant_payment_dashboard_data"
       )
 
       const rpcDuration = Date.now() - rpcStartTime

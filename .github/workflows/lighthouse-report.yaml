@@ -1,18 +1,7 @@
 name: Lighthouse CI
 
 on:
-  pull_request:
-    branches: [main, develop]
-    types: [opened, reopened, synchronize]
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
-  workflow_dispatch:  # Allows manual triggering from the Actions tab
+  workflow_dispatch: # Disabled automatic runs. Logic moved to ci.yml
 
 permissions:
   contents: read
@@ -79,10 +68,10 @@ jobs:
     
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -92,14 +81,14 @@ jobs:
         run: |
           # Create a hash of all files that affect the build
           BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
-          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
+          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json') }}"
           CACHE_KEY="build-${BUILD_HASH}-${PACKAGE_HASH}"
           echo "cache-key=${CACHE_KEY}" >> $GITHUB_OUTPUT
           echo "Build cache key: ${CACHE_KEY}"
 
       - name: Restore build cache
         id: restore-build-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next
           key: ${{ steps.build-cache-key.outputs.cache-key }}
@@ -109,7 +98,7 @@ jobs:
       - name: Cache node_modules
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
         id: cache-node-modules
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -138,7 +127,7 @@ jobs:
 
       - name: Save build cache
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next
           key: ${{ steps.build-cache-key.outputs.cache-key }}
@@ -161,13 +150,13 @@ jobs:
     
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22'
           
       - name: Restore LHCI tools cache
         id: lhci-cache
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: |
             lhci-tools/node_modules
@@ -213,17 +202,17 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -231,7 +220,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Restore build cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next
           key: ${{ needs.build.outputs.build-cache-key }}
@@ -250,7 +239,7 @@ jobs:
           fi
 
       - name: Restore LHCI tools cache
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: |
             lhci-tools/node_modules
@@ -351,7 +340,7 @@ jobs:
 
       - name: Upload Lighthouse report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: lighthouse-${{ matrix.device }}
           path: lighthouse-reports/
@@ -372,13 +361,13 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: lighthouse-results
 
       - name: Generate PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -450,7 +439,7 @@ jobs:
 
       - name: Generate Actions Summary
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -514,7 +503,7 @@ jobs:
       - name: Prepare Discord notification
         if: always()
         id: prepare-discord
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs').promises;

@@ -541,7 +541,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                   </h3>
                   <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
                 </div>
-                <div className="bg-white dark:bg-card rounded-2xl sm:rounded-3xl border border-border/50 shadow-sm">
+                <div className="bg-white dark:bg-card rounded-2xl sm:rounded-3xl border border-border/50 shadow-xs">
                   <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
                     <div className="p-3 space-y-3 sm:p-4 sm:space-y-4">
                       {nebenkostenEntries.length === 0 ? (
@@ -568,7 +568,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                               value={entry.date}
                               onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
                               placeholder="Datum (TT.MM.JJJJ)"
-                              className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`}
+                              className={`${nebenkostenValidationErrors[entry.id]?.date ? 'border-red-500!' : ''}`}
                               disabled={isSubmitting}
                             />
                             {nebenkostenValidationErrors[entry.id]?.date && (

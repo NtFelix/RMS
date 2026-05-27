@@ -298,7 +298,7 @@ export default function MieterClientView({
               title={currentTab === 'mieter' ? "Mieter gesamt" : "Bewerber gesamt"}
               value={summary.total}
               icon={<Users className="h-4 w-4 text-muted-foreground" />}
-              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             {currentTab === 'mieter' && (
               <>
@@ -306,7 +306,7 @@ export default function MieterClientView({
                   title="Aktiv / Ehemalig"
                   value={`${summary.activeCount} / ${summary.formerCount}`}
                   icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
-                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                 />
                 <StatCard
                   title="Ø Nebenkosten"
@@ -314,13 +314,13 @@ export default function MieterClientView({
                   unit="€"
                   decimals
                   icon={<Euro className="h-4 w-4 text-muted-foreground" />}
-                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                 />
               </>
             )}
           </div>
 
-          <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+          <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
             <CardHeader>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>

@@ -1,137 +1,672 @@
+/* 
+  Tailwind CSS v4 Configuration
+  Migration Guide: https://tailwindcss.com/docs/upgrade-guide
+  Next.js Guide: https://tailwindcss.com/docs/installation/framework-guides/nextjs
+*/
+@import 'tailwindcss';
+@plugin 'tailwindcss-animate';
 /* Template Editor Styles */
-@import '../styles/template-editor.css';
+@import '../styles/template-editor.css' layer(base);
 
 /* Mobile Touch Optimization Styles */
-@import '../styles/mobile-touch-optimizations.css';
+@import '../styles/mobile-touch-optimizations.css' layer(base);
 
 /* Mobile Navigation Accessibility Styles */
-@import '../styles/mobile-navigation-accessibility.css';
+@import '../styles/mobile-navigation-accessibility.css' layer(base);
 
+@source '../**/*.{js,ts,jsx,tsx,mdx}';
 
+@custom-variant dark (&:is(.dark *));
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Prose styles for markdown preview */
-.prose {
-  color: var(--foreground);
-  max-width: none;
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
 }
 
-.prose h1 {
-  font-size: 2.25rem;
-  font-weight: 800;
-  line-height: 1.1;
-  margin-top: 0;
-  margin-bottom: 1rem;
-  color: hsl(var(--foreground));
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-success: #22c55e;
+  --color-success-foreground: #ffffff;
+
+  --color-btn-bg: hsl(var(--btn-bg));
+  --color-btn-hover: hsl(var(--btn-hover));
+  --color-text-disabled: hsl(var(--text-disabled));
+  --color-input-placeholder: hsl(var(--input-placeholder));
+  --color-main-container: hsl(var(--main-container));
+  --color-sidebar-container: hsl(var(--background));
+  --color-sidebar-header: hsl(var(--background));
+  --color-sidebar-footer: hsl(var(--background));
+  --color-header-container: hsl(var(--background));
+  --color-table-row-hover: hsl(var(--primary) / 0.1);
+  --color-btn-outline-hover: hsl(var(--primary) / 0.15);
+  --color-btn-ghost-hover: hsl(var(--primary) / 0.12);
+  --color-context-menu-item: hsl(var(--primary) / 0.15);
+  --color-context-menu-subtrigger: hsl(var(--primary) / 0.15);
+  --color-context-menu-checkbox: hsl(var(--primary) / 0.15);
+  --color-context-menu-radio: hsl(var(--primary) / 0.15);
+  --color-modal-close-hover: hsl(var(--primary) / 0.15);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.5rem);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.5rem);
+  --radius-3xl: calc(var(--radius) + 0.75rem);
+  --radius-4xl: calc(var(--radius) + 1rem);
+  --radius-pill: 9999px;
+  --radius-nested-sm: calc(var(--radius) - 0.5rem);
+  --radius-nested-md: calc(var(--radius) - 0.375rem);
+  --radius-nested-lg: calc(var(--radius) - 0.25rem);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-collapsible-down: collapsible-down 0.2s ease-out;
+  --animate-collapsible-up: collapsible-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-scale-in: scale-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-bounce-subtle: bounce-subtle 0.6s ease-in-out;
+
+  --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+    }
+  }
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes scale-in {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  @keyframes slide-up {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes bounce-subtle {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-2px);
+    }
+  }
 }
 
-.prose h2 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  line-height: 1.2;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  color: hsl(var(--foreground));
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
 }
 
-.prose h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.3;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-  color: hsl(var(--foreground));
+@utility summary-card {
+  @apply border-2 border-border;
 }
 
-.prose h4 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
+@utility btn-custom {
+  /* Custom dark mode button styles */
+  .dark & {
+    background-color: hsl(var(--btn-bg));
+    border-color: hsl(var(--border));
+  }
+
+  .dark &:hover {
+    background-color: hsl(var(--btn-hover));
+  }
 }
 
-.prose h5 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
+@utility shadow-custom {
+  /* Custom shadow for dark mode */
+  .dark & {
+    box-shadow: 0 2px 12px rgba(36, 56, 99, 0.4);
+  }
 }
 
-.prose h6 {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
+@utility main-container {
+  /* Main container styling for dark mode */
+  .dark & {
+    background-color: hsl(var(--main-container));
+    border-color: hsl(var(--border));
+  }
 }
 
-.prose p {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  line-height: 1.7;
+@utility sidebar-container {
+  /* Sidebar styling for dark mode - use same background as main to hide borders */
+  .dark & {
+    background-color: hsl(var(--background));
+    /* Use main background color */
+    border-right-color: hsl(var(--background));
+    /* Match main background */
+  }
 }
 
-.prose strong {
-  font-weight: 600;
-  color: hsl(var(--foreground));
+@utility sidebar-header {
+  .dark & {
+    border-bottom-color: hsl(var(--background));
+    /* Match main background */
+  }
 }
 
-.prose em {
-  font-style: italic;
+@utility sidebar-footer {
+  .dark & {
+    border-top-color: hsl(var(--background));
+    /* Match main background */
+  }
 }
 
-.prose code {
-  background-color: hsl(var(--muted));
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+@utility header-container {
+  /* Header border styling for dark mode - hide border by matching background */
+  .dark & {
+    border-bottom-color: hsl(var(--background));
+    /* Match main background */
+  }
 }
 
-.prose ul {
-  list-style-type: disc;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  padding-left: 1.5rem;
+@utility table-row-hover {
+  /* Enhanced hover styles for dark mode */
+  /* Table row hover - use darker blue instead of muted */
+  .dark &:hover {
+    background-color: hsl(var(--primary) / 0.1);
+    /* Subtle darker blue hover */
+  }
 }
 
-.prose ol {
-  list-style-type: decimal;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  padding-left: 1.5rem;
+@utility btn-outline-hover {
+  /* Button hover enhancements for dark mode */
+  .dark &:hover {
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for outline buttons */
+    border-color: hsl(var(--primary) / 0.3);
+  }
 }
 
-.prose li {
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-  line-height: 1.7;
+@utility btn-ghost-hover {
+  .dark &:hover {
+    background-color: hsl(var(--primary) / 0.12);
+    /* Darker blue for ghost buttons */
+  }
 }
 
-.prose a {
-  color: hsl(var(--primary));
-  text-decoration: underline;
-  text-underline-offset: 2px;
+@utility context-menu-item {
+  /* Context menu hover enhancements for dark mode */
+  .dark &:focus {
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for context menu items */
+  }
 }
 
-.prose a:hover {
-  text-decoration: none;
+@utility context-menu-subtrigger {
+  .dark &:focus {
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for submenu triggers */
+  }
+
+  .dark &[data-state='open'] {
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for submenu triggers */
+  }
 }
 
-.prose img {
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-  border-radius: 0.5rem;
-  max-width: 100%;
-  height: auto;
+@utility context-menu-checkbox {
+  .dark &:focus {
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for checkbox/radio items */
+  }
+}
+
+@utility context-menu-radio {
+  .dark &:focus {
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for checkbox/radio items */
+  }
+}
+
+@utility modal-close-hover {
+  /* Modal close button hover enhancement */
+  .dark &:hover {
+    background-color: hsl(var(--primary) / 0.15);
+    /* Darker blue for modal close button */
+  }
+}
+
+@utility animate-shimmer {
+  /* Shimmer animation for loading states */
+  animation: shimmer 2s infinite;
+}
+
+@utility animate-pulse-staggered {
+  /* Staggered pulse animation */
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  &:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  &:nth-child(2) {
+    animation-delay: 100ms;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 200ms;
+  }
+
+  &:nth-child(4) {
+    animation-delay: 300ms;
+  }
+
+  &:nth-child(5) {
+    animation-delay: 400ms;
+  }
+
+  &:nth-child(6) {
+    animation-delay: 500ms;
+  }
+
+  &:nth-child(7) {
+    animation-delay: 600ms;
+  }
+
+  &:nth-child(8) {
+    animation-delay: 700ms;
+  }
+}
+
+@utility loading-transition {
+  /* Smooth transitions for loading states */
+  transition:
+    opacity 200ms ease-in-out,
+    transform 200ms ease-in-out;
+}
+
+@utility animate-fade-in-up {
+  /* Content fade-in animation */
+  animation: fadeInUp 300ms ease-out;
+}
+
+@utility template-grid {
+  /* Template-specific responsive utilities */
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@utility template-modal-content {
+  /* Enhanced modal responsive behavior */
+  width: 95vw;
+  max-height: 95vh;
+
+  @media (min-width: 640px) {
+    width: 90vw;
+    max-height: 90vh;
+  }
+}
+
+@utility touch-target {
+  /* Touch-friendly button sizing */
+  min-height: 44px;
+  min-width: 44px;
+
+  @media (min-width: 640px) {
+    min-height: auto;
+    min-width: auto;
+  }
+}
+
+@utility truncate-mobile {
+  /* Responsive text truncation */
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  @media (min-width: 640px) {
+    max-width: none;
+  }
+}
+
+@utility mobile-nav-responsive {
+  /* Mobile navigation responsive behavior - CSS-only fallbacks */
+  display: block;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+}
+
+@utility desktop-sidebar-responsive {
+  /* Desktop sidebar responsive behavior - CSS-only fallbacks */
+  display: none;
+
+  @media (min-width: 768px) {
+    display: block;
+  }
+}
+
+@utility main-content-responsive {
+  /* Main content responsive padding - CSS-only fallbacks */
+  padding-bottom: 5rem;
+  /* 80px for mobile nav */
+
+  @media (min-width: 768px) {
+    padding-bottom: 1.5rem;
+    /* 24px for desktop */
+  }
+}
+
+@utility hydration-safe-mobile {
+  /* Hydration-safe responsive utilities */
+  display: block;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+}
+
+@utility hydration-safe-desktop {
+  display: none;
+
+  @media (min-width: 768px) {
+    display: block;
+  }
+}
+
+@utility responsive-transition {
+  /* Smooth transitions for responsive changes */
+  transition:
+    padding-bottom 200ms ease-in-out,
+    margin-bottom 200ms ease-in-out;
+}
+
+@utility prevent-layout-shift {
+  /* Prevent layout shift during hydration */
+  min-height: 0;
+  contain: layout style;
+}
+
+@utility pb-safe {
+  /* Safe area support for mobile navigation - balanced padding */
+  padding-top: 0.5rem;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@utility mobile-nav-item {
+  /* Enhanced mobile navigation animations */
+  transform-origin: center;
+  will-change: transform, background-color, color;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+@utility dropdown-enter {
+  /* Smooth dropdown animations */
+  animation: dropdownSlideIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility dropdown-exit {
+  animation: dropdownSlideOut 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility mobile-nav-focus {
+  /* Enhanced focus styles for mobile navigation */
+  outline: 2px solid hsl(var(--primary) / 0.2);
+  outline-offset: 2px;
+}
+
+@utility mobile-nav-backdrop-fallback {
+  @supports not (backdrop-filter: blur(8px)) {
+    background-color: hsl(var(--background) / 0.98);
+  }
+}
+
+@utility dropdown-trigger-colors {
+  /* Backdrop blur support fallback */
+
+  /* Dropdown trigger colors for light and dark mode */
+  background-color: hsl(210, 15%, 24%);
+  border-color: hsl(210, 18%, 20%);
+  box-shadow: 0 1px 2px hsl(210, 20%, 15%, 0.4);
+
+  .dark & {
+    background-color: hsl(220, 20%, 25%);
+    border-color: hsl(220, 25%, 20%);
+    box-shadow: 0 1px 2px hsl(220, 30%, 15%, 0.5);
+  }
+}
+
+@utility hover-desktop {
+  /* Table row hover effect - matches TenantTable */
+  @apply transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998];
+}
+
+@layer utilities {
+  /* Prose styles for markdown preview */
+  .prose {
+    color: var(--foreground);
+    max-width: none;
+  }
+
+  .prose h1 {
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: hsl(var(--foreground));
+  }
+
+  .prose h2 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: hsl(var(--foreground));
+  }
+
+  .prose h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: hsl(var(--foreground));
+  }
+
+  .prose h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: hsl(var(--foreground));
+  }
+
+  .prose h5 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    color: hsl(var(--foreground));
+  }
+
+  .prose h6 {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    color: hsl(var(--foreground));
+  }
+
+  .prose p {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    line-height: 1.7;
+  }
+
+  .prose strong {
+    font-weight: 600;
+    color: hsl(var(--foreground));
+  }
+
+  .prose em {
+    font-style: italic;
+  }
+
+  .prose code {
+    background-color: hsl(var(--muted));
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-family:
+      ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono',
+      Menlo, monospace;
+  }
+
+  .prose ul {
+    list-style-type: disc;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+  }
+
+  .prose ol {
+    list-style-type: decimal;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+  }
+
+  .prose li {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.7;
+  }
+
+  .prose a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .prose a:hover {
+    text-decoration: none;
+  }
+
+  .prose img {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+  }
 }
 
 @layer base {
@@ -308,106 +843,43 @@
   }
 }
 
+/* Custom scrollbar styling */
+@utility custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Compatibility for data-scroll-area */
+[data-scroll-area] {
+  @apply custom-scrollbar;
+}
+
 @layer utilities {
-  .summary-card {
-    @apply border-2 border-border;
-  }
-
-  /* Custom dark mode button styles */
-  .dark .btn-custom {
-    background-color: hsl(var(--btn-bg));
-    border-color: hsl(var(--border));
-  }
-
-  .dark .btn-custom:hover {
-    background-color: hsl(var(--btn-hover));
-  }
-
-  /* Custom input placeholder styling */
-  .dark input::placeholder,
-  .dark textarea::placeholder {
-    color: hsl(var(--input-placeholder));
-  }
-
-  /* Custom shadow for dark mode */
-  .dark .shadow-custom {
-    box-shadow: 0 2px 12px rgba(36, 56, 99, 0.4);
-  }
-
-  /* Main container styling for dark mode */
-  .dark .main-container {
-    background-color: hsl(var(--main-container));
-    border-color: hsl(var(--border));
-  }
-
-  /* Sidebar styling for dark mode - use same background as main to hide borders */
-  .dark .sidebar-container {
-    background-color: hsl(var(--background));
-    /* Use main background color */
-    border-right-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  .dark .sidebar-header {
-    border-bottom-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  .dark .sidebar-footer {
-    border-top-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  /* Header border styling for dark mode - hide border by matching background */
-  .dark .header-container {
-    border-bottom-color: hsl(var(--background));
-    /* Match main background */
-  }
-
-  /* Enhanced hover styles for dark mode */
-  /* Table row hover - use darker blue instead of muted */
-  .dark .table-row-hover:hover {
-    background-color: hsl(var(--primary) / 0.1);
-    /* Subtle darker blue hover */
-  }
-
-  /* Button hover enhancements for dark mode */
-  .dark .btn-outline-hover:hover {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for outline buttons */
-    border-color: hsl(var(--primary) / 0.3);
-  }
-
-  .dark .btn-ghost-hover:hover {
-    background-color: hsl(var(--primary) / 0.12);
-    /* Darker blue for ghost buttons */
-  }
-
-  /* Context menu hover enhancements for dark mode */
-  .dark .context-menu-item:focus {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for context menu items */
-  }
-
-  .dark .context-menu-subtrigger:focus,
-  .dark .context-menu-subtrigger[data-state="open"] {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for submenu triggers */
-  }
-
-  .dark .context-menu-checkbox:focus,
-  .dark .context-menu-radio:focus {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for checkbox/radio items */
-  }
-
-  /* Modal close button hover enhancement */
-  .dark .modal-close-hover:hover {
-    background-color: hsl(var(--primary) / 0.15);
-    /* Darker blue for modal close button */
-  }
-
-  /* Shimmer animation for loading states */
   @keyframes shimmer {
     0% {
       transform: translateX(-100%);
@@ -418,53 +890,6 @@
     }
   }
 
-  .animate-shimmer {
-    animation: shimmer 2s infinite;
-  }
-
-  /* Staggered pulse animation */
-  .animate-pulse-staggered {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .animate-pulse-staggered:nth-child(1) {
-    animation-delay: 0ms;
-  }
-
-  .animate-pulse-staggered:nth-child(2) {
-    animation-delay: 100ms;
-  }
-
-  .animate-pulse-staggered:nth-child(3) {
-    animation-delay: 200ms;
-  }
-
-  .animate-pulse-staggered:nth-child(4) {
-    animation-delay: 300ms;
-  }
-
-  .animate-pulse-staggered:nth-child(5) {
-    animation-delay: 400ms;
-  }
-
-  .animate-pulse-staggered:nth-child(6) {
-    animation-delay: 500ms;
-  }
-
-  .animate-pulse-staggered:nth-child(7) {
-    animation-delay: 600ms;
-  }
-
-  .animate-pulse-staggered:nth-child(8) {
-    animation-delay: 700ms;
-  }
-
-  /* Smooth transitions for loading states */
-  .loading-transition {
-    transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
-  }
-
-  /* Content fade-in animation */
   @keyframes fadeInUp {
     from {
       opacity: 0;
@@ -475,193 +900,6 @@
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  .animate-fade-in-up {
-    animation: fadeInUp 300ms ease-out;
-  }
-
-  /* Template-specific responsive utilities */
-  .template-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  @media (min-width: 640px) {
-    .template-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .template-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-
-  @media (min-width: 1280px) {
-    .template-grid {
-      grid-template-columns: repeat(4, 1fr);
-    }
-  }
-
-  /* Enhanced modal responsive behavior */
-  .template-modal-content {
-    width: 95vw;
-    max-height: 95vh;
-  }
-
-  @media (min-width: 640px) {
-    .template-modal-content {
-      width: 90vw;
-      max-height: 90vh;
-    }
-  }
-
-  /* Touch-friendly button sizing */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  @media (min-width: 640px) {
-    .touch-target {
-      min-height: auto;
-      min-width: auto;
-    }
-  }
-
-  /* Custom scrollbar styling for combobox dropdowns */
-  [data-scroll-area]::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 4px;
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 4px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--muted-foreground) / 0.5);
-  }
-
-  [data-scroll-area]::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  /* Responsive text truncation */
-  .truncate-mobile {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  @media (min-width: 640px) {
-    .truncate-mobile {
-      max-width: none;
-    }
-  }
-
-  /* Mobile navigation responsive behavior - CSS-only fallbacks */
-  .mobile-nav-responsive {
-    display: block;
-  }
-
-  @media (min-width: 768px) {
-    .mobile-nav-responsive {
-      display: none;
-    }
-  }
-
-  /* Desktop sidebar responsive behavior - CSS-only fallbacks */
-  .desktop-sidebar-responsive {
-    display: none;
-  }
-
-  @media (min-width: 768px) {
-    .desktop-sidebar-responsive {
-      display: block;
-    }
-  }
-
-  /* Main content responsive padding - CSS-only fallbacks */
-  .main-content-responsive {
-    padding-bottom: 5rem;
-    /* 80px for mobile nav */
-  }
-
-  @media (min-width: 768px) {
-    .main-content-responsive {
-      padding-bottom: 1.5rem;
-      /* 24px for desktop */
-    }
-  }
-
-  /* Hydration-safe responsive utilities */
-  .hydration-safe-mobile {
-    display: block;
-  }
-
-  @media (min-width: 768px) {
-    .hydration-safe-mobile {
-      display: none;
-    }
-  }
-
-  .hydration-safe-desktop {
-    display: none;
-  }
-
-  @media (min-width: 768px) {
-    .hydration-safe-desktop {
-      display: block;
-    }
-  }
-
-  /* Smooth transitions for responsive changes */
-  .responsive-transition {
-    transition: padding-bottom 200ms ease-in-out, margin-bottom 200ms ease-in-out;
-  }
-
-  /* Prevent layout shift during hydration */
-  .prevent-layout-shift {
-    min-height: 0;
-    contain: layout style;
-  }
-
-  /* Safe area support for mobile navigation - balanced padding */
-  .pb-safe {
-    padding-top: 0.5rem;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-  }
-
-  /* Enhanced mobile navigation animations */
-  .mobile-nav-item {
-    transform-origin: center;
-    will-change: transform, background-color, color;
-  }
-
-  .mobile-nav-item:active {
-    transform: scale(0.95);
-  }
-
-  /* Smooth dropdown animations */
-  .dropdown-enter {
-    animation: dropdownSlideIn 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .dropdown-exit {
-    animation: dropdownSlideOut 200ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   @keyframes dropdownSlideIn {
@@ -686,36 +924,5 @@
       opacity: 0;
       transform: translateY(10px) scale(0.95);
     }
-  }
-
-  /* Enhanced focus styles for mobile navigation */
-  .mobile-nav-focus {
-    outline: 2px solid hsl(var(--primary) / 0.2);
-    outline-offset: 2px;
-  }
-
-  /* Backdrop blur support fallback */
-  @supports not (backdrop-filter: blur(8px)) {
-    .mobile-nav-backdrop-fallback {
-      background-color: hsl(var(--background) / 0.98);
-    }
-  }
-
-  /* Dropdown trigger colors for light and dark mode */
-  .dropdown-trigger-colors {
-    background-color: hsl(210, 15%, 24%);
-    border-color: hsl(210, 18%, 20%);
-    box-shadow: 0 1px 2px hsl(210, 20%, 15%, 0.4);
-  }
-
-  .dark .dropdown-trigger-colors {
-    background-color: hsl(220, 20%, 25%);
-    border-color: hsl(220, 25%, 20%);
-    box-shadow: 0 1px 2px hsl(220, 30%, 15%, 0.5);
-  }
-
-  /* Table row hover effect - matches TenantTable */
-  .hover-desktop {
-    @apply transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998];
   }
 }

@@ -106,7 +106,7 @@ export function TagInput({
     ).filter(cat => cat.tags.length > 0);
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={setOpen} modal={true}>
             <PopoverTrigger asChild>
                 <Button
                     variant="outline"
@@ -138,21 +138,21 @@ export function TagInput({
                                             className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1 h-6 max-w-[120px]"
                                             onClick={(e) => handleRemoveTag(value[0], e)}
                                         >
-                                            <Hash className="h-3 w-3 opacity-50 flex-shrink-0" />
+                                            <Hash className="h-3 w-3 opacity-50 shrink-0" />
                                             <span className="truncate">{value[0]}</span>
-                                            <X className="h-3 w-3 flex-shrink-0" />
+                                            <X className="h-3 w-3 shrink-0" />
                                         </Badge>
                                     </motion.div>
                                 </AnimatePresence>
                                 {value.length > 1 && (
-                                    <Badge variant="outline" className="h-6 px-2 flex-shrink-0">
+                                    <Badge variant="outline" className="h-6 px-2 shrink-0">
                                         +{value.length - 1}
                                     </Badge>
                                 )}
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 ml-2 shrink-0">
                         {value.length > 0 && (
                             <X
                                 className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -164,7 +164,7 @@ export function TagInput({
                 </Button>
             </PopoverTrigger>
             <PopoverContent
-                className="w-[340px] p-0 overflow-hidden border border-border rounded-[2rem] shadow-2xl backdrop-blur-sm bg-popover"
+                className="w-[340px] p-0 overflow-hidden border border-border rounded-[2rem] shadow-2xl backdrop-blur-xs bg-popover"
                 align="start"
                 sideOffset={8}
             >
@@ -214,7 +214,7 @@ export function TagInput({
                                     <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                                         {CATEGORY_CONFIG[category].label}
                                     </span>
-                                    <div className="h-[1px] flex-1 bg-gradient-to-r from-muted to-transparent ml-1" />
+                                    <div className="h-px flex-1 bg-linear-to-r from-muted to-transparent ml-1" />
                                 </div>
                                 <div className="flex flex-wrap gap-2 px-1">
                                     {tags.map((tag) => {
@@ -229,10 +229,10 @@ export function TagInput({
                                                     "border flex items-center gap-1.5 active:scale-95",
                                                     isSelected
                                                         ? cn(
-                                                            "bg-gradient-to-br border-primary/50 text-primary shadow-sm",
+                                                            "bg-linear-to-br border-primary/50 text-primary shadow-xs",
                                                             CATEGORY_CONFIG[category].gradient
                                                         )
-                                                        : "bg-background border-muted-foreground/10 text-muted-foreground hover:border-primary/30 hover:text-foreground hover:shadow-sm"
+                                                        : "bg-background border-muted-foreground/10 text-muted-foreground hover:border-primary/30 hover:text-foreground hover:shadow-xs"
                                                 )}
                                                 onClick={() => handleTagToggle(tag)}
                                             >

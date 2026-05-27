@@ -7,6 +7,7 @@ import { useTemplates } from '@/hooks/use-templates';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { Template, TemplatePayload } from '@/types/template';
 import { toast } from '@/hooks/use-toast';
+import { useTemplateFilters } from '@/hooks/use-templates';
 
 // Mock all dependencies
 jest.mock('@/hooks/use-templates');
@@ -39,6 +40,9 @@ jest.mock('@/components/templates/template-editor', () => ({
 const mockUseTemplates = useTemplates as jest.MockedFunction<typeof useTemplates>;
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 const mockToast = toast as jest.MockedFunction<typeof toast>;
+
+// Mock useTemplateFilters as well
+const mockUseTemplateFilters = useTemplateFilters as jest.MockedFunction<typeof useTemplateFilters>;
 
 describe('Template Management E2E Workflow', () => {
   let mockTemplates: Template[];
@@ -113,6 +117,15 @@ describe('Template Management E2E Workflow', () => {
       deleteTemplate: mockDeleteTemplate,
       getTemplate: jest.fn(),
       refreshTemplates: mockRefreshTemplates,
+    });
+
+    mockUseTemplateFilters.mockReturnValue({
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectedCategory: 'all',
+      setSelectedCategory: jest.fn(),
+      filteredTemplates: mockTemplates,
+      groupedTemplates: { 'Dokumente': mockTemplates },
     });
 
     mockUseModalStore.mockReturnValue({
