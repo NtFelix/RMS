@@ -29,6 +29,7 @@ import { useStorageUsage } from "@/hooks/use-storage-usage"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState, useDirectoryActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
+import posthog from "posthog-js"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
@@ -2183,6 +2184,7 @@ function SidebarContent({
   const storageUsage = useStorageUsage(currentUser, documents.reduce((sum, doc) => sum + Number(doc.dateigroesse || 0), 0))
 
   const fetchApartmentData = async () => {
+    const startTime = performance.now()
     try {
       setIsDataLoading(true)
       const supabase = createBrowserClient()
@@ -2190,6 +2192,42 @@ function SidebarContent({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // 1. Primary: Try single aggregated RPC request
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_sidebar_insights_data')
+        if (rpcError) throw rpcError
+
+        if (rpcData) {
+          const duration = Math.round(performance.now() - startTime)
+          posthog.capture('sidebar_data_fetched_rpc', {
+            duration_ms: duration,
+            success: true,
+            fallback_used: false
+          })
+          console.log(`[Sidebar] Successfully loaded insights data via RPC in ${duration}ms`)
+
+          if (rpcData.apartments) setApartments(rpcData.apartments)
+          if (rpcData.tenants) setTenants(rpcData.tenants)
+          if (rpcData.meters) setMeters(rpcData.meters)
+          if (rpcData.houses) setHouses(rpcData.houses)
+          if (rpcData.finanzen) setFinanzen(rpcData.finanzen)
+          if (rpcData.nebenkosten) setNebenkosten(rpcData.nebenkosten)
+          if (rpcData.tasks) setTasks(rpcData.tasks)
+          if (rpcData.documents) setDocuments(rpcData.documents)
+          return
+        }
+      } catch (rpcErr) {
+        const rpcDuration = Math.round(performance.now() - startTime)
+        posthog.capture('sidebar_data_fetched_rpc', {
+          duration_ms: rpcDuration,
+          success: false,
+          error: rpcErr instanceof Error ? rpcErr.message : String(rpcErr)
+        })
+        console.warn(`[Sidebar] RPC fetching failed after ${rpcDuration}ms, trying client fallback:`, rpcErr)
+      }
+
+      // 2. Fallback: Standard parallel fetches
+      const fallbackStartTime = performance.now()
       const [aptsRes, tenantsRes, metersRes, housesRes, finanzenRes, nebenkostenRes, tasksRes, docsRes] = await Promise.all([
         supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id').eq('user_id', user.id),
         supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,status,kaution').eq('user_id', user.id),
@@ -2200,6 +2238,13 @@ function SidebarContent({
         supabase.from('Aufgaben').select('id,name,beschreibung,ist_erledigt,faelligkeitsdatum,erstellungsdatum').eq('user_id', user.id),
         supabase.from('Dokumente_Metadaten').select('id,dateigroesse,mime_type,erstellungsdatum').eq('user_id', user.id)
       ])
+
+      const fallbackDuration = Math.round(performance.now() - fallbackStartTime)
+      posthog.capture('sidebar_data_fetched_fallback', {
+        duration_ms: fallbackDuration,
+        success: true
+      })
+      console.log(`[Sidebar] Fallback queries completed in ${fallbackDuration}ms`)
 
       if (aptsRes.data) setApartments(aptsRes.data)
       if (tenantsRes.data) setTenants(tenantsRes.data)
