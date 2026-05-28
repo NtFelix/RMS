@@ -722,12 +722,15 @@ export function CloudStorage({
                             </div>
                         </div>
 
+
                         {/* File Tree Navigation */}
-                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs space-y-3">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                        <div className="flex-1 min-h-0 flex flex-col gap-2">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1 shrink-0">
                                 Ordnerstruktur
                             </div>
-                            <FileTreeView userId={userId} />
+                            <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
+                                <FileTreeView userId={userId} />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

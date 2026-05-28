@@ -341,64 +341,81 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     const Icon = node.icon
 
     return (
-      <div key={node.id} className="select-none">
+      <div key={node.id} className="w-full">
         <div
           className={cn(
-            "flex items-center py-1 px-2 rounded-md cursor-pointer hover:bg-accent transition-colors",
-            isSelected && "bg-accent font-medium",
-            isActiveDirectory && getDirectoryActiveClasses(node.path),
-            level > 0 && "ml-4",
+            "group relative flex items-center gap-1.5 py-1 px-1.5 rounded-lg cursor-pointer transition-all duration-150 ease-out select-none active:scale-[0.99]",
+            isSelected 
+              ? "bg-accent text-white font-semibold shadow-md shadow-accent/15"
+              : isActiveDirectory && !isSelected
+                ? "bg-zinc-50/50 dark:bg-zinc-900/10 text-zinc-800 dark:text-zinc-300"
+                : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200",
             isNavigating && "opacity-50 pointer-events-none"
           )}
-          style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => handleNodeClick(node)}
           data-folder-path={node.path}
-          data-active-directory={isActiveDirectory}
-          aria-current={isActiveDirectory ? "page" : undefined}
         >
-          {hasChildren && (
+          {hasChildren ? (
             <button
-              className="mr-1 p-0.5 hover:bg-accent-foreground/10 rounded"
+              className={cn(
+                "shrink-0 p-0.5 rounded-md transition-colors z-10",
+                isSelected
+                  ? "hover:bg-white/20 text-white/80"
+                  : "hover:bg-zinc-200/50 dark:hover:bg-zinc-700/40 text-zinc-400 dark:text-zinc-500"
+              )}
               onClick={(e) => {
                 e.stopPropagation()
                 handleNodeExpand(node.id)
               }}
             >
-              {isExpanded ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
+              <ChevronRight 
+                className={cn(
+                  "h-3 w-3 transition-transform duration-200", 
+                  isExpanded && "rotate-90"
+                )} 
+              />
             </button>
+          ) : (
+            <div className="w-4 shrink-0" />
           )}
-          {!hasChildren && <div className="w-4 mr-1" />}
 
           <Icon className={cn(
-            "h-4 w-4 mr-2 shrink-0",
-            node.type === 'house' && "text-blue-500",
-            node.type === 'apartment' && "text-green-500",
-            node.type === 'tenant' && "text-purple-500",
-            node.type === 'category' && "text-orange-500",
-            node.type === 'archive' && "text-gray-500"
+            "h-3.5 w-3.5 shrink-0 transition-colors",
+            isSelected
+              ? "text-white"
+              : node.type === 'archive'
+                ? "text-zinc-400 dark:text-zinc-600"
+                : "text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300",
+            !isSelected && node.type === 'house' && "text-blue-500 dark:text-blue-400",
+            !isSelected && node.type === 'apartment' && "text-green-500 dark:text-green-400",
+            !isSelected && node.type === 'tenant' && "text-purple-500 dark:text-purple-400",
+            !isSelected && node.type === 'category' && "text-orange-500 dark:text-orange-400",
+            !isSelected && node.type === 'archive' && "text-gray-500 dark:text-gray-450"
           )} />
 
-          <span className="text-sm truncate flex-1">{node.name}</span>
+          <span className={cn(
+            "text-xs truncate flex-1 tracking-wide leading-none",
+            isSelected ? "text-white" : "text-zinc-700 dark:text-zinc-300"
+          )}>{node.name}</span>
 
           {node.fileCount > 0 && (
-            <span className="text-xs text-muted-foreground ml-2">
+            <span className={cn(
+              "text-[10px] ml-2 shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400",
+              isSelected && "bg-white/20 text-white"
+            )}>
               {node.fileCount}
             </span>
           )}
 
           {node.isEmpty && (
-            <span className="text-xs text-muted-foreground ml-2">
+            <span className="text-[10px] text-muted-foreground ml-2 shrink-0">
               leer
             </span>
           )}
         </div>
 
         {hasChildren && isExpanded && (
-          <div>
+          <div className="ml-3 pl-3.5 mt-0.5 mb-1 border-l border-zinc-200/60 dark:border-zinc-800/40 space-y-0.5 animate-in fade-in slide-in-from-top-0.5 duration-100">
             {node.children.map(child => renderTreeNode(child, level + 1))}
           </div>
         )}
