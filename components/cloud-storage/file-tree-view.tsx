@@ -21,7 +21,6 @@ interface TreeNode {
   type: 'root' | 'house' | 'apartment' | 'tenant' | 'category' | 'archive'
   icon: React.ComponentType<{ className?: string }>
   children: TreeNode[]
-  isExpanded: boolean
   fileCount: number
   isEmpty: boolean
 }
@@ -58,7 +57,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         type: 'root',
         icon: Home,
         children: [],
-        isExpanded: expandedNodes.has('root'),
         fileCount: 0,
         isEmpty: false
       }
@@ -72,7 +70,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           type: 'category' as const,
           icon: Building,
           children: [] as TreeNode[],
-          isExpanded: expandedNodes.has('haeuser'),
           fileCount: 0,
           isEmpty: false
         },
@@ -83,7 +80,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           type: 'category' as const,
           icon: FileText,
           children: [] as TreeNode[],
-          isExpanded: expandedNodes.has('miscellaneous'),
           fileCount: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')),
           isEmpty: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')) === 0
         },
@@ -94,7 +90,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           type: 'archive' as const,
           icon: Archive,
           children: [] as TreeNode[],
-          isExpanded: expandedNodes.has('archive'),
           fileCount: getFileCountFromStore(buildUserPath(userId, '__archive__')),
           isEmpty: getFileCountFromStore(buildUserPath(userId, '__archive__')) === 0
         }
@@ -112,7 +107,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           type: 'house',
           icon: Building,
           children: [],
-          isExpanded: expandedNodes.has(`house-${house.id}`),
           fileCount: houseFileCount,
           isEmpty: houseFileCount === 0
         }
@@ -127,7 +121,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           type: 'category',
           icon: FileText,
           children: [],
-          isExpanded: false,
           fileCount: houseDocsFileCount,
           isEmpty: houseDocsFileCount === 0
         }
@@ -145,7 +138,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
             type: 'apartment',
             icon: Home,
             children: [],
-            isExpanded: expandedNodes.has(`apartment-${apartment.id}`),
             fileCount: apartmentFileCount,
             isEmpty: apartmentFileCount === 0
           }
@@ -160,7 +152,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
             type: 'category',
             icon: FileText,
             children: [],
-            isExpanded: false,
             fileCount: apartmentDocsFileCount,
             isEmpty: apartmentDocsFileCount === 0
           }
@@ -178,7 +169,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
               type: 'tenant',
               icon: Users,
               children: [],
-              isExpanded: false,
               fileCount: tenantFileCount,
               isEmpty: tenantFileCount === 0
             }
@@ -205,7 +195,6 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         type: 'category' as const,
         icon: Folder,
         children: [] as TreeNode[],
-        isExpanded: expandedNodes.has(`custom-${folder.name}`),
         fileCount: folder.fileCount,
         isEmpty: folder.isEmpty
       }))
@@ -219,7 +208,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
     if (!isLoading && !error) {
       setTreeData(buildTreeStructure())
     }
-  }, [userId, houses, apartments, tenants, expandedNodes, isLoading, error, folders])
+  }, [userId, houses, apartments, tenants, isLoading, error, folders])
 
   // Generate breadcrumbs from current path
   const generateBreadcrumbs = (path: string): BreadcrumbItem[] => {
