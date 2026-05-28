@@ -2,6 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { FinanceDonutChart } from "@/components/dashboard/dashboard-charts";
 
 import dynamic from "next/dynamic";
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info } from "lucide-react";
@@ -91,8 +94,59 @@ export default function FinanzenClientWrapper({
   isUsingFallbackYear = false,
   currentYear = new Date().getFullYear()
 }: FinanzenClientWrapperProps) {
+  const [currentTab, setCurrentTab] = useState<"finance" | "overview">("finance");
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
+
+  // Compute stats for finance dashboard overview
+  const financeStats = useMemo(() => {
+    if (!finData || finData.length === 0) {
+      return {
+        totalIncome: 0,
+        totalExpenses: 0,
+        netCashflow: 0,
+        cashflowRatio: 0,
+        avgTransaction: 0,
+        expenseTags: {} as Record<string, number>,
+      }
+    }
+
+    let totalIncome = 0
+    let totalExpenses = 0
+    const expenseTags: Record<string, number> = {}
+
+    finData.forEach(item => {
+      const amount = Number(item.betrag || 0)
+      if (item.ist_einnahmen) {
+        totalIncome += amount
+      } else {
+        totalExpenses += amount
+        const tags = item.tags || []
+        if (tags.length > 0) {
+          tags.forEach((t: string) => {
+            const cleanTag = t.trim()
+            expenseTags[cleanTag] = (expenseTags[cleanTag] || 0) + amount
+          })
+        } else {
+          expenseTags['Sonstiges'] = (expenseTags['Sonstiges'] || 0) + amount
+        }
+      }
+    })
+
+    const netCashflow = totalIncome - totalExpenses
+    const cashflowRatio = totalIncome > 0 ? Math.round((netCashflow / totalIncome) * 100) : 0
+    const avgTransaction = finData.length > 0 ? Math.round((totalIncome + totalExpenses) / finData.length) : 0
+
+    return {
+      totalIncome,
+      totalExpenses,
+      netCashflow,
+      cashflowRatio,
+      avgTransaction,
+      expenseTags,
+    }
+  }, [finData])
+
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
   const [page, setPage] = useState(1);
@@ -496,226 +550,347 @@ export default function FinanzenClientWrapper({
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
+      {/* Visual Toggle Pill */}
+      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
+        <motion.button
+          layout
+          onClick={() => setCurrentTab("finance")}
+          className={cn(
+            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+            currentTab === "finance" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {currentTab === "finance" && (
+            <motion.div
+              layoutId="active-finanzen-tab-pill"
+              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
+          )}
+          <Wallet className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <span>Finanzen</span>
+        </motion.button>
 
-      {/* Fallback Year Notification Banner */}
-      {isUsingFallbackYear && initialYear && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
-          <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-              Daten aus {initialYear} werden angezeigt
-            </p>
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Für das aktuelle Jahr ({currentYear}) liegen noch keine Finanzdaten vor.
-            </p>
+        <motion.button
+          layout
+          onClick={() => setCurrentTab("overview")}
+          className={cn(
+            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+            currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {currentTab === "overview" && (
+            <motion.div
+              layoutId="active-finanzen-tab-pill"
+              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
+          )}
+          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <span>Übersicht</span>
+        </motion.button>
+      </div>
+
+      {currentTab === "finance" ? (
+        <>
+          {/* Fallback Year Notification Banner */}
+          {isUsingFallbackYear && initialYear && (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+              <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Daten aus {initialYear} werden angezeigt
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Für das aktuelle Jahr ({currentYear}) liegen noch keine Finanzdaten vor.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Summary Cards for Current Year */}
+          <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
+            {isSummaryLoading && hasInitialData ? (
+              <>
+                <SummaryCardSkeleton
+                  title="Ø Monatliche Einnahmen"
+                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                />
+                <SummaryCardSkeleton
+                  title="Ø Monatliche Ausgaben"
+                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                />
+                <SummaryCardSkeleton
+                  title="Ø Monatlicher Cashflow"
+                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                />
+                <SummaryCardSkeleton
+                  title="Jahresprognose"
+                  icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+                />
+              </>
+            ) : (
+              <>
+                <SummaryCard
+                  title="Ø Monatliche Einnahmen"
+                  value={averageMonthlyIncome}
+                  description="Durchschnittliche monatliche Einnahmen"
+                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                  isLoading={isSummaryLoading}
+                />
+                <SummaryCard
+                  title="Ø Monatliche Ausgaben"
+                  value={averageMonthlyExpenses}
+                  description="Durchschnittliche monatliche Ausgaben"
+                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                  isLoading={isSummaryLoading}
+                />
+                <SummaryCard
+                  title="Ø Monatlicher Cashflow"
+                  value={averageMonthlyCashflow}
+                  description="Durchschnittlicher monatlicher Überschuss"
+                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                  isLoading={isSummaryLoading}
+                />
+                <SummaryCard
+                  title="Jahresprognose"
+                  value={yearlyProjection}
+                  description="Geschätzter Jahresgewinn"
+                  icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+                  isLoading={isSummaryLoading}
+                />
+              </>
+            )}
+          </div>
+
+          <FinanceVisualization
+            finances={finData}
+            summaryData={summaryData}
+            availableYears={availableYears}
+            initialYear={initialYear}
+            key={summaryData?.year}
+          />
+
+          {/* Filtered Summary Cards */}
+          <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
+            {balanceLoading ? (
+              <>
+                <SummaryCardSkeleton
+                  title="Gefilterte Einnahmen"
+                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                />
+                <SummaryCardSkeleton
+                  title="Gefilterte Ausgaben"
+                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                />
+                <SummaryCardSkeleton
+                  title="Aktueller Saldo"
+                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                />
+              </>
+            ) : (
+              <>
+                <SummaryCard
+                  title="Gefilterte Einnahmen"
+                  value={filteredIncome}
+                  description="Einnahmen basierend auf aktuellen Filtern"
+                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                  isLoading={balanceLoading}
+                />
+                <SummaryCard
+                  title="Gefilterte Ausgaben"
+                  value={filteredExpenses}
+                  description="Ausgaben basierend auf aktuellen Filtern"
+                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                  isLoading={balanceLoading}
+                />
+                <SummaryCard
+                  title="Aktueller Saldo"
+                  value={totalBalance}
+                  description="Gesamtsaldo aller Transaktionen"
+                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                  isLoading={balanceLoading}
+                />
+              </>
+            )}
+          </div>
+
+          <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Finanzverwaltung</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
+                </div>
+                <div className="mt-0 sm:mt-1">
+                  <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="h-4 w-4" />} shortText="Hinzufügen">
+                    Transaktion hinzufügen
+                  </ResponsiveButtonWithTooltip>
+                </div>
+              </div>
+            </CardHeader>
+            <div className="px-4 sm:px-6">
+              <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+            </div>
+            <CardContent className="flex flex-col gap-6">
+              <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+                {/* Filter Controls */}
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 w-full md:flex-1">
+                    <CustomCombobox
+                      options={apartmentOptions}
+                      value={filters.selectedApartment}
+                      onChange={(value) => handleFilterChange('selectedApartment', value ?? ALL_APARTMENTS_FILTER)}
+                      placeholder="Wohnung auswählen"
+                      searchPlaceholder="Wohnung suchen..."
+                      emptyText="Keine Wohnung gefunden"
+                      width="w-full"
+                    />
+                    <CustomCombobox
+                      options={yearOptions}
+                      value={filters.selectedYear}
+                      onChange={(value) => handleFilterChange('selectedYear', value ?? ALL_YEARS_FILTER)}
+                      placeholder="Jahr auswählen"
+                      searchPlaceholder="Jahr suchen..."
+                      emptyText="Kein Jahr gefunden"
+                      width="w-full"
+                    />
+                    <CustomCombobox
+                      options={[
+                        { value: "Alle Transaktionen", label: "Alle Transaktionen" },
+                        { value: "Einnahme", label: "Einnahme" },
+                        { value: "Ausgabe", label: "Ausgabe" }
+                      ]}
+                      value={filters.selectedType}
+                      onChange={(value) => handleFilterChange('selectedType', value ?? 'Alle Transaktionen')}
+                      placeholder="Transaktionstyp auswählen"
+                      searchPlaceholder="Typ suchen..."
+                      emptyText="Kein Typ gefunden"
+                      width="w-full"
+                    />
+                    <div className="col-span-1 sm:col-span-2 md:col-span-1">
+                      <TagInput
+                        value={filters.selectedTags}
+                        onChange={(tags) => setFilters({ ...filters, selectedTags: tags })}
+                        placeholder="Tags filtern..."
+                      />
+                    </div>
+                    <SearchInput
+                      placeholder="Transaktion suchen..."
+                      wrapperClassName="col-span-1 sm:col-span-2 md:col-span-1"
+                      value={filters.searchQuery}
+                      onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+                      onClear={() => handleFilterChange('searchQuery', '')}
+                    />
+                  </div>
+                </div>
+
+                <FinanceBulkActionBar
+                  selectedFinances={selectedFinances}
+                  wohnungsMap={wohnungsMap}
+                  onClearSelection={() => setSelectedFinances(new Set())}
+                  onExport={handleBulkExport}
+                  onDelete={handleBulkDelete}
+                  onUpdate={handleBulkUpdateSuccess}
+                />
+              </div>
+              <FinanceTable
+                finances={finData}
+                wohnungen={wohnungen}
+                filter={filters.selectedType}
+                searchQuery={filters.searchQuery}
+                onEdit={handleEdit}
+                onRefresh={refreshFinances}
+                selectedFinances={selectedFinances}
+                onSelectionChange={setSelectedFinances}
+                isFilterLoading={isFilterLoading}
+                hasMore={hasMore}
+                isLoading={isLoading}
+                error={error}
+                loadFinances={() => loadMoreTransactions(false)}
+              />
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <div className="flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-300">
+          {/* Stat Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Einnahmen"
+              value={financeStats.totalIncome}
+              unit="€"
+              decimals
+              icon={<ArrowUpCircle className="h-4 w-4 text-emerald-500" />}
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+            />
+            <StatCard
+              title="Ausgaben"
+              value={financeStats.totalExpenses}
+              unit="€"
+              decimals
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+            />
+            <StatCard
+              title="Netto-Cashflow"
+              value={financeStats.netCashflow}
+              unit="€"
+              decimals
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+            />
+            <StatCard
+              title="Ø pro Transaktion"
+              value={financeStats.avgTransaction}
+              unit="€"
+              decimals
+              icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+            />
+          </div>
+
+          {/* Two-Column Analytics Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Box: Flow-Quote */}
+            <div className="lg:col-span-5 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col gap-6 h-full">
+              <div>
+                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Flow-Quote</h3>
+                <p className="text-xs text-muted-foreground mt-1">Verhältnis von Netto-Überschuss zu Gesamteinnahmen</p>
+              </div>
+
+              <div className="flex flex-col gap-4 mt-2">
+                <div className="flex justify-between items-center text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                  <span>Überschuss-Verhältnis</span>
+                  <span className="text-accent text-lg">{financeStats.cashflowRatio}%</span>
+                </div>
+                <div className="h-3 w-full bg-zinc-200/50 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                  <div
+                    className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                    style={{ width: `${Math.min(100, Math.max(0, financeStats.cashflowRatio))}%` }}
+                  />
+                </div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-1">
+                  Der Netto-Überschuss Ihres Portfolios beträgt aktuell {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(financeStats.netCashflow)}.
+                </div>
+              </div>
+            </div>
+
+            {/* Right Box: Donut Chart Distribution */}
+            <div className="lg:col-span-7 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs">
+              <div className="mb-4">
+                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Ausgaben-Verteilung</h3>
+                <p className="text-xs text-muted-foreground mt-1">Verteilung der Transaktions-Tags über Ihre Einnahmen und Ausgaben</p>
+              </div>
+              <div className="w-full flex items-center justify-center p-2">
+                <div className="w-full max-w-[340px]">
+                  <FinanceDonutChart finanzen={finData} />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Summary Cards for Current Year */}
-      <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 md:grid-cols-4 sm:gap-4">
-        {isSummaryLoading && hasInitialData ? (
-          <>
-            <SummaryCardSkeleton
-              title="Ø Monatliche Einnahmen"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-            />
-            <SummaryCardSkeleton
-              title="Ø Monatliche Ausgaben"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-            />
-            <SummaryCardSkeleton
-              title="Ø Monatlicher Cashflow"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-            />
-            <SummaryCardSkeleton
-              title="Jahresprognose"
-              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard
-              title="Ø Monatliche Einnahmen"
-              value={averageMonthlyIncome}
-              description="Durchschnittliche monatliche Einnahmen"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Ø Monatliche Ausgaben"
-              value={averageMonthlyExpenses}
-              description="Durchschnittliche monatliche Ausgaben"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Ø Monatlicher Cashflow"
-              value={averageMonthlyCashflow}
-              description="Durchschnittlicher monatlicher Überschuss"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Jahresprognose"
-              value={yearlyProjection}
-              description="Geschätzter Jahresgewinn"
-              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
-              isLoading={isSummaryLoading}
-            />
-          </>
-        )}
-      </div>
-
-      <FinanceVisualization
-        finances={finData}
-        summaryData={summaryData}
-        availableYears={availableYears}
-        initialYear={initialYear}
-        key={summaryData?.year}
-      />
-
-      {/* Filtered Summary Cards */}
-      <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-4">
-        {balanceLoading ? (
-          <>
-            <SummaryCardSkeleton
-              title="Gefilterte Einnahmen"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-            />
-            <SummaryCardSkeleton
-              title="Gefilterte Ausgaben"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-            />
-            <SummaryCardSkeleton
-              title="Aktueller Saldo"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard
-              title="Gefilterte Einnahmen"
-              value={filteredIncome}
-              description="Einnahmen basierend auf aktuellen Filtern"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-              isLoading={balanceLoading}
-            />
-            <SummaryCard
-              title="Gefilterte Ausgaben"
-              value={filteredExpenses}
-              description="Ausgaben basierend auf aktuellen Filtern"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-              isLoading={balanceLoading}
-            />
-            <SummaryCard
-              title="Aktueller Saldo"
-              value={totalBalance}
-              description="Gesamtsaldo aller Transaktionen"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-              isLoading={balanceLoading}
-            />
-          </>
-        )}
-      </div>
-
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle>Finanzverwaltung</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
-            </div>
-            <div className="mt-0 sm:mt-1">
-              <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="h-4 w-4" />} shortText="Hinzufügen">
-                Transaktion hinzufügen
-              </ResponsiveButtonWithTooltip>
-            </div>
-          </div>
-        </CardHeader>
-        <div className="px-4 sm:px-6">
-          <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-        </div>
-        <CardContent className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-            {/* Filter Controls */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 w-full md:flex-1">
-                <CustomCombobox
-                  options={apartmentOptions}
-                  value={filters.selectedApartment}
-                  onChange={(value) => handleFilterChange('selectedApartment', value ?? ALL_APARTMENTS_FILTER)}
-                  placeholder="Wohnung auswählen"
-                  searchPlaceholder="Wohnung suchen..."
-                  emptyText="Keine Wohnung gefunden"
-                  width="w-full"
-                />
-                <CustomCombobox
-                  options={yearOptions}
-                  value={filters.selectedYear}
-                  onChange={(value) => handleFilterChange('selectedYear', value ?? ALL_YEARS_FILTER)}
-                  placeholder="Jahr auswählen"
-                  searchPlaceholder="Jahr suchen..."
-                  emptyText="Kein Jahr gefunden"
-                  width="w-full"
-                />
-                <CustomCombobox
-                  options={[
-                    { value: "Alle Transaktionen", label: "Alle Transaktionen" },
-                    { value: "Einnahme", label: "Einnahme" },
-                    { value: "Ausgabe", label: "Ausgabe" }
-                  ]}
-                  value={filters.selectedType}
-                  onChange={(value) => handleFilterChange('selectedType', value ?? 'Alle Transaktionen')}
-                  placeholder="Transaktionstyp auswählen"
-                  searchPlaceholder="Typ suchen..."
-                  emptyText="Kein Typ gefunden"
-                  width="w-full"
-                />
-                <div className="col-span-1 sm:col-span-2 md:col-span-1">
-                  <TagInput
-                    value={filters.selectedTags}
-                    onChange={(tags) => setFilters({ ...filters, selectedTags: tags })}
-                    placeholder="Tags filtern..."
-                  />
-                </div>
-                <SearchInput
-                  placeholder="Transaktion suchen..."
-                  wrapperClassName="col-span-1 sm:col-span-2 md:col-span-1"
-                  value={filters.searchQuery}
-                  onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
-                  onClear={() => handleFilterChange('searchQuery', '')}
-                />
-              </div>
-
-            </div>
-
-            <FinanceBulkActionBar
-              selectedFinances={selectedFinances}
-              wohnungsMap={wohnungsMap}
-              onClearSelection={() => setSelectedFinances(new Set())}
-              onExport={handleBulkExport}
-              onDelete={handleBulkDelete}
-              onUpdate={handleBulkUpdateSuccess}
-            />
-          </div>
-          <FinanceTable
-            finances={finData}
-            wohnungen={wohnungen}
-            filter={filters.selectedType}
-            searchQuery={filters.searchQuery}
-            onEdit={handleEdit}
-            onRefresh={refreshFinances} // Pass the refresh function here
-            selectedFinances={selectedFinances}
-            onSelectionChange={setSelectedFinances}
-            isFilterLoading={isFilterLoading}
-            hasMore={hasMore}
-            isLoading={isLoading}
-            error={error}
-            loadFinances={() => loadMoreTransactions(false)}
-          />
-        </CardContent>
-      </Card>
     </div>
   );
 }

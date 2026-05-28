@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
@@ -16,9 +17,18 @@ export function DashboardLayout({
   children: React.ReactNode
   sidebarData: SidebarUserData
 }) {
+  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const { preference } = useSidebarStore()
+
+  const isNoSidebarRoute = [
+    "/betriebskosten",
+    "/finanzen",
+    "/mieter",
+    "/wohnungen",
+    "/haeuser"
+  ].some(route => pathname === route || pathname.startsWith(route + "/"))
 
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
@@ -110,7 +120,7 @@ export function DashboardLayout({
         <div 
           className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
           style={{
-            width: preference === 'expanded' ? "23rem" : "5rem"
+            width: isNoSidebarRoute ? "5rem" : (preference === 'expanded' ? "23rem" : "5rem")
           }}
         >
           <DashboardSidebar sidebarData={sidebarData} />
