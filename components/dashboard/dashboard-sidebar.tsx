@@ -155,7 +155,8 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
     "/finanzen",
     "/mieter",
     "/wohnungen",
-    "/haeuser"
+    "/haeuser",
+    "/todos"
   ].some(route => pathname === route || pathname.startsWith(route + "/"))
   
   const isCollapsed = isResponsiveCollapsed || 

@@ -178,24 +178,24 @@ export function TaskCalendar({
                     </Popover>
                 </div>
 
-                <div className="bg-muted/50 p-1 rounded-full flex items-center gap-1">
+                <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative select-none z-0">
                     {(["week", "month", "year"] as const).map((v) => (
                         <button
                             key={v}
                             onClick={() => setView(v)}
                             className={cn(
-                                "relative px-3 py-1 text-xs font-medium rounded-full transition-colors z-10",
-                                view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                                "flex items-center justify-center rounded-full h-8 px-4 relative outline-none cursor-pointer text-xs font-medium transition-colors duration-300 z-10",
+                                view === v ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             {view === v && (
                                 <motion.div
                                     layoutId="activeViewPill"
-                                    className="absolute inset-0 bg-background rounded-full shadow-xs border border-border/50 -z-10"
-                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
                                 />
                             )}
-                            {v === "week" ? "Woche" : v === "month" ? "Monat" : "Jahr"}
+                            <span>{v === "week" ? "Woche" : v === "month" ? "Monat" : "Jahr"}</span>
                         </button>
                     ))}
                 </div>

@@ -27,7 +27,8 @@ export function DashboardLayout({
     "/finanzen",
     "/mieter",
     "/wohnungen",
-    "/haeuser"
+    "/haeuser",
+    "/todos"
   ].some(route => pathname === route || pathname.startsWith(route + "/"))
 
   // Prevent hydration errors and handle responsive behavior
