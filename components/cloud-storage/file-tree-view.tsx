@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive } from "lucide-react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
@@ -29,6 +29,7 @@ interface TreeNode {
 export function FileTreeView({ userId, className }: FileTreeViewProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root']))
+  const [filterQuery, setFilterQuery] = useState('')
 
   const {
     currentPath,
@@ -332,6 +333,62 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     })
   }
 
+  const handleCollapseAll = useCallback(() => {
+    setExpandedNodes(new Set(['root']))
+  }, [])
+
+  const handleExpandAll = useCallback(() => {
+    const allIds = new Set<string>()
+    const collectIds = (nodes: TreeNode[]) => {
+      nodes.forEach(n => {
+        allIds.add(n.id)
+        if (n.children.length > 0) collectIds(n.children)
+      })
+    }
+    collectIds(treeData)
+    setExpandedNodes(allIds)
+  }, [treeData])
+
+  // Filtered tree data based on query
+  const filteredTreeData = useMemo(() => {
+    if (!filterQuery.trim()) return treeData
+
+    const query = filterQuery.toLowerCase().trim()
+    const filterNodes = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes
+        .map(node => {
+          const matches = node.name.toLowerCase().includes(query)
+          const filteredChildren = filterNodes(node.children)
+          
+          if (matches || filteredChildren.length > 0) {
+            return {
+              ...node,
+              children: filteredChildren
+            }
+          }
+          return null
+        })
+        .filter((n): n is TreeNode => n !== null)
+    }
+
+    return filterNodes(treeData)
+  }, [treeData, filterQuery])
+
+  // Automatic expansion when searching
+  useEffect(() => {
+    if (filterQuery.trim()) {
+      const allIds = new Set<string>()
+      const collectIds = (nodes: TreeNode[]) => {
+        nodes.forEach(n => {
+          allIds.add(n.id)
+          if (n.children.length > 0) collectIds(n.children)
+        })
+      }
+      collectIds(filteredTreeData)
+      setExpandedNodes(allIds)
+    }
+  }, [filterQuery, filteredTreeData])
+
   // Render tree node
   const renderTreeNode = (node: TreeNode, level: number = 0): React.ReactNode => {
     const hasChildren = node.children.length > 0
@@ -445,8 +502,55 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
   }
 
   return (
-    <div className={cn("space-y-1", className)}>
-      {treeData.map(node => renderTreeNode(node))}
+    <div className={cn("space-y-3", className)}>
+      {/* File Tree Toolbar */}
+      <div className="flex items-center gap-1.5 px-0.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/40">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+          <input
+            type="text"
+            placeholder="Ordner filtern..."
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            className="w-full pl-7.5 pr-6.5 py-1.5 text-[10.5px] bg-zinc-50 dark:bg-[#121212] border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40 transition-all font-medium"
+          />
+          {filterQuery && (
+            <button
+              onClick={() => setFilterQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-1">
+          <button
+            onClick={handleExpandAll}
+            title="Alle ausklappen"
+            className="p-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+          >
+            <FolderOpen className="h-3 w-3" />
+          </button>
+          <button
+            onClick={handleCollapseAll}
+            title="Alle einklappen"
+            className="p-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+          >
+            <Folder className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* File Tree Body */}
+      <div className="space-y-0.5">
+        {filteredTreeData.length === 0 ? (
+          <div className="text-[11px] text-zinc-400 dark:text-zinc-500 py-6 text-center italic">
+            Keine Ordner gefunden
+          </div>
+        ) : (
+          filteredTreeData.map(node => renderTreeNode(node))
+        )}
+      </div>
     </div>
   )
 }
