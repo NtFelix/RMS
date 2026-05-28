@@ -8,10 +8,10 @@ import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } fr
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { useDirectoryActiveState } from "@/hooks/use-active-state-manager"
-
 interface FileTreeViewProps {
   userId: string
   className?: string
+  onFolderClick?: (path: string) => void
 }
 
 interface TreeNode {
@@ -26,7 +26,7 @@ interface TreeNode {
   isEmpty: boolean
 }
 
-export function FileTreeView({ userId, className }: FileTreeViewProps) {
+export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root']))
   const [filterQuery, setFilterQuery] = useState('')
@@ -313,7 +313,11 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
   // Handle node click with navigation interceptor
   const handleNodeClick = async (node: TreeNode) => {
     try {
-      await handleFolderClick(node.path)
+      if (onFolderClick) {
+        onFolderClick(node.path)
+      } else {
+        await handleFolderClick(node.path)
+      }
     } catch (error) {
       console.error('Navigation failed in file tree:', error)
       // Error handling is managed by the navigation interceptor

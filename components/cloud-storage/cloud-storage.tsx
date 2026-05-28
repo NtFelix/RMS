@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileTreeView } from "@/components/cloud-storage/file-tree-view"
 import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-cloud-storage-store"
+import { useCloudStorageNavigationStore } from "@/hooks/use-cloud-storage-navigation"
 import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
@@ -209,10 +210,16 @@ export function CloudStorage({
                     )
                 }
             }
-        } else {
-            router.push(pathToUrl(path))
         }
     }, [localCurrentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+
+    // Synchronize with external navigation store changes (e.g. sidebar file tree click)
+    const navCurrentPath = useCloudStorageNavigationStore(state => state.currentPath)
+    useEffect(() => {
+        if (navCurrentPath && navCurrentPath !== localCurrentPath) {
+            handleNavigate(navCurrentPath, true, true)
+        }
+    }, [navCurrentPath, localCurrentPath, handleNavigate])
 
     /**
      * Handle folder navigation
@@ -641,34 +648,6 @@ export function CloudStorage({
                     </div>
 
                     <CardContent className="flex-1 flex flex-col gap-4 pt-2 overflow-y-auto custom-scrollbar min-h-0">
-                        {/* Speichernutzung progress widget */}
-                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs space-y-3 shrink-0">
-                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                                <span>Speichernutzung</span>
-                                <span className={cn(
-                                    storageLimit && totalFileSize >= storageLimit ? "text-red-500" : (storageLimit && (totalFileSize / storageLimit) >= 0.8) ? "text-amber-500" : "text-accent"
-                                )}>
-                                    {storageLimit ? `${((totalFileSize / storageLimit) * 100).toFixed(0)}%` : "0%"}
-                                </span>
-                            </div>
-                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
-                                <div 
-                                    className={cn(
-                                        "h-full rounded-full transition-all duration-500",
-                                        storageLimit && totalFileSize >= storageLimit 
-                                            ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" 
-                                            : (storageLimit && (totalFileSize / storageLimit) >= 0.8)
-                                            ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" 
-                                            : "bg-accent shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                                    )}
-                                    style={{ width: `${storageLimit ? Math.min(100, (totalFileSize / storageLimit) * 100) : 0}%` }}
-                                />
-                            </div>
-                            <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                                {formatFileSize(totalFileSize)} von {storageLimit ? formatFileSize(storageLimit) : "unbegrenzt"} verwendet
-                            </div>
-                        </div>
-
                         {/* Distribution by File Type */}
                         <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs space-y-3.5 shrink-0">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
@@ -729,7 +708,10 @@ export function CloudStorage({
                                 Ordnerstruktur
                             </div>
                             <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
-                                <FileTreeView userId={userId} />
+                                <FileTreeView 
+                                    userId={userId} 
+                                    onFolderClick={(path) => handleNavigate(path, true, false)}
+                                />
                             </div>
                         </div>
                     </CardContent>
