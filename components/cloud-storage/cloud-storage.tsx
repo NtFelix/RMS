@@ -8,9 +8,15 @@ import {
     FolderOpen,
     Plus,
     ArrowUp,
-    AlertCircle
+    AlertCircle,
+    FileText,
+    FileSpreadsheet,
+    Image,
+    File
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { FileTreeView } from "@/components/cloud-storage/file-tree-view"
 import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-cloud-storage-store"
 import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
@@ -375,6 +381,43 @@ export function CloudStorage({
      */
     const totalFileSize = totalStorageSize
 
+    const formatFileSize = useCallback((bytes: number): string => {
+        if (bytes === 0) return '0 B'
+        const k = 1024
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
+    }, [])
+
+    const documentStats = useMemo(() => {
+        const totalFiles = files.length
+        
+        // Count of each file type
+        const pdfCount = files.filter(doc => (doc.name || '').toLowerCase().endsWith('.pdf')).length
+        
+        // spreadsheet count
+        const spreadsheetCount = files.filter(doc => {
+            const ext = (doc.name || '').split('.').pop()?.toLowerCase()
+            return ['xls', 'xlsx', 'csv', 'ods'].includes(ext || '')
+        }).length
+        
+        // image count
+        const imageCount = files.filter(doc => {
+            const ext = (doc.name || '').split('.').pop()?.toLowerCase()
+            return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext || '')
+        }).length
+        
+        const otherCount = totalFiles - (pdfCount + spreadsheetCount + imageCount)
+        
+        return {
+            totalFiles,
+            pdfCount,
+            spreadsheetCount,
+            imageCount,
+            otherCount
+        }
+    }, [files])
+
     /**
      * Handle item selection
      */
@@ -568,258 +611,371 @@ export function CloudStorage({
     const displayError = navigationError
 
     return (
-        <div className="flex flex-col gap-8 p-8 rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
+        <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch h-full min-h-0">
+                
+                {/* Left Column: 1/4 (lg:col-span-3) for Sidebar/Overview */}
+                <Card className="lg:col-span-3 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] overflow-hidden flex flex-col h-full min-h-0">
+                    <CardHeader className="pb-3 shrink-0">
+                        <CardTitle className="text-lg">Dateien Übersicht</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Speichernutzung und Struktur
+                        </p>
+                    </CardHeader>
 
-            {/* Summary Cards Container */}
-            <DocumentsSummaryCards
-                totalSize={totalFileSize}
-                storageLimit={storageLimit ?? initialStorageLimit}
-                isLoadingLimit={isLoadingLimit}
-                onUpload={handleUploadWithFiles}
-                onCreateFolder={handleCreateFolder}
-            />
+                    <div className="px-6 pb-2 shrink-0">
+                        <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+                    </div>
 
-            {/* Main File Container */}
-            <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] h-full flex flex-col">
-                {/* Header */}
-                <div className="border-b border-gray-200 dark:border-gray-700">
-                    <div className="p-6">
-                        <div className="flex flex-row items-start justify-between mb-6">
-                            <div>
-                                <h1 className="text-2xl font-semibold">Dateien</h1>
-                                <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Dateien und Ordner</p>
+                    <CardContent className="flex-1 flex flex-col gap-4 pt-2 overflow-y-auto custom-scrollbar min-h-0">
+                        {/* Speichernutzung progress widget */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs space-y-3 shrink-0">
+                            <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                <span>Speichernutzung</span>
+                                <span className={cn(
+                                    storageLimit && totalFileSize >= storageLimit ? "text-red-500" : (storageLimit && (totalFileSize / storageLimit) >= 0.8) ? "text-amber-500" : "text-accent"
+                                )}>
+                                    {storageLimit ? `${((totalFileSize / storageLimit) * 100).toFixed(0)}%` : "0%"}
+                                </span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                                <div 
+                                    className={cn(
+                                        "h-full rounded-full transition-all duration-500",
+                                        storageLimit && totalFileSize >= storageLimit 
+                                            ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" 
+                                            : (storageLimit && (totalFileSize / storageLimit) >= 0.8)
+                                            ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" 
+                                            : "bg-accent shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                                    )}
+                                    style={{ width: `${storageLimit ? Math.min(100, (totalFileSize / storageLimit) * 100) : 0}%` }}
+                                />
+                            </div>
+                            <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                                {formatFileSize(totalFileSize)} von {storageLimit ? formatFileSize(storageLimit) : "unbegrenzt"} verwendet
                             </div>
                         </div>
 
-                        {/* Quick Actions */}
-                        <CloudStorageQuickActions
-                            onUpload={handleUpload}
+                        {/* Distribution by File Type */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs space-y-3.5 shrink-0">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                                Verteilung nach Dateityp
+                            </div>
+                            
+                            <div className="flex flex-col gap-2.5">
+                                {/* PDF files */}
+                                <div className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1 rounded-lg bg-red-500/10 text-red-500">
+                                            <FileText className="h-3.5 w-3.5" />
+                                        </div>
+                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">PDF-Dokumente</span>
+                                    </div>
+                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.pdfCount}</span>
+                                </div>
+
+                                {/* Spreadsheets */}
+                                <div className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-500">
+                                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                                        </div>
+                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Tabellen & Excel</span>
+                                    </div>
+                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.spreadsheetCount}</span>
+                                </div>
+
+                                {/* Images */}
+                                <div className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1 rounded-lg bg-sky-500/10 text-sky-500">
+                                            <Image className="h-3.5 w-3.5" />
+                                        </div>
+                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Bilder & Scans</span>
+                                    </div>
+                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.imageCount}</span>
+                                </div>
+
+                                {/* Others */}
+                                <div className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1 rounded-lg bg-zinc-500/10 text-zinc-500">
+                                            <File className="h-3.5 w-3.5" />
+                                        </div>
+                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Sonstige</span>
+                                    </div>
+                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.otherCount}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* File Tree Navigation */}
+                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs space-y-3">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                                Ordnerstruktur
+                            </div>
+                            <FileTreeView userId={userId} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Right Column: 3/4 (lg:col-span-9) for CloudStorage main panel */}
+                <div className="lg:col-span-9 flex flex-col h-full min-h-0 gap-6 overflow-hidden">
+                    
+                    {/* Summary Cards Container */}
+                    <div className="shrink-0">
+                        <DocumentsSummaryCards
+                            totalSize={totalFileSize}
+                            storageLimit={storageLimit ?? initialStorageLimit}
+                            isLoadingLimit={isLoadingLimit}
+                            onUpload={handleUploadWithFiles}
                             onCreateFolder={handleCreateFolder}
-                            onCreateFile={handleCreateFile}
-                            onSearch={setSearchQuery}
-                            onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
-                            onViewMode={setViewMode}
-                            onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
-                            viewMode={viewMode}
-                            searchQuery={searchQuery}
-                            selectedCount={selectedItems.size}
-                            onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
-                            onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-                            isUploadDisabled={storageLimit === 0 || (storageLimit > 0 && totalFileSize >= storageLimit)}
-                            storageDisabledMessage={
-                                storageLimit === 0
-                                    ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
-                                    : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
-                            }
                         />
-
-                        {/* Breadcrumb Navigation */}
-                        <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
-                            <ol className="flex items-center space-x-1">
-                                {breadcrumbs.map((breadcrumb, index) => {
-                                    const isLast = index === breadcrumbs.length - 1
-
-                                    return (
-                                        <li key={breadcrumb.path} className="flex items-center">
-                                            {index > 0 && (
-                                                <span className="mx-2.5 text-muted-foreground/50">/</span>
-                                            )}
-
-                                            {isLast ? (
-                                                <span
-                                                    className={cn(
-                                                        "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                                                        "text-foreground font-medium cursor-default"
-                                                    )}
-                                                    aria-current="page"
-                                                >
-                                                    {breadcrumb.type === 'root' && (
-                                                        <FolderOpen className="h-4 w-4 mr-1.5" />
-                                                    )}
-                                                    <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                                                        {breadcrumb.name}
-                                                    </span>
-                                                </span>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleBreadcrumbClick(breadcrumb)}
-                                                    disabled={isNavigating}
-                                                    className={cn(
-                                                        "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                                                        "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer",
-                                                        "disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    )}
-                                                >
-                                                    {breadcrumb.type === 'root' && (
-                                                        <FolderOpen className="h-4 w-4 mr-1.5" />
-                                                    )}
-                                                    <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                                                        {breadcrumb.name}
-                                                    </span>
-                                                </button>
-                                            )}
-                                        </li>
-                                    )
-                                })}
-
-                                {/* Navigate Up Button */}
-                                {breadcrumbs.length > 1 && (
-                                    <li className="flex items-center ml-4">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleNavigateUp}
-                                            disabled={isNavigating}
-                                            className="h-8 px-2"
-                                        >
-                                            <ArrowUp className="h-4 w-4" />
-                                        </Button>
-                                    </li>
-                                )}
-                            </ol>
-                        </nav>
                     </div>
-                </div>
 
-                {/* Content Area */}
-                <div className="flex-1 overflow-auto">
-                    <div className="p-6">
-
-                        {/* Loading State - Premium Skeleton Loading */}
-                        {showLoading && (
-                            <div className="animate-in fade-in duration-300">
-                                {stats.retryCount > 0 && isNavigating && (
-                                    <div className="flex items-center justify-center space-x-2 text-amber-600 mb-6 bg-amber-50 dark:bg-amber-900/10 py-3 rounded-xl border border-amber-100 dark:border-amber-900/20 animate-pulse">
-                                        <RefreshCw className="h-4 w-4 animate-spin" />
-                                        <span className="text-sm font-medium">
-                                            Verbindungsproblem. Erneuter Versuch ({stats.retryCount}/{MAX_RETRIES})...
-                                        </span>
+                    {/* Main File Container */}
+                    <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] flex-1 flex flex-col min-h-0 overflow-hidden">
+                        {/* Header */}
+                        <div className="border-b border-gray-200 dark:border-gray-700 shrink-0">
+                            <div className="p-6">
+                                <div className="flex flex-row items-start justify-between mb-6">
+                                    <div>
+                                        <h1 className="text-2xl font-semibold">Dateien</h1>
+                                        <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Dateien und Ordner</p>
                                     </div>
-                                )}
-                                <FileGridSkeleton
+                                </div>
+
+                                {/* Quick Actions */}
+                                <CloudStorageQuickActions
+                                    onUpload={handleUpload}
+                                    onCreateFolder={handleCreateFolder}
+                                    onCreateFile={handleCreateFile}
+                                    onSearch={setSearchQuery}
+                                    onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
+                                    onViewMode={setViewMode}
+                                    onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
                                     viewMode={viewMode}
-                                    count={files.length > 0 ? Math.max(files.length + folders.length, 8) : 12}
-                                />
-                            </div>
-                        )}
-
-                        {/* Error State */}
-                        {displayError && !showLoading && (
-                            <div className="text-center py-16">
-                                <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                    <AlertCircle className="h-8 w-8 text-destructive" />
-                                </div>
-                                <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
-                                <p className="text-muted-foreground mb-4 max-w-md mx-auto">{displayError}</p>
-                                <div className="flex items-center justify-center space-x-3">
-                                    <Button onClick={() => handleRefresh(true)}>
-                                        <RefreshCw className="h-4 w-4 mr-2" />
-                                        Erneut versuchen
-                                    </Button>
-                                    <Button variant="outline" onClick={clearNavigationError}>
-                                        Fehler ignorieren
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Empty State */}
-                        {!showLoading && !displayError && sortedFolders.length === 0 && sortedFiles.length === 0 && (
-                            <div className="text-center py-16">
-                                <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
-                                </div>
-                                <h3 className="text-xl font-semibold mb-2">
-                                    {searchQuery ? 'Keine Ergebnisse gefunden' : 'Noch keine Dateien'}
-                                </h3>
-                                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                                    {searchQuery
-                                        ? `Keine Dateien oder Ordner entsprechen "${searchQuery}"`
-                                        : 'Laden Sie Ihre ersten Dateien hoch, um zu beginnen.'
+                                    searchQuery={searchQuery}
+                                    selectedCount={selectedItems.size}
+                                    onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
+                                    onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
+                                    isUploadDisabled={storageLimit === 0 || (storageLimit > 0 && totalFileSize >= storageLimit)}
+                                    storageDisabledMessage={
+                                        storageLimit === 0
+                                            ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
+                                            : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
                                     }
-                                </p>
-                                {!searchQuery && (
-                                    <div className="flex items-center justify-center space-x-3">
-                                        <Button onClick={handleUpload}>
-                                            <Upload className="h-4 w-4 mr-2" />
-                                            Dateien hochladen
-                                        </Button>
-                                        <Button variant="outline" onClick={handleCreateFolder}>
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Ordner erstellen
-                                        </Button>
+                                />
+
+                                {/* Breadcrumb Navigation */}
+                                <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
+                                    <ol className="flex items-center space-x-1">
+                                        {breadcrumbs.map((breadcrumb, index) => {
+                                            const isLast = index === breadcrumbs.length - 1
+
+                                            return (
+                                                <li key={breadcrumb.path} className="flex items-center">
+                                                    {index > 0 && (
+                                                        <span className="mx-2.5 text-muted-foreground/50">/</span>
+                                                    )}
+
+                                                    {isLast ? (
+                                                        <span
+                                                            className={cn(
+                                                                "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                                                                "text-foreground font-medium cursor-default"
+                                                            )}
+                                                            aria-current="page"
+                                                        >
+                                                            {breadcrumb.type === 'root' && (
+                                                                <FolderOpen className="h-4 w-4 mr-1.5" />
+                                                            )}
+                                                            <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                                                                {breadcrumb.name}
+                                                            </span>
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleBreadcrumbClick(breadcrumb)}
+                                                            disabled={isNavigating}
+                                                            className={cn(
+                                                                "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                                                                "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer",
+                                                                "disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            )}
+                                                        >
+                                                            {breadcrumb.type === 'root' && (
+                                                                <FolderOpen className="h-4 w-4 mr-1.5" />
+                                                            )}
+                                                            <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                                                                {breadcrumb.name}
+                                                            </span>
+                                                        </button>
+                                                    )}
+                                                </li>
+                                            )
+                                        })}
+
+                                        {/* Navigate Up Button */}
+                                        {breadcrumbs.length > 1 && (
+                                            <li className="flex items-center ml-4">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={handleNavigateUp}
+                                                    disabled={isNavigating}
+                                                    className="h-8 px-2"
+                                                >
+                                                    <ArrowUp className="h-4 w-4" />
+                                                </Button>
+                                            </li>
+                                        )}
+                                    </ol>
+                                </nav>
+                            </div>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-auto">
+                            <div className="p-6">
+
+                                {/* Loading State - Premium Skeleton Loading */}
+                                {showLoading && (
+                                    <div className="animate-in fade-in duration-300">
+                                        {stats.retryCount > 0 && isNavigating && (
+                                            <div className="flex items-center justify-center space-x-2 text-amber-600 mb-6 bg-amber-50 dark:bg-amber-900/10 py-3 rounded-xl border border-amber-100 dark:border-amber-900/20 animate-pulse">
+                                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                                <span className="text-sm font-medium">
+                                                    Verbindungsproblem. Erneuter Versuch ({stats.retryCount}/{MAX_RETRIES})...
+                                                </span>
+                                            </div>
+                                        )}
+                                        <FileGridSkeleton
+                                            viewMode={viewMode}
+                                            count={files.length > 0 ? Math.max(files.length + folders.length, 8) : 12}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Error State */}
+                                {displayError && !showLoading && (
+                                    <div className="text-center py-16">
+                                        <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                            <AlertCircle className="h-8 w-8 text-destructive" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
+                                        <p className="text-muted-foreground mb-4 max-w-md mx-auto">{displayError}</p>
+                                        <div className="flex items-center justify-center space-x-3">
+                                            <Button onClick={() => handleRefresh(true)}>
+                                                <RefreshCw className="h-4 w-4 mr-2" />
+                                                Erneut versuchen
+                                            </Button>
+                                            <Button variant="outline" onClick={clearNavigationError}>
+                                                Fehler ignorieren
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Empty State */}
+                                {!showLoading && !displayError && sortedFolders.length === 0 && sortedFiles.length === 0 && (
+                                    <div className="text-center py-16">
+                                        <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+                                            <FolderOpen className="h-12 w-12 text-muted-foreground" />
+                                        </div>
+                                        <h3 className="text-xl font-semibold mb-2">
+                                            {searchQuery ? 'Keine Ergebnisse gefunden' : 'Noch keine Dateien'}
+                                        </h3>
+                                        <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                                            {searchQuery
+                                                ? `Keine Dateien oder Ordner entsprechen "${searchQuery}"`
+                                                : 'Laden Sie Ihre ersten Dateien hoch, um zu beginnen.'
+                                            }
+                                        </p>
+                                        {!searchQuery && (
+                                            <div className="flex items-center justify-center space-x-3">
+                                                <Button onClick={handleUpload}>
+                                                    <Upload className="h-4 w-4 mr-2" />
+                                                    Dateien hochladen
+                                                </Button>
+                                                <Button variant="outline" onClick={handleCreateFolder}>
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Ordner erstellen
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Content Grid/List */}
+                                {!showLoading && !displayError && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
+                                    <div className={cn(
+                                        "gap-4",
+                                        viewMode === 'grid'
+                                            ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+                                            : "space-y-2"
+                                    )}>
+                                        {/* Render Folders */}
+                                        {sortedFolders.map((folder) => (
+                                            <CloudStorageItemCard
+                                                key={folder.path}
+                                                item={folder}
+                                                type="folder"
+                                                viewMode={viewMode}
+                                                isSelected={selectedItems.has(folder.path)}
+                                                onSelect={(selected) => handleItemSelect(folder.path, !!selected)}
+                                                onOpen={() => handleFolderClick(folder)}
+                                                onDelete={isFolderDeletable(folder) ? () => handleFolderDelete(folder) : undefined}
+                                                onMove={() => {
+                                                    const { openFileMoveModal } = useModalStore.getState()
+                                                    openFileMoveModal({
+                                                        item: folder,
+                                                        itemType: 'folder',
+                                                        currentPath: localCurrentPath,
+                                                        userId,
+                                                        onMove: async (targetPath: string) => {
+                                                            const { moveFolder } = await import('@/lib/storage-service')
+                                                            const targetFolderPath = `${targetPath}/${folder.name}`
+                                                            await moveFolder(folder.path, targetFolderPath)
+                                                            handleRefresh(false)
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        ))}
+
+                                        {/* Render Files */}
+                                        {sortedFiles.map((file) => (
+                                            <CloudStorageItemCard
+                                                key={file.id}
+                                                item={file}
+                                                type="file"
+                                                viewMode={viewMode}
+                                                isSelected={selectedItems.has(file.id)}
+                                                onSelect={(selected) => handleItemSelect(file.id, !!selected)}
+                                                onDownload={() => handleFileDownload(file)}
+                                                onDelete={() => handleFileDelete(file)}
+                                                onMove={() => {
+                                                    const { openFileMoveModal } = useModalStore.getState()
+                                                    openFileMoveModal({
+                                                        item: file,
+                                                        itemType: 'file',
+                                                        currentPath: localCurrentPath,
+                                                        userId,
+                                                        onMove: async (targetPath: string) => {
+                                                            const { moveFile } = await import('@/lib/storage-service')
+                                                            const targetFilePath = `${targetPath}/${file.name}`
+                                                            await moveFile(`${localCurrentPath}/${file.name}`, targetFilePath)
+                                                            handleRefresh(false)
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                        )}
-
-                        {/* Content Grid/List */}
-                        {!showLoading && !displayError && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
-                            <div className={cn(
-                                "gap-4",
-                                viewMode === 'grid'
-                                    ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
-                                    : "space-y-2"
-                            )}>
-                                {/* Render Folders */}
-                                {sortedFolders.map((folder) => (
-                                    <CloudStorageItemCard
-                                        key={folder.path}
-                                        item={folder}
-                                        type="folder"
-                                        viewMode={viewMode}
-                                        isSelected={selectedItems.has(folder.path)}
-                                        onSelect={(selected) => handleItemSelect(folder.path, !!selected)}
-                                        onOpen={() => handleFolderClick(folder)}
-                                        onDelete={isFolderDeletable(folder) ? () => handleFolderDelete(folder) : undefined}
-                                        onMove={() => {
-                                            const { openFileMoveModal } = useModalStore.getState()
-                                            openFileMoveModal({
-                                                item: folder,
-                                                itemType: 'folder',
-                                                currentPath: localCurrentPath,
-                                                userId,
-                                                onMove: async (targetPath: string) => {
-                                                    const { moveFolder } = await import('@/lib/storage-service')
-                                                    const targetFolderPath = `${targetPath}/${folder.name}`
-                                                    await moveFolder(folder.path, targetFolderPath)
-                                                    handleRefresh(false)
-                                                }
-                                            })
-                                        }}
-                                    />
-                                ))}
-
-                                {/* Render Files */}
-                                {sortedFiles.map((file) => (
-                                    <CloudStorageItemCard
-                                        key={file.id}
-                                        item={file}
-                                        type="file"
-                                        viewMode={viewMode}
-                                        isSelected={selectedItems.has(file.id)}
-                                        onSelect={(selected) => handleItemSelect(file.id, !!selected)}
-                                        onDownload={() => handleFileDownload(file)}
-                                        onDelete={() => handleFileDelete(file)}
-                                        onMove={() => {
-                                            const { openFileMoveModal } = useModalStore.getState()
-                                            openFileMoveModal({
-                                                item: file,
-                                                itemType: 'file',
-                                                currentPath: localCurrentPath,
-                                                userId,
-                                                onMove: async (targetPath: string) => {
-                                                    const { moveFile } = await import('@/lib/storage-service')
-                                                    const targetFilePath = `${targetPath}/${file.name}`
-                                                    await moveFile(`${localCurrentPath}/${file.name}`, targetFilePath)
-                                                    handleRefresh(false)
-                                                }
-                                            })
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             </div>
