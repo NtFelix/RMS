@@ -2196,26 +2196,25 @@ function SidebarContent({
       try {
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_sidebar_insights_data')
         if (rpcError) throw rpcError
+        if (!rpcData) throw new Error('No data returned from RPC')
 
-        if (rpcData) {
-          const duration = Math.round(performance.now() - startTime)
-          posthog.capture('sidebar_data_fetched_rpc', {
-            duration_ms: duration,
-            success: true,
-            fallback_used: false
-          })
-          console.log(`[Sidebar] Successfully loaded insights data via RPC in ${duration}ms`)
+        const duration = Math.round(performance.now() - startTime)
+        posthog.capture('sidebar_data_fetched_rpc', {
+          duration_ms: duration,
+          success: true,
+          fallback_used: false
+        })
+        console.log(`[Sidebar] Successfully loaded insights data via RPC in ${duration}ms`)
 
-          if (rpcData.apartments) setApartments(rpcData.apartments)
-          if (rpcData.tenants) setTenants(rpcData.tenants)
-          if (rpcData.meters) setMeters(rpcData.meters)
-          if (rpcData.houses) setHouses(rpcData.houses)
-          if (rpcData.finanzen) setFinanzen(rpcData.finanzen)
-          if (rpcData.nebenkosten) setNebenkosten(rpcData.nebenkosten)
-          if (rpcData.tasks) setTasks(rpcData.tasks)
-          if (rpcData.documents) setDocuments(rpcData.documents)
-          return
-        }
+        setApartments(rpcData.apartments || [])
+        setTenants(rpcData.tenants || [])
+        setMeters(rpcData.meters || [])
+        setHouses(rpcData.houses || [])
+        setFinanzen(rpcData.finanzen || [])
+        setNebenkosten(rpcData.nebenkosten || [])
+        setTasks(rpcData.tasks || [])
+        setDocuments(rpcData.documents || [])
+        return
       } catch (rpcErr) {
         const rpcDuration = Math.round(performance.now() - startTime)
         posthog.capture('sidebar_data_fetched_rpc', {

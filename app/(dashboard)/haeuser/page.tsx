@@ -20,20 +20,19 @@ export default async function HaeuserPage() {
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_sidebar_insights_data');
     if (rpcError) throw rpcError;
+    if (!rpcData) throw new Error('No data returned from RPC');
 
-    if (rpcData) {
-      const duration = Date.now() - startTime;
-      posthogLogger.info('HaeuserPage: Loaded data via RPC', {
-        'action.name': 'HaeuserPage_fetch',
-        'action.status': 'success',
-        'action.duration_ms': duration,
-        'action.user_id': user.id,
-        'action.method': 'RPC'
-      });
-      housesData = rpcData.houses;
-      apartmentsData = rpcData.apartments;
-      tenantsData = rpcData.tenants;
-    }
+    const duration = Date.now() - startTime;
+    posthogLogger.info('HaeuserPage: Loaded data via RPC', {
+      'action.name': 'HaeuserPage_fetch',
+      'action.status': 'success',
+      'action.duration_ms': duration,
+      'action.user_id': user.id,
+      'action.method': 'RPC'
+    });
+    housesData = rpcData.houses;
+    apartmentsData = rpcData.apartments;
+    tenantsData = rpcData.tenants;
   } catch (rpcErr) {
     const rpcDuration = Date.now() - startTime;
     posthogLogger.warn('HaeuserPage: RPC fetching failed, trying parallel selects fallback', {

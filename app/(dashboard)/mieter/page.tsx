@@ -23,28 +23,27 @@ export default async function MieterPage() {
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_sidebar_insights_data');
     if (rpcError) throw rpcError;
+    if (!rpcData) throw new Error('No data returned from RPC');
 
-    if (rpcData) {
-      const duration = Date.now() - startTime;
-      posthogLogger.info('MieterPage: Loaded data via RPC', {
-        'action.name': 'MieterPage_fetch',
-        'action.status': 'success',
-        'action.duration_ms': duration,
-        'action.user_id': user.id,
-        'action.method': 'RPC'
-      });
+    const duration = Date.now() - startTime;
+    posthogLogger.info('MieterPage: Loaded data via RPC', {
+      'action.name': 'MieterPage_fetch',
+      'action.status': 'success',
+      'action.duration_ms': duration,
+      'action.user_id': user.id,
+      'action.method': 'RPC'
+    });
 
-      // Construct nested Haeuser structure in memory
-      rawWohnungen = (rpcData.apartments || []).map((apt: any) => {
-        const house = (rpcData.houses || []).find((h: any) => h.id === apt.haus_id);
-        return {
-          ...apt,
-          Haeuser: house ? { name: house.name } : null
-        };
-      });
+    // Construct nested Haeuser structure in memory
+    rawWohnungen = (rpcData.apartments || []).map((apt: any) => {
+      const house = (rpcData.houses || []).find((h: any) => h.id === apt.haus_id);
+      return {
+        ...apt,
+        Haeuser: house ? { name: house.name } : null
+      };
+    });
 
-      rawMieter = rpcData.tenants;
-    }
+    rawMieter = rpcData.tenants;
   } catch (rpcErr) {
     const rpcDuration = Date.now() - startTime;
     posthogLogger.warn('MieterPage: RPC fetching failed, trying parallel selects fallback', {
@@ -62,8 +61,8 @@ export default async function MieterPage() {
         { data: wohnungenRes, error: wohnungenError },
         { data: mieterRes, error: mieterError }
       ] = await Promise.all([
-        supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
-        supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id')
+        supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)').eq('user_id', user.id),
+        supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id').eq('user_id', user.id)
       ]);
 
       if (wohnungenError || mieterError) {

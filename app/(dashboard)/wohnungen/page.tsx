@@ -40,32 +40,31 @@ export default async function WohnungenPage() {
     userProfile = profileRes;
 
     if (rpcRes.error) throw rpcRes.error;
+    if (!rpcRes.data) throw new Error('No data returned from RPC');
 
-    if (rpcRes.data) {
-      const duration = Date.now() - startTime;
-      posthogLogger.info('WohnungenPage: Loaded data via RPC', {
-        'action.name': 'WohnungenPage_fetch',
-        'action.status': 'success',
-        'action.duration_ms': duration,
-        'action.user_id': user.id,
-        'action.method': 'RPC'
-      });
+    const duration = Date.now() - startTime;
+    posthogLogger.info('WohnungenPage: Loaded data via RPC', {
+      'action.name': 'WohnungenPage_fetch',
+      'action.status': 'success',
+      'action.duration_ms': duration,
+      'action.user_id': user.id,
+      'action.method': 'RPC'
+    });
 
-      countResult = { count: rpcRes.data.apartments?.length || 0, error: null };
-      
-      // Nest Haeuser in apartments in-memory
-      const nestedApartments = (rpcRes.data.apartments || []).map((apt: any) => {
-        const house = (rpcRes.data.houses || []).find((h: any) => h.id === apt.haus_id);
-        return {
-          ...apt,
-          Haeuser: house ? { name: house.name } : null
-        };
-      });
+    countResult = { count: rpcRes.data.apartments?.length || 0, error: null };
+    
+    // Nest Haeuser in apartments in-memory
+    const nestedApartments = (rpcRes.data.apartments || []).map((apt: any) => {
+      const house = (rpcRes.data.houses || []).find((h: any) => h.id === apt.haus_id);
+      return {
+        ...apt,
+        Haeuser: house ? { name: house.name } : null
+      };
+    });
 
-      rawApartmentsResult = { data: nestedApartments, error: null };
-      tenantsResult = { data: rpcRes.data.tenants, error: null };
-      housesResult = { data: rpcRes.data.houses, error: null };
-    }
+    rawApartmentsResult = { data: nestedApartments, error: null };
+    tenantsResult = { data: rpcRes.data.tenants, error: null };
+    housesResult = { data: rpcRes.data.houses, error: null };
   } catch (rpcErr) {
     const rpcDuration = Date.now() - startTime;
     posthogLogger.warn('WohnungenPage: RPC fetching failed, trying parallel selects fallback', {
