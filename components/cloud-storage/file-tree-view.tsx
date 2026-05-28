@@ -394,12 +394,12 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
       <div key={node.id} className="w-full">
         <div
           className={cn(
-            "group relative flex items-center gap-1.5 py-1 px-1.5 rounded-lg cursor-pointer transition-all duration-150 ease-out select-none active:scale-[0.99]",
+            "group relative flex items-center gap-2 py-2.5 px-3.5 rounded-lg cursor-pointer transition-all duration-150 ease-out select-none active:scale-[0.99]",
             isSelected 
               ? "bg-accent text-white font-semibold shadow-md shadow-accent/15"
               : isActiveDirectory && !isSelected
                 ? "bg-zinc-50/50 dark:bg-zinc-900/10 text-zinc-800 dark:text-zinc-300"
-                : "hover:bg-zinc-50 dark:hover:bg-zinc-800/30 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200",
+                : "hover:bg-white dark:hover:bg-zinc-800/50 hover:shadow-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200",
             isNavigating && "opacity-50 pointer-events-none"
           )}
           onClick={() => handleNodeClick(node)}
@@ -408,7 +408,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           {hasChildren ? (
             <button
               className={cn(
-                "shrink-0 p-0.5 rounded-md transition-colors z-10",
+                "shrink-0 h-5 w-5 flex items-center justify-center rounded-full transition-all duration-150 ease-out z-10",
                 isSelected
                   ? "hover:bg-white/20 text-white/80"
                   : "hover:bg-zinc-200/50 dark:hover:bg-zinc-700/40 text-zinc-400 dark:text-zinc-500"
@@ -420,13 +420,13 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
             >
               <ChevronRight 
                 className={cn(
-                  "h-3 w-3 transition-transform duration-200", 
+                  "h-3 w-3 transition-transform duration-200 ease-out shrink-0", 
                   isExpanded && "rotate-90"
                 )} 
               />
             </button>
           ) : (
-            <div className="w-4 shrink-0" />
+            <div className="w-5 shrink-0" />
           )}
 
           <Icon className={cn(
@@ -495,9 +495,9 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
   }
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-3 relative", className)}>
       {/* File Tree Toolbar */}
-      <div className="flex items-center gap-1.5 px-0.5 pb-2 border-b border-zinc-100 dark:border-zinc-800/40">
+      <div className="sticky top-0 bg-gray-50 dark:bg-[#22272e] z-20 pt-1 pb-2 flex items-center gap-1.5 px-0.5 border-b border-zinc-100 dark:border-zinc-800/40">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
           <input
@@ -505,7 +505,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
             placeholder="Ordner filtern..."
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
-            className="w-full pl-7.5 pr-6.5 py-1.5 text-[10.5px] bg-zinc-50 dark:bg-[#121212] border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40 transition-all font-medium"
+            className="w-full h-8 pl-7.5 pr-6.5 py-0 text-[10.5px] bg-zinc-50 dark:bg-[#121212] border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40 transition-all font-medium"
           />
           {filterQuery && (
             <button
@@ -520,16 +520,16 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           <button
             onClick={handleExpandAll}
             title="Alle ausklappen"
-            className="p-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+            className="h-8 w-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
           >
-            <FolderOpen className="h-3 w-3" />
+            <FolderOpen className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={handleCollapseAll}
             title="Alle einklappen"
-            className="p-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+            className="h-8 w-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
           >
-            <Folder className="h-3 w-3" />
+            <Folder className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

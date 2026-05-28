@@ -22,16 +22,6 @@ export function DashboardLayout({
   const [isMobile, setIsMobile] = useState(false)
   const { preference } = useSidebarStore()
 
-  const isNoSidebarRoute = [
-    "/betriebskosten",
-    "/finanzen",
-    "/mieter",
-    "/wohnungen",
-    "/haeuser",
-    "/todos",
-    "/dateien"
-  ].some(route => pathname === route || pathname.startsWith(route + "/"))
-
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
     setMounted(true)
@@ -122,7 +112,7 @@ export function DashboardLayout({
         <div 
           className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
           style={{
-            width: isNoSidebarRoute ? "5rem" : (preference === 'expanded' ? "23rem" : "5rem")
+            width: preference === 'expanded' ? "16rem" : "5rem"
           }}
         >
           <DashboardSidebar sidebarData={sidebarData} />

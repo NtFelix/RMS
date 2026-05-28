@@ -8,15 +8,13 @@ import {
     FolderOpen,
     Plus,
     ArrowUp,
-    AlertCircle,
-    FileText,
-    FileSpreadsheet,
     Image,
-    File
+    File,
+    AlertCircle
 } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileTreeView } from "@/components/cloud-storage/file-tree-view"
 import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-cloud-storage-store"
 import { useCloudStorageNavigationStore } from "@/hooks/use-cloud-storage-navigation"
 import { useRouter } from "next/navigation"
@@ -631,49 +629,17 @@ export function CloudStorage({
                 />
             </div>
 
-            {/* Bottom Row: 1/4 and 3/4 Grid Split Container */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1 min-h-0">
-                
-                {/* Left Column: 1/4 (lg:col-span-3) for Sidebar/Overview */}
-                <Card className="lg:col-span-3 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] overflow-hidden flex flex-col h-full min-h-0">
-                    <CardHeader className="pb-3 shrink-0">
-                        <CardTitle className="text-lg">Dateien Übersicht</CardTitle>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                            Speichernutzung und Struktur
-                        </p>
-                    </CardHeader>
-
-                    <div className="px-6 pb-2 shrink-0">
-                        <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-                    </div>
-
-                    <CardContent className="flex-1 flex flex-col gap-4 pt-2 overflow-y-auto custom-scrollbar min-h-0">
-                        {/* File Tree Navigation */}
-                        <div className="flex-1 min-h-0 flex flex-col gap-2">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1 shrink-0">
-                                Ordnerstruktur
-                            </div>
-                            <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
-                                <FileTreeView 
-                                    userId={userId} 
-                                    onFolderClick={(path) => handleNavigate(path, true, false)}
-                                />
+            {/* Main Explorer Panel */}
+            <div className="flex-1 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] h-full flex flex-col min-h-0 overflow-hidden">
+                {/* Header */}
+                <div className="border-b border-gray-200 dark:border-gray-700 shrink-0">
+                    <div className="p-6">
+                        <div className="flex flex-row items-start justify-between mb-6">
+                            <div>
+                                <h1 className="text-2xl font-semibold">Dateien</h1>
+                                <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Dateien und Ordner</p>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
-
-                {/* Right Column: 3/4 (lg:col-span-9) for CloudStorage main panel */}
-                <div className="lg:col-span-9 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] h-full flex flex-col min-h-0 overflow-hidden">
-                        {/* Header */}
-                        <div className="border-b border-gray-200 dark:border-gray-700 shrink-0">
-                            <div className="p-6">
-                                <div className="flex flex-row items-start justify-between mb-6">
-                                    <div>
-                                        <h1 className="text-2xl font-semibold">Dateien</h1>
-                                        <p className="text-sm text-muted-foreground mt-1">Verwalten Sie hier alle Ihre Dateien und Ordner</p>
-                                    </div>
-                                </div>
 
                                 {/* Quick Actions */}
                                 <CloudStorageQuickActions
@@ -908,6 +874,5 @@ export function CloudStorage({
                         </div>
                     </div>
                 </div>
-            </div>
     )
 }
