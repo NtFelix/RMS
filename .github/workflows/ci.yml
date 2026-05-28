@@ -463,6 +463,25 @@ jobs:
               console.error('Failed to post notification to Discord:', postError);
             }
 
+  semgrep:
+    name: Semgrep Security
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, build-app]
+    if: github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Run Semgrep Security Scan
+        run: semgrep ci
+
   # ─── Docker Build and Smoke Test ─────────────────────────────────────────────
 
   docker-build:
