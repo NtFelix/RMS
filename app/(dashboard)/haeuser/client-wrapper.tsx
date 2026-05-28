@@ -470,14 +470,70 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   </div>
                 </div>
 
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Flächen & Einheiten</h4>
-                  {enrichedHaeuser.map(h => (
-                    <div key={h.id} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
-                      <span className="font-medium">{h.name}</span>
-                      <span className="text-muted-foreground text-xs">{h.size} m² • {h.totalApartments} Einheiten</span>
-                    </div>
-                  ))}
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Flächen & Einheiten</h4>
+                  {enrichedHaeuser.map(h => {
+                    const occupied = (h.totalApartments ?? 0) - (h.freeApartments ?? 0);
+                    const total = h.totalApartments ?? 0;
+                    const isFullyOccupied = h.freeApartments === 0;
+
+                    return (
+                      <div 
+                        key={h.id} 
+                        className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200"
+                      >
+                        {/* Left section: Icon and basic info */}
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
+                            <Building2 className="h-4.5 w-4.5" />
+                          </div>
+                          <div>
+                            <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
+                              {h.name}
+                            </span>
+                            {h.ort && (
+                              <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                                <MapPin className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                                {h.ort}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Right section: Structured details grid */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:justify-end">
+                          {/* Size */}
+                          <div className="flex items-center gap-1 text-muted-foreground min-w-[70px]">
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{h.size}</span>
+                            <span className="text-[10px]">m²</span>
+                          </div>
+
+                          {/* Occupancy details */}
+                          <div className="flex items-center gap-1.5 min-w-[90px]">
+                            <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+                              {occupied}/{total}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">belegt</span>
+                          </div>
+
+                          {/* Occupancy Status Badge */}
+                          <div className="shrink-0 min-w-[90px] flex justify-end">
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                isFullyOccupied
+                                  ? "bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[10px] py-0.5 px-2"
+                                  : "bg-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/20 text-[10px] py-0.5 px-2"
+                              )}
+                            >
+                              {isFullyOccupied ? "Voll belegt" : `${h.freeApartments} frei`}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
