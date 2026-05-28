@@ -256,11 +256,16 @@ export function HousesDonutChart({ houses, apartments = [] }: HousesDonutChartPr
 
   const segmentsData = useMemo(() => {
     const rawSegments = houses.map((house) => {
+      const rentVal = house.rent || house.miete || 0;
+      const parsedRent = typeof rentVal === "number"
+        ? rentVal
+        : parseFloat(String(rentVal).replace(/\./g, "").replace(/,/g, "."));
+      
       const totalRentOfHouse = apartments && apartments.length > 0
         ? apartments
             .filter(a => a.haus_id === house.id)
             .reduce((sum, apt) => sum + Number(apt.miete || 0), 0)
-        : Number(house.rent || house.miete || 0);
+        : (isNaN(parsedRent) ? 0 : parsedRent);
       return {
         key: house.id,
         label: house.name,
