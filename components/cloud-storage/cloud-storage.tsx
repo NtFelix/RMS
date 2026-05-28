@@ -648,60 +648,6 @@ export function CloudStorage({
                     </div>
 
                     <CardContent className="flex-1 flex flex-col gap-4 pt-2 overflow-y-auto custom-scrollbar min-h-0">
-                        {/* Distribution by File Type */}
-                        <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs space-y-3.5 shrink-0">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
-                                Verteilung nach Dateityp
-                            </div>
-                            
-                            <div className="flex flex-col gap-2.5">
-                                {/* PDF files */}
-                                <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-1 rounded-lg bg-red-500/10 text-red-500">
-                                            <FileText className="h-3.5 w-3.5" />
-                                        </div>
-                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">PDF-Dokumente</span>
-                                    </div>
-                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.pdfCount}</span>
-                                </div>
-
-                                {/* Spreadsheets */}
-                                <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-500">
-                                            <FileSpreadsheet className="h-3.5 w-3.5" />
-                                        </div>
-                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Tabellen & Excel</span>
-                                    </div>
-                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.spreadsheetCount}</span>
-                                </div>
-
-                                {/* Images */}
-                                <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-1 rounded-lg bg-sky-500/10 text-sky-500">
-                                            <Image className="h-3.5 w-3.5" />
-                                        </div>
-                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Bilder & Scans</span>
-                                    </div>
-                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.imageCount}</span>
-                                </div>
-
-                                {/* Others */}
-                                <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-1 rounded-lg bg-zinc-500/10 text-zinc-500">
-                                            <File className="h-3.5 w-3.5" />
-                                        </div>
-                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Sonstige</span>
-                                    </div>
-                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">{documentStats.otherCount}</span>
-                                </div>
-                            </div>
-                        </div>
-
-
                         {/* File Tree Navigation */}
                         <div className="flex-1 min-h-0 flex flex-col gap-2">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1 shrink-0">
