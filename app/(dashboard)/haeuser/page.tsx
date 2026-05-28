@@ -10,76 +10,51 @@ import { House } from "@/components/tables/house-table"; // Type for enrichedHae
 export default async function HaeuserPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
+  const startTime = Date.now();
   let housesData: any[] | null = null;
   let apartmentsData: any[] | null = null;
   let tenantsData: any[] | null = null;
 
-  const startTime = Date.now();
-
-  // 1. Try single aggregated RPC request
   try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('get_sidebar_insights_data');
-    if (rpcError) throw rpcError;
-    if (!rpcData) throw new Error('No data returned from RPC');
+    const [
+      { data: rawHouses, error: housesError },
+      { data: rawApartments, error: apartmentsError },
+      { data: rawTenants, error: tenantsError }
+    ] = await Promise.all([
+      supabase.from('Haeuser').select('*').eq('user_id', user.id),
+      supabase.from('Wohnungen').select('*').eq('user_id', user.id),
+      supabase.from('Mieter').select('wohnung_id,einzug,auszug').eq('user_id', user.id)
+    ]);
+
+    if (housesError || apartmentsError || tenantsError) {
+      throw new Error(JSON.stringify({ housesError, apartmentsError, tenantsError }));
+    }
+
+    housesData = rawHouses;
+    apartmentsData = rawApartments;
+    tenantsData = rawTenants;
 
     const duration = Date.now() - startTime;
-    posthogLogger.info('HaeuserPage: Loaded data via RPC', {
+    posthogLogger.info('HaeuserPage: Loaded data', {
       'action.name': 'HaeuserPage_fetch',
       'action.status': 'success',
       'action.duration_ms': duration,
-      'action.user_id': user.id,
-      'action.method': 'RPC'
+      'action.user_id': user.id
     });
-    housesData = rpcData.houses;
-    apartmentsData = rpcData.apartments;
-    tenantsData = rpcData.tenants;
-  } catch (rpcErr) {
-    const rpcDuration = Date.now() - startTime;
-    posthogLogger.warn('HaeuserPage: RPC fetching failed, trying parallel selects fallback', {
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    posthogLogger.error('HaeuserPage: Failed to load data', {
       'action.name': 'HaeuserPage_fetch',
-      'action.status': 'rpc_failed',
-      'action.duration_ms': rpcDuration,
+      'action.status': 'error',
+      'action.duration_ms': duration,
       'action.user_id': user.id,
-      'action.error_message': rpcErr instanceof Error ? rpcErr.message : String(rpcErr)
+      'action.error_message': err instanceof Error ? err.message : String(err)
     });
-
-    // 2. Fallback: Load data in parallel
-    const fallbackStartTime = Date.now();
-    try {
-      const [
-        { data: rawHouses, error: housesError },
-        { data: rawApartments, error: apartmentsError },
-        { data: rawTenants, error: tenantsError }
-      ] = await Promise.all([
-        supabase.from('Haeuser').select('*').eq('user_id', user.id),
-        supabase.from('Wohnungen').select('*').eq('user_id', user.id),
-        supabase.from('Mieter').select('wohnung_id,einzug,auszug').eq('user_id', user.id)
-      ]);
-
-      if (housesError || apartmentsError || tenantsError) {
-        throw new Error(JSON.stringify({ housesError, apartmentsError, tenantsError }));
-      }
-
-      housesData = rawHouses;
-      apartmentsData = rawApartments;
-      tenantsData = rawTenants;
-
-      const fallbackDuration = Date.now() - fallbackStartTime;
-      posthogLogger.info('HaeuserPage: Loaded data via fallback queries', {
-        'action.name': 'HaeuserPage_fetch_fallback',
-        'action.status': 'success',
-        'action.duration_ms': fallbackDuration,
-        'action.user_id': user.id
-      });
-    } catch (fallbackErr) {
-      posthogLogger.error('HaeuserPage: Fallback queries failed', {
-        'action.name': 'HaeuserPage_fetch_fallback',
-        'action.status': 'error',
-        'action.user_id': user.id,
-        'action.error_message': fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
-      });
-      return <div>Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.</div>;
-    }
+    return (
+      <div className="p-8 text-center text-red-500 font-medium bg-red-50 dark:bg-red-950/20 border border-red-200/50 rounded-2xl">
+        Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.
+      </div>
+    );
   }
 
   const houses = housesData ?? [];

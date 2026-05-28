@@ -31,88 +31,56 @@ export default async function WohnungenPage() {
   const startTime = Date.now();
 
   try {
-    // 1. Load profile and aggregated insights data in parallel
-    const [profileRes, rpcRes] = await Promise.all([
+    const [
+      profileRes,
+      rawCount,
+      rawApts,
+      rawTenants,
+      rawHouses
+    ] = await Promise.all([
       fetchUserProfile(),
-      supabase.rpc('get_sidebar_insights_data')
+      supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)').eq('user_id', user.id),
+      supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name').eq('user_id', user.id),
+      supabase.from('Haeuser').select('id,name').eq('user_id', user.id)
     ]);
 
     userProfile = profileRes;
+    countResult = rawCount;
+    rawApartmentsResult = rawApts;
+    tenantsResult = rawTenants;
+    housesResult = rawHouses;
 
-    if (rpcRes.error) throw rpcRes.error;
-    if (!rpcRes.data) throw new Error('No data returned from RPC');
+    if (rawCount.error || rawApts.error || rawTenants.error || rawHouses.error) {
+      throw new Error(JSON.stringify({
+        countError: rawCount.error,
+        aptsError: rawApts.error,
+        tenantsError: rawTenants.error,
+        housesError: rawHouses.error
+      }));
+    }
 
     const duration = Date.now() - startTime;
-    posthogLogger.info('WohnungenPage: Loaded data via RPC', {
+    posthogLogger.info('WohnungenPage: Loaded data', {
       'action.name': 'WohnungenPage_fetch',
       'action.status': 'success',
       'action.duration_ms': duration,
-      'action.user_id': user.id,
-      'action.method': 'RPC'
+      'action.user_id': user.id
     });
-
-    countResult = { count: rpcRes.data.apartments?.length || 0, error: null };
-    
-    // Nest Haeuser in apartments in-memory
-    const nestedApartments = (rpcRes.data.apartments || []).map((apt: any) => {
-      const house = (rpcRes.data.houses || []).find((h: any) => h.id === apt.haus_id);
-      return {
-        ...apt,
-        Haeuser: house ? { name: house.name } : null
-      };
-    });
-
-    rawApartmentsResult = { data: nestedApartments, error: null };
-    tenantsResult = { data: rpcRes.data.tenants, error: null };
-    housesResult = { data: rpcRes.data.houses, error: null };
-  } catch (rpcErr) {
-    const rpcDuration = Date.now() - startTime;
-    posthogLogger.warn('WohnungenPage: RPC fetching failed, trying parallel selects fallback', {
+  } catch (err) {
+    const duration = Date.now() - startTime;
+    posthogLogger.error('WohnungenPage: Failed to load data', {
       'action.name': 'WohnungenPage_fetch',
-      'action.status': 'rpc_failed',
-      'action.duration_ms': rpcDuration,
+      'action.status': 'error',
+      'action.duration_ms': duration,
       'action.user_id': user.id,
-      'action.error_message': rpcErr instanceof Error ? rpcErr.message : String(rpcErr)
+      'action.error_message': err instanceof Error ? err.message : String(err)
     });
-
-    // 2. Fallback: Load all in parallel
-    const fallbackStartTime = Date.now();
-    try {
-      const [
-        profileRes,
-        rawCount,
-        rawApts,
-        rawTenants,
-        rawHouses
-      ] = await Promise.all([
-        fetchUserProfile(),
-        supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)').eq('user_id', user.id),
-        supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name').eq('user_id', user.id),
-        supabase.from('Haeuser').select('id,name').eq('user_id', user.id)
-      ]);
-
-      userProfile = profileRes;
-      countResult = rawCount;
-      rawApartmentsResult = rawApts;
-      tenantsResult = rawTenants;
-      housesResult = rawHouses;
-
-      const fallbackDuration = Date.now() - fallbackStartTime;
-      posthogLogger.info('WohnungenPage: Loaded data via fallback queries', {
-        'action.name': 'WohnungenPage_fetch_fallback',
-        'action.status': 'success',
-        'action.duration_ms': fallbackDuration,
-        'action.user_id': user.id
-      });
-    } catch (fallbackErr) {
-      posthogLogger.error('WohnungenPage: Fallback queries failed', {
-        'action.name': 'WohnungenPage_fetch_fallback',
-        'action.status': 'error',
-        'action.user_id': user.id,
-        'action.error_message': fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
-      });
-    }
+    return (
+      <div className="p-8 text-center text-red-500 font-medium bg-red-50 dark:bg-red-950/20 border border-red-200/50 rounded-2xl">
+        Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.
+      </div>
+    );
   }
 
   if (userProfile) {
