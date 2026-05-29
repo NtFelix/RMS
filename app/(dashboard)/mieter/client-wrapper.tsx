@@ -942,14 +942,13 @@ export default function MieterClientView({
               />
             </div>
 
-            {/* Grid 1: Transitions Timeline Feed & Tenant Distribution Chart */}
+            {/* Grid 1: Transitions Timeline Feed (Full Width) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Timeline Card */}
-              <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+              <Card className="lg:col-span-12 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
                 <div>
                   <CardHeader className="px-0 pt-0">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-indigo-500 shrink-0" />
+                    <CardTitle className="text-base font-semibold">
                       Anstehende Mieterwechsel
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -1017,16 +1016,6 @@ export default function MieterClientView({
                   </CardContent>
                 </div>
               </Card>
-
-              {/* Tenant Distribution Card */}
-              <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
-                <CardHeader className="px-0 pt-0 pb-2">
-                  <CardTitle className="text-base font-semibold">Mieterverteilung</CardTitle>
-                </CardHeader>
-                <CardContent className="px-0 pb-0 flex-1 flex items-center justify-center">
-                  <TenantsDonutChart tenants={initialTenants} />
-                </CardContent>
-              </Card>
             </div>
 
             {/* Grid 2: Deposits Details & Applicant Suitability Funnel */}
@@ -1035,8 +1024,7 @@ export default function MieterClientView({
               <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
                 <div>
                   <CardHeader className="px-0 pt-0">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <Euro className="h-5 w-5 text-emerald-500 shrink-0" />
+                    <CardTitle className="text-base font-semibold">
                       Kaution Status & Rückzahlungen
                     </CardTitle>
                   </CardHeader>
@@ -1101,8 +1089,7 @@ export default function MieterClientView({
               <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
                 <div>
                   <CardHeader className="px-0 pt-0">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <UserPlus className="h-5 w-5 text-indigo-500 shrink-0" />
+                    <CardTitle className="text-base font-semibold">
                       KI-Bewerber Match-Score
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -1184,8 +1171,7 @@ export default function MieterClientView({
             <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6">
               <CardHeader className="px-0 pt-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-indigo-500 shrink-0" />
+                  <CardTitle className="text-base font-semibold">
                     Nebenkosten-Vorauszahlungs-Trends (€)
                   </CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">
