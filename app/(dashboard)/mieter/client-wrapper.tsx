@@ -19,13 +19,16 @@ import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApplicantImportModal } from "@/components/tenants/applicant-import-modal";
 import { ApplicantScoreModal } from "@/components/tenants/applicant-score-modal";
 import { MailPreviewModal } from "@/components/mail-preview-modal";
 import { ChevronDown, UserPlus, Mail, LogIn, LogOut, Clock, ArrowUpRight, TrendingUp, Coins, Percent } from "lucide-react";
 import { TenantsDonutChart } from "@/components/dashboard/dashboard-charts";
-import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { TenantFluctuationChart } from "@/components/dashboard/dashboard-charts-wrapper";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 
 import { Trash2 } from "lucide-react";
@@ -45,7 +48,7 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
         
         <div className="flex items-center justify-between font-bold text-zinc-950 dark:text-zinc-50">
           <span>Gesamt:</span>
-          <span className="text-indigo-600 dark:text-indigo-400 text-sm">
+          <span className="text-accent font-bold text-sm">
             {data.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
@@ -97,9 +100,13 @@ export default function MieterClientView({
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const { openTenantModal } = useModalStore();
+  const { openTenantModal, openKautionModal } = useModalStore();
+  const [depositSearch, setDepositSearch] = useState<string>("");
+  const [depositFilter, setDepositFilter] = useState<"all" | "Erhalten" | "Zurückgezahlt" | "Ausstehend">("all");
+  const [applicantSearch, setApplicantSearch] = useState<string>("");
+  const [applicantFilter, setApplicantFilter] = useState<"all" | "A-Fit" | "B-Fit" | "C-Fit">("all");
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
-  const [showApplicantsTab, setShowApplicantsTab] = useState<boolean | null>(null);
+  const [showApplicantsTab, setShowApplicantsTab] = useState<boolean>(false);
   const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
 
   useEffect(() => {
@@ -248,6 +255,7 @@ export default function MieterClientView({
       dateString: string;
       daysRemaining: number;
       wohnungName?: string;
+      tenant: Tenant;
     }> = [];
 
     initialTenants.forEach(t => {
@@ -267,6 +275,7 @@ export default function MieterClientView({
             dateString: t.einzug,
             daysRemaining: diffDays,
             wohnungName,
+            tenant: t,
           });
         }
       }
@@ -283,6 +292,7 @@ export default function MieterClientView({
             dateString: t.auszug,
             daysRemaining: diffDays,
             wohnungName,
+            tenant: t,
           });
         }
       }
@@ -310,6 +320,67 @@ export default function MieterClientView({
     });
 
     return { high, good, low, totalWithScore };
+  }, [initialTenants]);
+
+  // Compute tenant fluctuation data (monthly einzüge vs auszüge) - last 12 months
+  const tenantFluctuationData = useMemo(() => {
+    const today = new Date();
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(today.getMonth() - 12);
+
+    const monthNamesGerman = [
+      "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", 
+      "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"
+    ];
+
+    // Generate exactly 12 months, starting from twelveMonthsAgo
+    const monthlyData: Array<{ month: string; einzüge: number; auszüge: number }> = [];
+    let currentDate = new Date(twelveMonthsAgo);
+
+    for (let i = 0; i < 12; i++) {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const monthName = `${monthNamesGerman[month]} ${year}`;
+
+      monthlyData.push({
+        month: monthName,
+        einzüge: 0,
+        auszüge: 0
+      });
+
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    // Count einzüge and auszüge by month
+    initialTenants.forEach(tenant => {
+      // Count move-ins (einzug)
+      if (tenant.einzug) {
+        const einzugDate = new Date(tenant.einzug);
+        if (einzugDate >= twelveMonthsAgo && einzugDate <= today) {
+          const einzugMonth = einzugDate.getMonth();
+          const einzugYear = einzugDate.getFullYear();
+          const monthIndex = (einzugYear - twelveMonthsAgo.getFullYear()) * 12 + einzugMonth - twelveMonthsAgo.getMonth();
+          if (monthIndex >= 0 && monthIndex < 12) {
+            monthlyData[monthIndex].einzüge++;
+          }
+        }
+      }
+
+      // Count move-outs (auszug)
+      if (tenant.auszug) {
+        const auszugDate = new Date(tenant.auszug);
+        if (auszugDate >= twelveMonthsAgo && auszugDate <= today) {
+          const auszugMonth = auszugDate.getMonth();
+          const auszugYear = auszugDate.getFullYear();
+          const monthIndex = (auszugYear - twelveMonthsAgo.getFullYear()) * 12 + auszugMonth - twelveMonthsAgo.getMonth();
+          if (monthIndex >= 0 && monthIndex < 12) {
+            monthlyData[monthIndex].auszüge++;
+          }
+        }
+      }
+    });
+
+    return monthlyData;
   }, [initialTenants]);
 
   // Compute utilities trend prepayments (Nebenkosten-Prepayments aggregated by month over time)
@@ -673,84 +744,80 @@ export default function MieterClientView({
 
       <div className="flex flex-col gap-6">
         {/* 3-way sliding toggle */}
-        {showApplicantsTab === null ? (
-          <div className="h-[46px] w-full sm:w-[380px] bg-zinc-200/50 dark:bg-zinc-800/50 rounded-full animate-pulse border border-zinc-200/20 dark:border-zinc-800/20" />
-        ) : (
-          <div className={cn(
-            "flex items-center bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full select-none z-0 overflow-hidden",
-            showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"
-          )}>
+        <div className={cn(
+          "flex items-center bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full select-none z-0 overflow-hidden",
+          showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"
+        )}>
+          <motion.button
+            layout
+            onClick={() => {
+              setCurrentTab("mieter");
+              setFilter("current");
+              setSelectedTenants(new Set());
+            }}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
+              currentTab === "mieter" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {currentTab === "mieter" && (
+              <motion.div
+                layoutId="active-tenant-tab-pill"
+                className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
+            )}
+            <Users className="h-4 w-4 shrink-0 transition-transform duration-300" />
+            <span>Mieter</span>
+          </motion.button>
+
+          {showApplicantsTab && (
             <motion.button
               layout
               onClick={() => {
-                setCurrentTab("mieter");
+                setCurrentTab("bewerber");
                 setFilter("current");
                 setSelectedTenants(new Set());
               }}
               className={cn(
                 "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-                currentTab === "mieter" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+                currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {currentTab === "mieter" && (
+              {currentTab === "bewerber" && (
                 <motion.div
                   layoutId="active-tenant-tab-pill"
                   className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
-              <Users className="h-4 w-4 shrink-0 transition-transform duration-300" />
-              <span>Mieter</span>
+              <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-300" />
+              <span>Bewerber</span>
             </motion.button>
+          )}
 
-            {showApplicantsTab && (
-              <motion.button
-                layout
-                onClick={() => {
-                  setCurrentTab("bewerber");
-                  setFilter("current");
-                  setSelectedTenants(new Set());
-                }}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-                  currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {currentTab === "bewerber" && (
-                  <motion.div
-                    layoutId="active-tenant-tab-pill"
-                    className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-300" />
-                <span>Bewerber</span>
-              </motion.button>
+          <motion.button
+            layout
+            onClick={() => {
+              setCurrentTab("overview");
+              setSelectedTenants(new Set());
+            }}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
+              currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
             )}
-
-            <motion.button
-              layout
-              onClick={() => {
-                setCurrentTab("overview");
-                setSelectedTenants(new Set());
-              }}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-                currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {currentTab === "overview" && (
-                <motion.div
-                  layoutId="active-tenant-tab-pill"
-                  className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
-              <span>Übersicht</span>
-            </motion.button>
-          </div>
-        )}
+          >
+            {currentTab === "overview" && (
+              <motion.div
+                layoutId="active-tenant-tab-pill"
+                className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
+            )}
+            <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+            <span>Übersicht</span>
+          </motion.button>
+        </div>
 
         {currentTab !== "overview" ? (
           <>
@@ -942,80 +1009,124 @@ export default function MieterClientView({
               />
             </div>
 
-            {/* Grid 1: Transitions Timeline Feed (Full Width) */}
+            {/* Grid 1: Transitions Timeline Feed & Tenant Fluctuation */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Timeline Card */}
-              <Card className="lg:col-span-12 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
-                <div>
-                  <CardHeader className="px-0 pt-0">
-                    <CardTitle className="text-base font-semibold">
-                      Anstehende Mieterwechsel
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Vertragsbeginne und Kündigungstermine im Überblick
-                    </p>
-                  </CardHeader>
-                  <CardContent className="px-0 pb-0 mt-4 space-y-4">
-                    {upcomingTransitions.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
-                        <Clock className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                        <span className="text-sm font-medium text-muted-foreground">
-                          Keine anstehenden Mieterwechsel erfasst
-                        </span>
-                        <span className="text-xs text-muted-foreground/60 max-w-[280px] mt-1">
-                          Neue Verträge oder Auszugsdaten werden hier automatisch chronologisch sortiert.
-                        </span>
+              <Card className="lg:col-span-8 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col min-h-[400px]">
+                <CardHeader className="px-0 pt-0 shrink-0">
+                  <CardTitle className="text-base font-semibold">
+                    Anstehende Mieterwechsel
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Vertragsbeginne und Kündigungstermine im Überblick
+                  </p>
+                </CardHeader>
+                <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0">
+                  {upcomingTransitions.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center py-8 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-3xl border border-zinc-200/20 dark:border-zinc-800/40 animate-in fade-in duration-300 h-full">
+                      <div className="p-3 bg-zinc-200/30 dark:bg-zinc-800/30 rounded-full mb-3">
+                        <Clock className="h-6 w-6 text-muted-foreground/50 animate-pulse" />
                       </div>
-                    ) : (
-                      <div className="relative border-l border-zinc-200 dark:border-zinc-800 pl-4 ml-2 space-y-5">
-                        {upcomingTransitions.map((t, idx) => {
-                          const isEinzug = t.type === 'einzug';
-                          return (
-                            <div key={idx} className="relative group animate-in fade-in duration-300">
-                              {/* Dot connector */}
-                              <div className={cn(
-                                "absolute -left-[21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-gray-50 dark:border-[#22272e] transition-transform duration-300 group-hover:scale-125",
-                                isEinzug 
-                                  ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
-                                  : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
-                              )} />
-                              
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold">{t.tenantName}</span>
-                                    {t.wohnungName && (
-                                      <span className="text-xs px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-full font-medium text-muted-foreground">
-                                        {t.wohnungName}
-                                      </span>
+                      <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                        Keine anstehenden Mieterwechsel erfasst
+                      </span>
+                      <span className="text-xs text-muted-foreground/60 max-w-[280px] mt-1.5">
+                        Neue Vertragsdaten oder Auszugspläne werden hier automatisch in einem premium Feed visualisiert.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 animate-in fade-in duration-300 flex-1 justify-between">
+                      {/* Highlights Grid */}
+                      <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-zinc-200/50 dark:border-zinc-800/30">
+                        <div className="text-left border-r border-zinc-200/60 dark:border-zinc-800/80 pr-4">
+                          <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1 font-semibold uppercase tracking-wider">Wechsel Aktiv</span>
+                          <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                            {upcomingTransitions.length} anstehend
+                          </span>
+                        </div>
+                        <div className="text-left pl-4 flex flex-col justify-center">
+                          <span className="text-[10px] sm:text-xs text-muted-foreground block mb-0.5 font-semibold uppercase tracking-wider">Nächster Termin</span>
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block truncate max-w-[120px] sm:max-w-[200px]">
+                            {upcomingTransitions[0].tenantName}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block mt-0.5">
+                            {new Date(upcomingTransitions[0].dateString).toLocaleDateString('de-DE')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* List Feed */}
+                      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Wechsel-Timeline</h4>
+                        <div className="flex flex-col gap-2.5">
+                          {upcomingTransitions.map((t, idx) => {
+                            const isEinzug = t.type === 'einzug';
+                            return (
+                              <div 
+                                key={idx} 
+                                onClick={() => handleEditTenantInTable(t.tenant)}
+                                className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer select-none"
+                              >
+                                {/* Left section: Icon and basic info */}
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
+                                    {isEinzug ? (
+                                      <LogIn className="h-4.5 w-4.5" />
+                                    ) : (
+                                      <LogOut className="h-4.5 w-4.5" />
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    {isEinzug ? (
-                                      <LogIn className="h-3 w-3 text-emerald-500" />
-                                    ) : (
-                                      <LogOut className="h-3 w-3 text-amber-500" />
-                                    )}
-                                    <span>{isEinzug ? 'Einzug geplant am' : 'Auszug geplant am'} {new Date(t.dateString).toLocaleDateString('de-DE')}</span>
+                                  <div>
+                                    <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
+                                      {t.tenantName}
+                                    </span>
+                                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                                      {isEinzug ? 'Einzug geplant' : 'Auszug geplant'}
+                                    </span>
                                   </div>
                                 </div>
-                                <span className={cn(
-                                  "text-xs font-semibold px-2.5 py-1 rounded-full shrink-0",
-                                  isEinzug 
-                                    ? "text-emerald-700 bg-emerald-100/50 dark:text-emerald-300 dark:bg-emerald-950/40" 
-                                    : "text-amber-700 bg-amber-100/50 dark:text-amber-300 dark:bg-amber-950/40"
-                                )}>
-                                  In {t.daysRemaining} Tagen
-                                </span>
+
+                                {/* Right section: Structured details */}
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:justify-end">
+                                  {t.wohnungName && (
+                                    <div className="flex items-center gap-1 text-muted-foreground min-w-[100px]">
+                                      <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                      <span className="font-medium text-zinc-700 dark:text-zinc-300">{t.wohnungName}</span>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-1.5 min-w-[120px]">
+                                    <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                    <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+                                      {new Date(t.dateString).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                    </span>
+                                  </div>
+
+                                  <div className="shrink-0 min-w-[90px] flex justify-end">
+                                    <span className={cn(
+                                      "text-[10px] uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full border shadow-xs transition-colors duration-200",
+                                      isEinzug 
+                                        ? "bg-primary/5 text-primary border-primary/20 dark:border-primary/30" 
+                                        : "bg-zinc-100 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
+                                    )}>
+                                      In {t.daysRemaining} Tagen
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    )}
-                  </CardContent>
-                </div>
+                    </div>
+                  )}
+                </CardContent>
               </Card>
+
+              {/* Tenant Fluctuation Chart */}
+              <div className="lg:col-span-4 h-full min-h-[400px] flex flex-col">
+                <TenantFluctuationChart data={tenantFluctuationData} />
+              </div>
             </div>
 
             {/* Grid 2: Deposits Details & Applicant Suitability Funnel */}
@@ -1028,41 +1139,163 @@ export default function MieterClientView({
                       Kaution Status & Rückzahlungen
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="px-0 pb-0 space-y-6">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                        <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Erhalten / Bezahlt</span>
-                        <span className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate block">
-                          {tenantStats.depositReceived.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                        </span>
+                  <CardContent className="px-0 pb-0 flex-1 flex flex-col justify-between gap-6 mt-2">
+                    <div className="flex flex-col gap-4">
+                      {/* Highlights Grid */}
+                      <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-zinc-200/50 dark:border-zinc-800/30">
+                        <div className="text-left border-r border-zinc-200/60 dark:border-zinc-800/80 pr-4">
+                          <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1 font-semibold uppercase tracking-wider">Erhalten & Aktiv</span>
+                          <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                            {tenantStats.depositReceived.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                        <div className="text-left pl-4 flex flex-col justify-center">
+                          <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1 font-semibold uppercase tracking-wider">Ausstehend</span>
+                          <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                            {tenantStats.depositOutstanding.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                        <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Ausstehend / Offen</span>
-                        <span className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 truncate block">
-                          {tenantStats.depositOutstanding.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                        </span>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
-                        <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Zurückgezahlt</span>
-                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 truncate block">
-                          {depositRefundStats.returnedAmount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                        </span>
+
+                      {/* List of deposits */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Kautionsbestand nach Mieter
+                          </h4>
+                        </div>
+                        
+                        {/* Compact Search & Filter Row */}
+                        <div className="flex items-center gap-2">
+                          <SearchInput
+                            placeholder="Name o. Wohnung..."
+                            value={depositSearch}
+                            onChange={(e) => setDepositSearch(e.target.value)}
+                            onClear={() => setDepositSearch("")}
+                            sizeVariant="sm"
+                            wrapperClassName="flex-1"
+                          />
+                          
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-all duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
+                                <TrendingUp className="h-3.5 w-3.5 opacity-60 text-muted-foreground" />
+                                <span>
+                                  {depositFilter === "all" ? "Alle" : depositFilter === "Erhalten" ? "Bezahlt" : depositFilter === "Zurückgezahlt" ? "Erstattet" : "Ausstehend"}
+                                </span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onClick={() => setDepositFilter("all")} className="text-xs cursor-pointer">Alle</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDepositFilter("Erhalten")} className="text-xs cursor-pointer">Bezahlt</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDepositFilter("Zurückgezahlt")} className="text-xs cursor-pointer">Erstattet</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDepositFilter("Ausstehend")} className="text-xs cursor-pointer">Ausstehend</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        {/* Scrollable list */}
+                        <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
+                          {initialTenants
+                            .filter((t) => t.status === "mieter" && t.kaution && t.kaution.amount !== undefined)
+                            .map((t) => {
+                              const amount = typeof t.kaution?.amount === 'string'
+                                ? parseFloat(t.kaution.amount)
+                                : Number(t.kaution?.amount || 0);
+                              return { tenant: t, amount };
+                            })
+                            .filter(({ tenant: t, amount }) => {
+                              if (isNaN(amount) || amount <= 0) return false;
+                              
+                              // Search filter
+                              const wohnungName = t.wohnung_id ? wohnungsMap[t.wohnung_id] || "" : "";
+                              const matchesSearch = t.name.toLowerCase().includes(depositSearch.toLowerCase()) || 
+                                                    wohnungName.toLowerCase().includes(depositSearch.toLowerCase());
+                              
+                              // Status filter
+                              const matchesStatus = depositFilter === "all" || (t.kaution?.status === depositFilter);
+                              
+                              return matchesSearch && matchesStatus;
+                            })
+                            .sort((a, b) => b.amount - a.amount)
+                            .map(({ tenant: t, amount: kautionAmount }, idx) => {
+                              const status = t.kaution?.status || 'Ausstehend';
+                              const wohnungName = t.wohnung_id ? wohnungsMap[t.wohnung_id] : undefined;
+
+                              // Badge styling based on status
+                              const badgeCn = status === 'Erhalten'
+                                ? "bg-emerald-500/5 text-emerald-700 dark:text-emerald-450 border-emerald-500/20 text-[10px] py-0.5 px-2 font-bold"
+                                : status === 'Zurückgezahlt'
+                                  ? "bg-blue-500/5 text-blue-700 dark:text-blue-450 border-blue-500/20 text-[10px] py-0.5 px-2 font-bold"
+                                  : "bg-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/20 text-[10px] py-0.5 px-2 font-bold";
+
+                              const statusLabel = status === 'Erhalten'
+                                ? 'Bezahlt'
+                                : status === 'Zurückgezahlt'
+                                  ? 'Erstattet'
+                                  : 'Ausstehend';
+
+                              return (
+                                <div
+                                  key={t.id || idx}
+                                  onClick={() => openKautionModal(t, t.kaution)}
+                                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer select-none"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
+                                      <Coins className="h-4.5 w-4.5" />
+                                    </div>
+                                    <div>
+                                      <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
+                                        {t.name}
+                                      </span>
+                                      {wohnungName && (
+                                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                                          <Building2 className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                                          {wohnungName}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:justify-end">
+                                    <div className="shrink-0 min-w-[90px] flex justify-end">
+                                      <span className="font-bold text-zinc-800 dark:text-zinc-100">
+                                        {kautionAmount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                                      </span>
+                                    </div>
+
+                                    <div className="shrink-0 min-w-[90px] flex justify-end">
+                                      <Badge variant="outline" className={badgeCn}>
+                                        {statusLabel}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          {initialTenants.filter((t) => t.status === "mieter" && t.kaution && t.kaution.amount !== undefined).length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-6 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-2xl border border-zinc-200/20 dark:border-zinc-800/40">
+                              <span className="text-xs text-muted-foreground">Keine Kautionsdaten erfasst</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Progress refund tracker */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                        <span>Kautionsabwicklung Rückerstattungsquote</span>
-                        <span>
+                    <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span className="text-muted-foreground">Kautionsabwicklungsquote</span>
+                        <span className="text-accent font-bold text-sm">
                           {tenantStats.totalDeposit > 0
                             ? Math.round((depositRefundStats.returnedAmount / tenantStats.totalDeposit) * 100)
                             : 0}% abgeschlossen
                         </span>
                       </div>
-                      <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-500" 
+                          className="h-full bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.2)]" 
                           style={{ 
                             width: `${tenantStats.totalDeposit > 0 
                               ? (depositRefundStats.returnedAmount / tenantStats.totalDeposit) * 100 
@@ -1070,17 +1303,11 @@ export default function MieterClientView({
                           }}
                         />
                       </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Verhältnis der zurückgezahlten Kautionen zum Gesamtkautionsvolumen.
+                      </p>
                     </div>
 
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kautions-Aufteilung</h4>
-                      {Object.entries(tenantStats.depositStatusCount).map(([status, amount]) => (
-                        <div key={status} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
-                          <span className="font-medium">{status}</span>
-                          <span className="font-semibold">{amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-                        </div>
-                      ))}
-                    </div>
                   </CardContent>
                 </div>
               </Card>
@@ -1096,69 +1323,185 @@ export default function MieterClientView({
                       Qualifikationseinstufung eingegangener Profile
                     </p>
                   </CardHeader>
-                  <CardContent className="px-0 pb-0 mt-4 space-y-5">
+                  <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between gap-6">
                     {!showApplicantsTab ? (
-                      <div className="flex flex-col items-center justify-center py-10 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
-                        <UserPlus className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <div className="flex flex-col items-center justify-center py-12 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-3xl border border-zinc-200/20 dark:border-zinc-800/40">
+                        <div className="p-3 bg-zinc-200/30 dark:bg-zinc-800/30 rounded-full mb-3">
+                          <UserPlus className="h-6 w-6 text-muted-foreground/50 animate-pulse" />
+                        </div>
                         <span className="text-sm font-semibold text-muted-foreground">
                           Bewerber-Import inaktiv
                         </span>
-                        <span className="text-xs text-muted-foreground/60 max-w-[280px] mt-1">
+                        <span className="text-xs text-muted-foreground/60 max-w-[280px] mt-1.5">
                           Aktivieren Sie das Bewerber-Feature in den Kontoeinstellungen, um automatische KI-Mail-Importe und Eignungs-Scoring freizuschalten.
                         </span>
                       </div>
                     ) : applicantScoreDistribution.totalWithScore === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-10 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
-                        <UserPlus className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                        <span className="text-sm font-medium text-muted-foreground">
+                      <div className="flex flex-col items-center justify-center py-12 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-3xl border border-zinc-200/20 dark:border-zinc-800/40">
+                        <div className="p-3 bg-zinc-200/30 dark:bg-zinc-800/30 rounded-full mb-3">
+                          <UserPlus className="h-6 w-6 text-muted-foreground/50 animate-pulse" />
+                        </div>
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                           Keine bewerteten Bewerber vorhanden
                         </span>
-                        <span className="text-xs text-muted-foreground/60 max-w-[240px] mt-1">
+                        <span className="text-xs text-muted-foreground/60 max-w-[240px] mt-1.5">
                           Sobald Sie neue Bewerber per Hand oder Mail-Import anlegen, erscheinen hier deren Eignungsstufen.
                         </span>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {/* High Fit (>= 80) */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">Hervorragende Eignung (A-Fit: &ge; 80)</span>
-                            <span className="text-muted-foreground font-medium">{applicantScoreDistribution.high}</span>
+                      <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+                        {/* Highlights Grid */}
+                        <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-zinc-200/50 dark:border-zinc-800/30">
+                          <div className="text-left border-r border-zinc-200/60 dark:border-zinc-800/80 pr-4">
+                            <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1 font-semibold uppercase tracking-wider">Bewerbungen</span>
+                            <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                              {tenantStats.applicantCount} {tenantStats.applicantCount === 1 ? 'Profil' : 'Profile'}
+                            </span>
                           </div>
-                          <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-emerald-500 transition-all duration-500" 
-                              style={{ width: `${(applicantScoreDistribution.high / applicantScoreDistribution.totalWithScore) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Good Fit (60 - 79) */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">Gute Eignung (B-Fit: 60 - 79)</span>
-                            <span className="text-muted-foreground font-medium">{applicantScoreDistribution.good}</span>
-                          </div>
-                          <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-indigo-500 transition-all duration-500" 
-                              style={{ width: `${(applicantScoreDistribution.good / applicantScoreDistribution.totalWithScore) * 100}%` }}
-                            />
+                          <div className="text-left pl-4 flex flex-col justify-center">
+                            <span className="text-[10px] sm:text-xs text-muted-foreground block mb-0.5 font-semibold uppercase tracking-wider">Top-Kandidaten</span>
+                            <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                              {applicantScoreDistribution.high} A-Fits
+                            </span>
                           </div>
                         </div>
 
-                        {/* Low Fit (< 60) */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-amber-600 dark:text-amber-400">Prüfung ausstehend / Gering (C-Fit: &lt; 60)</span>
-                            <span className="text-muted-foreground font-medium">{applicantScoreDistribution.low}</span>
+                        {/* List of applicants */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              Bewerber nach Eignungsstufen
+                            </h4>
                           </div>
-                          <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+
+                          {/* Compact Search & Filter Row */}
+                          <div className="flex items-center gap-2">
+                            <SearchInput
+                              placeholder="Bewerber suchen..."
+                              value={applicantSearch}
+                              onChange={(e) => setApplicantSearch(e.target.value)}
+                              onClear={() => setApplicantSearch("")}
+                              sizeVariant="sm"
+                              wrapperClassName="flex-1"
+                            />
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-all duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
+                                  <Users className="h-3.5 w-3.5 opacity-60 text-muted-foreground" />
+                                  <span>
+                                    {applicantFilter === "all" ? "Alle Fits" : applicantFilter}
+                                  </span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem onClick={() => setApplicantFilter("all")} className="text-xs cursor-pointer">Alle Fits</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setApplicantFilter("A-Fit")} className="text-xs cursor-pointer">A-Fit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setApplicantFilter("B-Fit")} className="text-xs cursor-pointer">B-Fit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setApplicantFilter("C-Fit")} className="text-xs cursor-pointer">C-Fit</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Scrollable list */}
+                          <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
+                            {initialTenants
+                              .filter((t) => t.status === 'bewerber')
+                              .filter((t) => {
+                                // Search filter
+                                const matchesSearch = t.name.toLowerCase().includes(applicantSearch.toLowerCase());
+                                
+                                // Score/Fit filter
+                                const score = t.bewerbung_score ?? 0;
+                                const fitClass = score >= 80 ? 'A-Fit' : score >= 60 ? 'B-Fit' : 'C-Fit';
+                                const matchesFit = applicantFilter === "all" || (fitClass === applicantFilter);
+                                
+                                return matchesSearch && matchesFit;
+                              })
+                              .sort((a, b) => (b.bewerbung_score ?? 0) - (a.bewerbung_score ?? 0))
+                              .map((t, idx) => {
+                                const score = t.bewerbung_score ?? 0;
+                                const fitClass = score >= 80 
+                                  ? 'A-Fit' 
+                                  : score >= 60 
+                                    ? 'B-Fit' 
+                                    : 'C-Fit';
+
+                                // Unified brand styling for badges
+                                const badgeCn = fitClass === 'A-Fit'
+                                  ? "bg-emerald-500/5 text-emerald-700 dark:text-emerald-450 border-emerald-500/20 text-[10px] py-0.5 px-2 font-bold"
+                                  : fitClass === 'B-Fit'
+                                    ? "bg-blue-500/5 text-blue-700 dark:text-blue-400 border-blue-500/20 text-[10px] py-0.5 px-2 font-bold"
+                                    : "bg-amber-500/5 text-amber-700 dark:text-amber-400 border-amber-500/20 text-[10px] py-0.5 px-2 font-bold";
+
+                                const labelText = fitClass === 'A-Fit'
+                                  ? 'A-Fit'
+                                  : fitClass === 'B-Fit'
+                                    ? 'B-Fit'
+                                    : 'C-Fit';
+
+                                return (
+                                  <div
+                                    key={t.id || idx}
+                                    onClick={() => handleEditTenantInTable(t)}
+                                    className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer select-none"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
+                                        {fitClass === 'A-Fit' ? (
+                                          <BadgeCheck className="h-4.5 w-4.5" />
+                                        ) : fitClass === 'B-Fit' ? (
+                                          <UserPlus className="h-4.5 w-4.5" />
+                                        ) : (
+                                          <Clock className="h-4.5 w-4.5" />
+                                        )}
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
+                                          {t.name}
+                                        </span>
+                                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                                          Score: {score}%
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:justify-end">
+                                      <div className="shrink-0 min-w-[80px] flex justify-end">
+                                        <Badge variant="outline" className={badgeCn}>
+                                          {labelText}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+
+                        {/* Bottom progress section for applicant scoring quality */}
+                        <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-muted-foreground">Top-Bewerber-Anteil (A & B-Fit)</span>
+                            <span className="text-accent font-bold text-sm">
+                              {applicantScoreDistribution.totalWithScore > 0
+                                ? Math.round(((applicantScoreDistribution.high + applicantScoreDistribution.good) / applicantScoreDistribution.totalWithScore) * 100)
+                                : 0}% hohe Eignung
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-amber-500 transition-all duration-500" 
-                              style={{ width: `${(applicantScoreDistribution.low / applicantScoreDistribution.totalWithScore) * 100}%` }}
+                              className="h-full bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.2)]" 
+                              style={{ 
+                                width: `${applicantScoreDistribution.totalWithScore > 0 
+                                  ? ((applicantScoreDistribution.high + applicantScoreDistribution.good) / applicantScoreDistribution.totalWithScore) * 100 
+                                  : 0}%` 
+                              }}
                             />
                           </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Anteil der Profile mit einer Qualifikation von mindestens 60% (Gute bis hervorragende Eignung).
+                          </p>
                         </div>
                       </div>
                     )}
@@ -1228,8 +1571,8 @@ export default function MieterClientView({
                       >
                         <defs>
                           <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                            <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" className="dark:stroke-zinc-800" />
@@ -1251,7 +1594,7 @@ export default function MieterClientView({
                         <Area 
                           type="monotone" 
                           dataKey="amount" 
-                          stroke="#6366f1" 
+                          stroke="hsl(var(--accent))" 
                           strokeWidth={2}
                           fillOpacity={1} 
                           fill="url(#colorAmount)" 

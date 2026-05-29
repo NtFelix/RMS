@@ -2,10 +2,10 @@
 
 import * as React from "react"
 import { Search, X } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Input, InputProps } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
-interface SearchInputProps extends React.ComponentProps<"input"> {
+interface SearchInputProps extends InputProps {
   onClear?: () => void
   wrapperClassName?: string
   mode?: "default" | "table" | "modal"
@@ -17,6 +17,7 @@ export function SearchInput({
   onClear,
   mode = "default",
   type = "search",
+  sizeVariant,
   ...props
 }: SearchInputProps) {
 
@@ -36,6 +37,7 @@ export function SearchInput({
     )}>
       <Input
         type={type}
+        sizeVariant={sizeVariant}
         className={cn(
           "pl-10 focus-visible:scale-100 [&::-webkit-search-cancel-button]:hidden",
           showClearButton ? "pr-10" : "",
