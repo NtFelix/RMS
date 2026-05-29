@@ -538,9 +538,12 @@ export default function MieterClientView({
       <div className="flex flex-col gap-6">
         {/* 3-way sliding toggle */}
         {showApplicantsTab === null ? (
-          <div className="h-11 w-[260px] bg-zinc-200/50 dark:bg-zinc-800/50 rounded-full animate-pulse border border-zinc-200/20 dark:border-zinc-800/20" />
+          <div className="h-[46px] w-full sm:w-[380px] bg-zinc-200/50 dark:bg-zinc-800/50 rounded-full animate-pulse border border-zinc-200/20 dark:border-zinc-800/20" />
         ) : (
-          <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0 overflow-hidden">
+          <div className={cn(
+            "flex items-center bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full select-none z-0 overflow-hidden",
+            showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"
+          )}>
             <motion.button
               layout
               onClick={() => {
@@ -549,7 +552,7 @@ export default function MieterClientView({
                 setSelectedTenants(new Set());
               }}
               className={cn(
-                "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
                 currentTab === "mieter" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -573,7 +576,7 @@ export default function MieterClientView({
                   setSelectedTenants(new Set());
                 }}
                 className={cn(
-                  "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
                   currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -596,7 +599,7 @@ export default function MieterClientView({
                 setSelectedTenants(new Set());
               }}
               className={cn(
-                "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
                 currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -695,10 +698,10 @@ export default function MieterClientView({
                 <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
               </div>
 
-              {currentTab === "mieter" ? (
-                <CardContent key="mieter-content" className="flex flex-col gap-6 animate-in fade-in duration-200">
-                  <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardContent className="flex flex-col gap-6">
+                <div className="flex flex-col gap-4 mt-4 sm:mt-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {currentTab === "mieter" ? (
                       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         {[
                           { value: "current" as const, shortLabel: "Aktuelle", fullLabel: "Aktuelle Mieter" },
@@ -714,38 +717,7 @@ export default function MieterClientView({
                           />
                         ))}
                       </div>
-                      <SearchInput
-                        placeholder="Mieter suchen..."
-                        className="rounded-full"
-                        mode="table"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onClear={() => setSearchQuery("")}
-                      />
-                    </div>
-                    <TenantBulkActionBar
-                      selectedTenants={selectedTenants}
-                      tenants={filteredTenantsByTab}
-                      wohnungsMap={wohnungsMap}
-                      onClearSelection={() => setSelectedTenants(new Set())}
-                      onExport={handleBulkExport}
-                      onDelete={() => setShowBulkDeleteConfirm(true)}
-                    />
-                  </div>
-                  <TenantTable
-                    tenants={filteredTenantsByTab}
-                    wohnungen={initialWohnungen}
-                    filter={filter}
-                    searchQuery={searchQuery}
-                    onEdit={handleEditTenantInTable}
-                    selectedTenants={selectedTenants}
-                    onSelectionChange={setSelectedTenants}
-                  />
-                </CardContent>
-              ) : (
-                <CardContent key="bewerber-content" className="flex flex-col gap-6 animate-in fade-in duration-200">
-                  <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    ) : (
                       <div className="flex-1">
                         <Button
                           variant="outline"
@@ -757,36 +729,37 @@ export default function MieterClientView({
                           Alle Bewerber löschen
                         </Button>
                       </div>
-                      <SearchInput
-                        placeholder="Bewerber suchen..."
-                        className="rounded-full"
-                        mode="table"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onClear={() => setSearchQuery("")}
-                      />
-                    </div>
-                    <TenantBulkActionBar
-                      selectedTenants={selectedTenants}
-                      tenants={filteredTenantsByTab}
-                      wohnungsMap={wohnungsMap}
-                      onClearSelection={() => setSelectedTenants(new Set())}
-                      onExport={handleBulkExport}
-                      onDelete={() => setShowBulkDeleteConfirm(true)}
+                    )}
+                    <SearchInput
+                      placeholder={currentTab === "mieter" ? "Mieter suchen..." : "Bewerber suchen..."}
+                      className="rounded-full"
+                      mode="table"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onClear={() => setSearchQuery("")}
                     />
                   </div>
-                  <TenantTable
-                    tenants={filteredTenantsByTab}
-                    wohnungen={initialWohnungen}
-                    filter="all"
-                    searchQuery={searchQuery}
-                    onEdit={handleEditTenantInTable}
+                  <TenantBulkActionBar
                     selectedTenants={selectedTenants}
-                    onSelectionChange={setSelectedTenants}
-                    mode="applicants"
+                    tenants={filteredTenantsByTab}
+                    wohnungsMap={wohnungsMap}
+                    onClearSelection={() => setSelectedTenants(new Set())}
+                    onExport={handleBulkExport}
+                    onDelete={() => setShowBulkDeleteConfirm(true)}
                   />
-                </CardContent>
-              )}
+                </div>
+                <TenantTable
+                  key={currentTab}
+                  tenants={filteredTenantsByTab}
+                  wohnungen={initialWohnungen}
+                  filter={currentTab === "mieter" ? filter : "all"}
+                  searchQuery={searchQuery}
+                  onEdit={handleEditTenantInTable}
+                  selectedTenants={selectedTenants}
+                  onSelectionChange={setSelectedTenants}
+                  mode={currentTab === "mieter" ? "tenants" : "applicants"}
+                />
+              </CardContent>
             </Card>
           </>
         ) : (
