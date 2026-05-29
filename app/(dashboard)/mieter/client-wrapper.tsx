@@ -32,12 +32,12 @@ import { Trash2 } from "lucide-react";
 import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
-// Custom tooltip showing total monthly prepayments and tenant-level distribution
+// Custom tooltip showing total monthly prepayments
 const CustomNebenkostenTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs space-y-3 min-w-[220px] animate-in fade-in duration-150 z-50">
+      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs space-y-3 min-w-[200px] animate-in fade-in duration-150 z-50">
         <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
           <span className="text-muted-foreground block text-[10px] uppercase font-semibold tracking-wider">Nebenkosten-Trend</span>
           <span className="font-bold text-sm text-zinc-900 dark:text-zinc-50">{data.name}</span>
@@ -49,20 +49,6 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
             {data.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
-
-        {data.distribution && data.distribution.length > 0 && (
-          <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider block mb-1">Aufteilung nach Mieter</span>
-            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
-              {data.distribution.map((dist: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
-                  <span className="truncate max-w-[120px] font-medium">{dist.tenantName}</span>
-                  <span className="font-semibold shrink-0">{dist.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -360,7 +346,7 @@ export default function MieterClientView({
     const list = sortedKeys.map(key => {
       const [year, monthStr] = key.split('-');
       const monthIdx = parseInt(monthStr, 10) - 1;
-      const formattedName = `${monthNamesGerman[monthIdx]} ${year.substring(2)}`;
+      const formattedName = `${monthNamesGerman[monthIdx]} ${year}`;
 
       return {
         key,
