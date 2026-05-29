@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { GLOBAL_CHART_COLORS } from "@/lib/chart-colors";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -648,15 +648,6 @@ export interface TenantsDonutChartProps {
 }
 
 export function TenantsDonutChart({ tenants }: TenantsDonutChartProps) {
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-
-  const colors = useMemo(() => [
-    { strokeColor: "#10b981", colorClass: "text-emerald-500 bg-emerald-500/10" }, // Erhalten
-    { strokeColor: "#f59e0b", colorClass: "text-amber-500 bg-amber-500/10" },     // Ausstehend
-    { strokeColor: "#3b82f6", colorClass: "text-blue-500 bg-blue-500/10" },       // Zurückgezahlt
-    { strokeColor: "#6b7280", colorClass: "text-zinc-500 bg-zinc-500/10" }
-  ], []);
-
   const segmentsData = useMemo(() => {
     let hasKautionData = false;
     const depositStatusCount: Record<string, number> = {};
@@ -683,193 +674,38 @@ export function TenantsDonutChart({ tenants }: TenantsDonutChartProps) {
         statusCounts[label] = (statusCounts[label] || 0) + 1;
       });
 
-      const rawSegments = Object.entries(statusCounts).map(([status, count]) => ({
-        key: status,
-        label: status,
-        count,
-        icon: Users
-      }));
-
       return {
         isDeposit: false,
-        total: tenants.length,
-        segments: rawSegments.map((s, idx) => ({
-          ...s,
-          ...colors[idx % colors.length]
+        data: Object.entries(statusCounts).map(([name, value]) => ({
+          name,
+          value
         }))
       };
     }
 
-    const rawSegments = Object.entries(depositStatusCount).map(([status, amount]) => ({
-      key: status,
-      label: status,
-      count: amount,
-      icon: Users
-    }));
-
     return {
       isDeposit: true,
-      total: Object.values(depositStatusCount).reduce((sum, v) => sum + v, 0),
-      segments: rawSegments.map((s, idx) => ({
-        ...s,
-        ...colors[idx % colors.length]
+      data: Object.entries(depositStatusCount).map(([name, value]) => ({
+        name,
+        value
       }))
     };
-  }, [tenants, colors]);
+  }, [tenants]);
 
-  const totalValue = segmentsData.total;
-  const segmentsList = segmentsData.segments;
-
-  const RADIUS = 36;
-  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-  const segments = useMemo(() => {
-    let currentOffset = 0;
-    return segmentsList.map(s => {
-      const percentage = totalValue > 0 ? s.count / totalValue : 0;
-      const strokeDasharray = `${percentage * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
-      const strokeDashoffset = -currentOffset * CIRCUMFERENCE;
-      currentOffset += percentage;
-
-      return {
-        ...s,
-        percentage,
-        strokeDasharray,
-        strokeDashoffset
-      };
-    });
-  }, [segmentsList, totalValue, CIRCUMFERENCE]);
-
-  const activeInfo = useMemo(() => {
-    if (hoveredKey) {
-      const match = segments.find(s => s.key === hoveredKey);
-      if (match) {
-        return {
-          label: match.label,
-          count: segmentsData.isDeposit
-            ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(match.count)
-            : `${match.count} Mieter`,
-          icon: match.icon,
-          colorClass: match.colorClass
-        };
-      }
+  const valueFormatter = useCallback((val: number) => {
+    if (segmentsData.isDeposit) {
+      return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(val);
     }
-    return {
-      label: segmentsData.isDeposit ? "Kautionen Gesamt" : "Mieter Gesamt",
-      count: segmentsData.isDeposit
-        ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalValue)
-        : `${totalValue} Mieter`,
-      icon: Users,
-      colorClass: "text-accent bg-accent/10"
-    };
-  }, [hoveredKey, segments, totalValue, segmentsData.isDeposit]);
-
-  const ActiveIcon = activeInfo.icon;
-
-  if (tenants.length === 0) {
-    return (
-      <div className="text-center py-4">
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Mieter erfasst.</p>
-      </div>
-    );
-  }
+    return `${val} Mieter`;
+  }, [segmentsData.isDeposit]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between text-xs">
-        <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-          {segmentsData.isDeposit ? "Kautions-Abdeckung" : "Mieter-Verteilung"}
-        </span>
-        <span className="font-bold text-accent">
-          {segmentsData.isDeposit
-            ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalValue)
-            : `${totalValue} Mieter`}
-        </span>
-      </div>
-
-      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
-
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative w-40 h-40 flex items-center justify-center">
-          <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-            <circle
-              cx="50"
-              cy="50"
-              r={RADIUS}
-              fill="transparent"
-              stroke="var(--zinc-100)"
-              className="stroke-zinc-100 dark:stroke-zinc-800/60"
-              strokeWidth="9"
-            />
-            {segments.map((s) => {
-              const isHovered = hoveredKey === s.key;
-              return (
-                <circle
-                  key={s.key}
-                  cx="50"
-                  cy="50"
-                  r={RADIUS}
-                  fill="transparent"
-                  stroke={s.strokeColor}
-                  strokeWidth={isHovered ? 12 : 9}
-                  strokeDasharray={s.strokeDasharray}
-                  strokeDashoffset={s.strokeDashoffset}
-                  strokeLinecap="round"
-                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
-                  onMouseEnter={() => setHoveredKey(s.key)}
-                  onMouseLeave={() => setHoveredKey(null)}
-                />
-              );
-            })}
-          </svg>
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
-            <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
-              <ActiveIcon className="h-4 w-4" />
-            </div>
-            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
-              {activeInfo.label}
-            </p>
-            <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
-              {activeInfo.count}
-            </p>
-          </div>
-        </div>
-
-        <div className="w-full flex flex-col gap-1">
-          {segments.map((s) => {
-            const isHovered = hoveredKey === s.key;
-            const Icon = s.icon;
-            return (
-              <div
-                key={s.key}
-                className={cn(
-                  "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer animate-in fade-in zoom-in-95 duration-200",
-                  isHovered
-                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs scale-[1.01]"
-                    : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
-                )}
-                onMouseEnter={() => setHoveredKey(s.key)}
-                onMouseLeave={() => setHoveredKey(null)}
-              >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
-                    <Icon className="h-3 w-3" />
-                  </div>
-                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
-                    {s.label}
-                  </span>
-                </div>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
-                  {segmentsData.isDeposit
-                    ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.count)
-                    : `${s.count}x`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="w-full h-full min-h-[220px] flex flex-col justify-center">
+      <BaseDonutChart
+        data={segmentsData.data}
+        emptyMessage="Keine Mieter erfasst."
+        valueFormatter={valueFormatter}
+      />
     </div>
   );
 }
