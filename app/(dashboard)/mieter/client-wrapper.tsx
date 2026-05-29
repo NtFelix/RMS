@@ -901,7 +901,7 @@ export default function MieterClientView({
         ) : (
           <div className="flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-300">
             {/* Stats cards for Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Mieter (aktiv)"
                 value={tenantStats.activeCount}
@@ -938,14 +938,6 @@ export default function MieterClientView({
                 unit="Jahre"
                 decimals
                 icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-                className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-              />
-              <StatCard
-                title="Gesamte Kautionen"
-                value={tenantStats.totalDeposit}
-                unit="€"
-                decimals
-                icon={<Euro className="h-4 w-4 text-muted-foreground" />}
                 className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
             </div>
