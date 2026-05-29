@@ -118,27 +118,70 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
   }, [enrichedHaeuser]);
 
   // ===== Geospatial Location Grouping Computations =====
-  const locationClusters = useMemo(() => {
-    const clusters: Record<string, { count: number; size: number; totalApts: number; freeApts: number }> = {};
+  // ===== Rent & Area Efficiency Analysis =====
+  const efficiencyMetrics = useMemo(() => {
+    let highestHouse = { name: "N/A", value: 0 };
+    let lowestHouse = { name: "N/A", value: Infinity };
+    const list: Array<{ 
+      id: string; 
+      name: string; 
+      size: number; 
+      rentPerSqm: number; 
+      percentageOfTarget: number;
+      ort?: string | null;
+      totalApartments: number;
+      freeApartments: number;
+    }> = [];
+
+    let totalSqm = 0;
+    let totalRent = 0;
     
+    // Target sqm rent for progress scaling (15 EUR/m2 benchmark)
+    const TARGET_SQM_RENT = 15;
+
     enrichedHaeuser.forEach(h => {
-      const city = h.ort?.trim() || "Unbekannt";
-      const sizeVal = parseFloat(String(h.size || 0));
+      const sizeNum = parseFloat(String(h.size || "0").replace(/\./g, "").replace(/,/g, "."));
+      const rentNum = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
       
-      if (!clusters[city]) {
-        clusters[city] = { count: 0, size: 0, totalApts: 0, freeApts: 0 };
+      if (sizeNum > 0 && rentNum > 0) {
+        const rentPerSqm = rentNum / sizeNum;
+        totalSqm += sizeNum;
+        totalRent += rentNum;
+
+        list.push({
+          id: h.id,
+          name: h.name,
+          size: sizeNum,
+          rentPerSqm,
+          percentageOfTarget: Math.min(Math.round((rentPerSqm / TARGET_SQM_RENT) * 100), 100),
+          ort: h.ort,
+          totalApartments: h.totalApartments || 0,
+          freeApartments: h.freeApartments || 0
+        });
+
+        if (rentPerSqm > highestHouse.value) {
+          highestHouse = { name: h.name, value: rentPerSqm };
+        }
+        if (rentPerSqm < lowestHouse.value) {
+          lowestHouse = { name: h.name, value: rentPerSqm };
+        }
       }
-      clusters[city].count += 1;
-      clusters[city].size += isNaN(sizeVal) ? 0 : sizeVal;
-      clusters[city].totalApts += h.totalApartments || 0;
-      clusters[city].freeApts += h.freeApartments || 0;
     });
 
-    return Object.entries(clusters).map(([city, data]) => ({
-      city,
-      ...data,
-      occupancyRate: data.totalApts > 0 ? Math.round(((data.totalApts - data.freeApts) / data.totalApts) * 100) : 100
-    }));
+    const portfolioAvg = totalSqm > 0 ? totalRent / totalSqm : 0;
+    if (lowestHouse.value === Infinity) {
+      lowestHouse = { name: "N/A", value: 0 };
+    }
+
+    // Sort by highest rent per sqm
+    list.sort((a, b) => b.rentPerSqm - a.rentPerSqm);
+
+    return {
+      portfolioAvg,
+      highestHouse,
+      lowestHouse,
+      list: list.slice(0, 8) // Display top 8
+    };
   }, [enrichedHaeuser]);
 
   const escapeCsvValue = useCallback((value: string | null | undefined): string => {
@@ -549,115 +592,160 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
             </Card>
           </div>
 
-          {/* Extended Portfolio Analytics Headline */}
-          <div className="mt-6 sm:mt-10 mb-4 animate-in fade-in duration-300">
-            <h3 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Erweiterte Portfolio-Analysen</h3>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Detaillierte Auswertungen zu Renditepotenzial, Leerstandskosten und der geografischen Verteilung Ihrer Objekte</p>
-          </div>
 
           {/* New Suggested Stats Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-300">
             {/* 1. Extended Financial Yield & Vacancy Card */}
-            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+            <Card className="lg:col-span-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
               <CardHeader className="px-0 pt-0">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Wallet className="h-5 w-5 text-accent shrink-0" />
+                <CardTitle className="text-base font-semibold">
                   Rendite- & Leerstands-Analyse
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-0 pb-0 flex-1 flex flex-col justify-between gap-6">
-                <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-2">
-                  <div className="p-3 sm:p-4 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 flex flex-col justify-between">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Ist-Miete (Aktuell)</span>
-                    <span className="text-sm sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                <div className="flex flex-col gap-3 mt-2">
+                  {/* Ist-Miete Row */}
+                  <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-xl bg-emerald-500/5 text-emerald-500 shrink-0">
+                        <Wallet className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">Soll-Miete (Belegt)</span>
+                        <span className="text-[10px] text-muted-foreground block truncate">Bei 100% Zahlungseingang</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 shrink-0 pl-[42px] mt-0.5">
                       {financialMetrics.istMiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                     </span>
-                    <span className="text-[9px] text-muted-foreground block mt-1 leading-none">Laufende Einnahmen</span>
                   </div>
-                  <div className="p-3 sm:p-4 rounded-2xl bg-zinc-500/5 dark:bg-zinc-500/10 border border-zinc-200/10 dark:border-zinc-800/20 flex flex-col justify-between">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Soll-Miete (Soll)</span>
-                    <span className="text-sm sm:text-lg font-bold text-zinc-700 dark:text-zinc-300 truncate">
+
+                  {/* Soll-Miete Row */}
+                  <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-xl bg-zinc-500/5 text-zinc-500 dark:text-zinc-400 shrink-0">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">Soll-Miete (Portfolio)</span>
+                        <span className="text-[10px] text-muted-foreground block truncate">Max. Potenzial bei Vollvermietung</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 shrink-0 pl-[42px] mt-0.5">
                       {financialMetrics.sollMiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                     </span>
-                    <span className="text-[9px] text-muted-foreground block mt-1 leading-none">Maximales Potenzial</span>
                   </div>
-                  <div className="p-3 sm:p-4 rounded-2xl bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/10 flex flex-col justify-between">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Leerstandskosten</span>
-                    <span className="text-sm sm:text-lg font-bold text-rose-600 dark:text-rose-400 truncate">
+
+                  {/* Leerstand Row */}
+                  <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-xl bg-rose-500/5 text-rose-500 shrink-0">
+                        <Home className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">Entgangene Miete (Leerstand)</span>
+                        <span className="text-[10px] text-rose-500/70 block truncate">Potenziell fehlendes Einkommen</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-rose-600 dark:text-rose-400 shrink-0 pl-[42px] mt-0.5">
                       {financialMetrics.leerstandskosten.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                     </span>
-                    <span className="text-[9px] text-rose-500/70 block mt-1 leading-none">Aktueller Verlust</span>
                   </div>
                 </div>
 
                 {/* Progress bar representing occupancy yield */}
-                <div className="space-y-2 mt-2">
-                  <div className="flex items-center justify-between text-xs font-semibold">
+                <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                  <div className="flex flex-col gap-0.5 text-xs font-semibold">
                     <span className="text-muted-foreground">Mietertragspotenzial</span>
-                    <span className="text-accent">
+                    <span className="text-accent font-bold text-sm">
                       {Math.round(100 - financialMetrics.vacancyRate)}% ausgeschöpft
                     </span>
                   </div>
-                  <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-2 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-accent rounded-full transition-all duration-500"
+                      className="h-full bg-gradient-to-r from-accent/95 to-accent rounded-full transition-all duration-500"
                       style={{ width: `${Math.round(100 - financialMetrics.vacancyRate)}%` }}
                     />
                   </div>
-                  <p className="text-[10px] sm:text-[11px] text-muted-foreground">
-                    Die aktuelle Leerstandsquote Ihres gesamten Portfolios beträgt <span className="font-semibold text-rose-600 dark:text-rose-400">{financialMetrics.vacancyRate.toFixed(1)}%</span>.
+                  <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-normal">
+                    Die Quote der potenziell entgangenen Miete durch Leerstand beträgt <span className="font-semibold text-rose-600 dark:text-rose-400">{financialMetrics.vacancyRate.toFixed(1)}%</span>.
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* 2. Geospatial Location Clusters Card */}
-            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+            {/* 2. Mietpreis- & Flächeneffizienz Card */}
+            <Card className="lg:col-span-8 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col gap-4">
               <CardHeader className="px-0 pt-0 pb-2">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-accent shrink-0" />
-                  Geografische Standorte
+                <CardTitle className="text-base font-semibold">
+                  Mietpreis- & Flächeneffizienz
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-0 pb-0 flex-1 overflow-y-auto pr-1 max-h-[220px] custom-scrollbar">
-                {locationClusters.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-muted-foreground italic">
-                    Keine Standorte erfasst.
+              <CardContent className="px-0 pb-0 flex-1 flex flex-col gap-4 min-h-0">
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-primary/5 border border-zinc-200/50 dark:border-zinc-800/30">
+                  <div className="text-left border-r border-zinc-200/60 dark:border-zinc-800/80 pr-4">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Ø Quadratmeter-Miete</span>
+                    <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                      {efficiencyMetrics.portfolioAvg.toLocaleString('de-DE', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                    </span>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {locationClusters.map((c) => (
-                      <div key={c.city} className="space-y-1.5 p-3 rounded-2xl bg-zinc-100/40 dark:bg-zinc-900/10 border border-zinc-200/50 dark:border-zinc-800/30">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5 text-accent" />
-                            <span className="font-semibold text-xs sm:text-sm">{c.city}</span>
-                          </div>
-                          <Badge variant="outline" className={cn(
-                            c.occupancyRate === 100 
-                              ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200/20 text-[9px] sm:text-xs"
-                              : "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200/20 text-[9px] sm:text-xs"
-                          )}>
-                            {c.count} {c.count === 1 ? 'Objekt' : 'Objekte'}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
-                          <span>Fläche: {c.size.toLocaleString('de-DE')} m²</span>
-                          <span>Einheiten: {c.totalApts - c.freeApts} / {c.totalApts} belegt</span>
-                        </div>
+                  <div className="text-left pl-4 flex flex-col justify-center">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground block mb-0.5">Spitzenreiter (€/m²)</span>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block truncate max-w-[130px] sm:max-w-[200px]">
+                      {efficiencyMetrics.highestHouse.name}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block">
+                      {efficiencyMetrics.highestHouse.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                    </span>
+                  </div>
+                </div>
 
-                        {/* City occupancy progress bar */}
-                        <div className="h-1.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden mt-1">
+                <div className="space-y-3 overflow-y-auto pr-1 max-h-[360px] flex-1 custom-scrollbar">
+                  {efficiencyMetrics.list.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-muted-foreground italic">
+                      Keine Effizienzdaten vorhanden.
+                    </div>
+                  ) : (
+                    efficiencyMetrics.list.map((item) => (
+                      <div 
+                        key={item.id} 
+                        className="group flex flex-col gap-2 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200"
+                      >
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
+                              <Building2 className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate block group-hover:text-accent transition-colors duration-200">{item.name}</span>
+                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-normal mt-0.5">
+                                {item.ort && (
+                                  <span className="flex items-center gap-0.5">
+                                    <MapPin className="h-3 w-3 shrink-0" />
+                                    {item.ort}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-0.5">
+                                  <Home className="h-3 w-3 shrink-0" />
+                                  {item.totalApartments - item.freeApartments}/{item.totalApartments} belegt
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="font-bold text-zinc-950 dark:text-zinc-50 shrink-0">
+                            {item.rentPerSqm.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-accent rounded-full transition-all duration-300"
-                            style={{ width: `${c.occupancyRate}%` }}
+                            style={{ width: `${item.percentageOfTarget}%` }}
                           />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
