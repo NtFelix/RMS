@@ -37,7 +37,7 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs space-y-3 min-w-[200px] animate-in fade-in duration-150 z-50">
+      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs space-y-3 min-w-[220px] animate-in fade-in duration-150 z-50">
         <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
           <span className="text-muted-foreground block text-[10px] uppercase font-semibold tracking-wider">Nebenkosten-Trend</span>
           <span className="font-bold text-sm text-zinc-900 dark:text-zinc-50">{data.name}</span>
@@ -49,6 +49,20 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
             {data.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
           </span>
         </div>
+
+        {data.distribution && data.distribution.length > 0 && (
+          <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider block mb-1">Aufteilung nach Mieter</span>
+            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+              {data.distribution.map((dist: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
+                  <span className="truncate max-w-[120px] font-medium">{dist.tenantName}</span>
+                  <span className="font-semibold shrink-0">{dist.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -86,6 +100,7 @@ export default function MieterClientView({
   const { openTenantModal } = useModalStore();
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
   const [showApplicantsTab, setShowApplicantsTab] = useState<boolean | null>(null);
+  const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
 
   useEffect(() => {
     if (rawFlag !== undefined) {
@@ -302,8 +317,15 @@ export default function MieterClientView({
     const monthlySum: Record<string, number> = {};
     const monthlyDistribution: Record<string, Record<string, number>> = {};
 
+    const today = new Date();
+    const cutoffDate = new Date();
+    const yearsLimit = parseInt(nebenkostenTimeframe, 10);
+    cutoffDate.setFullYear(today.getFullYear() - yearsLimit);
+    const cutoffKey = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}`;
+
     initialTenants.forEach(t => {
-      if ((t.status || 'mieter') !== 'mieter') return;
+      // Exclude applicants (bewerber) but include all actual/historical tenants
+      if (t.status === 'bewerber') return;
       if (!t.nebenkosten || t.nebenkosten.length === 0) return;
 
       t.nebenkosten.forEach(entry => {
@@ -322,6 +344,9 @@ export default function MieterClientView({
         if (isNaN(year) || isNaN(monthVal) || monthVal < 1 || monthVal > 12) return;
 
         const key = `${year}-${String(monthVal).padStart(2, '0')}`;
+
+        // Only include payments within the selected historic timeframe
+        if (key < cutoffKey) return;
 
         const amount = parseFloat(entry.amount);
         if (!isNaN(amount) && amount > 0) {
@@ -362,7 +387,7 @@ export default function MieterClientView({
     });
 
     return list;
-  }, [initialTenants]);
+  }, [initialTenants, nebenkostenTimeframe]);
 
   // Compute deposit refund stats
   const depositRefundStats = useMemo(() => {
@@ -1119,14 +1144,45 @@ export default function MieterClientView({
 
             {/* Row 3: Nebenkosten-Entwicklung Trend AreaChart */}
             <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6">
-              <CardHeader className="px-0 pt-0">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-indigo-500 shrink-0" />
-                  Nebenkosten-Vorauszahlungs-Trends (€)
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Verteilungsvergleich der monatlichen Vorauszahlungspauschalen nach Mieter
-                </p>
+              <CardHeader className="px-0 pt-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-indigo-500 shrink-0" />
+                    Nebenkosten-Vorauszahlungs-Trends (€)
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Verteilungsvergleich der monatlichen Vorauszahlungspauschalen nach Mieter
+                  </p>
+                </div>
+
+                {/* Timeframe selector pill */}
+                <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-200/20 dark:border-zinc-800/20 p-1 rounded-full relative w-full sm:w-auto self-start sm:self-center select-none overflow-hidden">
+                  {(["1", "2", "5"] as const).map((timeframe) => {
+                    const label = timeframe === "1" ? "1 Jahr" : timeframe === "2" ? "2 Jahre" : "5 Jahre";
+                    const isActive = nebenkostenTimeframe === timeframe;
+                    return (
+                      <button
+                        key={timeframe}
+                        onClick={() => setNebenkostenTimeframe(timeframe)}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 relative cursor-pointer min-w-[70px] text-center z-10",
+                          isActive
+                            ? "text-zinc-900 dark:text-zinc-50 font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="nebenkosten-timeframe-pill"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs border border-zinc-200/10 dark:border-zinc-600/30 rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          />
+                        )}
+                        <span>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </CardHeader>
               <CardContent className="px-0 pb-0 mt-6">
                 {nebenkostenTrend.length === 0 ? (
