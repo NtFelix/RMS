@@ -84,9 +84,12 @@ async function initializePostHog(nonce?: string) {
       distinctID: undefined, // Will be set when user is identified
     },
     // Ensure feature flags are loaded
-    loaded: function (posthog: any) {
+    loaded: function (ph: any) {
       console.log('PostHog loaded successfully, reloading feature flags...');
-      posthog.reloadFeatureFlags?.();
+      if (typeof window !== 'undefined') {
+        (window as any).posthog = ph;
+      }
+      ph.reloadFeatureFlags?.();
     }
   } as any);
 
