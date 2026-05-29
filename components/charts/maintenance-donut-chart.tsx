@@ -1,16 +1,8 @@
 "use client";
 import React, { useEffect, useReducer } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import dynamic from "next/dynamic";
 import { createClient } from "@/utils/supabase/client";
-
-// Dynamically import Recharts components to reduce bundle size
-const PieChart = dynamic(() => import("recharts").then((mod) => mod.PieChart), { ssr: false });
-const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), { ssr: false });
-const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), { ssr: false });
-const Legend = dynamic(() => import("recharts").then((mod) => mod.Legend), { ssr: false });
-const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import("recharts").then((mod) => mod.ResponsiveContainer), { ssr: false });
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
 
 type FinanzDaten = {
   id: string;
@@ -25,7 +17,9 @@ type FinanzDaten = {
   updated_at?: string;
 };
 
-const COLORS = ["#34d399", "#f59e42", "#818cf8", "#f87171"];
+import { GLOBAL_CHART_COLORS } from "@/lib/chart-colors";
+
+const COLORS = GLOBAL_CHART_COLORS;
 
 // Custom tooltip formatter created once at module level
 const currencyFormatter = new Intl.NumberFormat('de-DE', { 

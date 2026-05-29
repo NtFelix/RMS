@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { GLOBAL_CHART_COLORS } from "@/lib/chart-colors";
 import { cn } from "@/lib/utils";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
 import {
   Droplet,
   Thermometer,
@@ -236,223 +238,111 @@ export function MetersDonutChart({
 // ==========================================
 // 2. Houses Donut Chart
 // ==========================================
+// Recharts components are statically imported and guarded with client-side mounting
+// to ensure perfect type matching and color mapping without hydration mismatches.
+
 export interface HousesDonutChartProps {
   houses: any[];
   apartments?: any[];
 }
 
+const HOUSE_COLORS = GLOBAL_CHART_COLORS;
+
+const houseCurrencyFormatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+
+interface HousesTooltipProps {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number }>;
+}
+
+const HousesTooltip = ({ active, payload }: HousesTooltipProps) => {
+  if (active && payload && payload.length) {
+    const d = payload[0];
+    return (
+      <div className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] rounded-xl px-3 py-2 shadow-md text-xs">
+        <p className="font-semibold text-zinc-800 dark:text-zinc-100 mb-0.5">{d.name}</p>
+        <p className="text-muted-foreground">{houseCurrencyFormatter.format(d.value)} / Mon.</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function HousesDonutChart({ houses, apartments = [] }: HousesDonutChartProps) {
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const colors = useMemo(() => [
-    { strokeColor: "#3b82f6", colorClass: "text-blue-500 dark:text-blue-400 bg-blue-500/10" },
-    { strokeColor: "#2563eb", colorClass: "text-blue-600 dark:text-blue-400 bg-blue-500/10" },
-    { strokeColor: "#4f46e5", colorClass: "text-indigo-500 dark:text-indigo-400 bg-indigo-500/10" },
-    { strokeColor: "#0ea5e9", colorClass: "text-sky-500 dark:text-sky-400 bg-sky-500/10" },
-    { strokeColor: "#475569", colorClass: "text-slate-600 dark:text-slate-400 bg-slate-500/10" },
-    { strokeColor: "#0d9488", colorClass: "text-teal-500 dark:text-teal-400 bg-teal-500/10" },
-    { strokeColor: "#6366f1", colorClass: "text-indigo-400 dark:text-indigo-300 bg-indigo-500/10" }
-  ], []);
-
-  const segmentsData = useMemo(() => {
-    const rawSegments = houses.map((house) => {
+  const chartData = useMemo(() => {
+    const raw = houses.map(house => {
       const rentVal = house.rent || house.miete || 0;
       const parsedRent = typeof rentVal === "number"
         ? rentVal
         : parseFloat(String(rentVal).replace(/\./g, "").replace(/,/g, "."));
-      
-      const totalRentOfHouse = apartments && apartments.length > 0
+
+      const value = apartments.length > 0
         ? apartments
             .filter(a => a.haus_id === house.id)
             .reduce((sum, apt) => sum + Number(apt.miete || 0), 0)
         : (isNaN(parsedRent) ? 0 : parsedRent);
-      return {
-        key: house.id,
-        label: house.name,
-        count: totalRentOfHouse,
-        icon: Building2
-      };
-    }).filter(s => s.count > 0);
 
-    rawSegments.sort((a, b) => b.count - a.count);
+      return { name: house.name as string, value };
+    }).filter(d => d.value > 0);
 
-    let finalSegments = [];
-    if (rawSegments.length <= 5) {
-      finalSegments = rawSegments.map((s, idx) => {
-        const color = colors[idx % colors.length];
-        return { ...s, ...color };
-      });
-    } else {
-      const top4 = rawSegments.slice(0, 4).map((s, idx) => {
-        const color = colors[idx % colors.length];
-        return { ...s, ...color };
-      });
-      const others = rawSegments.slice(4);
-      const othersCount = others.reduce((sum, s) => sum + s.count, 0);
-      finalSegments = [
-        ...top4,
-        {
-          key: "other",
-          label: "Andere",
-          count: othersCount,
-          icon: Building2,
-          strokeColor: "#6b7280",
-          colorClass: "text-zinc-500 bg-zinc-500/10"
-        }
-      ];
-    }
-    return finalSegments;
-  }, [houses, apartments, colors]);
+    raw.sort((a, b) => b.value - a.value);
 
-  const totalApartmentsInHouses = useMemo(() => {
-    return segmentsData.reduce((sum, s) => sum + s.count, 0);
-  }, [segmentsData]);
+    if (raw.length <= 6) return raw;
 
-  const RADIUS = 36;
-  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+    const top5 = raw.slice(0, 5);
+    const othersValue = raw.slice(5).reduce((sum, d) => sum + d.value, 0);
+    return [...top5, { name: "Andere", value: othersValue }];
+  }, [houses, apartments]);
 
-  const segments = useMemo(() => {
-    let currentOffset = 0;
-    return segmentsData.map(s => {
-      const percentage = totalApartmentsInHouses > 0 ? s.count / totalApartmentsInHouses : 0;
-      const strokeDasharray = `${percentage * CIRCUMFERENCE} ${CIRCUMFERENCE}`;
-      const strokeDashoffset = -currentOffset * CIRCUMFERENCE;
-      currentOffset += percentage;
-
-      return {
-        ...s,
-        percentage,
-        strokeDasharray,
-        strokeDashoffset
-      };
-    });
-  }, [segmentsData, totalApartmentsInHouses, CIRCUMFERENCE]);
-
-  const activeInfo = useMemo(() => {
-    if (hoveredKey) {
-      const match = segments.find(s => s.key === hoveredKey);
-      if (match) {
-        return {
-          label: match.label,
-          count: new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(match.count),
-          icon: match.icon,
-          colorClass: match.colorClass
-        };
-      }
-    }
-    return {
-      label: "Soll-Miete",
-      count: new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalApartmentsInHouses),
-      icon: Wallet,
-      colorClass: "text-accent bg-accent/10"
-    };
-  }, [hoveredKey, segments, totalApartmentsInHouses]);
-
-  const ActiveIcon = activeInfo.icon;
-
-  if (houses.length === 0) {
+  if (!mounted) {
     return (
-      <div className="text-center py-4">
+      <div className="flex items-center justify-center h-full py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (houses.length === 0 || chartData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full py-8">
         <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Häuser erfasst.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between text-xs">
-        <span className="font-semibold text-zinc-800 dark:text-zinc-200">Mietverteilung</span>
-        <span className="font-bold text-accent">
-          {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalApartmentsInHouses)} / Mon.
-        </span>
-      </div>
-
-      <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
-
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative w-40 h-40 flex items-center justify-center">
-          <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-            <circle
-              cx="50"
-              cy="50"
-              r={RADIUS}
-              fill="transparent"
-              stroke="var(--zinc-100)"
-              className="stroke-zinc-100 dark:stroke-zinc-800/60"
-              strokeWidth="9"
-            />
-            {segments.map((s) => {
-              const isHovered = hoveredKey === s.key;
-              return (
-                <circle
-                  key={s.key}
-                  cx="50"
-                  cy="50"
-                  r={RADIUS}
-                  fill="transparent"
-                  stroke={s.strokeColor}
-                  strokeWidth={isHovered ? 12 : 9}
-                  strokeDasharray={s.strokeDasharray}
-                  strokeDashoffset={s.strokeDashoffset}
-                  strokeLinecap="round"
-                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
-                  onMouseEnter={() => setHoveredKey(s.key)}
-                  onMouseLeave={() => setHoveredKey(null)}
-                />
-              );
-            })}
-          </svg>
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
-            <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
-              <ActiveIcon className="h-4 w-4" />
-            </div>
-            <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
-              {activeInfo.label}
-            </p>
-            <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
-              {activeInfo.count}
-            </p>
-          </div>
-        </div>
-
-        <div className="w-full flex flex-col gap-1">
-          {segments.map((s) => {
-            const isHovered = hoveredKey === s.key;
-            const Icon = s.icon;
-            return (
-              <div
-                key={s.key}
-                className={cn(
-                  "flex items-center justify-between p-1.5 rounded-xl border transition-all duration-200 cursor-pointer animate-in fade-in zoom-in-95 duration-200",
-                  isHovered
-                    ? "bg-zinc-100/80 dark:bg-zinc-800/80 border-accent/40 dark:border-accent/40 shadow-xs scale-[1.01]"
-                    : "bg-zinc-50/30 dark:bg-zinc-900/10 border-transparent hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
-                )}
-                onMouseEnter={() => setHoveredKey(s.key)}
-                onMouseLeave={() => setHoveredKey(null)}
-              >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
-                    <Icon className="h-3 w-3" />
-                  </div>
-                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
-                    {s.label}
-                  </span>
-                </div>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
-                  {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.count)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius="38%"
+          outerRadius="68%"
+          paddingAngle={2}
+        >
+          {chartData.map((_, idx) => (
+            <Cell key={`cell-${idx}`} fill={HOUSE_COLORS[idx % HOUSE_COLORS.length]} />
+          ))}
+        </Pie>
+        <Legend wrapperStyle={{ fontSize: 10 }} />
+        <Tooltip content={<HousesTooltip />} />
+      </PieChart>
+    </ResponsiveContainer>
   );
 }
 
-// ==========================================
 // 3. Finance Donut Chart
 // ==========================================
 export interface FinanceDonutChartProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2, FileSpreadsheet, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
@@ -81,7 +81,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
     // Average Rent
     const totalRent = enrichedHaeuser.reduce((sum, h) => {
-      const rentVal = parseFloat(String(h.rent || 0));
+      const rentVal = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
       return sum + (isNaN(rentVal) ? 0 : rentVal);
     }, 0);
     const avgRent = totalHouses > 0 ? Math.round(totalRent / totalHouses) : 0;
@@ -466,7 +466,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   </div>
                   <div className="p-4 rounded-2xl bg-primary/5 border border-gray-200 dark:border-gray-800">
                     <span className="text-xs text-muted-foreground block mb-1">Soll-Miete Gesamt</span>
-                    <span className="text-xl font-bold">{(summary.avgRent * summary.totalHouses).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                    <span className="text-xl font-bold">{summary.totalRent.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
                   </div>
                 </div>
 
@@ -540,9 +540,10 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
             <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
               <CardHeader className="px-0 pt-0 pb-2">
-                <CardTitle className="text-base font-semibold">Wohnungsauslastung pro Haus</CardTitle>
+                <CardTitle className="text-base font-semibold">Mietertrag pro Haus</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Monatliche Soll-Miete nach Objekten</CardDescription>
               </CardHeader>
-              <CardContent className="px-0 pb-0 flex-1 flex items-center justify-center">
+              <CardContent className="px-0 pb-0 flex-1 min-h-[260px]">
                 <HousesDonutChart houses={enrichedHaeuser} />
               </CardContent>
             </Card>
