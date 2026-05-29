@@ -23,8 +23,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ApplicantImportModal } from "@/components/tenants/applicant-import-modal";
 import { ApplicantScoreModal } from "@/components/tenants/applicant-score-modal";
 import { MailPreviewModal } from "@/components/mail-preview-modal";
-import { ChevronDown, UserPlus, Mail } from "lucide-react";
+import { ChevronDown, UserPlus, Mail, LogIn, LogOut, Clock, ArrowUpRight, TrendingUp, Coins, Percent } from "lucide-react";
 import { TenantsDonutChart } from "@/components/dashboard/dashboard-charts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 
 import { Trash2 } from "lucide-react";
@@ -149,6 +150,168 @@ export default function MieterClientView({
     return Math.round((activeTenantWohnungIds.size / initialWohnungen.length) * 100);
   }, [initialWohnungen, initialTenants]);
 
+  // Wohnungen map for bulk actions
+  const wohnungsMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    initialWohnungen?.forEach(w => { map[w.id] = w.name })
+    return map
+  }, [initialWohnungen]);
+
+  // Compute average tenancy duration (Ø Wohndauer)
+  const tenancyStats = useMemo(() => {
+    let totalMonths = 0;
+    let count = 0;
+    const today = new Date();
+
+    initialTenants.forEach(t => {
+      if ((t.status || 'mieter') !== 'mieter') return;
+      if (!t.einzug) return;
+
+      const startDate = new Date(t.einzug);
+      if (isNaN(startDate.getTime())) return;
+
+      const endDate = t.auszug ? new Date(t.auszug) : today;
+      if (isNaN(endDate.getTime())) return;
+
+      // Calculate difference in months
+      const diffMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
+      if (diffMonths >= 0) {
+        totalMonths += diffMonths;
+        count++;
+      }
+    });
+
+    const avgMonths = count > 0 ? totalMonths / count : 0;
+    const avgYears = avgMonths / 12;
+
+    return {
+      avgYears: parseFloat(avgYears.toFixed(1)),
+      avgMonths: Math.round(avgMonths),
+      count,
+    };
+  }, [initialTenants]);
+
+  // Compute upcoming transitions (move-in and move-out schedules)
+  const upcomingTransitions = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const list: Array<{
+      tenantName: string;
+      type: 'einzug' | 'auszug';
+      date: Date;
+      dateString: string;
+      daysRemaining: number;
+      wohnungName?: string;
+    }> = [];
+
+    initialTenants.forEach(t => {
+      if ((t.status || 'mieter') !== 'mieter') return;
+      
+      const wohnungName = t.wohnung_id ? wohnungsMap[t.wohnung_id] : undefined;
+
+      if (t.einzug) {
+        const d = new Date(t.einzug);
+        if (!isNaN(d.getTime()) && d >= today) {
+          const diffTime = d.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          list.push({
+            tenantName: t.name,
+            type: 'einzug',
+            date: d,
+            dateString: t.einzug,
+            daysRemaining: diffDays,
+            wohnungName,
+          });
+        }
+      }
+
+      if (t.auszug) {
+        const d = new Date(t.auszug);
+        if (!isNaN(d.getTime()) && d >= today) {
+          const diffTime = d.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          list.push({
+            tenantName: t.name,
+            type: 'auszug',
+            date: d,
+            dateString: t.auszug,
+            daysRemaining: diffDays,
+            wohnungName,
+          });
+        }
+      }
+    });
+
+    // Sort chronologically
+    return list.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 5);
+  }, [initialTenants, wohnungsMap]);
+
+  // Compute AI Applicant Score distribution
+  const applicantScoreDistribution = useMemo(() => {
+    let high = 0; // >= 80
+    let good = 0; // 60 - 79
+    let low = 0;  // < 60
+    let totalWithScore = 0;
+
+    initialTenants.forEach(t => {
+      if (t.status === 'bewerber') {
+        const score = t.bewerbung_score ?? 0;
+        if (score >= 80) high++;
+        else if (score >= 60) good++;
+        else low++;
+        totalWithScore++;
+      }
+    });
+
+    return { high, good, low, totalWithScore };
+  }, [initialTenants]);
+
+  // Compute utilities trend prepayments (Nebenkosten-Prepayments across active tenants)
+  const nebenkostenTrend = useMemo(() => {
+    const list: Array<{ name: string; amount: number }> = [];
+
+    initialTenants.forEach(t => {
+      if ((t.status || 'mieter') !== 'mieter') return;
+      if (!t.nebenkosten || t.nebenkosten.length === 0) return;
+
+      // Find latest entry by date (ISO string)
+      const latestEntry = t.nebenkosten.reduce((latest, current) => {
+        return new Date(current.date) > new Date(latest.date) ? current : latest;
+      });
+
+      const amount = parseFloat(latestEntry.amount);
+      if (!isNaN(amount) && amount > 0) {
+        list.push({
+          name: t.name.split(' ')[0] || t.name, // First name or full name
+          amount,
+        });
+      }
+    });
+
+    return list.slice(0, 10); // Show top 10
+  }, [initialTenants]);
+
+  // Compute deposit refund stats
+  const depositRefundStats = useMemo(() => {
+    let returnedCount = 0;
+    let returnedAmount = 0;
+    
+    initialTenants.forEach(t => {
+      if (t.kaution && t.kaution.status === 'Zurückgezahlt') {
+        const amt = typeof t.kaution.amount === 'string'
+          ? parseFloat(t.kaution.amount)
+          : Number(t.kaution.amount || 0);
+        if (!isNaN(amt) && amt > 0) {
+          returnedCount++;
+          returnedAmount += amt;
+        }
+      }
+    });
+    
+    return { returnedCount, returnedAmount };
+  }, [initialTenants]);
+
   // Filter tenants based on tab
   const filteredTenantsByTab = useMemo(() => {
     return initialTenants.filter(t => {
@@ -236,12 +399,7 @@ export default function MieterClientView({
     }
   }, [initialTenants, initialWohnungen, openTenantModal]);
 
-  // Wohnungen map for bulk actions
-  const wohnungsMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    initialWohnungen?.forEach(w => { map[w.id] = w.name })
-    return map
-  }, [initialWohnungen])
+
 
   // Helper function to properly escape CSV values
   const escapeCsvValue = useCallback((value: string | null | undefined): string => {
@@ -623,24 +781,43 @@ export default function MieterClientView({
         ) : (
           <div className="flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-300">
             {/* Stats cards for Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <StatCard
                 title="Mieter (aktiv)"
                 value={tenantStats.activeCount}
                 icon={<Users className="h-4 w-4 text-muted-foreground" />}
                 className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
-              <StatCard
-                title="Bewerber"
-                value={tenantStats.applicantCount}
-                icon={<UserPlus className="h-4 w-4 text-muted-foreground" />}
-                className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-              />
+              {showApplicantsTab ? (
+                <StatCard
+                  title="Bewerber"
+                  value={tenantStats.applicantCount}
+                  icon={<UserPlus className="h-4 w-4 text-muted-foreground" />}
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+                />
+              ) : (
+                <StatCard
+                  title="Ø Nebenkosten"
+                  value={summary.avgUtilities}
+                  unit="€"
+                  decimals
+                  icon={<Coins className="h-4 w-4 text-muted-foreground" />}
+                  className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+                />
+              )}
               <StatCard
                 title="Auslastung"
                 value={occupancyRate}
                 unit="%"
                 icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
+                className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+              />
+              <StatCard
+                title="Ø Wohndauer"
+                value={tenancyStats.avgYears}
+                unit="Jahre"
+                decimals
+                icon={<Clock className="h-4 w-4 text-muted-foreground" />}
                 className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
               <StatCard
@@ -653,40 +830,83 @@ export default function MieterClientView({
               />
             </div>
 
-            {/* Grid with Donut Chart and Deposit Details */}
+            {/* Grid 1: Transitions Timeline Feed & Tenant Distribution Chart */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6">
-                <CardHeader className="px-0 pt-0">
-                  <CardTitle className="text-base font-semibold">Kaution Status & Details</CardTitle>
-                </CardHeader>
-                <CardContent className="px-0 pb-0 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                      <span className="text-xs text-muted-foreground block mb-1">Erhalten / Bezahlt</span>
-                      <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                        {tenantStats.depositReceived.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                      </span>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                      <span className="text-xs text-muted-foreground block mb-1">Ausstehend / Offen</span>
-                      <span className="text-xl font-bold text-amber-600 dark:text-amber-400">
-                        {tenantStats.depositOutstanding.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kautions-Aufteilung</h4>
-                    {Object.entries(tenantStats.depositStatusCount).map(([status, amount]) => (
-                      <div key={status} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
-                        <span className="font-medium">{status}</span>
-                        <span className="font-semibold">{amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+              {/* Timeline Card */}
+              <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+                <div>
+                  <CardHeader className="px-0 pt-0">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-indigo-500 shrink-0" />
+                      Anstehende Mieterwechsel
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Vertragsbeginne und Kündigungstermine im Überblick
+                    </p>
+                  </CardHeader>
+                  <CardContent className="px-0 pb-0 mt-4 space-y-4">
+                    {upcomingTransitions.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
+                        <Clock className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Keine anstehenden Mieterwechsel erfasst
+                        </span>
+                        <span className="text-xs text-muted-foreground/60 max-w-[280px] mt-1">
+                          Neue Verträge oder Auszugsdaten werden hier automatisch chronologisch sortiert.
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
+                    ) : (
+                      <div className="relative border-l border-zinc-200 dark:border-zinc-800 pl-4 ml-2 space-y-5">
+                        {upcomingTransitions.map((t, idx) => {
+                          const isEinzug = t.type === 'einzug';
+                          return (
+                            <div key={idx} className="relative group animate-in fade-in duration-300">
+                              {/* Dot connector */}
+                              <div className={cn(
+                                "absolute -left-[21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-gray-50 dark:border-[#22272e] transition-transform duration-300 group-hover:scale-125",
+                                isEinzug 
+                                  ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
+                                  : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
+                              )} />
+                              
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold">{t.tenantName}</span>
+                                    {t.wohnungName && (
+                                      <span className="text-xs px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-full font-medium text-muted-foreground">
+                                        {t.wohnungName}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    {isEinzug ? (
+                                      <LogIn className="h-3 w-3 text-emerald-500" />
+                                    ) : (
+                                      <LogOut className="h-3 w-3 text-amber-500" />
+                                    )}
+                                    <span>{isEinzug ? 'Einzug geplant am' : 'Auszug geplant am'} {new Date(t.dateString).toLocaleDateString('de-DE')}</span>
+                                  </div>
+                                </div>
+                                <span className={cn(
+                                  "text-xs font-semibold px-2.5 py-1 rounded-full shrink-0",
+                                  isEinzug 
+                                    ? "text-emerald-700 bg-emerald-100/50 dark:text-emerald-300 dark:bg-emerald-950/40" 
+                                    : "text-amber-700 bg-amber-100/50 dark:text-amber-300 dark:bg-amber-950/40"
+                                )}>
+                                  In {t.daysRemaining} Tagen
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </div>
               </Card>
 
+              {/* Tenant Distribution Card */}
               <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
                 <CardHeader className="px-0 pt-0 pb-2">
                   <CardTitle className="text-base font-semibold">Mieterverteilung</CardTitle>
@@ -696,6 +916,232 @@ export default function MieterClientView({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Grid 2: Deposits Details & Applicant Suitability Funnel */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Enhanced Deposits Details Card */}
+              <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+                <div>
+                  <CardHeader className="px-0 pt-0">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Euro className="h-5 w-5 text-emerald-500 shrink-0" />
+                      Kaution Status & Rückzahlungen
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-0 pb-0 space-y-6">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Erhalten / Bezahlt</span>
+                        <span className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate block">
+                          {tenantStats.depositReceived.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Ausstehend / Offen</span>
+                        <span className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 truncate block">
+                          {tenantStats.depositOutstanding.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                        <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Zurückgezahlt</span>
+                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 truncate block">
+                          {depositRefundStats.returnedAmount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress refund tracker */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                        <span>Kautionsabwicklung Rückerstattungsquote</span>
+                        <span>
+                          {tenantStats.totalDeposit > 0
+                            ? Math.round((depositRefundStats.returnedAmount / tenantStats.totalDeposit) * 100)
+                            : 0}% abgeschlossen
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-500" 
+                          style={{ 
+                            width: `${tenantStats.totalDeposit > 0 
+                              ? (depositRefundStats.returnedAmount / tenantStats.totalDeposit) * 100 
+                              : 0}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kautions-Aufteilung</h4>
+                      {Object.entries(tenantStats.depositStatusCount).map(([status, amount]) => (
+                        <div key={status} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
+                          <span className="font-medium">{status}</span>
+                          <span className="font-semibold">{amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </div>
+              </Card>
+
+              {/* Applicant Fit Distribution / Score Funnel Card */}
+              <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+                <div>
+                  <CardHeader className="px-0 pt-0">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 text-indigo-500 shrink-0" />
+                      KI-Bewerber Match-Score
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Qualifikationseinstufung eingegangener Profile
+                    </p>
+                  </CardHeader>
+                  <CardContent className="px-0 pb-0 mt-4 space-y-5">
+                    {!showApplicantsTab ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
+                        <UserPlus className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                        <span className="text-sm font-semibold text-muted-foreground">
+                          Bewerber-Import inaktiv
+                        </span>
+                        <span className="text-xs text-muted-foreground/60 max-w-[280px] mt-1">
+                          Aktivieren Sie das Bewerber-Feature in den Kontoeinstellungen, um automatische KI-Mail-Importe und Eignungs-Scoring freizuschalten.
+                        </span>
+                      </div>
+                    ) : applicantScoreDistribution.totalWithScore === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
+                        <UserPlus className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Keine bewerteten Bewerber vorhanden
+                        </span>
+                        <span className="text-xs text-muted-foreground/60 max-w-[240px] mt-1">
+                          Sobald Sie neue Bewerber per Hand oder Mail-Import anlegen, erscheinen hier deren Eignungsstufen.
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* High Fit (>= 80) */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">Hervorragende Eignung (A-Fit: &ge; 80)</span>
+                            <span className="text-muted-foreground font-medium">{applicantScoreDistribution.high}</span>
+                          </div>
+                          <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-emerald-500 transition-all duration-500" 
+                              style={{ width: `${(applicantScoreDistribution.high / applicantScoreDistribution.totalWithScore) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Good Fit (60 - 79) */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">Gute Eignung (B-Fit: 60 - 79)</span>
+                            <span className="text-muted-foreground font-medium">{applicantScoreDistribution.good}</span>
+                          </div>
+                          <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-indigo-500 transition-all duration-500" 
+                              style={{ width: `${(applicantScoreDistribution.good / applicantScoreDistribution.totalWithScore) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Low Fit (< 60) */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-amber-600 dark:text-amber-400">Prüfung ausstehend / Gering (C-Fit: &lt; 60)</span>
+                            <span className="text-muted-foreground font-medium">{applicantScoreDistribution.low}</span>
+                          </div>
+                          <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-amber-500 transition-all duration-500" 
+                              style={{ width: `${(applicantScoreDistribution.low / applicantScoreDistribution.totalWithScore) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </div>
+              </Card>
+            </div>
+
+            {/* Row 3: Nebenkosten-Entwicklung Trend AreaChart */}
+            <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6">
+              <CardHeader className="px-0 pt-0">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-indigo-500 shrink-0" />
+                  Nebenkosten-Vorauszahlungs-Trends (€)
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Verteilungsvergleich der monatlichen Vorauszahlungspauschalen nach Mieter
+                </p>
+              </CardHeader>
+              <CardContent className="px-0 pb-0 mt-6">
+                {nebenkostenTrend.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
+                    <TrendingUp className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Keine erfassten Nebenkostenwerte vorhanden
+                    </span>
+                    <span className="text-xs text-muted-foreground/60 max-w-[240px] mt-1">
+                      Fügen Sie Nebenkosteneinträge bei Ihren Mietern hinzu, um Trends und Preisanomalien zu visualisieren.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart
+                        data={nebenkostenTrend}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" className="dark:stroke-zinc-800" />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke="#888888" 
+                          fontSize={11} 
+                          tickLine={false} 
+                          axisLine={false} 
+                        />
+                        <YAxis 
+                          stroke="#888888" 
+                          fontSize={11} 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tickFormatter={(value) => `${value} €`} 
+                        />
+                        <RechartsTooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                            borderRadius: '12px', 
+                            border: '1px solid #E5E7EB',
+                            fontSize: '12px',
+                            color: '#1F2937'
+                          }} 
+                          formatter={(value) => [`${value} €`, 'Monatliche Pauschale']}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="amount" 
+                          stroke="#6366f1" 
+                          strokeWidth={2}
+                          fillOpacity={1} 
+                          fill="url(#colorAmount)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
