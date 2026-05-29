@@ -274,29 +274,52 @@ export default function MieterClientView({
     return { high, good, low, totalWithScore };
   }, [initialTenants]);
 
-  // Compute utilities trend prepayments (Nebenkosten-Prepayments across active tenants)
+  // Compute utilities trend prepayments (Nebenkosten-Prepayments aggregated by month over time)
   const nebenkostenTrend = useMemo(() => {
-    const list: Array<{ name: string; amount: number }> = [];
+    const monthlySum: Record<string, number> = {};
 
     initialTenants.forEach(t => {
       if ((t.status || 'mieter') !== 'mieter') return;
       if (!t.nebenkosten || t.nebenkosten.length === 0) return;
 
-      // Find latest entry by date (ISO string)
-      const latestEntry = t.nebenkosten.reduce((latest, current) => {
-        return new Date(current.date) > new Date(latest.date) ? current : latest;
-      });
+      t.nebenkosten.forEach(entry => {
+        if (!entry.date) return;
+        const d = new Date(entry.date);
+        if (isNaN(d.getTime())) return;
 
-      const amount = parseFloat(latestEntry.amount);
-      if (!isNaN(amount) && amount > 0) {
-        list.push({
-          name: t.name.split(' ')[0] || t.name, // First name or full name
-          amount,
-        });
-      }
+        // Create a key in format YYYY-MM
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const key = `${year}-${month}`;
+
+        const amount = parseFloat(entry.amount);
+        if (!isNaN(amount) && amount > 0) {
+          monthlySum[key] = (monthlySum[key] || 0) + amount;
+        }
+      });
     });
 
-    return list.slice(0, 10); // Show top 10
+    // Convert to list and sort chronologically
+    const sortedKeys = Object.keys(monthlySum).sort();
+
+    const monthNamesGerman = [
+      "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", 
+      "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"
+    ];
+
+    const list = sortedKeys.map(key => {
+      const [year, monthStr] = key.split('-');
+      const monthIdx = parseInt(monthStr, 10) - 1;
+      const formattedName = `${monthNamesGerman[monthIdx]} ${year.substring(2)}`;
+
+      return {
+        key,
+        name: formattedName,
+        amount: parseFloat(monthlySum[key].toFixed(2)),
+      };
+    });
+
+    return list;
   }, [initialTenants]);
 
   // Compute deposit refund stats
@@ -1110,7 +1133,7 @@ export default function MieterClientView({
                             fontSize: '12px',
                             color: '#1F2937'
                           }} 
-                          formatter={(value) => [`${value} €`, 'Monatliche Pauschale']}
+                          formatter={(value) => [`${value} €`, 'Gesamte Vorauszahlungen']}
                         />
                         <Area 
                           type="monotone" 
