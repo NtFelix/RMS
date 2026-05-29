@@ -236,17 +236,103 @@ export function MetersDonutChart({
 }
 
 // ==========================================
+// 1.5. Base Donut Chart
+// ==========================================
+export interface BaseDonutChartDataItem {
+  name: string;
+  value: number;
+  [key: string]: any;
+}
+
+export interface BaseDonutChartProps {
+  data: BaseDonutChartDataItem[];
+  emptyMessage?: string;
+  valueFormatter?: (value: number) => string;
+  colors?: readonly string[];
+  innerRadius?: string | number;
+  outerRadius?: string | number;
+}
+
+interface BaseTooltipProps {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number }>;
+  valueFormatter?: (value: number) => string;
+}
+
+const BaseTooltip = ({ active, payload, valueFormatter }: BaseTooltipProps) => {
+  if (active && payload && payload.length) {
+    const d = payload[0];
+    const displayValue = valueFormatter ? valueFormatter(d.value) : String(d.value);
+    return (
+      <div className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] rounded-xl px-3 py-2 shadow-md text-xs">
+        <p className="font-semibold text-zinc-800 dark:text-zinc-100 mb-0.5">{d.name}</p>
+        <p className="text-muted-foreground">{displayValue}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export function BaseDonutChart({
+  data = [],
+  emptyMessage = "Keine Daten erfasst.",
+  valueFormatter,
+  colors = GLOBAL_CHART_COLORS,
+  innerRadius = "38%",
+  outerRadius = "68%",
+}: BaseDonutChartProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-full py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full py-8 text-center">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={innerRadius}
+          outerRadius={outerRadius}
+          paddingAngle={2}
+        >
+          {data.map((_, idx) => (
+            <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />
+          ))}
+        </Pie>
+        <Legend wrapperStyle={{ fontSize: 10 }} />
+        <Tooltip content={<BaseTooltip valueFormatter={valueFormatter} />} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ==========================================
 // 2. Houses Donut Chart
 // ==========================================
-// Recharts components are statically imported and guarded with client-side mounting
-// to ensure perfect type matching and color mapping without hydration mismatches.
-
 export interface HousesDonutChartProps {
   houses: any[];
   apartments?: any[];
 }
-
-const HOUSE_COLORS = GLOBAL_CHART_COLORS;
 
 const houseCurrencyFormatter = new Intl.NumberFormat("de-DE", {
   style: "currency",
@@ -254,30 +340,7 @@ const houseCurrencyFormatter = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 0,
 });
 
-interface HousesTooltipProps {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number }>;
-}
-
-const HousesTooltip = ({ active, payload }: HousesTooltipProps) => {
-  if (active && payload && payload.length) {
-    const d = payload[0];
-    return (
-      <div className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] rounded-xl px-3 py-2 shadow-md text-xs">
-        <p className="font-semibold text-zinc-800 dark:text-zinc-100 mb-0.5">{d.name}</p>
-        <p className="text-muted-foreground">{houseCurrencyFormatter.format(d.value)} / Mon.</p>
-      </div>
-    );
-  }
-  return null;
-};
-
 export function HousesDonutChart({ houses, apartments = [] }: HousesDonutChartProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const chartData = useMemo(() => {
     const raw = houses.map(house => {
       const rentVal = house.rent || house.miete || 0;
@@ -303,43 +366,12 @@ export function HousesDonutChart({ houses, apartments = [] }: HousesDonutChartPr
     return [...top5, { name: "Andere", value: othersValue }];
   }, [houses, apartments]);
 
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center h-full py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (houses.length === 0 || chartData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full py-8">
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Häuser erfasst.</p>
-      </div>
-    );
-  }
-
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          innerRadius="38%"
-          outerRadius="68%"
-          paddingAngle={2}
-        >
-          {chartData.map((_, idx) => (
-            <Cell key={`cell-${idx}`} fill={HOUSE_COLORS[idx % HOUSE_COLORS.length]} />
-          ))}
-        </Pie>
-        <Legend wrapperStyle={{ fontSize: 10 }} />
-        <Tooltip content={<HousesTooltip />} />
-      </PieChart>
-    </ResponsiveContainer>
+    <BaseDonutChart
+      data={chartData}
+      emptyMessage="Keine Häuser erfasst."
+      valueFormatter={(val) => `${houseCurrencyFormatter.format(val)} / Mon.`}
+    />
   );
 }
 
@@ -1076,3 +1108,44 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
     </div>
   );
 }
+
+// ==========================================
+// 6. Apartments Size Donut Chart
+// ==========================================
+export interface ApartmentsSizeDonutChartProps {
+  apartments: any[];
+}
+
+export function ApartmentsSizeDonutChart({ apartments = [] }: ApartmentsSizeDonutChartProps) {
+  const chartData = useMemo(() => {
+    let small = 0;  // < 45 m²
+    let medium = 0; // 45 - 75 m²
+    let large = 0;  // 75 - 100 m²
+    let xl = 0;     // > 100 m²
+
+    apartments.forEach(apt => {
+      const size = Number(apt.groesse || 0);
+      if (size <= 0) return;
+      if (size < 45) small++;
+      else if (size <= 75) medium++;
+      else if (size <= 100) large++;
+      else xl++;
+    });
+
+    return [
+      { name: "Klein (< 45 m²)", value: small },
+      { name: "Mittel (45 - 75 m²)", value: medium },
+      { name: "Groß (75 - 100 m²)", value: large },
+      { name: "Extra Groß (> 100 m²)", value: xl }
+    ].filter(item => item.value > 0);
+  }, [apartments]);
+
+  return (
+    <BaseDonutChart
+      data={chartData}
+      emptyMessage="Keine Wohnungen erfasst."
+      valueFormatter={(val) => `${val} ${val === 1 ? "Wohnung" : "Wohnungen"}`}
+    />
+  );
+}
+

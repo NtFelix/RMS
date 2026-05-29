@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
-import { MetersDonutChart } from "@/components/dashboard/dashboard-charts";
+import { ApartmentsSizeDonutChart } from "@/components/dashboard/dashboard-charts";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -617,8 +617,8 @@ export default function WohnungenClientView({
               <CardHeader className="px-0 pt-0 pb-2">
                 <CardTitle className="text-base font-semibold">Größenverteilung der Wohnungen</CardTitle>
               </CardHeader>
-              <CardContent className="px-0 pb-0 flex-1 flex items-center justify-center">
-                <MetersDonutChart apartments={apartments} />
+              <CardContent className="px-0 pb-0 flex-1 min-h-[260px]">
+                <ApartmentsSizeDonutChart apartments={apartments} />
               </CardContent>
             </Card>
           </div>
