@@ -38,6 +38,7 @@ import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
 import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import {
   MetersDonutChart,
   HousesDonutChart,
@@ -156,7 +157,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const { setOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
-  const notificationCenterEnabled = useFeatureFlagEnabled('notification-center')
 
   // Feature flags for navigation items
   const featureFlags = new Map([
@@ -301,7 +301,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
             toggleCollapse={toggleCollapse}
             textVariants={textVariants}
             iconVariants={iconVariants}
-            notificationCenterEnabled={!!notificationCenterEnabled}
             sidebarData={sidebarData}
           />
         </div>
@@ -323,7 +322,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
           getActiveStateClasses={getActiveStateClasses}
           isMobile={true}
           setIsOpen={setIsOpen}
-          notificationCenterEnabled={!!notificationCenterEnabled}
           sidebarData={sidebarData}
         />
       </aside>
@@ -343,7 +341,6 @@ interface SidebarContentProps {
   toggleCollapse?: () => void
   textVariants?: Variants
   iconVariants?: Variants
-  notificationCenterEnabled: boolean
   sidebarData: SidebarUserData
 }
 
@@ -359,7 +356,6 @@ function SidebarContent({
   toggleCollapse,
   textVariants,
   iconVariants,
-  notificationCenterEnabled,
   sidebarData
 }: SidebarContentProps) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
@@ -397,6 +393,16 @@ function SidebarContent({
       }
     }
   }
+
+  // Feature flags for sidebar bottom actions
+  const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
+  const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
+
+  // Unread badge indicators for sidebar bottom actions
+  // TODO: Implement later logic to check for unread messages / support requests in the inbox
+  const hasUnreadMessages = false
+  // TODO: Implement later logic to check for unread notifications in the notification center
+  const hasUnreadNotifications = false
 
   return (
     <div className="h-full w-full flex flex-col relative overflow-hidden">
@@ -551,6 +557,105 @@ function SidebarContent({
         </nav>
       </div>
 
+      {/* Bottom Actions section for Support and Notifications */}
+      <div className="flex flex-col items-center gap-3 w-full px-2 pb-4">
+        {/* Support */}
+        {supportButtonEnabled && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={cn(
+                "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+              )}>
+                <MessageCircle className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                {hasUnreadMessages && (
+                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-white dark:border-[#181818]" />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent 
+              side="right" 
+              align="end" 
+              sideOffset={12} 
+              className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
+            >
+              <div className="flex flex-col space-y-4">
+                <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
+                  <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Offen</span>
+                </div>
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <div className="w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                    <MessageCircle className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine Support-Anfragen</h4>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
+                    Sobald du Hilfe benötigst oder Fragen hast, kannst du einen neuen Support-Chat starten.
+                  </p>
+                </div>
+                <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                  <Link 
+                    href="/support" 
+                    className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+                  >
+                    Support kontaktieren
+                  </Link>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {/* Notifications */}
+        {notificationCenterFeatureEnabled && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={cn(
+                "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+              )}>
+                <Bell className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                {hasUnreadNotifications && (
+                  <span className="absolute top-2.5 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#181818]" />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent 
+              side="right" 
+              align="end" 
+              sideOffset={12} 
+              className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
+            >
+              <div className="flex flex-col space-y-4">
+                <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
+                  <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
+                </div>
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <div className="w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                    <Bell className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
+                    Du bist auf dem neuesten Stand. Hier zeigen wir dir wichtige Updates zu deinen Immobilien.
+                  </p>
+                </div>
+                <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                  <Link 
+                    href="/settings/notifications" 
+                    className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+                  >
+                    Einstellungen öffnen
+                  </Link>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+      
       {/* Profile section */}
       <div className="pt-2 pb-4 flex flex-col gap-2 border-t border-border px-3 shrink-0">
         <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />

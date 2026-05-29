@@ -51,6 +51,9 @@ export const POSTHOG_FEATURE_FLAGS = {
   CREATE_FILE_OPTION: 'create-file-option',
   DARK_MODE: 'dark-mode',
   AI_DOCUMENTATION_MODE: 'ai-documentation-mode',
+  // Sidebar features
+  SUPPORT_BUTTON: 'support-button',
+  NOTIFICATION_CENTER: 'notification-center',
   // Landing page
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
