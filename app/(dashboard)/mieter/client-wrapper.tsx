@@ -314,79 +314,125 @@ export default function MieterClientView({
 
   // Compute utilities trend prepayments (Nebenkosten-Prepayments aggregated by month over time)
   const nebenkostenTrend = useMemo(() => {
-    const monthlySum: Record<string, number> = {};
-    const monthlyDistribution: Record<string, Record<string, number>> = {};
-
     const today = new Date();
     const cutoffDate = new Date();
     const yearsLimit = parseInt(nebenkostenTimeframe, 10);
     cutoffDate.setFullYear(today.getFullYear() - yearsLimit);
-    const cutoffKey = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}`;
+    
+    // Start from cutoff month to today's month to generate a continuous timeline
+    const startYear = cutoffDate.getFullYear();
+    const startMonth = cutoffDate.getMonth() + 1;
+    const endYear = today.getFullYear();
+    const endMonth = today.getMonth() + 1;
 
-    initialTenants.forEach(t => {
-      // Exclude applicants (bewerber) but include all actual/historical tenants
-      if (t.status === 'bewerber') return;
-      if (!t.nebenkosten || t.nebenkosten.length === 0) return;
+    const allMonthKeys: string[] = [];
+    let currentY = startYear;
+    let currentM = startMonth;
 
-      t.nebenkosten.forEach(entry => {
-        if (!entry.date) return;
-        
-        // Timezone-safe date parsing: split YYYY-MM-DD directly to prevent local timezone shifts
-        const parts = entry.date.split('-');
-        if (parts.length < 2) return;
-
-        const yearStr = parts[0].trim();
-        const monthStr = parts[1].trim();
-        if (yearStr.length !== 4 || monthStr.length < 1) return;
-
-        const year = parseInt(yearStr, 10);
-        const monthVal = parseInt(monthStr, 10);
-        if (isNaN(year) || isNaN(monthVal) || monthVal < 1 || monthVal > 12) return;
-
-        const key = `${year}-${String(monthVal).padStart(2, '0')}`;
-
-        // Only include payments within the selected historic timeframe
-        if (key < cutoffKey) return;
-
-        const amount = parseFloat(entry.amount);
-        if (!isNaN(amount) && amount > 0) {
-          monthlySum[key] = (monthlySum[key] || 0) + amount;
-          
-          if (!monthlyDistribution[key]) {
-            monthlyDistribution[key] = {};
-          }
-          monthlyDistribution[key][t.name] = (monthlyDistribution[key][t.name] || 0) + amount;
-        }
-      });
-    });
-
-    // Convert to list and sort chronologically
-    const sortedKeys = Object.keys(monthlySum).sort();
+    while (currentY < endYear || (currentY === endYear && currentM <= endMonth)) {
+      allMonthKeys.push(`${currentY}-${String(currentM).padStart(2, '0')}`);
+      currentM++;
+      if (currentM > 12) {
+        currentM = 1;
+        currentY++;
+      }
+    }
 
     const monthNamesGerman = [
       "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", 
       "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"
     ];
 
-    const list = sortedKeys.map(key => {
-      const [year, monthStr] = key.split('-');
+    // Compute active prepayment rate for each tenant per month
+    const list = allMonthKeys.map(monthKey => {
+      const [yearStr, monthStr] = monthKey.split('-');
+      const year = parseInt(yearStr, 10);
       const monthIdx = parseInt(monthStr, 10) - 1;
       const formattedName = `${monthNamesGerman[monthIdx]} ${year}`;
 
+      let monthlyTotal = 0;
+      const distribution: Array<{ tenantName: string; amount: number }> = [];
+
+      initialTenants.forEach(t => {
+        if (t.status === 'bewerber') return;
+
+        // Parse move-in date
+        let einzugKey = "";
+        if (t.einzug) {
+          const parts = t.einzug.split('-');
+          if (parts.length >= 2) {
+            einzugKey = `${parts[0]}-${parts[1].padStart(2, '0')}`;
+          }
+        }
+
+        // Parse move-out date
+        let auszugKey = "";
+        if (t.auszug) {
+          const parts = t.auszug.split('-');
+          if (parts.length >= 2) {
+            auszugKey = `${parts[0]}-${parts[1].padStart(2, '0')}`;
+          }
+        }
+
+        // A tenant is considered active in the month if they moved in on or before the month,
+        // and either haven't moved out or moved out on or after the month.
+        const isActiveInMonth = einzugKey && monthKey >= einzugKey && (!auszugKey || monthKey <= auszugKey);
+        if (!isActiveInMonth) return;
+
+        // Parse and sort their nebenkosten rates chronologically
+        const sortedEntries = [...(t.nebenkosten || [])]
+          .map(entry => {
+            const parts = (entry.date || "").split('-');
+            const entryKey = parts.length >= 2 ? `${parts[0]}-${parts[1].padStart(2, '0')}` : "";
+            return {
+              ...entry,
+              entryKey,
+              amountVal: parseFloat(entry.amount) || 0,
+            };
+          })
+          .filter(e => e.entryKey && e.amountVal > 0)
+          .sort((a, b) => a.entryKey.localeCompare(b.entryKey));
+
+        if (sortedEntries.length === 0) return;
+
+        // Find the active rate configuration for this specific month
+        let activeRate = 0;
+        for (let i = sortedEntries.length - 1; i >= 0; i--) {
+          if (sortedEntries[i].entryKey <= monthKey) {
+            activeRate = sortedEntries[i].amountVal;
+            break;
+          }
+        }
+
+        // Fallback: if they are active in the month but no rate is configured <= monthKey,
+        // use their earliest available rate so we don't display a zero value
+        if (activeRate === 0 && sortedEntries.length > 0) {
+          activeRate = sortedEntries[0].amountVal;
+        }
+
+        if (activeRate > 0) {
+          monthlyTotal += activeRate;
+          distribution.push({
+            tenantName: t.name,
+            amount: parseFloat(activeRate.toFixed(2)),
+          });
+        }
+      });
+
       return {
-        key,
+        key: monthKey,
         name: formattedName,
-        amount: parseFloat(monthlySum[key].toFixed(2)),
-        distribution: Object.entries(monthlyDistribution[key] || {})
-          .map(([tenantName, amt]) => ({
-            tenantName,
-            amount: parseFloat(amt.toFixed(2)),
-          }))
-          .sort((a, b) => b.amount - a.amount),
+        amount: parseFloat(monthlyTotal.toFixed(2)),
+        distribution: distribution.sort((a, b) => b.amount - a.amount),
       };
     });
 
-    return list;
+    // Filter out any months at the start that have absolutely zero prepayments across the entire portfolio
+    // to avoid displaying empty months at the beginning of historical timelines.
+    let firstNonZeroIdx = list.findIndex(item => item.amount > 0);
+    if (firstNonZeroIdx === -1) return [];
+    
+    return list.slice(firstNonZeroIdx);
   }, [initialTenants, nebenkostenTimeframe]);
 
   // Compute deposit refund stats
