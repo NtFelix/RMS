@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
-import { ApartmentsSizeDonutChart } from "@/components/dashboard/dashboard-charts";
+import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -558,28 +558,31 @@ export default function WohnungenClientView({
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
-              title="Frei / Vermietet"
-              value={`${summary.freeCount} / ${summary.rentedCount}`}
+              title="Leerstandsquote"
+              value={summary.total > 0 ? Number((summary.freeCount / summary.total * 100).toFixed(1)) : 0}
+              unit="%"
+              decimals
               icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
+            />
+            <StatCard
+              title="Ø Miete pro m²"
+              value={summary.avgPricePerSqm}
+              unit="€/m²"
+              decimals
+              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Fläche Gesamt"
               value={summary.totalSize}
               unit="m²"
-              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
-              className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
-            />
-            <StatCard
-              title="Ø Wohnungsgröße"
-              value={Math.round(summary.avgSize)}
-              unit="m²"
               icon={<Home className="h-4 w-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
 
-          {/* Chart and details */}
+          {/* Row 1: Details & Occupancy Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6">
               <CardHeader className="px-0 pt-0">
@@ -601,7 +604,7 @@ export default function WohnungenClientView({
                   </div>
                 </div>
 
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Wohnungen</h4>
                   {apartments.map(a => (
                     <div key={a.id} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
@@ -615,10 +618,31 @@ export default function WohnungenClientView({
 
             <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
               <CardHeader className="px-0 pt-0 pb-2">
+                <CardTitle className="text-base font-semibold">Belegungs- & Verfügbarkeitsstatus</CardTitle>
+              </CardHeader>
+              <CardContent className="px-0 pb-0 flex-1 min-h-[260px]">
+                <ApartmentsOccupancyDonutChart apartments={apartments} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Row 2: Size Distribution Chart & €/m² Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+              <CardHeader className="px-0 pt-0 pb-2">
                 <CardTitle className="text-base font-semibold">Größenverteilung der Wohnungen</CardTitle>
               </CardHeader>
               <CardContent className="px-0 pb-0 flex-1 min-h-[260px]">
                 <ApartmentsSizeDonutChart apartments={apartments} />
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between">
+              <CardHeader className="px-0 pt-0 pb-2">
+                <CardTitle className="text-base font-semibold">Durchschnittliche Quadratmetermiete nach Größenklasse</CardTitle>
+              </CardHeader>
+              <CardContent className="px-0 pb-0 flex-1 min-h-[260px]">
+                <ApartmentsRentPerSqmBarChart apartments={apartments} />
               </CardContent>
             </Card>
           </div>

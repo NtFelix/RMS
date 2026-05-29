@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { GLOBAL_CHART_COLORS } from "@/lib/chart-colors";
 import { cn } from "@/lib/utils";
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
   Droplet,
   Thermometer,
@@ -1136,7 +1136,7 @@ export function ApartmentsSizeDonutChart({ apartments = [] }: ApartmentsSizeDonu
       { name: "Klein (< 45 m²)", value: small },
       { name: "Mittel (45 - 75 m²)", value: medium },
       { name: "Groß (75 - 100 m²)", value: large },
-      { name: "Extra Groß (> 100 m²)", value: xl }
+      { name: "Sehr Groß (> 100 m²)", value: xl }
     ].filter(item => item.value > 0);
   }, [apartments]);
 
@@ -1146,6 +1146,266 @@ export function ApartmentsSizeDonutChart({ apartments = [] }: ApartmentsSizeDonu
       emptyMessage="Keine Wohnungen erfasst."
       valueFormatter={(val) => `${val} ${val === 1 ? "Wohnung" : "Wohnungen"}`}
     />
+  );
+}
+
+// ==========================================
+// 7. Apartments Occupancy Donut Chart
+// ==========================================
+export interface ApartmentsOccupancyDonutChartProps {
+  apartments: any[];
+}
+
+export function ApartmentsOccupancyDonutChart({ apartments = [] }: ApartmentsOccupancyDonutChartProps) {
+  const chartData = useMemo(() => {
+    let vermietet = 0;
+    let frei = 0;
+
+    apartments.forEach(apt => {
+      if (apt.status === "vermietet") vermietet++;
+      else if (apt.status === "frei") frei++;
+    });
+
+    return [
+      { name: "Vermietet", value: vermietet },
+      { name: "Frei / Leerstand", value: frei }
+    ].filter(item => item.value > 0);
+  }, [apartments]);
+
+  const colors = [
+    "#34d399", // Emerald
+    "#f87171", // Rose
+  ];
+
+  return (
+    <BaseDonutChart
+      data={chartData}
+      emptyMessage="Keine Wohnungen erfasst."
+      valueFormatter={(val) => `${val} ${val === 1 ? "Wohnung" : "Wohnungen"}`}
+      colors={colors}
+    />
+  );
+}
+
+// ==========================================
+// 8. Apartments Rent per Sqm Bar Chart
+// ==========================================
+export interface ApartmentsRentPerSqmBarChartProps {
+  apartments: any[];
+}
+
+interface CustomBarTooltipProps {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number }>;
+}
+
+const CustomBarTooltip = ({ active, payload }: CustomBarTooltipProps) => {
+  if (active && payload && payload.length) {
+    const d = payload[0];
+    return (
+      <div className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] rounded-xl px-3 py-2 shadow-md text-xs">
+        <p className="font-semibold text-zinc-800 dark:text-zinc-100 mb-0.5">{d.name}</p>
+        <p className="text-emerald-500 font-bold">{d.value.toFixed(2)} €/m²</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export function ApartmentsRentPerSqmBarChart({ apartments = [] }: ApartmentsRentPerSqmBarChartProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const chartData = useMemo(() => {
+    const brackets = [
+      { name: "Klein (< 45 m²)", totalRent: 0, totalArea: 0 },
+      { name: "Mittel (45 - 75 m²)", totalRent: 0, totalArea: 0 },
+      { name: "Groß (75 - 100 m²)", totalRent: 0, totalArea: 0 },
+      { name: "Sehr Groß (> 100 m²)", totalRent: 0, totalArea: 0 }
+    ];
+
+    apartments.forEach(apt => {
+      const size = Number(apt.groesse || 0);
+      const rent = Number(apt.miete || 0);
+      if (size <= 0 || rent <= 0) return;
+
+      if (size < 45) {
+        brackets[0].totalRent += rent;
+        brackets[0].totalArea += size;
+      } else if (size <= 75) {
+        brackets[1].totalRent += rent;
+        brackets[1].totalArea += size;
+      } else if (size <= 100) {
+        brackets[2].totalRent += rent;
+        brackets[2].totalArea += size;
+      } else {
+        brackets[3].totalRent += rent;
+        brackets[3].totalArea += size;
+      }
+    });
+
+    return brackets
+      .map(b => ({
+        name: b.name,
+        value: b.totalArea > 0 ? b.totalRent / b.totalArea : 0
+      }))
+      .filter(b => b.value > 0);
+  }, [apartments]);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-full py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (apartments.length === 0 || chartData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full py-8 text-center">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Daten erfasst.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[260px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-gray-200 dark:stroke-gray-800" />
+          <XAxis
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            className="fill-zinc-400 dark:fill-zinc-500"
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            className="fill-zinc-400 dark:fill-zinc-500"
+            tickFormatter={(value) => `${value} €`}
+            width={35}
+          />
+          <Tooltip content={<CustomBarTooltip />} />
+          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+            {chartData.map((_, idx) => (
+              <Cell key={`cell-${idx}`} fill={GLOBAL_CHART_COLORS[idx % GLOBAL_CHART_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ==========================================
+// 9. Apartments Rent Loss Bar Chart
+// ==========================================
+export interface ApartmentsRentLossBarChartProps {
+  apartments: any[];
+}
+
+interface StackedTooltipProps {
+  active?: boolean;
+  payload?: any[];
+}
+
+const StackedTooltip = ({ active, payload }: StackedTooltipProps) => {
+  if (active && payload && payload.length) {
+    const activeRent = payload.find(p => p.dataKey === "activeRent")?.value || 0;
+    const lossRent = payload.find(p => p.dataKey === "lossRent")?.value || 0;
+    const isRented = payload[0].payload.status === "vermietet";
+
+    const formatter = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
+
+    return (
+      <div className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] rounded-xl px-3 py-2 shadow-md text-xs space-y-1">
+        <p className="font-semibold text-zinc-800 dark:text-zinc-100">{payload[0].payload.name}</p>
+        <p className={isRented ? "text-emerald-500 font-bold" : "text-rose-500 font-bold"}>
+          {isRented ? `Ist-Miete: ${formatter.format(activeRent)}` : `Leerstands-Verlust: ${formatter.format(lossRent)}`}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export function ApartmentsRentLossBarChart({ apartments = [] }: ApartmentsRentLossBarChartProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const chartData = useMemo(() => {
+    // Sort apartments by rent value (highest to lowest)
+    const sorted = [...apartments].sort((a, b) => Number(b.miete || 0) - Number(a.miete || 0));
+    
+    // Take top 10 apartments
+    const top10 = sorted.slice(0, 10);
+
+    return top10.map(apt => {
+      const rent = Number(apt.miete || 0);
+      const isRented = apt.status === "vermietet";
+      const displayLabel = apt.Haeuser?.name ? `${apt.name} (${apt.Haeuser.name})` : apt.name;
+      
+      return {
+        name: displayLabel,
+        activeRent: isRented ? rent : 0,
+        lossRent: isRented ? 0 : rent,
+        status: apt.status
+      };
+    }).filter(d => d.activeRent > 0 || d.lossRent > 0);
+  }, [apartments]);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-full py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (apartments.length === 0 || chartData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full py-8 text-center">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">Keine Daten erfasst.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[300px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 10, right: 30, left: 40, bottom: 10 }} layout="vertical">
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-gray-200 dark:stroke-gray-800" />
+          <XAxis
+            type="number"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            className="fill-zinc-400 dark:fill-zinc-500"
+            tickFormatter={(value) => `${value} €`}
+          />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            fontSize={10}
+            className="fill-zinc-400 dark:fill-zinc-500"
+            width={120}
+          />
+          <Tooltip content={<StackedTooltip />} />
+          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Bar dataKey="activeRent" name="Ist-Miete" stackId="a" fill="#34d399" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="lossRent" name="Leerstand" stackId="a" fill="#f87171" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
