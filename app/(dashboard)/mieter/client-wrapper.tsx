@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,7 +60,14 @@ export default function MieterClientView({
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const { openTenantModal } = useModalStore();
-  const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
+  const showApplicantsTab = useFeatureFlagEnabled('applicants-tab');
+
+  // Fallback to "mieter" if applicants tab is disabled and user is on "bewerber"
+  useEffect(() => {
+    if (showApplicantsTab === false && currentTab === "bewerber") {
+      setCurrentTab("mieter");
+    }
+  }, [showApplicantsTab, currentTab]);
 
   // Compute tenant stats for overview subpage
   const tenantStats = useMemo(() => {
@@ -389,28 +396,30 @@ export default function MieterClientView({
             <span>Mieter</span>
           </motion.button>
 
-          <motion.button
-            layout
-            onClick={() => {
-              setCurrentTab("bewerber");
-              setFilter("current");
-              setSelectedTenants(new Set());
-            }}
-            className={cn(
-              "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-              currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {currentTab === "bewerber" && (
-              <motion.div
-                layoutId="active-tenant-tab-pill"
-                className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
-            <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-300" />
-            <span>Bewerber</span>
-          </motion.button>
+          {showApplicantsTab && (
+            <motion.button
+              layout
+              onClick={() => {
+                setCurrentTab("bewerber");
+                setFilter("current");
+                setSelectedTenants(new Set());
+              }}
+              className={cn(
+                "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+                currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {currentTab === "bewerber" && (
+                <motion.div
+                  layoutId="active-tenant-tab-pill"
+                  className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-300" />
+              <span>Bewerber</span>
+            </motion.button>
+          )}
 
           <motion.button
             layout
@@ -474,35 +483,42 @@ export default function MieterClientView({
                     </p>
                   </div>
                   <div className="mt-0 sm:mt-1">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button className="w-full sm:w-auto gap-2">
-                          <PlusCircle className="h-4 w-4" />
-                          Hinzufügen
-                          <ChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-64">
-                        <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                          <div className="flex items-center font-medium">
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Manuell hinzufügen
-                          </div>
-                          <span className="text-xs text-muted-foreground ml-6">
-                            Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
-                          </span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                          <div className="flex items-center font-medium">
-                            <Mail className="mr-2 h-4 w-4" />
-                            Aus E-Mails importieren
-                          </div>
-                          <span className="text-xs text-muted-foreground ml-6">
-                            Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
-                          </span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {showApplicantsTab ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button className="w-full sm:w-auto gap-2">
+                            <PlusCircle className="h-4 w-4" />
+                            Hinzufügen
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                          <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                            <div className="flex items-center font-medium">
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Manuell hinzufügen
+                            </div>
+                            <span className="text-xs text-muted-foreground ml-6">
+                              Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
+                            </span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                            <div className="flex items-center font-medium">
+                              <Mail className="mr-2 h-4 w-4" />
+                              Aus E-Mails importieren
+                            </div>
+                            <span className="text-xs text-muted-foreground ml-6">
+                              Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
+                            </span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button onClick={handleAddTenant} className="w-full sm:w-auto gap-2">
+                        <PlusCircle className="h-4 w-4" />
+                        Mieter hinzufügen
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>

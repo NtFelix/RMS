@@ -49,7 +49,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     openConfirmationModal,
   } = useModalStore();
 
-  const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
+  const showApplicantsTab = useFeatureFlagEnabled('applicants-tab');
 
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -413,28 +413,27 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         }} className="grid gap-3 sm:gap-4">
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            {/* Status Field - Full width - Only show if feature flag is enabled */}
-            {showTenantTabs && (
-              <div className="col-span-1 sm:col-span-2 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="status">Status</Label>
-                  <InfoTooltip infoText="Wählen Sie 'Bewerber' für Interessenten oder 'Mieter' für aktive Vertragsverhältnisse." />
-                </div>
-                <Select
-                  value={formData.status}
-                  onValueChange={handleStatusChange}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Status auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mieter">Mieter</SelectItem>
-                    <SelectItem value="bewerber">Bewerber</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="col-span-1 sm:col-span-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="status">Status</Label>
+                <InfoTooltip infoText="Wählen Sie 'Bewerber' für Interessenten oder 'Mieter' für aktive Vertragsverhältnisse." />
               </div>
-            )}
+              <Select
+                value={formData.status}
+                onValueChange={handleStatusChange}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Status auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mieter">Mieter</SelectItem>
+                  {showApplicantsTab && (
+                    <SelectItem value="bewerber">Bewerber</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
