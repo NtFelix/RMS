@@ -86,10 +86,10 @@ async function initializePostHog(nonce?: string) {
     // Ensure feature flags are loaded
     loaded: function (ph: any) {
       console.log('PostHog loaded successfully, reloading feature flags...');
-      if (typeof window !== 'undefined') {
+      if (ph) {
         (window as any).posthog = ph;
+        ph.reloadFeatureFlags?.();
       }
-      ph.reloadFeatureFlags?.();
     }
   } as any);
 
