@@ -32,6 +32,43 @@ import { Trash2 } from "lucide-react";
 import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
+// Custom tooltip showing total monthly prepayments and tenant-level distribution
+const CustomNebenkostenTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs space-y-3 min-w-[220px] animate-in fade-in duration-150 z-50">
+        <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
+          <span className="text-muted-foreground block text-[10px] uppercase font-semibold tracking-wider">Nebenkosten-Trend</span>
+          <span className="font-bold text-sm text-zinc-900 dark:text-zinc-50">{data.name}</span>
+        </div>
+        
+        <div className="flex items-center justify-between font-bold text-zinc-950 dark:text-zinc-50">
+          <span>Gesamt:</span>
+          <span className="text-indigo-600 dark:text-indigo-400 text-sm">
+            {data.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+          </span>
+        </div>
+
+        {data.distribution && data.distribution.length > 0 && (
+          <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider block mb-1">Aufteilung nach Mieter</span>
+            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+              {data.distribution.map((dist: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
+                  <span className="truncate max-w-[120px] font-medium">{dist.tenantName}</span>
+                  <span className="font-semibold shrink-0">{dist.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
 // Props for the main client view component
 interface MieterClientViewProps {
   initialTenants: Tenant[];
@@ -277,6 +314,7 @@ export default function MieterClientView({
   // Compute utilities trend prepayments (Nebenkosten-Prepayments aggregated by month over time)
   const nebenkostenTrend = useMemo(() => {
     const monthlySum: Record<string, number> = {};
+    const monthlyDistribution: Record<string, Record<string, number>> = {};
 
     initialTenants.forEach(t => {
       if ((t.status || 'mieter') !== 'mieter') return;
@@ -284,17 +322,29 @@ export default function MieterClientView({
 
       t.nebenkosten.forEach(entry => {
         if (!entry.date) return;
-        const d = new Date(entry.date);
-        if (isNaN(d.getTime())) return;
+        
+        // Timezone-safe date parsing: split YYYY-MM-DD directly to prevent local timezone shifts
+        const parts = entry.date.split('-');
+        if (parts.length < 2) return;
 
-        // Create a key in format YYYY-MM
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const key = `${year}-${month}`;
+        const yearStr = parts[0].trim();
+        const monthStr = parts[1].trim();
+        if (yearStr.length !== 4 || monthStr.length < 1) return;
+
+        const year = parseInt(yearStr, 10);
+        const monthVal = parseInt(monthStr, 10);
+        if (isNaN(year) || isNaN(monthVal) || monthVal < 1 || monthVal > 12) return;
+
+        const key = `${year}-${String(monthVal).padStart(2, '0')}`;
 
         const amount = parseFloat(entry.amount);
         if (!isNaN(amount) && amount > 0) {
           monthlySum[key] = (monthlySum[key] || 0) + amount;
+          
+          if (!monthlyDistribution[key]) {
+            monthlyDistribution[key] = {};
+          }
+          monthlyDistribution[key][t.name] = (monthlyDistribution[key][t.name] || 0) + amount;
         }
       });
     });
@@ -316,6 +366,12 @@ export default function MieterClientView({
         key,
         name: formattedName,
         amount: parseFloat(monthlySum[key].toFixed(2)),
+        distribution: Object.entries(monthlyDistribution[key] || {})
+          .map(([tenantName, amt]) => ({
+            tenantName,
+            amount: parseFloat(amt.toFixed(2)),
+          }))
+          .sort((a, b) => b.amount - a.amount),
       };
     });
 
@@ -1125,16 +1181,7 @@ export default function MieterClientView({
                           axisLine={false} 
                           tickFormatter={(value) => `${value} €`} 
                         />
-                        <RechartsTooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                            borderRadius: '12px', 
-                            border: '1px solid #E5E7EB',
-                            fontSize: '12px',
-                            color: '#1F2937'
-                          }} 
-                          formatter={(value) => [`${value} €`, 'Gesamte Vorauszahlungen']}
-                        />
+                        <RechartsTooltip content={<CustomNebenkostenTooltip />} />
                         <Area 
                           type="monotone" 
                           dataKey="amount" 
