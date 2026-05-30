@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Droplets, X, FileSpreadsheet, Building2, Euro, Ruler, Percent, Activity, BarChart3 } from "lucide-react";
 import { CreateAbrechnungDropdown } from "@/components/abrechnung/create-abrechnung-dropdown";
@@ -652,55 +652,59 @@ export default function BetriebskostenClientView({
           </div>
 
           {/* Two-Column Analytics Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Progress Coverage */}
-            <div className="lg:col-span-5 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col gap-6 h-full">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Objekt-Abdeckung</h3>
-                <p className="text-xs text-muted-foreground mt-1">Status der Betriebskostenerfassung über Ihren gesamten Häuserbestand</p>
-              </div>
+            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Objekt-Abdeckung</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Status der Betriebskostenerfassung über Ihren gesamten Häuserbestand</CardDescription>
+              </CardHeader>
 
-              <div className="flex flex-col gap-4 mt-2">
-                <div className="flex justify-between items-center text-sm font-bold text-zinc-800 dark:text-zinc-200">
-                  <span>Abrechnungsquote</span>
-                  <span className="text-accent text-lg">{nebenkostenStats.housesCoverage}%</span>
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
+                <div className="flex flex-col gap-4">
+                  <div className="flex justify-between items-center text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                    <span>Abrechnungsquote</span>
+                    <span className="text-accent text-lg">{nebenkostenStats.housesCoverage}%</span>
+                  </div>
+                  <div className="h-3 w-full bg-zinc-200/50 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+                    <div
+                      className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                      style={{ width: `${nebenkostenStats.housesCoverage}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-1">
+                    Es sind Betriebskosten für {Math.round((nebenkostenStats.housesCoverage / 100) * initialHaeuser.length)} von {initialHaeuser.length} Häusern in Ihrem Portfolio erfasst.
+                  </div>
                 </div>
-                <div className="h-3 w-full bg-zinc-200/50 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
-                  <div
-                    className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                    style={{ width: `${nebenkostenStats.housesCoverage}%` }}
-                  />
-                </div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-1">
-                  Es sind Betriebskosten für {Math.round((nebenkostenStats.housesCoverage / 100) * initialHaeuser.length)} von {initialHaeuser.length} Häusern in Ihrem Portfolio erfasst.
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Right Box: Donut Chart Distribution */}
-            <div className="lg:col-span-7 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs">
-              <div className="mb-4">
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Betriebskosten-Verteilung</h3>
-                <p className="text-xs text-muted-foreground mt-1">Prozentuale Aufteilung der einzelnen Nebenkostenarten im System</p>
-              </div>
-              <div className="w-full flex items-center justify-center p-2">
-                <div className="w-full max-w-[340px]">
-                  <NebenkostenDonutChart nebenkosten={initialNebenkosten} />
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Betriebskosten-Verteilung</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Prozentuale Aufteilung der einzelnen Nebenkostenarten im System</CardDescription>
+              </CardHeader>
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
+                <div className="w-full flex items-center justify-center p-2">
+                  <div className="w-full max-w-[340px]">
+                    <NebenkostenDonutChart nebenkosten={initialNebenkosten} />
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Row 3: House cost share donut chart and year-over-year stacked bar chart */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Asymmetric House Share Donut Chart */}
-            <div className="lg:col-span-5 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[350px]">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Kostenanteil nach Häusern</h3>
-                <p className="text-xs text-muted-foreground mt-1">Verteilung der gesamten Betriebskosten über Ihre verschiedenen Immobilien</p>
-              </div>
+            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[350px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Kostenanteil nach Häusern</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Verteilung der gesamten Betriebskosten über Ihre verschiedenen Immobilien</CardDescription>
+              </CardHeader>
               
-              <div className="w-full flex items-center justify-center py-4 flex-grow">
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
                 <div className="relative w-full h-[200px] flex items-center justify-center">
                   <BaseDonutChart
                     data={costAnalytics.houseShares}
@@ -748,20 +752,65 @@ export default function BetriebskostenClientView({
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Right Box: Year-over-Year Area Chart */}
-            <div className="lg:col-span-7 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[350px]">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Betriebskosten-Entwicklung</h3>
-                <p className="text-xs text-muted-foreground mt-1">Verlauf der jährlichen Betriebskosten aufgeteilt nach Häusern</p>
-              </div>
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[350px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Betriebskosten-Entwicklung</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Verlauf der jährlichen Betriebskosten aufgeteilt nach Häusern</CardDescription>
+              </CardHeader>
               
-              <div className="w-full h-[220px] mt-4 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={costAnalytics.yearlyDevelopment} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 relative">
+                <div className="w-full h-[220px] relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={costAnalytics.yearlyDevelopment} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        {costAnalytics.houseNames.map((houseName, index) => {
+                          const colors = [
+                            "hsl(var(--primary, 221.2 83.2% 53.3%))",
+                            "hsl(var(--success, 142.1 76.2% 36.3%))",
+                            "hsl(var(--destructive, 0 84.2% 60.2%))",
+                            "hsl(200, 80%, 50%)",
+                            "hsl(280, 80%, 50%)",
+                            "hsl(40, 80%, 50%)"
+                          ];
+                          const color = colors[index % colors.length];
+                          const cleanId = `color-${houseName.replace(/[^a-zA-Z0-9]/g, '')}`;
+                          return (
+                            <linearGradient key={houseName} id={cleanId} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={color} stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                            </linearGradient>
+                          );
+                        })}
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(228, 228, 231, 0.1)" />
+                      <XAxis 
+                        dataKey="year" 
+                        tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => `${value.toLocaleString('de-DE')} €`}
+                        tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <RechartsTooltip 
+                        formatter={(value: any) => [`${value.toLocaleString('de-DE')} €`]}
+                        labelFormatter={(label) => `Jahr: ${label}`}
+                        contentStyle={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          border: '1px solid #e4e4e7',
+                          borderRadius: '1rem',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          color: '#18181b'
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
                       {costAnalytics.houseNames.map((houseName, index) => {
                         const colors = [
                           "hsl(var(--primary, 221.2 83.2% 53.3%))",
@@ -774,304 +823,269 @@ export default function BetriebskostenClientView({
                         const color = colors[index % colors.length];
                         const cleanId = `color-${houseName.replace(/[^a-zA-Z0-9]/g, '')}`;
                         return (
-                          <linearGradient key={houseName} id={cleanId} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={color} stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor={color} stopOpacity={0}/>
-                          </linearGradient>
+                          <Area 
+                            key={houseName} 
+                            type="monotone"
+                            dataKey={houseName} 
+                            stackId="a" 
+                            stroke={color}
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill={`url(#${cleanId})`}
+                          />
                         );
                       })}
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(228, 228, 231, 0.1)" />
-                    <XAxis 
-                      dataKey="year" 
-                      tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis 
-                      tickFormatter={(value) => `${value.toLocaleString('de-DE')} €`}
-                      tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <RechartsTooltip 
-                      formatter={(value: any) => [`${value.toLocaleString('de-DE')} €`]}
-                      labelFormatter={(label) => `Jahr: ${label}`}
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        border: '1px solid #e4e4e7',
-                        borderRadius: '1rem',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                        color: '#18181b'
-                      }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
-                    {costAnalytics.houseNames.map((houseName, index) => {
-                      const colors = [
-                        "hsl(var(--primary, 221.2 83.2% 53.3%))",
-                        "hsl(var(--success, 142.1 76.2% 36.3%))",
-                        "hsl(var(--destructive, 0 84.2% 60.2%))",
-                        "hsl(200, 80%, 50%)",
-                        "hsl(280, 80%, 50%)",
-                        "hsl(40, 80%, 50%)"
-                      ];
-                      const color = colors[index % colors.length];
-                      const cleanId = `color-${houseName.replace(/[^a-zA-Z0-9]/g, '')}`;
-                      return (
-                        <Area 
-                          key={houseName} 
-                          type="monotone"
-                          dataKey={houseName} 
-                          stackId="a" 
-                          stroke={color}
-                          strokeWidth={2}
-                          fillOpacity={1}
-                          fill={`url(#${cleanId})`}
-                        />
-                      );
-                    })}
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Row 4: Suggested Plausibilitäts-Audit and Energy Cost Split */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Plausibilitäts-Audit (Benchmark) */}
-            <div className="lg:col-span-5 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[300px]">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Plausibilitäts-Audit</h3>
-                <p className="text-xs text-muted-foreground mt-1">Vergleich Ihres Portfolios mit dem deutschen Betriebskostenspiegel (~2,50 €/m²/Monat)</p>
-              </div>
+            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Plausibilitäts-Audit</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Vergleich Ihres Portfolios mit dem deutschen Betriebskostenspiegel (~2,50 €/m²/Monat)</CardDescription>
+              </CardHeader>
 
-              <div className="space-y-5 my-auto py-4">
-                {/* Monthly cost index */}
-                <div className="flex justify-between items-end">
-                  <div>
-                    <span className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
-                      {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12).toFixed(2)} €
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0">
+                <div className="space-y-5 my-auto py-4">
+                  {/* Monthly cost index */}
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <span className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+                        {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12).toFixed(2)} €
+                      </span>
+                      <span className="text-xs text-muted-foreground font-semibold block mt-0.5">Ihr Portfoliowert / Monat</span>
+                    </div>
+                    <span className={cn(
+                      "text-xs font-bold px-3 py-1 rounded-full border shadow-xs",
+                      ((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50
+                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                        : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    )}>
+                      {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50 ? "Wirtschaftlich" : "Erhöht"}
                     </span>
-                    <span className="text-xs text-muted-foreground font-semibold block mt-0.5">Ihr Portfoliowert / Monat</span>
                   </div>
-                  <span className={cn(
-                    "text-xs font-bold px-3 py-1 rounded-full border shadow-xs",
-                    ((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50
-                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  )}>
-                    {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50 ? "Wirtschaftlich" : "Erhöht"}
-                  </span>
+
+                  {/* Benchmark slider */}
+                  <div className="space-y-1.5">
+                    <div className="h-2 w-full bg-zinc-200/50 dark:bg-zinc-800/80 rounded-full overflow-hidden relative shadow-inner">
+                      <div 
+                        className="absolute top-0 bottom-0 left-0 bg-emerald-500 rounded-full transition-all duration-700" 
+                        style={{ 
+                          width: `${Math.min(100, (((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) / 3.50) * 100)}%` 
+                        }} 
+                      />
+                      <div className="absolute top-0 bottom-0 left-[71%] w-0.5 bg-rose-500/80 z-10 shadow-xs" title="Benchmark (2,50 €)" />
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span>Sparsam</span>
+                      <span className="text-rose-500 font-extrabold">Benchmark (2,50 €)</span>
+                      <span>Teuer</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Benchmark slider */}
-                <div className="space-y-1.5">
-                  <div className="h-2 w-full bg-zinc-200/50 dark:bg-zinc-800/80 rounded-full overflow-hidden relative shadow-inner">
-                    <div 
-                      className="absolute top-0 bottom-0 left-0 bg-emerald-500 rounded-full transition-all duration-700" 
-                      style={{ 
-                        width: `${Math.min(100, (((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) / 3.50) * 100)}%` 
-                      }} 
-                    />
-                    <div className="absolute top-0 bottom-0 left-[71%] w-0.5 bg-rose-500/80 z-10 shadow-xs" title="Benchmark (2,50 €)" />
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    <span>Sparsam</span>
-                    <span className="text-rose-500 font-extrabold">Benchmark (2,50 €)</span>
-                    <span>Teuer</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
-                {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50 
-                  ? "✓ Die Kosten liegen im grünen Bereich. Die Abrechnung ist rechtlich unbedenklich und entspricht dem Wirtschaftlichkeitsgebot."
-                  : "⚠ Die Kosten liegen über dem Schnitt. Überprüfen Sie Verträge mit Dienstleistern (z. B. Reinigung, Gartenpflege) zur Kostenoptimierung."
-                }
-              </p>
-            </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto">
+                  {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50 
+                    ? "✓ Die Kosten liegen im grünen Bereich. Die Abrechnung ist rechtlich unbedenklich und entspricht dem Wirtschaftlichkeitsgebot."
+                    : "⚠ Die Kosten liegen über dem Schnitt. Überprüfen Sie Verträge mit Dienstleistern (z. B. Reinigung, Gartenpflege) zur Kostenoptimierung."
+                  }
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Right Box: Heiz- & Warmwasseranteil */}
-            <div className="lg:col-span-7 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[300px]">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Energie- vs. Betriebskosten</h3>
-                <p className="text-xs text-muted-foreground mt-1">Verhältnis von volatilen Heiz-/Warmwasserkosten zu stabilen kalten Betriebskosten</p>
-              </div>
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Energie- vs. Betriebskosten</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Verhältnis von volatilen Heiz-/Warmwasserkosten zu stabilen kalten Betriebskosten</CardDescription>
+              </CardHeader>
 
-              {/* Aggregated values and split progress bar */}
-              {(() => {
-                let warmCosts = 0;
-                let coldCosts = 0;
-                
-                initialNebenkosten.forEach(item => {
-                  const arten = item.nebenkostenart || [];
-                  const betraege = item.betrag || [];
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
+                {/* Aggregated values and split progress bar */}
+                {(() => {
+                  let warmCosts = 0;
+                  let coldCosts = 0;
                   
-                  arten.forEach((art, idx) => {
-                    const amount = Number(betraege[idx] || 0);
-                    const isWarm = art.toLowerCase().includes('heiz') || 
-                                   art.toLowerCase().includes('gas') || 
-                                   art.toLowerCase().includes('wasser') || 
-                                   art.toLowerCase().includes('wärme') || 
-                                   art.toLowerCase().includes('energie');
-                    if (isWarm) {
-                      warmCosts += amount;
-                    } else {
-                      coldCosts += amount;
-                    }
+                  initialNebenkosten.forEach(item => {
+                    const arten = item.nebenkostenart || [];
+                    const betraege = item.betrag || [];
+                    
+                    arten.forEach((art, idx) => {
+                      const amount = Number(betraege[idx] || 0);
+                      const isWarm = art.toLowerCase().includes('heiz') || 
+                                     art.toLowerCase().includes('gas') || 
+                                     art.toLowerCase().includes('wasser') || 
+                                     art.toLowerCase().includes('wärme') || 
+                                     art.toLowerCase().includes('energie');
+                      if (isWarm) {
+                        warmCosts += amount;
+                      } else {
+                        coldCosts += amount;
+                      }
+                    });
                   });
-                });
 
-                const total = warmCosts + coldCosts;
-                const warmRatio = total > 0 ? Math.round((warmCosts / total) * 100) : 30;
-                const coldRatio = total > 0 ? Math.round((coldCosts / total) * 100) : 70;
+                  const total = warmCosts + coldCosts;
+                  const warmRatio = total > 0 ? Math.round((warmCosts / total) * 100) : 30;
+                  const coldRatio = total > 0 ? Math.round((coldCosts / total) * 100) : 70;
 
-                return (
-                  <div className="space-y-6 my-auto py-4">
-                    {/* Split bar */}
-                    <div className="space-y-2">
-                      <div className="h-3.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
-                        <div className="h-full bg-orange-500 rounded-l-full transition-all duration-700" style={{ width: `${warmRatio}%` }} />
-                        <div className="h-full bg-blue-500 rounded-r-full transition-all duration-700" style={{ width: `${coldRatio}%` }} />
+                  return (
+                    <div className="space-y-6 my-auto py-2 w-full">
+                      {/* Split bar */}
+                      <div className="space-y-2">
+                        <div className="h-3.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
+                          <div className="h-full bg-orange-500 rounded-l-full transition-all duration-700" style={{ width: `${warmRatio}%` }} />
+                          <div className="h-full bg-blue-500 rounded-r-full transition-all duration-700" style={{ width: `${coldRatio}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                          <span className="text-orange-500">Heizung & Energie ({warmRatio}%)</span>
+                          <span className="text-blue-500">Kalte Nebenkosten ({coldRatio}%)</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                        <span className="text-orange-500">Heizung & Energie ({warmRatio}%)</span>
-                        <span className="text-blue-500">Kalte Nebenkosten ({coldRatio}%)</span>
+
+                      {/* Numeric breakdown */}
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div className="p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl">
+                          <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-0.5">Volatile Energiekosten</span>
+                          <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(warmCosts)}
+                          </span>
+                        </div>
+                        <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
+                          <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block mb-0.5">Stabile Betriebskosten</span>
+                          <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(coldCosts)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Numeric breakdown */}
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl">
-                        <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-0.5">Volatile Energiekosten</span>
-                        <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(warmCosts)}
-                        </span>
-                      </div>
-                      <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                        <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block mb-0.5">Stabile Betriebskosten</span>
-                        <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(coldCosts)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Row 5: Suggested Abrechnungs-Fristen & Guthaben/Nachforderung Prognose */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Abrechnungs-Fristen Countdown (Verjährungs-Radar) */}
-            <div className="lg:col-span-5 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[300px]">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Verjährungs-Radar</h3>
-                <p className="text-xs text-muted-foreground mt-1">Gesetzliche 12-Monats-Fristen zur Abgabe der Betriebskostenabrechnung (§ 556 BGB)</p>
-              </div>
+            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Verjährungs-Radar</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Gesetzliche 12-Monats-Fristen zur Abgabe der Betriebskostenabrechnung (§ 556 BGB)</CardDescription>
+              </CardHeader>
 
-              <div className="space-y-3.5 my-4 flex-grow flex flex-col justify-center">
-                {legalPrognosis.deadlines.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic text-center">Keine offenen Abrechnungsfristen vorhanden.</p>
-                ) : (
-                  legalPrognosis.deadlines.map((dl, idx) => {
-                    const isExpired = dl.daysRemaining < 0;
-                    return (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
-                        <div className="flex items-center gap-3">
-                          <span className={cn(
-                            "w-2.5 h-2.5 rounded-full shrink-0",
-                            dl.status === 'green' ? "bg-emerald-500" :
-                            dl.status === 'amber' ? "bg-amber-500 animate-pulse" :
-                            dl.status === 'red' ? "bg-rose-500 animate-ping" : "bg-zinc-400"
-                          )} />
-                          <div>
-                            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">{dl.houseName} ({dl.year})</span>
-                            <span className="text-[10px] text-muted-foreground mt-0.5 block">Abgabe bis: {dl.deadlineDate}</span>
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0">
+                <div className="space-y-3.5 my-auto py-2 w-full">
+                  {legalPrognosis.deadlines.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic text-center py-6">Keine offenen Abrechnungsfristen vorhanden.</p>
+                  ) : (
+                    legalPrognosis.deadlines.map((dl, idx) => {
+                      const isExpired = dl.daysRemaining < 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
+                          <div className="flex items-center gap-3">
+                            <span className={cn(
+                              "w-2.5 h-2.5 rounded-full shrink-0",
+                              dl.status === 'green' ? "bg-emerald-500" :
+                              dl.status === 'amber' ? "bg-amber-500 animate-pulse" :
+                              dl.status === 'red' ? "bg-rose-500 animate-ping" : "bg-zinc-400"
+                            )} />
+                            <div>
+                              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">{dl.houseName} ({dl.year})</span>
+                              <span className="text-[10px] text-muted-foreground mt-0.5 block">Abgabe bis: {dl.deadlineDate}</span>
+                            </div>
                           </div>
+
+                          <span className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
+                            isExpired ? "bg-zinc-100 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700" :
+                            dl.status === 'red' ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
+                            dl.status === 'amber' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                            "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                          )}>
+                            {isExpired ? "Abgelaufen" : `${dl.daysRemaining} Tage`}
+                          </span>
                         </div>
+                      );
+                    })
+                  )}
+                </div>
 
-                        <span className={cn(
-                          "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
-                          isExpired ? "bg-zinc-100 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700" :
-                          dl.status === 'red' ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
-                          dl.status === 'amber' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                          "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                        )}>
-                          {isExpired ? "Abgelaufen" : `${dl.daysRemaining} Tage`}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
-                * Nach Ablauf der 12-Monats-Frist können Nachforderungen rechtlich nicht mehr geltend gemacht werden.
-              </p>
-            </div>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto">
+                  * Nach Ablauf der 12-Monats-Frist können Nachforderungen rechtlich nicht mehr geltend gemacht werden.
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Right Box: Saldo-Prognose (Guthaben vs. Nachforderung Prognose) */}
-            <div className="lg:col-span-7 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[300px]">
-              <div>
-                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Saldo-Prognose</h3>
-                <p className="text-xs text-muted-foreground mt-1">Erwartete Guthaben-Auszahlungen und Nachforderungen basierend auf Vorauszahlungen</p>
-              </div>
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+                <CardTitle className="text-base font-semibold">Saldo-Prognose</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Erwartete Guthaben-Auszahlungen und Nachforderungen basierend auf Vorauszahlungen</CardDescription>
+              </CardHeader>
 
-              <div className="space-y-4 my-auto py-4">
-                {/* Asymmetric split forecast bar */}
-                {(() => {
-                  const total = legalPrognosis.totalNachforderung + legalPrognosis.totalGuthaben;
-                  const nachRatio = total > 0 ? Math.round((legalPrognosis.totalNachforderung / total) * 100) : 50;
-                  const gutRatio = total > 0 ? Math.round((legalPrognosis.totalGuthaben / total) * 100) : 50;
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0">
+                <div className="space-y-4 my-auto py-2 w-full">
+                  {/* Asymmetric split forecast bar */}
+                  {(() => {
+                    const total = legalPrognosis.totalNachforderung + legalPrognosis.totalGuthaben;
+                    const nachRatio = total > 0 ? Math.round((legalPrognosis.totalNachforderung / total) * 100) : 50;
+                    const gutRatio = total > 0 ? Math.round((legalPrognosis.totalGuthaben / total) * 100) : 50;
 
-                  return (
-                    <div className="space-y-2">
-                      <div className="h-3.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
-                        <div className="h-full bg-emerald-500 rounded-l-full transition-all duration-700" style={{ width: `${nachRatio}%` }} />
-                        <div className="h-full bg-rose-500 rounded-r-full transition-all duration-700" style={{ width: `${gutRatio}%` }} />
+                    return (
+                      <div className="space-y-2">
+                        <div className="h-3.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
+                          <div className="h-full bg-emerald-500 rounded-l-full transition-all duration-700" style={{ width: `${nachRatio}%` }} />
+                          <div className="h-full bg-rose-500 rounded-r-full transition-all duration-700" style={{ width: `${gutRatio}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                          <span className="text-emerald-600 dark:text-emerald-500">Erwartete Nachforderung ({nachRatio}%)</span>
+                          <span className="text-rose-600 dark:text-rose-400">Erwartetes Guthaben ({gutRatio}%)</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                        <span className="text-emerald-600 dark:text-emerald-500">Erwartete Nachforderung ({nachRatio}%)</span>
-                        <span className="text-rose-600 dark:text-rose-400">Erwartetes Guthaben ({gutRatio}%)</span>
-                      </div>
+                    );
+                  })()}
+
+                  {/* KPI block row */}
+                  <div className="grid grid-cols-3 gap-3.5 text-center">
+                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex flex-col justify-center">
+                      <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest block mb-0.5">Soll-Nachzahlung</span>
+                      <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
+                        +{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalNachforderung)}
+                      </span>
                     </div>
-                  );
-                })()}
-
-                {/* KPI block row */}
-                <div className="grid grid-cols-3 gap-3.5 text-center">
-                  <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex flex-col justify-center">
-                    <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest block mb-0.5">Soll-Nachzahlung</span>
-                    <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                      +{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalNachforderung)}
-                    </span>
-                  </div>
-                  <div className="p-3 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex flex-col justify-center">
-                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest block mb-0.5">Soll-Guthaben</span>
-                    <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                      -{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalGuthaben)}
-                    </span>
-                  </div>
-                  <div className="p-3 bg-primary/5 border border-primary/10 rounded-2xl flex flex-col justify-center">
-                    <span className="text-[9px] font-bold text-primary uppercase tracking-widest block mb-0.5">Netto-Saldo</span>
-                    <span className={cn(
-                      "text-xs sm:text-sm font-extrabold",
-                      legalPrognosis.netBalance >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-400"
-                    )}>
-                      {legalPrognosis.netBalance >= 0 ? '+' : ''}{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.netBalance)}
-                    </span>
+                    <div className="p-3 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex flex-col justify-center">
+                      <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest block mb-0.5">Soll-Guthaben</span>
+                      <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
+                        -{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalGuthaben)}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-primary/5 border border-primary/10 rounded-2xl flex flex-col justify-center">
+                      <span className="text-[9px] font-bold text-primary uppercase tracking-widest block mb-0.5">Netto-Saldo</span>
+                      <span className={cn(
+                        "text-xs sm:text-sm font-extrabold",
+                        legalPrognosis.netBalance >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-400"
+                      )}>
+                        {legalPrognosis.netBalance >= 0 ? '+' : ''}{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.netBalance)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
-                {legalPrognosis.netBalance >= 0 
-                  ? "✓ Ihr Portfolio läuft im Netto-Überschuss. Sie erwarten mehr Nachzahlungen als Rückerstattungen."
-                  : "⚠ Rückerstattungen übersteigen Nachforderungen. Halten Sie Liquiditätsreserven zur Auszahlung an Mieter bereit."
-                }
-              </p>
-            </div>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto">
+                  {legalPrognosis.netBalance >= 0 
+                    ? "✓ Ihr Portfolio läuft im Netto-Überschuss. Sie erwarten mehr Nachzahlungen als Rückerstattungen."
+                    : "⚠ Rückerstattungen übersteigen Nachforderungen. Halten Sie Liquiditätsreserven zur Auszahlung an Mieter bereit."
+                  }
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
