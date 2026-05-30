@@ -104,7 +104,7 @@ export default async function FinanzenPage() {
     initialSummaryData
   ] = await Promise.all([
     // Wohnungen laden
-    supabase.from('Wohnungen').select('id,name'),
+    supabase.from('Wohnungen').select('id,name,miete'),
 
     // Initial Finanzen laden (nur die erste Seite für die Transaktionsliste)
     supabase
