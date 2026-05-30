@@ -217,6 +217,98 @@ export default function BetriebskostenClientView({
     };
   }, [initialNebenkosten]);
 
+  // Aggregated data for legal deadlines and settlement balance prognosis
+  const legalPrognosis = useMemo(() => {
+    if (!initialNebenkosten || initialNebenkosten.length === 0) {
+      return {
+        deadlines: [],
+        totalNachforderung: 0,
+        totalGuthaben: 0,
+        netBalance: 0
+      };
+    }
+
+    const today = new Date();
+    let totalNachforderung = 0;
+    let totalGuthaben = 0;
+
+    const deadlines = initialNebenkosten.map(item => {
+      const houseName = item.haus_name || "Unbekanntes Haus";
+      
+      // Calculate total item cost
+      const arten = item.nebenkostenart || [];
+      const betraege = item.betrag || [];
+      let billSum = 0;
+      arten.forEach((art, idx) => {
+        const amount = Number(betraege[idx] || 0);
+        if (amount > 0) billSum += amount;
+      });
+
+      let totalItemCost = billSum;
+      if (item.zaehlerkosten) {
+        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+          const amount = Number(val || 0);
+          if (amount > 0) totalItemCost += amount;
+        });
+      }
+
+      // Estimate prepayments based on sqm area (standard 1.85 €/sqm/month)
+      const estimatedPrepayments = (item.gesamt_flaeche || 120) * 1.85 * 12;
+      const difference = totalItemCost - estimatedPrepayments;
+      
+      if (difference > 0) {
+        totalNachforderung += difference;
+      } else {
+        totalGuthaben += Math.abs(difference);
+      }
+
+      // Calculate legal deadline (12 months after enddatum)
+      let end = new Date();
+      if (item.enddatum) {
+        const parsedEnd = new Date(item.enddatum);
+        if (!isNaN(parsedEnd.getTime())) {
+          end = parsedEnd;
+        }
+      }
+
+      const deadlineDate = new Date(end.getFullYear() + 1, end.getMonth(), end.getDate());
+      const timeDiff = deadlineDate.getTime() - today.getTime();
+      const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      
+      let status: 'green' | 'amber' | 'red' | 'done' = 'green';
+      if (daysRemaining < 0) {
+        status = 'done';
+      } else if (daysRemaining <= 30) {
+        status = 'red';
+      } else if (daysRemaining <= 90) {
+        status = 'amber';
+      }
+
+      return {
+        id: item.id,
+        houseName,
+        year: end.getFullYear(),
+        daysRemaining,
+        status,
+        deadlineDate: deadlineDate.toLocaleDateString('de-DE')
+      };
+    }).sort((a, b) => {
+      // Sort expired or critical deadlines first
+      if (a.daysRemaining < 0 && b.daysRemaining >= 0) return 1;
+      if (a.daysRemaining >= 0 && b.daysRemaining < 0) return -1;
+      return a.daysRemaining - b.daysRemaining;
+    });
+
+    const netBalance = totalNachforderung - totalGuthaben;
+
+    return {
+      deadlines: deadlines.slice(0, 4), // limit to top 4 deadlines for visual layout
+      totalNachforderung,
+      totalGuthaben,
+      netBalance
+    };
+  }, [initialNebenkosten]);
+
 
   useEffect(() => {
     let result = initialNebenkosten;
@@ -866,6 +958,119 @@ export default function BetriebskostenClientView({
                   </div>
                 );
               })()}
+            </div>
+          </div>
+
+          {/* Row 5: Suggested Abrechnungs-Fristen & Guthaben/Nachforderung Prognose */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            {/* Left Box: Abrechnungs-Fristen Countdown (Verjährungs-Radar) */}
+            <div className="lg:col-span-5 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[300px]">
+              <div>
+                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Verjährungs-Radar</h3>
+                <p className="text-xs text-muted-foreground mt-1">Gesetzliche 12-Monats-Fristen zur Abgabe der Betriebskostenabrechnung (§ 556 BGB)</p>
+              </div>
+
+              <div className="space-y-3.5 my-4 flex-grow flex flex-col justify-center">
+                {legalPrognosis.deadlines.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic text-center">Keine offenen Abrechnungsfristen vorhanden.</p>
+                ) : (
+                  legalPrognosis.deadlines.map((dl, idx) => {
+                    const isExpired = dl.daysRemaining < 0;
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
+                        <div className="flex items-center gap-3">
+                          <span className={cn(
+                            "w-2.5 h-2.5 rounded-full shrink-0",
+                            dl.status === 'green' ? "bg-emerald-500" :
+                            dl.status === 'amber' ? "bg-amber-500 animate-pulse" :
+                            dl.status === 'red' ? "bg-rose-500 animate-ping" : "bg-zinc-400"
+                          )} />
+                          <div>
+                            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">{dl.houseName} ({dl.year})</span>
+                            <span className="text-[10px] text-muted-foreground mt-0.5 block">Abgabe bis: {dl.deadlineDate}</span>
+                          </div>
+                        </div>
+
+                        <span className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
+                          isExpired ? "bg-zinc-100 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700" :
+                          dl.status === 'red' ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
+                          dl.status === 'amber' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                          "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                        )}>
+                          {isExpired ? "Abgelaufen" : `${dl.daysRemaining} Tage`}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
+                * Nach Ablauf der 12-Monats-Frist können Nachforderungen rechtlich nicht mehr geltend gemacht werden.
+              </p>
+            </div>
+
+            {/* Right Box: Saldo-Prognose (Guthaben vs. Nachforderung Prognose) */}
+            <div className="lg:col-span-7 p-6 rounded-[2rem] border border-gray-200 dark:border-[#3C4251] bg-gray-50 dark:bg-[#22272e] shadow-xs flex flex-col justify-between min-h-[300px]">
+              <div>
+                <h3 className="font-bold text-lg text-zinc-950 dark:text-zinc-50">Saldo-Prognose</h3>
+                <p className="text-xs text-muted-foreground mt-1">Erwartete Guthaben-Auszahlungen und Nachforderungen basierend auf Vorauszahlungen</p>
+              </div>
+
+              <div className="space-y-4 my-auto py-4">
+                {/* Asymmetric split forecast bar */}
+                {(() => {
+                  const total = legalPrognosis.totalNachforderung + legalPrognosis.totalGuthaben;
+                  const nachRatio = total > 0 ? Math.round((legalPrognosis.totalNachforderung / total) * 100) : 50;
+                  const gutRatio = total > 0 ? Math.round((legalPrognosis.totalGuthaben / total) * 100) : 50;
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="h-3.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
+                        <div className="h-full bg-emerald-500 rounded-l-full transition-all duration-700" style={{ width: `${nachRatio}%` }} />
+                        <div className="h-full bg-rose-500 rounded-r-full transition-all duration-700" style={{ width: `${gutRatio}%` }} />
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+                        <span className="text-emerald-600 dark:text-emerald-500">Erwartete Nachforderung ({nachRatio}%)</span>
+                        <span className="text-rose-600 dark:text-rose-400">Erwartetes Guthaben ({gutRatio}%)</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* KPI block row */}
+                <div className="grid grid-cols-3 gap-3.5 text-center">
+                  <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex flex-col justify-center">
+                    <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest block mb-0.5">Soll-Nachzahlung</span>
+                    <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
+                      +{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalNachforderung)}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex flex-col justify-center">
+                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest block mb-0.5">Soll-Guthaben</span>
+                    <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
+                      -{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalGuthaben)}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-primary/5 border border-primary/10 rounded-2xl flex flex-col justify-center">
+                    <span className="text-[9px] font-bold text-primary uppercase tracking-widest block mb-0.5">Netto-Saldo</span>
+                    <span className={cn(
+                      "text-xs sm:text-sm font-extrabold",
+                      legalPrognosis.netBalance >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-400"
+                    )}>
+                      {legalPrognosis.netBalance >= 0 ? '+' : ''}{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.netBalance)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
+                {legalPrognosis.netBalance >= 0 
+                  ? "✓ Ihr Portfolio läuft im Netto-Überschuss. Sie erwarten mehr Nachzahlungen als Rückerstattungen."
+                  : "⚠ Rückerstattungen übersteigen Nachforderungen. Halten Sie Liquiditätsreserven zur Auszahlung an Mieter bereit."
+                }
+              </p>
             </div>
           </div>
         </div>
