@@ -376,6 +376,16 @@ export default function BetriebskostenClientView({
   const handleOpenPreviousTemplateModal = useCallback(() => handleOpenCreateModal('previous'), [handleOpenCreateModal]);
   const handleOpenDefaultTemplateModal = useCallback(() => handleOpenCreateModal('default'), [handleOpenCreateModal]);
 
+  const handleOpenCreateModalForHouse = useCallback((houseId: string) => {
+    openBetriebskostenModal(
+      { haeuser_id: houseId },
+      initialHaeuser,
+      () => {
+        router.refresh();
+      }
+    );
+  }, [openBetriebskostenModal, initialHaeuser, router]);
+
   const handleOpenEditModal = useCallback((item: OptimizedNebenkosten) => {
     // Convert OptimizedNebenkosten to Nebenkosten format for the modal
     const nebenkostenItem = {
@@ -673,14 +683,14 @@ export default function BetriebskostenClientView({
           {/* Two-Column Analytics Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Progress Coverage */}
-            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
                 <CardTitle className="text-base font-semibold">Objekt-Abdeckung</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Status der Betriebskostenerfassung über Ihren gesamten Häuserbestand</CardDescription>
               </CardHeader>
 
-              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
-                <div className="flex flex-col gap-4">
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 justify-between gap-4">
+                <div className="flex flex-col gap-4 shrink-0">
                   <div className="flex justify-between items-center text-sm font-bold text-zinc-800 dark:text-zinc-200">
                     <span>Abrechnungsquote</span>
                     <span className="text-accent text-lg">{nebenkostenStats.housesCoverage}%</span>
@@ -694,37 +704,53 @@ export default function BetriebskostenClientView({
                   <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-1">
                     Es sind Betriebskosten für {Math.round((nebenkostenStats.housesCoverage / 100) * initialHaeuser.length)} von {initialHaeuser.length} Häusern in Ihrem Portfolio erfasst.
                   </div>
-
-                  {nebenkostenStats.uncoveredHouses.length > 0 && (
-                    <div className="mt-2">
-                      <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2">
-                        Ausstehende Häuser:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 max-h-[85px] overflow-y-auto pr-1">
-                        {nebenkostenStats.uncoveredHouses.map((h, idx) => (
-                          <div 
-                            key={h.id || idx} 
-                            className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 border border-zinc-300/30 dark:border-zinc-700/30 animate-in fade-in duration-200"
-                          >
-                            {h.name}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
+
+                {nebenkostenStats.uncoveredHouses.length > 0 && (
+                  <div className="mt-2 flex-1 flex flex-col min-h-0">
+                    <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2 shrink-0">
+                      Ausstehende Häuser (Klicken zum Erstellen):
+                    </span>
+                    <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar max-h-[160px] flex-1">
+                      {nebenkostenStats.uncoveredHouses.map((h, idx) => (
+                        <div 
+                          key={h.id || idx} 
+                          onClick={() => handleOpenCreateModalForHouse(h.id)}
+                          className="group flex items-center justify-between gap-4 p-2.5 rounded-xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer animate-in fade-in duration-200"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
+                              <Building2 className="h-4 w-4 animate-in fade-in" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 block transition-colors duration-200 truncate max-w-[120px] sm:max-w-[180px]">
+                                {h.name}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground block mt-0.5">
+                                Keine Abrechnung erfasst
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-bold px-2 py-1 rounded-md bg-accent/5 text-accent border border-accent/10 group-hover:bg-accent group-hover:text-white transition-all duration-200 shrink-0">
+                            Abrechnung erstellen
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Right Box: Donut Chart Distribution */}
-            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
                 <CardTitle className="text-base font-semibold">Betriebskosten-Verteilung</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Prozentuale Aufteilung der einzelnen Nebenkostenarten im System</CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
                 <div className="w-full flex items-center justify-center py-2 flex-grow">
-                  <div className="relative w-full h-[200px] flex items-center justify-center">
+                  <div className="relative w-full h-[220px] flex items-center justify-center">
                     <BaseDonutChart
                       data={categoriesData}
                       valueFormatter={(val) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)}
