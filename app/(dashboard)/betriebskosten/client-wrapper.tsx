@@ -684,7 +684,7 @@ export default function BetriebskostenClientView({
           {/* Two-Column Analytics Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Progress Coverage */}
-            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
+            <Card className="lg:col-span-8 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
                 <CardTitle className="text-base font-semibold">Objekt-Abdeckung</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Status der Betriebskostenerfassung über Ihren gesamten Häuserbestand</CardDescription>
@@ -744,7 +744,7 @@ export default function BetriebskostenClientView({
             </Card>
 
             {/* Right Box: Donut Chart Distribution */}
-            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
+            <Card className="lg:col-span-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
                 <CardTitle className="text-base font-semibold">Betriebskosten-Verteilung</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Prozentuale Aufteilung der einzelnen Nebenkostenarten im System</CardDescription>
