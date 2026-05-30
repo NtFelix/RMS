@@ -61,6 +61,7 @@ export default function BetriebskostenClientView({
         avgCostPerSqm: 0,
         categoryTotals: {} as Record<string, number>,
         housesCoverage: 0,
+        uncoveredHouses: initialHaeuser,
       }
     }
 
@@ -117,6 +118,8 @@ export default function BetriebskostenClientView({
       ? Math.round((houseIdsWithNebenkosten.size / initialHaeuser.length) * 100)
       : 0
 
+    const uncoveredHouses = initialHaeuser.filter(h => !houseIdsWithNebenkosten.has(h.id))
+
     return {
       totalCosts,
       billsCount,
@@ -124,6 +127,7 @@ export default function BetriebskostenClientView({
       avgCostPerSqm,
       categoryTotals,
       housesCoverage,
+      uncoveredHouses,
     }
   }, [initialNebenkosten, initialHaeuser])
 
@@ -216,6 +220,21 @@ export default function BetriebskostenClientView({
       houseNames: Array.from(allHouses)
     };
   }, [initialNebenkosten]);
+
+  const categoriesData = useMemo(() => {
+    const raw = Object.entries(nebenkostenStats.categoryTotals)
+      .map(([name, value]) => ({
+        name,
+        value,
+      }))
+      .filter(d => d.value > 0);
+    raw.sort((a, b) => b.value - a.value);
+    
+    if (raw.length <= 6) return raw;
+    const top5 = raw.slice(0, 5);
+    const others = raw.slice(5).reduce((sum, d) => sum + d.value, 0);
+    return [...top5, { name: "Andere", value: others }];
+  }, [nebenkostenStats.categoryTotals]);
 
   // Aggregated data for legal deadlines and settlement balance prognosis
   const legalPrognosis = useMemo(() => {
@@ -675,6 +694,24 @@ export default function BetriebskostenClientView({
                   <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-1">
                     Es sind Betriebskosten für {Math.round((nebenkostenStats.housesCoverage / 100) * initialHaeuser.length)} von {initialHaeuser.length} Häusern in Ihrem Portfolio erfasst.
                   </div>
+
+                  {nebenkostenStats.uncoveredHouses.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2">
+                        Ausstehende Häuser:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-[85px] overflow-y-auto pr-1">
+                        {nebenkostenStats.uncoveredHouses.map((h, idx) => (
+                          <div 
+                            key={h.id || idx} 
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 border border-zinc-300/30 dark:border-zinc-700/30 animate-in fade-in duration-200"
+                          >
+                            {h.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -686,9 +723,16 @@ export default function BetriebskostenClientView({
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Prozentuale Aufteilung der einzelnen Nebenkostenarten im System</CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
-                <div className="w-full flex items-center justify-center p-2">
-                  <div className="w-full max-w-[340px]">
-                    <NebenkostenDonutChart nebenkosten={initialNebenkosten} />
+                <div className="w-full flex items-center justify-center py-2 flex-grow">
+                  <div className="relative w-full h-[200px] flex items-center justify-center">
+                    <BaseDonutChart
+                      data={categoriesData}
+                      valueFormatter={(val) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)}
+                      innerRadius={65}
+                      outerRadius={85}
+                      showLegend={true}
+                      showTooltip={true}
+                    />
                   </div>
                 </div>
               </CardContent>
