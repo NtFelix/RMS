@@ -50,6 +50,7 @@ export default function BetriebskostenClientView({
   const tableRef = useRef<HTMLDivElement | null>(null);
   const [showGuide, setShowGuide] = useState(true);
   const [hoveredHouseIndex, setHoveredHouseIndex] = useState<number | null>(null);
+  const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null);
 
   // Compute stats for operating costs dashboard
   const nebenkostenStats = useMemo(() => {
@@ -756,9 +757,39 @@ export default function BetriebskostenClientView({
                       valueFormatter={(val) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)}
                       innerRadius={65}
                       outerRadius={85}
-                      showLegend={true}
-                      showTooltip={true}
+                      showLegend={false}
+                      showTooltip={false}
+                      onHoverSegment={setHoveredCategoryIndex}
                     />
+
+                    {/* Center Interactive Value */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center mt-0.5 px-3">
+                      {hoveredCategoryIndex === null ? (
+                        <>
+                          <span className="text-lg font-black tracking-tight leading-none text-zinc-900 dark:text-zinc-50 transition-all duration-200">
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(nebenkostenStats.totalCosts)}
+                          </span>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
+                            Gesamtkosten
+                          </span>
+                          <span className="text-[8px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider mt-1">
+                            Alle Positionen
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-lg font-black tracking-tight leading-none text-primary transition-all duration-200">
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(categoriesData[hoveredCategoryIndex]?.value || 0)}
+                          </span>
+                          <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1.5 truncate max-w-[120px]">
+                            {categoriesData[hoveredCategoryIndex]?.name || "Kostenart"}
+                          </span>
+                          <span className="text-[8px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider mt-1">
+                            {Math.round(((categoriesData[hoveredCategoryIndex]?.value || 0) / (nebenkostenStats.totalCosts || 1)) * 100)}% Anteil
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
