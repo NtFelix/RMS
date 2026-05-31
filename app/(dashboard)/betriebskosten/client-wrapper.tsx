@@ -166,8 +166,55 @@ export default function BetriebskostenClientView({
   const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
   const [prognosisTimeframe, setPrognosisTimeframe] = useState<"this" | "last" | "5y">("last");
+  const [auditTimeframe, setAuditTimeframe] = useState<"this" | "last" | "5y">("last");
   const [energyTimeframe, setEnergyTimeframe] = useState<5 | 10 | 25>(5);
   const [filter, setFilter] = useState("all");
+
+  // ... (inside the component)
+
+  // Specific stats for Plausibilitäts-Audit benchmarking
+  const auditStats = useMemo(() => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const lastYear = currentYear - 1;
+
+    // Filter items based on selected timeframe
+    const filteredItems = initialNebenkosten.filter(item => {
+      if (!item.startdatum) return true;
+      const year = new Date(item.startdatum).getFullYear();
+      if (auditTimeframe === "this") return year === currentYear;
+      if (auditTimeframe === "last") return year === lastYear;
+      if (auditTimeframe === "5y") return year >= currentYear - 4;
+      return true;
+    });
+
+    let totalCosts = 0;
+    filteredItems.forEach(item => {
+      const betraege = item.betrag || [];
+      betraege.forEach(amount => { if (Number(amount) > 0) totalCosts += Number(amount); });
+      if (item.zaehlerkosten) {
+        Object.values(item.zaehlerkosten).forEach(val => { if (Number(val) > 0) totalCosts += Number(val); });
+      }
+    });
+
+    const totalArea = initialHaeuser.reduce((sum, h) => {
+      let displaySize = 0;
+      if (h.groesse && !isNaN(Number(h.groesse))) displaySize = Number(h.groesse);
+      return sum + displaySize;
+    }, 0);
+
+    let yearsCount = 1;
+    if (auditTimeframe === "5y") yearsCount = 5;
+
+    // Portfolio average per sqm per month
+    const avgMonthlySqmCost = totalArea > 0 ? (totalCosts / totalArea / (12 * yearsCount)) : 0;
+
+    return {
+      avgMonthlySqmCost,
+      totalCosts,
+      count: filteredItems.length
+    };
+  }, [initialNebenkosten, auditTimeframe, initialHaeuser]);
 
   // ... (inside the component)
 
@@ -1361,14 +1408,45 @@ export default function BetriebskostenClientView({
             {/* Left Box: Plausibilitäts-Audit (Market Benchmark) */}
             <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
               <CardHeader className="px-0 pt-0 shrink-0 pb-4">
-                <CardTitle className="text-base font-semibold">Plausibilitäts-Audit</CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">Benchmarking gegen den dt. Betriebskostenspiegel</CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base font-semibold">Plausibilitäts-Audit</CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground mt-0.5">Benchmarking gegen den Markt</CardDescription>
+                  </div>
+
+                  {/* Timeframe Switcher for Audit */}
+                  <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
+                    {["this", "last", "5y"].map((mode) => {
+                      const yearLabel = mode === "this" ? new Date().getFullYear() : 
+                                      mode === "last" ? new Date().getFullYear() - 1 : "5J.";
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => setAuditTimeframe(mode as any)}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[45px] z-10",
+                            auditTimeframe === mode ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {auditTimeframe === mode && (
+                            <motion.div
+                              layoutId="audit-timeframe-pill"
+                              className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs rounded-full -z-10"
+                              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+                          )}
+                          {yearLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </CardHeader>
 
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0 gap-6">
                 {/* Main Gauge Row */}
                 {(() => {
-                  const currentValue = ((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12);
+                  const currentValue = auditStats.avgMonthlySqmCost;
                   const isOptimal = currentValue < 2.50;
                   
                   return (
@@ -1401,7 +1479,7 @@ export default function BetriebskostenClientView({
                               <Activity className="h-4 w-4" />
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Aktueller Portfoliowert</span>
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ø Portfoliowert ({auditTimeframe === '5y' ? '5J.' : 'Jahr'})</span>
                               <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                                 {currentValue.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
                               </span>
