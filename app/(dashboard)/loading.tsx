@@ -108,7 +108,7 @@ export default function Loading() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <Wallet className="size-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="pt-0 pb-6">
@@ -137,7 +137,7 @@ export default function Loading() {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
                 <div className="p-2 bg-muted rounded-lg">
-                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                  <CheckSquare className="size-4 text-muted-foreground" />
                 </div>
               </CardHeader>
               <CardContent className="pt-0 pb-6">
@@ -150,7 +150,7 @@ export default function Loading() {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
                 <div className="p-2 bg-muted rounded-lg">
-                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                  <Wallet className="size-4 text-muted-foreground" />
                 </div>
               </CardHeader>
               <CardContent className="pt-0 pb-6">
@@ -163,7 +163,7 @@ export default function Loading() {
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
                 <div className="p-2 bg-muted rounded-lg">
-                  <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                  <FileSpreadsheet className="size-4 text-muted-foreground" />
                 </div>
               </CardHeader>
               <CardContent className="pt-0 pb-6">

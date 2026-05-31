@@ -416,7 +416,7 @@ export default function MailsClientView({
                 disabled={isRefreshing}
                 className="h-9"
               >
-                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`mr-2 size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Aktualisieren
               </Button>
               <AddMailButton onAdd={handleAddMail} />

@@ -294,7 +294,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <Building2 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <Building2 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Häuser</span>
         </motion.button>
 
@@ -313,7 +313,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Übersicht</span>
         </motion.button>
       </div>
@@ -324,19 +324,19 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
             <StatCard
               title="Häuser gesamt"
               value={summary.totalHouses}
-              icon={<Building className="h-4 w-4 text-muted-foreground" />}
+              icon={<Building className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Wohnungen gesamt"
               value={summary.totalApartments}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Freie Wohnungen"
               value={summary.freeApartments}
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -354,7 +354,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       useOnboardingStore.getState().completeStep('create-house-start');
                       handleAdd();
                     }}
-                    icon={<PlusCircle className="h-4 w-4" />}
+                    icon={<PlusCircle className="size-4" />}
                     shortText="Hinzufügen"
                   >
                     Haus hinzufügen
@@ -411,7 +411,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         onClick={() => setSelectedHouses(new Set())}
                         className="h-8 px-2 hover:bg-primary/20"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="size-4" />
                       </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -421,7 +421,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         onClick={handleBulkExport}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                       >
-                        <Download className="h-4 w-4" />
+                        <Download className="size-4" />
                         <span className="hidden sm:inline">Exportieren</span>
                         <span className="sm:hidden">Export</span>
                       </Button>
@@ -434,13 +434,13 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       >
                         {isBulkDeleting ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                             <span className="hidden sm:inline">Löschen...</span>
                             <span className="sm:hidden">...</span>
                           </>
                         ) : (
                           <>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                             <span className="hidden sm:inline">Löschen ({selectedHouses.size})</span>
                             <span className="sm:hidden">{selectedHouses.size}</span>
                           </>
@@ -469,20 +469,20 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
             <StatCard
               title="Häuser gesamt"
               value={summary.totalHouses}
-              icon={<Building className="h-4 w-4 text-muted-foreground" />}
+              icon={<Building className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Wohnungen gesamt"
               value={summary.totalApartments}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Ø Hausgröße"
               value={summary.avgSize}
               unit="m²"
-              icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
+              icon={<Building2 className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -490,7 +490,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               value={summary.avgRent}
               unit="€"
               decimals
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -528,7 +528,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         {/* Left section: Icon and basic info */}
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                            <Building2 className="h-4.5 w-4.5" />
+                            <Building2 className="size-4.5" />
                           </div>
                           <div>
                             <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
@@ -536,7 +536,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                             </span>
                             {h.ort && (
                               <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
-                                <MapPin className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                                <MapPin className="size-3 shrink-0 text-muted-foreground/70" />
                                 {h.ort}
                               </span>
                             )}
@@ -553,7 +553,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
                           {/* Occupancy details */}
                           <div className="flex items-center gap-1.5 min-w-[90px]">
-                            <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <Home className="size-3.5 text-muted-foreground shrink-0" />
                             <span className="text-zinc-700 dark:text-zinc-300 font-medium">
                               {occupied}/{total}
                             </span>
@@ -608,7 +608,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="p-2 rounded-xl bg-emerald-500/5 text-emerald-500 shrink-0">
-                        <Wallet className="h-4 w-4" />
+                        <Wallet className="size-4" />
                       </div>
                       <div className="min-w-0">
                         <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">Soll-Miete (Belegt)</span>
@@ -721,12 +721,12 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                               <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-normal mt-0.5">
                                 {item.ort && (
                                   <span className="flex items-center gap-0.5">
-                                    <MapPin className="h-3 w-3 shrink-0" />
+                                    <MapPin className="size-3 shrink-0" />
                                     {item.ort}
                                   </span>
                                 )}
                                 <span className="flex items-center gap-0.5">
-                                  <Home className="h-3 w-3 shrink-0" />
+                                  <Home className="size-3 shrink-0" />
                                   {item.totalApartments - item.freeApartments}/{item.totalApartments} belegt
                                 </span>
                               </div>
