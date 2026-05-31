@@ -153,7 +153,7 @@ export function MetersDonutChart({
       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
 
       <div className="flex flex-col items-center gap-3">
-        <div className="relative w-40 h-40 flex items-center justify-center">
+        <div className="relative size-40 flex items-center justify-center">
           <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
             <circle
               cx="50"
@@ -297,7 +297,7 @@ export function BaseDonutChart({
   if (!mounted) {
     return (
       <div className="flex items-center justify-center h-full py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
       </div>
     );
   }
@@ -749,7 +749,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
 
       <div className="flex flex-col items-center gap-3">
-        <div className="relative w-40 h-40 flex items-center justify-center">
+        <div className="relative size-40 flex items-center justify-center">
           <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
             <circle
               cx="50"
@@ -979,7 +979,7 @@ export function ApartmentsRentPerSqmBarChart({ apartments = [] }: ApartmentsRent
   if (!mounted) {
     return (
       <div className="flex items-center justify-center h-full py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
       </div>
     );
   }
@@ -1086,7 +1086,7 @@ export function ApartmentsRentLossBarChart({ apartments = [] }: ApartmentsRentLo
   if (!mounted) {
     return (
       <div className="flex items-center justify-center h-full py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
       </div>
     );
   }
@@ -1135,4 +1135,5 @@ veContainer>
     </div>
   );
 }
+
 

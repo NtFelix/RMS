@@ -7,7 +7,7 @@ import { cva } from "class-variance-authority";
 const ChartSkeleton = () => (
     <div className="h-full w-full flex items-center justify-center bg-gray-50 dark:bg-[#22272e] rounded-[2rem] border border-gray-200 dark:border-[#3C4251]">
         <div className="animate-pulse flex flex-col items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700" />
+            <div className="size-8 rounded-full bg-gray-200 dark:bg-gray-700" />
             <div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700" />
         </div>
     </div>

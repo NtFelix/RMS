@@ -97,8 +97,8 @@ export default function SuchePage() {
     <div className="flex flex-col min-h-full w-full bg-zinc-50/40 dark:bg-zinc-950/20 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
       {/* Header section with gradient and Search Input */}
       <div className="relative overflow-hidden px-6 py-10 md:px-12 md:py-16 border-b border-zinc-200/50 dark:border-zinc-800/40 bg-white dark:bg-[#181818]">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
+        <div className="absolute top-0 right-0 size-96 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 size-80 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
         
         <div className="relative max-w-3xl mx-auto space-y-6">
           <div className="space-y-2">
@@ -113,7 +113,7 @@ export default function SuchePage() {
           {/* Search Box */}
           <div className="relative flex items-center group">
             <div className="absolute left-5 text-zinc-400 group-focus-within:text-accent transition-colors duration-300">
-              <Search className="h-6 w-6 group-focus-within:scale-110 transition-transform duration-300" />
+              <Search className="size-6 group-focus-within:scale-110 transition-transform duration-300" />
             </div>
             <input
               type="text"
@@ -148,7 +148,7 @@ export default function SuchePage() {
                 className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 font-medium"
               >
                 <span className="flex items-center gap-1 font-semibold text-zinc-400 dark:text-zinc-500">
-                  <TrendingUp className="h-3.5 w-3.5" /> Vorschläge:
+                  <TrendingUp className="size-3.5" /> Vorschläge:
                 </span>
                 {suggestions.map((suggestion) => (
                   <button
@@ -216,7 +216,7 @@ export default function SuchePage() {
                 className="flex flex-col items-center justify-center py-16 text-center space-y-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-red-500/10 text-red-500 rounded-full border border-red-500/20">
-                  <AlertCircle className="h-10 w-10 animate-bounce" />
+                  <AlertCircle className="size-10 animate-bounce" />
                 </div>
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Offline</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
@@ -237,7 +237,7 @@ export default function SuchePage() {
                 className="flex flex-col items-center justify-center py-16 text-center space-y-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-amber-500/10 text-amber-500 rounded-full border border-amber-500/20">
-                  <AlertCircle className="h-10 w-10" />
+                  <AlertCircle className="size-10" />
                 </div>
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Fehler</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">{error}</p>
@@ -256,7 +256,7 @@ export default function SuchePage() {
                 className="space-y-4"
               >
                 <div className="flex items-center gap-3 text-sm text-zinc-400 dark:text-zinc-500 font-semibold px-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                  <Loader2 className="size-4 animate-spin text-accent" />
                   <span>Durchsuche Datenbank...</span>
                 </div>
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -274,7 +274,7 @@ export default function SuchePage() {
                 {recentSearches.length > 0 ? (
                   <div className="space-y-4 max-w-xl">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 flex items-center gap-2">
-                      <Clock className="h-4 w-4" /> Letzte Suchanfragen
+                      <Clock className="size-4" /> Letzte Suchanfragen
                     </h3>
                     <div className="flex flex-col border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden bg-white dark:bg-[#181818] shadow-sm">
                       {recentSearches.map((search, index) => (
@@ -295,7 +295,7 @@ export default function SuchePage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 max-w-md mx-auto">
                     <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
-                      <HelpCircle className="h-10 w-10" />
+                      <HelpCircle className="size-10" />
                     </div>
                     <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Bereit für Deine Suche</h3>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
@@ -312,7 +312,7 @@ export default function SuchePage() {
                 className="flex flex-col items-center justify-center py-20 text-center space-y-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
-                  <Search className="h-10 w-10" />
+                  <Search className="size-10" />
                 </div>
                 <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Keine Ergebnisse gefunden</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
@@ -344,7 +344,7 @@ export default function SuchePage() {
                           <CardContent className="p-5 flex items-center gap-4">
                             {/* Icon Indicator */}
                             <div className="p-3 bg-zinc-100 dark:bg-zinc-900/60 rounded-xl text-zinc-500 group-hover:text-accent group-hover:bg-accent/5 transition-all duration-300 shrink-0">
-                              <ItemIcon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                              <ItemIcon className="size-5 transition-transform duration-300 group-hover:scale-110" />
                             </div>
 
                             {/* Main Information */}
@@ -422,7 +422,7 @@ export default function SuchePage() {
                             
                             {/* Hover Arrow */}
                             <div className="hidden sm:block text-zinc-300 dark:text-zinc-700 group-hover:text-accent group-hover:translate-x-1.5 transition-all duration-300 pl-2 shrink-0">
-                              <ArrowRight className="h-5 w-5" />
+                              <ArrowRight className="size-5" />
                             </div>
                           </CardContent>
                         </Card>
@@ -430,6 +430,22 @@ export default function SuchePage() {
                     </motion.div>
                   )
                 })}
+              </motion.div>
+            ) : (
+              // Empty state when no search is performed
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center py-20 text-center space-y-4 max-w-md mx-auto"
+              >
+                <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
+                  <Search className="size-10" />
+                </div>
+                <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Bereit für Deine Suche</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
+                  Gib oben ein Stichwort oder einen Namen ein, um Deine Verwaltungsdaten in Echtzeit zu durchsuchen.
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

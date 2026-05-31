@@ -182,7 +182,7 @@ export function MaintenanceDonutChart() {
       <CardContent className="flex-1 p-2 min-h-0">
         {state.loading ? (
           <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+            <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

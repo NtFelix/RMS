@@ -333,7 +333,7 @@ export default function WohnungenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <Home className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <Home className="size-4 shrink-0 transition-transform duration-300" />
           <span>Wohnungen</span>
         </motion.button>
 
@@ -352,7 +352,7 @@ export default function WohnungenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Übersicht</span>
         </motion.button>
       </div>
@@ -363,13 +363,13 @@ export default function WohnungenClientView({
             <StatCard
               title="Wohnungen gesamt"
               value={summary.total}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Frei / Vermietet"
               value={`${summary.freeCount} / ${summary.rentedCount}`}
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -377,7 +377,7 @@ export default function WohnungenClientView({
               value={summary.avgRent}
               unit="€"
               decimals
-              icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+              icon={<Euro className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -385,7 +385,7 @@ export default function WohnungenClientView({
               value={summary.avgPricePerSqm}
               unit="€/m²"
               decimals
-              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+              icon={<Ruler className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -407,7 +407,7 @@ export default function WohnungenClientView({
                     disabled={isAddButtonDisabled}
                     tooltip={buttonTooltipMessage}
                     showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
-                    icon={<PlusCircle className="h-4 w-4" />}
+                    icon={<PlusCircle className="size-4" />}
                     shortText="Hinzufügen"
                   >
                     Wohnung hinzufügen
@@ -464,7 +464,7 @@ export default function WohnungenClientView({
                         onClick={() => setSelectedApartments(new Set())}
                         className="h-8 px-2 hover:bg-primary/20"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="size-4" />
                       </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -474,7 +474,7 @@ export default function WohnungenClientView({
                         onClick={() => setIsAssignDialogOpen(true)}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                       >
-                        <Building2 className="h-4 w-4" />
+                        <Building2 className="size-4" />
                         <span className="hidden sm:inline">Haus zuweisen</span>
                         <span className="sm:hidden">Zuweisen</span>
                       </Button>
@@ -484,7 +484,7 @@ export default function WohnungenClientView({
                         onClick={handleBulkExport}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                       >
-                        <Download className="h-4 w-4" />
+                        <Download className="size-4" />
                         <span className="hidden sm:inline">Exportieren</span>
                         <span className="sm:hidden">Export</span>
                       </Button>
@@ -497,13 +497,13 @@ export default function WohnungenClientView({
                       >
                         {isBulkDeleting ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                             <span className="hidden sm:inline">Löschen...</span>
                             <span className="sm:hidden">...</span>
                           </>
                         ) : (
                           <>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                             <span className="hidden sm:inline">Löschen ({selectedApartments.size})</span>
                             <span className="sm:hidden">{selectedApartments.size}</span>
                           </>
@@ -533,7 +533,7 @@ export default function WohnungenClientView({
             <StatCard
               title="Wohnungen gesamt"
               value={summary.total}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -541,7 +541,7 @@ export default function WohnungenClientView({
               value={summary.total > 0 ? Number((summary.freeCount / summary.total * 100).toFixed(1)) : 0}
               unit="%"
               decimals
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -549,14 +549,14 @@ export default function WohnungenClientView({
               value={summary.avgPricePerSqm}
               unit="€/m²"
               decimals
-              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+              icon={<Ruler className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Fläche Gesamt"
               value={summary.totalSize}
               unit="m²"
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>

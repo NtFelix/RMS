@@ -408,7 +408,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           {hasChildren ? (
             <button
               className={cn(
-                "shrink-0 h-5 w-5 flex items-center justify-center rounded-full transition-all duration-150 ease-out z-10",
+                "shrink-0 size-5 flex items-center justify-center rounded-full transition-all duration-150 ease-out z-10",
                 isSelected
                   ? "hover:bg-white/20 text-white/80"
                   : "hover:bg-zinc-200/50 dark:hover:bg-zinc-700/40 text-zinc-400 dark:text-zinc-500"
@@ -420,7 +420,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
             >
               <ChevronRight 
                 className={cn(
-                  "h-3 w-3 transition-transform duration-200 ease-out shrink-0", 
+                  "size-3 transition-transform duration-200 ease-out shrink-0", 
                   isExpanded && "rotate-90"
                 )} 
               />
@@ -430,7 +430,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           )}
 
           <Icon className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-colors",
+            "size-3.5 shrink-0 transition-colors",
             isSelected
               ? "text-white"
               : node.type === 'archive'
