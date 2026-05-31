@@ -609,7 +609,7 @@ export default function WohnungenClientView({
                   </div>
                 </div>
 
-                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2">
+                <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Wohnungen</h4>
                   {apartments.map(a => (
                     <div key={a.id} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
@@ -722,6 +722,10 @@ export default function WohnungenClientView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+og>
     </div>
   );
 }

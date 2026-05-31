@@ -88,7 +88,7 @@ export function PageSkeleton({
           </div>
 
           {/* Table Skeleton */}
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {Array.from({ length: tableRowCount }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full rounded-lg" />
             ))}
@@ -96,5 +96,8 @@ export function PageSkeleton({
         </CardContent>
       </Card>
     </div>
+  )
+}
+v>
   )
 }

@@ -273,7 +273,7 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
       {/* No Date */}
       <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
         <DroppableNoDateTrigger isNoDateOpen={isNoDateOpen} noDateCount={noDateTasks.length} />
-        <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
+        <CollapsibleContent className="mt-0.5 flex flex-col gap-0.5 pl-1">
           {noDateTasks.map(task => (
             <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
           ))}
@@ -601,5 +601,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         />
       )}
     </div>
+  );
+}div>
   );
 }

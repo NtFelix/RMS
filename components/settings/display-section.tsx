@@ -22,15 +22,15 @@ const DisplaySection = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <SettingsSection
         title="Darstellung"
         description="Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an."
       >
         {darkModeEnabled && (
           <SettingsCard>
-            <div className="space-y-4">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <Monitor className="h-4 w-4 text-muted-foreground" />
                   <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -47,8 +47,8 @@ const DisplaySection = () => {
         )}
 
         <SettingsCard>
-          <div className="space-y-4">
-            <div className="space-y-1">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none">
@@ -65,7 +65,7 @@ const DisplaySection = () => {
 
         <SettingsCard>
           <div className="flex items-start justify-between gap-6">
-            <div className="space-y-1 flex-1">
+            <div className="flex flex-col gap-1 flex-1">
               <div className="flex items-center gap-2">
                 <Info className="h-4 w-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -94,7 +94,7 @@ const DisplaySection = () => {
 
         <SettingsCard>
           <div className="flex items-center justify-between gap-6">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <Play className="h-4 w-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none">

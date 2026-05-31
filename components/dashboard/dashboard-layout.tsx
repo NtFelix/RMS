@@ -76,7 +76,7 @@ export function DashboardLayout({
         <main className="flex flex-1 flex-col min-h-0 p-4 responsive-transition prevent-layout-shift">
             <div className="flex-1 rounded-2xl border shadow-xs mb-0">
               <div className="p-6">
-                <div className="space-y-4">
+                <div className="flex flex-col gap-4">
                   <div className="h-8 bg-muted rounded animate-pulse" />
                   <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
                   <div className="h-4 bg-muted rounded animate-pulse w-1/2" />

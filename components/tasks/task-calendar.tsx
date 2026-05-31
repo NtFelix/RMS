@@ -147,17 +147,17 @@ export function TaskCalendar({
                             variant="ghost"
                             size="icon"
                             onClick={handlePrevious}
-                            className="h-8 w-8"
+                            className="size-8"
                         >
-                            <ChevronLeft className="h-4 w-4" />
+                            <ChevronLeft className="size-4" />
                         </Button>
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={handleNext}
-                            className="h-8 w-8"
+                            className="size-8"
                         >
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="size-4" />
                         </Button>
                     </div>
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
@@ -290,7 +290,7 @@ function YearView({ currentYear, tasksByDate, onMonthClick }: {
                             {format(month, "MMMM", { locale: de })}
                         </span>
                         <div className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <div className={cn("w-2 h-2 rounded-full", tasksCount > 0 ? "bg-primary" : "bg-muted-foreground/30")} />
+                            <div className={cn("size-2 rounded-full", tasksCount > 0 ? "bg-primary" : "bg-muted-foreground/30")} />
                             {tasksCount} Aufgaben
                         </div>
                     </div>

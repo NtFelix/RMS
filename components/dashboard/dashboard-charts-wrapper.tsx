@@ -17,7 +17,7 @@ const ChartSkeleton = () => (
 const TenantFluctuationSkeleton = () => (
     <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 justify-between animate-pulse">
         {/* Header */}
-        <div className="space-y-2 pb-2 shrink-0">
+        <div className="flex flex-col gap-2 pb-2 shrink-0">
             <div className="h-5 w-36 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
             <div className="h-3 w-56 bg-zinc-200/60 dark:bg-zinc-800/60 rounded-full" />
         </div>

@@ -466,7 +466,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         </div>
 
         {hasChildren && isExpanded && (
-          <div className="ml-3 pl-3.5 mt-0.5 mb-1 border-l border-zinc-200/60 dark:border-zinc-800/40 space-y-0.5 animate-in fade-in slide-in-from-top-0.5 duration-100">
+          <div className="ml-3 pl-3.5 mt-0.5 mb-1 border-l border-zinc-200/60 dark:border-zinc-800/40 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-0.5 duration-100">
             {node.children.map(child => renderTreeNode(child, level + 1))}
           </div>
         )}
@@ -550,4 +550,4 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
       </div>
     </div>
   )
-}
+}  }

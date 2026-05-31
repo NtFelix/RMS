@@ -328,7 +328,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
 
       {error && (
         <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
+          <div className="text-center flex flex-col gap-2">
             <div className="text-red-500 font-medium">Fehler beim Laden der Chart-Daten</div>
             <div className="text-sm text-muted-foreground">{error}</div>
           </div>

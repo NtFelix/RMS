@@ -676,7 +676,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                 </div>
 
                 {/* Progress bar representing occupancy yield */}
-                <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
                   <div className="flex flex-col gap-0.5 text-xs font-semibold">
                     <span className="text-muted-foreground">Mietertragspotenzial</span>
                     <span className="text-accent font-bold text-sm">
@@ -722,7 +722,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   </div>
                 </div>
 
-                <div className="space-y-3 overflow-y-auto pr-1 max-h-[360px] flex-1 custom-scrollbar">
+                <div className="flex flex-col gap-3 overflow-y-auto pr-1 max-h-[360px] flex-1 custom-scrollbar">
                   {efficiencyMetrics.list.length === 0 ? (
                     <div className="text-center py-6 text-xs text-muted-foreground italic">
                       Keine Effizienzdaten vorhanden.
@@ -736,7 +736,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         <div className="flex items-center justify-between text-xs font-semibold">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="p-1.5 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                              <Building2 className="h-4 w-4" />
+                              <Building2 className="size-4" />
                             </div>
                             <div className="min-w-0">
                               <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate block group-hover:text-accent transition-colors duration-200">{item.name}</span>

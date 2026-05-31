@@ -413,13 +413,13 @@ function SidebarContent({
             onClick={isCollapsed && !isMobile ? toggleCollapse : undefined}
             className={cn(
               "flex items-center font-semibold overflow-hidden group/logo relative select-none shrink-0 cursor-pointer rounded-xl transition-all duration-300",
-              isCollapsed && !isMobile ? "w-10 h-10 justify-center mx-auto hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80" : "gap-3"
+              isCollapsed && !isMobile ? "size-10 justify-center mx-auto hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80" : "gap-3"
             )}
             title={isCollapsed && !isMobile ? "Menü ausklappen" : undefined}
           >
             {isCollapsed && !isMobile ? (
-              <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
-                <div className="relative w-8 h-8 transition-all duration-300 group-hover/logo:opacity-0 group-hover/logo:scale-90">
+              <div className="relative size-8 flex items-center justify-center shrink-0">
+                <div className="relative size-8 transition-all duration-300 group-hover/logo:opacity-0 group-hover/logo:scale-90">
                   <Image
                     src={LOGO_URL}
                     alt="IV Logo"
@@ -430,12 +430,12 @@ function SidebarContent({
                   />
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 scale-75 group-hover/logo:scale-100 group-hover/logo:opacity-100 transition-all duration-300 pointer-events-none">
-                  <PanelLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-50" />
+                  <PanelLeft className="size-5 text-zinc-900 dark:text-zinc-50" />
                 </div>
               </div>
             ) : (
               <Link href="/" className="flex items-center gap-3 font-semibold overflow-hidden cursor-pointer shrink-0 pl-1">
-                <div className="relative w-8 h-8 min-w-8 rounded-full overflow-hidden shadow-xs shrink-0">
+                <div className="relative size-8 min-w-8 rounded-full overflow-hidden shadow-xs shrink-0">
                   <Image
                     src={LOGO_URL}
                     alt="IV Logo"
@@ -528,10 +528,10 @@ function SidebarContent({
                             animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
                             className="shrink-0"
                           >
-                            <item.icon className="h-4 w-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
+                            <item.icon className="size-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
                           </motion.div>
                         ) : (
-                          <item.icon className="h-4 w-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-115 group-hover:rotate-3" />
+                          <item.icon className="size-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-115 group-hover:rotate-3" />
                         )}
                         {!isMobile && textVariants && (
                           <motion.span
@@ -565,13 +565,13 @@ function SidebarContent({
           <Popover>
             <PopoverTrigger asChild>
               <button className={cn(
-                "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
                 "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
                 "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
               )}>
-                <MessageCircle className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+                <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
                 {hasUnreadMessages && (
-                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-white dark:border-[#181818]" />
+                  <span className="absolute top-2.5 right-2.5 size-2 bg-accent rounded-full border-2 border-white dark:border-[#181818]" />
                 )}
               </button>
             </PopoverTrigger>
@@ -581,14 +581,14 @@ function SidebarContent({
               sideOffset={12} 
               className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
             >
-              <div className="flex flex-col space-y-4">
+              <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
                   <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
                   <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Offen</span>
                 </div>
                 <div className="flex flex-col items-center justify-center py-6 text-center">
-                  <div className="w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                    <MessageCircle className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                  <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                    <MessageCircle className="size-5 text-zinc-400 dark:text-zinc-500" />
                   </div>
                   <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine Support-Anfragen</h4>
                   <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
@@ -613,7 +613,7 @@ function SidebarContent({
           <Popover>
             <PopoverTrigger asChild>
               <button className={cn(
-                "relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
                 "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
                 "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
               )}>
@@ -629,14 +629,14 @@ function SidebarContent({
               sideOffset={12} 
               className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
             >
-              <div className="flex flex-col space-y-4">
+              <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
                   <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
                   <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
                 </div>
                 <div className="flex flex-col items-center justify-center py-6 text-center">
-                  <div className="w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                    <Bell className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                  <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                    <Bell className="size-5 text-zinc-400 dark:text-zinc-500" />
                   </div>
                   <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
                   <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
@@ -661,6 +661,11 @@ function SidebarContent({
       <div className="pt-2 pb-4 flex flex-col gap-2 border-t border-border px-3 shrink-0">
         <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
       </div>
+    </div>
+  )
+}
+
+ </div>
     </div>
   )
 }

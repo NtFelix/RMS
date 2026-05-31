@@ -742,7 +742,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold text-zinc-800 dark:text-zinc-200">Kostenaufteilung</span>
         <span className="font-bold text-accent">
@@ -788,7 +788,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
 
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
             <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
-              <ActiveIcon className="h-4 w-4" />
+              <ActiveIcon className="size-4" />
             </div>
             <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
               {activeInfo.label}
@@ -817,7 +817,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
-                    <Icon className="h-3 w-3" />
+                    <Icon className="size-3" />
                   </div>
                   <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
                     {s.label}
@@ -1132,5 +1132,7 @@ export function ApartmentsRentLossBarChart({ apartments = [] }: ApartmentsRentLo
     </div>
   );
 }
+
+
 
 
