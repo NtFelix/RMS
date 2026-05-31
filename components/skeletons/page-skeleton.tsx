@@ -98,6 +98,3 @@ export function PageSkeleton({
     </div>
   )
 }
-v>
-  )
-}

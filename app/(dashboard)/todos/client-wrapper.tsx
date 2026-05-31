@@ -602,6 +602,4 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
       )}
     </div>
   );
-}div>
-  );
 }

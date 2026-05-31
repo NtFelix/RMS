@@ -725,7 +725,3 @@ export default function WohnungenClientView({
     </div>
   );
 }
-og>
-    </div>
-  );
-}

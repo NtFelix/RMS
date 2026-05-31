@@ -550,4 +550,4 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
       </div>
     </div>
   )
-}  }
+}

@@ -665,8 +665,3 @@ function SidebarContent({
   )
 }
 
- </div>
-    </div>
-  )
-}
-
