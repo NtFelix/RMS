@@ -309,6 +309,179 @@ jobs:
       - name: Run TypeScript check
         run: npx tsc --noEmit
 
+  react-doctor:
+    name: React Doctor
+    runs-on: ubuntu-latest
+    needs: check-runs
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Required for diffing branches
+
+      - name: React Doctor
+        uses: millionco/react-doctor@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          diff: ${{ github.base_ref }}
+
+      - name: Send Discord notification
+        if: always()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}
+        with:
+          script: |
+            const fs = require('fs').promises;
+            const { execSync } = require('child_process');
+
+            const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+            if (!webhookUrl) {
+              console.log('Discord webhook secret is not set. Skipping Discord notification.');
+              return;
+            }
+
+            console.log('Running React Doctor scan for Discord payload...');
+            let report;
+            try {
+              execSync('npx react-doctor@latest . --diff ${{ github.base_ref }} --json > react-doctor-report.json || true');
+              const rawData = await fs.readFile('react-doctor-report.json', 'utf8');
+              report = JSON.parse(rawData);
+            } catch (error) {
+              console.error('Failed to run react-doctor or parse JSON report:', error);
+              return;
+            }
+
+            const summary = report.summary || {};
+            const errors = summary.errorCount || 0;
+            const warnings = summary.warningCount || 0;
+            const affectedFiles = summary.affectedFileCount || 0;
+            const totalDiagnostics = summary.totalDiagnosticCount || 0;
+
+            const scoreVal = (summary.score !== undefined && summary.score !== null) ? summary.score : null;
+            const displayScore = scoreVal !== null ? `${scoreVal}/100` : 'N/A';
+            const scoreLabel = summary.scoreLabel || (affectedFiles === 0 ? 'No Changes' : 'Unknown');
+
+            const getScoreColor = (score) => {
+              if (score === null || score === undefined) return 0x94A3B8; // Slate-400
+              if (score >= 90) return 0x10B981;
+              if (score >= 70) return 0xF59E0B;
+              return 0xEF4444;
+            };
+
+            const getScoreBullet = (score) => {
+              if (score === null || score === undefined) return '○';
+              if (score >= 90) return '●';
+              if (score >= 70) return '▲';
+              return '■';
+            };
+
+            const eventType = process.env.GITHUB_EVENT_NAME;
+            const branch = process.env.GITHUB_REF_NAME;
+            const runNumber = process.env.GITHUB_RUN_NUMBER;
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const repoUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
+
+            let title = 'React Doctor Health Audit';
+            let description = `**Branch:** \`${branch}\`\n**Run:** [#${runNumber}](${runUrl})`;
+
+            if (eventType === 'pull_request') {
+              const prNumber = context.payload.pull_request?.number;
+              const prUrl = context.payload.pull_request?.html_url;
+              title = `React Doctor - PR #${prNumber}`;
+              description = `**PR:** [#${prNumber}](${prUrl})\n**Branch:** \`${branch}\``;
+            }
+
+            if (affectedFiles === 0) {
+              description += '\n\n*No React files were modified in this pull request.*';
+            }
+
+            const embed = {
+              title,
+              description,
+              color: getScoreColor(scoreVal),
+              fields: [
+                {
+                  name: 'Health Score',
+                  value: `**${displayScore}** (${getScoreBullet(scoreVal)} ${scoreLabel})`,
+                  inline: true
+                },
+                {
+                  name: 'Files Inspected',
+                  value: `**${affectedFiles}** affected file(s)`,
+                  inline: true
+                },
+                {
+                  name: '\u200b',
+                  value: '\u200b',
+                  inline: true
+                },
+                {
+                  name: 'Errors',
+                  value: `**${errors}**`,
+                  inline: true
+                },
+                {
+                  name: 'Warnings',
+                  value: `**${warnings}**`,
+                  inline: true
+                },
+                {
+                  name: 'Total Findings',
+                  value: `**${totalDiagnostics}** issues found`,
+                  inline: true
+                },
+                {
+                  name: 'Links',
+                  value: `[View CI Run](${runUrl}) | [Repository](${repoUrl})`,
+                  inline: false
+                }
+              ],
+              timestamp: new Date().toISOString(),
+              footer: {
+                text: 'React Doctor CI',
+                icon_url: 'https://raw.githubusercontent.com/millionco/react-doctor/main/assets/logo.png'
+              }
+            };
+
+            try {
+              const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [embed] })
+              });
+              if (!response.ok) {
+                console.error(`Discord API returned error status: ${response.status}`);
+              } else {
+                console.log('React Doctor Discord notification sent successfully.');
+              }
+            } catch (postError) {
+              console.error('Failed to post notification to Discord:', postError);
+            }
+
+  semgrep:
+    name: Semgrep Security
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, build-app]
+    if: github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Run Semgrep Security Scan
+        run: semgrep ci
+
   # ─── Docker Build and Smoke Test ─────────────────────────────────────────────
 
   docker-build:
