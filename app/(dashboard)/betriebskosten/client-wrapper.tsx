@@ -46,7 +46,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
         <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">
           Jahr: {label}
         </p>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {top3.map((item: any, idx: number) => {
             const color = item.color || item.stroke || 'currentColor';
             return (
@@ -100,7 +100,7 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
         <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">
           Betriebskosten-Prognose (bereinigt)
         </p>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {top3.map((item: any, idx: number) => {
             const houseName = item.name;
             const adjustedCost = item.value;
@@ -1009,7 +1009,7 @@ export default function BetriebskostenClientView({
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="flex flex-col gap-4">
                   {instructionSteps.map((step, index) => (
                     <div key={step.id} className="flex gap-4">
                       <div className="shrink-0 size-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
@@ -1155,7 +1155,7 @@ export default function BetriebskostenClientView({
                     <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2 shrink-0">
                       Ausstehende Häuser (Klicken zum Erstellen):
                     </span>
-                    <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar max-h-[210px] flex-1">
+                    <div className="flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar max-h-[210px] flex-1">
                       {nebenkostenStats.uncoveredHouses.map((h, idx) => (
                         <div 
                           key={h.id || idx} 
@@ -1456,7 +1456,7 @@ export default function BetriebskostenClientView({
                   return (
                     <>
                       <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center relative overflow-hidden group">
-                        <div className="relative flex items-center justify-center h-28 w-28 rounded-full border-4 border-dashed border-zinc-200 dark:border-zinc-800">
+                        <div className="relative flex items-center justify-center size-28 rounded-full border-4 border-dashed border-zinc-200 dark:border-zinc-800">
                           <div className={cn(
                             "absolute inset-2 rounded-full flex flex-col items-center justify-center",
                             isOptimal ? "bg-emerald-500/5" : "bg-amber-500/5"
@@ -1584,7 +1584,7 @@ export default function BetriebskostenClientView({
                             return (
                               <div className="bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 shadow-xl text-zinc-900 dark:text-zinc-50 min-w-[200px]">
                                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Abrechnungsjahr {label}</p>
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-2">
                                   <div className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-1.5">
                                       <div className="size-2 rounded-full bg-orange-500" />
@@ -1622,7 +1622,7 @@ export default function BetriebskostenClientView({
                   </ResponsiveContainer>
                 </div>
 
-                <div className="mt-6 space-y-4">
+                <div className="mt-6 flex flex-col gap-4">
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400 px-1">
                     <span>Struktur-Vergleich</span>
                     <span className="text-zinc-500 italic">Ø {energyTimeframe} Jahre</span>
@@ -1671,7 +1671,7 @@ export default function BetriebskostenClientView({
               </CardHeader>
 
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-start min-h-0">
-                <div className="space-y-3.5 py-2 w-full">
+                <div className="flex flex-col gap-3.5 py-2 w-full">
                   {legalPrognosis.deadlines.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic text-center py-6">Keine offenen Abrechnungsfristen vorhanden.</p>
                   ) : (
@@ -1844,7 +1844,7 @@ export default function BetriebskostenClientView({
                 <div className="grid grid-cols-2 gap-4">
                   {/* Coverage Dial */}
                   <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center">
-                    <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                    <div className="relative flex items-center justify-center size-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
                       <div className="absolute inset-1.5 rounded-full bg-accent/5 flex flex-col items-center justify-center">
                         <span className="text-base font-black text-accent">
                           {legalPrognosis.coveragePct}%
@@ -1857,7 +1857,7 @@ export default function BetriebskostenClientView({
 
                   {/* Liquidity Status Dial */}
                   <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center">
-                    <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                    <div className="relative flex items-center justify-center size-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
                       <div className={cn(
                         "absolute inset-1.5 rounded-full flex flex-col items-center justify-center",
                         legalPrognosis.balancePct >= 0 ? "bg-emerald-500/5" : "bg-amber-500/5"
@@ -1873,7 +1873,7 @@ export default function BetriebskostenClientView({
                 </div>
 
                 {/* Data Insights Grid */}
-                <div className="space-y-2.5">
+                <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-zinc-400/10 text-zinc-400">

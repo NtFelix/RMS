@@ -1135,7 +1135,7 @@ export default function FinanzenClientWrapper({
               {/* Mini horizontal bars for Income & Expenses */}
               <div className="flex flex-col gap-3.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 select-none">
                 {/* Income Row */}
-                <div className="space-y-1.5">
+                <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Einnahmen</span>
                     <span className="font-bold text-emerald-600 dark:text-emerald-500">
@@ -1153,7 +1153,7 @@ export default function FinanzenClientWrapper({
                 </div>
 
                 {/* Expenses Row */}
-                <div className="space-y-1.5">
+                <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Ausgaben</span>
                     <span className="font-bold text-rose-600 dark:text-rose-500">
@@ -1329,7 +1329,7 @@ export default function FinanzenClientWrapper({
                 </div>
 
                 {/* List Container */}
-                <div className="space-y-2.5 overflow-y-auto pr-2 custom-scrollbar h-[250px]">
+                <div className="flex flex-col gap-2.5 overflow-y-auto pr-2 custom-scrollbar h-[250px]">
                   {unitProfitability
                     .filter(u => u.name.toLowerCase().includes(unitSearch.toLowerCase()))
                     .map((unit, idx) => {
@@ -1380,7 +1380,7 @@ export default function FinanzenClientWrapper({
             {/* Right Box: Enhanced Rent Collection & Speed Analysis */}
             <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
-                <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                   <CardTitle className="text-base font-semibold">Mieteingang & Zahlungsmoral</CardTitle>
                   <CardDescription className="text-xs text-muted-foreground mt-0.5">
                     Echtzeit-Mieteingang und Fälligkeits-Verfolgung
@@ -1456,7 +1456,7 @@ export default function FinanzenClientWrapper({
 
                   {/* Spacious 3-Column Statistics Bar */}
                   <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0">
-                    <div className="flex flex-col items-center justify-center space-y-1">
+                    <div className="flex flex-col items-center justify-center gap-1">
                       <div className="flex items-center gap-1">
                         <Coins className="size-3.5 text-muted-foreground" />
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Soll-Ertrag</span>
@@ -1465,7 +1465,7 @@ export default function FinanzenClientWrapper({
                         {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(collectionMetrics.totalCurrentMonthExpected)}
                       </span>
                     </div>
-                    <div className="flex flex-col items-center justify-center space-y-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
+                    <div className="flex flex-col items-center justify-center gap-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
                       <div className="flex items-center gap-1">
                         <ArrowUpCircle className="size-3.5 text-emerald-500 animate-pulse" />
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Ist-Miete</span>
@@ -1474,7 +1474,7 @@ export default function FinanzenClientWrapper({
                         {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(collectionMetrics.totalCurrentMonthCollected)}
                       </span>
                     </div>
-                    <div className="flex flex-col items-center justify-center space-y-1">
+                    <div className="flex flex-col items-center justify-center gap-1">
                       <div className="flex items-center gap-1">
                         <Activity className="size-3.5 text-accent" />
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
