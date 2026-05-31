@@ -108,8 +108,8 @@ export default function SuchePage() {
         <div className="absolute top-0 right-0 size-96 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
         <div className="absolute bottom-0 left-0 size-80 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
         
-        <div className="relative max-w-3xl mx-auto space-y-6">
-          <div className="space-y-2">
+        <div className="relative max-w-3xl mx-auto flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">
               Echtzeit-Suche
             </h1>
@@ -142,7 +142,7 @@ export default function SuchePage() {
                 onClick={clearSearch}
                 className="absolute right-5 p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-all duration-200"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             )}
           </div>
@@ -301,7 +301,7 @@ export default function SuchePage() {
                           )}
                         >
                           <span className="truncate group-hover:text-zinc-950 dark:group-hover:text-zinc-50 transition-colors">{search}</span>
-                          <ArrowRight className="h-4 w-4 text-zinc-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+                          <ArrowRight className="size-4 text-zinc-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
                         </button>
                       ))}
                     </div>
