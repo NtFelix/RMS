@@ -58,8 +58,15 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-        // Redirect to login, preserving authorization_id
-        redirect(`/login?redirect=/oauth/consent?authorization_id=${authorizationId}`);
+        // 1. Properly construct the path with its parameters
+        const consentPath = `/oauth/consent?authorization_id=${authorizationId}`;
+
+        // 2. Encode the ENTIRE path as a query parameter
+        // Note: Use '/auth/login' as the base path and add the '?'
+        const loginUrl = `/auth/login?redirect=${encodeURIComponent(consentPath)}`;
+
+        // 3. Perform the redirect
+        redirect(loginUrl);
     }
 
     // When Supabase has already auto-approved the app, it responds with a ConsentResponse
