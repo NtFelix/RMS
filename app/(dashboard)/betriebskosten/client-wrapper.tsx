@@ -166,7 +166,76 @@ export default function BetriebskostenClientView({
   const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
   const [prognosisTimeframe, setPrognosisTimeframe] = useState<"this" | "last" | "5y">("last");
+  const [energyTimeframe, setEnergyTimeframe] = useState<5 | 10 | 25>(5);
   const [filter, setFilter] = useState("all");
+
+  // ... (inside the component)
+
+  // Energy vs Operational Trends Data (Long term)
+  const energyTrendData = useMemo(() => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const startYear = currentYear - (energyTimeframe - 1);
+    
+    const yearlyMap: Record<number, { year: number; energy: number; operational: number }> = {};
+    
+    // Initialize years
+    for (let y = startYear; y <= currentYear; y++) {
+      yearlyMap[y] = { year: y, energy: 0, operational: 0 };
+    }
+
+    initialNebenkosten.forEach(item => {
+      if (!item.startdatum) return;
+      const year = new Date(item.startdatum).getFullYear();
+      if (year < startYear || year > currentYear) return;
+
+      const arten = item.nebenkostenart || [];
+      const betraege = item.betrag || [];
+      
+      arten.forEach((art, idx) => {
+        const amount = Number(betraege[idx] || 0);
+        const isEnergy = art.toLowerCase().includes('heiz') || 
+                       art.toLowerCase().includes('gas') || 
+                       art.toLowerCase().includes('wasser') || 
+                       art.toLowerCase().includes('wärme') || 
+                       art.toLowerCase().includes('energie');
+        if (isEnergy) {
+          yearlyMap[year].energy += amount;
+        } else {
+          yearlyMap[year].operational += amount;
+        }
+      });
+    });
+
+    return Object.values(yearlyMap).map(d => {
+      const total = d.energy + d.operational;
+      return {
+        ...d,
+        energyShare: total > 0 ? (d.energy / total) * 100 : 0,
+        operationalShare: total > 0 ? (d.operational / total) * 100 : 0,
+        displayTotal: formatCurrency(total)
+      };
+    });
+  }, [initialNebenkosten, energyTimeframe]);
+
+  const energyAvgStats = useMemo(() => {
+    if (energyTrendData.length === 0) return { energy: 0, operational: 0 };
+    
+    let totalEnergy = 0;
+    let totalOperational = 0;
+    let totalAll = 0;
+
+    energyTrendData.forEach(d => {
+      totalEnergy += d.energy;
+      totalOperational += d.operational;
+      totalAll += (d.energy + d.operational);
+    });
+
+    return {
+      energy: totalAll > 0 ? Math.round((totalEnergy / totalAll) * 100) : 0,
+      operational: totalAll > 0 ? Math.round((totalOperational / totalAll) * 100) : 0
+    };
+  }, [energyTrendData]);
 // ... rest of state stays same ...
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
@@ -1344,74 +1413,139 @@ export default function BetriebskostenClientView({
               </CardContent>
             </Card>
 
-            {/* Right Box: Heiz- & Warmwasseranteil */}
-            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
-              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
-                <CardTitle className="text-base font-semibold">Energie- vs. Betriebskosten</CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">Verhältnis von volatilen Heiz-/Warmwasserkosten zu stabilen kalten Betriebskosten</CardDescription>
+            {/* Right Box: Long-term Energy Trend Analysis */}
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base font-semibold">Energie- vs. Betriebskosten</CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground mt-0.5">Langfristiger Trend der Kostenverteilung (100% Stacked)</CardDescription>
+                  </div>
+
+                  {/* Timeframe Switcher */}
+                  <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
+                    {[5, 10, 25].map((years) => (
+                      <button
+                        key={years}
+                        onClick={() => setEnergyTimeframe(years as any)}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[45px] z-10",
+                          energyTimeframe === years ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {energyTimeframe === years && (
+                          <motion.div
+                            layoutId="energy-timeframe-pill"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        {years}J.
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </CardHeader>
 
-              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
-                {/* Aggregated values and split progress bar */}
-                {(() => {
-                  let warmCosts = 0;
-                  let coldCosts = 0;
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0">
+                <div className="w-full h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={energyTrendData}
+                      margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-zinc-100 dark:text-zinc-800/60" />
+                      <XAxis 
+                        dataKey="year" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        fontSize={10} 
+                        fontWeight="bold"
+                        tick={{ fill: 'currentColor' }}
+                        className="text-zinc-400 dark:text-zinc-500"
+                        interval={energyTimeframe === 25 ? 4 : 0}
+                      />
+                      <YAxis hide domain={[0, 100]} />
+                      <RechartsTooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const itemData = payload[0].payload;
+                            return (
+                              <div className="bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 shadow-xl text-zinc-900 dark:text-zinc-50 min-w-[200px]">
+                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Abrechnungsjahr {label}</p>
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-2 h-2 rounded-full bg-orange-500" />
+                                      <span className="text-[10px] font-semibold text-muted-foreground">Warme Kosten</span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                      <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">{Math.round(itemData.energyShare)}%</span>
+                                      <span className="text-[9px] text-zinc-400 italic">{formatCurrency(itemData.energy)}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                      <span className="text-[10px] font-semibold text-muted-foreground">Kalte Kosten</span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{Math.round(itemData.operationalShare)}%</span>
+                                      <span className="text-[9px] text-zinc-400 italic">{formatCurrency(itemData.operational)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                                  <span className="text-[10px] font-bold text-zinc-400 uppercase">Volumen</span>
+                                  <span className="text-[10px] font-black text-primary">{itemData.displayTotal}</span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="energyShare" stackId="a" fill="#f97316" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="operationalShare" stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400 px-1">
+                    <span>Struktur-Vergleich</span>
+                    <span className="text-zinc-500 italic">Ø {energyTimeframe} Jahre</span>
+                  </div>
                   
-                  initialNebenkosten.forEach(item => {
-                    const arten = item.nebenkostenart || [];
-                    const betraege = item.betrag || [];
-                    
-                    arten.forEach((art, idx) => {
-                      const amount = Number(betraege[idx] || 0);
-                      const isWarm = art.toLowerCase().includes('heiz') || 
-                                     art.toLowerCase().includes('gas') || 
-                                     art.toLowerCase().includes('wasser') || 
-                                     art.toLowerCase().includes('wärme') || 
-                                     art.toLowerCase().includes('energie');
-                      if (isWarm) {
-                        warmCosts += amount;
-                      } else {
-                        coldCosts += amount;
-                      }
-                    });
-                  });
-
-                  const total = warmCosts + coldCosts;
-                  const warmRatio = total > 0 ? Math.round((warmCosts / total) * 100) : 30;
-                  const coldRatio = total > 0 ? Math.round((coldCosts / total) * 100) : 70;
-
-                  return (
-                    <div className="space-y-6 my-auto py-2 w-full">
-                      {/* Split bar */}
-                      <div className="space-y-2">
-                        <div className="h-3.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
-                          <div className="h-full bg-orange-500 rounded-l-full transition-all duration-700" style={{ width: `${warmRatio}%` }} />
-                          <div className="h-full bg-blue-500 rounded-r-full transition-all duration-700" style={{ width: `${coldRatio}%` }} />
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                          <span className="text-orange-500">Heizung & Energie ({warmRatio}%)</span>
-                          <span className="text-blue-500">Kalte Nebenkosten ({coldRatio}%)</span>
-                        </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-2xl bg-orange-500/[0.03] border border-orange-500/10 flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500">
+                        <TrendingUp className="h-4 w-4" />
                       </div>
-
-                      {/* Numeric breakdown */}
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div className="p-3 bg-orange-500/5 border border-orange-500/10 rounded-2xl">
-                          <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest block mb-0.5">Volatile Energiekosten</span>
-                          <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(warmCosts)}
-                          </span>
-                        </div>
-                        <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                          <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block mb-0.5">Stabile Betriebskosten</span>
-                          <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(coldCosts)}
-                          </span>
-                        </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-orange-600/80 uppercase">Energie</span>
+                        <span className="text-xs font-black text-zinc-800 dark:text-zinc-200">
+                          {energyAvgStats.energy}% Durchschnitt
+                        </span>
                       </div>
                     </div>
-                  );
-                })()}
+                    <div className="p-3 rounded-2xl bg-blue-500/[0.03] border border-blue-500/10 flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
+                        <Ruler className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-blue-600/80 uppercase">Betrieb</span>
+                        <span className="text-xs font-black text-zinc-800 dark:text-zinc-200">
+                          {energyAvgStats.operational}% Durchschnitt
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 italic leading-relaxed px-1">
+                    * Die Analyse zeigt das Verhältnis von volatilen verbrauchsabhängigen Kosten zu festen umlagefähigen Betriebskosten.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
