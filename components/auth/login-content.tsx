@@ -25,7 +25,10 @@ export default function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
-  const redirect = redirectParam || ROUTES.HOME
+
+  // Prevent open redirect vulnerabilities by ensuring the path is relative (starts with / but not //)
+  const isSafeRedirect = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
+  const redirect = isSafeRedirect ? redirectParam : ROUTES.HOME
 
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
 

@@ -25,7 +25,7 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     if (error && message) {
         return <ConsentUI
             type="error"
-            error={decodeURIComponent(message)}
+            error={message}
         />;
     }
 
@@ -59,7 +59,7 @@ export default async function ConsentPage({ searchParams }: PageProps) {
 
     if (!user) {
         // 1. Properly construct the path with its parameters
-        const consentPath = `/oauth/consent?authorization_id=${authorizationId}`;
+        const consentPath = `/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`;
 
         // 2. Encode the ENTIRE path as a query parameter
         // Note: Use '/auth/login' as the base path and add the '?'
@@ -83,9 +83,9 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         return <ConsentUI type="success" />;
     }
 
-    // Detect auto-approval: The response has a redirect URL but no client details
+    // Detect auto-approval: Supabase successfully returned a payload without client details
     const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
-    const isAutoApproved = success && autoRedirectUrl && !data?.client;
+    const isAutoApproved = success && !data?.client;
 
     if (isAutoApproved) {
         console.info('[OAuth SSR] auto_approved detected', {
