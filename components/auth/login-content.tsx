@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -21,14 +21,21 @@ import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 
+function getSafeRedirect(param: string | null): string {
+  if (!param) return ROUTES.HOME
+  try {
+    const url = new URL(param, window.location.origin)
+    // Reject anything that resolves off-origin (covers //, /\, \/, control-char tricks, absolute URLs, userinfo @)
+    if (url.origin !== window.location.origin) return ROUTES.HOME
+    return url.pathname + url.search + url.hash
+  } catch {
+    return ROUTES.HOME
+  }
+}
+
 export default function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
-
-  // Prevent open redirect vulnerabilities by ensuring the path is relative (starts with / but not //)
-  const isSafeRedirect = redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
-  const redirect = isSafeRedirect ? redirectParam : ROUTES.HOME
 
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
 
@@ -91,16 +98,16 @@ export default function LoginContent() {
 
     const supabase = createClient()
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) {
+    if (signInError) {
       // Track login failure (GDPR-compliant - checks consent internally)
-      trackLoginFailed('email', error.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
+      trackLoginFailed('email', signInError.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
 
-      setError(getAuthErrorMessage(error))
+      setError(getAuthErrorMessage(signInError))
       setIsLoading(false)
       return
     }
@@ -120,7 +127,7 @@ export default function LoginContent() {
       trackLoginSuccess('email')
     }
 
-    window.location.assign(redirect)
+    window.location.assign(getSafeRedirect(redirectParam))
   }
 
   return (
