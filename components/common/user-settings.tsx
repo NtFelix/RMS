@@ -113,7 +113,7 @@ export function UserSettings({
             aria-label="User menu"
           >
             <div className="relative shrink-0">
-              <Avatar className="h-10 w-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
+              <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
                 <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>

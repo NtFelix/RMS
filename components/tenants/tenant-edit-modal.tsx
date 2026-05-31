@@ -316,7 +316,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       >
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <DialogTitle>{tenantInitialData?.id ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
               <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
             </div>
@@ -327,7 +327,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 onClick={convertToTenant}
                 className="hidden sm:flex"
               >
-                <BadgeCheck className="mr-2 h-4 w-4" />
+                <BadgeCheck className="mr-2 size-4" />
                 Als Mieter übernehmen
               </Button>
             )}
@@ -526,14 +526,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                   className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
                   onMouseDown={initResize}
                 >
-                  <GripVertical className="h-4 w-4 text-foreground/70" />
+                  <GripVertical className="size-4 text-foreground/70" />
                 </div>
               </div>
             </div>
 
             {/* Hide Utility Costs for Applicants */}
             {!isApplicant && (
-              <div className="col-span-1 sm:col-span-2 space-y-3">
+              <div className="col-span-1 sm:col-span-2 flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Nebenkosten Vorauszahlungen

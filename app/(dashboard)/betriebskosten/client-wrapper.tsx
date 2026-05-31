@@ -31,6 +31,19 @@ import { createClient } from "@/utils/supabase/client";
 import { getLatestNebenkostenAmount } from "@/utils/tenant-payment-calculations";
 import { formatCurrency } from "@/utils/format";
 
+const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', { 
+  style: 'currency', 
+  currency: 'EUR', 
+  maximumFractionDigits: 0 
+});
+
+const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
 // Custom tooltip component for the yearly development chart
 const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -56,7 +69,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
                   <span className="text-xs font-semibold truncate max-w-[120px]">{item.name}</span>
                 </div>
                 <span className="text-xs font-bold">
-                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.value)}
+                  {CURRENCY_FORMATTER.format(item.value)}
                 </span>
               </div>
             );
@@ -66,7 +79,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
           <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-850 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
             <span>Andere Häuser</span>
             <span>
-              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(
+              {CURRENCY_FORMATTER.format(
                 sortedPayload.slice(3).reduce((sum: number, item: any) => sum + (item.value || 0), 0)
               )}
             </span>
@@ -75,7 +88,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
         <div className="mt-2.5 pt-2.5 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between text-xs font-bold">
           <span>Gesamt</span>
           <span className=" text-primary">
-            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalYearCost)}
+            {CURRENCY_FORMATTER.format(totalYearCost)}
           </span>
         </div>
       </div>
@@ -121,7 +134,7 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
                   <span className="text-right  font-bold text-zinc-800 dark:text-zinc-200">{aptArea.toFixed(1)} m²</span>
                   <span className="text-primary font-bold">Prognose (ber.):</span>
                   <span className="text-right  font-bold text-primary">
-                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(adjustedCost)}
+                    {CURRENCY_FORMATTER.format(adjustedCost)}
                   </span>
                 </div>
               </div>
@@ -132,14 +145,14 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
           <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
             <span>Andere Häuser</span>
             <span className=" font-bold text-zinc-800 dark:text-zinc-200">
-              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(otherCost)}
+              {CURRENCY_FORMATTER.format(otherCost)}
             </span>
           </div>
         )}
         <div className="mt-2.5 pt-2.5 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between text-xs font-bold">
           <span>Gesamt-Prognose</span>
           <span className=" text-primary">
-            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalCost)}
+            {CURRENCY_FORMATTER.format(totalCost)}
           </span>
         </div>
       </div>
@@ -295,7 +308,7 @@ export default function BetriebskostenClientView({
   // Define router for potential refresh, though modal might handle it
   const router = useRouter();
   const tableRef = useRef<HTMLDivElement | null>(null);
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGuide, setShowGuide] = useState(() => getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE) !== 'true');
   const [hoveredHouseIndex, setHoveredHouseIndex] = useState<number | null>(null);
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null);
   const [developmentTimeframe, setDevelopmentTimeframe] = useState<5 | 10 | 25>(5);
@@ -565,12 +578,13 @@ export default function BetriebskostenClientView({
   }, [initialNebenkosten, developmentTimeframe]);
 
   const categoriesData = useMemo(() => {
-    const raw = Object.entries(nebenkostenStats.categoryTotals)
-      .map(([name, value]) => ({
-        name,
-        value,
-      }))
-      .filter(d => d.value > 0);
+    const raw = Object.entries(nebenkostenStats.categoryTotals).reduce((acc, [name, value]) => {
+      if (value > 0) {
+        acc.push({ name, value });
+      }
+      return acc;
+    }, [] as { name: string; value: number }[]);
+
     raw.sort((a, b) => b.value - a.value);
     
     if (raw.length <= 6) return raw;
@@ -601,14 +615,12 @@ export default function BetriebskostenClientView({
 
     // 1. Calculate DEADLINES with Compliance Check
     // Get existing settlement house IDs for last year
-    const existingSettlementHouseIds = new Set(
-      initialNebenkosten
-        .filter(item => {
-          if (!item.enddatum) return false;
-          return new Date(item.enddatum).getFullYear() === lastYear;
-        })
-        .map(item => item.haeuser_id)
-    );
+    const existingSettlementHouseIds = initialNebenkosten.reduce((acc, item) => {
+      if (item.enddatum && new Date(item.enddatum).getFullYear() === lastYear) {
+        acc.add(item.haeuser_id);
+      }
+      return acc;
+    }, new Set<string>());
 
     // Map existing deadlines
     const existingDeadlines = initialNebenkosten.map(item => {
@@ -883,16 +895,6 @@ export default function BetriebskostenClientView({
 
   const scrollToTable = useCallback(() => {
     tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
-  // Initialize guide visibility from cookie
-  useEffect(() => {
-    const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
-    if (hidden === 'true') {
-      setShowGuide(false);
-    } else {
-      setShowGuide(true);
-    }
   }, []);
 
   // React to settings changes via custom event
@@ -1203,7 +1205,7 @@ export default function BetriebskostenClientView({
                   <div className="relative w-full h-[220px] flex items-center justify-center">
                     <BaseDonutChart
                       data={categoriesData}
-                      valueFormatter={(val) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)}
+                      valueFormatter={(val) => CURRENCY_FORMATTER.format(val)}
                       innerRadius={65}
                       outerRadius={85}
                       showLegend={false}
@@ -1216,7 +1218,7 @@ export default function BetriebskostenClientView({
                       {hoveredCategoryIndex === null ? (
                         <>
                           <span className="text-lg font-black tracking-tight leading-none text-zinc-900 dark:text-zinc-50 transition-all duration-200">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(nebenkostenStats.totalCosts)}
+                            {CURRENCY_FORMATTER.format(nebenkostenStats.totalCosts)}
                           </span>
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
                             Gesamtkosten
@@ -1228,7 +1230,7 @@ export default function BetriebskostenClientView({
                       ) : (
                         <>
                           <span className="text-lg font-black tracking-tight leading-none text-primary transition-all duration-200">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(categoriesData[hoveredCategoryIndex]?.value || 0)}
+                            {CURRENCY_FORMATTER.format(categoriesData[hoveredCategoryIndex]?.value || 0)}
                           </span>
                           <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1.5 truncate max-w-[120px]">
                             {categoriesData[hoveredCategoryIndex]?.name || "Kostenart"}
@@ -1278,7 +1280,7 @@ export default function BetriebskostenClientView({
                     {hoveredHouseIndex === null ? (
                       <>
                         <span className="text-lg font-black tracking-tight leading-none text-zinc-900 dark:text-zinc-50 transition-all duration-200">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(costAnalytics.totalAllTimeCosts)}
+                          {CURRENCY_FORMATTER.format(costAnalytics.totalAllTimeCosts)}
                         </span>
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
                           Gesamtkosten
@@ -1290,7 +1292,7 @@ export default function BetriebskostenClientView({
                     ) : (
                       <>
                         <span className="text-lg font-black tracking-tight leading-none text-primary transition-all duration-200">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(costAnalytics.houseShares[hoveredHouseIndex]?.value || 0)}
+                          {CURRENCY_FORMATTER.format(costAnalytics.houseShares[hoveredHouseIndex]?.value || 0)}
                         </span>
                         <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1.5 truncate max-w-[120px]">
                           {costAnalytics.houseShares[hoveredHouseIndex]?.name || "Haus"}
@@ -1962,7 +1964,7 @@ export default function BetriebskostenClientView({
                           key={houseName}
                           style={{ width: `${widthPct}%`, backgroundColor: colors[index % colors.length] }}
                           className="h-full hover:scale-y-150 transition-transform cursor-help"
-                          title={`${houseName}: ${new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)}`}
+                          title={`${houseName}: ${CURRENCY_FORMATTER.format(value)}`}
                         />
                       );
                     })}

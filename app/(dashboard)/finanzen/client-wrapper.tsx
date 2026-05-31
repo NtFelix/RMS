@@ -86,6 +86,19 @@ const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
   });
 };
 
+const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', { 
+  style: 'currency', 
+  currency: 'EUR', 
+  maximumFractionDigits: 0 
+});
+
+const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
 export default function FinanzenClientWrapper({
   finances: initialFinances,
   wohnungen,
@@ -235,49 +248,67 @@ export default function FinanzenClientWrapper({
       };
     }
 
-    // Filter for active tenants in the current calendar month
-    const activeTenants = tenantPaymentsData.filter(t => {
+    const initialMetrics = {
+      totalCurrentMonthExpected: 0,
+      totalCurrentMonthCollected: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+      activeTenantsCount: 0,
+      activeTenants: [] as any[]
+    };
+
+    const metrics = tenantPaymentsData.reduce((acc, t) => {
       // 1. Exclude applicants
-      if (t.status === "bewerber") return false;
+      if (t.status === "bewerber") return acc;
       
       // 2. Must have a valid apartment assigned
-      if (!t.wohnung_id && !t.Wohnungen?.id) return false;
+      if (!t.wohnung_id && !t.Wohnungen?.id) return acc;
       
       // 3. Must have an expected rent or has paid something
       const expectedRent = Number(t.Wohnungen?.miete) || 0;
-      if (expectedRent <= 0 && (Number(t.actualRent) || 0) <= 0) return false;
+      if (expectedRent <= 0 && (Number(t.actualRent) || 0) <= 0) return acc;
       
       // 4. Must have already moved in (einzug date is not in the future)
+      const today = new Date();
       if (t.einzug) {
         const moveInDate = new Date(t.einzug);
-        const today = new Date();
         const moveInYear = moveInDate.getFullYear();
         const moveInMonth = moveInDate.getMonth();
         const currentYear = today.getFullYear();
         const currentMonth = today.getMonth();
         if (moveInYear > currentYear || (moveInYear === currentYear && moveInMonth > currentMonth)) {
-          return false;
+          return acc;
         }
       }
       
       // 5. Must not have moved out in the past (auszug date is not in the past)
       if (t.auszug) {
         const moveOutDate = new Date(t.auszug);
-        const today = new Date();
         const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         if (moveOutDate < currentMonthStart) {
-          return false;
+          return acc;
         }
       }
-      
-      return true;
-    });
 
-    const totalCurrentMonthExpected = activeTenants.reduce((sum, t) => sum + (Number(t.Wohnungen?.miete) || 0), 0);
-    const totalCurrentMonthCollected = activeTenants.reduce((sum, t) => sum + (t.paid ? Number(t.actualRent) || Number(t.Wohnungen?.miete) : 0), 0);
+      acc.activeTenantsCount++;
+      acc.activeTenants.push(t);
+      acc.totalCurrentMonthExpected += expectedRent;
+      if (t.paid) {
+        acc.totalCurrentMonthCollected += (Number(t.actualRent) || expectedRent);
+        acc.paidCount++;
+      } else {
+        acc.unpaidCount++;
+      }
+      
+      return acc;
+    }, initialMetrics);
+
+    const { totalCurrentMonthExpected, totalCurrentMonthCollected, currentMonthRentStatus, paidCount, unpaidCount, activeTenantsCount } = {
+      ...metrics,
+      currentMonthRentStatus: metrics.activeTenants
+    };
+
     const currentMonthCollectionRate = totalCurrentMonthExpected > 0 ? (totalCurrentMonthCollected / totalCurrentMonthExpected) * 100 : 0;
-    const paidCount = activeTenants.filter(t => t.paid).length;
-    const unpaidCount = activeTenants.filter(t => !t.paid).length;
     const totalOutstandingMoney = Math.max(0, totalCurrentMonthExpected - totalCurrentMonthCollected);
 
     // Health Status
@@ -299,7 +330,7 @@ export default function FinanzenClientWrapper({
       punctualityScore: 0,
       expectedMonthlyRent: totalCurrentMonthExpected,
       healthStatus,
-      currentMonthRentStatus: activeTenants,
+      currentMonthRentStatus,
       totalCurrentMonthExpected,
       totalCurrentMonthCollected,
       currentMonthCollectionRate,
@@ -316,6 +347,24 @@ export default function FinanzenClientWrapper({
     const yearsLimit = parseInt(financeTimeframe, 10);
     cutoffDate.setFullYear(today.getFullYear() - yearsLimit);
     
+    // Pre-group transactions by month for O(M) complexity
+    const groupedFinances: Record<string, { income: number; expense: number }> = {};
+    monthlyChartSource.forEach(item => {
+      if (!item.datum) return;
+      const dateParts = item.datum.split('-');
+      if (dateParts.length < 2) return;
+      const key = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}`;
+      if (!groupedFinances[key]) {
+        groupedFinances[key] = { income: 0, expense: 0 };
+      }
+      const amount = Number(item.betrag || 0);
+      if (item.ist_einnahmen) {
+        groupedFinances[key].income += amount;
+      } else {
+        groupedFinances[key].expense += amount;
+      }
+    });
+
     // Start from cutoff month to today's month to generate a continuous timeline
     const startYear = cutoffDate.getFullYear();
     const startMonth = cutoffDate.getMonth() + 1;
@@ -340,48 +389,27 @@ export default function FinanzenClientWrapper({
       "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"
     ];
 
+    const fullMonthNamesGerman = [
+      "Januar", "Februar", "März", "April", "Mai", "Juni", 
+      "Juli", "August", "September", "Oktober", "November", "Dezember"
+    ];
+
     // Build the dataset chronologically
     return allMonthKeys.map(monthKey => {
       const [yearStr, monthStr] = monthKey.split('-');
       const year = parseInt(yearStr, 10);
       const monthIdx = parseInt(monthStr, 10) - 1;
       
-      // X-axis label: e.g. "Mai 26"
       const formattedName = `${monthNamesGerman[monthIdx]} ${String(year).slice(-2)}`;
-      
-      // Complete month name for the tooltip
-      const fullMonthNamesGerman = [
-        "Januar", "Februar", "März", "April", "Mai", "Juni", 
-        "Juli", "August", "September", "Oktober", "November", "Dezember"
-      ];
       const fullFormattedName = `${fullMonthNamesGerman[monthIdx]} ${year}`;
 
-      let incomeSum = 0;
-      let expenseSum = 0;
-
-      monthlyChartSource.forEach(item => {
-        if (!item.datum) return;
-        // Parse date yyyy-mm-dd
-        const dateParts = item.datum.split('-');
-        if (dateParts.length < 2) return;
-        const itemYear = parseInt(dateParts[0], 10);
-        const itemMonth = parseInt(dateParts[1], 10);
-        
-        if (itemYear === year && itemMonth === (monthIdx + 1)) {
-          const amount = Number(item.betrag || 0);
-          if (item.ist_einnahmen) {
-            incomeSum += amount;
-          } else {
-            expenseSum += amount;
-          }
-        }
-      });
+      const totals = groupedFinances[monthKey] || { income: 0, expense: 0 };
 
       return {
-        name: formattedName,         // Shown on X-axis
-        fullName: fullFormattedName, // For tooltip
-        Einnahmen: incomeSum,
-        Ausgaben: expenseSum
+        name: formattedName,
+        fullName: fullFormattedName,
+        Einnahmen: totals.income,
+        Ausgaben: totals.expense
       };
     });
   }, [monthlyChartSource, financeTimeframe]);
@@ -671,14 +699,36 @@ export default function FinanzenClientWrapper({
   // Summary calculation for StatCards
   const summary = useMemo(() => {
     const totalTransactions = finData.length;
-    const incomeCount = finData.filter(f => f.ist_einnahmen).length;
-    const expenseCount = totalTransactions - incomeCount;
+    const initialSummary = {
+      incomeCount: 0,
+      expenseCount: 0,
+      totalAmountForAvg: 0,
+      countForAvg: 0
+    };
 
-    // Average transaction amount
-    const transactionAmounts = finData.map(f => f.betrag).filter(amount => amount > 0);
-    const avgTransaction = transactionAmounts.length ? transactionAmounts.reduce((s, v) => s + v, 0) / transactionAmounts.length : 0;
+    const result = finData.reduce((acc, f) => {
+      if (f.ist_einnahmen) {
+        acc.incomeCount++;
+      } else {
+        acc.expenseCount++;
+      }
+      
+      const amount = Number(f.betrag || 0);
+      if (amount > 0) {
+        acc.totalAmountForAvg += amount;
+        acc.countForAvg++;
+      }
+      return acc;
+    }, initialSummary);
 
-    return { totalTransactions, incomeCount, expenseCount, avgTransaction };
+    const avgTransaction = result.countForAvg > 0 ? result.totalAmountForAvg / result.countForAvg : 0;
+
+    return { 
+      totalTransactions, 
+      incomeCount: result.incomeCount, 
+      expenseCount: result.expenseCount, 
+      avgTransaction 
+    };
   }, [finData]);
 
   // Wohnungen map for bulk actions
@@ -1139,7 +1189,7 @@ export default function FinanzenClientWrapper({
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Einnahmen</span>
                     <span className="font-bold text-emerald-600 dark:text-emerald-500">
-                      {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(financeStats.totalIncome)}
+                      {CURRENCY_FORMATTER.format(financeStats.totalIncome)}
                     </span>
                   </div>
                   <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden relative shadow-inner">
@@ -1157,7 +1207,7 @@ export default function FinanzenClientWrapper({
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Ausgaben</span>
                     <span className="font-bold text-rose-600 dark:text-rose-500">
-                      {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(financeStats.totalExpenses)}
+                      {CURRENCY_FORMATTER.format(financeStats.totalExpenses)}
                     </span>
                   </div>
                   <div className="h-2 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden relative shadow-inner">
@@ -1183,7 +1233,7 @@ export default function FinanzenClientWrapper({
                   />
                 </div>
                 <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mt-1">
-                  Der Netto-Überschuss Ihres Portfolios beträgt aktuell {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(financeStats.netCashflow)}.
+                  Der Netto-Überschuss Ihres Portfolios beträgt aktuell {CURRENCY_FORMATTER.format(financeStats.netCashflow)}.
                 </div>
               </div>
             </div>
@@ -1416,7 +1466,7 @@ export default function FinanzenClientWrapper({
                               "font-black tracking-tight leading-none transition-all duration-200",
                               collectionMetrics.totalOutstandingMoney > 0 ? "text-rose-600 dark:text-rose-400 text-lg" : "text-emerald-600 dark:text-emerald-400 text-base"
                             )}>
-                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(collectionMetrics.totalOutstandingMoney)}
+                              {CURRENCY_FORMATTER.format(collectionMetrics.totalOutstandingMoney)}
                             </span>
                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
                               {collectionMetrics.totalOutstandingMoney > 0 ? "Offen" : "Miete erledigt"}
@@ -1428,7 +1478,7 @@ export default function FinanzenClientWrapper({
                         ) : hoveredPieIndex === 0 ? (
                           <>
                             <span className="text-lg font-black tracking-tight leading-none text-emerald-600 dark:text-emerald-400 transition-all duration-200">
-                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(collectionMetrics.totalCurrentMonthCollected)}
+                              {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthCollected)}
                             </span>
                             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-1.5">
                               Ist-Miete
@@ -1440,7 +1490,7 @@ export default function FinanzenClientWrapper({
                         ) : (
                           <>
                             <span className="text-lg font-black tracking-tight leading-none text-rose-600 dark:text-rose-400 transition-all duration-200">
-                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(collectionMetrics.totalOutstandingMoney)}
+                              {CURRENCY_FORMATTER.format(collectionMetrics.totalOutstandingMoney)}
                             </span>
                             <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest mt-1.5">
                               Offen
@@ -1462,7 +1512,7 @@ export default function FinanzenClientWrapper({
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Soll-Ertrag</span>
                       </div>
                       <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                        {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(collectionMetrics.totalCurrentMonthExpected)}
+                        {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthExpected)}
                       </span>
                     </div>
                     <div className="flex flex-col items-center justify-center gap-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
@@ -1471,7 +1521,7 @@ export default function FinanzenClientWrapper({
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Ist-Miete</span>
                       </div>
                       <span className="text-xs font-bold text-emerald-600 dark:text-emerald-500">
-                        {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(collectionMetrics.totalCurrentMonthCollected)}
+                        {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthCollected)}
                       </span>
                     </div>
                     <div className="flex flex-col items-center justify-center gap-1">
