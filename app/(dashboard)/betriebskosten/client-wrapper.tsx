@@ -945,6 +945,7 @@ export default function BetriebskostenClientView({
       {/* Visual Toggle Pill */}
       <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
         <motion.button
+          type="button"
           layout
           onClick={() => setCurrentTab("costs")}
           className={cn(
@@ -964,6 +965,7 @@ export default function BetriebskostenClientView({
         </motion.button>
 
         <motion.button
+          type="button"
           layout
           onClick={() => setCurrentTab("overview")}
           className={cn(
@@ -1312,6 +1314,7 @@ export default function BetriebskostenClientView({
                     const isActive = developmentTimeframe === timeframe;
                     return (
                       <button
+                        type="button"
                         key={timeframe}
                         onClick={() => setDevelopmentTimeframe(timeframe)}
                         className={cn(
@@ -1421,6 +1424,7 @@ export default function BetriebskostenClientView({
                                       mode === "last" ? new Date().getFullYear() - 1 : "5J.";
                       return (
                         <button
+                          type="button"
                           key={mode}
                           onClick={() => setAuditTimeframe(mode as any)}
                           className={cn(
@@ -1532,6 +1536,7 @@ export default function BetriebskostenClientView({
                   <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
                     {[5, 10, 25].map((years) => (
                       <button
+                        type="button"
                         key={years}
                         onClick={() => setEnergyTimeframe(years as any)}
                         className={cn(
@@ -1739,6 +1744,7 @@ export default function BetriebskostenClientView({
                     {/* Timeframe Selection Toggle with Sliding Animation */}
                     <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
                       <button
+                        type="button"
                         onClick={() => setPrognosisTimeframe("this")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
@@ -1755,6 +1761,7 @@ export default function BetriebskostenClientView({
                         {new Date().getFullYear()}
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPrognosisTimeframe("last")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
@@ -1771,6 +1778,7 @@ export default function BetriebskostenClientView({
                         {new Date().getFullYear() - 1}
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPrognosisTimeframe("5y")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
@@ -1793,6 +1801,7 @@ export default function BetriebskostenClientView({
                     {/* SOLL/IST Toggle with Sliding Animation */}
                     <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
                       <button
+                        type="button"
                         onClick={() => setPrognosisMode("goal")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer z-10",
@@ -1809,6 +1818,7 @@ export default function BetriebskostenClientView({
                         SOLL
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPrognosisMode("real")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer z-10",

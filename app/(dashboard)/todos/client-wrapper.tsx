@@ -193,10 +193,12 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
     return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later, doneTasks: done };
   }, [tasks, todayStr, nextWeekStr]);
 
+  const dueDateFormatter = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' });
+
   const formatDueDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr + 'T00:00:00');
-      return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+      return dueDateFormatter.format(date);
     } catch {
       return dateStr;
     }
@@ -519,6 +521,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
 
             {/* New Task Button */}
             <button
+              type="button"
               onClick={() => handleAddTask()}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 hover:border-accent/60 dark:border-zinc-800 dark:hover:border-accent/40 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-900/20 dark:hover:bg-zinc-900/60 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent transition-all duration-300 active:scale-98 cursor-pointer shrink-0"
             >

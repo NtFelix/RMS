@@ -35,6 +35,11 @@ import { Trash2 } from "lucide-react";
 import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
+const currencyFormatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+});
+
 // Custom tooltip showing total monthly prepayments
 const CustomNebenkostenTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -49,7 +54,7 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
         <div className="flex items-center justify-between font-bold text-zinc-950 dark:text-zinc-50">
           <span>Gesamt:</span>
           <span className="text-accent font-bold text-sm">
-            {data.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+            {currencyFormatter.format(data.amount)}
           </span>
         </div>
 
@@ -60,7 +65,7 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
               {data.distribution.map((dist: any, idx: number) => (
                 <div key={idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
                   <span className="truncate max-w-[120px] font-medium">{dist.tenantName}</span>
-                  <span className="font-semibold shrink-0">{dist.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                  <span className="font-semibold shrink-0">{currencyFormatter.format(dist.amount)}</span>
                 </div>
               ))}
             </div>
@@ -187,12 +192,12 @@ export default function MieterClientView({
   const occupancyRate = useMemo(() => {
     if (!initialWohnungen || initialWohnungen.length === 0) return 0;
     const today = new Date();
-    const activeTenantWohnungIds = new Set(
-      initialTenants
-        .filter(t => (t.status || 'mieter') === 'mieter' && (!t.auszug || new Date(t.auszug) > today))
-        .map(t => t.wohnung_id)
-        .filter(Boolean)
-    );
+    const activeTenantWohnungIds = initialTenants.reduce((acc, t) => {
+      if ((t.status || 'mieter') === 'mieter' && (!t.auszug || new Date(t.auszug) > today) && t.wohnung_id) {
+        acc.add(t.wohnung_id);
+      }
+      return acc;
+    }, new Set<string>());
     return Math.round((activeTenantWohnungIds.size / initialWohnungen.length) * 100);
   }, [initialWohnungen, initialTenants]);
 
@@ -546,18 +551,19 @@ export default function MieterClientView({
     const formerCount = total - activeCount;
 
     // Average utility cost (use last nebenkosten entry of each tenant if available)
-    const utilityValues = tenantsInTab
-      .map(t => {
-        if (!t.nebenkosten || t.nebenkosten.length === 0) return undefined;
-
+    const utilityValues = tenantsInTab.reduce((acc, t) => {
+      if (t.nebenkosten && t.nebenkosten.length > 0) {
         // Find latest entry by date (ISO string)
         const latestEntry = t.nebenkosten.reduce((latest, current) => {
           return new Date(current.date) > new Date(latest.date) ? current : latest;
         });
-
-        return parseFloat(latestEntry.amount);
-      })
-      .filter((v): v is number => typeof v === "number" && !isNaN(v));
+        const val = parseFloat(latestEntry.amount);
+        if (!isNaN(val)) {
+          acc.push(val);
+        }
+      }
+      return acc;
+    }, [] as number[]);
     const avgUtilities = utilityValues.length ? utilityValues.reduce((s, v) => s + v, 0) / utilityValues.length : 0;
 
     return { total, activeCount, formerCount, avgUtilities };
@@ -744,6 +750,7 @@ export default function MieterClientView({
         )}>
           <motion.button
             layout
+            type="button"
             onClick={() => {
               setCurrentTab("mieter");
               setFilter("current");
@@ -768,6 +775,7 @@ export default function MieterClientView({
           {showApplicantsTab && (
             <motion.button
               layout
+              type="button"
               onClick={() => {
                 setCurrentTab("bewerber");
                 setFilter("current");
@@ -792,6 +800,7 @@ export default function MieterClientView({
 
           <motion.button
             layout
+            type="button"
             onClick={() => {
               setCurrentTab("overview");
               setSelectedTenants(new Set());
@@ -1524,6 +1533,7 @@ export default function MieterClientView({
                     return (
                       <button
                         key={timeframe}
+                        type="button"
                         onClick={() => setNebenkostenTimeframe(timeframe)}
                         className={cn(
                           "px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 relative cursor-pointer min-w-[70px] text-center z-10",

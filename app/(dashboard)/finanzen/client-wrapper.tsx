@@ -1222,6 +1222,7 @@ export default function FinanzenClientWrapper({
                   const isActive = financeTimeframe === timeframe;
                   return (
                     <button
+                      type="button"
                       key={timeframe}
                       onClick={() => setFinanceTimeframe(timeframe)}
                       className={cn(

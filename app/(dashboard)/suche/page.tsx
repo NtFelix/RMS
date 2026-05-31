@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useSearch } from "@/hooks/use-search"
 import { 
   Search, 
@@ -84,14 +84,22 @@ export default function SuchePage() {
     }
   }
 
-  const categories = [
-    { id: "all", label: "Alle", count: results.length },
-    { id: "tenants", label: "Mieter", count: results.filter(r => r.type === "tenant").length },
-    { id: "houses", label: "Häuser", count: results.filter(r => r.type === "house").length },
-    { id: "apartments", label: "Wohnungen", count: results.filter(r => r.type === "apartment").length },
-    { id: "finances", label: "Finanzen", count: results.filter(r => r.type === "finance").length },
-    { id: "tasks", label: "Aufgaben", count: results.filter(r => r.type === "task").length },
-  ]
+  const categories = useMemo(() => {
+    const counts = results.reduce((acc, r) => {
+      const type = r.type as string;
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return [
+      { id: "all", label: "Alle", count: results.length },
+      { id: "tenants", label: "Mieter", count: counts["tenant"] || 0 },
+      { id: "houses", label: "Häuser", count: counts["house"] || 0 },
+      { id: "apartments", label: "Wohnungen", count: counts["apartment"] || 0 },
+      { id: "finances", label: "Finanzen", count: counts["finance"] || 0 },
+      { id: "tasks", label: "Aufgaben", count: counts["task"] || 0 },
+    ];
+  }, [results]);
 
   return (
     <div className="flex flex-col min-h-full w-full bg-zinc-50/40 dark:bg-zinc-950/20 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
@@ -130,6 +138,7 @@ export default function SuchePage() {
             />
             {query && (
               <button
+                type="button"
                 onClick={clearSearch}
                 className="absolute right-5 p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-all duration-200"
               >
@@ -153,6 +162,7 @@ export default function SuchePage() {
                 {suggestions.map((suggestion) => (
                   <button
                     key={suggestion}
+                    type="button"
                     onClick={() => {
                       setQuery(suggestion)
                       addToRecentSearches(suggestion)
@@ -180,6 +190,7 @@ export default function SuchePage() {
               {categories.map((cat) => (
                 <button
                   key={cat.id}
+                  type="button"
                   onClick={() => setSelectedCategory(cat.id)}
                   className={cn(
                     "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer active:scale-97",
@@ -223,6 +234,7 @@ export default function SuchePage() {
                   Keine Internetverbindung verfügbar. Bitte überprüfe Deine Verbindung und versuche es erneut.
                 </p>
                 <button
+                  type="button"
                   onClick={retry}
                   className="px-5 py-2.5 bg-accent text-white font-bold rounded-xl shadow-md hover:bg-accent/90 transition-all active:scale-95 cursor-pointer"
                 >
@@ -242,6 +254,7 @@ export default function SuchePage() {
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Fehler</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">{error}</p>
                 <button
+                  type="button"
                   onClick={retry}
                   className="px-5 py-2.5 bg-accent text-white font-bold rounded-xl shadow-md hover:bg-accent/90 transition-all active:scale-95 cursor-pointer"
                 >
@@ -280,6 +293,7 @@ export default function SuchePage() {
                       {recentSearches.map((search, index) => (
                         <button
                           key={search}
+                          type="button"
                           onClick={() => setQuery(search)}
                           className={cn(
                             "flex items-center justify-between px-5 py-4 text-left font-medium text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors cursor-pointer group",

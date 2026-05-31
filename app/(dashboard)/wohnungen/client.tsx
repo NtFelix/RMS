@@ -35,6 +35,11 @@ interface WohnungenClientViewProps {
   serverLimitReason: 'trial' | 'subscription' | 'none';
 }
 
+const currencyFormatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+});
+
 // This is the new main client component, previously WohnungenPageClientComponent in page.tsx
 export default function WohnungenClientView({
   initialWohnungenData,
@@ -61,27 +66,46 @@ export default function WohnungenClientView({
   // ======================= SUMMARY METRICS =======================
   const summary = useMemo(() => {
     const total = apartments.length;
-    const freeCount = apartments.filter((a) => a.status === "frei").length;
-    const rentedCount = total - freeCount;
+    
+    const stats = apartments.reduce((acc, a) => {
+      if (a.status === "frei") acc.freeCount++;
+      
+      const rent = a.miete ?? 0;
+      if (rent > 0) {
+        acc.totalRent += rent;
+        acc.rentCount++;
+      }
+      
+      const size = a.groesse ?? 0;
+      if (size > 0) {
+        acc.totalSize += size;
+        acc.sizeCount++;
+        if (rent > 0) {
+          acc.totalPricePerSqm += rent / size;
+          acc.pricePerSqmCount++;
+        }
+      }
+      
+      return acc;
+    }, {
+      freeCount: 0,
+      totalRent: 0,
+      rentCount: 0,
+      totalSize: 0,
+      sizeCount: 0,
+      totalPricePerSqm: 0,
+      pricePerSqmCount: 0
+    });
 
-    // Average rent
-    const rentValues = apartments.map((a) => a.miete ?? 0).filter((v) => v > 0);
-    const avgRent = rentValues.length ? rentValues.reduce((s, v) => s + v, 0) / rentValues.length : 0;
-
-    // Average price per sqm
-    const pricePerSqmValues = apartments
-      .filter((a) => a.miete && a.groesse && a.groesse > 0)
-      .map((a) => (a.miete as number) / (a.groesse as number));
-    const avgPricePerSqm = pricePerSqmValues.length
-      ? pricePerSqmValues.reduce((s, v) => s + v, 0) / pricePerSqmValues.length
-      : 0;
-
-    // Total and avg size
-    const sizeValues = apartments.map((a) => a.groesse ?? 0).filter((v) => v > 0);
-    const totalSize = sizeValues.reduce((s, v) => s + v, 0);
-    const avgSize = sizeValues.length ? totalSize / sizeValues.length : 0;
-
-    return { total, freeCount, rentedCount, avgRent, avgPricePerSqm, totalSize, avgSize };
+    return {
+      total,
+      freeCount: stats.freeCount,
+      rentedCount: total - stats.freeCount,
+      avgRent: stats.rentCount ? stats.totalRent / stats.rentCount : 0,
+      avgPricePerSqm: stats.pricePerSqmCount ? stats.totalPricePerSqm / stats.pricePerSqmCount : 0,
+      totalSize: stats.totalSize,
+      avgSize: stats.sizeCount ? stats.totalSize / stats.sizeCount : 0
+    };
   }, [apartments]);
 
   const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
@@ -320,6 +344,7 @@ export default function WohnungenClientView({
       <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("apartments")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -339,6 +364,7 @@ export default function WohnungenClientView({
 
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("overview")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -572,13 +598,13 @@ export default function WohnungenClientView({
                   <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
                     <span className="text-xs text-muted-foreground block mb-1">Mieteinnahmen (IST)</span>
                     <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {apartments.filter(a => a.status !== "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {currencyFormatter.format(apartments.filter(a => a.status !== "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0))}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
                     <span className="text-xs text-muted-foreground block mb-1">Leerstand (Potential)</span>
                     <span className="text-xl font-bold text-amber-600 dark:text-amber-400">
-                      {apartments.filter(a => a.status === "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {currencyFormatter.format(apartments.filter(a => a.status === "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0))}
                     </span>
                   </div>
                 </div>
@@ -588,7 +614,7 @@ export default function WohnungenClientView({
                   {apartments.map(a => (
                     <div key={a.id} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
                       <span className="font-medium">{a.name} ({a.Haeuser?.name || 'Kein Haus'})</span>
-                      <span className="text-muted-foreground text-xs">{a.groesse} m² • {(a.miete ?? 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                      <span className="text-muted-foreground text-xs">{a.groesse} m² • {currencyFormatter.format(a.miete ?? 0)}</span>
                     </div>
                   ))}
                 </div>
