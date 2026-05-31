@@ -11,11 +11,13 @@ interface SearchInputProps extends InputProps {
   mode?: "default" | "table" | "modal"
 }
 
+const DEFAULT_MODE = "default";
+
 export function SearchInput({
   className,
   wrapperClassName,
   onClear,
-  mode = "default",
+  mode = DEFAULT_MODE,
   type = "search",
   sizeVariant,
   ...props
