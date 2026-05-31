@@ -478,6 +478,7 @@ function SidebarContent({
             }}
             animate={isCollapsed ? "collapsed" : "expanded"}
             onClick={toggleCollapse}
+            type="button"
             className="flex items-center justify-center rounded-xl size-10 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 shrink-0 z-50 focus:outline-none cursor-pointer hover:scale-105 active:scale-95"
             title="Menü einklappen"
           >

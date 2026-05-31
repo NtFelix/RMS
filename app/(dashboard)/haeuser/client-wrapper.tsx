@@ -20,6 +20,23 @@ import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+// Hoisted formatters
+const currencyFormatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+const currencyFormatterFull = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+});
+const decimalFormatter = new Intl.NumberFormat("de-DE", {
+  style: "decimal",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const numberFormatter = new Intl.NumberFormat("de-DE");
+
 // Props for the main client view component
 interface HaeuserClientViewProps {
   enrichedHaeuser: House[]; // Assuming enrichedHaeuser is an array of House
@@ -68,25 +85,28 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
   // ===== Summary metrics =====
   const summary = useMemo(() => {
+    const totals = enrichedHaeuser.reduce(
+      (acc, h) => {
+        const apts = h.totalApartments ?? 0;
+        const free = h.freeApartments ?? 0;
+        const sizeVal = parseFloat(String(h.size || 0));
+        const rentVal = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
+
+        acc.totalApartments += apts;
+        acc.freeApartments += free;
+        if (!isNaN(sizeVal)) acc.totalSize += sizeVal;
+        if (!isNaN(rentVal)) acc.totalRent += rentVal;
+
+        return acc;
+      },
+      { totalApartments: 0, freeApartments: 0, totalSize: 0, totalRent: 0 }
+    );
+
     const totalHouses = enrichedHaeuser.length;
-    const totalApartments = enrichedHaeuser.reduce((sum, h) => sum + (h.totalApartments ?? 0), 0);
-    const freeApartments = enrichedHaeuser.reduce((sum, h) => sum + (h.freeApartments ?? 0), 0);
-    
-    // Average size
-    const totalSize = enrichedHaeuser.reduce((sum, h) => {
-      const sizeVal = parseFloat(String(h.size || 0));
-      return sum + (isNaN(sizeVal) ? 0 : sizeVal);
-    }, 0);
-    const avgSize = totalHouses > 0 ? Math.round(totalSize / totalHouses) : 0;
+    const avgSize = totalHouses > 0 ? Math.round(totals.totalSize / totalHouses) : 0;
+    const avgRent = totalHouses > 0 ? Math.round(totals.totalRent / totalHouses) : 0;
 
-    // Average Rent
-    const totalRent = enrichedHaeuser.reduce((sum, h) => {
-      const rentVal = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
-      return sum + (isNaN(rentVal) ? 0 : rentVal);
-    }, 0);
-    const avgRent = totalHouses > 0 ? Math.round(totalRent / totalHouses) : 0;
-
-    return { totalHouses, totalApartments, freeApartments, totalSize, avgSize, totalRent, avgRent };
+    return { totalHouses, ...totals, avgSize, avgRent };
   }, [enrichedHaeuser]);
 
   // ===== Financial Yield & Vacancy Computations =====
@@ -281,6 +301,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
       <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("houses")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -300,6 +321,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("overview")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -505,11 +527,11 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-2xl bg-primary/5 border border-gray-200 dark:border-gray-800">
                     <span className="text-xs text-muted-foreground block mb-1">Fläche Gesamt</span>
-                    <span className="text-xl font-bold">{summary.totalSize.toLocaleString('de-DE')} m²</span>
+                    <span className="text-xl font-bold">{numberFormatter.format(summary.totalSize)} m²</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-primary/5 border border-gray-200 dark:border-gray-800">
                     <span className="text-xs text-muted-foreground block mb-1">Soll-Miete Gesamt</span>
-                    <span className="text-xl font-bold">{summary.totalRent.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                    <span className="text-xl font-bold">{currencyFormatterFull.format(summary.totalRent)}</span>
                   </div>
                 </div>
 
@@ -616,7 +638,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       </div>
                     </div>
                     <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 shrink-0 pl-[42px] mt-0.5">
-                      {financialMetrics.istMiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                      {currencyFormatter.format(financialMetrics.istMiete)}
                     </span>
                   </div>
 
@@ -632,7 +654,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       </div>
                     </div>
                     <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 shrink-0 pl-[42px] mt-0.5">
-                      {financialMetrics.sollMiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                      {currencyFormatter.format(financialMetrics.sollMiete)}
                     </span>
                   </div>
 
@@ -648,7 +670,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       </div>
                     </div>
                     <span className="text-sm font-bold text-rose-600 dark:text-rose-400 shrink-0 pl-[42px] mt-0.5">
-                      {financialMetrics.leerstandskosten.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                      {currencyFormatter.format(financialMetrics.leerstandskosten)}
                     </span>
                   </div>
                 </div>
@@ -686,7 +708,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   <div className="text-left border-r border-zinc-200/60 dark:border-zinc-800/80 pr-4">
                     <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Ø Quadratmeter-Miete</span>
                     <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                      {efficiencyMetrics.portfolioAvg.toLocaleString('de-DE', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                      {decimalFormatter.format(efficiencyMetrics.portfolioAvg)} €/m²
                     </span>
                   </div>
                   <div className="text-left pl-4 flex flex-col justify-center">
@@ -695,7 +717,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       {efficiencyMetrics.highestHouse.name}
                     </span>
                     <span className="text-[10px] text-muted-foreground block">
-                      {efficiencyMetrics.highestHouse.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                      {decimalFormatter.format(efficiencyMetrics.highestHouse.value)} €/m²
                     </span>
                   </div>
                 </div>
@@ -733,7 +755,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                             </div>
                           </div>
                           <span className="font-bold text-zinc-950 dark:text-zinc-50 shrink-0">
-                            {item.rentPerSqm.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                            {decimalFormatter.format(item.rentPerSqm)} €/m²
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">

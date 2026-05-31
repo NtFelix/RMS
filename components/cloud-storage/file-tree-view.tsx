@@ -407,6 +407,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         >
           {hasChildren ? (
             <button
+              type="button"
               className={cn(
                 "shrink-0 size-5 flex items-center justify-center rounded-full transition-all duration-150 ease-out z-10",
                 isSelected
@@ -509,6 +510,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           />
           {filterQuery && (
             <button
+              type="button"
               onClick={() => setFilterQuery('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
@@ -518,6 +520,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         </div>
         <div className="flex gap-1">
           <button
+            type="button"
             onClick={handleExpandAll}
             title="Alle ausklappen"
             className="h-8 w-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
@@ -525,6 +528,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
             <FolderOpen className="h-3.5 w-3.5" />
           </button>
           <button
+            type="button"
             onClick={handleCollapseAll}
             title="Alle einklappen"
             className="h-8 w-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"

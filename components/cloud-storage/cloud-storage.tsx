@@ -311,45 +311,44 @@ export function CloudStorage({
      * Filter and sort items
      */
     const { filteredFiles, filteredFolders } = useMemo(() => {
-        let filteredFiles = files
-        let filteredFolders = folders
+        const query = searchQuery.toLowerCase()
+        
+        const fFiles = files.filter(file => {
+            const matchesSearch = !query || file.name.toLowerCase().includes(query)
+            if (!matchesSearch) return false
 
-        // Apply search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase()
-            filteredFiles = files.filter(file => file.name.toLowerCase().includes(query))
-            filteredFolders = folders.filter(folder => folder.name.toLowerCase().includes(query))
-        }
-
-        // Apply type filter
-        switch (activeFilter) {
-            case 'folders':
-                filteredFiles = []
-                break
-            case 'images':
-                filteredFiles = files.filter(file => {
+            switch (activeFilter) {
+                case 'folders':
+                    return false
+                case 'images': {
                     const ext = file.name.split('.').pop()?.toLowerCase()
                     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')
-                })
-                filteredFolders = []
-                break
-            case 'documents':
-                filteredFiles = files.filter(file => {
+                }
+                case 'documents': {
                     const ext = file.name.split('.').pop()?.toLowerCase()
                     return ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext || '')
-                })
-                filteredFolders = []
-                break
-            case 'recent':
-                const weekAgo = new Date()
-                weekAgo.setDate(weekAgo.getDate() - 7)
-                filteredFiles = files.filter(file =>
-                    new Date(file.updated_at) > weekAgo
-                )
-                break
-        }
+                }
+                case 'recent': {
+                    const weekAgo = new Date()
+                    weekAgo.setDate(weekAgo.getDate() - 7)
+                    return new Date(file.updated_at) > weekAgo
+                }
+                default:
+                    return true
+            }
+        })
 
-        return { filteredFiles, filteredFolders }
+        const fFolders = folders.filter(folder => {
+            const matchesSearch = !query || folder.name.toLowerCase().includes(query)
+            if (!matchesSearch) return false
+
+            if (activeFilter === 'all' || activeFilter === 'folders' || activeFilter === 'recent') {
+                return true
+            }
+            return false
+        })
+
+        return { filteredFiles: fFiles, filteredFolders: fFolders }
     }, [files, folders, searchQuery, activeFilter])
 
     /**
@@ -691,6 +690,7 @@ export function CloudStorage({
                                                         </span>
                                                     ) : (
                                                         <button
+                                                            type="button"
                                                             onClick={() => handleBreadcrumbClick(breadcrumb)}
                                                             disabled={isNavigating}
                                                             className={cn(

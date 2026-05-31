@@ -372,6 +372,17 @@ const houseCurrencyFormatter = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 0,
 });
 
+const currencyFormatter0 = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+
+const currencyFormatterDefault = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+});
+
 export function HousesDonutChart({ houses, apartments = [] }: HousesDonutChartProps) {
   const chartData = useMemo(() => {
     const raw = houses.map(house => {
@@ -500,13 +511,6 @@ export function FinanceDonutChart({ finanzen, isLoading = false }: FinanceDonutC
     return [...top5, { name: "Andere", value: others }];
   }, [finanzen, isLoading]);
 
-  const currencyFormatter = (val: number) => 
-    new Intl.NumberFormat("de-DE", { 
-      style: "currency", 
-      currency: "EUR", 
-      maximumFractionDigits: 0 
-    }).format(val);
-
   if (isLoading) {
     return (
       <div className="w-full h-full min-h-[220px] flex items-center justify-center">
@@ -520,7 +524,7 @@ export function FinanceDonutChart({ finanzen, isLoading = false }: FinanceDonutC
       <BaseDonutChart
         data={chartData}
         emptyMessage="Keine Transaktionen erfasst."
-        valueFormatter={currencyFormatter}
+        valueFormatter={(val) => currencyFormatter0.format(val)}
       />
     </div>
   );
@@ -580,7 +584,7 @@ export function TenantsDonutChart({ tenants }: TenantsDonutChartProps) {
 
   const valueFormatter = useCallback((val: number) => {
     if (segmentsData.isDeposit) {
-      return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(val);
+      return currencyFormatter0.format(val);
     }
     return `${val} Mieter`;
   }, [segmentsData.isDeposit]);
@@ -713,7 +717,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
       if (match) {
         return {
           label: match.label,
-          count: new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(match.count),
+          count: currencyFormatter0.format(match.count),
           icon: match.icon,
           colorClass: match.colorClass
         };
@@ -721,7 +725,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
     }
     return {
       label: "Kosten Gesamt",
-      count: new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalValue),
+      count: currencyFormatter0.format(totalValue),
       icon: FileSpreadsheet,
       colorClass: "text-accent bg-accent/10"
     };
@@ -742,7 +746,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold text-zinc-800 dark:text-zinc-200">Kostenaufteilung</span>
         <span className="font-bold text-accent">
-          {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalValue)}
+          {currencyFormatter0.format(totalValue)}
         </span>
       </div>
 
@@ -820,7 +824,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
                   </span>
                 </div>
                 <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
-                  {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.count)}
+                  {currencyFormatter0.format(s.count)}
                 </span>
               </div>
             );
@@ -1042,13 +1046,11 @@ const StackedTooltip = ({ active, payload }: StackedTooltipProps) => {
     const lossRent = payload.find(p => p.dataKey === "lossRent")?.value || 0;
     const isRented = payload[0].payload.status === "vermietet";
 
-    const formatter = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
-
     return (
       <div className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] rounded-xl px-3 py-2 shadow-md text-xs space-y-1">
         <p className="font-semibold text-zinc-800 dark:text-zinc-100">{payload[0].payload.name}</p>
         <p className={isRented ? "text-emerald-500 font-bold" : "text-rose-500 font-bold"}>
-          {isRented ? `Ist-Miete: ${formatter.format(activeRent)}` : `Leerstands-Verlust: ${formatter.format(lossRent)}`}
+          {isRented ? `Ist-Miete: ${currencyFormatterDefault.format(activeRent)}` : `Leerstands-Verlust: ${currencyFormatterDefault.format(lossRent)}`}
         </p>
       </div>
     );
