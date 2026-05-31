@@ -316,7 +316,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       >
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <DialogTitle>{tenantInitialData?.id ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
               <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
             </div>
@@ -327,7 +327,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 onClick={convertToTenant}
                 className="hidden sm:flex"
               >
-                <BadgeCheck className="mr-2 h-4 w-4" />
+                <BadgeCheck className="mr-2 size-4" />
                 Als Mieter übernehmen
               </Button>
             )}
@@ -413,7 +413,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         }} className="grid gap-3 sm:gap-4">
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            <div className="col-span-1 sm:col-span-2 space-y-2">
+            <div className="col-span-1 sm:col-span-2 flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="status">Status</Label>
                 <InfoTooltip infoText="Wählen Sie 'Bewerber' für Interessenten oder 'Mieter' für aktive Vertragsverhältnisse." />
@@ -526,14 +526,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                   className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
                   onMouseDown={initResize}
                 >
-                  <GripVertical className="h-4 w-4 text-foreground/70" />
+                  <GripVertical className="size-4 text-foreground/70" />
                 </div>
               </div>
             </div>
 
             {/* Hide Utility Costs for Applicants */}
             {!isApplicant && (
-              <div className="col-span-1 sm:col-span-2 space-y-3">
+              <div className="col-span-1 sm:col-span-2 flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Nebenkosten Vorauszahlungen
@@ -542,14 +542,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 </div>
                 <div className="bg-white dark:bg-card rounded-2xl sm:rounded-3xl border border-border/50 shadow-xs">
                   <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
-                    <div className="p-3 space-y-3 sm:p-4 sm:space-y-4">
+                    <div className="p-3 flex flex-col gap-3 sm:p-4 sm:flex flex-col gap-4">
                       {nebenkostenEntries.length === 0 ? (
                         <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
                           Keine Nebenkosten-Vorauszahlungen vorhanden
                         </div>
                       ) : nebenkostenEntries.map((entry) => (
                         <div key={entry.id} className="grid gap-2 grid-cols-[1fr_auto] sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
-                          <div className="space-y-1">
+                          <div className="flex flex-col gap-1">
                             <NumberInput
                               step="0.01"
                               placeholder="Betrag (€)"
@@ -562,7 +562,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                               <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
                             )}
                           </div>
-                          <div className="space-y-1">
+                          <div className="flex flex-col gap-1">
                             <DatePicker
                               value={entry.date}
                               onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
@@ -582,7 +582,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                             disabled={isSubmitting}
                             className="justify-self-end"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       ))}

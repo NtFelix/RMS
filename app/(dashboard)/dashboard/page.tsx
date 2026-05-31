@@ -50,10 +50,10 @@ export default async function Dashboard() {
         {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
         <Link href="/haeuser" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <Building2 className="size-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-center pt-0 pb-6">
@@ -66,10 +66,10 @@ export default async function Dashboard() {
         </Link>
         <Link href="/wohnungen" className="col-span-1 row-span-1 md:col-span-2 md:row-span-1">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
               <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
-                <Home className="h-4 w-4 text-muted-foreground" />
+                <Home className="size-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-center pt-0 pb-6">
@@ -82,10 +82,10 @@ export default async function Dashboard() {
         </Link>
         <Link href="/mieter" className="col-span-1 row-span-1 md:col-span-1 md:row-span-1">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
               <CardTitle className="text-sm font-medium">Mieter</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="size-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-center pt-0 pb-6">
@@ -119,10 +119,10 @@ export default async function Dashboard() {
         {/* Mobile: Individual cards, Desktop: Stacked container */}
         <Link href="/todos" className="col-span-1 row-span-1 md:hidden">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
               <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
-                <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                <CheckSquare className="size-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
@@ -141,10 +141,10 @@ export default async function Dashboard() {
 
         <Link href="/finanzen" className="col-span-1 row-span-1 md:hidden">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
               <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
-                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <Wallet className="size-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
@@ -161,10 +161,10 @@ export default async function Dashboard() {
 
         <Link href="/betriebskosten" className="col-span-1 row-span-1 md:hidden">
           <Card className="min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
               <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
-                <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                <FileSpreadsheet className="size-4 text-muted-foreground" />
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
@@ -184,10 +184,10 @@ export default async function Dashboard() {
           <div className="h-full flex flex-col gap-4">
             <Link href="/todos" className="flex-1">
               <Card className="h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+                <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
                   <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
-                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                    <CheckSquare className="size-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
@@ -206,10 +206,10 @@ export default async function Dashboard() {
 
             <Link href="/finanzen" className="flex-1">
               <Card className="h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+                <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
                   <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                    <Wallet className="size-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
@@ -226,10 +226,10 @@ export default async function Dashboard() {
 
             <Link href="/betriebskosten" className="flex-1">
               <Card className="h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl hover:shadow-lg transition-all cursor-pointer flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
+                <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2 shrink-0">
                   <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
-                    <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                    <FileSpreadsheet className="size-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">

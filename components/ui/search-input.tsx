@@ -11,11 +11,13 @@ interface SearchInputProps extends InputProps {
   mode?: "default" | "table" | "modal"
 }
 
+const DEFAULT_MODE = "default";
+
 export function SearchInput({
   className,
   wrapperClassName,
   onClear,
-  mode = "default",
+  mode = DEFAULT_MODE,
   type = "search",
   sizeVariant,
   ...props
@@ -45,14 +47,14 @@ export function SearchInput({
         )}
         {...props}
       />
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none z-10" />
       {showClearButton && (
         <button
           type="button"
           onClick={onClear}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors z-10"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
           <span className="sr-only">Suche löschen</span>
         </button>
       )}

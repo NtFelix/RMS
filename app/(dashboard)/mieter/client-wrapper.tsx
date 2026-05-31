@@ -35,12 +35,17 @@ import { Trash2 } from "lucide-react";
 import type { Tenant, TenantStatus } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
+const currencyFormatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+});
+
 // Custom tooltip showing total monthly prepayments
 const CustomNebenkostenTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs space-y-3 min-w-[220px] animate-in fade-in duration-150 z-50">
+      <div className="bg-white/95 dark:bg-zinc-900/95 border border-zinc-200 dark:border-zinc-800 p-4 rounded-2xl shadow-xl backdrop-blur-xs text-xs flex flex-col gap-3 min-w-[220px] animate-in fade-in duration-150 z-50">
         <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
           <span className="text-muted-foreground block text-[10px] uppercase font-semibold tracking-wider">Nebenkosten-Trend</span>
           <span className="font-bold text-sm text-zinc-900 dark:text-zinc-50">{data.name}</span>
@@ -49,18 +54,18 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
         <div className="flex items-center justify-between font-bold text-zinc-950 dark:text-zinc-50">
           <span>Gesamt:</span>
           <span className="text-accent font-bold text-sm">
-            {data.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+            {currencyFormatter.format(data.amount)}
           </span>
         </div>
 
         {data.distribution && data.distribution.length > 0 && (
-          <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="flex flex-col gap-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
             <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider block mb-1">Aufteilung nach Mieter</span>
-            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
               {data.distribution.map((dist: any, idx: number) => (
                 <div key={idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
                   <span className="truncate max-w-[120px] font-medium">{dist.tenantName}</span>
-                  <span className="font-semibold shrink-0">{dist.amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                  <span className="font-semibold shrink-0">{currencyFormatter.format(dist.amount)}</span>
                 </div>
               ))}
             </div>
@@ -106,21 +111,15 @@ export default function MieterClientView({
   const [applicantSearch, setApplicantSearch] = useState<string>("");
   const [applicantFilter, setApplicantFilter] = useState<"all" | "A-Fit" | "B-Fit" | "C-Fit">("all");
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
-  const [showApplicantsTab, setShowApplicantsTab] = useState<boolean>(false);
+  const showApplicantsTab = !!rawFlag;
   const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
-
-  useEffect(() => {
-    if (rawFlag !== undefined) {
-      setShowApplicantsTab(rawFlag);
-    }
-  }, [rawFlag]);
 
   // Fallback to "mieter" if applicants tab is disabled and user is on "bewerber"
   useEffect(() => {
-    if (showApplicantsTab === false && currentTab === "bewerber") {
+    if (rawFlag === false && currentTab === "bewerber") {
       setCurrentTab("mieter");
     }
-  }, [showApplicantsTab, currentTab]);
+  }, [rawFlag, currentTab]);
 
   // Compute tenant stats for overview subpage
   const tenantStats = useMemo(() => {
@@ -193,12 +192,12 @@ export default function MieterClientView({
   const occupancyRate = useMemo(() => {
     if (!initialWohnungen || initialWohnungen.length === 0) return 0;
     const today = new Date();
-    const activeTenantWohnungIds = new Set(
-      initialTenants
-        .filter(t => (t.status || 'mieter') === 'mieter' && (!t.auszug || new Date(t.auszug) > today))
-        .map(t => t.wohnung_id)
-        .filter(Boolean)
-    );
+    const activeTenantWohnungIds = initialTenants.reduce((acc, t) => {
+      if ((t.status || 'mieter') === 'mieter' && (!t.auszug || new Date(t.auszug) > today) && t.wohnung_id) {
+        acc.add(t.wohnung_id);
+      }
+      return acc;
+    }, new Set<string>());
     return Math.round((activeTenantWohnungIds.size / initialWohnungen.length) * 100);
   }, [initialWohnungen, initialTenants]);
 
@@ -552,18 +551,19 @@ export default function MieterClientView({
     const formerCount = total - activeCount;
 
     // Average utility cost (use last nebenkosten entry of each tenant if available)
-    const utilityValues = tenantsInTab
-      .map(t => {
-        if (!t.nebenkosten || t.nebenkosten.length === 0) return undefined;
-
+    const utilityValues = tenantsInTab.reduce((acc, t) => {
+      if (t.nebenkosten && t.nebenkosten.length > 0) {
         // Find latest entry by date (ISO string)
         const latestEntry = t.nebenkosten.reduce((latest, current) => {
           return new Date(current.date) > new Date(latest.date) ? current : latest;
         });
-
-        return parseFloat(latestEntry.amount);
-      })
-      .filter((v): v is number => typeof v === "number" && !isNaN(v));
+        const val = parseFloat(latestEntry.amount);
+        if (!isNaN(val)) {
+          acc.push(val);
+        }
+      }
+      return acc;
+    }, [] as number[]);
     const avgUtilities = utilityValues.length ? utilityValues.reduce((s, v) => s + v, 0) / utilityValues.length : 0;
 
     return { total, activeCount, formerCount, avgUtilities };
@@ -750,6 +750,7 @@ export default function MieterClientView({
         )}>
           <motion.button
             layout
+            type="button"
             onClick={() => {
               setCurrentTab("mieter");
               setFilter("current");
@@ -767,13 +768,14 @@ export default function MieterClientView({
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
               />
             )}
-            <Users className="h-4 w-4 shrink-0 transition-transform duration-300" />
+            <Users className="size-4 shrink-0 transition-transform duration-300" />
             <span>Mieter</span>
           </motion.button>
 
           {showApplicantsTab && (
             <motion.button
               layout
+              type="button"
               onClick={() => {
                 setCurrentTab("bewerber");
                 setFilter("current");
@@ -791,13 +793,14 @@ export default function MieterClientView({
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
-              <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-300" />
+              <UserPlus className="size-4 shrink-0 transition-transform duration-300" />
               <span>Bewerber</span>
             </motion.button>
           )}
 
           <motion.button
             layout
+            type="button"
             onClick={() => {
               setCurrentTab("overview");
               setSelectedTenants(new Set());
@@ -814,7 +817,7 @@ export default function MieterClientView({
                 transition={{ type: "spring", stiffness: 380, damping: 30 }}
               />
             )}
-            <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+            <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
             <span>Übersicht</span>
           </motion.button>
         </div>
@@ -825,7 +828,7 @@ export default function MieterClientView({
               <StatCard
                 title={currentTab === 'mieter' ? "Mieter gesamt" : "Bewerber gesamt"}
                 value={summary.total}
-                icon={<Users className="h-4 w-4 text-muted-foreground" />}
+                icon={<Users className="size-4 text-muted-foreground" />}
                 className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
               {currentTab === 'mieter' && (
@@ -833,7 +836,7 @@ export default function MieterClientView({
                   <StatCard
                     title="Aktiv / Ehemalig"
                     value={`${summary.activeCount} / ${summary.formerCount}`}
-                    icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
+                    icon={<BadgeCheck className="size-4 text-muted-foreground" />}
                     className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                   />
                   <StatCard
@@ -841,7 +844,7 @@ export default function MieterClientView({
                     value={summary.avgUtilities}
                     unit="€"
                     decimals
-                    icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+                    icon={<Euro className="size-4 text-muted-foreground" />}
                     className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                   />
                 </>
@@ -862,15 +865,15 @@ export default function MieterClientView({
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button className="w-full sm:w-auto gap-2">
-                            <PlusCircle className="h-4 w-4" />
+                            <PlusCircle className="size-4" />
                             Hinzufügen
-                            <ChevronDown className="h-4 w-4 opacity-50" />
+                            <ChevronDown className="size-4 opacity-50" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64">
                           <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
                             <div className="flex items-center font-medium">
-                              <UserPlus className="mr-2 h-4 w-4" />
+                              <UserPlus className="mr-2 size-4" />
                               Manuell hinzufügen
                             </div>
                             <span className="text-xs text-muted-foreground ml-6">
@@ -879,7 +882,7 @@ export default function MieterClientView({
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
                             <div className="flex items-center font-medium">
-                              <Mail className="mr-2 h-4 w-4" />
+                              <Mail className="mr-2 size-4" />
                               Aus E-Mails importieren
                             </div>
                             <span className="text-xs text-muted-foreground ml-6">
@@ -890,7 +893,7 @@ export default function MieterClientView({
                       </DropdownMenu>
                     ) : (
                       <Button onClick={handleAddTenant} className="w-full sm:w-auto gap-2">
-                        <PlusCircle className="h-4 w-4" />
+                        <PlusCircle className="size-4" />
                         Mieter hinzufügen
                       </Button>
                     )}
@@ -928,7 +931,7 @@ export default function MieterClientView({
                           onClick={() => setShowDeleteAllConfirm(true)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                          <Trash2 className="mr-2 size-4" />
                           Alle Bewerber löschen
                         </Button>
                       </div>
@@ -972,14 +975,14 @@ export default function MieterClientView({
               <StatCard
                 title="Mieter (aktiv)"
                 value={tenantStats.activeCount}
-                icon={<Users className="h-4 w-4 text-muted-foreground" />}
+                icon={<Users className="size-4 text-muted-foreground" />}
                 className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
               {showApplicantsTab ? (
                 <StatCard
                   title="Bewerber"
                   value={tenantStats.applicantCount}
-                  icon={<UserPlus className="h-4 w-4 text-muted-foreground" />}
+                  icon={<UserPlus className="size-4 text-muted-foreground" />}
                   className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                 />
               ) : (
@@ -988,7 +991,7 @@ export default function MieterClientView({
                   value={summary.avgUtilities}
                   unit="€"
                   decimals
-                  icon={<Coins className="h-4 w-4 text-muted-foreground" />}
+                  icon={<Coins className="size-4 text-muted-foreground" />}
                   className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
                 />
               )}
@@ -996,7 +999,7 @@ export default function MieterClientView({
                 title="Auslastung"
                 value={occupancyRate}
                 unit="%"
-                icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />}
+                icon={<BadgeCheck className="size-4 text-muted-foreground" />}
                 className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
               <StatCard
@@ -1004,7 +1007,7 @@ export default function MieterClientView({
                 value={tenancyStats.avgYears}
                 unit="Jahre"
                 decimals
-                icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+                icon={<Clock className="size-4 text-muted-foreground" />}
                 className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
               />
             </div>
@@ -1025,7 +1028,7 @@ export default function MieterClientView({
                   {upcomingTransitions.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center py-8 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-3xl border border-zinc-200/20 dark:border-zinc-800/40 animate-in fade-in duration-300 h-full">
                       <div className="p-3 bg-zinc-200/30 dark:bg-zinc-800/30 rounded-full mb-3">
-                        <Clock className="h-6 w-6 text-muted-foreground/50 animate-pulse" />
+                        <Clock className="size-6 text-muted-foreground/50 animate-pulse" />
                       </div>
                       <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                         Keine anstehenden Mieterwechsel erfasst
@@ -1056,7 +1059,7 @@ export default function MieterClientView({
                       </div>
 
                       {/* List Feed */}
-                      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                         <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Wechsel-Timeline</h4>
                         <div className="flex flex-col gap-2.5">
                           {upcomingTransitions.map((t, idx) => {
@@ -1071,9 +1074,9 @@ export default function MieterClientView({
                                 <div className="flex items-center gap-3">
                                   <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
                                     {isEinzug ? (
-                                      <LogIn className="h-4.5 w-4.5" />
+                                      <LogIn className="size-4.5" />
                                     ) : (
-                                      <LogOut className="h-4.5 w-4.5" />
+                                      <LogOut className="size-4.5" />
                                     )}
                                   </div>
                                   <div>
@@ -1090,13 +1093,13 @@ export default function MieterClientView({
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:justify-end">
                                   {t.wohnungName && (
                                     <div className="flex items-center gap-1 text-muted-foreground min-w-[100px]">
-                                      <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                      <Building2 className="size-3.5 shrink-0 text-muted-foreground/70" />
                                       <span className="font-medium text-zinc-700 dark:text-zinc-300">{t.wohnungName}</span>
                                     </div>
                                   )}
 
                                   <div className="flex items-center gap-1.5 min-w-[120px]">
-                                    <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                    <Clock className="size-3.5 text-muted-foreground shrink-0" />
                                     <span className="text-zinc-700 dark:text-zinc-300 font-medium">
                                       {new Date(t.dateString).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
                                     </span>
@@ -1158,7 +1161,7 @@ export default function MieterClientView({
                       </div>
 
                       {/* List of deposits */}
-                      <div className="space-y-3">
+                      <div className="flex flex-col gap-3">
                         <div className="flex items-center justify-between gap-3">
                           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Kautionsbestand nach Mieter
@@ -1179,7 +1182,7 @@ export default function MieterClientView({
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-all duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
-                                <TrendingUp className="h-3.5 w-3.5 opacity-60 text-muted-foreground" />
+                                <TrendingUp className="size-3.5 opacity-60 text-muted-foreground" />
                                 <span>
                                   {depositFilter === "all" ? "Alle" : depositFilter === "Erhalten" ? "Bezahlt" : depositFilter === "Zurückgezahlt" ? "Erstattet" : "Ausstehend"}
                                 </span>
@@ -1195,7 +1198,7 @@ export default function MieterClientView({
                         </div>
 
                         {/* Scrollable list */}
-                        <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
+                        <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
                           {initialTenants
                             .filter((t) => t.status === "mieter" && t.kaution && t.kaution.amount !== undefined)
                             .map((t) => {
@@ -1243,7 +1246,7 @@ export default function MieterClientView({
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                                      <Coins className="h-4.5 w-4.5" />
+                                      <Coins className="size-4.5" />
                                     </div>
                                     <div>
                                       <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
@@ -1251,7 +1254,7 @@ export default function MieterClientView({
                                       </span>
                                       {wohnungName && (
                                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
-                                          <Building2 className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                                          <Building2 className="size-3 shrink-0 text-muted-foreground/70" />
                                           {wohnungName}
                                         </span>
                                       )}
@@ -1284,7 +1287,7 @@ export default function MieterClientView({
                     </div>
 
                     {/* Progress refund tracker */}
-                    <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                    <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
                       <div className="flex items-center justify-between text-xs font-semibold">
                         <span className="text-muted-foreground">Kautionsabwicklungsquote</span>
                         <span className="text-accent font-bold text-sm">
@@ -1327,7 +1330,7 @@ export default function MieterClientView({
                     {!showApplicantsTab ? (
                       <div className="flex flex-col items-center justify-center py-12 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-3xl border border-zinc-200/20 dark:border-zinc-800/40">
                         <div className="p-3 bg-zinc-200/30 dark:bg-zinc-800/30 rounded-full mb-3">
-                          <UserPlus className="h-6 w-6 text-muted-foreground/50 animate-pulse" />
+                          <UserPlus className="size-6 text-muted-foreground/50 animate-pulse" />
                         </div>
                         <span className="text-sm font-semibold text-muted-foreground">
                           Bewerber-Import inaktiv
@@ -1339,7 +1342,7 @@ export default function MieterClientView({
                     ) : applicantScoreDistribution.totalWithScore === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-3xl border border-zinc-200/20 dark:border-zinc-800/40">
                         <div className="p-3 bg-zinc-200/30 dark:bg-zinc-800/30 rounded-full mb-3">
-                          <UserPlus className="h-6 w-6 text-muted-foreground/50 animate-pulse" />
+                          <UserPlus className="size-6 text-muted-foreground/50 animate-pulse" />
                         </div>
                         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                           Keine bewerteten Bewerber vorhanden
@@ -1367,7 +1370,7 @@ export default function MieterClientView({
                         </div>
 
                         {/* List of applicants */}
-                        <div className="space-y-3">
+                        <div className="flex flex-col gap-3">
                           <div className="flex items-center justify-between gap-3">
                             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                               Bewerber nach Eignungsstufen
@@ -1388,7 +1391,7 @@ export default function MieterClientView({
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm" className="h-9 text-xs px-3 rounded-xl bg-background border border-input focus:border-primary focus:bg-background/80 hover:border-border/80 hover:bg-muted/30 focus:ring-0 focus:outline-hidden transition-all duration-300 ease-in-out gap-1.5 font-medium cursor-pointer">
-                                  <Users className="h-3.5 w-3.5 opacity-60 text-muted-foreground" />
+                                  <Users className="size-3.5 opacity-60 text-muted-foreground" />
                                   <span>
                                     {applicantFilter === "all" ? "Alle Fits" : applicantFilter}
                                   </span>
@@ -1404,7 +1407,7 @@ export default function MieterClientView({
                           </div>
 
                           {/* Scrollable list */}
-                          <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
+                          <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar mt-2">
                             {initialTenants
                               .filter((t) => t.status === 'bewerber')
                               .filter((t) => {
@@ -1449,11 +1452,11 @@ export default function MieterClientView({
                                     <div className="flex items-center gap-3">
                                       <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
                                         {fitClass === 'A-Fit' ? (
-                                          <BadgeCheck className="h-4.5 w-4.5" />
+                                          <BadgeCheck className="size-4.5" />
                                         ) : fitClass === 'B-Fit' ? (
-                                          <UserPlus className="h-4.5 w-4.5" />
+                                          <UserPlus className="size-4.5" />
                                         ) : (
-                                          <Clock className="h-4.5 w-4.5" />
+                                          <Clock className="size-4.5" />
                                         )}
                                       </div>
                                       <div>
@@ -1480,7 +1483,7 @@ export default function MieterClientView({
                         </div>
 
                         {/* Bottom progress section for applicant scoring quality */}
-                        <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                        <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
                           <div className="flex items-center justify-between text-xs font-semibold">
                             <span className="text-muted-foreground">Top-Bewerber-Anteil (A & B-Fit)</span>
                             <span className="text-accent font-bold text-sm">
@@ -1530,6 +1533,7 @@ export default function MieterClientView({
                     return (
                       <button
                         key={timeframe}
+                        type="button"
                         onClick={() => setNebenkostenTimeframe(timeframe)}
                         className={cn(
                           "px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 relative cursor-pointer min-w-[70px] text-center z-10",
@@ -1554,7 +1558,7 @@ export default function MieterClientView({
               <CardContent className="px-0 pb-0 mt-6">
                 {nebenkostenTrend.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center bg-zinc-100/50 dark:bg-zinc-800/20 rounded-2xl border border-zinc-200/20">
-                    <TrendingUp className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                    <TrendingUp className="size-8 text-muted-foreground/30 mb-2" />
                     <span className="text-sm font-medium text-muted-foreground">
                       Keine erfassten Nebenkostenwerte vorhanden
                     </span>

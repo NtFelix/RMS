@@ -31,6 +31,19 @@ import { createClient } from "@/utils/supabase/client";
 import { getLatestNebenkostenAmount } from "@/utils/tenant-payment-calculations";
 import { formatCurrency } from "@/utils/format";
 
+const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', { 
+  style: 'currency', 
+  currency: 'EUR', 
+  maximumFractionDigits: 0 
+});
+
+const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
 // Custom tooltip component for the yearly development chart
 const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -46,17 +59,17 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
         <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">
           Jahr: {label}
         </p>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {top3.map((item: any, idx: number) => {
             const color = item.color || item.stroke || 'currentColor';
             return (
               <div key={idx} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                   <span className="text-xs font-semibold truncate max-w-[120px]">{item.name}</span>
                 </div>
                 <span className="text-xs font-bold">
-                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.value)}
+                  {CURRENCY_FORMATTER.format(item.value)}
                 </span>
               </div>
             );
@@ -66,7 +79,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
           <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-850 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
             <span>Andere Häuser</span>
             <span>
-              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(
+              {CURRENCY_FORMATTER.format(
                 sortedPayload.slice(3).reduce((sum: number, item: any) => sum + (item.value || 0), 0)
               )}
             </span>
@@ -75,7 +88,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
         <div className="mt-2.5 pt-2.5 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between text-xs font-bold">
           <span>Gesamt</span>
           <span className=" text-primary">
-            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalYearCost)}
+            {CURRENCY_FORMATTER.format(totalYearCost)}
           </span>
         </div>
       </div>
@@ -100,7 +113,7 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
         <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">
           Betriebskosten-Prognose (bereinigt)
         </p>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {top3.map((item: any, idx: number) => {
             const houseName = item.name;
             const adjustedCost = item.value;
@@ -111,7 +124,7 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
             return (
               <div key={idx} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0 pb-2 last:pb-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill || item.color }} />
+                  <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill || item.color }} />
                   <span className="text-xs font-bold truncate">{houseName}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
@@ -121,7 +134,7 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
                   <span className="text-right  font-bold text-zinc-800 dark:text-zinc-200">{aptArea.toFixed(1)} m²</span>
                   <span className="text-primary font-bold">Prognose (ber.):</span>
                   <span className="text-right  font-bold text-primary">
-                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(adjustedCost)}
+                    {CURRENCY_FORMATTER.format(adjustedCost)}
                   </span>
                 </div>
               </div>
@@ -132,14 +145,14 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
           <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
             <span>Andere Häuser</span>
             <span className=" font-bold text-zinc-800 dark:text-zinc-200">
-              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(otherCost)}
+              {CURRENCY_FORMATTER.format(otherCost)}
             </span>
           </div>
         )}
         <div className="mt-2.5 pt-2.5 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between text-xs font-bold">
           <span>Gesamt-Prognose</span>
           <span className=" text-primary">
-            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalCost)}
+            {CURRENCY_FORMATTER.format(totalCost)}
           </span>
         </div>
       </div>
@@ -285,17 +298,17 @@ export default function BetriebskostenClientView({
   }, [energyTrendData]);
 // ... rest of state stays same ...
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
-  const [filteredNebenkosten, setFilteredNebenkosten] = useState<OptimizedNebenkosten[]>(initialNebenkosten);
   // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
+  const selectedItemIdForDeleteRef = useRef<string | null>(null);
   const { openBetriebskostenModal } = useModalStore(); // Get the action to open modal
   const { toast } = useToast();
   // Define router for potential refresh, though modal might handle it
   const router = useRouter();
   const tableRef = useRef<HTMLDivElement | null>(null);
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGuide, setShowGuide] = useState(() => getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE) !== 'true');
   const [hoveredHouseIndex, setHoveredHouseIndex] = useState<number | null>(null);
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null);
   const [developmentTimeframe, setDevelopmentTimeframe] = useState<5 | 10 | 25>(5);
@@ -565,12 +578,13 @@ export default function BetriebskostenClientView({
   }, [initialNebenkosten, developmentTimeframe]);
 
   const categoriesData = useMemo(() => {
-    const raw = Object.entries(nebenkostenStats.categoryTotals)
-      .map(([name, value]) => ({
-        name,
-        value,
-      }))
-      .filter(d => d.value > 0);
+    const raw = Object.entries(nebenkostenStats.categoryTotals).reduce((acc, [name, value]) => {
+      if (value > 0) {
+        acc.push({ name, value });
+      }
+      return acc;
+    }, [] as { name: string; value: number }[]);
+
     raw.sort((a, b) => b.value - a.value);
     
     if (raw.length <= 6) return raw;
@@ -601,14 +615,12 @@ export default function BetriebskostenClientView({
 
     // 1. Calculate DEADLINES with Compliance Check
     // Get existing settlement house IDs for last year
-    const existingSettlementHouseIds = new Set(
-      initialNebenkosten
-        .filter(item => {
-          if (!item.enddatum) return false;
-          return new Date(item.enddatum).getFullYear() === lastYear;
-        })
-        .map(item => item.haeuser_id)
-    );
+    const existingSettlementHouseIds = initialNebenkosten.reduce((acc, item) => {
+      if (item.enddatum && new Date(item.enddatum).getFullYear() === lastYear) {
+        acc.add(item.haeuser_id);
+      }
+      return acc;
+    }, new Set<string>());
 
     // Map existing deadlines
     const existingDeadlines = initialNebenkosten.map(item => {
@@ -771,8 +783,13 @@ export default function BetriebskostenClientView({
   }, [initialNebenkosten, prognosisMode, prognosisTimeframe, initialTenants, initialFinances, wohnungen, initialHaeuser]);
 
 
-  useEffect(() => {
+  const filteredNebenkosten = useMemo(() => {
     let result = initialNebenkosten;
+    // Apply optimistic UI filtering
+    if (deletedIds.size > 0) {
+      result = result.filter(item => !deletedIds.has(item.id));
+    }
+    
     if (selectedHouseId && selectedHouseId !== "all") {
       result = result.filter(item => item.haeuser_id === selectedHouseId);
     }
@@ -799,8 +816,8 @@ export default function BetriebskostenClientView({
         item.enddatum && item.enddatum < currentYearStart
       );
     }
-    setFilteredNebenkosten(result);
-  }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
+    return result;
+  }, [searchQuery, filter, initialNebenkosten, selectedHouseId, deletedIds]);
 
   const handleOpenCreateModal = useCallback((templateType: 'blank' | 'previous' | 'default' = 'blank') => {
     // Pass initialHaeuser and a success callback (e.g., to refresh data)
@@ -845,27 +862,28 @@ export default function BetriebskostenClientView({
   // handleCloseModal is no longer needed as the modal store handles closing.
 
   const openDeleteAlert = useCallback((itemId: string) => {
-    setSelectedItemIdForDelete(itemId);
+    selectedItemIdForDeleteRef.current = itemId;
     setIsDeleteAlertOpen(true);
   }, []);
 
   const handleDeleteDialogOnOpenChange = useCallback((open: boolean) => {
     setIsDeleteAlertOpen(open);
     if (!open) {
-      setSelectedItemIdForDelete(null);
+      selectedItemIdForDeleteRef.current = null;
     }
   }, []);
 
   const executeDelete = useCallback(async () => {
-    if (!selectedItemIdForDelete) return;
-    const result = await deleteNebenkostenServerAction(selectedItemIdForDelete);
+    const itemId = selectedItemIdForDeleteRef.current;
+    if (!itemId) return;
+    const result = await deleteNebenkostenServerAction(itemId);
     if (result.success) {
       toast({
         title: "Erfolg",
         description: "Nebenkosten-Eintrag erfolgreich gelöscht.",
         variant: "success"
       });
-      setFilteredNebenkosten(prev => prev.filter(item => item.id !== selectedItemIdForDelete));
+      router.refresh();
     } else {
       toast({
         title: "Fehler",
@@ -873,20 +891,10 @@ export default function BetriebskostenClientView({
         variant: "destructive",
       });
     }
-  }, [selectedItemIdForDelete, toast]);
+  }, [toast, router]);
 
   const scrollToTable = useCallback(() => {
     tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
-  // Initialize guide visibility from cookie
-  useEffect(() => {
-    const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
-    if (hidden === 'true') {
-      setShowGuide(false);
-    } else {
-      setShowGuide(true);
-    }
   }, []);
 
   // React to settings changes via custom event
@@ -945,6 +953,7 @@ export default function BetriebskostenClientView({
       {/* Visual Toggle Pill */}
       <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
         <motion.button
+          type="button"
           layout
           onClick={() => setCurrentTab("costs")}
           className={cn(
@@ -959,11 +968,12 @@ export default function BetriebskostenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <FileSpreadsheet className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <FileSpreadsheet className="size-4 shrink-0 transition-transform duration-300" />
           <span>Betriebskosten</span>
         </motion.button>
 
         <motion.button
+          type="button"
           layout
           onClick={() => setCurrentTab("overview")}
           className={cn(
@@ -978,7 +988,7 @@ export default function BetriebskostenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Übersicht</span>
         </motion.button>
       </div>
@@ -1002,15 +1012,15 @@ export default function BetriebskostenClientView({
                     onClick={handleDismissGuide}
                     className="text-muted-foreground -mt-1"
                   >
-                    <X className="h-4 w-4 mr-1" /> Ausblenden
+                    <X className="size-4 mr-1" /> Ausblenden
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="flex flex-col gap-4">
                   {instructionSteps.map((step, index) => (
                     <div key={step.id} className="flex gap-4">
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
+                      <div className="shrink-0 size-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
                         <span className="text-sm font-semibold text-primary dark:text-primary-foreground">{index + 1}</span>
                       </div>
                       <div className="flex-1 pt-0.5">
@@ -1094,14 +1104,14 @@ export default function BetriebskostenClientView({
               value={nebenkostenStats.totalCosts}
               unit="€"
               decimals
-              icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+              icon={<Euro className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Abrechnungen"
               value={nebenkostenStats.billsCount}
               unit="Jahre"
-              icon={<FileSpreadsheet className="h-4 w-4 text-muted-foreground" />}
+              icon={<FileSpreadsheet className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -1109,7 +1119,7 @@ export default function BetriebskostenClientView({
               value={nebenkostenStats.avgCostPerSqm}
               unit="€/m²"
               decimals
-              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+              icon={<Ruler className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -1117,7 +1127,7 @@ export default function BetriebskostenClientView({
               value={nebenkostenStats.avgCostPerBill}
               unit="€"
               decimals
-              icon={<Activity className="h-4 w-4 text-muted-foreground" />}
+              icon={<Activity className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -1153,7 +1163,7 @@ export default function BetriebskostenClientView({
                     <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2 shrink-0">
                       Ausstehende Häuser (Klicken zum Erstellen):
                     </span>
-                    <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar max-h-[210px] flex-1">
+                    <div className="flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar max-h-[210px] flex-1">
                       {nebenkostenStats.uncoveredHouses.map((h, idx) => (
                         <div 
                           key={h.id || idx} 
@@ -1162,7 +1172,7 @@ export default function BetriebskostenClientView({
                         >
                           <div className="flex items-center gap-2">
                             <div className="p-1.5 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                              <Building2 className="h-4 w-4 animate-in fade-in" />
+                              <Building2 className="size-4 animate-in fade-in" />
                             </div>
                             <div className="min-w-0">
                               <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 block transition-colors duration-200 truncate max-w-[120px] sm:max-w-[180px]">
@@ -1195,7 +1205,7 @@ export default function BetriebskostenClientView({
                   <div className="relative w-full h-[220px] flex items-center justify-center">
                     <BaseDonutChart
                       data={categoriesData}
-                      valueFormatter={(val) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val)}
+                      valueFormatter={(val) => CURRENCY_FORMATTER.format(val)}
                       innerRadius={65}
                       outerRadius={85}
                       showLegend={false}
@@ -1208,7 +1218,7 @@ export default function BetriebskostenClientView({
                       {hoveredCategoryIndex === null ? (
                         <>
                           <span className="text-lg font-black tracking-tight leading-none text-zinc-900 dark:text-zinc-50 transition-all duration-200">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(nebenkostenStats.totalCosts)}
+                            {CURRENCY_FORMATTER.format(nebenkostenStats.totalCosts)}
                           </span>
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
                             Gesamtkosten
@@ -1220,7 +1230,7 @@ export default function BetriebskostenClientView({
                       ) : (
                         <>
                           <span className="text-lg font-black tracking-tight leading-none text-primary transition-all duration-200">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(categoriesData[hoveredCategoryIndex]?.value || 0)}
+                            {CURRENCY_FORMATTER.format(categoriesData[hoveredCategoryIndex]?.value || 0)}
                           </span>
                           <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1.5 truncate max-w-[120px]">
                             {categoriesData[hoveredCategoryIndex]?.name || "Kostenart"}
@@ -1270,7 +1280,7 @@ export default function BetriebskostenClientView({
                     {hoveredHouseIndex === null ? (
                       <>
                         <span className="text-lg font-black tracking-tight leading-none text-zinc-900 dark:text-zinc-50 transition-all duration-200">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(costAnalytics.totalAllTimeCosts)}
+                          {CURRENCY_FORMATTER.format(costAnalytics.totalAllTimeCosts)}
                         </span>
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
                           Gesamtkosten
@@ -1282,7 +1292,7 @@ export default function BetriebskostenClientView({
                     ) : (
                       <>
                         <span className="text-lg font-black tracking-tight leading-none text-primary transition-all duration-200">
-                          {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(costAnalytics.houseShares[hoveredHouseIndex]?.value || 0)}
+                          {CURRENCY_FORMATTER.format(costAnalytics.houseShares[hoveredHouseIndex]?.value || 0)}
                         </span>
                         <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1.5 truncate max-w-[120px]">
                           {costAnalytics.houseShares[hoveredHouseIndex]?.name || "Haus"}
@@ -1312,6 +1322,7 @@ export default function BetriebskostenClientView({
                     const isActive = developmentTimeframe === timeframe;
                     return (
                       <button
+                        type="button"
                         key={timeframe}
                         onClick={() => setDevelopmentTimeframe(timeframe)}
                         className={cn(
@@ -1409,7 +1420,7 @@ export default function BetriebskostenClientView({
             <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
               <CardHeader className="px-0 pt-0 shrink-0 pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                     <CardTitle className="text-base font-semibold">Plausibilitäts-Audit</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">Benchmarking gegen den Markt</CardDescription>
                   </div>
@@ -1421,6 +1432,7 @@ export default function BetriebskostenClientView({
                                       mode === "last" ? new Date().getFullYear() - 1 : "5J.";
                       return (
                         <button
+                          type="button"
                           key={mode}
                           onClick={() => setAuditTimeframe(mode as any)}
                           className={cn(
@@ -1452,7 +1464,7 @@ export default function BetriebskostenClientView({
                   return (
                     <>
                       <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center relative overflow-hidden group">
-                        <div className="relative flex items-center justify-center h-28 w-28 rounded-full border-4 border-dashed border-zinc-200 dark:border-zinc-800">
+                        <div className="relative flex items-center justify-center size-28 rounded-full border-4 border-dashed border-zinc-200 dark:border-zinc-800">
                           <div className={cn(
                             "absolute inset-2 rounded-full flex flex-col items-center justify-center",
                             isOptimal ? "bg-emerald-500/5" : "bg-amber-500/5"
@@ -1471,12 +1483,11 @@ export default function BetriebskostenClientView({
                         </div>
                       </div>
 
-                      {/* Data Insights Grid */}
-                      <div className="space-y-2.5">
+                <div className="flex flex-col gap-2.5">
                         <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-xl", isOptimal ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
-                              <Activity className="h-4 w-4" />
+                              <Activity className="size-4" />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ø Portfoliowert ({auditTimeframe === '5y' ? '5J.' : 'Jahr'})</span>
@@ -1496,7 +1507,7 @@ export default function BetriebskostenClientView({
                         <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-zinc-400/10 text-zinc-400">
-                              <Info className="h-4 w-4" />
+                              <Info className="size-4" />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Markt-Benchmark</span>
@@ -1522,8 +1533,7 @@ export default function BetriebskostenClientView({
             {/* Right Box: Long-term Energy Trend Analysis */}
             <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
               <CardHeader className="px-0 pt-0 shrink-0 pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                     <CardTitle className="text-base font-semibold">Energie- vs. Betriebskosten</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">Langfristiger Trend der Kostenverteilung (100% Stacked)</CardDescription>
                   </div>
@@ -1532,6 +1542,7 @@ export default function BetriebskostenClientView({
                   <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
                     {[5, 10, 25].map((years) => (
                       <button
+                        type="button"
                         key={years}
                         onClick={() => setEnergyTimeframe(years as any)}
                         className={cn(
@@ -1547,11 +1558,10 @@ export default function BetriebskostenClientView({
                           />
                         )}
                         {years}J.
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </CardHeader>
+                        </button>
+                        ))}
+                        </div>
+                        </CardHeader>
 
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0">
                 <div className="w-full h-[220px]">
@@ -1579,10 +1589,10 @@ export default function BetriebskostenClientView({
                             return (
                               <div className="bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3 shadow-xl text-zinc-900 dark:text-zinc-50 min-w-[200px]">
                                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Abrechnungsjahr {label}</p>
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-2">
                                   <div className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 rounded-full bg-orange-500" />
+                                      <div className="size-2 rounded-full bg-orange-500" />
                                       <span className="text-[10px] font-semibold text-muted-foreground">Warme Kosten</span>
                                     </div>
                                     <div className="flex flex-col items-end">
@@ -1592,7 +1602,7 @@ export default function BetriebskostenClientView({
                                   </div>
                                   <div className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                      <div className="size-2 rounded-full bg-blue-500" />
                                       <span className="text-[10px] font-semibold text-muted-foreground">Kalte Kosten</span>
                                     </div>
                                     <div className="flex flex-col items-end">
@@ -1617,7 +1627,7 @@ export default function BetriebskostenClientView({
                   </ResponsiveContainer>
                 </div>
 
-                <div className="mt-6 space-y-4">
+                <div className="mt-6 flex flex-col gap-4">
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-400 px-1">
                     <span>Struktur-Vergleich</span>
                     <span className="text-zinc-500 italic">Ø {energyTimeframe} Jahre</span>
@@ -1626,7 +1636,7 @@ export default function BetriebskostenClientView({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-2xl bg-orange-500/[0.03] border border-orange-500/10 flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500">
-                        <TrendingUp className="h-4 w-4" />
+                        <TrendingUp className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-orange-600/80 uppercase">Energie</span>
@@ -1637,7 +1647,7 @@ export default function BetriebskostenClientView({
                     </div>
                     <div className="p-3 rounded-2xl bg-blue-500/[0.03] border border-blue-500/10 flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
-                        <Ruler className="h-4 w-4" />
+                        <Ruler className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-blue-600/80 uppercase">Betrieb</span>
@@ -1666,7 +1676,7 @@ export default function BetriebskostenClientView({
               </CardHeader>
 
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-start min-h-0">
-                <div className="space-y-3.5 py-2 w-full">
+                <div className="flex flex-col gap-3.5 py-2 w-full">
                   {legalPrognosis.deadlines.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic text-center py-6">Keine offenen Abrechnungsfristen vorhanden.</p>
                   ) : (
@@ -1684,13 +1694,13 @@ export default function BetriebskostenClientView({
                           <div className="flex items-center gap-3">
                             {dl.status === 'red' ? (
                               <div className="p-1 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
-                                <Building2 className="h-4 w-4" />
+                                <Building2 className="size-4" />
                               </div>
                             ) : dl.status === 'amber' ? (
                               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 ml-1.5 mr-1" />
                             ) : (
                               <div className="p-1 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                                <Building2 className="h-4 w-4 animate-in fade-in" />
+                                <Building2 className="size-4 animate-in fade-in" />
                               </div>
                             )}
                             <div>
@@ -1728,7 +1738,7 @@ export default function BetriebskostenClientView({
             <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
               <CardHeader className="px-0 pt-0 shrink-0 pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-1">
+                  <div className="flex flex-col gap-1">
                     <CardTitle className="text-base font-semibold">Saldo-Prognose & Liquidität</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">
                       Vorausschau der Abrechnungsergebnisse
@@ -1739,6 +1749,7 @@ export default function BetriebskostenClientView({
                     {/* Timeframe Selection Toggle with Sliding Animation */}
                     <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
                       <button
+                        type="button"
                         onClick={() => setPrognosisTimeframe("this")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
@@ -1755,6 +1766,7 @@ export default function BetriebskostenClientView({
                         {new Date().getFullYear()}
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPrognosisTimeframe("last")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
@@ -1771,6 +1783,7 @@ export default function BetriebskostenClientView({
                         {new Date().getFullYear() - 1}
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPrognosisTimeframe("5y")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
@@ -1793,6 +1806,7 @@ export default function BetriebskostenClientView({
                     {/* SOLL/IST Toggle with Sliding Animation */}
                     <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
                       <button
+                        type="button"
                         onClick={() => setPrognosisMode("goal")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer z-10",
@@ -1809,6 +1823,7 @@ export default function BetriebskostenClientView({
                         SOLL
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPrognosisMode("real")}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer z-10",
@@ -1834,7 +1849,7 @@ export default function BetriebskostenClientView({
                 <div className="grid grid-cols-2 gap-4">
                   {/* Coverage Dial */}
                   <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center">
-                    <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                    <div className="relative flex items-center justify-center size-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
                       <div className="absolute inset-1.5 rounded-full bg-accent/5 flex flex-col items-center justify-center">
                         <span className="text-base font-black text-accent">
                           {legalPrognosis.coveragePct}%
@@ -1847,7 +1862,7 @@ export default function BetriebskostenClientView({
 
                   {/* Liquidity Status Dial */}
                   <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center">
-                    <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                    <div className="relative flex items-center justify-center size-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
                       <div className={cn(
                         "absolute inset-1.5 rounded-full flex flex-col items-center justify-center",
                         legalPrognosis.balancePct >= 0 ? "bg-emerald-500/5" : "bg-amber-500/5"
@@ -1863,11 +1878,11 @@ export default function BetriebskostenClientView({
                 </div>
 
                 {/* Data Insights Grid */}
-                <div className="space-y-2.5">
+                <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-zinc-400/10 text-zinc-400">
-                        <Activity className="h-4 w-4" />
+                        <Activity className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Abrechnungs-Kosten</span>
@@ -1883,7 +1898,7 @@ export default function BetriebskostenClientView({
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-3">
                       <div className={cn("p-2 rounded-xl", prognosisMode === 'goal' ? "bg-primary/10 text-primary" : "bg-emerald-500/10 text-emerald-500")}>
-                        {prognosisMode === 'goal' ? <Target className="h-4 w-4" /> : <Coins className="h-4 w-4" />}
+                        {prognosisMode === 'goal' ? <Target className="size-4" /> : <Coins className="size-4" />}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -1907,7 +1922,7 @@ export default function BetriebskostenClientView({
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-3">
                       <div className={cn("p-2 rounded-xl", legalPrognosis.netBalance <= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
-                        <Activity className="h-4 w-4" />
+                        <Activity className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -1946,7 +1961,7 @@ export default function BetriebskostenClientView({
                           key={houseName}
                           style={{ width: `${widthPct}%`, backgroundColor: colors[index % colors.length] }}
                           className="h-full hover:scale-y-150 transition-transform cursor-help"
-                          title={`${houseName}: ${new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)}`}
+                          title={`${houseName}: ${CURRENCY_FORMATTER.format(value)}`}
                         />
                       );
                     })}

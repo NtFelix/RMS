@@ -153,7 +153,7 @@ export function MetersDonutChart({
       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
 
       <div className="flex flex-col items-center gap-3">
-        <div className="relative w-40 h-40 flex items-center justify-center">
+        <div className="relative size-40 flex items-center justify-center">
           <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
             <circle
               cx="50"
@@ -297,7 +297,7 @@ export function BaseDonutChart({
   if (!mounted) {
     return (
       <div className="flex items-center justify-center h-full py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
       </div>
     );
   }
@@ -370,6 +370,17 @@ const houseCurrencyFormatter = new Intl.NumberFormat("de-DE", {
   style: "currency",
   currency: "EUR",
   maximumFractionDigits: 0,
+});
+
+const currencyFormatter0 = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+
+const currencyFormatterDefault = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
 });
 
 export function HousesDonutChart({ houses, apartments = [] }: HousesDonutChartProps) {
@@ -500,13 +511,6 @@ export function FinanceDonutChart({ finanzen, isLoading = false }: FinanceDonutC
     return [...top5, { name: "Andere", value: others }];
   }, [finanzen, isLoading]);
 
-  const currencyFormatter = (val: number) => 
-    new Intl.NumberFormat("de-DE", { 
-      style: "currency", 
-      currency: "EUR", 
-      maximumFractionDigits: 0 
-    }).format(val);
-
   if (isLoading) {
     return (
       <div className="w-full h-full min-h-[220px] flex items-center justify-center">
@@ -520,7 +524,7 @@ export function FinanceDonutChart({ finanzen, isLoading = false }: FinanceDonutC
       <BaseDonutChart
         data={chartData}
         emptyMessage="Keine Transaktionen erfasst."
-        valueFormatter={currencyFormatter}
+        valueFormatter={(val) => currencyFormatter0.format(val)}
       />
     </div>
   );
@@ -580,7 +584,7 @@ export function TenantsDonutChart({ tenants }: TenantsDonutChartProps) {
 
   const valueFormatter = useCallback((val: number) => {
     if (segmentsData.isDeposit) {
-      return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(val);
+      return currencyFormatter0.format(val);
     }
     return `${val} Mieter`;
   }, [segmentsData.isDeposit]);
@@ -713,7 +717,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
       if (match) {
         return {
           label: match.label,
-          count: new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(match.count),
+          count: currencyFormatter0.format(match.count),
           icon: match.icon,
           colorClass: match.colorClass
         };
@@ -721,7 +725,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
     }
     return {
       label: "Kosten Gesamt",
-      count: new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalValue),
+      count: currencyFormatter0.format(totalValue),
       icon: FileSpreadsheet,
       colorClass: "text-accent bg-accent/10"
     };
@@ -738,18 +742,18 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold text-zinc-800 dark:text-zinc-200">Kostenaufteilung</span>
         <span className="font-bold text-accent">
-          {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalValue)}
+          {currencyFormatter0.format(totalValue)}
         </span>
       </div>
 
       <div className="h-px bg-zinc-200/60 dark:bg-zinc-800/80 w-full my-1" />
 
       <div className="flex flex-col items-center gap-3">
-        <div className="relative w-40 h-40 flex items-center justify-center">
+        <div className="relative size-40 flex items-center justify-center">
           <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
             <circle
               cx="50"
@@ -784,7 +788,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
 
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-2 animate-in fade-in duration-200">
             <div className={cn("p-1.5 rounded-lg mb-1", activeInfo.colorClass)}>
-              <ActiveIcon className="h-4 w-4" />
+              <ActiveIcon className="size-4" />
             </div>
             <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate max-w-[80px]">
               {activeInfo.label}
@@ -813,14 +817,14 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <div className={cn("p-1 rounded-md shrink-0", s.colorClass)}>
-                    <Icon className="h-3 w-3" />
+                    <Icon className="size-3" />
                   </div>
                   <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 truncate">
                     {s.label}
                   </span>
                 </div>
                 <span className="font-bold text-zinc-800 dark:text-zinc-200 text-[10px] shrink-0">
-                  {new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.count)}
+                  {currencyFormatter0.format(s.count)}
                 </span>
               </div>
             );
@@ -979,7 +983,7 @@ export function ApartmentsRentPerSqmBarChart({ apartments = [] }: ApartmentsRent
   if (!mounted) {
     return (
       <div className="flex items-center justify-center h-full py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
       </div>
     );
   }
@@ -1042,13 +1046,11 @@ const StackedTooltip = ({ active, payload }: StackedTooltipProps) => {
     const lossRent = payload.find(p => p.dataKey === "lossRent")?.value || 0;
     const isRented = payload[0].payload.status === "vermietet";
 
-    const formatter = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
-
     return (
       <div className="bg-white dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] rounded-xl px-3 py-2 shadow-md text-xs space-y-1">
         <p className="font-semibold text-zinc-800 dark:text-zinc-100">{payload[0].payload.name}</p>
         <p className={isRented ? "text-emerald-500 font-bold" : "text-rose-500 font-bold"}>
-          {isRented ? `Ist-Miete: ${formatter.format(activeRent)}` : `Leerstands-Verlust: ${formatter.format(lossRent)}`}
+          {isRented ? `Ist-Miete: ${currencyFormatterDefault.format(activeRent)}` : `Leerstands-Verlust: ${currencyFormatterDefault.format(lossRent)}`}
         </p>
       </div>
     );
@@ -1086,7 +1088,7 @@ export function ApartmentsRentLossBarChart({ apartments = [] }: ApartmentsRentLo
   if (!mounted) {
     return (
       <div className="flex items-center justify-center h-full py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
       </div>
     );
   }
@@ -1130,4 +1132,7 @@ export function ApartmentsRentLossBarChart({ apartments = [] }: ApartmentsRentLo
     </div>
   );
 }
+
+
+
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   DndContext,
@@ -145,8 +145,14 @@ export function TaskDndProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const contextValue = useMemo(() => ({
+    onTaskDateChanged,
+    addDateChangeListener,
+    removeDateChangeListener
+  }), [onTaskDateChanged, addDateChangeListener, removeDateChangeListener]);
+
   return (
-    <TaskDndContext.Provider value={{ onTaskDateChanged, addDateChangeListener, removeDateChangeListener }}>
+    <TaskDndContext.Provider value={contextValue}>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         {children}
 

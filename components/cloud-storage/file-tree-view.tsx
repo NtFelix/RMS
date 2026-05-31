@@ -407,8 +407,9 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         >
           {hasChildren ? (
             <button
+              type="button"
               className={cn(
-                "shrink-0 h-5 w-5 flex items-center justify-center rounded-full transition-all duration-150 ease-out z-10",
+                "shrink-0 size-5 flex items-center justify-center rounded-full transition-all duration-150 ease-out z-10",
                 isSelected
                   ? "hover:bg-white/20 text-white/80"
                   : "hover:bg-zinc-200/50 dark:hover:bg-zinc-700/40 text-zinc-400 dark:text-zinc-500"
@@ -420,7 +421,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
             >
               <ChevronRight 
                 className={cn(
-                  "h-3 w-3 transition-transform duration-200 ease-out shrink-0", 
+                  "size-3 transition-transform duration-200 ease-out shrink-0", 
                   isExpanded && "rotate-90"
                 )} 
               />
@@ -430,7 +431,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           )}
 
           <Icon className={cn(
-            "h-3.5 w-3.5 shrink-0 transition-colors",
+            "size-3.5 shrink-0 transition-colors",
             isSelected
               ? "text-white"
               : node.type === 'archive'
@@ -465,7 +466,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
         </div>
 
         {hasChildren && isExpanded && (
-          <div className="ml-3 pl-3.5 mt-0.5 mb-1 border-l border-zinc-200/60 dark:border-zinc-800/40 space-y-0.5 animate-in fade-in slide-in-from-top-0.5 duration-100">
+          <div className="ml-3 pl-3.5 mt-0.5 mb-1 border-l border-zinc-200/60 dark:border-zinc-800/40 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-0.5 duration-100">
             {node.children.map(child => renderTreeNode(child, level + 1))}
           </div>
         )}
@@ -475,7 +476,7 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
 
   if (isLoading) {
     return (
-      <div className={cn("space-y-2", className)}>
+      <div className={cn("flex flex-col gap-2", className)}>
         <div className="animate-pulse">
           <div className="h-4 bg-muted rounded w-3/4 mb-2" />
           <div className="h-4 bg-muted rounded w-1/2 mb-2" />
@@ -487,19 +488,19 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
 
   if (error) {
     return (
-      <div className={cn("flex items-center space-x-2 text-sm text-destructive", className)}>
-        <AlertCircle className="h-4 w-4" />
+      <div className={cn("flex items-center gap-2 text-sm text-destructive", className)}>
+        <AlertCircle className="size-4" />
         <span>Fehler beim Laden der Ordnerstruktur</span>
       </div>
     )
   }
 
   return (
-    <div className={cn("space-y-3 relative", className)}>
+    <div className={cn("flex flex-col gap-3 relative", className)}>
       {/* File Tree Toolbar */}
       <div className="sticky top-0 bg-gray-50 dark:bg-[#22272e] z-20 pt-1 pb-2 flex items-center gap-1.5 px-0.5 border-b border-zinc-100 dark:border-zinc-800/40">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400 dark:text-zinc-500" />
           <input
             type="text"
             placeholder="Ordner filtern..."
@@ -509,33 +510,36 @@ export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewP
           />
           {filterQuery && (
             <button
+              type="button"
               onClick={() => setFilterQuery('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
-              <X className="h-2.5 w-2.5" />
+              <X className="size-2.5" />
             </button>
           )}
         </div>
         <div className="flex gap-1">
           <button
+            type="button"
             onClick={handleExpandAll}
             title="Alle ausklappen"
-            className="h-8 w-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+            className="size-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
           >
-            <FolderOpen className="h-3.5 w-3.5" />
+            <FolderOpen className="size-3.5" />
           </button>
           <button
+            type="button"
             onClick={handleCollapseAll}
             title="Alle einklappen"
-            className="h-8 w-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+            className="size-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
           >
-            <Folder className="h-3.5 w-3.5" />
+            <Folder className="size-3.5" />
           </button>
         </div>
       </div>
 
       {/* File Tree Body */}
-      <div className="space-y-0.5">
+      <div className="flex flex-col gap-0.5">
         {filteredTreeData.length === 0 ? (
           <div className="text-[11px] text-zinc-400 dark:text-zinc-500 py-6 text-center italic">
             Keine Ordner gefunden

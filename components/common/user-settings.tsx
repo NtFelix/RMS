@@ -113,7 +113,7 @@ export function UserSettings({
             aria-label="User menu"
           >
             <div className="relative shrink-0">
-              <Avatar className="h-10 w-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
+              <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
                 <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>
@@ -175,12 +175,12 @@ export function UserSettings({
             onClick={() => openTemplatesModal()}
             aria-label={ARIA_LABELS.templatesModal}
           >
-            <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+            <FileText className="mr-2 size-4" aria-hidden="true" />
             <span>Vorlagen</span>
           </CustomDropdownItem>
         )}
         <CustomDropdownItem onClick={() => setOpenModal(true)}>
-          <Settings className="mr-2 h-4 w-4" />
+          <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>
         <CustomDropdownSeparator />
@@ -188,7 +188,7 @@ export function UserSettings({
           onClick={handleLogout}
           disabled={isLoadingLogout}
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 size-4" />
           <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
         </CustomDropdownItem>
       </CustomDropdown>
@@ -196,3 +196,4 @@ export function UserSettings({
     </>
   )
 }
+

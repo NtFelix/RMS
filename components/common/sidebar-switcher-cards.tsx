@@ -165,7 +165,7 @@ export function SidebarSwitcherCards({ className }: SidebarSwitcherCardsProps) {
                   }}
                 >
                   <CheckCircle2 
-                    className="h-5 w-5 text-primary drop-shadow-xs" 
+                    className="size-5 text-primary drop-shadow-xs" 
                     aria-hidden="true"
                     strokeWidth={2.5}
                   />
@@ -197,7 +197,7 @@ export function SidebarSwitcherCards({ className }: SidebarSwitcherCardsProps) {
                     transition={{ duration: 0.5 }}
                   >
                     <Icon 
-                      className="h-8 w-8 text-primary"
+                      className="size-8 text-primary"
                       aria-hidden="true"
                     />
                   </motion.div>
@@ -215,7 +215,7 @@ export function SidebarSwitcherCards({ className }: SidebarSwitcherCardsProps) {
               >
                 <Icon 
                   className={cn(
-                    "h-8 w-8 transition-all duration-300 relative z-10",
+                    "size-8 transition-all duration-300 relative z-10",
                     isActive 
                       ? "text-primary" 
                       : "text-muted-foreground"

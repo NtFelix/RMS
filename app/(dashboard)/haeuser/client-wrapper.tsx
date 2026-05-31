@@ -20,6 +20,23 @@ import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+// Hoisted formatters
+const currencyFormatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+const currencyFormatterFull = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+});
+const decimalFormatter = new Intl.NumberFormat("de-DE", {
+  style: "decimal",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const numberFormatter = new Intl.NumberFormat("de-DE");
+
 // Props for the main client view component
 interface HaeuserClientViewProps {
   enrichedHaeuser: House[]; // Assuming enrichedHaeuser is an array of House
@@ -68,25 +85,28 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
   // ===== Summary metrics =====
   const summary = useMemo(() => {
+    const totals = enrichedHaeuser.reduce(
+      (acc, h) => {
+        const apts = h.totalApartments ?? 0;
+        const free = h.freeApartments ?? 0;
+        const sizeVal = parseFloat(String(h.size || 0));
+        const rentVal = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
+
+        acc.totalApartments += apts;
+        acc.freeApartments += free;
+        if (!isNaN(sizeVal)) acc.totalSize += sizeVal;
+        if (!isNaN(rentVal)) acc.totalRent += rentVal;
+
+        return acc;
+      },
+      { totalApartments: 0, freeApartments: 0, totalSize: 0, totalRent: 0 }
+    );
+
     const totalHouses = enrichedHaeuser.length;
-    const totalApartments = enrichedHaeuser.reduce((sum, h) => sum + (h.totalApartments ?? 0), 0);
-    const freeApartments = enrichedHaeuser.reduce((sum, h) => sum + (h.freeApartments ?? 0), 0);
-    
-    // Average size
-    const totalSize = enrichedHaeuser.reduce((sum, h) => {
-      const sizeVal = parseFloat(String(h.size || 0));
-      return sum + (isNaN(sizeVal) ? 0 : sizeVal);
-    }, 0);
-    const avgSize = totalHouses > 0 ? Math.round(totalSize / totalHouses) : 0;
+    const avgSize = totalHouses > 0 ? Math.round(totals.totalSize / totalHouses) : 0;
+    const avgRent = totalHouses > 0 ? Math.round(totals.totalRent / totalHouses) : 0;
 
-    // Average Rent
-    const totalRent = enrichedHaeuser.reduce((sum, h) => {
-      const rentVal = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
-      return sum + (isNaN(rentVal) ? 0 : rentVal);
-    }, 0);
-    const avgRent = totalHouses > 0 ? Math.round(totalRent / totalHouses) : 0;
-
-    return { totalHouses, totalApartments, freeApartments, totalSize, avgSize, totalRent, avgRent };
+    return { totalHouses, ...totals, avgSize, avgRent };
   }, [enrichedHaeuser]);
 
   // ===== Financial Yield & Vacancy Computations =====
@@ -281,6 +301,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
       <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("houses")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -294,12 +315,13 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <Building2 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <Building2 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Häuser</span>
         </motion.button>
 
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("overview")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -313,7 +335,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Übersicht</span>
         </motion.button>
       </div>
@@ -324,19 +346,19 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
             <StatCard
               title="Häuser gesamt"
               value={summary.totalHouses}
-              icon={<Building className="h-4 w-4 text-muted-foreground" />}
+              icon={<Building className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Wohnungen gesamt"
               value={summary.totalApartments}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Freie Wohnungen"
               value={summary.freeApartments}
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -354,7 +376,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       useOnboardingStore.getState().completeStep('create-house-start');
                       handleAdd();
                     }}
-                    icon={<PlusCircle className="h-4 w-4" />}
+                    icon={<PlusCircle className="size-4" />}
                     shortText="Hinzufügen"
                   >
                     Haus hinzufügen
@@ -411,7 +433,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         onClick={() => setSelectedHouses(new Set())}
                         className="h-8 px-2 hover:bg-primary/20"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="size-4" />
                       </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -421,7 +443,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         onClick={handleBulkExport}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                       >
-                        <Download className="h-4 w-4" />
+                        <Download className="size-4" />
                         <span className="hidden sm:inline">Exportieren</span>
                         <span className="sm:hidden">Export</span>
                       </Button>
@@ -434,13 +456,13 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       >
                         {isBulkDeleting ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                             <span className="hidden sm:inline">Löschen...</span>
                             <span className="sm:hidden">...</span>
                           </>
                         ) : (
                           <>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                             <span className="hidden sm:inline">Löschen ({selectedHouses.size})</span>
                             <span className="sm:hidden">{selectedHouses.size}</span>
                           </>
@@ -469,20 +491,20 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
             <StatCard
               title="Häuser gesamt"
               value={summary.totalHouses}
-              icon={<Building className="h-4 w-4 text-muted-foreground" />}
+              icon={<Building className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Wohnungen gesamt"
               value={summary.totalApartments}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Ø Hausgröße"
               value={summary.avgSize}
               unit="m²"
-              icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
+              icon={<Building2 className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -490,7 +512,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
               value={summary.avgRent}
               unit="€"
               decimals
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -505,11 +527,11 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-2xl bg-primary/5 border border-gray-200 dark:border-gray-800">
                     <span className="text-xs text-muted-foreground block mb-1">Fläche Gesamt</span>
-                    <span className="text-xl font-bold">{summary.totalSize.toLocaleString('de-DE')} m²</span>
+                    <span className="text-xl font-bold">{numberFormatter.format(summary.totalSize)} m²</span>
                   </div>
                   <div className="p-4 rounded-2xl bg-primary/5 border border-gray-200 dark:border-gray-800">
                     <span className="text-xs text-muted-foreground block mb-1">Soll-Miete Gesamt</span>
-                    <span className="text-xl font-bold">{summary.totalRent.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                    <span className="text-xl font-bold">{currencyFormatterFull.format(summary.totalRent)}</span>
                   </div>
                 </div>
 
@@ -528,7 +550,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         {/* Left section: Icon and basic info */}
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                            <Building2 className="h-4.5 w-4.5" />
+                            <Building2 className="size-4.5" />
                           </div>
                           <div>
                             <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
@@ -536,7 +558,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                             </span>
                             {h.ort && (
                               <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
-                                <MapPin className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                                <MapPin className="size-3 shrink-0 text-muted-foreground/70" />
                                 {h.ort}
                               </span>
                             )}
@@ -553,7 +575,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
                           {/* Occupancy details */}
                           <div className="flex items-center gap-1.5 min-w-[90px]">
-                            <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <Home className="size-3.5 text-muted-foreground shrink-0" />
                             <span className="text-zinc-700 dark:text-zinc-300 font-medium">
                               {occupied}/{total}
                             </span>
@@ -608,7 +630,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="p-2 rounded-xl bg-emerald-500/5 text-emerald-500 shrink-0">
-                        <Wallet className="h-4 w-4" />
+                        <Wallet className="size-4" />
                       </div>
                       <div className="min-w-0">
                         <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 block">Soll-Miete (Belegt)</span>
@@ -616,7 +638,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       </div>
                     </div>
                     <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 shrink-0 pl-[42px] mt-0.5">
-                      {financialMetrics.istMiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                      {currencyFormatter.format(financialMetrics.istMiete)}
                     </span>
                   </div>
 
@@ -632,7 +654,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       </div>
                     </div>
                     <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 shrink-0 pl-[42px] mt-0.5">
-                      {financialMetrics.sollMiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                      {currencyFormatter.format(financialMetrics.sollMiete)}
                     </span>
                   </div>
 
@@ -648,13 +670,13 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       </div>
                     </div>
                     <span className="text-sm font-bold text-rose-600 dark:text-rose-400 shrink-0 pl-[42px] mt-0.5">
-                      {financialMetrics.leerstandskosten.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                      {currencyFormatter.format(financialMetrics.leerstandskosten)}
                     </span>
                   </div>
                 </div>
 
                 {/* Progress bar representing occupancy yield */}
-                <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
                   <div className="flex flex-col gap-0.5 text-xs font-semibold">
                     <span className="text-muted-foreground">Mietertragspotenzial</span>
                     <span className="text-accent font-bold text-sm">
@@ -686,7 +708,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                   <div className="text-left border-r border-zinc-200/60 dark:border-zinc-800/80 pr-4">
                     <span className="text-[10px] sm:text-xs text-muted-foreground block mb-1">Ø Quadratmeter-Miete</span>
                     <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                      {efficiencyMetrics.portfolioAvg.toLocaleString('de-DE', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                      {decimalFormatter.format(efficiencyMetrics.portfolioAvg)} €/m²
                     </span>
                   </div>
                   <div className="text-left pl-4 flex flex-col justify-center">
@@ -695,12 +717,12 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                       {efficiencyMetrics.highestHouse.name}
                     </span>
                     <span className="text-[10px] text-muted-foreground block">
-                      {efficiencyMetrics.highestHouse.value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                      {decimalFormatter.format(efficiencyMetrics.highestHouse.value)} €/m²
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-3 overflow-y-auto pr-1 max-h-[360px] flex-1 custom-scrollbar">
+                <div className="flex flex-col gap-3 overflow-y-auto pr-1 max-h-[360px] flex-1 custom-scrollbar">
                   {efficiencyMetrics.list.length === 0 ? (
                     <div className="text-center py-6 text-xs text-muted-foreground italic">
                       Keine Effizienzdaten vorhanden.
@@ -714,26 +736,26 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                         <div className="flex items-center justify-between text-xs font-semibold">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="p-1.5 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                              <Building2 className="h-4 w-4" />
+                              <Building2 className="size-4" />
                             </div>
                             <div className="min-w-0">
                               <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate block group-hover:text-accent transition-colors duration-200">{item.name}</span>
                               <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-normal mt-0.5">
                                 {item.ort && (
                                   <span className="flex items-center gap-0.5">
-                                    <MapPin className="h-3 w-3 shrink-0" />
+                                    <MapPin className="size-3 shrink-0" />
                                     {item.ort}
                                   </span>
                                 )}
                                 <span className="flex items-center gap-0.5">
-                                  <Home className="h-3 w-3 shrink-0" />
+                                  <Home className="size-3 shrink-0" />
                                   {item.totalApartments - item.freeApartments}/{item.totalApartments} belegt
                                 </span>
                               </div>
                             </div>
                           </div>
                           <span className="font-bold text-zinc-950 dark:text-zinc-50 shrink-0">
-                            {item.rentPerSqm.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                            {decimalFormatter.format(item.rentPerSqm)} €/m²
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-zinc-200/80 dark:bg-zinc-800/80 rounded-full overflow-hidden">

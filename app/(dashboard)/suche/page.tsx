@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useSearch } from "@/hooks/use-search"
 import { 
   Search, 
@@ -84,24 +84,32 @@ export default function SuchePage() {
     }
   }
 
-  const categories = [
-    { id: "all", label: "Alle", count: results.length },
-    { id: "tenants", label: "Mieter", count: results.filter(r => r.type === "tenant").length },
-    { id: "houses", label: "Häuser", count: results.filter(r => r.type === "house").length },
-    { id: "apartments", label: "Wohnungen", count: results.filter(r => r.type === "apartment").length },
-    { id: "finances", label: "Finanzen", count: results.filter(r => r.type === "finance").length },
-    { id: "tasks", label: "Aufgaben", count: results.filter(r => r.type === "task").length },
-  ]
+  const categories = useMemo(() => {
+    const counts = results.reduce((acc, r) => {
+      const type = r.type as string;
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return [
+      { id: "all", label: "Alle", count: results.length },
+      { id: "tenants", label: "Mieter", count: counts["tenant"] || 0 },
+      { id: "houses", label: "Häuser", count: counts["house"] || 0 },
+      { id: "apartments", label: "Wohnungen", count: counts["apartment"] || 0 },
+      { id: "finances", label: "Finanzen", count: counts["finance"] || 0 },
+      { id: "tasks", label: "Aufgaben", count: counts["task"] || 0 },
+    ];
+  }, [results]);
 
   return (
     <div className="flex flex-col min-h-full w-full bg-zinc-50/40 dark:bg-zinc-950/20 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
       {/* Header section with gradient and Search Input */}
       <div className="relative overflow-hidden px-6 py-10 md:px-12 md:py-16 border-b border-zinc-200/50 dark:border-zinc-800/40 bg-white dark:bg-[#181818]">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
+        <div className="absolute top-0 right-0 size-96 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 size-80 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
         
-        <div className="relative max-w-3xl mx-auto space-y-6">
-          <div className="space-y-2">
+        <div className="relative max-w-3xl mx-auto flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">
               Echtzeit-Suche
             </h1>
@@ -113,7 +121,7 @@ export default function SuchePage() {
           {/* Search Box */}
           <div className="relative flex items-center group">
             <div className="absolute left-5 text-zinc-400 group-focus-within:text-accent transition-colors duration-300">
-              <Search className="h-6 w-6 group-focus-within:scale-110 transition-transform duration-300" />
+              <Search className="size-6 group-focus-within:scale-110 transition-transform duration-300" />
             </div>
             <input
               type="text"
@@ -130,10 +138,11 @@ export default function SuchePage() {
             />
             {query && (
               <button
+                type="button"
                 onClick={clearSearch}
                 className="absolute right-5 p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-all duration-200"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             )}
           </div>
@@ -148,11 +157,12 @@ export default function SuchePage() {
                 className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 font-medium"
               >
                 <span className="flex items-center gap-1 font-semibold text-zinc-400 dark:text-zinc-500">
-                  <TrendingUp className="h-3.5 w-3.5" /> Vorschläge:
+                  <TrendingUp className="size-3.5" /> Vorschläge:
                 </span>
                 {suggestions.map((suggestion) => (
                   <button
                     key={suggestion}
+                    type="button"
                     onClick={() => {
                       setQuery(suggestion)
                       addToRecentSearches(suggestion)
@@ -172,7 +182,7 @@ export default function SuchePage() {
       <div className="flex-1 flex flex-col md:flex-row min-h-0 bg-zinc-50/10 dark:bg-transparent">
         {/* Categories Bar / Panel */}
         <div className="px-6 py-6 md:px-12 md:py-8 border-b md:border-b-0 md:border-r border-zinc-200/50 dark:border-zinc-800/40 w-full md:w-64 shrink-0 bg-white/40 dark:bg-transparent backdrop-blur-xs">
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <h3 className="hidden md:block text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3">
               Kategorien
             </h3>
@@ -180,6 +190,7 @@ export default function SuchePage() {
               {categories.map((cat) => (
                 <button
                   key={cat.id}
+                  type="button"
                   onClick={() => setSelectedCategory(cat.id)}
                   className={cn(
                     "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer active:scale-97",
@@ -213,16 +224,17 @@ export default function SuchePage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="flex flex-col items-center justify-center py-16 text-center space-y-4 max-w-md mx-auto"
+                className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-red-500/10 text-red-500 rounded-full border border-red-500/20">
-                  <AlertCircle className="h-10 w-10 animate-bounce" />
+                  <AlertCircle className="size-10 animate-bounce" />
                 </div>
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Offline</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
                   Keine Internetverbindung verfügbar. Bitte überprüfe Deine Verbindung und versuche es erneut.
                 </p>
                 <button
+                  type="button"
                   onClick={retry}
                   className="px-5 py-2.5 bg-accent text-white font-bold rounded-xl shadow-md hover:bg-accent/90 transition-all active:scale-95 cursor-pointer"
                 >
@@ -234,14 +246,15 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-16 text-center space-y-4 max-w-md mx-auto"
+                className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-amber-500/10 text-amber-500 rounded-full border border-amber-500/20">
-                  <AlertCircle className="h-10 w-10" />
+                  <AlertCircle className="size-10" />
                 </div>
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Fehler</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">{error}</p>
                 <button
+                  type="button"
                   onClick={retry}
                   className="px-5 py-2.5 bg-accent text-white font-bold rounded-xl shadow-md hover:bg-accent/90 transition-all active:scale-95 cursor-pointer"
                 >
@@ -253,10 +266,10 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-4"
+                className="flex flex-col gap-4"
               >
                 <div className="flex items-center gap-3 text-sm text-zinc-400 dark:text-zinc-500 font-semibold px-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                  <Loader2 className="size-4 animate-spin text-accent" />
                   <span>Durchsuche Datenbank...</span>
                 </div>
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -269,17 +282,18 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-8"
+                className="flex flex-col gap-8"
               >
                 {recentSearches.length > 0 ? (
-                  <div className="space-y-4 max-w-xl">
+                  <div className="flex flex-col gap-4 max-w-xl">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 flex items-center gap-2">
-                      <Clock className="h-4 w-4" /> Letzte Suchanfragen
+                      <Clock className="size-4" /> Letzte Suchanfragen
                     </h3>
                     <div className="flex flex-col border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden bg-white dark:bg-[#181818] shadow-sm">
                       {recentSearches.map((search, index) => (
                         <button
                           key={search}
+                          type="button"
                           onClick={() => setQuery(search)}
                           className={cn(
                             "flex items-center justify-between px-5 py-4 text-left font-medium text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors cursor-pointer group",
@@ -287,15 +301,15 @@ export default function SuchePage() {
                           )}
                         >
                           <span className="truncate group-hover:text-zinc-950 dark:group-hover:text-zinc-50 transition-colors">{search}</span>
-                          <ArrowRight className="h-4 w-4 text-zinc-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+                          <ArrowRight className="size-4 text-zinc-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
                         </button>
                       ))}
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 max-w-md mx-auto">
+                  <div className="flex flex-col items-center justify-center py-20 text-center gap-4 max-w-md mx-auto">
                     <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
-                      <HelpCircle className="h-10 w-10" />
+                      <HelpCircle className="size-10" />
                     </div>
                     <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Bereit für Deine Suche</h3>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
@@ -309,10 +323,10 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-20 text-center space-y-4 max-w-md mx-auto"
+                className="flex flex-col items-center justify-center py-20 text-center gap-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
-                  <Search className="h-10 w-10" />
+                  <Search className="size-10" />
                 </div>
                 <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Keine Ergebnisse gefunden</h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
@@ -325,7 +339,7 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-3"
+                className="flex flex-col gap-3"
               >
                 {filteredResults.map((item) => {
                   const ItemIcon = getIcon(item.type)
@@ -344,7 +358,7 @@ export default function SuchePage() {
                           <CardContent className="p-5 flex items-center gap-4">
                             {/* Icon Indicator */}
                             <div className="p-3 bg-zinc-100 dark:bg-zinc-900/60 rounded-xl text-zinc-500 group-hover:text-accent group-hover:bg-accent/5 transition-all duration-300 shrink-0">
-                              <ItemIcon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                              <ItemIcon className="size-5 transition-transform duration-300 group-hover:scale-110" />
                             </div>
 
                             {/* Main Information */}
@@ -422,7 +436,7 @@ export default function SuchePage() {
                             
                             {/* Hover Arrow */}
                             <div className="hidden sm:block text-zinc-300 dark:text-zinc-700 group-hover:text-accent group-hover:translate-x-1.5 transition-all duration-300 pl-2 shrink-0">
-                              <ArrowRight className="h-5 w-5" />
+                              <ArrowRight className="size-5" />
                             </div>
                           </CardContent>
                         </Card>

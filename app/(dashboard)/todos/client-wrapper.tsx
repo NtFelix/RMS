@@ -64,7 +64,7 @@ function DraggableTaskRow({
         task.ist_erledigt && "opacity-60"
       )}
     >
-      <GripVertical className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+      <GripVertical className="size-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
       <Checkbox
         checked={task.ist_erledigt}
         onCheckedChange={(checked) => onTaskToggle(task.id, checked as boolean)}
@@ -87,9 +87,9 @@ function DraggableTaskRow({
         )}
       </div>
       {task.ist_erledigt ? (
-        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       ) : (
-        <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <Circle className="size-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
     </div>
   );
@@ -193,10 +193,12 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
     return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later, doneTasks: done };
   }, [tasks, todayStr, nextWeekStr]);
 
+  const dueDateFormatter = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' });
+
   const formatDueDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr + 'T00:00:00');
-      return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+      return dueDateFormatter.format(date);
     } catch {
       return dateStr;
     }
@@ -210,7 +212,7 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
 
       {totalOpen === 0 && doneTasks.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CheckCircle className="h-8 w-8 text-emerald-400 mb-2" />
+          <CheckCircle className="size-8 text-emerald-400 mb-2" />
           <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Keine Aufgaben vorhanden</p>
         </div>
       )}
@@ -220,8 +222,8 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
         <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent group/trigger">
             <div className="flex items-center gap-1.5">
-              <ChevronRight className={cn("h-3.5 w-3.5 text-red-500 transition-transform duration-200", isOverdueOpen && "rotate-90")} />
-              <Clock className="h-3.5 w-3.5 text-red-500" />
+              <ChevronRight className={cn("size-3.5 text-red-500 transition-transform duration-200", isOverdueOpen && "rotate-90")} />
+              <Clock className="size-3.5 text-red-500" />
               <span className="text-xs font-semibold text-red-600 dark:text-red-400">Überfällig</span>
             </div>
             <Badge variant="destructive" className="h-4.5 px-1.5 text-[10px]">{overdueTasks.length}</Badge>
@@ -238,8 +240,8 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
       <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
-            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isUpcomingOpen && "rotate-90")} />
-            <Clock className="h-3.5 w-3.5 text-yellow-600" />
+            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isUpcomingOpen && "rotate-90")} />
+            <Clock className="size-3.5 text-yellow-600" />
             <span className="text-xs font-semibold">Anstehend</span>
           </div>
           <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px]">{upcomingTasks.length}</Badge>
@@ -255,8 +257,8 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
       <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
-            <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isLaterOpen && "rotate-90")} />
-            <Clock className="h-3.5 w-3.5 text-blue-500" />
+            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isLaterOpen && "rotate-90")} />
+            <Clock className="size-3.5 text-blue-500" />
             <span className="text-xs font-semibold">Später</span>
           </div>
           <Badge variant="outline" className="h-4.5 px-1.5 text-[10px]">{laterTasks.length}</Badge>
@@ -271,7 +273,7 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
       {/* No Date */}
       <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
         <DroppableNoDateTrigger isNoDateOpen={isNoDateOpen} noDateCount={noDateTasks.length} />
-        <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
+        <CollapsibleContent className="mt-0.5 flex flex-col gap-0.5 pl-1">
           {noDateTasks.map(task => (
             <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
           ))}
@@ -283,8 +285,8 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
         <Collapsible open={isDoneOpen} onOpenChange={setIsDoneOpen}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent group/trigger">
             <div className="flex items-center gap-1.5">
-              <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isDoneOpen && "rotate-90")} />
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isDoneOpen && "rotate-90")} />
+              <CheckCircle2 className="size-3.5 text-emerald-500" />
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Erledigt</span>
             </div>
             <Badge variant="outline" className="h-4.5 px-1.5 text-[10px]">{doneTasks.length}</Badge>
@@ -504,7 +506,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
             <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3 shrink-0">
               <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
                 <span className="flex items-center gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5 text-zinc-500" />
+                  <TrendingUp className="size-3.5" />
                   Erfüllungsquote
                 </span>
                 <span className="text-accent">{taskStats.completionRate}%</span>
@@ -519,10 +521,11 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
 
             {/* New Task Button */}
             <button
+              type="button"
               onClick={() => handleAddTask()}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 hover:border-accent/60 dark:border-zinc-800 dark:hover:border-accent/40 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-900/20 dark:hover:bg-zinc-900/60 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent transition-all duration-300 active:scale-98 cursor-pointer shrink-0"
             >
-              <PlusCircle className="h-4 w-4" />
+              <PlusCircle className="size-4" />
               Neue Aufgabe erstellen
             </button>
 
@@ -549,7 +552,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
               <div className="mt-0 sm:mt-1">
                 <ResponsiveButtonWithTooltip
                   onClick={() => handleAddTask()}
-                  icon={<PlusCircle className="h-4 w-4" />}
+                  icon={<PlusCircle className="size-4" />}
                   shortText="Hinzufügen"
                 >
                   Aufgabe hinzufügen
@@ -566,7 +569,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
             {/* Calendar */}
             <div className="bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 flex flex-col h-full min-h-0 overflow-hidden">
               <div className="flex items-center gap-2 mb-4 shrink-0">
-                <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+                <CalendarIcon className="size-5 text-muted-foreground" />
                 <h3 className="font-medium">Kalender</h3>
               </div>
               <div className="flex-1 min-h-0">

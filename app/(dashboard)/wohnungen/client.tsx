@@ -35,6 +35,11 @@ interface WohnungenClientViewProps {
   serverLimitReason: 'trial' | 'subscription' | 'none';
 }
 
+const currencyFormatter = new Intl.NumberFormat("de-DE", {
+  style: "currency",
+  currency: "EUR",
+});
+
 // This is the new main client component, previously WohnungenPageClientComponent in page.tsx
 export default function WohnungenClientView({
   initialWohnungenData,
@@ -49,7 +54,7 @@ export default function WohnungenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);
-  const [apartments, setApartments] = useState<Wohnung[]>(initialWohnungenData);
+  const apartments = initialWohnungenData;
   const [selectedApartments, setSelectedApartments] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -61,74 +66,72 @@ export default function WohnungenClientView({
   // ======================= SUMMARY METRICS =======================
   const summary = useMemo(() => {
     const total = apartments.length;
-    const freeCount = apartments.filter((a) => a.status === "frei").length;
-    const rentedCount = total - freeCount;
+    
+    const stats = apartments.reduce((acc, a) => {
+      if (a.status === "frei") acc.freeCount++;
+      
+      const rent = a.miete ?? 0;
+      if (rent > 0) {
+        acc.totalRent += rent;
+        acc.rentCount++;
+      }
+      
+      const size = a.groesse ?? 0;
+      if (size > 0) {
+        acc.totalSize += size;
+        acc.sizeCount++;
+        if (rent > 0) {
+          acc.totalPricePerSqm += rent / size;
+          acc.pricePerSqmCount++;
+        }
+      }
+      
+      return acc;
+    }, {
+      freeCount: 0,
+      totalRent: 0,
+      rentCount: 0,
+      totalSize: 0,
+      sizeCount: 0,
+      totalPricePerSqm: 0,
+      pricePerSqmCount: 0
+    });
 
-    // Average rent
-    const rentValues = apartments.map((a) => a.miete ?? 0).filter((v) => v > 0);
-    const avgRent = rentValues.length ? rentValues.reduce((s, v) => s + v, 0) / rentValues.length : 0;
-
-    // Average price per sqm
-    const pricePerSqmValues = apartments
-      .filter((a) => a.miete && a.groesse && a.groesse > 0)
-      .map((a) => (a.miete as number) / (a.groesse as number));
-    const avgPricePerSqm = pricePerSqmValues.length
-      ? pricePerSqmValues.reduce((s, v) => s + v, 0) / pricePerSqmValues.length
-      : 0;
-
-    // Total and avg size
-    const sizeValues = apartments.map((a) => a.groesse ?? 0).filter((v) => v > 0);
-    const totalSize = sizeValues.reduce((s, v) => s + v, 0);
-    const avgSize = sizeValues.length ? totalSize / sizeValues.length : 0;
-
-    return { total, freeCount, rentedCount, avgRent, avgPricePerSqm, totalSize, avgSize };
+    return {
+      total,
+      freeCount: stats.freeCount,
+      rentedCount: total - stats.freeCount,
+      avgRent: stats.rentCount ? stats.totalRent / stats.rentCount : 0,
+      avgPricePerSqm: stats.pricePerSqmCount ? stats.totalPricePerSqm / stats.pricePerSqmCount : 0,
+      totalSize: stats.totalSize,
+      avgSize: stats.sizeCount ? stats.totalSize / stats.sizeCount : 0
+    };
   }, [apartments]);
 
-  const [isAddButtonDisabled, setIsAddButtonDisabled] = useState(!serverUserIsEligibleToAdd || (serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity));
-  const [buttonTooltipMessage, setButtonTooltipMessage] = useState("");
+  const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
+  const isAddButtonDisabled = !serverUserIsEligibleToAdd || limitReached;
 
-  useEffect(() => {
-    let message = "";
-    const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
-
-    if (!serverUserIsEligibleToAdd) {
-      message = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
-    } else if (limitReached) {
-      if (serverLimitReason === 'trial') {
-        message = `Maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihre Testphase erreicht.`;
-      } else if (serverLimitReason === 'subscription') {
-        message = `Sie haben die maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihr aktuelles Abonnement erreicht.`;
-      } else {
-        message = "Das Wohnungslimit ist erreicht.";
-      }
+  let buttonTooltipMessage = "";
+  if (!serverUserIsEligibleToAdd) {
+    buttonTooltipMessage = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
+  } else if (limitReached) {
+    if (serverLimitReason === 'trial') {
+      buttonTooltipMessage = `Maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihre Testphase erreicht.`;
+    } else if (serverLimitReason === 'subscription') {
+      buttonTooltipMessage = `Sie haben die maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihr aktuelles Abonnement erreicht.`;
+    } else {
+      buttonTooltipMessage = "Das Wohnungslimit ist erreicht.";
     }
-
-    setButtonTooltipMessage(message);
-    setIsAddButtonDisabled(!serverUserIsEligibleToAdd || limitReached);
-  }, [serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd, serverLimitReason]);
+  }
 
   const updateApartmentInList = useCallback((updatedApartment: Wohnung) => {
-    setApartments(prev => {
-      const exists = prev.some(apt => apt.id === updatedApartment.id);
-      if (exists) return prev.map(apt => (apt.id === updatedApartment.id ? updatedApartment : apt));
-      return [updatedApartment, ...prev];
-    });
-  }, []);
+    router.refresh();
+  }, [router]);
 
   const refreshTable = useCallback(async (): Promise<void> => {
-    try {
-      const res = await fetch('/api/wohnungen');
-      if (res.ok) {
-        const data: Wohnung[] = await res.json();
-        setApartments(data);
-        window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
-      } else {
-        console.error('Failed to fetch wohnungen for refreshTable, status:', res.status);
-      }
-    } catch (error) {
-      console.error('Error fetching wohnungen in refreshTable:', error);
-    }
-  }, []);
+    router.refresh();
+    window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
+  }, [router]);
 
   // Dispatch initial statistics refresh to the sidebar on mount
   useEffect(() => {
@@ -341,6 +344,7 @@ export default function WohnungenClientView({
       <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("apartments")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -354,12 +358,13 @@ export default function WohnungenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <Home className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <Home className="size-4 shrink-0 transition-transform duration-300" />
           <span>Wohnungen</span>
         </motion.button>
 
         <motion.button
           layout
+          type="button"
           onClick={() => setCurrentTab("overview")}
           className={cn(
             "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
@@ -373,7 +378,7 @@ export default function WohnungenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Übersicht</span>
         </motion.button>
       </div>
@@ -384,13 +389,13 @@ export default function WohnungenClientView({
             <StatCard
               title="Wohnungen gesamt"
               value={summary.total}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Frei / Vermietet"
               value={`${summary.freeCount} / ${summary.rentedCount}`}
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -398,7 +403,7 @@ export default function WohnungenClientView({
               value={summary.avgRent}
               unit="€"
               decimals
-              icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+              icon={<Euro className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -406,7 +411,7 @@ export default function WohnungenClientView({
               value={summary.avgPricePerSqm}
               unit="€/m²"
               decimals
-              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+              icon={<Ruler className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -428,7 +433,7 @@ export default function WohnungenClientView({
                     disabled={isAddButtonDisabled}
                     tooltip={buttonTooltipMessage}
                     showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
-                    icon={<PlusCircle className="h-4 w-4" />}
+                    icon={<PlusCircle className="size-4" />}
                     shortText="Hinzufügen"
                   >
                     Wohnung hinzufügen
@@ -485,7 +490,7 @@ export default function WohnungenClientView({
                         onClick={() => setSelectedApartments(new Set())}
                         className="h-8 px-2 hover:bg-primary/20"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="size-4" />
                       </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -495,7 +500,7 @@ export default function WohnungenClientView({
                         onClick={() => setIsAssignDialogOpen(true)}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                       >
-                        <Building2 className="h-4 w-4" />
+                        <Building2 className="size-4" />
                         <span className="hidden sm:inline">Haus zuweisen</span>
                         <span className="sm:hidden">Zuweisen</span>
                       </Button>
@@ -505,7 +510,7 @@ export default function WohnungenClientView({
                         onClick={handleBulkExport}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm"
                       >
-                        <Download className="h-4 w-4" />
+                        <Download className="size-4" />
                         <span className="hidden sm:inline">Exportieren</span>
                         <span className="sm:hidden">Export</span>
                       </Button>
@@ -518,13 +523,13 @@ export default function WohnungenClientView({
                       >
                         {isBulkDeleting ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin" />
                             <span className="hidden sm:inline">Löschen...</span>
                             <span className="sm:hidden">...</span>
                           </>
                         ) : (
                           <>
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                             <span className="hidden sm:inline">Löschen ({selectedApartments.size})</span>
                             <span className="sm:hidden">{selectedApartments.size}</span>
                           </>
@@ -554,7 +559,7 @@ export default function WohnungenClientView({
             <StatCard
               title="Wohnungen gesamt"
               value={summary.total}
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -562,7 +567,7 @@ export default function WohnungenClientView({
               value={summary.total > 0 ? Number((summary.freeCount / summary.total * 100).toFixed(1)) : 0}
               unit="%"
               decimals
-              icon={<Key className="h-4 w-4 text-muted-foreground" />}
+              icon={<Key className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -570,14 +575,14 @@ export default function WohnungenClientView({
               value={summary.avgPricePerSqm}
               unit="€/m²"
               decimals
-              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+              icon={<Ruler className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Fläche Gesamt"
               value={summary.totalSize}
               unit="m²"
-              icon={<Home className="h-4 w-4 text-muted-foreground" />}
+              icon={<Home className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -593,23 +598,23 @@ export default function WohnungenClientView({
                   <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
                     <span className="text-xs text-muted-foreground block mb-1">Mieteinnahmen (IST)</span>
                     <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                      {apartments.filter(a => a.status !== "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {currencyFormatter.format(apartments.filter(a => a.status !== "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0))}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
                     <span className="text-xs text-muted-foreground block mb-1">Leerstand (Potential)</span>
                     <span className="text-xl font-bold text-amber-600 dark:text-amber-400">
-                      {apartments.filter(a => a.status === "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                      {currencyFormatter.format(apartments.filter(a => a.status === "frei").reduce((sum, a) => sum + (a.miete ?? 0), 0))}
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2">
+                <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Wohnungen</h4>
                   {apartments.map(a => (
                     <div key={a.id} className="flex justify-between items-center text-sm border-b border-gray-100 dark:border-gray-800 pb-2">
                       <span className="font-medium">{a.name} ({a.Haeuser?.name || 'Kein Haus'})</span>
-                      <span className="text-muted-foreground text-xs">{a.groesse} m² • {(a.miete ?? 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                      <span className="text-muted-foreground text-xs">{a.groesse} m² • {currencyFormatter.format(a.miete ?? 0)}</span>
                     </div>
                   ))}
                 </div>

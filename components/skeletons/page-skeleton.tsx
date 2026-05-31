@@ -41,11 +41,11 @@ export function PageSkeleton({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex gap-4">
-                  <Skeleton className="shrink-0 w-8 h-8 rounded-full" />
-                  <div className="flex-1 space-y-2">
+                  <Skeleton className="shrink-0 size-8 rounded-full" />
+                  <div className="flex-1 flex flex-col gap-2">
                     <Skeleton className="h-4 w-48" />
                     <Skeleton className="h-3 w-full" />
                   </div>
@@ -88,7 +88,7 @@ export function PageSkeleton({
           </div>
 
           {/* Table Skeleton */}
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {Array.from({ length: tableRowCount }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full rounded-lg" />
             ))}
