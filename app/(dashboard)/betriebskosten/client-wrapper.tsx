@@ -1358,58 +1358,86 @@ export default function BetriebskostenClientView({
 
           {/* Row 4: Suggested Plausibilitäts-Audit and Energy Cost Split */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            {/* Left Box: Plausibilitäts-Audit (Benchmark) */}
-            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
-              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
+            {/* Left Box: Plausibilitäts-Audit (Market Benchmark) */}
+            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-4">
                 <CardTitle className="text-base font-semibold">Plausibilitäts-Audit</CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">Vergleich Ihres Portfolios mit dem deutschen Betriebskostenspiegel (~2,50 €/m²/Monat)</CardDescription>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">Benchmarking gegen den dt. Betriebskostenspiegel</CardDescription>
               </CardHeader>
 
-              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0">
-                <div className="space-y-5 my-auto py-4">
-                  {/* Monthly cost index */}
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <span className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
-                        {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12).toFixed(2)} €
-                      </span>
-                      <span className="text-xs text-muted-foreground font-semibold block mt-0.5">Ihr Portfoliowert / Monat</span>
-                    </div>
-                    <span className={cn(
-                      "text-xs font-bold px-3 py-1 rounded-full border shadow-xs",
-                      ((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50
-                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                    )}>
-                      {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50 ? "Wirtschaftlich" : "Erhöht"}
-                    </span>
-                  </div>
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0 gap-6">
+                {/* Main Gauge Row */}
+                {(() => {
+                  const currentValue = ((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12);
+                  const isOptimal = currentValue < 2.50;
+                  
+                  return (
+                    <>
+                      <div className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center relative overflow-hidden group">
+                        <div className="relative flex items-center justify-center h-28 w-28 rounded-full border-4 border-dashed border-zinc-200 dark:border-zinc-800">
+                          <div className={cn(
+                            "absolute inset-2 rounded-full flex flex-col items-center justify-center",
+                            isOptimal ? "bg-emerald-500/5" : "bg-amber-500/5"
+                          )}>
+                            <span className={cn(
+                              "text-xl font-black tracking-tight",
+                              isOptimal ? "text-emerald-600" : "text-amber-600"
+                            )}>
+                              {currentValue.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                            </span>
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">pro m² / Mon.</span>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Portfolio-Effizienz</span>
+                        </div>
+                      </div>
 
-                  {/* Benchmark slider */}
-                  <div className="space-y-1.5">
-                    <div className="h-2 w-full bg-zinc-200/50 dark:bg-zinc-800/80 rounded-full overflow-hidden relative shadow-inner">
-                      <div 
-                        className="absolute top-0 bottom-0 left-0 bg-emerald-500 rounded-full transition-all duration-700" 
-                        style={{ 
-                          width: `${Math.min(100, (((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) / 3.50) * 100)}%` 
-                        }} 
-                      />
-                      <div className="absolute top-0 bottom-0 left-[71%] w-0.5 bg-rose-500/80 z-10 shadow-xs" title="Benchmark (2,50 €)" />
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      <span>Sparsam</span>
-                      <span className="text-rose-500 font-extrabold">Benchmark (2,50 €)</span>
-                      <span>Teuer</span>
-                    </div>
-                  </div>
-                </div>
+                      {/* Data Insights Grid */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("p-2 rounded-xl", isOptimal ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                              <Activity className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Aktueller Portfoliowert</span>
+                              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                                {currentValue.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/m²
+                              </span>
+                            </div>
+                          </div>
+                          <div className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-tighter",
+                            isOptimal ? "text-emerald-500 bg-emerald-500/5 border-emerald-500/10" : "text-amber-500 bg-amber-500/5 border-amber-500/10"
+                          )}>
+                            {isOptimal ? "Optimal" : "Erhöht"}
+                          </div>
+                        </div>
 
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto">
-                  {((nebenkostenStats.avgCostPerSqm / (nebenkostenStats.billsCount || 1)) / 12) < 2.50 
-                    ? "✓ Die Kosten liegen im grünen Bereich. Die Abrechnung ist rechtlich unbedenklich und entspricht dem Wirtschaftlichkeitsgebot."
-                    : "⚠ Die Kosten liegen über dem Schnitt. Überprüfen Sie Verträge mit Dienstleistern (z. B. Reinigung, Gartenpflege) zur Kostenoptimierung."
-                  }
-                </p>
+                        <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-zinc-400/10 text-zinc-400">
+                              <Info className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Markt-Benchmark</span>
+                              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">2,50 €/m²</span>
+                            </div>
+                          </div>
+                          <div className="text-[10px] font-bold text-zinc-400 bg-zinc-400/5 px-2 py-0.5 rounded-md border border-zinc-400/10 uppercase tracking-tighter">Index</div>
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto px-1 italic">
+                        {isOptimal 
+                          ? "✓ Ihre Kosten liegen unter dem Bundesdurchschnitt. Die Abrechnung entspricht dem Gebot der Wirtschaftlichkeit."
+                          : "⚠ Ihre Kosten übersteigen den Marktdurchschnitt. Prüfen Sie Optimierungspotenziale bei Versicherungen oder Dienstleistern."
+                        }
+                      </p>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
 
