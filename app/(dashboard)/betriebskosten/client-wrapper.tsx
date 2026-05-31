@@ -3,7 +3,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Droplets, X, FileSpreadsheet, Building2, Euro, Ruler, Percent, Activity, BarChart3 } from "lucide-react";
+import { Droplets, X, FileSpreadsheet, Building2, Euro, Ruler, Percent, Activity, BarChart3, TrendingUp, TrendingDown, Info, HelpCircle, Target, Coins } from "lucide-react";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { CreateAbrechnungDropdown } from "@/components/abrechnung/create-abrechnung-dropdown";
 import { OperatingCostsFilters } from "@/components/finance/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/tables/operating-costs-table";
@@ -22,21 +27,147 @@ import { useModalStore } from "@/hooks/use-modal-store"; // Added import
 import { useRouter } from "next/navigation"; // Added import
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from '@/constants/guide'; // Added import
 import { getCookie, setCookie } from "@/utils/cookies";
+import { createClient } from "@/utils/supabase/client";
+import { getLatestNebenkostenAmount } from "@/utils/tenant-payment-calculations";
+import { formatCurrency } from "@/utils/format";
 
+// Custom tooltip component for the yearly development chart
+const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const sortedPayload = [...payload]
+      .filter((item: any) => typeof item.value === 'number' && item.value > 0)
+      .sort((a: any, b: any) => b.value - a.value);
+
+    const top3 = sortedPayload.slice(0, 3);
+    const totalYearCost = payload[0]?.payload?.total || 0;
+
+    return (
+      <div className="bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-xl text-zinc-900 dark:text-zinc-50 min-w-[220px] transition-all duration-150">
+        <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">
+          Jahr: {label}
+        </p>
+        <div className="space-y-2">
+          {top3.map((item: any, idx: number) => {
+            const color = item.color || item.stroke || 'currentColor';
+            return (
+              <div key={idx} className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-xs font-semibold truncate max-w-[120px]">{item.name}</span>
+                </div>
+                <span className="text-xs font-bold">
+                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(item.value)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {sortedPayload.length > 3 && (
+          <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-850 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
+            <span>Andere Häuser</span>
+            <span>
+              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(
+                sortedPayload.slice(3).reduce((sum: number, item: any) => sum + (item.value || 0), 0)
+              )}
+            </span>
+          </div>
+        )}
+        <div className="mt-2.5 pt-2.5 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between text-xs font-bold">
+          <span>Gesamt</span>
+          <span className=" text-primary">
+            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalYearCost)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+// Custom tooltip component for the horizontal stacked bar chart
+const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmentSizes, initialHaeuser }: any) => {
+  if (active && payload && payload.length) {
+    const sortedPayload = [...payload]
+      .filter((item: any) => typeof item.value === 'number' && item.value > 0)
+      .sort((a: any, b: any) => b.value - a.value);
+
+    const top3 = sortedPayload.slice(0, 3);
+    const otherCost = sortedPayload.slice(3).reduce((sum, item) => sum + (item.value || 0), 0);
+    const totalCost = sortedPayload.reduce((sum, item) => sum + (item.value || 0), 0);
+
+    return (
+      <div className="bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-xl text-zinc-900 dark:text-zinc-50 min-w-[240px] transition-all duration-150 animate-in fade-in zoom-in-95 duration-150">
+        <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-2.5">
+          Betriebskosten-Prognose (bereinigt)
+        </p>
+        <div className="space-y-3">
+          {top3.map((item: any, idx: number) => {
+            const houseName = item.name;
+            const adjustedCost = item.value;
+            const sqmCost = houseSqmCosts[houseName] || 0;
+            const houseObj = initialHaeuser.find((h: any) => h.name === houseName);
+            const aptArea = houseObj ? houseApartmentSizes[houseObj.id] || 0 : 0;
+            
+            return (
+              <div key={idx} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0 pb-2 last:pb-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill || item.color }} />
+                  <span className="text-xs font-bold truncate">{houseName}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                  <span>m²-Kosten:</span>
+                  <span className="text-right  font-bold text-zinc-800 dark:text-zinc-200">{sqmCost.toFixed(2)} €/m²</span>
+                  <span>Wohnungen-Fläche:</span>
+                  <span className="text-right  font-bold text-zinc-800 dark:text-zinc-200">{aptArea.toFixed(1)} m²</span>
+                  <span className="text-primary font-bold">Prognose (ber.):</span>
+                  <span className="text-right  font-bold text-primary">
+                    {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(adjustedCost)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {sortedPayload.length > 3 && (
+          <div className="mt-2.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[10px] font-semibold text-zinc-400">
+            <span>Andere Häuser</span>
+            <span className=" font-bold text-zinc-800 dark:text-zinc-200">
+              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(otherCost)}
+            </span>
+          </div>
+        )}
+        <div className="mt-2.5 pt-2.5 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between text-xs font-bold">
+          <span>Gesamt-Prognose</span>
+          <span className=" text-primary">
+            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(totalCost)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
   initialNebenkosten: OptimizedNebenkosten[];
   initialHaeuser: Haus[];
+  initialTenants?: any[];
+  initialFinances?: any[];
   ownerName: string;
 }
 
 export default function BetriebskostenClientView({
   initialNebenkosten,
   initialHaeuser,
+  initialTenants = [],
+  initialFinances = [],
   ownerName,
 }: BetriebskostenClientViewProps) {
   const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
+  const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
+  const [prognosisTimeframe, setPrognosisTimeframe] = useState<"this" | "last" | "5y">("last");
   const [filter, setFilter] = useState("all");
+// ... rest of state stays same ...
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
   const [filteredNebenkosten, setFilteredNebenkosten] = useState<OptimizedNebenkosten[]>(initialNebenkosten);
@@ -51,6 +182,87 @@ export default function BetriebskostenClientView({
   const [showGuide, setShowGuide] = useState(true);
   const [hoveredHouseIndex, setHoveredHouseIndex] = useState<number | null>(null);
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null);
+  const [developmentTimeframe, setDevelopmentTimeframe] = useState<5 | 10 | 25>(5);
+  const [showPrognosisInfo, setShowPrognosisInfo] = useState(false);
+  const [showDetailedPrognosis, setShowDetailedPrognosis] = useState(false);
+  const [hoveredSegmentHouse, setHoveredSegmentHouse] = useState<string | null>(null);
+  const [wohnungen, setWohnungen] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAllWohnungen = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("Wohnungen")
+        .select("id, haus_id, groesse");
+      if (!error && data) {
+        setWohnungen(data);
+      }
+    };
+    fetchAllWohnungen();
+  }, []);
+
+  const houseApartmentSizes = useMemo(() => {
+    const map: Record<string, number> = {};
+    wohnungen.forEach((w) => {
+      if (w.haus_id) {
+        map[w.haus_id] = (map[w.haus_id] || 0) + (w.groesse || 0);
+      }
+    });
+    return map;
+  }, [wohnungen]);
+
+  const adjustedHouseCosts = useMemo(() => {
+    const houseCosts: Record<string, number> = {};
+    const houseSqmCosts: Record<string, number> = {};
+    const houseAdjustedCosts: Record<string, number> = {};
+    
+    initialNebenkosten.forEach(item => {
+      const houseName = item.haus_name || "Unbekanntes Haus";
+      const houseId = item.haeuser_id;
+      
+      const arten = item.nebenkostenart || [];
+      const betraege = item.betrag || [];
+      let billSum = 0;
+      arten.forEach((art, idx) => {
+        const amount = Number(betraege[idx] || 0);
+        if (amount > 0) billSum += amount;
+      });
+
+      let totalItemCost = billSum;
+      if (item.zaehlerkosten) {
+        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+          const amount = Number(val || 0);
+          if (amount > 0) totalItemCost += amount;
+        });
+      }
+
+      houseCosts[houseName] = (houseCosts[houseName] || 0) + totalItemCost;
+      
+      const totalAreaManuelle = item.gesamt_flaeche || 1;
+      const sqmCost = totalItemCost / totalAreaManuelle;
+      houseSqmCosts[houseName] = sqmCost;
+      
+      const apartmentsAreaSum = houseApartmentSizes[houseId] || 0;
+      const adjustedCost = sqmCost * apartmentsAreaSum;
+      houseAdjustedCosts[houseName] = (houseAdjustedCosts[houseName] || 0) + adjustedCost;
+    });
+
+    return {
+      houseCosts,
+      houseSqmCosts,
+      houseAdjustedCosts
+    };
+  }, [initialNebenkosten, houseApartmentSizes]);
+
+  const horizontalChartData = useMemo(() => {
+    const dataPoint: Record<string, any> = { name: "Nebenkosten" };
+    let hasData = false;
+    Object.entries(adjustedHouseCosts.houseAdjustedCosts).forEach(([houseName, val]) => {
+      dataPoint[houseName] = Number(val.toFixed(2));
+      hasData = true;
+    });
+    return hasData ? [dataPoint] : [];
+  }, [adjustedHouseCosts]);
 
   // Compute stats for operating costs dashboard
   const nebenkostenStats = useMemo(() => {
@@ -201,12 +413,26 @@ export default function BetriebskostenClientView({
     })).sort((a, b) => b.value - a.value);
 
     // Format yearlyDevelopment for Stacked Bar Chart
-    const years = Object.keys(yearlyHouseMap).map(Number).sort((a, b) => a - b);
+    const currentYear = new Date().getFullYear();
+    const sortedYearsWithData = Object.keys(yearlyHouseMap).map(Number).sort((a, b) => a - b);
+    const absoluteFirstYear = sortedYearsWithData[0];
+    
+    const years: number[] = [];
+    let i = 0;
+    while (years.length < developmentTimeframe) {
+      const year = currentYear - i;
+      if (year !== absoluteFirstYear) {
+        years.push(year);
+      }
+      i++;
+      if (i > 100) break; // Safety guard
+    }
+    years.sort((a, b) => a - b);
     const yearlyDevelopment = years.map(year => {
       const dataPoint: Record<string, any> = { year: String(year) };
       let yearTotal = 0;
       Array.from(allHouses).forEach(houseName => {
-        const cost = yearlyHouseMap[year][houseName] || 0;
+        const cost = yearlyHouseMap[year]?.[houseName] || 0;
         dataPoint[houseName] = cost;
         yearTotal += cost;
       });
@@ -220,7 +446,7 @@ export default function BetriebskostenClientView({
       totalAllTimeCosts,
       houseNames: Array.from(allHouses)
     };
-  }, [initialNebenkosten]);
+  }, [initialNebenkosten, developmentTimeframe]);
 
   const categoriesData = useMemo(() => {
     const raw = Object.entries(nebenkostenStats.categoryTotals)
@@ -239,95 +465,194 @@ export default function BetriebskostenClientView({
 
   // Aggregated data for legal deadlines and settlement balance prognosis
   const legalPrognosis = useMemo(() => {
-    if (!initialNebenkosten || initialNebenkosten.length === 0) {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const lastYear = currentYear - 1;
+
+    if (!initialNebenkosten) {
       return {
         deadlines: [],
         totalNachforderung: 0,
         totalGuthaben: 0,
-        netBalance: 0
+        netBalance: 0,
+        totalGoalPrepayments: 0,
+        totalRealPrepayments: 0,
+        totalActualCosts: 0,
+        coveragePct: 0,
+        balancePct: 0
       };
     }
 
-    const today = new Date();
-    let totalNachforderung = 0;
-    let totalGuthaben = 0;
+    // 1. Calculate DEADLINES with Compliance Check
+    // Get existing settlement house IDs for last year
+    const existingSettlementHouseIds = new Set(
+      initialNebenkosten
+        .filter(item => {
+          if (!item.enddatum) return false;
+          return new Date(item.enddatum).getFullYear() === lastYear;
+        })
+        .map(item => item.haeuser_id)
+    );
 
-    const deadlines = initialNebenkosten.map(item => {
+    // Map existing deadlines
+    const existingDeadlines = initialNebenkosten.map(item => {
       const houseName = item.haus_name || "Unbekanntes Haus";
-      
-      // Calculate total item cost
-      const arten = item.nebenkostenart || [];
-      const betraege = item.betrag || [];
-      let billSum = 0;
-      arten.forEach((art, idx) => {
-        const amount = Number(betraege[idx] || 0);
-        if (amount > 0) billSum += amount;
-      });
-
-      let totalItemCost = billSum;
-      if (item.zaehlerkosten) {
-        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
-          const amount = Number(val || 0);
-          if (amount > 0) totalItemCost += amount;
-        });
-      }
-
-      // Estimate prepayments based on sqm area (standard 1.85 €/sqm/month)
-      const estimatedPrepayments = (item.gesamt_flaeche || 120) * 1.85 * 12;
-      const difference = totalItemCost - estimatedPrepayments;
-      
-      if (difference > 0) {
-        totalNachforderung += difference;
-      } else {
-        totalGuthaben += Math.abs(difference);
-      }
-
-      // Calculate legal deadline (12 months after enddatum)
       let end = new Date();
       if (item.enddatum) {
         const parsedEnd = new Date(item.enddatum);
-        if (!isNaN(parsedEnd.getTime())) {
-          end = parsedEnd;
-        }
+        if (!isNaN(parsedEnd.getTime())) end = parsedEnd;
       }
-
       const deadlineDate = new Date(end.getFullYear() + 1, end.getMonth(), end.getDate());
       const timeDiff = deadlineDate.getTime() - today.getTime();
       const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
       
       let status: 'green' | 'amber' | 'red' | 'done' = 'green';
-      if (daysRemaining < 0) {
-        status = 'done';
-      } else if (daysRemaining <= 30) {
-        status = 'red';
-      } else if (daysRemaining <= 90) {
-        status = 'amber';
-      }
+      if (daysRemaining < 0) status = 'done';
+      else if (daysRemaining <= 30) status = 'red';
+      else if (daysRemaining <= 90) status = 'amber';
 
       return {
         id: item.id,
+        houseId: item.haeuser_id,
         houseName,
         year: end.getFullYear(),
         daysRemaining,
         status,
-        deadlineDate: deadlineDate.toLocaleDateString('de-DE')
+        deadlineDate: deadlineDate.toLocaleDateString('de-DE'),
+        isMissing: false
       };
-    }).sort((a, b) => {
-      // Sort expired or critical deadlines first
+    });
+
+    // Add "Missing" compliance flags for houses that haven't started settlements for last year
+    const missingDeadlines = initialHaeuser
+      .filter(h => !existingSettlementHouseIds.has(h.id))
+      .map(h => {
+        // Legal deadline for last year (e.g. 2025) is end of current year (e.g. 2026)
+        const deadlineDate = new Date(currentYear, 11, 31);
+        const timeDiff = deadlineDate.getTime() - today.getTime();
+        const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+        return {
+          id: `missing-${h.id}`,
+          houseId: h.id,
+          houseName: h.name,
+          year: lastYear,
+          daysRemaining,
+          status: 'red' as const, // Missing is always critical
+          deadlineDate: deadlineDate.toLocaleDateString('de-DE'),
+          isMissing: true
+        };
+      });
+
+    const allDeadlines = [...existingDeadlines, ...missingDeadlines].sort((a, b) => {
+      // Sort expired or missing (critical) first
       if (a.daysRemaining < 0 && b.daysRemaining >= 0) return 1;
       if (a.daysRemaining >= 0 && b.daysRemaining < 0) return -1;
       return a.daysRemaining - b.daysRemaining;
     });
 
-    const netBalance = totalNachforderung - totalGuthaben;
+    // 2. Filter records for FINANCIAL calculation
+    const filteredItems = initialNebenkosten.filter(item => {
+      if (!item.startdatum) return true;
+      const year = new Date(item.startdatum).getFullYear();
+      if (prognosisTimeframe === "this") return year === currentYear;
+      if (prognosisTimeframe === "last") return year === lastYear;
+      if (prognosisTimeframe === "5y") return year >= currentYear - 4;
+      return true;
+    });
+
+    let totalNachforderung = 0;
+    let totalGuthaben = 0;
+    let totalActualCosts = 0;
+
+    // 3. Calculate portfolio-wide targets (GOAL) accurately
+    const selectedYears: number[] = [];
+    if (prognosisTimeframe === "this") selectedYears.push(currentYear);
+    else if (prognosisTimeframe === "last") selectedYears.push(lastYear);
+    else {
+      for(let i=0; i<5; i++) selectedYears.push(currentYear - i);
+    }
+
+    let totalGoalPrepayments = 0;
+    selectedYears.forEach(year => {
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(year, 11, 31);
+      
+      initialTenants.forEach(t => {
+        // Handle move-in / move-out logic
+        const moveIn = t.einzug ? new Date(t.einzug) : null;
+        const moveOut = t.auszug ? new Date(t.auszug) : null;
+
+        // Skip if tenant was not active during this year
+        if (moveIn && moveIn > yearEnd) return;
+        if (moveOut && moveOut < yearStart) return;
+
+        // Calculate overlap of months (rough estimation by month)
+        // If no einzug is set, assume they were there from the beginning of time
+        const startMonth = (moveIn && moveIn.getFullYear() === year) ? moveIn.getMonth() : 0;
+        const endMonth = (moveOut && moveOut.getFullYear() === year) ? moveOut.getMonth() : 11;
+        const activeMonthsInYear = Math.max(0, endMonth - startMonth + 1);
+
+        const monthlyAmount = getLatestNebenkostenAmount(t.nebenkosten);
+        totalGoalPrepayments += monthlyAmount * activeMonthsInYear;
+      });
+    });
+
+    // 4. Calculate total real payments (IST) from all units
+    const totalRealPrepayments = initialFinances.reduce((sum, f) => {
+      if (!f.datum) return sum;
+      const fYear = new Date(f.datum).getFullYear();
+      if (selectedYears.includes(fYear)) return sum + (Number(f.betrag) || 0);
+      return sum;
+    }, 0);
+
+    // 5. Calculate Costs
+    filteredItems.forEach(item => {
+      let totalItemCost = 0;
+      const betraege = item.betrag || [];
+      betraege.forEach(amount => { if (Number(amount) > 0) totalItemCost += Number(amount); });
+      if (item.zaehlerkosten) {
+        Object.values(item.zaehlerkosten).forEach(val => { if (Number(val) > 0) totalItemCost += Number(val); });
+      }
+      totalActualCosts += totalItemCost;
+
+      // Surcharge/Refund split
+      const relevantTenants = initialTenants.filter(t => {
+        const wohnung = wohnungen.find(w => w.id === t.wohnung_id);
+        return wohnung && wohnung.haus_id === item.haeuser_id;
+      });
+      const recordTarget = relevantTenants.reduce((sum, t) => sum + getLatestNebenkostenAmount(t.nebenkosten), 0) * 12;
+      const diff = totalItemCost - recordTarget;
+      if (diff > 0) totalNachforderung += diff;
+      else totalGuthaben += Math.abs(diff);
+    });
+
+    const activePrepayments = prognosisMode === "goal" ? totalGoalPrepayments : totalRealPrepayments;
+    const netBalance = totalActualCosts - activePrepayments;
+    
+    // Coverage: How much of the costs are covered by prepayments
+    const coveragePct = totalActualCosts > 0 
+      ? Math.min(100, Math.round((activePrepayments / totalActualCosts) * 100)) 
+      : (activePrepayments > 0 ? 100 : 0);
+    
+    // Liquidity Balance: The percentage distance from 0
+    // If positive: Need surcharge (Costs > Payments). If negative: Have surplus (Payments > Costs).
+    const balancePct = totalActualCosts > 0 
+      ? Math.round(((activePrepayments - totalActualCosts) / totalActualCosts) * 100) 
+      : 0;
 
     return {
-      deadlines: deadlines.slice(0, 4), // limit to top 4 deadlines for visual layout
+      deadlines: allDeadlines.slice(0, 4),
       totalNachforderung,
       totalGuthaben,
-      netBalance
+      netBalance,
+      totalGoalPrepayments,
+      totalRealPrepayments,
+      totalActualCosts,
+      coveragePct,
+      balancePct
     };
-  }, [initialNebenkosten]);
+  }, [initialNebenkosten, prognosisMode, prognosisTimeframe, initialTenants, initialFinances, wohnungen, initialHaeuser]);
 
 
   useEffect(() => {
@@ -684,7 +1009,7 @@ export default function BetriebskostenClientView({
           {/* Two-Column Analytics Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Progress Coverage */}
-            <Card className="lg:col-span-8 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
+            <Card className="lg:col-span-8 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[450px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
                 <CardTitle className="text-base font-semibold">Objekt-Abdeckung</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Status der Betriebskostenerfassung über Ihren gesamten Häuserbestand</CardDescription>
@@ -712,7 +1037,7 @@ export default function BetriebskostenClientView({
                     <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2 shrink-0">
                       Ausstehende Häuser (Klicken zum Erstellen):
                     </span>
-                    <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar max-h-[160px] flex-1">
+                    <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar max-h-[210px] flex-1">
                       {nebenkostenStats.uncoveredHouses.map((h, idx) => (
                         <div 
                           key={h.id || idx} 
@@ -744,7 +1069,7 @@ export default function BetriebskostenClientView({
             </Card>
 
             {/* Right Box: Donut Chart Distribution */}
-            <Card className="lg:col-span-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px] h-full">
+            <Card className="lg:col-span-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[450px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
                 <CardTitle className="text-base font-semibold">Betriebskosten-Verteilung</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Prozentuale Aufteilung der einzelnen Nebenkostenarten im System</CardDescription>
@@ -799,14 +1124,14 @@ export default function BetriebskostenClientView({
           {/* Row 3: House cost share donut chart and year-over-year stacked bar chart */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* Left Box: Asymmetric House Share Donut Chart */}
-            <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[350px] h-full">
+            <Card className="lg:col-span-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[450px] h-full">
               <CardHeader className="px-0 pt-0 shrink-0 pb-2">
                 <CardTitle className="text-base font-semibold">Kostenanteil nach Häusern</CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Verteilung der gesamten Betriebskosten über Ihre verschiedenen Immobilien</CardDescription>
               </CardHeader>
               
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-center min-h-0">
-                <div className="relative w-full h-[200px] flex items-center justify-center">
+                <div className="relative w-full h-[280px] flex items-center justify-center">
                   <BaseDonutChart
                     data={costAnalytics.houseShares}
                     colors={[
@@ -857,14 +1182,45 @@ export default function BetriebskostenClientView({
             </Card>
 
             {/* Right Box: Year-over-Year Area Chart */}
-            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[350px] h-full">
-              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
-                <CardTitle className="text-base font-semibold">Betriebskosten-Entwicklung</CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">Verlauf der jährlichen Betriebskosten aufgeteilt nach Häusern</CardDescription>
+            <Card className="lg:col-span-8 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[450px] h-full">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base font-semibold">Betriebskosten-Entwicklung</CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground mt-0.5">Verlauf der jährlichen Betriebskosten aufgeteilt nach Häusern</CardDescription>
+                </div>
+
+                {/* Timeframe selector pill */}
+                <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-200/20 dark:border-zinc-800/20 p-1 rounded-full relative w-full sm:w-auto self-start sm:self-center select-none overflow-hidden shrink-0">
+                  {([5, 10, 25] as const).map((timeframe) => {
+                    const label = timeframe === 5 ? "5 Jahre" : timeframe === 10 ? "10 Jahre" : "25 Jahre";
+                    const isActive = developmentTimeframe === timeframe;
+                    return (
+                      <button
+                        key={timeframe}
+                        onClick={() => setDevelopmentTimeframe(timeframe)}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-medium transition-all duration-300 relative cursor-pointer min-w-[70px] text-center z-10",
+                          isActive
+                            ? "text-zinc-900 dark:text-zinc-50 font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="betriebskosten-timeframe-pill"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs border border-zinc-200/10 dark:border-zinc-600/30 rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          />
+                        )}
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </CardHeader>
               
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 relative">
-                <div className="w-full h-[220px] relative">
+                <div className="w-full h-[280px] relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={costAnalytics.yearlyDevelopment} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
@@ -878,11 +1234,11 @@ export default function BetriebskostenClientView({
                             "hsl(40, 80%, 50%)"
                           ];
                           const color = colors[index % colors.length];
-                          const cleanId = `color-${houseName.replace(/[^a-zA-Z0-9]/g, '')}`;
+                          const safeId = `color-${houseName.replace(/\s+/g, '-')}`;
                           return (
-                            <linearGradient key={houseName} id={cleanId} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={color} stopOpacity={0.2}/>
-                              <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                            <linearGradient key={houseName} id={safeId} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={color} stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor={color} stopOpacity={0.0}/>
                             </linearGradient>
                           );
                         })}
@@ -900,17 +1256,7 @@ export default function BetriebskostenClientView({
                         axisLine={false}
                         tickLine={false}
                       />
-                      <RechartsTooltip 
-                        formatter={(value: any) => [`${value.toLocaleString('de-DE')} €`]}
-                        labelFormatter={(label) => `Jahr: ${label}`}
-                        contentStyle={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                          border: '1px solid #e4e4e7',
-                          borderRadius: '1rem',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          color: '#18181b'
-                        }}
-                      />
+                      <RechartsTooltip content={<CustomDevelopmentTooltip />} />
                       <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
                       {costAnalytics.houseNames.map((houseName, index) => {
                         const colors = [
@@ -922,17 +1268,15 @@ export default function BetriebskostenClientView({
                           "hsl(40, 80%, 50%)"
                         ];
                         const color = colors[index % colors.length];
-                        const cleanId = `color-${houseName.replace(/[^a-zA-Z0-9]/g, '')}`;
+                        const safeId = `color-${houseName.replace(/\s+/g, '-')}`;
                         return (
                           <Area 
                             key={houseName} 
                             type="monotone"
                             dataKey={houseName} 
-                            stackId="a" 
+                            stackId="1" 
                             stroke={color}
-                            strokeWidth={2}
-                            fillOpacity={1}
-                            fill={`url(#${cleanId})`}
+                            fill={`url(#${safeId})`}
                           />
                         );
                       })}
@@ -1089,29 +1433,45 @@ export default function BetriebskostenClientView({
                     legalPrognosis.deadlines.map((dl, idx) => {
                       const isExpired = dl.daysRemaining < 0;
                       return (
-                        <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30">
+                        <div 
+                          key={idx} 
+                          onClick={() => dl.houseId && handleOpenCreateModalForHouse(dl.houseId)}
+                          className={cn(
+                            "group flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 transition-all duration-200",
+                            dl.houseId ? "cursor-pointer hover:border-accent/40 hover:shadow-xs" : ""
+                          )}
+                        >
                           <div className="flex items-center gap-3">
-                            <span className={cn(
-                              "w-2.5 h-2.5 rounded-full shrink-0",
-                              dl.status === 'green' ? "bg-emerald-500" :
-                              dl.status === 'amber' ? "bg-amber-500 animate-pulse" :
-                              dl.status === 'red' ? "bg-rose-500 animate-ping" : "bg-zinc-400"
-                            )} />
+                            {dl.status === 'red' ? (
+                              <div className="p-1 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
+                                <Building2 className="h-4 w-4" />
+                              </div>
+                            ) : dl.status === 'amber' ? (
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 ml-1.5 mr-1" />
+                            ) : (
+                              <div className="p-1 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
+                                <Building2 className="h-4 w-4 animate-in fade-in" />
+                              </div>
+                            )}
                             <div>
-                              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">{dl.houseName} ({dl.year})</span>
-                              <span className="text-[10px] text-muted-foreground mt-0.5 block">Abgabe bis: {dl.deadlineDate}</span>
+                              <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block group-hover:text-accent transition-colors duration-200">{dl.houseName} ({dl.year})</span>
+                              <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                                {dl.isMissing ? "Abrechnung noch nicht gestartet" : `Abgabe bis: ${dl.deadlineDate}`}
+                              </span>
                             </div>
                           </div>
 
-                          <span className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
-                            isExpired ? "bg-zinc-100 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700" :
-                            dl.status === 'red' ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
-                            dl.status === 'amber' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                            "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                          )}>
-                            {isExpired ? "Abgelaufen" : `${dl.daysRemaining} Tage`}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
+                              isExpired ? "bg-zinc-100 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700" :
+                              dl.status === 'red' ? "bg-rose-500/10 text-rose-600 border-rose-500/20" :
+                              dl.status === 'amber' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                              "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                            )}>
+                              {isExpired ? "Abgelaufen" : `${dl.daysRemaining} Tage`}
+                            </span>
+                          </div>
                         </div>
                       );
                     })
@@ -1124,67 +1484,252 @@ export default function BetriebskostenClientView({
               </CardContent>
             </Card>
 
-            {/* Right Box: Saldo-Prognose (Guthaben vs. Nachforderung Prognose) */}
-            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[300px] h-full">
-              <CardHeader className="px-0 pt-0 shrink-0 pb-2">
-                <CardTitle className="text-base font-semibold">Saldo-Prognose</CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">Erwartete Guthaben-Auszahlungen und Nachforderungen basierend auf Vorauszahlungen</CardDescription>
-              </CardHeader>
-
-              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0">
-                <div className="space-y-4 my-auto py-2 w-full">
-                  {/* Asymmetric split forecast bar */}
-                  {(() => {
-                    const total = legalPrognosis.totalNachforderung + legalPrognosis.totalGuthaben;
-                    const nachRatio = total > 0 ? Math.round((legalPrognosis.totalNachforderung / total) * 100) : 50;
-                    const gutRatio = total > 0 ? Math.round((legalPrognosis.totalGuthaben / total) * 100) : 50;
-
-                    return (
-                      <div className="space-y-2">
-                        <div className="h-3.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
-                          <div className="h-full bg-emerald-500 rounded-l-full transition-all duration-700" style={{ width: `${nachRatio}%` }} />
-                          <div className="h-full bg-rose-500 rounded-r-full transition-all duration-700" style={{ width: `${gutRatio}%` }} />
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-                          <span className="text-emerald-600 dark:text-emerald-500">Erwartete Nachforderung ({nachRatio}%)</span>
-                          <span className="text-rose-600 dark:text-rose-400">Erwartetes Guthaben ({gutRatio}%)</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* KPI block row */}
-                  <div className="grid grid-cols-3 gap-3.5 text-center">
-                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex flex-col justify-center">
-                      <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest block mb-0.5">Soll-Nachzahlung</span>
-                      <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                        +{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalNachforderung)}
-                      </span>
+            {/* Right Box: Simplified Saldo-Prognose (Application Standard) */}
+            <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base font-semibold">Saldo-Prognose & Liquidität</CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                      Vorausschau der Abrechnungsergebnisse
+                    </CardDescription>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-4">
+                    {/* Timeframe Selection Toggle with Sliding Animation */}
+                    <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
+                      <button
+                        onClick={() => setPrognosisTimeframe("this")}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
+                          prognosisTimeframe === "this" ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {prognosisTimeframe === "this" && (
+                          <motion.div
+                            layoutId="prognosis-timeframe-pill"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        {new Date().getFullYear()}
+                      </button>
+                      <button
+                        onClick={() => setPrognosisTimeframe("last")}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
+                          prognosisTimeframe === "last" ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {prognosisTimeframe === "last" && (
+                          <motion.div
+                            layoutId="prognosis-timeframe-pill"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        {new Date().getFullYear() - 1}
+                      </button>
+                      <button
+                        onClick={() => setPrognosisTimeframe("5y")}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[50px] z-10",
+                          prognosisTimeframe === "5y" ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {prognosisTimeframe === "5y" && (
+                          <motion.div
+                            layoutId="prognosis-timeframe-pill"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        5J.
+                      </button>
                     </div>
-                    <div className="p-3 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex flex-col justify-center">
-                      <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest block mb-0.5">Soll-Guthaben</span>
-                      <span className="text-xs sm:text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                        -{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.totalGuthaben)}
-                      </span>
-                    </div>
-                    <div className="p-3 bg-primary/5 border border-primary/10 rounded-2xl flex flex-col justify-center">
-                      <span className="text-[9px] font-bold text-primary uppercase tracking-widest block mb-0.5">Netto-Saldo</span>
-                      <span className={cn(
-                        "text-xs sm:text-sm font-extrabold",
-                        legalPrognosis.netBalance >= 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-400"
-                      )}>
-                        {legalPrognosis.netBalance >= 0 ? '+' : ''}{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(legalPrognosis.netBalance)}
-                      </span>
+
+                    <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
+
+                    {/* SOLL/IST Toggle with Sliding Animation */}
+                    <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
+                      <button
+                        onClick={() => setPrognosisMode("goal")}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer z-10",
+                          prognosisMode === "goal" ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {prognosisMode === "goal" && (
+                          <motion.div
+                            layoutId="prognosis-mode-pill-v3"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        SOLL
+                      </button>
+                      <button
+                        onClick={() => setPrognosisMode("real")}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer z-10",
+                          prognosisMode === "real" ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {prognosisMode === "real" && (
+                          <motion.div
+                            layoutId="prognosis-mode-pill-v3"
+                            className="absolute inset-0 bg-white dark:bg-zinc-700 shadow-xs rounded-full -z-10"
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        IST
+                      </button>
                     </div>
                   </div>
                 </div>
+              </CardHeader>
 
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto">
-                  {legalPrognosis.netBalance >= 0 
-                    ? "✓ Ihr Portfolio läuft im Netto-Überschuss. Sie erwarten mehr Nachzahlungen als Rückerstattungen."
-                    : "⚠ Rückerstattungen übersteigen Nachforderungen. Halten Sie Liquiditätsreserven zur Auszahlung an Mieter bereit."
-                  }
-                </p>
+              <CardContent className="px-0 pb-0 flex-1 flex flex-col justify-between min-h-0 gap-6">
+                {/* ... existing dials and insights ... */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Coverage Dial */}
+                  <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center">
+                    <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                      <div className="absolute inset-1.5 rounded-full bg-accent/5 flex flex-col items-center justify-center">
+                        <span className="text-base font-black text-accent">
+                          {legalPrognosis.coveragePct}%
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-3">Deckung</span>
+                    <p className="text-[9px] text-zinc-400 mt-1 leading-tight px-2">Anteil der Kosten, der durch Zahlungen gedeckt ist</p>
+                  </div>
+
+                  {/* Liquidity Status Dial */}
+                  <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 rounded-3xl text-center">
+                    <div className="relative flex items-center justify-center h-20 w-20 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                      <div className={cn(
+                        "absolute inset-1.5 rounded-full flex flex-col items-center justify-center",
+                        legalPrognosis.balancePct >= 0 ? "bg-emerald-500/5" : "bg-amber-500/5"
+                      )}>
+                        <span className={cn("text-xs font-black", legalPrognosis.balancePct >= 0 ? "text-emerald-600" : "text-amber-600")}>
+                          {legalPrognosis.balancePct >= 0 ? '+' : ''}{legalPrognosis.balancePct}%
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-3">Liquiditäts-Status</span>
+                    <p className="text-[9px] text-zinc-400 mt-1 leading-tight px-2">Verhältnis von Einnahmen zu den belegten Kosten</p>
+                  </div>
+                </div>
+
+                {/* Data Insights Grid */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-zinc-400/10 text-zinc-400">
+                        <Activity className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Abrechnungs-Kosten</span>
+                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                          {formatCurrency(legalPrognosis.totalActualCosts)}
+                        </span>
+                        <span className="text-[9px] text-zinc-400 italic mt-0.5">Reale Summe aller Kosten-Belege</span>
+                      </div>
+                    </div>
+                    <div className="text-[10px] font-bold text-zinc-400 bg-zinc-400/5 px-2 py-0.5 rounded-md border border-zinc-400/10 uppercase tracking-tighter">Effektiv</div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2 rounded-xl", prognosisMode === 'goal' ? "bg-primary/10 text-primary" : "bg-emerald-500/10 text-emerald-500")}>
+                        {prognosisMode === 'goal' ? <Target className="h-4 w-4" /> : <Coins className="h-4 w-4" />}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          {prognosisMode === 'goal' ? 'Vorauszahlung (Soll)' : 'Vorauszahlung (Ist)'}
+                        </span>
+                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                          {formatCurrency(prognosisMode === 'goal' ? legalPrognosis.totalGoalPrepayments : legalPrognosis.totalRealPrepayments)}
+                        </span>
+                        <span className="text-[9px] text-zinc-400 italic mt-0.5">
+                          {prognosisMode === 'goal' ? 'Beträge laut Mietverträgen' : 'Tatsächlich verbuchte Zahlungen'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={cn("text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-tighter", 
+                      prognosisMode === 'goal' ? "text-primary bg-primary/5 border-primary/10" : "text-emerald-500 bg-emerald-500/5 border-emerald-500/10"
+                    )}>
+                      {prognosisMode === 'goal' ? 'Vertrag' : 'Kasse'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("p-2 rounded-xl", legalPrognosis.netBalance <= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                        <Activity className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          {legalPrognosis.netBalance <= 0 ? 'Erwartete Rückerstattung' : 'Erwartete Nachzahlung'}
+                        </span>
+                        <span className={cn("text-sm font-bold", legalPrognosis.netBalance <= 0 ? "text-emerald-600" : "text-amber-600")}>
+                          {legalPrognosis.netBalance <= 0 ? '-' : '+'}{formatCurrency(Math.abs(legalPrognosis.netBalance))}
+                        </span>
+                        <span className="text-[9px] text-zinc-400 italic mt-0.5">Voraussichtlicher Liquiditäts-Ausgleich</span>
+                      </div>
+                    </div>
+                    <div className={cn("text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-tighter", 
+                      legalPrognosis.netBalance <= 0 ? "text-emerald-500 bg-emerald-500/5 border-emerald-500/10" : "text-amber-500 bg-amber-500/5 border-amber-500/10"
+                    )}>Saldo</div>
+                  </div>
+                </div>
+
+                {/* Footer Meter */}
+                <div className="pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Kosten-Splitting nach Häusern</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowDetailedPrognosis(!showDetailedPrognosis)}
+                      className="text-[10px] font-bold text-primary hover:underline transition-all cursor-pointer"
+                    >
+                      {showDetailedPrognosis ? "Liste schließen" : "Details"}
+                    </button>
+                  </div>
+                  <div className="h-2 w-full flex rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800/50 shadow-inner">
+                    {Object.entries(adjustedHouseCosts.houseAdjustedCosts).map(([houseName, value], index) => {
+                      const colors = ["#34d399", "#f59e42", "#818cf8", "#f87171", "#60a5fa", "#a78bfa"];
+                      const widthPct = (value / (Object.values(adjustedHouseCosts.houseAdjustedCosts).reduce((sum, val) => sum + val, 0) || 1)) * 100;
+                      return (
+                        <div
+                          key={houseName}
+                          style={{ width: `${widthPct}%`, backgroundColor: colors[index % colors.length] }}
+                          className="h-full hover:scale-y-150 transition-transform cursor-help"
+                          title={`${houseName}: ${new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)}`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Detailed house list breakdown grid */}
+                  {showDetailedPrognosis && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="grid grid-cols-2 gap-2 mt-4 overflow-hidden"
+                    >
+                      {Object.entries(adjustedHouseCosts.houseAdjustedCosts).map(([houseName, value]) => (
+                        <div key={houseName} className="p-2.5 rounded-xl bg-white dark:bg-zinc-900/30 border border-zinc-200/50 dark:border-zinc-800/30">
+                          <span className="text-[9px] font-bold text-zinc-400 uppercase block truncate">{houseName}</span>
+                          <span className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 mt-0.5 block">
+                            {formatCurrency(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

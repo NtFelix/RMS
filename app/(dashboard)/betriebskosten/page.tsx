@@ -15,11 +15,27 @@ import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
   
-  // Use optimized function that eliminates individual getHausGesamtFlaeche calls
-  const nebenkostenResult = await fetchNebenkostenListOptimized();
+  // Fetch all necessary data in parallel
+  const [
+    nebenkostenResult,
+    haeuserData,
+    tenantsResult,
+    financesResult
+  ] = await Promise.all([
+    fetchNebenkostenListOptimized(),
+    fetchHaeuserServer(supabase),
+    supabase.from('Mieter').select('id, wohnung_id, nebenkosten, einzug, auszug'),
+    supabase
+      .from('Finanzen')
+      .select('id, betrag, ist_einnahmen, tags, datum, wohnung_id')
+      .eq('ist_einnahmen', true)
+      .gte('datum', `${new Date().getFullYear() - 5}-01-01`)
+      .or('tags.cs.{"Nebenkosten"},tags.cs.{"Vorauszahlung"}')
+  ]);
+
   const nebenkostenData: OptimizedNebenkosten[] = nebenkostenResult.success ? nebenkostenResult.data || [] : [];
-  
-  const haeuserData: Haus[] = await fetchHaeuserServer(supabase);
+  const tenants = tenantsResult.data || [];
+  const finances = financesResult.data || [];
 
   let ownerName = "Vermieter Name";
   if (user) {
@@ -36,6 +52,8 @@ export default async function BetriebskostenPage() {
     <BetriebskostenClientView
       initialNebenkosten={nebenkostenData}
       initialHaeuser={haeuserData}
+      initialTenants={tenants}
+      initialFinances={finances}
       ownerName={ownerName}
     />
   );
