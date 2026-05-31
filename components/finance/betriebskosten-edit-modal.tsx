@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { formatNumber } from "@/utils/format";
 import { createPortal } from "react-dom";
 import {
@@ -942,10 +942,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     setBetriebskostenModalDirty(true);
   };
 
-  const handleZaehlerkostenChange = (zaehlerTyp: string, value: string) => {
+  const handleZaehlerkostenChange = useCallback((zaehlerTyp: string, value: string) => {
     setZaehlerkosten(prev => ({ ...prev, [zaehlerTyp]: value }));
     setBetriebskostenModalDirty(true);
-  };
+  }, [setZaehlerkosten, setBetriebskostenModalDirty]);
 
   const handleRemoveZaehlerkosten = (zaehlerTyp: string) => {
     setZaehlerkosten(prev => {

@@ -96,7 +96,7 @@ export default function FinanzenClientWrapper({
   currentYear = new Date().getFullYear()
 }: FinanzenClientWrapperProps) {
   const [currentTab, setCurrentTab] = useState<"finance" | "overview">("finance");
-  const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
+  const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [unitSearch, setUnitSearch] = useState<string>("");
   const [hoveredPieIndex, setHoveredPieIndex] = useState<number | null>(null);
@@ -640,11 +640,11 @@ export default function FinanzenClientWrapper({
     useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
   }, [wohnungen, handleSuccess]);
 
-  const refreshFinances = async () => {
+  const refreshFinances = useCallback(async () => {
     await loadMoreTransactions(true);
     await refreshSummaryData();
     await fetchBalance();
-  };
+  }, [loadMoreTransactions, refreshSummaryData, fetchBalance]);
 
   // Constants for filter options
   const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';

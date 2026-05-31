@@ -49,7 +49,7 @@ export default function WohnungenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);
-  const [apartments, setApartments] = useState<Wohnung[]>(initialWohnungenData);
+  const apartments = initialWohnungenData;
   const [selectedApartments, setSelectedApartments] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -84,51 +84,30 @@ export default function WohnungenClientView({
     return { total, freeCount, rentedCount, avgRent, avgPricePerSqm, totalSize, avgSize };
   }, [apartments]);
 
-  const [isAddButtonDisabled, setIsAddButtonDisabled] = useState(!serverUserIsEligibleToAdd || (serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity));
-  const [buttonTooltipMessage, setButtonTooltipMessage] = useState("");
+  const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
+  const isAddButtonDisabled = !serverUserIsEligibleToAdd || limitReached;
 
-  useEffect(() => {
-    let message = "";
-    const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
-
-    if (!serverUserIsEligibleToAdd) {
-      message = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
-    } else if (limitReached) {
-      if (serverLimitReason === 'trial') {
-        message = `Maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihre Testphase erreicht.`;
-      } else if (serverLimitReason === 'subscription') {
-        message = `Sie haben die maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihr aktuelles Abonnement erreicht.`;
-      } else {
-        message = "Das Wohnungslimit ist erreicht.";
-      }
+  let buttonTooltipMessage = "";
+  if (!serverUserIsEligibleToAdd) {
+    buttonTooltipMessage = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
+  } else if (limitReached) {
+    if (serverLimitReason === 'trial') {
+      buttonTooltipMessage = `Maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihre Testphase erreicht.`;
+    } else if (serverLimitReason === 'subscription') {
+      buttonTooltipMessage = `Sie haben die maximale Anzahl an Wohnungen (${serverApartmentLimit}) für Ihr aktuelles Abonnement erreicht.`;
+    } else {
+      buttonTooltipMessage = "Das Wohnungslimit ist erreicht.";
     }
-
-    setButtonTooltipMessage(message);
-    setIsAddButtonDisabled(!serverUserIsEligibleToAdd || limitReached);
-  }, [serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd, serverLimitReason]);
+  }
 
   const updateApartmentInList = useCallback((updatedApartment: Wohnung) => {
-    setApartments(prev => {
-      const exists = prev.some(apt => apt.id === updatedApartment.id);
-      if (exists) return prev.map(apt => (apt.id === updatedApartment.id ? updatedApartment : apt));
-      return [updatedApartment, ...prev];
-    });
-  }, []);
+    router.refresh();
+  }, [router]);
 
   const refreshTable = useCallback(async (): Promise<void> => {
-    try {
-      const res = await fetch('/api/wohnungen');
-      if (res.ok) {
-        const data: Wohnung[] = await res.json();
-        setApartments(data);
-        window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
-      } else {
-        console.error('Failed to fetch wohnungen for refreshTable, status:', res.status);
-      }
-    } catch (error) {
-      console.error('Error fetching wohnungen in refreshTable:', error);
-    }
-  }, []);
+    router.refresh();
+    window.dispatchEvent(new CustomEvent('refresh-sidebar-insights'));
+  }, [router]);
 
   // Dispatch initial statistics refresh to the sidebar on mount
   useEffect(() => {
