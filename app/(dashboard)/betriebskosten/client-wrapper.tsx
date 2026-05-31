@@ -1558,11 +1558,10 @@ export default function BetriebskostenClientView({
                           />
                         )}
                         {years}J.
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </CardHeader>
+                        </button>
+                        ))}
+                        </div>
+                        </CardHeader>
 
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0">
                 <div className="w-full h-[220px]">
@@ -1737,7 +1736,9 @@ export default function BetriebskostenClientView({
 
             {/* Right Box: Simplified Saldo-Prognose (Application Standard) */}
             <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
-                <div className="flex flex-col gap-1">
+              <CardHeader className="px-0 pt-0 shrink-0 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-col gap-1">
                     <CardTitle className="text-base font-semibold">Saldo-Prognose & Liquidität</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">
                       Vorausschau der Abrechnungsergebnisse
