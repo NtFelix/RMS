@@ -52,7 +52,7 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: any) => {
             return (
               <div key={idx} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                   <span className="text-xs font-semibold truncate max-w-[120px]">{item.name}</span>
                 </div>
                 <span className="text-xs font-bold">
@@ -111,7 +111,7 @@ const CustomHorizontalTooltip = ({ active, payload, houseSqmCosts, houseApartmen
             return (
               <div key={idx} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0 pb-2 last:pb-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill || item.color }} />
+                  <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill || item.color }} />
                   <span className="text-xs font-bold truncate">{houseName}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
@@ -286,10 +286,9 @@ export default function BetriebskostenClientView({
 // ... rest of state stays same ...
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
-  const [filteredNebenkosten, setFilteredNebenkosten] = useState<OptimizedNebenkosten[]>(initialNebenkosten);
   // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
+  const selectedItemIdForDeleteRef = useRef<string | null>(null);
   const { openBetriebskostenModal } = useModalStore(); // Get the action to open modal
   const { toast } = useToast();
   // Define router for potential refresh, though modal might handle it
@@ -771,7 +770,7 @@ export default function BetriebskostenClientView({
   }, [initialNebenkosten, prognosisMode, prognosisTimeframe, initialTenants, initialFinances, wohnungen, initialHaeuser]);
 
 
-  useEffect(() => {
+  const filteredNebenkosten = useMemo(() => {
     let result = initialNebenkosten;
     if (selectedHouseId && selectedHouseId !== "all") {
       result = result.filter(item => item.haeuser_id === selectedHouseId);
@@ -799,7 +798,7 @@ export default function BetriebskostenClientView({
         item.enddatum && item.enddatum < currentYearStart
       );
     }
-    setFilteredNebenkosten(result);
+    return result;
   }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
 
   const handleOpenCreateModal = useCallback((templateType: 'blank' | 'previous' | 'default' = 'blank') => {
@@ -845,27 +844,28 @@ export default function BetriebskostenClientView({
   // handleCloseModal is no longer needed as the modal store handles closing.
 
   const openDeleteAlert = useCallback((itemId: string) => {
-    setSelectedItemIdForDelete(itemId);
+    selectedItemIdForDeleteRef.current = itemId;
     setIsDeleteAlertOpen(true);
   }, []);
 
   const handleDeleteDialogOnOpenChange = useCallback((open: boolean) => {
     setIsDeleteAlertOpen(open);
     if (!open) {
-      setSelectedItemIdForDelete(null);
+      selectedItemIdForDeleteRef.current = null;
     }
   }, []);
 
   const executeDelete = useCallback(async () => {
-    if (!selectedItemIdForDelete) return;
-    const result = await deleteNebenkostenServerAction(selectedItemIdForDelete);
+    const itemId = selectedItemIdForDeleteRef.current;
+    if (!itemId) return;
+    const result = await deleteNebenkostenServerAction(itemId);
     if (result.success) {
       toast({
         title: "Erfolg",
         description: "Nebenkosten-Eintrag erfolgreich gelöscht.",
         variant: "success"
       });
-      setFilteredNebenkosten(prev => prev.filter(item => item.id !== selectedItemIdForDelete));
+      router.refresh();
     } else {
       toast({
         title: "Fehler",
@@ -873,7 +873,7 @@ export default function BetriebskostenClientView({
         variant: "destructive",
       });
     }
-  }, [selectedItemIdForDelete, toast]);
+  }, [toast, router]);
 
   const scrollToTable = useCallback(() => {
     tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -959,7 +959,7 @@ export default function BetriebskostenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <FileSpreadsheet className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <FileSpreadsheet className="size-4 shrink-0 transition-transform duration-300" />
           <span>Betriebskosten</span>
         </motion.button>
 
@@ -978,7 +978,7 @@ export default function BetriebskostenClientView({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Übersicht</span>
         </motion.button>
       </div>
@@ -1002,7 +1002,7 @@ export default function BetriebskostenClientView({
                     onClick={handleDismissGuide}
                     className="text-muted-foreground -mt-1"
                   >
-                    <X className="h-4 w-4 mr-1" /> Ausblenden
+                    <X className="size-4 mr-1" /> Ausblenden
                   </Button>
                 </div>
               </CardHeader>
@@ -1010,7 +1010,7 @@ export default function BetriebskostenClientView({
                 <div className="space-y-4">
                   {instructionSteps.map((step, index) => (
                     <div key={step.id} className="flex gap-4">
-                      <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
+                      <div className="shrink-0 size-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center">
                         <span className="text-sm font-semibold text-primary dark:text-primary-foreground">{index + 1}</span>
                       </div>
                       <div className="flex-1 pt-0.5">
@@ -1094,14 +1094,14 @@ export default function BetriebskostenClientView({
               value={nebenkostenStats.totalCosts}
               unit="€"
               decimals
-              icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+              icon={<Euro className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
               title="Abrechnungen"
               value={nebenkostenStats.billsCount}
               unit="Jahre"
-              icon={<FileSpreadsheet className="h-4 w-4 text-muted-foreground" />}
+              icon={<FileSpreadsheet className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -1109,7 +1109,7 @@ export default function BetriebskostenClientView({
               value={nebenkostenStats.avgCostPerSqm}
               unit="€/m²"
               decimals
-              icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+              icon={<Ruler className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -1117,7 +1117,7 @@ export default function BetriebskostenClientView({
               value={nebenkostenStats.avgCostPerBill}
               unit="€"
               decimals
-              icon={<Activity className="h-4 w-4 text-muted-foreground" />}
+              icon={<Activity className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -1162,7 +1162,7 @@ export default function BetriebskostenClientView({
                         >
                           <div className="flex items-center gap-2">
                             <div className="p-1.5 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                              <Building2 className="h-4 w-4 animate-in fade-in" />
+                              <Building2 className="size-4 animate-in fade-in" />
                             </div>
                             <div className="min-w-0">
                               <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 block transition-colors duration-200 truncate max-w-[120px] sm:max-w-[180px]">
@@ -1476,7 +1476,7 @@ export default function BetriebskostenClientView({
                         <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-xl", isOptimal ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
-                              <Activity className="h-4 w-4" />
+                              <Activity className="size-4" />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ø Portfoliowert ({auditTimeframe === '5y' ? '5J.' : 'Jahr'})</span>
@@ -1496,7 +1496,7 @@ export default function BetriebskostenClientView({
                         <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-zinc-400/10 text-zinc-400">
-                              <Info className="h-4 w-4" />
+                              <Info className="size-4" />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Markt-Benchmark</span>
@@ -1582,7 +1582,7 @@ export default function BetriebskostenClientView({
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 rounded-full bg-orange-500" />
+                                      <div className="size-2 rounded-full bg-orange-500" />
                                       <span className="text-[10px] font-semibold text-muted-foreground">Warme Kosten</span>
                                     </div>
                                     <div className="flex flex-col items-end">
@@ -1592,7 +1592,7 @@ export default function BetriebskostenClientView({
                                   </div>
                                   <div className="flex items-center justify-between gap-4">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                      <div className="size-2 rounded-full bg-blue-500" />
                                       <span className="text-[10px] font-semibold text-muted-foreground">Kalte Kosten</span>
                                     </div>
                                     <div className="flex flex-col items-end">
@@ -1626,7 +1626,7 @@ export default function BetriebskostenClientView({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-2xl bg-orange-500/[0.03] border border-orange-500/10 flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500">
-                        <TrendingUp className="h-4 w-4" />
+                        <TrendingUp className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-orange-600/80 uppercase">Energie</span>
@@ -1637,7 +1637,7 @@ export default function BetriebskostenClientView({
                     </div>
                     <div className="p-3 rounded-2xl bg-blue-500/[0.03] border border-blue-500/10 flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
-                        <Ruler className="h-4 w-4" />
+                        <Ruler className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-blue-600/80 uppercase">Betrieb</span>
@@ -1684,13 +1684,13 @@ export default function BetriebskostenClientView({
                           <div className="flex items-center gap-3">
                             {dl.status === 'red' ? (
                               <div className="p-1 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
-                                <Building2 className="h-4 w-4" />
+                                <Building2 className="size-4" />
                               </div>
                             ) : dl.status === 'amber' ? (
                               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 ml-1.5 mr-1" />
                             ) : (
                               <div className="p-1 rounded-lg bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                                <Building2 className="h-4 w-4 animate-in fade-in" />
+                                <Building2 className="size-4 animate-in fade-in" />
                               </div>
                             )}
                             <div>
@@ -1867,7 +1867,7 @@ export default function BetriebskostenClientView({
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-zinc-400/10 text-zinc-400">
-                        <Activity className="h-4 w-4" />
+                        <Activity className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Abrechnungs-Kosten</span>
@@ -1883,7 +1883,7 @@ export default function BetriebskostenClientView({
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-3">
                       <div className={cn("p-2 rounded-xl", prognosisMode === 'goal' ? "bg-primary/10 text-primary" : "bg-emerald-500/10 text-emerald-500")}>
-                        {prognosisMode === 'goal' ? <Target className="h-4 w-4" /> : <Coins className="h-4 w-4" />}
+                        {prognosisMode === 'goal' ? <Target className="size-4" /> : <Coins className="size-4" />}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -1907,7 +1907,7 @@ export default function BetriebskostenClientView({
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                     <div className="flex items-center gap-3">
                       <div className={cn("p-2 rounded-xl", legalPrognosis.netBalance <= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
-                        <Activity className="h-4 w-4" />
+                        <Activity className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">

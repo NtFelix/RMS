@@ -92,6 +92,7 @@ export function CloudStorage({
         files,
         folders,
         breadcrumbs,
+        currentPath,
         setCurrentPath,
         setFiles,
         setFolders,
@@ -110,9 +111,6 @@ export function CloudStorage({
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
     const [activeFilter, setActiveFilter] = useState<FilterType>('all')
     const [totalStorageSize, setTotalStorageSize] = useState(initialTotalSize)
-
-    // Local tracking of current path - critical for proper navigation
-    const [localCurrentPath, setLocalCurrentPath] = useState(initialPath)
 
     // Track initialization
     const isInitialized = useRef(false)
@@ -146,16 +144,18 @@ export function CloudStorage({
     useEffect(() => {
         if (!isInitialized.current && initialPath) {
             isInitialized.current = true
-            setCurrentPath(initialPath)
-            setLocalCurrentPath(initialPath)
+            
+            startTransition(() => {
+                setCurrentPath(initialPath)
 
-            if (initialFiles.length > 0) setFiles(initialFiles)
-            if (initialFolders.length > 0) setFolders(initialFolders)
-            if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
-            if (initialTotalSize > 0) setTotalStorageSize(initialTotalSize)
+                if (initialFiles.length > 0) setFiles(initialFiles)
+                if (initialFolders.length > 0) setFolders(initialFolders)
+                if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
+                // totalStorageSize is already initialized via useState(initialTotalSize)
 
-            setError(null)
-            setLoading(false)
+                setError(null)
+                setLoading(false)
+            })
 
             // Replace the current history state so back/forward works from the initial page
             const url = pathToUrl(initialPath)
@@ -165,7 +165,7 @@ export function CloudStorage({
                 url
             )
         }
-    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, initialTotalSize, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl])
+    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl, startTransition])
 
     /**
      * Handle efficient navigation using the navigation controller
@@ -176,7 +176,7 @@ export function CloudStorage({
      */
     const handleNavigate = useCallback(async (path: string, useClientSide = true, skipHistoryPush = false) => {
         // Use local path tracking for accurate navigation detection
-        if (path === localCurrentPath) return
+        if (path === currentPath) return
 
         // Clear selections immediately
         setSelectedItems(new Set())
@@ -189,7 +189,6 @@ export function CloudStorage({
                 const data = result.data as LoadResult
                 startTransition(() => {
                     setCurrentPath(path)
-                    setLocalCurrentPath(path)
                     setFiles(data.files)
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
@@ -209,15 +208,15 @@ export function CloudStorage({
                 }
             }
         }
-    }, [localCurrentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+    }, [currentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
 
     // Synchronize with external navigation store changes (e.g. sidebar file tree click)
     const navCurrentPath = useCloudStorageNavigationStore(state => state.currentPath)
     useEffect(() => {
-        if (navCurrentPath && navCurrentPath !== localCurrentPath) {
+        if (navCurrentPath && navCurrentPath !== currentPath) {
             handleNavigate(navCurrentPath, true, true)
         }
-    }, [navCurrentPath, localCurrentPath, handleNavigate])
+    }, [navCurrentPath, currentPath, handleNavigate])
 
     /**
      * Handle folder navigation
@@ -237,21 +236,21 @@ export function CloudStorage({
      * Handle navigate up
      */
     const handleNavigateUp = useCallback(() => {
-        if (localCurrentPath) {
-            const segments = localCurrentPath.split('/').filter(Boolean)
+        if (currentPath) {
+            const segments = currentPath.split('/').filter(Boolean)
             if (segments.length > 1) {
                 const parentPath = segments.slice(0, -1).join('/')
                 handleNavigate(parentPath, true, false)
             }
         }
-    }, [localCurrentPath, handleNavigate])
+    }, [currentPath, handleNavigate])
 
     /**
      * Optimized refresh that syncs both store and UI
      */
     const handleRefresh = useCallback(async (showToast = true) => {
         try {
-            const result = await navigate(localCurrentPath, { force: true })
+            const result = await navigate(currentPath, { force: true })
 
             if (result.success && result.data) {
                 const data = result.data as LoadResult
@@ -278,7 +277,7 @@ export function CloudStorage({
                 })
             }
         }
-    }, [localCurrentPath, navigate, setFiles, setFolders, setBreadcrumbs, toast, startTransition])
+    }, [currentPath, navigate, setFiles, setFolders, setBreadcrumbs, toast, startTransition])
 
     /**
      * Handle browser back/forward navigation
@@ -297,7 +296,7 @@ export function CloudStorage({
                 if (pathMatch) {
                     const urlPath = pathMatch[1] || ''
                     const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
-                    if (storagePath !== localCurrentPath) {
+                    if (storagePath !== currentPath) {
                         handleNavigate(storagePath, true, true)
                     }
                 }
@@ -306,7 +305,7 @@ export function CloudStorage({
 
         window.addEventListener('popstate', handlePopState)
         return () => window.removeEventListener('popstate', handlePopState)
-    }, [handleNavigate, userId, localCurrentPath])
+    }, [handleNavigate, userId, currentPath])
 
     /**
      * Filter and sort items
@@ -542,7 +541,7 @@ export function CloudStorage({
      * Handle upload
      */
     const handleUpload = useCallback(() => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
                 handleRefresh(false)
@@ -551,13 +550,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [localCurrentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle upload with files (for drag & drop)
      */
     const handleUploadWithFiles = useCallback((files: File[]) => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
                 handleRefresh(false)
@@ -566,13 +565,13 @@ export function CloudStorage({
                 })
             }, files)
         }
-    }, [localCurrentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle create folder
      */
     const handleCreateFolder = useCallback(() => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFolderModal(targetPath, (folderName: string) => {
                 const newFolder: VirtualFolder = {
@@ -593,13 +592,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [localCurrentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
+    }, [currentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
 
     /**
      * Handle create file
      */
     const handleCreateFile = useCallback(() => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFileModal(targetPath, (fileName: string) => {
                 handleRefresh(false)
@@ -609,7 +608,7 @@ export function CloudStorage({
                 })
             })
         }
-    }, [localCurrentPath, initialPath, openCreateFileModal, handleRefresh, toast])
+    }, [currentPath, initialPath, openCreateFileModal, handleRefresh, toast])
 
     // Determine loading and error states
     const showLoading = isNavigating || isPending
@@ -827,7 +826,7 @@ export function CloudStorage({
                                                     openFileMoveModal({
                                                         item: folder,
                                                         itemType: 'folder',
-                                                        currentPath: localCurrentPath,
+                                                        currentPath: currentPath,
                                                         userId,
                                                         onMove: async (targetPath: string) => {
                                                             const { moveFolder } = await import('@/lib/storage-service')
@@ -856,12 +855,12 @@ export function CloudStorage({
                                                     openFileMoveModal({
                                                         item: file,
                                                         itemType: 'file',
-                                                        currentPath: localCurrentPath,
+                                                        currentPath: currentPath,
                                                         userId,
                                                         onMove: async (targetPath: string) => {
                                                             const { moveFile } = await import('@/lib/storage-service')
                                                             const targetFilePath = `${targetPath}/${file.name}`
-                                                            await moveFile(`${localCurrentPath}/${file.name}`, targetFilePath)
+                                                            await moveFile(`${currentPath}/${file.name}`, targetFilePath)
                                                             handleRefresh(false)
                                                         }
                                                     })

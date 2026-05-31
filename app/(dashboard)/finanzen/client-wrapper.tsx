@@ -840,7 +840,7 @@ export default function FinanzenClientWrapper({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <Wallet className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <Wallet className="size-4 shrink-0 transition-transform duration-300" />
           <span>Finanzen</span>
         </motion.button>
 
@@ -859,7 +859,7 @@ export default function FinanzenClientWrapper({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <BarChart3 className="h-4 w-4 shrink-0 transition-transform duration-300" />
+          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
           <span>Übersicht</span>
         </motion.button>
       </div>
@@ -869,7 +869,7 @@ export default function FinanzenClientWrapper({
           {/* Fallback Year Notification Banner */}
           {isUsingFallbackYear && initialYear && (
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
-              <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <Info className="size-5 text-amber-600 dark:text-amber-400 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
                   Daten aus {initialYear} werden angezeigt
@@ -887,19 +887,19 @@ export default function FinanzenClientWrapper({
               <>
                 <SummaryCardSkeleton
                   title="Ø Monatliche Einnahmen"
-                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
                 />
                 <SummaryCardSkeleton
                   title="Ø Monatliche Ausgaben"
-                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
                 />
                 <SummaryCardSkeleton
                   title="Ø Monatlicher Cashflow"
-                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                  icon={<Wallet className="size-4 text-muted-foreground" />}
                 />
                 <SummaryCardSkeleton
                   title="Jahresprognose"
-                  icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+                  icon={<BarChart3 className="size-4 text-muted-foreground" />}
                 />
               </>
             ) : (
@@ -908,28 +908,28 @@ export default function FinanzenClientWrapper({
                   title="Ø Monatliche Einnahmen"
                   value={averageMonthlyIncome}
                   description="Durchschnittliche monatliche Einnahmen"
-                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
                   isLoading={isSummaryLoading}
                 />
                 <SummaryCard
                   title="Ø Monatliche Ausgaben"
                   value={averageMonthlyExpenses}
                   description="Durchschnittliche monatliche Ausgaben"
-                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
                   isLoading={isSummaryLoading}
                 />
                 <SummaryCard
                   title="Ø Monatlicher Cashflow"
                   value={averageMonthlyCashflow}
                   description="Durchschnittlicher monatlicher Überschuss"
-                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                  icon={<Wallet className="size-4 text-muted-foreground" />}
                   isLoading={isSummaryLoading}
                 />
                 <SummaryCard
                   title="Jahresprognose"
                   value={yearlyProjection}
                   description="Geschätzter Jahresgewinn"
-                  icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+                  icon={<BarChart3 className="size-4 text-muted-foreground" />}
                   isLoading={isSummaryLoading}
                 />
               </>
@@ -950,15 +950,15 @@ export default function FinanzenClientWrapper({
               <>
                 <SummaryCardSkeleton
                   title="Gefilterte Einnahmen"
-                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
                 />
                 <SummaryCardSkeleton
                   title="Gefilterte Ausgaben"
-                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
                 />
                 <SummaryCardSkeleton
                   title="Aktueller Saldo"
-                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                  icon={<Wallet className="size-4 text-muted-foreground" />}
                 />
               </>
             ) : (
@@ -967,21 +967,21 @@ export default function FinanzenClientWrapper({
                   title="Gefilterte Einnahmen"
                   value={filteredIncome}
                   description="Einnahmen basierend auf aktuellen Filtern"
-                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                  icon={<ArrowUpCircle className="size-4 text-green-500" />}
                   isLoading={balanceLoading}
                 />
                 <SummaryCard
                   title="Gefilterte Ausgaben"
                   value={filteredExpenses}
                   description="Ausgaben basierend auf aktuellen Filtern"
-                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                  icon={<ArrowDownCircle className="size-4 text-red-500" />}
                   isLoading={balanceLoading}
                 />
                 <SummaryCard
                   title="Aktueller Saldo"
                   value={totalBalance}
                   description="Gesamtsaldo aller Transaktionen"
-                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                  icon={<Wallet className="size-4 text-muted-foreground" />}
                   isLoading={balanceLoading}
                 />
               </>
@@ -996,7 +996,7 @@ export default function FinanzenClientWrapper({
                   <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
                 </div>
                 <div className="mt-0 sm:mt-1">
-                  <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="h-4 w-4" />} shortText="Hinzufügen">
+                  <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="size-4" />} shortText="Hinzufügen">
                     Transaktion hinzufügen
                   </ResponsiveButtonWithTooltip>
                 </div>
@@ -1094,7 +1094,7 @@ export default function FinanzenClientWrapper({
               value={financeStats.totalIncome}
               unit="€"
               decimals
-              icon={<ArrowUpCircle className="h-4 w-4 text-emerald-500" />}
+              icon={<ArrowUpCircle className="size-4 text-emerald-500" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -1102,7 +1102,7 @@ export default function FinanzenClientWrapper({
               value={financeStats.totalExpenses}
               unit="€"
               decimals
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              icon={<ArrowDownCircle className="size-4 text-red-500" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -1110,7 +1110,7 @@ export default function FinanzenClientWrapper({
               value={financeStats.netCashflow}
               unit="€"
               decimals
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              icon={<Wallet className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
             <StatCard
@@ -1118,7 +1118,7 @@ export default function FinanzenClientWrapper({
               value={financeStats.avgTransaction}
               unit="€"
               decimals
-              icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+              icon={<Euro className="size-4 text-muted-foreground" />}
               className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
             />
           </div>
@@ -1247,13 +1247,13 @@ export default function FinanzenClientWrapper({
             <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 relative">
               {isChartLoading ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-8 text-center animate-pulse h-full min-h-[280px]">
-                  <Activity className="h-6 w-6 text-accent/50 animate-bounce mb-2" />
+                  <Activity className="size-6 text-accent/50 animate-bounce mb-2" />
                   <span className="text-xs text-muted-foreground">Lade Transaktionshistorie (5 Jahre)...</span>
                 </div>
               ) : monthlyChartData.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-8 text-center bg-zinc-100/50 dark:bg-zinc-800/10 rounded-3xl border border-zinc-200/20 dark:border-zinc-800/40 animate-in fade-in duration-300 h-full">
                   <div className="p-3 bg-zinc-200/30 dark:bg-zinc-800/30 rounded-full mb-3">
-                    <Activity className="h-6 w-6 text-muted-foreground/50 animate-pulse" />
+                    <Activity className="size-6 text-muted-foreground/50 animate-pulse" />
                   </div>
                   <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                     Keine Trenddaten verfügbar
@@ -1340,7 +1340,7 @@ export default function FinanzenClientWrapper({
                         >
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">
-                              <Building2 className="h-4.5 w-4.5" />
+                              <Building2 className="size-4.5" />
                             </div>
                             <div>
                               <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block transition-colors duration-200">
@@ -1457,7 +1457,7 @@ export default function FinanzenClientWrapper({
                   <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0">
                     <div className="flex flex-col items-center justify-center space-y-1">
                       <div className="flex items-center gap-1">
-                        <Coins className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Coins className="size-3.5 text-muted-foreground" />
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Soll-Ertrag</span>
                       </div>
                       <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
@@ -1466,7 +1466,7 @@ export default function FinanzenClientWrapper({
                     </div>
                     <div className="flex flex-col items-center justify-center space-y-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
                       <div className="flex items-center gap-1">
-                        <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
+                        <ArrowUpCircle className="size-3.5 text-emerald-500 animate-pulse" />
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Ist-Miete</span>
                       </div>
                       <span className="text-xs font-bold text-emerald-600 dark:text-emerald-500">
@@ -1475,7 +1475,7 @@ export default function FinanzenClientWrapper({
                     </div>
                     <div className="flex flex-col items-center justify-center space-y-1">
                       <div className="flex items-center gap-1">
-                        <Activity className="h-3.5 w-3.5 text-accent" />
+                        <Activity className="size-3.5 text-accent" />
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
                       </div>
                       <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5 truncate">

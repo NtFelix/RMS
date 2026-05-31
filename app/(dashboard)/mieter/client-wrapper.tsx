@@ -106,21 +106,15 @@ export default function MieterClientView({
   const [applicantSearch, setApplicantSearch] = useState<string>("");
   const [applicantFilter, setApplicantFilter] = useState<"all" | "A-Fit" | "B-Fit" | "C-Fit">("all");
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
-  const [showApplicantsTab, setShowApplicantsTab] = useState<boolean>(false);
+  const showApplicantsTab = !!rawFlag;
   const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
-
-  useEffect(() => {
-    if (rawFlag !== undefined) {
-      setShowApplicantsTab(rawFlag);
-    }
-  }, [rawFlag]);
 
   // Fallback to "mieter" if applicants tab is disabled and user is on "bewerber"
   useEffect(() => {
-    if (showApplicantsTab === false && currentTab === "bewerber") {
+    if (rawFlag === false && currentTab === "bewerber") {
       setCurrentTab("mieter");
     }
-  }, [showApplicantsTab, currentTab]);
+  }, [rawFlag, currentTab]);
 
   // Compute tenant stats for overview subpage
   const tenantStats = useMemo(() => {

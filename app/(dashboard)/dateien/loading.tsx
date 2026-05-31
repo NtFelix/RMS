@@ -13,7 +13,7 @@ export default function DateienLoading() {
             <div className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-4" />
+                <Skeleton className="size-4" />
               </div>
               <div>
                 <Skeleton className="h-8 w-28 mb-1" />
