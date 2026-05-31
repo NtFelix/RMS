@@ -32,7 +32,7 @@ export function MetersDonutChart({
   metersByType: propMetersByType = {},
   metersTotal: propMetersTotal = 0,
   metersActive: propMetersActive = 0,
-  apartments = EMPTY_ARRAY
+  apartments = []
 }: MetersDonutChartProps) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
@@ -1127,11 +1127,6 @@ export function ApartmentsRentLossBarChart({ apartments = [] }: ApartmentsRentLo
           <Bar dataKey="lossRent" name="Leerstand" stackId="a" fill="#f87171" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </div>
-  );
-}
-
-veContainer>
     </div>
   );
 }
