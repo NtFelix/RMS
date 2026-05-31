@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -20,12 +20,11 @@ import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
+import { getSafeAuthRedirect } from "@/lib/auth-redirects"
 
 export default function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
-  const redirect = redirectParam || ROUTES.HOME
 
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
 
@@ -88,16 +87,16 @@ export default function LoginContent() {
 
     const supabase = createClient()
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) {
+    if (signInError) {
       // Track login failure (GDPR-compliant - checks consent internally)
-      trackLoginFailed('email', error.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
+      trackLoginFailed('email', signInError.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
 
-      setError(getAuthErrorMessage(error))
+      setError(getAuthErrorMessage(signInError))
       setIsLoading(false)
       return
     }
@@ -117,7 +116,7 @@ export default function LoginContent() {
       trackLoginSuccess('email')
     }
 
-    window.location.assign(redirect)
+    window.location.assign(getSafeAuthRedirect(redirectParam, window.location.origin))
   }
 
   return (
@@ -359,7 +358,8 @@ export default function LoginContent() {
                           setSocialLoading(provider.id)
                           setError(null)
 
-                          const { error } = await provider.handler('login')
+                          const safeRedirect = getSafeAuthRedirect(redirectParam, window.location.origin)
+                          const { error } = await provider.handler('login', safeRedirect)
 
                           if (error) {
                             setError(error)
