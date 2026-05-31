@@ -145,17 +145,15 @@ export function CloudStorage({
         if (!isInitialized.current && initialPath) {
             isInitialized.current = true
             
-            startTransition(() => {
-                setCurrentPath(initialPath)
+            setCurrentPath(initialPath)
 
-                if (initialFiles.length > 0) setFiles(initialFiles)
-                if (initialFolders.length > 0) setFolders(initialFolders)
-                if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
-                // totalStorageSize is already initialized via useState(initialTotalSize)
+            if (initialFiles.length > 0) setFiles(initialFiles)
+            if (initialFolders.length > 0) setFolders(initialFolders)
+            if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
+            // totalStorageSize is already initialized via useState(initialTotalSize)
 
-                setError(null)
-                setLoading(false)
-            })
+            setError(null)
+            setLoading(false)
 
             // Replace the current history state so back/forward works from the initial page
             const url = pathToUrl(initialPath)
@@ -165,7 +163,7 @@ export function CloudStorage({
                 url
             )
         }
-    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl, startTransition])
+    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl])
 
     /**
      * Handle efficient navigation using the navigation controller

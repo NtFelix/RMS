@@ -285,6 +285,7 @@ export default function BetriebskostenClientView({
   }, [energyTrendData]);
 // ... rest of state stays same ...
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
   // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -772,6 +773,11 @@ export default function BetriebskostenClientView({
 
   const filteredNebenkosten = useMemo(() => {
     let result = initialNebenkosten;
+    // Apply optimistic UI filtering
+    if (deletedIds.size > 0) {
+      result = result.filter(item => !deletedIds.has(item.id));
+    }
+    
     if (selectedHouseId && selectedHouseId !== "all") {
       result = result.filter(item => item.haeuser_id === selectedHouseId);
     }
@@ -799,7 +805,7 @@ export default function BetriebskostenClientView({
       );
     }
     return result;
-  }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
+  }, [searchQuery, filter, initialNebenkosten, selectedHouseId, deletedIds]);
 
   const handleOpenCreateModal = useCallback((templateType: 'blank' | 'previous' | 'default' = 'blank') => {
     // Pass initialHaeuser and a success callback (e.g., to refresh data)
