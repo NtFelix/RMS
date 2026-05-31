@@ -20,18 +20,7 @@ import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
-
-function getSafeRedirect(param: string | null): string {
-  if (!param) return ROUTES.HOME
-  try {
-    const url = new URL(param, window.location.origin)
-    // Reject anything that resolves off-origin (covers //, /\, \/, control-char tricks, absolute URLs, userinfo @)
-    if (url.origin !== window.location.origin) return ROUTES.HOME
-    return url.pathname + url.search + url.hash
-  } catch {
-    return ROUTES.HOME
-  }
-}
+import { getSafeAuthRedirect } from "@/lib/auth-redirects"
 
 export default function LoginContent() {
   const searchParams = useSearchParams()
@@ -127,7 +116,7 @@ export default function LoginContent() {
       trackLoginSuccess('email')
     }
 
-    window.location.assign(getSafeRedirect(redirectParam))
+    window.location.assign(getSafeAuthRedirect(redirectParam, window.location.origin))
   }
 
   return (
@@ -369,7 +358,8 @@ export default function LoginContent() {
                           setSocialLoading(provider.id)
                           setError(null)
 
-                          const { error } = await provider.handler('login')
+                          const safeRedirect = getSafeAuthRedirect(redirectParam, window.location.origin)
+                          const { error } = await provider.handler('login', safeRedirect)
 
                           if (error) {
                             setError(error)
