@@ -1533,13 +1533,14 @@ export default function BetriebskostenClientView({
             {/* Right Box: Long-term Energy Trend Analysis */}
             <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
               <CardHeader className="px-0 pt-0 shrink-0 pb-4">
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-1">
                     <CardTitle className="text-base font-semibold">Energie- vs. Betriebskosten</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">Langfristiger Trend der Kostenverteilung (100% Stacked)</CardDescription>
                   </div>
 
                   {/* Timeframe Switcher */}
-                  <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative">
+                  <div className="flex items-center bg-zinc-200/50 dark:bg-zinc-800/50 p-1 rounded-full border border-zinc-200/20 shadow-inner relative self-start sm:self-center shrink-0">
                     {[5, 10, 25].map((years) => (
                       <button
                         type="button"
@@ -1558,10 +1559,11 @@ export default function BetriebskostenClientView({
                           />
                         )}
                         {years}J.
-                        </button>
-                        ))}
-                        </div>
-                        </CardHeader>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
 
               <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0">
                 <div className="w-full h-[220px]">
