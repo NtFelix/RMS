@@ -1425,8 +1425,8 @@ export default function BetriebskostenClientView({
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">Gesetzliche 12-Monats-Fristen zur Abgabe der Betriebskostenabrechnung (§ 556 BGB)</CardDescription>
               </CardHeader>
 
-              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-between min-h-0">
-                <div className="space-y-3.5 my-auto py-2 w-full">
+              <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col justify-start min-h-0">
+                <div className="space-y-3.5 py-2 w-full">
                   {legalPrognosis.deadlines.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic text-center py-6">Keine offenen Abrechnungsfristen vorhanden.</p>
                   ) : (

@@ -573,7 +573,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       }
       setZaehlerkosten({});
       setVorauszahlungsArt('soll');
-      const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
+      const initialHausId = betriebskostenInitialData?.haeuser_id || (forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
       setHausId(initialHausId);
 
       // Always start with a single empty cost item for new entries
