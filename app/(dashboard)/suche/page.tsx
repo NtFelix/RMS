@@ -182,7 +182,7 @@ export default function SuchePage() {
       <div className="flex-1 flex flex-col md:flex-row min-h-0 bg-zinc-50/10 dark:bg-transparent">
         {/* Categories Bar / Panel */}
         <div className="px-6 py-6 md:px-12 md:py-8 border-b md:border-b-0 md:border-r border-zinc-200/50 dark:border-zinc-800/40 w-full md:w-64 shrink-0 bg-white/40 dark:bg-transparent backdrop-blur-xs">
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <h3 className="hidden md:block text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3">
               Kategorien
             </h3>
@@ -224,7 +224,7 @@ export default function SuchePage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="flex flex-col items-center justify-center py-16 text-center space-y-4 max-w-md mx-auto"
+                className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-red-500/10 text-red-500 rounded-full border border-red-500/20">
                   <AlertCircle className="size-10 animate-bounce" />
@@ -246,7 +246,7 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-16 text-center space-y-4 max-w-md mx-auto"
+                className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-amber-500/10 text-amber-500 rounded-full border border-amber-500/20">
                   <AlertCircle className="size-10" />
@@ -266,7 +266,7 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-4"
+                className="flex flex-col gap-4"
               >
                 <div className="flex items-center gap-3 text-sm text-zinc-400 dark:text-zinc-500 font-semibold px-2">
                   <Loader2 className="size-4 animate-spin text-accent" />
@@ -282,10 +282,10 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-8"
+                className="flex flex-col gap-8"
               >
                 {recentSearches.length > 0 ? (
-                  <div className="space-y-4 max-w-xl">
+                  <div className="flex flex-col gap-4 max-w-xl">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 flex items-center gap-2">
                       <Clock className="size-4" /> Letzte Suchanfragen
                     </h3>
@@ -307,7 +307,7 @@ export default function SuchePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 max-w-md mx-auto">
+                  <div className="flex flex-col items-center justify-center py-20 text-center gap-4 max-w-md mx-auto">
                     <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
                       <HelpCircle className="size-10" />
                     </div>
@@ -323,7 +323,7 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-20 text-center space-y-4 max-w-md mx-auto"
+                className="flex flex-col items-center justify-center py-20 text-center gap-4 max-w-md mx-auto"
               >
                 <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
                   <Search className="size-10" />
@@ -339,7 +339,7 @@ export default function SuchePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-3"
+                className="flex flex-col gap-3"
               >
                 {filteredResults.map((item) => {
                   const ItemIcon = getIcon(item.type)
