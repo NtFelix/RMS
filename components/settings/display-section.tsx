@@ -14,12 +14,10 @@ import { Button } from "@/components/ui/button";
 
 const DisplaySection = () => {
   const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
-  const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
-
-  useEffect(() => {
+  const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(() => {
     const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
-    setBetriebskostenGuideEnabled(hidden !== 'true');
-  }, []);
+    return hidden !== 'true';
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -32,7 +30,7 @@ const DisplaySection = () => {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <Monitor className="h-4 w-4 text-muted-foreground" />
+                  <Monitor className="size-4 text-muted-foreground" />
                   <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Design-Modus
                   </label>
@@ -50,7 +48,7 @@ const DisplaySection = () => {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                <PanelLeft className="size-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none">
                   Navigationsleiste
                 </label>
@@ -67,7 +65,7 @@ const DisplaySection = () => {
           <div className="flex items-start justify-between gap-6">
             <div className="flex flex-col gap-1 flex-1">
               <div className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-muted-foreground" />
+                <Info className="size-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Anleitung auf Betriebskosten-Seite
                 </label>
@@ -96,7 +94,7 @@ const DisplaySection = () => {
           <div className="flex items-center justify-between gap-6">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <Play className="h-4 w-4 text-muted-foreground" />
+                <Play className="size-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none">
                   Tutorial neu starten
                 </label>

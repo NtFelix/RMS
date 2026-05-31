@@ -149,7 +149,9 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { preference, setPreference } = useSidebarStore()
-  const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(false)
+  const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(() => 
+    typeof window !== "undefined" ? window.matchMedia('(max-width: 1023px)').matches : false
+  )
   
   const isCollapsed = isResponsiveCollapsed || preference === 'collapsed'
   
@@ -172,7 +174,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       setIsResponsiveCollapsed(e.matches);
     };
 
-    setIsResponsiveCollapsed(mediaQuery.matches);
     mediaQuery.addEventListener('change', handleMediaChange);
 
     return () => mediaQuery.removeEventListener('change', handleMediaChange);
@@ -271,7 +272,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
         className="fixed left-4 top-4 z-40 md:hidden"
         onClick={() => setIsOpen(!isOpen)}
       >
-        {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        {isOpen ? <X className="size-4" /> : <Menu className="size-4" />}
         <span className="sr-only">Toggle menu</span>
       </Button>
       <div

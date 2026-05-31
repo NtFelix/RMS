@@ -1420,7 +1420,7 @@ export default function BetriebskostenClientView({
             <Card className="lg:col-span-5 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
               <CardHeader className="px-0 pt-0 shrink-0 pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                     <CardTitle className="text-base font-semibold">Plausibilitäts-Audit</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">Benchmarking gegen den Markt</CardDescription>
                   </div>
@@ -1483,8 +1483,7 @@ export default function BetriebskostenClientView({
                         </div>
                       </div>
 
-                      {/* Data Insights Grid */}
-                      <div className="space-y-2.5">
+                <div className="flex flex-col gap-2.5">
                         <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-xl", isOptimal ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
@@ -1534,8 +1533,7 @@ export default function BetriebskostenClientView({
             {/* Right Box: Long-term Energy Trend Analysis */}
             <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
               <CardHeader className="px-0 pt-0 shrink-0 pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                     <CardTitle className="text-base font-semibold">Energie- vs. Betriebskosten</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">Langfristiger Trend der Kostenverteilung (100% Stacked)</CardDescription>
                   </div>
@@ -1739,9 +1737,7 @@ export default function BetriebskostenClientView({
 
             {/* Right Box: Simplified Saldo-Prognose (Application Standard) */}
             <Card className="lg:col-span-7 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] p-6 flex flex-col justify-between min-h-[400px]">
-              <CardHeader className="px-0 pt-0 shrink-0 pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                     <CardTitle className="text-base font-semibold">Saldo-Prognose & Liquidität</CardTitle>
                     <CardDescription className="text-xs text-muted-foreground mt-0.5">
                       Vorausschau der Abrechnungsergebnisse

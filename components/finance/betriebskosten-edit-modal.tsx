@@ -974,7 +974,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
         >
           <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
-            <PlusCircle className="w-4 h-4 mr-2" />
+            <PlusCircle className="size-4 mr-2" />
             <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
           </SelectTrigger>
           <SelectContent>
@@ -984,7 +984,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               return (
                 <SelectItem key={typ} value={typ} className="group">
                   <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-muted-foreground group-focus:text-white transition-colors" />
+                    <Icon className="size-4 text-muted-foreground group-focus:text-white transition-colors" />
                     <span>{config.label}</span>
                   </div>
                 </SelectItem>
