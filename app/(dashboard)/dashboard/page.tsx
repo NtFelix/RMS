@@ -46,7 +46,7 @@ export default async function Dashboard() {
 
   if (!summary) {
     console.warn('[dashboard] Dashboard summary unavailable (both RPC and fallback failed).');
-    return <div className="flex flex-col gap-8 p-8 text-center text-muted-foreground">Dashboard-Daten konnten nicht geladen werden.</div>;
+    return <div role="alert" className="flex flex-col gap-8 p-8 text-center text-muted-foreground">Dashboard-Daten konnten nicht geladen werden.</div>;
   }
 
   return (

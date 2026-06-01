@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { isTestEnv } from "./test-utils";
+import { after } from "next/server";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -309,19 +310,21 @@ export async function getDashboardSummary(supabaseClient?: SupabaseClient) {
     'get_dashboard_summary',
     {},
     async () => {
-      const haeuser = await fetchHaeuser(supabase);
-      const wohnungen = await fetchWohnungen(supabase);
-      const mieter = await fetchMieter(supabase);
-      const aufgaben = await fetchAufgaben(supabase);
+      const currentYear = new Date().getFullYear();
+      const lastYear = (currentYear - 1).toString();
+
+      const [haeuser, wohnungen, mieter, aufgaben, nebenkosten] = await Promise.all([
+        fetchHaeuser(supabase),
+        fetchWohnungen(supabase),
+        fetchMieter(supabase),
+        fetchAufgaben(supabase),
+        fetchNebenkosten(lastYear, supabase),
+      ]);
 
       // Calculate monthly income
       const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
 
-      // Calculate yearly expenses from Nebenkosten - fetch only last year's data
-      const currentYear = new Date().getFullYear();
-      const lastYear = (currentYear - 1).toString();
-      const nebenkosten = await fetchNebenkosten(lastYear, supabase);
-
+      // Calculate yearly expenses from Nebenkosten
       const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
         const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
         // Sum all meter costs from zaehlerkosten JSONB
@@ -659,8 +662,8 @@ export async function logRpcCall(
     } else {
       posthogLogger.error(message, context as any);
     }
-    // Don't block on flush, let it happen in background and catch errors
-    posthogLogger.flush().catch(() => {});
+    // posthogLogger auto-batches and flushes on a 5s timer; manual flush
+    // here would defeat batching and add a per-call HTTP request.
   } catch {
     // Fallback if PostHog logger is unavailable
     const timestamp = new Date().toISOString();
@@ -694,12 +697,12 @@ export async function fetchWithRpcFallback<T>(
       return null;
     }
 
-    await logRpcCall(rpcName, contextName, startTime, true);
+    after(() => { logRpcCall(rpcName, contextName, startTime, true); });
     return data as T;
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    await logRpcCall(rpcName, contextName, startTime, false, { error: errorMessage });
+    after(() => { logRpcCall(rpcName, contextName, startTime, false, { error: errorMessage }); });
     console.warn(`⚠️ RPC ${rpcName} failed or unavailable. Executing TypeScript fallback for ${contextName}...`);
 
     try {
