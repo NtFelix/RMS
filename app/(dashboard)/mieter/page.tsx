@@ -52,7 +52,7 @@ export default async function MieterPage() {
   const today = new Date();
   const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
     // If the data comes from our enriched RPC, it already has status and tenant
-    if (apt.status && (apt.tenant !== undefined)) {
+    if (apt.status && apt.tenant != null) {
       return {
         ...apt,
         Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,

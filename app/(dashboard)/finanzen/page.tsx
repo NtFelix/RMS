@@ -4,18 +4,18 @@ export const dynamic = 'force-dynamic';
 import FinanzenClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
+import { calculateFinancialSummary, processRpcFinancialSummary, fetchAvailableFinanceYears } from "@/utils/financeCalculations";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 import { PAGINATION } from "@/constants";
 
 async function getSummaryData(supabase: SupabaseClient, year: number) {
-  return fetchWithRpcFallback(
+  const data = await fetchWithRpcFallback<unknown>(
     supabase,
     'get_financial_year_summary',
     { target_year: year },
     async () => {
-      // Fallback: Use the function that returns all transactions for the year
       const { data, error } = await supabase.rpc('get_financial_summary_data', {
         target_year: year
       });
@@ -25,36 +25,29 @@ async function getSummaryData(supabase: SupabaseClient, year: number) {
         return null;
       }
 
-      // Calculate summary using the utility function
-      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
       return calculateFinancialSummary(data || [], year, new Date());
     },
     'finanzen_year_summary'
-  ).then(async (data: any) => {
-    // If the data returned is from the first RPC (already processed object structure) vs raw array
-    if (!data || (Array.isArray(data) && data.length === 0)) {
-      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
-      return calculateFinancialSummary([], year, new Date());
-    }
+  );
 
-    if (Array.isArray(data) && data.length > 0 && !('total_income' in data[0])) {
-      // Data is from fallback (raw transactions array)
-      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
-      return calculateFinancialSummary(data, year, new Date());
+  if (!data) {
+    console.warn(`[finanzen] Both RPC and fallback returned no data for year ${year}. Rendering empty summary.`);
+    return calculateFinancialSummary([], year, new Date());
+  }
+
+  if (Array.isArray(data)) {
+    const isProcessedSummary = data.length > 0 && 'total_income' in data[0];
+    if (isProcessedSummary) {
+      return processRpcFinancialSummary(data[0], year);
     }
-    
-    // Data is from primary RPC
-    const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
-    return processRpcFinancialSummary(data[0] || data, year);
-  }).catch((error) => {
-    console.error('Error in getSummaryData pipeline:', error);
-    return null;
-  });
+    return calculateFinancialSummary(data, year, new Date());
+  }
+
+  return processRpcFinancialSummary(data, year);
 }
 
 async function getAvailableYears(supabase: SupabaseClient) {
-  const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
-  return await fetchAvailableFinanceYears(supabase);
+  return fetchAvailableFinanceYears(supabase);
 }
 
 /**

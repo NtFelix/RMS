@@ -148,7 +148,7 @@ export async function fetchNebenkosten(year?: string, supabaseClient?: SupabaseC
   return data as Nebenkosten[];
 }
 
-export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): Promise<NebenkostenChartData> {
+export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): Promise<NebenkostenChartData | null> {
   const supabase = supabaseClient || createSupabaseServerClient();
 
   return fetchWithRpcFallback(
@@ -661,7 +661,7 @@ export async function logRpcCall(
     }
     // Don't block on flush, let it happen in background and catch errors
     posthogLogger.flush().catch(() => {});
-  } catch (err) {
+  } catch {
     // Fallback if PostHog logger is unavailable
     const timestamp = new Date().toISOString();
     const level = success ? 'INFO' : 'ERROR';
@@ -680,37 +680,33 @@ export async function fetchWithRpcFallback<T>(
   rpcParams: Record<string, unknown>,
   fallbackFn: () => Promise<T>,
   contextName: string
-): Promise<T> {
+): Promise<T | null> {
   const startTime = performance.now();
-  
+
   try {
     const { data, error } = await supabase.rpc(rpcName, rpcParams);
-    
+
     if (error) {
       throw error;
     }
 
     if (data === null || data === undefined) {
-       throw new Error('RPC returned null or undefined');
+      return null;
     }
 
-    // Standardized successful logging
     await logRpcCall(rpcName, contextName, startTime, true);
     return data as T;
-    
+
   } catch (error) {
-    // Standardized error logging
     const errorMessage = error instanceof Error ? error.message : String(error);
     await logRpcCall(rpcName, contextName, startTime, false, { error: errorMessage });
     console.warn(`⚠️ RPC ${rpcName} failed or unavailable. Executing TypeScript fallback for ${contextName}...`);
-    
-    // Execute fallback with additional safety to prevent page crashes
+
     try {
       return await fallbackFn();
     } catch (fallbackError) {
       console.error(`[ERROR] Both RPC and Fallback failed for ${contextName}:`, fallbackError);
-      // Return a safe empty value (usually an array or empty object) to prevent page crash
-      return [] as unknown as T;
+      return null;
     }
   }
 }

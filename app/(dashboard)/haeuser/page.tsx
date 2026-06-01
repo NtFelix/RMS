@@ -51,6 +51,10 @@ export default async function HaeuserPage() {
     )
   ]);
 
+  if (housesData === null) {
+    return <div className="p-8 text-center text-muted-foreground">Fehler beim Laden der Häuser. Bitte versuchen Sie es später erneut.</div>;
+  }
+
   const houses = housesData ?? [];
   const apartments = apartmentsData ?? [];
   const tenants = tenantsData ?? [];
