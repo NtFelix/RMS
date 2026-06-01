@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 
@@ -15,15 +16,38 @@ export default async function MieterPage() {
 
   // Load data in parallel to eliminate waterfalls
   const [
-    { data: rawWohnungen, error: wohnungenError },
-    { data: rawMieter, error: mieterError }
+    rawWohnungen,
+    rawMieter
   ] = await Promise.all([
-    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
-    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id')
+    fetchWithRpcFallback(
+      supabase,
+      'get_mieter_wohnungen_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+        if (error) {
+          console.error('Fehler beim Laden der Wohnungen:', error);
+          throw error;
+        }
+        return data;
+      },
+      'mieter_wohnungen_overview'
+    ),
+    fetchWithRpcFallback(
+      supabase,
+      'get_mieter_details_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        if (error) {
+          console.error('Fehler beim Laden der Mieter:', error);
+          throw error;
+        }
+        return data;
+      },
+      'mieter_details_overview'
+    )
   ]);
-
-  if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
-  if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
 
   const today = new Date();
   const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {

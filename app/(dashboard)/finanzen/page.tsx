@@ -3,57 +3,53 @@ export const dynamic = 'force-dynamic';
 
 import FinanzenClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 
 import { PAGINATION } from "@/constants";
 
 async function getSummaryData(supabase: SupabaseClient, year: number) {
-  try {
-    // Use the optimized Supabase function that handles pagination internally
-    const { data, error } = await supabase.rpc('get_financial_year_summary', {
-      target_year: year
-    });
+  return fetchWithRpcFallback(
+    supabase,
+    'get_financial_year_summary',
+    { target_year: year },
+    async () => {
+      // Fallback: Use the function that returns all transactions for the year
+      const { data, error } = await supabase.rpc('get_financial_summary_data', {
+        target_year: year
+      });
 
-    if (error) {
-      console.error('Error fetching summary data with RPC:', error);
-      // Fallback to the function that returns raw data for client-side calculation
-      return await getSummaryDataFallback(supabase, year);
-    }
+      if (error) {
+        console.error('Error fetching summary data with fallback RPC:', error);
+        return null;
+      }
 
-    if (!data || data.length === 0) {
-      // Return empty summary for the year
+      // Calculate summary using the utility function
+      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+      return calculateFinancialSummary(data || [], year, new Date());
+    },
+    'finanzen_year_summary'
+  ).then(async (data: any) => {
+    // If the data returned is from the first RPC (already processed object structure) vs raw array
+    if (!data || (Array.isArray(data) && data.length === 0)) {
       const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
       return calculateFinancialSummary([], year, new Date());
     }
 
-    const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
-    return processRpcFinancialSummary(data[0], year);
-  } catch (error) {
-    console.error('Error in getSummaryData:', error);
-    return await getSummaryDataFallback(supabase, year);
-  }
-}
-
-async function getSummaryDataFallback(supabase: SupabaseClient, year: number) {
-  try {
-    // Fallback: Use the function that returns all transactions for the year
-    const { data, error } = await supabase.rpc('get_financial_summary_data', {
-      target_year: year
-    });
-
-    if (error) {
-      console.error('Error fetching summary data with fallback RPC:', error);
-      return null;
+    if (Array.isArray(data) && data.length > 0 && !('total_income' in data[0])) {
+      // Data is from fallback (raw transactions array)
+      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+      return calculateFinancialSummary(data, year, new Date());
     }
-
-    // Calculate summary using the utility function
-    const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
-    return calculateFinancialSummary(data || [], year, new Date());
-  } catch (error) {
-    console.error('Error in getSummaryDataFallback:', error);
+    
+    // Data is from primary RPC
+    const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
+    return processRpcFinancialSummary(data[0] || data, year);
+  }).catch((error) => {
+    console.error('Error in getSummaryData pipeline:', error);
     return null;
-  }
+  });
 }
 
 async function getAvailableYears(supabase: SupabaseClient) {
