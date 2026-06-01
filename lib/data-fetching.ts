@@ -655,11 +655,12 @@ export async function logRpcCall(
   try {
     const { posthogLogger } = await import('@/lib/posthog-logger');
     if (success) {
-      posthogLogger.info(message, context);
+      posthogLogger.info(message, context as any);
     } else {
-      posthogLogger.error(message, context);
+      posthogLogger.error(message, context as any);
     }
-    await posthogLogger.flush();
+    // Don't block on flush, let it happen in background and catch errors
+    posthogLogger.flush().catch(() => {});
   } catch (err) {
     // Fallback if PostHog logger is unavailable
     const timestamp = new Date().toISOString();
@@ -703,7 +704,13 @@ export async function fetchWithRpcFallback<T>(
     await logRpcCall(rpcName, contextName, startTime, false, { error: errorMessage });
     console.warn(`⚠️ RPC ${rpcName} failed or unavailable. Executing TypeScript fallback for ${contextName}...`);
     
-    // Execute fallback
-    return await fallbackFn();
+    // Execute fallback with additional safety to prevent page crashes
+    try {
+      return await fallbackFn();
+    } catch (fallbackError) {
+      console.error(`[ERROR] Both RPC and Fallback failed for ${contextName}:`, fallbackError);
+      // Return a safe empty value (usually an array or empty object) to prevent page crash
+      return [] as unknown as T;
+    }
   }
 }

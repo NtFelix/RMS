@@ -51,6 +51,15 @@ export default async function MieterPage() {
 
   const today = new Date();
   const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
+    // If the data comes from our enriched RPC, it already has status and tenant
+    if (apt.status && (apt.tenant !== undefined)) {
+      return {
+        ...apt,
+        Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
+      } as Wohnung;
+    }
+
+    // Fallback mapping logic
     const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
     if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
