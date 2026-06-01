@@ -414,7 +414,7 @@ function SidebarContent({
             onClick={isCollapsed && !isMobile ? toggleCollapse : undefined}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
-                if (isCollapsed && !isMobile) toggleCollapse();
+                if (isCollapsed && !isMobile) toggleCollapse?.();
               }
             }}
             role={isCollapsed && !isMobile ? "button" : undefined}

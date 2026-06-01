@@ -128,27 +128,29 @@ export function MaintenanceDonutChart() {
             <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" role="figure" aria-label="Ausgaben nach Kategorie Kreisdiagramm">
-            <PieChart>
-              <Pie
-                data={state.data}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius="40%"
-                outerRadius="70%"
-                fill="#8884d8"
-                paddingAngle={2}
-              >
-                {state.data.map((entry, idx) => (
-                  <Cell key={`cell-${entry.name}`} fill={COLORS[idx % COLORS.length]} />
-                ))}
-              </Pie>
-              <Legend wrapperStyle={{ fontSize: 10 }} />
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="w-full h-full" role="figure" aria-label="Ausgaben nach Kategorie Kreisdiagramm">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={state.data}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="40%"
+                  outerRadius="70%"
+                  fill="#8884d8"
+                  paddingAngle={2}
+                >
+                  {state.data.map((entry, idx) => (
+                    <Cell key={`cell-${entry.name}`} fill={COLORS[idx % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>

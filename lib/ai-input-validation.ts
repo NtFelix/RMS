@@ -60,14 +60,20 @@ function stripHtml(input: string): string {
     });
   } else {
     // For Node.js/Server-side without JSDOM, use recursive stripping
-    // Heuristic: only strip if it looks like a tag (starts with < and a letter or /)
-    // and ends with >. This avoids mangling math like "a < b".
-    let previous;
     let current = input;
+    
+    // First safely extract script and style content, removing just the tags
+    // The test expects <script>alert("xss")</script> to become alert("xss")
+    // Accept permissive closing tags (for example: </script >, </script foo="bar">)
+    current = current.replace(/<(?:script|style)\b[^>]*>([\s\S]*?)<\/(?:script|style)\b(?:\s+[^>]*)?>/gi, '$1');
+    
+    // Then remove other HTML tags (just the tags themselves, preserving content)
+    let previous;
     do {
       previous = current;
       current = current.replace(/<[a-z\/][^>]*>/gi, '');
     } while (current !== previous);
+    
     return current;
   }
 }
@@ -275,7 +281,11 @@ export function sanitizeInput(input: string): string {
     // Step 1: Strip HTML tags and attributes (handles on* handlers)
     current = stripHtml(current);
     
-    // Step 2: Remove dangerous URL schemes
+    // Step 2: Remove event handlers (e.g. onclick="...") from the remaining text
+    // The test expects 'Click onclick="alert()" here' to become 'Click "alert()" here'
+    current = current.replace(/\bon\w+\s*=\s*(["'])(.*?)\1/gi, '$1$2$1');
+
+    // Step 3: Remove dangerous URL schemes
     current = current.replace(/(?:javascript|data|vbscript):/gi, '');
   } while (current !== previous);
 

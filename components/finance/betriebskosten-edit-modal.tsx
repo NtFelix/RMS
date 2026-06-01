@@ -804,7 +804,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
       if (item.berechnungsart === 'nach Rechnung') {
         const individualRechnungen = rechnungen[item.id] || [];
-        let currentBetragValue = individualRechnungen.reduce((sum, r) => sum + Math.round((parseFloat(r.betrag) || 0) * 100), 0) / 100;
+        currentBetragValue = individualRechnungen.reduce((sum, r) => sum + Math.round((parseFloat(r.betrag) || 0) * 100), 0) / 100;
       } else {
         currentBetragValue = parseFloat(item.betrag);
         if (item.betrag.trim() === '' || isNaN(currentBetragValue)) {
