@@ -13,6 +13,12 @@ interface SearchInputProps extends InputProps {
 
 const DEFAULT_MODE = "default";
 
+const modeClasses = {
+  default: "",
+  table: "w-full sm:w-[300px]",
+  modal: "w-full"
+}
+
 export function SearchInput({
   className,
   wrapperClassName,
@@ -22,12 +28,6 @@ export function SearchInput({
   sizeVariant,
   ...props
 }: SearchInputProps) {
-
-  const modeClasses = {
-    default: "",
-    table: "w-full sm:w-[300px]",
-    modal: "w-full"
-  }
 
   const showClearButton = onClear && (props.value ? String(props.value).length > 0 : false);
 

@@ -63,7 +63,7 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
             <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider block mb-1">Aufteilung nach Mieter</span>
             <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-1">
               {data.distribution.map((dist: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
+                <div key={dist.tenantId || dist.tenantName || idx} className="flex justify-between items-center text-zinc-700 dark:text-zinc-300 gap-4">
                   <span className="truncate max-w-[120px] font-medium">{dist.tenantName}</span>
                   <span className="font-semibold shrink-0">{currencyFormatter.format(dist.amount)}</span>
                 </div>
