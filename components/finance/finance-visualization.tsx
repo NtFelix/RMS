@@ -345,7 +345,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Verteilung der Mieteinnahmen nach Wohnungen in {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Einnahmen nach Wohnung Kreisdiagramm für ${selectedYear}`}>
                     <ResponsiveContainer width="100%" aspect={16 / 9}>
                       <PieChart>
                         <Pie
@@ -387,7 +387,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Monatliche Einnahmen für das Jahr {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Monatliche Einnahmen Liniendiagramm für ${selectedYear}`}>
                     <ChartContainer
                       config={{
                         einnahmen: {
@@ -424,7 +424,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Vergleich von Einnahmen und Ausgaben im Jahr {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Einnahmen-Ausgaben-Verhältnis Balkendiagramm für ${selectedYear}`}>
                     <ChartContainer
                       config={{
                         einnahmen: {
@@ -466,7 +466,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Verteilung der Ausgaben nach Kategorien in {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Ausgabenkategorien Kreisdiagramm für ${selectedYear}`}>
                     <ResponsiveContainer width="100%" aspect={16 / 9}>
                       <PieChart>
                         <Pie

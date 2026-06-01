@@ -412,6 +412,13 @@ function SidebarContent({
         <div className="flex items-center overflow-hidden flex-1 min-w-0">
           <div
             onClick={isCollapsed && !isMobile ? toggleCollapse : undefined}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                if (isCollapsed && !isMobile) toggleCollapse();
+              }
+            }}
+            role={isCollapsed && !isMobile ? "button" : undefined}
+            tabIndex={isCollapsed && !isMobile ? 0 : undefined}
             className={cn(
               "flex items-center font-semibold overflow-hidden group/logo relative select-none shrink-0 cursor-pointer rounded-xl transition-all duration-300",
               isCollapsed && !isMobile ? "size-10 justify-center mx-auto hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80" : "gap-3"

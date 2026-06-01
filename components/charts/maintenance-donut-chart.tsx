@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useReducer } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { createClient } from "@/utils/supabase/client";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { getAggregatedMaintenanceData } from "@/app/finanzen-actions";
 
 type FinanzDaten = {
   id: string;
@@ -92,73 +92,16 @@ export function MaintenanceDonutChart() {
 
   useEffect(() => {
     const fetchMaintenanceData = async () => {
-      const supabase = createClient();
-      
       try {
-        // Fetch ALL finance data without limits - expenses only
-        let allFinanzenData: FinanzDaten[] = [];
-        let page = 0;
-        const pageSize = 5000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from("Finanzen")
-            .select("*")
-            .eq("ist_einnahmen", false) // Only expenses
-            .order("datum", { ascending: false })
-            .range(page * pageSize, (page + 1) * pageSize - 1);
-
-          if (error) {
-            console.error("Error fetching maintenance data:", error);
-            dispatch({ type: 'FETCH_ERROR' });
-            return;
-          }
-
-          if (data && data.length > 0) {
-            allFinanzenData = [...allFinanzenData, ...data];
-            page++;
-            if (data.length < pageSize) {
-              hasMore = false;
-            }
-          } else {
-            hasMore = false;
-          }
+        const response = await getAggregatedMaintenanceData();
+        
+        if (!response.success || !response.data) {
+          console.error("Error fetching maintenance data:", response.error);
+          dispatch({ type: 'FETCH_ERROR' });
+          return;
         }
 
-        // Categorize expenses based on keywords in the name
-        const categories = {
-          instandhaltung: 0,
-          reparatur: 0,
-          steuern: 0,
-          sonstige: 0,
-        };
-
-        allFinanzenData.forEach((item) => {
-          const name = item.name?.toLowerCase() || "";
-          const betrag = Number(item.betrag) || 0;
-
-          if (name.includes("instandhaltung") || name.includes("wartung") || name.includes("pflege")) {
-            categories.instandhaltung += betrag;
-          } else if (name.includes("reparatur") || name.includes("reparieren") || name.includes("defekt")) {
-            categories.reparatur += betrag;
-          } else if (name.includes("steuer") || name.includes("abgabe") || name.includes("gebühr")) {
-            categories.steuern += betrag;
-          } else {
-            categories.sonstige += betrag;
-          }
-        });
-
-        // Format data for the chart
-        const formattedData: MaintenanceData[] = [
-          { name: "Instandhaltung", value: categories.instandhaltung },
-          { name: "Reparatur", value: categories.reparatur },
-          { name: "Steuern", value: categories.steuern },
-          { name: "Sonstige", value: categories.sonstige },
-        ];
-
-        // Only show categories with values > 0
-        const filteredData = formattedData.filter(item => item.value > 0);
+        const filteredData = response.data;
         
         dispatch({
           type: 'FETCH_SUCCESS',
@@ -185,7 +128,7 @@ export function MaintenanceDonutChart() {
             <div className="animate-spin rounded-full size-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" role="figure" aria-label="Ausgaben nach Kategorie Kreisdiagramm">
             <PieChart>
               <Pie
                 data={state.data}

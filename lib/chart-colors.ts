@@ -11,14 +11,14 @@
  * charts with up to 8 distinct data points.
  */
 export const GLOBAL_CHART_COLORS = [
-  "#34d399", // Emerald
-  "#f59e42", // Amber
-  "#818cf8", // Indigo
-  "#f87171", // Rose
-  "#60a5fa", // Sky Blue
-  "#a78bfa", // Violet/Purple
-  "#f472b6", // Pink
-  "#38bdf8", // Light Cyan
+  "#059669", // Emerald 600
+  "#d97706", // Amber 600
+  "#4f46e5", // Indigo 600
+  "#e11d48", // Rose 600
+  "#0284c7", // Sky 600
+  "#7c3aed", // Violet 600
+  "#db2777", // Pink 600
+  "#0891b2", // Cyan 600
 ] as const;
 
 export type ChartColor = typeof GLOBAL_CHART_COLORS[number];

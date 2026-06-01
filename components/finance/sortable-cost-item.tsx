@@ -247,7 +247,7 @@ export function SortableCostItem({
               {rechnungen[item.id] && selectedHausMieter.length > 0 && (
                 <div className="pt-2 mt-2 border-t border-gray-400 dark:border-gray-500 flex justify-end">
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0))} €
+                    Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + Math.round((parseFloat(r.betrag) || 0) * 100), 0) / 100)} €
                   </p>
                 </div>
               )}

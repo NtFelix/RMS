@@ -1333,10 +1333,10 @@ export default function MieterClientView({
                           <UserPlus className="size-6 text-muted-foreground/50 animate-pulse" />
                         </div>
                         <span className="text-sm font-semibold text-muted-foreground">
-                          Bewerber-Import inaktiv
+                          Bewerber-Import
                         </span>
                         <span className="text-xs text-muted-foreground/60 max-w-[280px] mt-1.5">
-                          Aktivieren Sie das Bewerber-Feature in den Kontoeinstellungen, um automatische KI-Mail-Importe und Eignungs-Scoring freizuschalten.
+                          Dieses Feature wird zu einem späteren Zeitpunkt veröffentlicht. Automatische KI-Mail-Importe und Eignungs-Scoring sind dann verfügbar.
                         </span>
                       </div>
                     ) : applicantScoreDistribution.totalWithScore === 0 ? (
