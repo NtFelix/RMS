@@ -42,7 +42,12 @@ export default async function Dashboard() {
     getNebenkostenChartData(supabase)
   ]);
 
-  const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData;
+  const { data: nebenkostenChartData, year: nebenkostenYear } = nebenkostenData ?? { data: [], year: new Date().getFullYear() };
+
+  if (!summary) {
+    console.warn('[dashboard] Dashboard summary unavailable (both RPC and fallback failed).');
+    return <div role="alert" className="flex flex-col gap-8 p-8 text-center text-muted-foreground">Dashboard-Daten konnten nicht geladen werden.</div>;
+  }
 
   return (
     <div className="flex flex-col gap-8 p-8">

@@ -2,6 +2,7 @@
 
 export const runtime = 'edge';
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
 import { House } from "@/components/tables/house-table"; // Type for enrichedHaeuser
@@ -11,18 +12,47 @@ export default async function HaeuserPage() {
 
   // Load data in parallel
   const [
-    { data: housesData, error: housesError },
-    { data: apartmentsData, error: apartmentsError },
-    { data: tenantsData, error: tenantsError }
+    housesData,
+    apartmentsData,
+    tenantsData
   ] = await Promise.all([
-    supabase.from('Haeuser').select('*').eq('user_id', user.id),
-    supabase.from('Wohnungen').select('*').eq('user_id', user.id),
-    supabase.from('Mieter').select('wohnung_id,einzug,auszug').eq('user_id', user.id)
+    fetchWithRpcFallback(
+      supabase,
+      'get_haeuser_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Haeuser').select('*').eq('user_id', user.id);
+        if (error) throw error;
+        return data;
+      },
+      'haeuser_overview_houses'
+    ),
+    fetchWithRpcFallback(
+      supabase,
+      'get_haeuser_wohnungen_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Wohnungen').select('*').eq('user_id', user.id);
+        if (error) throw error;
+        return data;
+      },
+      'haeuser_overview_apartments'
+    ),
+    fetchWithRpcFallback(
+      supabase,
+      'get_haeuser_mieter_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Mieter').select('wohnung_id,einzug,auszug').eq('user_id', user.id);
+        if (error) throw error;
+        return data;
+      },
+      'haeuser_overview_tenants'
+    )
   ]);
 
-  if (housesError || apartmentsError || tenantsError) {
-    console.error('Fehler beim Laden der Daten:', { housesError, apartmentsError, tenantsError });
-    return <div>Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.</div>;
+  if (housesData === null) {
+    return <div role="alert" className="p-8 text-center text-muted-foreground">Fehler beim Laden der Häuser. Bitte versuchen Sie es später erneut.</div>;
   }
 
   const houses = housesData ?? [];
