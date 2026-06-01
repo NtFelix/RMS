@@ -310,6 +310,8 @@ export function CloudStorage({
      */
     const { filteredFiles, filteredFolders } = useMemo(() => {
         const query = searchQuery.toLowerCase()
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
         
         const fFiles = files.filter(file => {
             const matchesSearch = !query || file.name.toLowerCase().includes(query)
@@ -327,8 +329,6 @@ export function CloudStorage({
                     return ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext || '')
                 }
                 case 'recent': {
-                    const weekAgo = new Date()
-                    weekAgo.setDate(weekAgo.getDate() - 7)
                     return new Date(file.updated_at) > weekAgo
                 }
                 default:

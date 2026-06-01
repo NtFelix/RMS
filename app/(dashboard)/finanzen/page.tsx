@@ -21,11 +21,10 @@ async function getSummaryData(supabase: SupabaseClient, year: number) {
       });
 
       if (error) {
-        console.error('Error fetching summary data with fallback RPC:', error);
-        return null;
+        throw error;
       }
 
-      return calculateFinancialSummary(data || [], year, new Date());
+      return data || [];
     },
     'finanzen_year_summary'
   );

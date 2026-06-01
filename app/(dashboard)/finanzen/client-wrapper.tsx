@@ -101,7 +101,7 @@ const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
 
 export default function FinanzenClientWrapper({
   finances: initialFinances,
-  wohnungen,
+  wohnungen = [],
   summaryData: initialSummaryData,
   initialAvailableYears = [],
   initialYear,

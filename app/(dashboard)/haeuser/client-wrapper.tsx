@@ -21,6 +21,15 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 // Hoisted formatters
+const safeParseFloat = (val: any): number => {
+  if (typeof val === "number") return val;
+  const str = String(val || "0").trim();
+  if (str.includes(",")) {
+    return parseFloat(str.replace(/\./g, "").replace(/,/g, "."));
+  }
+  return parseFloat(str) || 0;
+};
+
 const currencyFormatter = new Intl.NumberFormat("de-DE", {
   style: "currency",
   currency: "EUR",
@@ -89,8 +98,8 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
       (acc, h) => {
         const apts = h.totalApartments ?? 0;
         const free = h.freeApartments ?? 0;
-        const sizeVal = parseFloat(String(h.size || 0));
-        const rentVal = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
+        const sizeVal = safeParseFloat(h.size);
+        const rentVal = safeParseFloat(h.rent);
 
         acc.totalApartments += apts;
         acc.freeApartments += free;
@@ -117,7 +126,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
 
     enrichedHaeuser.forEach(h => {
       // Parse rent string (e.g. "1.200,00" or similar) into number
-      const rentNum = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
+      const rentNum = safeParseFloat(h.rent);
       const totalApts = h.totalApartments || 0;
       const freeApts = h.freeApartments || 0;
       
@@ -160,8 +169,8 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
     const TARGET_SQM_RENT = 15;
 
     enrichedHaeuser.forEach(h => {
-      const sizeNum = parseFloat(String(h.size || "0").replace(/\./g, "").replace(/,/g, "."));
-      const rentNum = parseFloat(String(h.rent || "0").replace(/\./g, "").replace(/,/g, "."));
+      const sizeNum = safeParseFloat(h.size);
+      const rentNum = safeParseFloat(h.rent);
       
       if (sizeNum > 0 && rentNum > 0) {
         const rentPerSqm = rentNum / sizeNum;

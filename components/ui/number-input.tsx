@@ -26,7 +26,9 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       setDisplayValue(inputValue)
 
       // Convert German format (e.g. 1.234,56) to standard format (1234.56)
-      const dotValue = inputValue.replace(/\./g, "").replace(",", ".")
+      const dotValue = inputValue.includes(",")
+        ? inputValue.replace(/\./g, "").replace(",", ".")
+        : inputValue;
 
       if (onChange) {
         // Create a proxy event that allows reading target.name and target.value

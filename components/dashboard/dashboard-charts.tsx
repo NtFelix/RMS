@@ -18,6 +18,16 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 
+// Hoisted safe parse helper
+const safeParseFloat = (val: any): number => {
+  if (typeof val === "number") return val;
+  const str = String(val || "0").trim();
+  if (str.includes(",")) {
+    return parseFloat(str.replace(/\./g, "").replace(/,/g, "."));
+  }
+  return parseFloat(str) || 0;
+};
+
 // ==========================================
 // 1. Meters Donut Chart
 // ==========================================
@@ -434,9 +444,7 @@ export function FinanceDonutChart({ finanzen, isLoading = false }: FinanceDonutC
 
     finanzen.forEach(item => {
       if (!item.ist_einnahmen) {
-        const amount = typeof item.betrag === 'number' 
-          ? item.betrag 
-          : parseFloat(String(item.betrag || 0).replace(',', '.'));
+        const amount = safeParseFloat(item.betrag);
         
         if (isNaN(amount)) return;
         
@@ -475,9 +483,7 @@ export function FinanceDonutChart({ finanzen, isLoading = false }: FinanceDonutC
     let totalIncome = 0;
     finanzen.forEach(item => {
       if (item.ist_einnahmen) {
-        const amount = typeof item.betrag === 'number' 
-          ? item.betrag 
-          : parseFloat(String(item.betrag || 0).replace(',', '.'));
+        const amount = safeParseFloat(item.betrag);
           
         if (isNaN(amount)) return;
         
