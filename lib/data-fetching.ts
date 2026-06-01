@@ -637,8 +637,6 @@ export async function logRpcCall(
   options?: Record<string, unknown>
 ) {
   const duration = Math.round(performance.now() - startTime);
-  const timestamp = new Date().toISOString();
-  const level = success ? 'INFO' : 'ERROR';
   const message = success ? `RPC call completed: ${functionName}` : `RPC call failed: ${functionName}`;
   
   let performanceLevel = 'fast';
@@ -654,9 +652,6 @@ export async function logRpcCall(
     ...options
   };
 
-  // Structured console log exactly matching the requested format
-  console.log(`[${timestamp}] [${level}] ${message}\nContext: ${JSON.stringify(context, null, 2)}`);
-  
   try {
     const { posthogLogger } = await import('@/lib/posthog-logger');
     if (success) {
@@ -666,7 +661,10 @@ export async function logRpcCall(
     }
     await posthogLogger.flush();
   } catch (err) {
-    // If PostHog import fails, the console.log above already captured the event
+    // Fallback if PostHog logger is unavailable
+    const timestamp = new Date().toISOString();
+    const level = success ? 'INFO' : 'ERROR';
+    console.log(`[${timestamp}] [${level}] ${message}\nContext: ${JSON.stringify(context, null, 2)}`);
   }
 }
 
@@ -691,8 +689,8 @@ export async function fetchWithRpcFallback<T>(
       throw error;
     }
 
-    if (data === null || data === undefined || (Array.isArray(data) && data.length === 0)) {
-       throw new Error('RPC returned empty or null data');
+    if (data === null || data === undefined) {
+       throw new Error('RPC returned null or undefined');
     }
 
     // Standardized successful logging
