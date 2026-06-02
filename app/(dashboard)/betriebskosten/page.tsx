@@ -3,7 +3,7 @@
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-import { fetchHaeuser as fetchHaeuserServer } from "../../../lib/data-fetching";
+import { fetchHaeuser as fetchHaeuserServer, fetchWithRpcFallback } from "../../../lib/data-fetching";
 import { fetchNebenkostenListOptimized } from "@/app/betriebskosten-actions";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import BetriebskostenClientView from "./client-wrapper"; // Import the default export
@@ -15,11 +15,47 @@ import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
   
-  // Use optimized function that eliminates individual getHausGesamtFlaeche calls
-  const nebenkostenResult = await fetchNebenkostenListOptimized();
+  // Fetch all necessary data in parallel
+  const [
+    nebenkostenResult,
+    haeuserData,
+    tenantsData,
+    financesData
+  ] = await Promise.all([
+    fetchNebenkostenListOptimized(),
+    fetchHaeuserServer(supabase),
+    fetchWithRpcFallback(
+      supabase,
+      'get_betriebskosten_mieter_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Mieter').select('id, wohnung_id, nebenkosten, einzug, auszug');
+        if (error) throw error;
+        return data;
+      },
+      'betriebskosten_mieter_overview'
+    ),
+    fetchWithRpcFallback(
+      supabase,
+      'get_betriebskosten_finanzen_overview',
+      { years_back: 5 },
+      async () => {
+        const { data, error } = await supabase
+          .from('Finanzen')
+          .select('id, betrag, ist_einnahmen, tags, datum, wohnung_id')
+          .eq('ist_einnahmen', true)
+          .gte('datum', `${new Date().getFullYear() - 5}-01-01`)
+          .or('tags.cs.{"Nebenkosten"},tags.cs.{"Vorauszahlung"}');
+        if (error) throw error;
+        return data;
+      },
+      'betriebskosten_finanzen_overview'
+    )
+  ]);
+
   const nebenkostenData: OptimizedNebenkosten[] = nebenkostenResult.success ? nebenkostenResult.data || [] : [];
-  
-  const haeuserData: Haus[] = await fetchHaeuserServer(supabase);
+  const tenants = tenantsData || [];
+  const finances = financesData || [];
 
   let ownerName = "Vermieter Name";
   if (user) {
@@ -36,6 +72,8 @@ export default async function BetriebskostenPage() {
     <BetriebskostenClientView
       initialNebenkosten={nebenkostenData}
       initialHaeuser={haeuserData}
+      initialTenants={tenants}
+      initialFinances={finances}
       ownerName={ownerName}
     />
   );

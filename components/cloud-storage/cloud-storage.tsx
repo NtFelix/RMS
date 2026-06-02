@@ -8,10 +8,15 @@ import {
     FolderOpen,
     Plus,
     ArrowUp,
+    Image,
+    File,
     AlertCircle
 } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-cloud-storage-store"
+import { useCloudStorageNavigationStore } from "@/hooks/use-cloud-storage-navigation"
 import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
@@ -87,6 +92,7 @@ export function CloudStorage({
         files,
         folders,
         breadcrumbs,
+        currentPath,
         setCurrentPath,
         setFiles,
         setFolders,
@@ -105,9 +111,6 @@ export function CloudStorage({
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
     const [activeFilter, setActiveFilter] = useState<FilterType>('all')
     const [totalStorageSize, setTotalStorageSize] = useState(initialTotalSize)
-
-    // Local tracking of current path - critical for proper navigation
-    const [localCurrentPath, setLocalCurrentPath] = useState(initialPath)
 
     // Track initialization
     const isInitialized = useRef(false)
@@ -141,13 +144,13 @@ export function CloudStorage({
     useEffect(() => {
         if (!isInitialized.current && initialPath) {
             isInitialized.current = true
+            
             setCurrentPath(initialPath)
-            setLocalCurrentPath(initialPath)
 
             if (initialFiles.length > 0) setFiles(initialFiles)
             if (initialFolders.length > 0) setFolders(initialFolders)
             if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
-            if (initialTotalSize > 0) setTotalStorageSize(initialTotalSize)
+            // totalStorageSize is already initialized via useState(initialTotalSize)
 
             setError(null)
             setLoading(false)
@@ -160,7 +163,7 @@ export function CloudStorage({
                 url
             )
         }
-    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, initialTotalSize, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl])
+    }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading, pathToUrl])
 
     /**
      * Handle efficient navigation using the navigation controller
@@ -171,7 +174,7 @@ export function CloudStorage({
      */
     const handleNavigate = useCallback(async (path: string, useClientSide = true, skipHistoryPush = false) => {
         // Use local path tracking for accurate navigation detection
-        if (path === localCurrentPath) return
+        if (path === currentPath) return
 
         // Clear selections immediately
         setSelectedItems(new Set())
@@ -184,7 +187,6 @@ export function CloudStorage({
                 const data = result.data as LoadResult
                 startTransition(() => {
                     setCurrentPath(path)
-                    setLocalCurrentPath(path)
                     setFiles(data.files)
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
@@ -203,10 +205,16 @@ export function CloudStorage({
                     )
                 }
             }
-        } else {
-            router.push(pathToUrl(path))
         }
-    }, [localCurrentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+    }, [currentPath, navigate, pathToUrl, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, startTransition])
+
+    // Synchronize with external navigation store changes (e.g. sidebar file tree click)
+    const navCurrentPath = useCloudStorageNavigationStore(state => state.currentPath)
+    useEffect(() => {
+        if (navCurrentPath && navCurrentPath !== currentPath) {
+            handleNavigate(navCurrentPath, true, true)
+        }
+    }, [navCurrentPath, currentPath, handleNavigate])
 
     /**
      * Handle folder navigation
@@ -226,21 +234,21 @@ export function CloudStorage({
      * Handle navigate up
      */
     const handleNavigateUp = useCallback(() => {
-        if (localCurrentPath) {
-            const segments = localCurrentPath.split('/').filter(Boolean)
+        if (currentPath) {
+            const segments = currentPath.split('/').filter(Boolean)
             if (segments.length > 1) {
                 const parentPath = segments.slice(0, -1).join('/')
                 handleNavigate(parentPath, true, false)
             }
         }
-    }, [localCurrentPath, handleNavigate])
+    }, [currentPath, handleNavigate])
 
     /**
      * Optimized refresh that syncs both store and UI
      */
     const handleRefresh = useCallback(async (showToast = true) => {
         try {
-            const result = await navigate(localCurrentPath, { force: true })
+            const result = await navigate(currentPath, { force: true })
 
             if (result.success && result.data) {
                 const data = result.data as LoadResult
@@ -267,7 +275,7 @@ export function CloudStorage({
                 })
             }
         }
-    }, [localCurrentPath, navigate, setFiles, setFolders, setBreadcrumbs, toast, startTransition])
+    }, [currentPath, navigate, setFiles, setFolders, setBreadcrumbs, toast, startTransition])
 
     /**
      * Handle browser back/forward navigation
@@ -286,7 +294,7 @@ export function CloudStorage({
                 if (pathMatch) {
                     const urlPath = pathMatch[1] || ''
                     const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
-                    if (storagePath !== localCurrentPath) {
+                    if (storagePath !== currentPath) {
                         handleNavigate(storagePath, true, true)
                     }
                 }
@@ -295,51 +303,50 @@ export function CloudStorage({
 
         window.addEventListener('popstate', handlePopState)
         return () => window.removeEventListener('popstate', handlePopState)
-    }, [handleNavigate, userId, localCurrentPath])
+    }, [handleNavigate, userId, currentPath])
 
     /**
      * Filter and sort items
      */
     const { filteredFiles, filteredFolders } = useMemo(() => {
-        let filteredFiles = files
-        let filteredFolders = folders
+        const query = searchQuery.toLowerCase()
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        
+        const fFiles = files.filter(file => {
+            const matchesSearch = !query || file.name.toLowerCase().includes(query)
+            if (!matchesSearch) return false
 
-        // Apply search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase()
-            filteredFiles = files.filter(file => file.name.toLowerCase().includes(query))
-            filteredFolders = folders.filter(folder => folder.name.toLowerCase().includes(query))
-        }
-
-        // Apply type filter
-        switch (activeFilter) {
-            case 'folders':
-                filteredFiles = []
-                break
-            case 'images':
-                filteredFiles = files.filter(file => {
+            switch (activeFilter) {
+                case 'folders':
+                    return false
+                case 'images': {
                     const ext = file.name.split('.').pop()?.toLowerCase()
                     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')
-                })
-                filteredFolders = []
-                break
-            case 'documents':
-                filteredFiles = files.filter(file => {
+                }
+                case 'documents': {
                     const ext = file.name.split('.').pop()?.toLowerCase()
                     return ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext || '')
-                })
-                filteredFolders = []
-                break
-            case 'recent':
-                const weekAgo = new Date()
-                weekAgo.setDate(weekAgo.getDate() - 7)
-                filteredFiles = files.filter(file =>
-                    new Date(file.updated_at) > weekAgo
-                )
-                break
-        }
+                }
+                case 'recent': {
+                    return new Date(file.updated_at) > weekAgo
+                }
+                default:
+                    return true
+            }
+        })
 
-        return { filteredFiles, filteredFolders }
+        const fFolders = folders.filter(folder => {
+            const matchesSearch = !query || folder.name.toLowerCase().includes(query)
+            if (!matchesSearch) return false
+
+            if (activeFilter === 'all' || activeFilter === 'folders' || activeFilter === 'recent') {
+                return true
+            }
+            return false
+        })
+
+        return { filteredFiles: fFiles, filteredFolders: fFolders }
     }, [files, folders, searchQuery, activeFilter])
 
     /**
@@ -374,6 +381,43 @@ export function CloudStorage({
      * Calculate total file size
      */
     const totalFileSize = totalStorageSize
+
+    const formatFileSize = useCallback((bytes: number): string => {
+        if (bytes === 0) return '0 B'
+        const k = 1024
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
+    }, [])
+
+    const documentStats = useMemo(() => {
+        const totalFiles = files.length
+        
+        // Count of each file type
+        const pdfCount = files.filter(doc => (doc.name || '').toLowerCase().endsWith('.pdf')).length
+        
+        // spreadsheet count
+        const spreadsheetCount = files.filter(doc => {
+            const ext = (doc.name || '').split('.').pop()?.toLowerCase()
+            return ['xls', 'xlsx', 'csv', 'ods'].includes(ext || '')
+        }).length
+        
+        // image count
+        const imageCount = files.filter(doc => {
+            const ext = (doc.name || '').split('.').pop()?.toLowerCase()
+            return ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext || '')
+        }).length
+        
+        const otherCount = totalFiles - (pdfCount + spreadsheetCount + imageCount)
+        
+        return {
+            totalFiles,
+            pdfCount,
+            spreadsheetCount,
+            imageCount,
+            otherCount
+        }
+    }, [files])
 
     /**
      * Handle item selection
@@ -494,7 +538,7 @@ export function CloudStorage({
      * Handle upload
      */
     const handleUpload = useCallback(() => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
                 handleRefresh(false)
@@ -503,13 +547,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [localCurrentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle upload with files (for drag & drop)
      */
     const handleUploadWithFiles = useCallback((files: File[]) => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openUploadModal(targetPath, () => {
                 handleRefresh(false)
@@ -518,13 +562,13 @@ export function CloudStorage({
                 })
             }, files)
         }
-    }, [localCurrentPath, initialPath, openUploadModal, handleRefresh, toast])
+    }, [currentPath, initialPath, openUploadModal, handleRefresh, toast])
 
     /**
      * Handle create folder
      */
     const handleCreateFolder = useCallback(() => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFolderModal(targetPath, (folderName: string) => {
                 const newFolder: VirtualFolder = {
@@ -545,13 +589,13 @@ export function CloudStorage({
                 })
             })
         }
-    }, [localCurrentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
+    }, [currentPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
 
     /**
      * Handle create file
      */
     const handleCreateFile = useCallback(() => {
-        const targetPath = localCurrentPath || initialPath
+        const targetPath = currentPath || initialPath
         if (targetPath) {
             openCreateFileModal(targetPath, (fileName: string) => {
                 handleRefresh(false)
@@ -561,34 +605,30 @@ export function CloudStorage({
                 })
             })
         }
-    }, [localCurrentPath, initialPath, openCreateFileModal, handleRefresh, toast])
+    }, [currentPath, initialPath, openCreateFileModal, handleRefresh, toast])
 
     // Determine loading and error states
     const showLoading = isNavigating || isPending
     const displayError = navigationError
 
     return (
-        <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-            <div
-                className="absolute inset-0 z-[-1]"
-                style={{
-                    backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
-                }}
-            />
+        <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden gap-6">
+            
+            {/* Top Row: Full-width Summary Cards Container */}
+            <div className="shrink-0">
+                <DocumentsSummaryCards
+                    totalSize={totalFileSize}
+                    storageLimit={storageLimit ?? initialStorageLimit}
+                    isLoadingLimit={isLoadingLimit}
+                    onUpload={handleUploadWithFiles}
+                    onCreateFolder={handleCreateFolder}
+                />
+            </div>
 
-            {/* Summary Cards Container */}
-            <DocumentsSummaryCards
-                totalSize={totalFileSize}
-                storageLimit={storageLimit ?? initialStorageLimit}
-                isLoadingLimit={isLoadingLimit}
-                onUpload={handleUploadWithFiles}
-                onCreateFolder={handleCreateFolder}
-            />
-
-            {/* Main File Container */}
-            <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] h-full flex flex-col">
+            {/* Main Explorer Panel */}
+            <div className="flex-1 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] h-full flex flex-col min-h-0 overflow-hidden">
                 {/* Header */}
-                <div className="border-b border-gray-200 dark:border-gray-700">
+                <div className="border-b border-gray-200 dark:border-gray-700 shrink-0">
                     <div className="p-6">
                         <div className="flex flex-row items-start justify-between mb-6">
                             <div>
@@ -597,238 +637,239 @@ export function CloudStorage({
                             </div>
                         </div>
 
-                        {/* Quick Actions */}
-                        <CloudStorageQuickActions
-                            onUpload={handleUpload}
-                            onCreateFolder={handleCreateFolder}
-                            onCreateFile={handleCreateFile}
-                            onSearch={setSearchQuery}
-                            onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
-                            onViewMode={setViewMode}
-                            onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
-                            viewMode={viewMode}
-                            searchQuery={searchQuery}
-                            selectedCount={selectedItems.size}
-                            onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
-                            onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-                            isUploadDisabled={storageLimit === 0 || (storageLimit > 0 && totalFileSize >= storageLimit)}
-                            storageDisabledMessage={
-                                storageLimit === 0
-                                    ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
-                                    : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
-                            }
-                        />
-
-                        {/* Breadcrumb Navigation */}
-                        <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
-                            <ol className="flex items-center space-x-1">
-                                {breadcrumbs.map((breadcrumb, index) => {
-                                    const isLast = index === breadcrumbs.length - 1
-
-                                    return (
-                                        <li key={breadcrumb.path} className="flex items-center">
-                                            {index > 0 && (
-                                                <span className="mx-2.5 text-muted-foreground/50">/</span>
-                                            )}
-
-                                            {isLast ? (
-                                                <span
-                                                    className={cn(
-                                                        "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                                                        "text-foreground font-medium cursor-default"
-                                                    )}
-                                                    aria-current="page"
-                                                >
-                                                    {breadcrumb.type === 'root' && (
-                                                        <FolderOpen className="h-4 w-4 mr-1.5" />
-                                                    )}
-                                                    <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                                                        {breadcrumb.name}
-                                                    </span>
-                                                </span>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleBreadcrumbClick(breadcrumb)}
-                                                    disabled={isNavigating}
-                                                    className={cn(
-                                                        "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                                                        "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer",
-                                                        "disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    )}
-                                                >
-                                                    {breadcrumb.type === 'root' && (
-                                                        <FolderOpen className="h-4 w-4 mr-1.5" />
-                                                    )}
-                                                    <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                                                        {breadcrumb.name}
-                                                    </span>
-                                                </button>
-                                            )}
-                                        </li>
-                                    )
-                                })}
-
-                                {/* Navigate Up Button */}
-                                {breadcrumbs.length > 1 && (
-                                    <li className="flex items-center ml-4">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleNavigateUp}
-                                            disabled={isNavigating}
-                                            className="h-8 px-2"
-                                        >
-                                            <ArrowUp className="h-4 w-4" />
-                                        </Button>
-                                    </li>
-                                )}
-                            </ol>
-                        </nav>
-                    </div>
-                </div>
-
-                {/* Content Area */}
-                <div className="flex-1 overflow-auto">
-                    <div className="p-6">
-
-                        {/* Loading State - Premium Skeleton Loading */}
-                        {showLoading && (
-                            <div className="animate-in fade-in duration-300">
-                                {stats.retryCount > 0 && isNavigating && (
-                                    <div className="flex items-center justify-center space-x-2 text-amber-600 mb-6 bg-amber-50 dark:bg-amber-900/10 py-3 rounded-xl border border-amber-100 dark:border-amber-900/20 animate-pulse">
-                                        <RefreshCw className="h-4 w-4 animate-spin" />
-                                        <span className="text-sm font-medium">
-                                            Verbindungsproblem. Erneuter Versuch ({stats.retryCount}/{MAX_RETRIES})...
-                                        </span>
-                                    </div>
-                                )}
-                                <FileGridSkeleton
+                                {/* Quick Actions */}
+                                <CloudStorageQuickActions
+                                    onUpload={handleUpload}
+                                    onCreateFolder={handleCreateFolder}
+                                    onCreateFile={handleCreateFile}
+                                    onSearch={setSearchQuery}
+                                    onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
+                                    onViewMode={setViewMode}
+                                    onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
                                     viewMode={viewMode}
-                                    count={files.length > 0 ? Math.max(files.length + folders.length, 8) : 12}
-                                />
-                            </div>
-                        )}
-
-                        {/* Error State */}
-                        {displayError && !showLoading && (
-                            <div className="text-center py-16">
-                                <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                    <AlertCircle className="h-8 w-8 text-destructive" />
-                                </div>
-                                <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
-                                <p className="text-muted-foreground mb-4 max-w-md mx-auto">{displayError}</p>
-                                <div className="flex items-center justify-center space-x-3">
-                                    <Button onClick={() => handleRefresh(true)}>
-                                        <RefreshCw className="h-4 w-4 mr-2" />
-                                        Erneut versuchen
-                                    </Button>
-                                    <Button variant="outline" onClick={clearNavigationError}>
-                                        Fehler ignorieren
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Empty State */}
-                        {!showLoading && !displayError && sortedFolders.length === 0 && sortedFiles.length === 0 && (
-                            <div className="text-center py-16">
-                                <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
-                                </div>
-                                <h3 className="text-xl font-semibold mb-2">
-                                    {searchQuery ? 'Keine Ergebnisse gefunden' : 'Noch keine Dateien'}
-                                </h3>
-                                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                                    {searchQuery
-                                        ? `Keine Dateien oder Ordner entsprechen "${searchQuery}"`
-                                        : 'Laden Sie Ihre ersten Dateien hoch, um zu beginnen.'
+                                    searchQuery={searchQuery}
+                                    selectedCount={selectedItems.size}
+                                    onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
+                                    onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
+                                    isUploadDisabled={storageLimit === 0 || (storageLimit > 0 && totalFileSize >= storageLimit)}
+                                    storageDisabledMessage={
+                                        storageLimit === 0
+                                            ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
+                                            : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
                                     }
-                                </p>
-                                {!searchQuery && (
-                                    <div className="flex items-center justify-center space-x-3">
-                                        <Button onClick={handleUpload}>
-                                            <Upload className="h-4 w-4 mr-2" />
-                                            Dateien hochladen
-                                        </Button>
-                                        <Button variant="outline" onClick={handleCreateFolder}>
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Ordner erstellen
-                                        </Button>
+                                />
+
+                                {/* Breadcrumb Navigation */}
+                                <nav className="flex items-center gap-1 text-base mt-4" aria-label="Breadcrumb">
+                                    <ol className="flex items-center gap-1">
+                                        {breadcrumbs.map((breadcrumb, index) => {
+                                            const isLast = index === breadcrumbs.length - 1
+
+                                            return (
+                                                <li key={breadcrumb.path} className="flex items-center">
+                                                    {index > 0 && (
+                                                        <span className="mx-2.5 text-muted-foreground/50">/</span>
+                                                    )}
+
+                                                    {isLast ? (
+                                                        <span
+                                                            className={cn(
+                                                                "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                                                                "text-foreground font-medium cursor-default"
+                                                            )}
+                                                            aria-current="page"
+                                                        >
+                                                            {breadcrumb.type === 'root' && (
+                                                                <FolderOpen className="size-4 mr-1.5" />
+                                                            )}
+                                                            <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                                                                {breadcrumb.name}
+                                                            </span>
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleBreadcrumbClick(breadcrumb)}
+                                                            disabled={isNavigating}
+                                                            className={cn(
+                                                                "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                                                                "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer",
+                                                                "disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            )}
+                                                        >
+                                                            {breadcrumb.type === 'root' && (
+                                                                <FolderOpen className="size-4 mr-1.5" />
+                                                            )}
+                                                            <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                                                                {breadcrumb.name}
+                                                            </span>
+                                                        </button>
+                                                    )}
+                                                </li>
+                                            )
+                                        })}
+
+                                        {/* Navigate Up Button */}
+                                        {breadcrumbs.length > 1 && (
+                                            <li className="flex items-center ml-4">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={handleNavigateUp}
+                                                    disabled={isNavigating}
+                                                    className="h-8 px-2"
+                                                >
+                                                    <ArrowUp className="size-4" />
+                                                </Button>
+                                            </li>
+                                        )}
+                                    </ol>
+                                </nav>
+                            </div>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-auto">
+                            <div className="p-6">
+
+                                {/* Loading State - Premium Skeleton Loading */}
+                                {showLoading && (
+                                    <div className="animate-in fade-in duration-300">
+                                        {stats.retryCount > 0 && isNavigating && (
+                                            <div className="flex items-center justify-center gap-2 text-amber-600 mb-6 bg-amber-50 dark:bg-amber-900/10 py-3 rounded-xl border border-amber-100 dark:border-amber-900/20 animate-pulse">
+                                                <RefreshCw className="size-4 animate-spin" />
+                                                <span className="text-sm font-medium">
+                                                    Verbindungsproblem. Erneuter Versuch ({stats.retryCount}/{MAX_RETRIES})...
+                                                </span>
+                                            </div>
+                                        )}
+                                        <FileGridSkeleton
+                                            viewMode={viewMode}
+                                            count={files.length > 0 ? Math.max(files.length + folders.length, 8) : 12}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Error State */}
+                                {displayError && !showLoading && (
+                                    <div className="text-center py-16">
+                                        <div className="bg-destructive/10 rounded-full p-4 size-16 mx-auto mb-4 flex items-center justify-center">
+                                            <AlertCircle className="size-8 text-destructive" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold mb-2">Fehler beim Laden</h3>
+                                        <p className="text-muted-foreground mb-4 max-w-md mx-auto">{displayError}</p>
+                                        <div className="flex items-center justify-center gap-3">
+                                            <Button onClick={() => handleRefresh(true)}>
+                                                <RefreshCw className="size-4 mr-2" />
+                                                Erneut versuchen
+                                            </Button>
+                                            <Button variant="outline" onClick={clearNavigationError}>
+                                                Fehler ignorieren
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Empty State */}
+                                {!showLoading && !displayError && sortedFolders.length === 0 && sortedFiles.length === 0 && (
+                                    <div className="text-center py-16">
+                                        <div className="bg-muted/50 rounded-full p-6 size-24 mx-auto mb-6 flex items-center justify-center">
+                                            <FolderOpen className="size-12 text-muted-foreground" />
+                                        </div>
+                                        <h3 className="text-xl font-semibold mb-2">
+                                            {searchQuery ? 'Keine Ergebnisse gefunden' : 'Noch keine Dateien'}
+                                        </h3>
+                                        <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                                            {searchQuery
+                                                ? `Keine Dateien oder Ordner entsprechen "${searchQuery}"`
+                                                : 'Laden Sie Ihre ersten Dateien hoch, um zu beginnen.'
+                                            }
+                                        </p>
+                                        {!searchQuery && (
+                                            <div className="flex items-center justify-center gap-3">
+                                                <Button onClick={handleUpload}>
+                                                    <Upload className="size-4 mr-2" />
+                                                    Dateien hochladen
+                                                </Button>
+                                                <Button variant="outline" onClick={handleCreateFolder}>
+                                                    <Plus className="size-4 mr-2" />
+                                                    Ordner erstellen
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Content Grid/List */}
+                                {!showLoading && !displayError && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
+                                    <div className={cn(
+                                        "gap-4",
+                                        viewMode === 'grid'
+                                            ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+                                            : "flex flex-col gap-2"
+                                    )}>
+                                        {/* Render Folders */}
+                                        {sortedFolders.map((folder) => (
+                                            <CloudStorageItemCard
+                                                key={folder.path}
+                                                item={folder}
+                                                type="folder"
+                                                viewMode={viewMode}
+                                                isSelected={selectedItems.has(folder.path)}
+                                                onSelect={(selected) => handleItemSelect(folder.path, !!selected)}
+                                                onOpen={() => handleFolderClick(folder)}
+                                                onDelete={isFolderDeletable(folder) ? () => handleFolderDelete(folder) : undefined}
+                                                onMove={() => {
+                                                    const { openFileMoveModal } = useModalStore.getState()
+                                                    openFileMoveModal({
+                                                        item: folder,
+                                                        itemType: 'folder',
+                                                        currentPath: currentPath,
+                                                        userId,
+                                                        onMove: async (targetPath: string) => {
+                                                            const { moveFolder } = await import('@/lib/storage-service')
+                                                            const targetFolderPath = `${targetPath}/${folder.name}`
+                                                            await moveFolder(folder.path, targetFolderPath)
+                                                            handleRefresh(false)
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        ))}
+
+                                        {/* Render Files */}
+                                        {sortedFiles.map((file) => (
+                                            <CloudStorageItemCard
+                                                key={file.id}
+                                                item={file}
+                                                type="file"
+                                                viewMode={viewMode}
+                                                isSelected={selectedItems.has(file.id)}
+                                                onSelect={(selected) => handleItemSelect(file.id, !!selected)}
+                                                onDownload={() => handleFileDownload(file)}
+                                                onDelete={() => handleFileDelete(file)}
+                                                onMove={() => {
+                                                    const { openFileMoveModal } = useModalStore.getState()
+                                                    openFileMoveModal({
+                                                        item: file,
+                                                        itemType: 'file',
+                                                        currentPath: currentPath,
+                                                        userId,
+                                                        onMove: async (targetPath: string) => {
+                                                            const { moveFile } = await import('@/lib/storage-service')
+                                                            const targetFilePath = `${targetPath}/${file.name}`
+                                                            await moveFile(`${currentPath}/${file.name}`, targetFilePath)
+                                                            handleRefresh(false)
+                                                        }
+                                                    })
+                                                }}
+                                            />
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                        )}
-
-                        {/* Content Grid/List */}
-                        {!showLoading && !displayError && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
-                            <div className={cn(
-                                "gap-4",
-                                viewMode === 'grid'
-                                    ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
-                                    : "space-y-2"
-                            )}>
-                                {/* Render Folders */}
-                                {sortedFolders.map((folder) => (
-                                    <CloudStorageItemCard
-                                        key={folder.path}
-                                        item={folder}
-                                        type="folder"
-                                        viewMode={viewMode}
-                                        isSelected={selectedItems.has(folder.path)}
-                                        onSelect={(selected) => handleItemSelect(folder.path, !!selected)}
-                                        onOpen={() => handleFolderClick(folder)}
-                                        onDelete={isFolderDeletable(folder) ? () => handleFolderDelete(folder) : undefined}
-                                        onMove={() => {
-                                            const { openFileMoveModal } = useModalStore.getState()
-                                            openFileMoveModal({
-                                                item: folder,
-                                                itemType: 'folder',
-                                                currentPath: localCurrentPath,
-                                                userId,
-                                                onMove: async (targetPath: string) => {
-                                                    const { moveFolder } = await import('@/lib/storage-service')
-                                                    const targetFolderPath = `${targetPath}/${folder.name}`
-                                                    await moveFolder(folder.path, targetFolderPath)
-                                                    handleRefresh(false)
-                                                }
-                                            })
-                                        }}
-                                    />
-                                ))}
-
-                                {/* Render Files */}
-                                {sortedFiles.map((file) => (
-                                    <CloudStorageItemCard
-                                        key={file.id}
-                                        item={file}
-                                        type="file"
-                                        viewMode={viewMode}
-                                        isSelected={selectedItems.has(file.id)}
-                                        onSelect={(selected) => handleItemSelect(file.id, !!selected)}
-                                        onDownload={() => handleFileDownload(file)}
-                                        onDelete={() => handleFileDelete(file)}
-                                        onMove={() => {
-                                            const { openFileMoveModal } = useModalStore.getState()
-                                            openFileMoveModal({
-                                                item: file,
-                                                itemType: 'file',
-                                                currentPath: localCurrentPath,
-                                                userId,
-                                                onMove: async (targetPath: string) => {
-                                                    const { moveFile } = await import('@/lib/storage-service')
-                                                    const targetFilePath = `${targetPath}/${file.name}`
-                                                    await moveFile(`${localCurrentPath}/${file.name}`, targetFilePath)
-                                                    handleRefresh(false)
-                                                }
-                                            })
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
     )
 }

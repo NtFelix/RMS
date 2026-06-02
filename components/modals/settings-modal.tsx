@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
   User as UserIcon,
@@ -25,12 +25,18 @@ import MailSection from "../settings/mail-section";
 import { useFeatureFlagEnabled } from "posthog-js/react";
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants";
 
-type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
+type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void; initialTab?: string }
 
-export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<string>("profile")
+export function SettingsModal({ open, onOpenChange, initialTab = "profile" }: SettingsModalProps) {
+  const [activeTab, setActiveTab] = useState<string>(initialTab)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false)
   const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
+
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab)
+    }
+  }, [open, initialTab])
 
   const tabs: Tab[] = [
     {

@@ -67,8 +67,9 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
         <CardDescription>Verteilung der Betriebskosten (Jahr {year})</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+        <div className="w-full h-full" role="figure" aria-label={`Nebenkosten nach Kategorie Kreisdiagramm für ${year}`}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
             <Pie
               data={data}
               dataKey="value"
@@ -91,6 +92,7 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
             {hasData && <Tooltip content={<CustomTooltip />} />}
           </PieChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

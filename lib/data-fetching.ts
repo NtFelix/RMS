@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { isTestEnv } from "./test-utils";
+import { after } from "next/server";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -148,69 +149,77 @@ export async function fetchNebenkosten(year?: string, supabaseClient?: SupabaseC
   return data as Nebenkosten[];
 }
 
-export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): Promise<NebenkostenChartData> {
+export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): Promise<NebenkostenChartData | null> {
   const supabase = supabaseClient || createSupabaseServerClient();
 
-  // First, get the most recent year with data
-  const { data: latestYearData } = await supabase
-    .from("Nebenkosten")
-    .select("startdatum")
-    .order("startdatum", { ascending: false })
-    .limit(1)
-    .single();
+  return fetchWithRpcFallback(
+    supabase,
+    'get_nebenkosten_chart_data',
+    {},
+    async () => {
+      // First, get the most recent year with data
+      const { data: latestYearData } = await supabase
+        .from("Nebenkosten")
+        .select("startdatum")
+        .order("startdatum", { ascending: false })
+        .limit(1)
+        .single();
 
-  if (!latestYearData?.startdatum) {
-    console.log("No Nebenkosten data found");
-    return { year: new Date().getFullYear(), data: [] };
-  }
-
-  // Extract the year from the most recent entry
-  const latestYear = new Date(latestYearData.startdatum).getFullYear();
-  const yearStart = `${latestYear}-01-01`;
-  const yearEnd = `${latestYear}-12-31`;
-
-  // Fetch only the data for the most recent year with data
-  const { data, error } = await supabase
-    .from("Nebenkosten")
-    .select("nebenkostenart, betrag, startdatum, enddatum")
-    .lte('startdatum', yearEnd)
-    .gte('enddatum', yearStart)
-    .order("startdatum", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching Nebenkosten chart data:", error);
-    return { year: latestYear, data: [] };
-  }
-
-  const categoryTotals: Record<string, number> = {};
-
-  (data as Nebenkosten[] | null)?.forEach((record) => {
-    const arten = record.nebenkostenart ?? [];
-    const betraege = record.betrag ?? [];
-
-    arten.forEach((art, index) => {
-      if (!art) {
-        return;
+      if (!latestYearData?.startdatum) {
+        console.log("No Nebenkosten data found");
+        return { year: new Date().getFullYear(), data: [] };
       }
 
-      const amount = Number(betraege[index]);
+      // Extract the year from the most recent entry
+      const latestYear = new Date(latestYearData.startdatum).getFullYear();
+      const yearStart = `${latestYear}-01-01`;
+      const yearEnd = `${latestYear}-12-31`;
 
-      if (!Number.isFinite(amount) || amount <= 0) {
-        return;
+      // Fetch only the data for the most recent year with data
+      const { data, error } = await supabase
+        .from("Nebenkosten")
+        .select("nebenkostenart, betrag, startdatum, enddatum")
+        .lte('startdatum', yearEnd)
+        .gte('enddatum', yearStart)
+        .order("startdatum", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching Nebenkosten chart data:", error);
+        return { year: latestYear, data: [] };
       }
 
-      categoryTotals[art] = (categoryTotals[art] ?? 0) + amount;
-    });
-  });
+      const categoryTotals: Record<string, number> = {};
 
-  const formattedData = Object.entries(categoryTotals)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+      (data as Nebenkosten[] | null)?.forEach((record) => {
+        const arten = record.nebenkostenart ?? [];
+        const betraege = record.betrag ?? [];
 
-  return {
-    year: latestYear,
-    data: formattedData
-  };
+        arten.forEach((art, index) => {
+          if (!art) {
+            return;
+          }
+
+          const amount = Number(betraege[index]);
+
+          if (!Number.isFinite(amount) || amount <= 0) {
+            return;
+          }
+
+          categoryTotals[art] = (categoryTotals[art] ?? 0) + amount;
+        });
+      });
+
+      const formattedData = Object.entries(categoryTotals)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+      return {
+        year: latestYear,
+        data: formattedData
+      };
+    },
+    'nebenkosten_chart_data'
+  );
 }
 
 // getHausGesamtFlaeche function removed - replaced by get_nebenkosten_with_metrics database function
@@ -294,36 +303,48 @@ export async function getMietstatistik(supabaseClient?: SupabaseClient) {
 }
 
 export async function getDashboardSummary(supabaseClient?: SupabaseClient) {
-  const haeuser = await fetchHaeuser(supabaseClient);
-  const wohnungen = await fetchWohnungen(supabaseClient);
-  const mieter = await fetchMieter(supabaseClient);
-  const aufgaben = await fetchAufgaben(supabaseClient);
+  const supabase = supabaseClient || createSupabaseServerClient();
 
-  // Calculate monthly income
-  const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
+  return fetchWithRpcFallback(
+    supabase,
+    'get_dashboard_summary',
+    {},
+    async () => {
+      const currentYear = new Date().getFullYear();
+      const lastYear = (currentYear - 1).toString();
 
-  // Calculate yearly expenses from Nebenkosten - fetch only last year's data
-  const currentYear = new Date().getFullYear();
-  const lastYear = (currentYear - 1).toString();
-  const nebenkosten = await fetchNebenkosten(lastYear, supabaseClient);
+      const [haeuser, wohnungen, mieter, aufgaben, nebenkosten] = await Promise.all([
+        fetchHaeuser(supabase),
+        fetchWohnungen(supabase),
+        fetchMieter(supabase),
+        fetchAufgaben(supabase),
+        fetchNebenkosten(lastYear, supabase),
+      ]);
 
-  const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
-    const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
-    // Sum all meter costs from zaehlerkosten JSONB
-    const zaehlerSum = item.zaehlerkosten
-      ? Object.values(item.zaehlerkosten).reduce((a, b) => a + b, 0)
-      : 0;
-    return sum + betraegeSum + zaehlerSum;
-  }, 0);
+      // Calculate monthly income
+      const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
 
-  return {
-    haeuserCount: haeuser.length,
-    wohnungenCount: wohnungen.length,
-    mieterCount: mieter.filter(m => !m.auszug || new Date(m.auszug) > new Date()).length,
-    monatlicheEinnahmen,
-    jaehrlicheAusgaben,
-    offeneAufgabenCount: aufgaben.length
-  };
+      // Calculate yearly expenses from Nebenkosten
+      const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
+        const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
+        // Sum all meter costs from zaehlerkosten JSONB
+        const zaehlerSum = item.zaehlerkosten
+          ? Object.values(item.zaehlerkosten).reduce((a, b) => a + b, 0)
+          : 0;
+        return sum + betraegeSum + zaehlerSum;
+      }, 0);
+
+      return {
+        haeuserCount: haeuser.length,
+        wohnungenCount: wohnungen.length,
+        mieterCount: mieter.filter(m => !m.auszug || new Date(m.auszug) > new Date()).length,
+        monatlicheEinnahmen,
+        jaehrlicheAusgaben,
+        offeneAufgabenCount: aufgaben.length
+      };
+    },
+    'dashboard_overview_summary'
+  );
 }
 
 // Make sure Profile type is defined if you use it, or adjust return types
@@ -605,5 +626,90 @@ export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, u
   } catch (error) {
     console.error("Unexpected error in getCurrentWohnungenCount:", error);
     return 0;
+  }
+}
+
+/**
+ * Unified logging for RPC calls (matches the project's standardized format and sends to PostHog)
+ */
+export async function logRpcCall(
+  functionName: string,
+  contextName: string,
+  startTime: number,
+  success: boolean,
+  options?: Record<string, unknown>
+) {
+  const duration = Math.round(performance.now() - startTime);
+  const message = success ? `RPC call completed: ${functionName}` : `RPC call failed: ${functionName}`;
+  
+  let performanceLevel = 'fast';
+  if (duration > 300) performanceLevel = 'slow';
+  else if (duration > 100) performanceLevel = 'average';
+
+  const context: Record<string, unknown> = {
+    functionName,
+    contextName,
+    executionTime: duration,
+    performanceLevel,
+    success,
+    ...options
+  };
+
+  try {
+    const { posthogLogger } = await import('@/lib/posthog-logger');
+    if (success) {
+      posthogLogger.info(message, context as any);
+    } else {
+      posthogLogger.error(message, context as any);
+    }
+    // posthogLogger auto-batches and flushes on a 5s timer; manual flush
+    // here would defeat batching and add a per-call HTTP request.
+  } catch {
+    // Fallback if PostHog logger is unavailable
+    const timestamp = new Date().toISOString();
+    const level = success ? 'INFO' : 'ERROR';
+    console.log(`[${timestamp}] [${level}] ${message}\nContext: ${JSON.stringify(context, null, 2)}`);
+  }
+}
+
+/**
+ * Executes a Supabase RPC with a TypeScript fallback.
+ * If the RPC fails, hasn't been created yet, or returns no data, it gracefully executes the provided fallback function.
+ * Tracks performance and success rates via logRpcCall.
+ */
+export async function fetchWithRpcFallback<T>(
+  supabase: SupabaseClient,
+  rpcName: string,
+  rpcParams: Record<string, unknown>,
+  fallbackFn: () => Promise<T>,
+  contextName: string
+): Promise<T | null> {
+  const startTime = performance.now();
+
+  try {
+    const { data, error } = await supabase.rpc(rpcName, rpcParams);
+
+    if (error) {
+      throw error;
+    }
+
+    if (data === null || data === undefined) {
+      return null;
+    }
+
+    after(() => { logRpcCall(rpcName, contextName, startTime, true); });
+    return data as T;
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    after(() => { logRpcCall(rpcName, contextName, startTime, false, { error: errorMessage }); });
+    console.warn(`⚠️ RPC ${rpcName} failed or unavailable. Executing TypeScript fallback for ${contextName}...`);
+
+    try {
+      return await fallbackFn();
+    } catch (fallbackError) {
+      console.error(`[ERROR] Both RPC and Fallback failed for ${contextName}:`, fallbackError);
+      return null;
+    }
   }
 }

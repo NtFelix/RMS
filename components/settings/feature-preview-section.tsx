@@ -216,7 +216,7 @@ const FeaturePreviewSection = () => {
           resolve()
         }
 
-        const unsubscribeReload = posthog.on('featureFlagsReloading', () => {
+        const unsubscribeReload = (posthog as any).on('featureFlagsReloading', () => {
           sawReloadStart = true
         })
 
@@ -285,14 +285,14 @@ const FeaturePreviewSection = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <SettingsSection
         title="Feature Vorschau"
         description="Verwalten Sie experimentelle Funktionen. Opt-in/Opt-out wirkt sofort für Ihr Konto."
       >
         {isLoadingFeatures ? (
           <SettingsCard>
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <Skeleton className="h-6 w-40" />
               <Skeleton className="h-20 w-full" />
               <Skeleton className="h-6 w-32" />
@@ -300,13 +300,13 @@ const FeaturePreviewSection = () => {
             </div>
           </SettingsCard>
         ) : useLocalFeatures ? (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <SettingsCard className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/40">
-                  <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                  <Info className="size-4 text-yellow-600 dark:text-yellow-400" />
                 </div>
-                <div className="flex-1 space-y-3">
+                <div className="flex-1 flex flex-col gap-3">
                   <div>
                     <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
                       Early-Access-Funktionen können nicht geladen werden
@@ -315,7 +315,7 @@ const FeaturePreviewSection = () => {
                       Die Verbindung zu unserem Feature-System konnte nicht hergestellt werden. Dies kann folgende Ursachen haben:
                     </p>
                   </div>
-                  <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 ml-4 list-disc">
+                  <ul className="text-sm text-yellow-700 dark:text-yellow-300 flex flex-col gap-1 ml-4 list-disc">
                     <li>Werbeblocker oder Datenschutz-Erweiterungen blockieren die Anfragen</li>
                     <li>Cookies sind deaktiviert oder wurden nicht akzeptiert</li>
                     <li>Netzwerkverbindung ist eingeschränkt</li>
@@ -327,15 +327,15 @@ const FeaturePreviewSection = () => {
             <SettingsCard className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/40">
-                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <Info className="size-4 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div className="flex-1 space-y-3">
+                <div className="flex-1 flex flex-col gap-3">
                   <div>
                     <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
                       So können Sie das Problem beheben:
                     </h4>
                   </div>
-                  <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-decimal">
+                  <ol className="text-sm text-blue-700 dark:text-blue-300 flex flex-col gap-1 ml-4 list-decimal">
                     <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
                     <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
                     <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">{proxyHelpHost}{POSTHOG_PROXY_PATH}</code> in Ihren Browser-Einstellungen</li>
@@ -355,19 +355,19 @@ const FeaturePreviewSection = () => {
             </SettingsCard>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6">
             {[
               { stage: 'alpha', features: alphaFeatures },
               { stage: 'beta', features: betaFeatures },
               { stage: 'concept', features: conceptFeatures },
               { stage: 'other', features: otherFeatures }
             ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
-              <div key={stage} className="space-y-3">
+              <div key={stage} className="flex flex-col gap-3">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <FlaskConical className="h-4 w-4" />
+                  <FlaskConical className="size-4" />
                   {getStageDisplayName(stage)}
                 </h3>
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   {features.map((f) => (
                     <SettingsCard key={f.flagKey}>
                       <div className="flex items-center justify-between gap-4">
@@ -411,7 +411,7 @@ const FeaturePreviewSection = () => {
             {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
               <SettingsCard>
                 <div className="text-center py-8">
-                  <FlaskConical className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                  <FlaskConical className="size-8 text-muted-foreground mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">
                     Derzeit sind keine Early-Access-Funktionen verfügbar.
                   </p>
@@ -422,7 +422,7 @@ const FeaturePreviewSection = () => {
             <SettingsCard className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/40">
-                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <Info className="size-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
