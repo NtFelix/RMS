@@ -6,6 +6,7 @@ import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
 import { posthogLogger } from '@/lib/posthog-logger';
+import { fetchWithRpcFallback } from "@/lib/data-fetching";
 
 // Define a more specific type for the payload, excluding id and related entities
 interface FinanzInput {
@@ -161,5 +162,65 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
     console.error("Unexpected error in deleteFinanceAction:", e);
     const message = e instanceof Error ? e.message : "An unknown server error occurred";
     return { success: false, error: { message } };
+  }
+}
+
+export async function getAggregatedMaintenanceData(): Promise<{ success: boolean; data?: { name: string; value: number }[]; error?: { message: string } }> {
+  try {
+    const { user, supabase } = await ensureAuth();
+
+    const result = await fetchWithRpcFallback<{ name: string; value: number }[]>(
+      supabase,
+      'get_aggregated_maintenance_data',
+      {},
+      async (client) => {
+        // Optimized fallback: Fetch only necessary columns for all expenses in a single query
+        const { data: allFinanzenData, error } = await client
+          .from("Finanzen")
+          .select("name, betrag")
+          .eq("ist_einnahmen", false)
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+
+        const categories = {
+          instandhaltung: 0,
+          reparatur: 0,
+          steuern: 0,
+          sonstige: 0,
+        };
+
+        (allFinanzenData || []).forEach((item) => {
+          const name = item.name?.toLowerCase() || "";
+          const betrag = Number(item.betrag) || 0;
+
+          if (name.includes("instandhaltung") || name.includes("wartung") || name.includes("pflege")) {
+            categories.instandhaltung += betrag;
+          } else if (name.includes("reparatur") || name.includes("reparieren") || name.includes("defekt")) {
+            categories.reparatur += betrag;
+          } else if (name.includes("steuer") || name.includes("abgabe") || name.includes("gebühr")) {
+            categories.steuern += betrag;
+          } else {
+            categories.sonstige += betrag;
+          }
+        });
+
+        const formattedData = [
+          { name: "Instandhaltung", value: categories.instandhaltung },
+          { name: "Reparatur", value: categories.reparatur },
+          { name: "Steuern", value: categories.steuern },
+          { name: "Sonstige", value: categories.sonstige },
+        ];
+
+        return formattedData.filter(item => item.value > 0);
+      },
+      'aggregated_maintenance_data'
+    );
+    
+    return { success: true, data: result || [] };
+  } catch (error: unknown) {
+    console.error('Error fetching aggregated maintenance data:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ein unerwarteter Fehler ist aufgetreten.';
+    return { success: false, error: { message: errorMessage } };
   }
 }

@@ -1021,12 +1021,19 @@ export async function saveMeterReadingsOptimized(
  * @see {@link docs/database-functions.md#get_nebenkosten_with_metrics} Database function documentation
  * @see {@link .kiro/specs/betriebskosten-performance-optimization/design.md} Performance optimization design
  */
-export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
+export async function fetchNebenkostenListOptimized(providedSupabase?: any): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
   "use server";
 
   let user, supabase;
   try {
-    ({ user, supabase } = await ensureAuth());
+    if (providedSupabase) {
+      supabase = providedSupabase;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error("Nicht authentifiziert");
+      user = authUser;
+    } else {
+      ({ user, supabase } = await ensureAuth());
+    }
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logger.warn('Unauthenticated access attempt', {

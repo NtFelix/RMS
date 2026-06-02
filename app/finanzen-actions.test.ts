@@ -1,4 +1,3 @@
-
 import { financeServerAction, toggleFinanceStatusAction, deleteFinanceAction } from '@/app/finanzen-actions';
 import { revalidatePath } from 'next/cache';
 
@@ -31,25 +30,35 @@ jest.mock('@/utils/logger', () => ({
   },
 }));
 
-// Mock Supabase
-const mockSelectEq = jest.fn();
-const mockUpdateEq = jest.fn();
-const mockDeleteEq = jest.fn();
+// Create a stable chain object
+const createMockChain = () => {
+  const chain = {
+    eq: jest.fn(),
+    select: jest.fn(),
+    single: jest.fn(),
+    order: jest.fn(),
+    range: jest.fn(),
+    insert: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  };
+  
+  chain.eq.mockReturnValue(chain);
+  chain.select.mockReturnValue(chain);
+  chain.single.mockResolvedValue({ data: { id: 'fin-1', betrag: 100 }, error: null });
+  chain.order.mockReturnValue(chain);
+  chain.range.mockReturnValue(chain);
+  chain.insert.mockReturnValue(chain);
+  chain.update.mockReturnValue(chain);
+  chain.delete.mockReturnValue(chain);
+  
+  return chain;
+};
 
-const mockSelect = jest.fn();
-const mockInsert = jest.fn();
-const mockUpdate = jest.fn();
-const mockDelete = jest.fn();
-
-const mockSingle = jest.fn();
+let activeChain = createMockChain();
 
 const mockSupabase = {
-  from: jest.fn(() => ({
-    select: mockSelect,
-    insert: mockInsert,
-    update: mockUpdate,
-    delete: mockDelete,
-  })),
+  from: jest.fn(() => activeChain),
   auth: {
     getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null }),
   },
@@ -62,47 +71,7 @@ jest.mock('@/utils/supabase/server', () => ({
 describe('Finanzen Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
-    // Default chain setups
-    mockSelect.mockReturnThis();
-    mockInsert.mockReturnThis();
-    mockUpdate.mockReturnThis();
-    mockDelete.mockReturnThis();
-
-    mockSelectEq.mockReturnThis();
-    mockUpdateEq.mockReturnThis();
-    mockDeleteEq.mockReturnThis();
-    mockSingle.mockReturnThis();
-
-    // Wiring
-    mockSelect.mockReturnValue({
-        eq: mockSelectEq,
-        single: mockSingle,
-    });
-
-    mockInsert.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-            single: mockSingle
-        })
-    });
-
-    mockUpdate.mockReturnValue({
-        eq: mockUpdateEq,
-    });
-
-    mockUpdateEq.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-            single: mockSingle
-        })
-    });
-
-    mockDelete.mockReturnValue({
-        eq: mockDeleteEq
-    });
-
-    // Default resolutions
-    mockSingle.mockResolvedValue({ data: { id: 'fin-1', betrag: 100 }, error: null });
-    mockDeleteEq.mockResolvedValue({ data: null, error: null });
+    activeChain = createMockChain();
   });
 
   describe('financeServerAction', () => {
@@ -117,7 +86,7 @@ describe('Finanzen Server Actions', () => {
       const result = await financeServerAction(null, validData);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('Finanzen');
-      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      expect(activeChain.insert).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Miete Jan',
         betrag: 500,
         ist_einnahmen: true
@@ -129,8 +98,8 @@ describe('Finanzen Server Actions', () => {
     it('should update an existing finance record', async () => {
       const result = await financeServerAction('fin-123', validData);
 
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'fin-123');
+      expect(activeChain.update).toHaveBeenCalled();
+      expect(activeChain.eq).toHaveBeenCalledWith('id', 'fin-123');
       expect(revalidatePath).toHaveBeenCalledWith('/finanzen');
       expect(result.success).toBe(true);
     });
@@ -148,11 +117,10 @@ describe('Finanzen Server Actions', () => {
     });
 
     it('should handle database errors', async () => {
-        mockSingle.mockResolvedValueOnce({ data: null, error: { message: 'DB Error' } });
-
+        activeChain.single.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
         const result = await financeServerAction(null, validData);
         expect(result.success).toBe(false);
-        expect(result.error?.message).toBe('DB Error');
+        expect(result.error?.message).toBe('Ein unbekannter Fehler ist aufgetreten.');
     });
   });
 
@@ -160,10 +128,10 @@ describe('Finanzen Server Actions', () => {
     it('should toggle status', async () => {
         const result = await toggleFinanceStatusAction('fin-123', true);
 
-        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        expect(activeChain.update).toHaveBeenCalledWith(expect.objectContaining({
             ist_einnahmen: false
         }));
-        expect(mockUpdateEq).toHaveBeenCalledWith('id', 'fin-123');
+        expect(activeChain.eq).toHaveBeenCalledWith('id', 'fin-123');
         expect(result.success).toBe(true);
     });
   });
@@ -172,13 +140,18 @@ describe('Finanzen Server Actions', () => {
     it('should delete a record', async () => {
         const result = await deleteFinanceAction('fin-123');
 
-        expect(mockDelete).toHaveBeenCalled();
-        expect(mockDeleteEq).toHaveBeenCalledWith('id', 'fin-123');
+        expect(activeChain.delete).toHaveBeenCalled();
+        expect(activeChain.eq).toHaveBeenCalledWith('id', 'fin-123');
         expect(result.success).toBe(true);
     });
 
     it('should return error if delete fails', async () => {
-        mockDeleteEq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+        activeChain.eq.mockReturnValue({
+           ...activeChain,
+           then: (resolve: any) => resolve({ error: { message: 'Delete failed' } })
+        });
+        // Simplest way for async mock with chain
+        activeChain.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
         const result = await deleteFinanceAction('fin-123');
         expect(result.success).toBe(false);

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Trash2, GripVertical, BadgeCheck } from "lucide-react";
@@ -36,20 +36,50 @@ interface TenantEditModalProps {
   // loading prop might be replaced by local isSubmitting state
 }
 
+// Hoisted constants and helper functions to module scope for performance and clarity
+const MIN_HEIGHT_PX = 80; // Corresponds to min-h-[80px]
+const MAX_HEIGHT_PX = 150; // Define a max height in pixels (approx. 6 lines of text)
+
+// Helper function to generate unique IDs
+const generateId = () => crypto.randomUUID();
+
+const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
+  const sorted = [...entries];
+  sorted.sort((a, b) => {
+    const dateA = a.date || "";
+    const dateB = b.date || "";
+    if (dateA === "" && dateB === "") return 0;
+    if (dateA === "") return 1; // Entries without date go to the end
+    if (dateB === "") return -1; // Entries without date go to the end
+    return dateA.localeCompare(dateB);
+  });
+  return sorted;
+};
+
+const validateNebenkostenEntry = (entry: NebenkostenEntry): { amount?: string; date?: string } => {
+  const errors: { amount?: string; date?: string } = {};
+  const amountValue = entry.amount.trim() === "" ? NaN : parseFloat(entry.amount);
+  if (entry.amount.trim() !== "") {
+    if (isNaN(amountValue)) errors.amount = "Ungültiger Betrag.";
+    else if (amountValue <= 0) errors.amount = "Betrag muss positiv sein.";
+  }
+  if (entry.amount.trim() !== "" && entry.date.trim() === "") {
+    errors.date = "Datum ist erforderlich, wenn ein Betrag vorhanden ist.";
+  }
+  return errors;
+};
+
 export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const {
     isTenantModalOpen,
     closeTenantModal,
     tenantInitialData,
     tenantModalWohnungen, // Use this from store
-    // tenantModalOnSuccess, // Not explicitly defined in store, router.refresh() and onClose handled it.
-    // If an onSuccess callback is needed, it should be added to the store.
     isTenantModalDirty,
     setTenantModalDirty,
-    openConfirmationModal,
   } = useModalStore();
 
-  const showTenantTabs = useFeatureFlagEnabled('show-tenant-tabs');
+  const showApplicantsTab = useFeatureFlagEnabled('applicants-tab');
 
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -58,9 +88,6 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   // State and ref for textarea resize functionality
   const [isResizing, setIsResizing] = useState(false);
   const dragInfoRef = useRef({ startY: 0, startHeight: 0 });
-
-  const MIN_HEIGHT_PX = 80; // Corresponds to min-h-[80px]
-  const MAX_HEIGHT_PX = 150; // Define a max height in pixels (approx. 6 lines of text)
 
   const initResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -110,10 +137,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       document.removeEventListener('mouseup', stopDrag);
     };
   }, [isResizing]);
-  const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
 
-  // Helper function to generate unique IDs
-  const generateId = () => crypto.randomUUID();
+  const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
   const [nebenkostenValidationErrors, setNebenkostenValidationErrors] = useState<Record<string, { amount?: string; date?: string }>>({});
 
   const [formData, setFormData] = useState({
@@ -126,19 +151,6 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     notiz: tenantInitialData?.notiz || "",
     status: (tenantInitialData?.status || "mieter") as TenantStatus,
   });
-
-  const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
-    const sorted = [...entries];
-    sorted.sort((a, b) => {
-      const dateA = a.date || "";
-      const dateB = b.date || "";
-      if (dateA === "" && dateB === "") return 0;
-      if (dateA === "") return 1; // Entries without date go to the end
-      if (dateB === "") return -1; // Entries without date go to the end
-      return dateA.localeCompare(dateB);
-    });
-    return sorted;
-  };
 
   useEffect(() => {
     if (isTenantModalOpen) {
@@ -164,19 +176,13 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     }
   }, [tenantInitialData, isTenantModalOpen, setTenantModalDirty]);
 
-  // Wohnungen are now from tenantModalWohnungen
-  // const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
-  const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false); // Keep if fetching logic is complex and not in store
+  // Memoize apartment options for rendering efficiency
+  const apartmentOptions: ComboboxOption[] = useMemo(() => 
+    (tenantModalWohnungen || []).map(w => ({ value: w.id, label: w.name })),
+    [tenantModalWohnungen]
+  );
 
-  const apartmentOptions: ComboboxOption[] = (tenantModalWohnungen || []).map(w => ({ value: w.id, label: w.name }));
-
-  // Fetching Wohnungen: Assuming tenantModalWohnungen is populated by openTenantModal.
-  // If not, this useEffect might need to be adapted or moved.
-  // useEffect(() => {
-  //   if (isTenantModalOpen && (!tenantModalWohnungen || tenantModalWohnungen.length === 0)) {
-  //     // ... fetch logic ...
-  //   }
-  // }, [isTenantModalOpen, tenantModalWohnungen]);
+  const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -188,40 +194,28 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     setTenantModalDirty(true);
   };
 
-  const validateNebenkostenEntry = (entry: NebenkostenEntry): { amount?: string; date?: string } => {
-    const errors: { amount?: string; date?: string } = {};
-    const amountValue = entry.amount.trim() === "" ? NaN : parseFloat(entry.amount);
-    if (entry.amount.trim() !== "") {
-      if (isNaN(amountValue)) errors.amount = "Ungültiger Betrag.";
-      else if (amountValue <= 0) errors.amount = "Betrag muss positiv sein.";
-    }
-    if (entry.amount.trim() !== "" && entry.date.trim() === "") {
-      errors.date = "Datum ist erforderlich, wenn ein Betrag vorhanden ist.";
-    }
-    return errors;
-  };
-
   const handleNebenkostenChange = (id: string, field: 'amount' | 'date', value: string) => {
-    let updatedEntryGlobal: NebenkostenEntry | undefined;
+    // 1. Calculate updated entry first
+    const entryToUpdate = nebenkostenEntries.find(e => e.id === id);
+    if (!entryToUpdate) return;
+    
+    const updatedEntry = { ...entryToUpdate, [field]: value };
+
+    // 2. Update entries state (pure update)
     setNebenkostenEntries(entries => {
-      const newEntries = entries.map(entry => {
-        if (entry.id === id) {
-          updatedEntryGlobal = { ...entry, [field]: value };
-          return updatedEntryGlobal;
-        }
-        return entry;
-      });
-      if (updatedEntryGlobal) {
-        const errors = validateNebenkostenEntry(updatedEntryGlobal);
-        setNebenkostenValidationErrors(prev => {
-          const newErrors = { ...prev };
-          if (Object.keys(errors).length > 0) newErrors[id] = errors;
-          else delete newErrors[id];
-          return newErrors;
-        });
-      }
+      const newEntries = entries.map(e => e.id === id ? updatedEntry : e);
       return getSortedNebenkostenEntries(newEntries);
     });
+
+    // 3. Move side effects (validation) out of the setState updater
+    const errors = validateNebenkostenEntry(updatedEntry);
+    setNebenkostenValidationErrors(prev => {
+      const newErrors = { ...prev };
+      if (Object.keys(errors).length > 0) newErrors[id] = errors;
+      else delete newErrors[id];
+      return newErrors;
+    });
+
     setTenantModalDirty(true);
   };
 
@@ -316,7 +310,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       >
         <DialogHeader>
           <div className="flex items-center justify-between pr-8">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <DialogTitle>{tenantInitialData?.id ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
               <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
             </div>
@@ -327,7 +321,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 onClick={convertToTenant}
                 className="hidden sm:flex"
               >
-                <BadgeCheck className="mr-2 h-4 w-4" />
+                <BadgeCheck className="mr-2 size-4" />
                 Als Mieter übernehmen
               </Button>
             )}
@@ -413,28 +407,27 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         }} className="grid gap-3 sm:gap-4">
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            {/* Status Field - Full width - Only show if feature flag is enabled */}
-            {showTenantTabs && (
-              <div className="col-span-1 sm:col-span-2 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="status">Status</Label>
-                  <InfoTooltip infoText="Wählen Sie 'Bewerber' für Interessenten oder 'Mieter' für aktive Vertragsverhältnisse." />
-                </div>
-                <Select
-                  value={formData.status}
-                  onValueChange={handleStatusChange}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Status auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mieter">Mieter</SelectItem>
-                    <SelectItem value="bewerber">Bewerber</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="col-span-1 sm:col-span-2 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="status">Status</Label>
+                <InfoTooltip infoText="Wählen Sie 'Bewerber' für Interessenten oder 'Mieter' für aktive Vertragsverhältnisse." />
               </div>
-            )}
+              <Select
+                value={formData.status}
+                onValueChange={handleStatusChange}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Status auswählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mieter">Mieter</SelectItem>
+                  {showApplicantsTab && (
+                    <SelectItem value="bewerber">Bewerber</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -527,14 +520,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                   className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
                   onMouseDown={initResize}
                 >
-                  <GripVertical className="h-4 w-4 text-foreground/70" />
+                  <GripVertical className="size-4 text-foreground/70" />
                 </div>
               </div>
             </div>
 
             {/* Hide Utility Costs for Applicants */}
             {!isApplicant && (
-              <div className="col-span-1 sm:col-span-2 space-y-3">
+              <div className="col-span-1 sm:col-span-2 flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Nebenkosten Vorauszahlungen
@@ -543,14 +536,14 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 </div>
                 <div className="bg-white dark:bg-card rounded-2xl sm:rounded-3xl border border-border/50 shadow-xs">
                   <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
-                    <div className="p-3 space-y-3 sm:p-4 sm:space-y-4">
+                    <div className="p-3 flex flex-col gap-3 sm:p-4 sm:flex flex-col gap-4">
                       {nebenkostenEntries.length === 0 ? (
                         <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
                           Keine Nebenkosten-Vorauszahlungen vorhanden
                         </div>
                       ) : nebenkostenEntries.map((entry) => (
                         <div key={entry.id} className="grid gap-2 grid-cols-[1fr_auto] sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
-                          <div className="space-y-1">
+                          <div className="flex flex-col gap-1">
                             <NumberInput
                               step="0.01"
                               placeholder="Betrag (€)"
@@ -563,7 +556,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                               <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
                             )}
                           </div>
-                          <div className="space-y-1">
+                          <div className="flex flex-col gap-1">
                             <DatePicker
                               value={entry.date}
                               onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
@@ -583,7 +576,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                             disabled={isSubmitting}
                             className="justify-self-end"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       ))}

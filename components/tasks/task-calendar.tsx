@@ -147,24 +147,24 @@ export function TaskCalendar({
                             variant="ghost"
                             size="icon"
                             onClick={handlePrevious}
-                            className="h-8 w-8"
+                            className="size-8"
                         >
-                            <ChevronLeft className="h-4 w-4" />
+                            <ChevronLeft className="size-4" />
                         </Button>
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={handleNext}
-                            className="h-8 w-8"
+                            className="size-8"
                         >
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="size-4" />
                         </Button>
                     </div>
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                         <PopoverTrigger asChild>
                             <Button variant="ghost" className="text-lg font-semibold hover:bg-transparent px-2 min-w-[140px] justify-center sm:justify-start">
                                 {periodText}
-                                <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                                <CalendarIcon className="ml-2 size-4 opacity-50" />
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
@@ -178,24 +178,24 @@ export function TaskCalendar({
                     </Popover>
                 </div>
 
-                <div className="bg-muted/50 p-1 rounded-full flex items-center gap-1">
+                <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative select-none z-0">
                     {(["week", "month", "year"] as const).map((v) => (
                         <button
                             key={v}
                             onClick={() => setView(v)}
                             className={cn(
-                                "relative px-3 py-1 text-xs font-medium rounded-full transition-colors z-10",
-                                view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                                "flex items-center justify-center rounded-full h-8 px-4 relative outline-none cursor-pointer text-xs font-medium transition-colors duration-300 z-10",
+                                view === v ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             {view === v && (
                                 <motion.div
                                     layoutId="activeViewPill"
-                                    className="absolute inset-0 bg-background rounded-full shadow-xs border border-border/50 -z-10"
-                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
                                 />
                             )}
-                            {v === "week" ? "Woche" : v === "month" ? "Monat" : "Jahr"}
+                            <span>{v === "week" ? "Woche" : v === "month" ? "Monat" : "Jahr"}</span>
                         </button>
                     ))}
                 </div>
@@ -290,7 +290,7 @@ function YearView({ currentYear, tasksByDate, onMonthClick }: {
                             {format(month, "MMMM", { locale: de })}
                         </span>
                         <div className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <div className={cn("w-2 h-2 rounded-full", tasksCount > 0 ? "bg-primary" : "bg-muted-foreground/30")} />
+                            <div className={cn("size-2 rounded-full", tasksCount > 0 ? "bg-primary" : "bg-muted-foreground/30")} />
                             {tasksCount} Aufgaben
                         </div>
                     </div>
@@ -331,7 +331,7 @@ export function CalendarTaskPill({
             onClick={onClick}
         >
             <div className={cn(
-                "w-1.5 h-1.5 rounded-full shrink-0",
+                "size-1.5 rounded-full shrink-0",
                 task.ist_erledigt ? "bg-gray-400" : "bg-primary"
             )} />
             <span className="truncate">{task.name}</span>
@@ -401,7 +401,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
             <div className="w-full flex justify-center sm:justify-start">
                 <span
                     className={cn(
-                        "text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full mb-1 transition-colors",
+                        "text-xs font-medium inline-flex items-center justify-center size-6 rounded-full mb-1 transition-colors",
                         isDayToday && "bg-red-500 text-white shadow-xs",
                         isSelected && !isDayToday && "bg-primary text-primary-foreground"
                     )}
@@ -431,7 +431,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
                         <div 
                             key={task.id} 
                             className={cn(
-                                "w-1.5 h-1.5 rounded-full shadow-xs ring-1 ring-inset",
+                                "size-1.5 rounded-full shadow-xs ring-1 ring-inset",
                                 task.ist_erledigt 
                                     ? "bg-gray-200 ring-gray-300 dark:bg-gray-800 dark:ring-gray-700" 
                                     : "bg-primary ring-primary/20"
@@ -439,7 +439,7 @@ function CalendarDay({ day, currentMonth, selectedDate, onDayClick, tasks, onTas
                         />
                     ))}
                     {tasks.length > (isWeekView ? 8 : 4) && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shadow-xs ring-1 ring-inset ring-black/5" />
+                        <div className="size-1.5 rounded-full bg-muted-foreground/30 shadow-xs ring-1 ring-inset ring-black/5" />
                     )}
                 </div>
             </div>

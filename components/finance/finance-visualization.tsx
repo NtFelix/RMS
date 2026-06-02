@@ -20,9 +20,10 @@ import {
 } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ChartSkeleton } from "@/components/skeletons/chart-skeletons"
-import { BarChart3, AlertTriangle } from "lucide-react"
+import { BarChart3, AlertTriangle, Building2, LineChart as LucideLineChart, PieChart as LucidePieChart } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 
 // Default empty chart data
 const emptyChartData: ChartData = {
@@ -242,12 +243,39 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
   return (
     <Card className="p-4 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <ToggleGroup type="single" value={selectedChart} onValueChange={setSelectedChart} className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <ToggleGroupItem value="apartment-income">Wohnung</ToggleGroupItem>
-          <ToggleGroupItem value="monthly-income">Monatlich</ToggleGroupItem>
-          <ToggleGroupItem value="income-expense">Vergleich</ToggleGroupItem>
-          <ToggleGroupItem value="expense-categories">Kategorien</ToggleGroupItem>
-        </ToggleGroup>
+        <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full md:w-fit overflow-x-auto select-none z-0">
+          {[
+            { value: "apartment-income", label: "Wohnung", icon: Building2 },
+            { value: "monthly-income", label: "Monatlich", icon: LucideLineChart },
+            { value: "income-expense", label: "Vergleich", icon: BarChart3 },
+            { value: "expense-categories", label: "Kategorien", icon: LucidePieChart },
+          ].map((chart) => {
+            const Icon = chart.icon;
+            const isSelected = selectedChart === chart.value;
+
+            return (
+              <motion.button
+                key={chart.value}
+                layout
+                onClick={() => setSelectedChart(chart.value)}
+                className={cn(
+                  "flex-1 md:flex-initial flex items-center justify-center gap-2 rounded-full h-8 px-4 relative outline-none cursor-pointer text-xs font-medium transition-colors duration-300 whitespace-nowrap",
+                  isSelected ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {isSelected && (
+                  <motion.div
+                    layoutId="active-finance-chart-pill"
+                    className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <Icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                <span>{chart.label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
         <div className="mt-4 md:mt-0 flex items-center gap-2">
           <Select value={selectedYear} onValueChange={setSelectedYear} disabled={isLoading}>
             <SelectTrigger id="jahr-select" className={`w-24 transition-all duration-200 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'}`}>
@@ -300,7 +328,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
 
       {error && (
         <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
+          <div className="text-center flex flex-col gap-2">
             <div className="text-red-500 font-medium">Fehler beim Laden der Chart-Daten</div>
             <div className="text-sm text-muted-foreground">{error}</div>
           </div>
@@ -317,7 +345,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Verteilung der Mieteinnahmen nach Wohnungen in {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Einnahmen nach Wohnung Kreisdiagramm für ${selectedYear}`}>
                     <ResponsiveContainer width="100%" aspect={16 / 9}>
                       <PieChart>
                         <Pie
@@ -359,7 +387,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Monatliche Einnahmen für das Jahr {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Monatliche Einnahmen Liniendiagramm für ${selectedYear}`}>
                     <ChartContainer
                       config={{
                         einnahmen: {
@@ -396,7 +424,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Vergleich von Einnahmen und Ausgaben im Jahr {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Einnahmen-Ausgaben-Verhältnis Balkendiagramm für ${selectedYear}`}>
                     <ChartContainer
                       config={{
                         einnahmen: {
@@ -438,7 +466,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                   <CardDescription>Verteilung der Ausgaben nach Kategorien in {selectedYear}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-auto min-h-[400px]">
+                  <div className="relative w-full h-auto min-h-[400px]" role="figure" aria-label={`Ausgabenkategorien Kreisdiagramm für ${selectedYear}`}>
                     <ResponsiveContainer width="100%" aspect={16 / 9}>
                       <PieChart>
                         <Pie

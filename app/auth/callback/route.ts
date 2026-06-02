@@ -3,7 +3,6 @@ import { NextResponse } from "next/server"
 import { logApiRoute } from "@/lib/logging-middleware"
 import { capturePostHogEvent } from "@/lib/posthog-helpers"
 import { ROUTES, BASE_URL } from "@/lib/constants"
-import { getSafeAuthRedirect } from "@/lib/auth-redirects"
 
 export const runtime = 'edge'
 
@@ -146,17 +145,15 @@ export async function GET(request: Request) {
       })
     }
 
-    // Successful authentication, restore a same-origin redirect when present
+    // Successful authentication, redirect to dashboard
     const redirectUrl = new URL(origin)
     if (data?.user) {
-      const safeTarget = new URL(getSafeAuthRedirect(requestUrl.searchParams.get("redirect"), origin), origin)
-      redirectUrl.pathname = safeTarget.pathname
-      redirectUrl.search = safeTarget.search
-      redirectUrl.hash = safeTarget.hash
       // Pass user info as URL params for client-side PostHog tracking
       redirectUrl.searchParams.set('login_success', 'true')
       redirectUrl.searchParams.set('provider', provider)
       redirectUrl.searchParams.set('is_new_user', String(isNewUser))
+      // All users go to dashboard after authentication
+      redirectUrl.pathname = ROUTES.HOME
     }
 
     return NextResponse.redirect(redirectUrl.toString())
@@ -169,3 +166,5 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/auth/login?error=unexpected_error`)
   }
 }
+
+

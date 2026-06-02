@@ -35,7 +35,7 @@ interface MailsClientViewProps {
 function AddMailButton({ onAdd }: { onAdd: () => void }) {
   return (
     <ButtonWithTooltip onClick={onAdd} size="sm" className="h-9 sm:w-auto">
-      <PlusCircle className="mr-2 h-4 w-4" />
+      <PlusCircle className="mr-2 size-4" />
       Neue E-Mail
     </ButtonWithTooltip>
   );
@@ -225,8 +225,10 @@ export default function MailsClientView({
 
   const handleBulkToggleFavorite = useCallback(async () => {
     try {
+      // Use a Map for O(1) bulk lookups
+      const mailMap = new Map(mailData.map(m => [m.id, m]));
       const promises = Array.from(selectedMails).map(id => {
-        const mail = mailData.find(m => m.id === id);
+        const mail = mailMap.get(id);
         return toggleEmailFavorite(id, !mail?.favorite);
       });
       await Promise.all(promises);
@@ -380,24 +382,24 @@ export default function MailsClientView({
   ];
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-8 p-8">
       <div className="flex flex-wrap gap-4">
         <StatCard
           title="E-Mails Gesamt"
           value={summary.total}
-          icon={<MailIcon className="h-4 w-4 text-muted-foreground" />}
+          icon={<MailIcon className="size-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
         <StatCard
           title="Ungelesen"
           value={summary.unread}
-          icon={<Inbox className="h-4 w-4 text-muted-foreground" />}
+          icon={<Inbox className="size-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
         <StatCard
           title="Gesendet / Entwurf"
           value={`${summary.sent} / ${summary.drafts}`}
-          icon={<Send className="h-4 w-4 text-muted-foreground" />}
+          icon={<Send className="size-4 text-muted-foreground" />}
           className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
       </div>
@@ -416,7 +418,7 @@ export default function MailsClientView({
                 disabled={isRefreshing}
                 className="h-9"
               >
-                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`mr-2 size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Aktualisieren
               </Button>
               <AddMailButton onAdd={handleAddMail} />
@@ -437,7 +439,7 @@ export default function MailsClientView({
                     onClick={() => setActiveTab(tab.id)}
                     className="h-9 rounded-full"
                   >
-                    <tab.icon className="mr-2 h-4 w-4" />
+                    <tab.icon className="mr-2 size-4" />
                     {tab.label}
                   </Button>
                 ))}

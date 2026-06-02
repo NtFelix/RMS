@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { formatNumber } from "@/utils/format";
 import { createPortal } from "react-dom";
 import {
@@ -573,7 +573,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       }
       setZaehlerkosten({});
       setVorauszahlungsArt('soll');
-      const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
+      const initialHausId = betriebskostenInitialData?.haeuser_id || (forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
       setHausId(initialHausId);
 
       // Always start with a single empty cost item for new entries
@@ -804,7 +804,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
       if (item.berechnungsart === 'nach Rechnung') {
         const individualRechnungen = rechnungen[item.id] || [];
-        currentBetragValue = individualRechnungen.reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0);
+        currentBetragValue = individualRechnungen.reduce((sum, r) => sum + Math.round((parseFloat(r.betrag) || 0) * 100), 0) / 100;
       } else {
         currentBetragValue = parseFloat(item.betrag);
         if (item.betrag.trim() === '' || isNaN(currentBetragValue)) {
@@ -917,84 +917,56 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = costItems.findIndex(item => item.id === active.id);
-      const newIndex = costItems.findIndex(item => item.id === over.id);
+      setCostItems(prevCostItems => {
+        const oldIndex = prevCostItems.findIndex(item => item.id === active.id);
+        const newIndex = prevCostItems.findIndex(item => item.id === over.id);
 
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newCostItems = arrayMove(costItems, oldIndex, newIndex);
-        setCostItems(newCostItems);
-        setBetriebskostenModalDirty(true);
-      }
+        if (oldIndex !== -1 && newIndex !== -1) {
+          return arrayMove(prevCostItems, oldIndex, newIndex);
+        }
+        return prevCostItems;
+      });
+      setBetriebskostenModalDirty(true);
     }
-  };
+  }, [setBetriebskostenModalDirty]);
 
-  const handleStartdatumChange = (date: string) => {
+  const handleStartdatumChange = useCallback((date: string) => {
     setStartdatum(date);
     setBetriebskostenModalDirty(true);
-  };
+  }, [setBetriebskostenModalDirty]);
 
-  const handleEnddatumChange = (date: string) => {
+  const handleEnddatumChange = useCallback((date: string) => {
     setEnddatum(date);
     setBetriebskostenModalDirty(true);
-  };
+  }, [setBetriebskostenModalDirty]);
 
-  const handleZaehlerkostenChange = (zaehlerTyp: string, value: string) => {
+  const handleZaehlerkostenChange = useCallback((zaehlerTyp: string, value: string) => {
     setZaehlerkosten(prev => ({ ...prev, [zaehlerTyp]: value }));
     setBetriebskostenModalDirty(true);
-  };
+  }, [setZaehlerkosten, setBetriebskostenModalDirty]);
 
-  const handleRemoveZaehlerkosten = (zaehlerTyp: string) => {
+  const handleRemoveZaehlerkosten = useCallback((zaehlerTyp: string) => {
     setZaehlerkosten(prev => {
       const next = { ...prev };
       delete next[zaehlerTyp];
       return next;
     });
     setBetriebskostenModalDirty(true);
-  };
+  }, [setBetriebskostenModalDirty]);
 
-  const handleHausChange = (newHausId: string | null) => {
+  const handleHausChange = useCallback((newHausId: string | null) => {
     setHausId(newHausId || '');
     setBetriebskostenModalDirty(true);
-  };
+  }, [setBetriebskostenModalDirty]);
 
-  const addMeterCostSelect = useMemo(() => {
-    const availableTypes = (Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
+  const availableMeterTypes = useMemo(() => {
+    return (Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
       .filter(typ => zaehlerkosten[typ] === undefined);
-
-    if (availableTypes.length === 0) return null;
-
-    return (
-      <div className="flex justify-start">
-        <Select
-          value=""
-          onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
-        >
-          <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableTypes.map((typ) => {
-              const config = ZAEHLER_CONFIG[typ];
-              const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
-              return (
-                <SelectItem key={typ} value={typ} className="group">
-                  <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-muted-foreground group-focus:text-white transition-colors" />
-                    <span>{config.label}</span>
-                  </div>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
-    );
-  }, [zaehlerkosten, handleZaehlerkostenChange]);
+  }, [zaehlerkosten]);
 
   if (!isBetriebskostenModalOpen) {
     return null;
@@ -1024,11 +996,11 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
+          <div className="flex flex-col gap-6 overflow-y-auto max-h-[70vh] p-4">
             {/* Property & Period Selection Section */}
-            <div className="bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 space-y-4">
+            <div className="bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 flex flex-col gap-4">
               {/* House Selection */}
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
                   Haus *
                 </LabelWithTooltip>
@@ -1038,7 +1010,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               </div>
 
               {/* Date Range Selection */}
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {isFormLoading ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Skeleton className="h-10 w-full" />
@@ -1073,7 +1045,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                         disabled={isSaving || isFormLoading}
                         title="Ein Jahr zurück"
                       >
-                        <CalendarMinus className="w-4 h-4 mr-2" />
+                        <CalendarMinus className="size-4 mr-2" />
                         -1 Jahr
                       </Button>
                       <Button
@@ -1092,7 +1064,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                         disabled={isSaving || isFormLoading}
                         title="Ein Jahr vor"
                       >
-                        <CalendarPlus className="w-4 h-4 mr-2" />
+                        <CalendarPlus className="size-4 mr-2" />
                         +1 Jahr
                       </Button>
                     </div>
@@ -1101,7 +1073,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     {(() => {
                       const validation = validateDateRange(startdatum, enddatum);
                       return (
-                        <div className="space-y-2">
+                        <div className="flex flex-col gap-2">
                           {validation.isValid && validation.periodDays && (
                             <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-xl">
                               <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startdatum, enddatum)}
@@ -1121,7 +1093,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               </div>
 
               {/* Vorauszahlungsmethode */}
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <LabelWithTooltip htmlFor="formVorauszahlungsArt" infoText="Soll: Verwendet den vereinbarten Vorauszahlungsbetrag, der im Mieterprofil hinterlegt ist. Ist: Verwendet die tatsächlich gebuchten Zahlungen aus der Finanzen-Seite.">
                   Vorauszahlungsmethode
                 </LabelWithTooltip>
@@ -1141,9 +1113,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     >
                       <div className="flex items-start justify-between w-full">
                         <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'soll' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                          <CalendarClock className="w-4 h-4" />
+                          <CalendarClock className="size-4" />
                         </div>
-                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'soll' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                        <div className={`flex items-center justify-center size-4 rounded-full transition-all ${vorauszahlungsArt === 'soll' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
                           <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
                         </div>
                       </div>
@@ -1161,9 +1133,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     >
                       <div className="flex items-start justify-between w-full">
                         <div className={`p-1.5 rounded-lg transition-colors ${vorauszahlungsArt === 'ist' ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                          <Banknote className="w-4 h-4" />
+                          <Banknote className="size-4" />
                         </div>
-                        <div className={`flex items-center justify-center w-4 h-4 rounded-full transition-all ${vorauszahlungsArt === 'ist' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
+                        <div className={`flex items-center justify-center size-4 rounded-full transition-all ${vorauszahlungsArt === 'ist' ? 'bg-primary opacity-100 scale-100' : 'bg-gray-300 dark:bg-gray-700 opacity-0 scale-75'}`}>
                           <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
                         </div>
                       </div>
@@ -1177,7 +1149,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               </div>
 
               {/* Meter Costs / Zählerkosten */}
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 <LabelWithTooltip htmlFor="formZaehlerkosten" infoText="Die Kosten je Zählertyp für das ausgewählte Haus in diesem Abrechnungszeitraum. Nur Zähler, für die Kosten anfallen, müssen hier eingetragen werden.">
                   Zählerkosten (€)
                 </LabelWithTooltip>
@@ -1189,7 +1161,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     ))}
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="flex flex-col gap-4">
                     {/* Active Meter Costs */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
@@ -1206,7 +1178,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <div className={`p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors`}>
-                                    <Icon className="w-4 h-4" />
+                                    <Icon className="size-4" />
                                   </div>
                                   <Label htmlFor={`zaehlerkosten-${typ}`} className="text-sm font-medium">
                                     {config.label}
@@ -1216,10 +1188,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                  className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
                                   onClick={() => handleRemoveZaehlerkosten(typ)}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="size-3.5" />
                                 </Button>
                               </div>
                               <div className="relative">
@@ -1240,15 +1212,41 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                     </div>
 
                     {/* Add Meter Cost Select */}
-                    {addMeterCostSelect}
+                    {availableMeterTypes.length > 0 && (
+                      <div className="flex justify-start">
+                        <Select
+                          value=""
+                          onValueChange={(value) => handleZaehlerkostenChange(value as ZaehlerTyp, "")}
+                        >
+                          <SelectTrigger className="w-full sm:w-[280px] h-10 rounded-full border-dashed border-2 bg-transparent hover:bg-primary/5 hover:border-primary/50 hover:text-primary transition-all text-muted-foreground">
+                            <PlusCircle className="size-4 mr-2" />
+                            <SelectValue placeholder="Zähler-Kostenstelle hinzufügen" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMeterTypes.map((typ) => {
+                              const config = ZAEHLER_CONFIG[typ];
+                              const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
+                              return (
+                                <SelectItem key={typ} value={typ} className="group">
+                                  <div className="flex items-center gap-2">
+                                    <Icon className="size-4 text-muted-foreground group-focus:text-white transition-colors" />
+                                    <span>{config.label}</span>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
-              <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-3 space-y-3">
+              <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-3 flex flex-col gap-3">
                 {isFormLoading ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <div key={`skel-cost-${idx}`} className="flex flex-col gap-2 py-2 border-b last:border-b-0">
@@ -1259,7 +1257,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                         <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
                         <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
                         <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                        <div className="flex items-center justify-center flex-none w-10 h-10">
+                        <div className="flex items-center justify-center flex-none size-10">
                           <Skeleton className="h-8 w-8 rounded" />
                         </div>
                       </div>
@@ -1277,7 +1275,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                           key={item.id}
                           item={item}
                           index={index}
-                          costItems={costItems}
+                          disableRemove={costItems.length <= 1}
                           selectedHausMieter={selectedHausMieter}
                           rechnungen={rechnungen}
                           isSaving={isSaving}
@@ -1300,7 +1298,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                   </DndContext>
                 )}
                 <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isFormLoading || isSaving}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
+                  <PlusCircle className="mr-2 size-4" />
                   Kostenposition hinzufügen
                 </Button>
               </div>

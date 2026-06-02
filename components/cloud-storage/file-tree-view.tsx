@@ -1,17 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive } from "lucide-react"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { useDirectoryActiveState } from "@/hooks/use-active-state-manager"
-
 interface FileTreeViewProps {
   userId: string
   className?: string
+  onFolderClick?: (path: string) => void
 }
 
 interface TreeNode {
@@ -21,14 +21,14 @@ interface TreeNode {
   type: 'root' | 'house' | 'apartment' | 'tenant' | 'category' | 'archive'
   icon: React.ComponentType<{ className?: string }>
   children: TreeNode[]
-  isExpanded: boolean
   fileCount: number
   isEmpty: boolean
 }
 
-export function FileTreeView({ userId, className }: FileTreeViewProps) {
+export function FileTreeView({ userId, className, onFolderClick }: FileTreeViewProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root']))
+  const [filterQuery, setFilterQuery] = useState('')
 
   const {
     currentPath,
@@ -50,6 +50,24 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
   // Build tree structure from data
   useEffect(() => {
     const buildTreeStructure = (): TreeNode[] => {
+      // Create maps for O(1) lookups instead of repeated filtering
+      const apartmentsByHouseId = new Map<string, typeof apartments>()
+      apartments.forEach(apt => {
+        const list = apartmentsByHouseId.get(apt.haus_id) || []
+        list.push(apt)
+        apartmentsByHouseId.set(apt.haus_id, list)
+      })
+
+      const tenantsByApartmentId = new Map<string, typeof tenants>()
+      tenants.forEach(tenant => {
+        const list = tenantsByApartmentId.get(tenant.wohnung_id) || []
+        list.push(tenant)
+        tenantsByApartmentId.set(tenant.wohnung_id, list)
+      })
+
+      const foldersByPath = new Map<string, VirtualFolder>()
+      folders.forEach(f => foldersByPath.set(f.path, f))
+
       const rootNode: TreeNode = {
         id: 'root',
         name: 'Cloud Storage',
@@ -57,7 +75,6 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
         type: 'root',
         icon: Home,
         children: [],
-        isExpanded: expandedNodes.has('root'),
         fileCount: 0,
         isEmpty: false
       }
@@ -71,7 +88,6 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           type: 'category' as const,
           icon: Building,
           children: [] as TreeNode[],
-          isExpanded: expandedNodes.has('haeuser'),
           fileCount: 0,
           isEmpty: false
         },
@@ -82,9 +98,8 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           type: 'category' as const,
           icon: FileText,
           children: [] as TreeNode[],
-          isExpanded: expandedNodes.has('miscellaneous'),
-          fileCount: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')),
-          isEmpty: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')) === 0
+          fileCount: foldersByPath.get(buildUserPath(userId, 'Miscellaneous'))?.fileCount || 0,
+          isEmpty: (foldersByPath.get(buildUserPath(userId, 'Miscellaneous'))?.fileCount || 0) === 0
         },
         {
           id: 'archive',
@@ -93,9 +108,8 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           type: 'archive' as const,
           icon: Archive,
           children: [] as TreeNode[],
-          isExpanded: expandedNodes.has('archive'),
-          fileCount: getFileCountFromStore(buildUserPath(userId, '__archive__')),
-          isEmpty: getFileCountFromStore(buildUserPath(userId, '__archive__')) === 0
+          fileCount: foldersByPath.get(buildUserPath(userId, '__archive__'))?.fileCount || 0,
+          isEmpty: (foldersByPath.get(buildUserPath(userId, '__archive__'))?.fileCount || 0) === 0
         }
       ]
 
@@ -103,7 +117,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
       const haeuser = categories.find(c => c.id === 'haeuser')!
       houses.forEach(house => {
         const housePath = buildHousePath(userId, house.id)
-        const houseFileCount = getFileCountFromStore(housePath)
+        const houseFileCount = foldersByPath.get(housePath)?.fileCount || 0
         const houseNode: TreeNode = {
           id: `house-${house.id}`,
           name: house.name,
@@ -111,14 +125,13 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           type: 'house',
           icon: Building,
           children: [],
-          isExpanded: expandedNodes.has(`house-${house.id}`),
           fileCount: houseFileCount,
           isEmpty: houseFileCount === 0
         }
 
         // Add house documents category
         const houseDocsPath = buildUserPath(userId, house.id, 'house_documents')
-        const houseDocsFileCount = getFileCountFromStore(houseDocsPath)
+        const houseDocsFileCount = foldersByPath.get(houseDocsPath)?.fileCount || 0
         const houseDocsNode: TreeNode = {
           id: `house-docs-${house.id}`,
           name: 'Hausdokumente',
@@ -126,17 +139,16 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           type: 'category',
           icon: FileText,
           children: [],
-          isExpanded: false,
           fileCount: houseDocsFileCount,
           isEmpty: houseDocsFileCount === 0
         }
         houseNode.children.push(houseDocsNode)
 
         // Add apartments for this house
-        const houseApartments = apartments.filter(apt => apt.haus_id === house.id)
+        const houseApartments = apartmentsByHouseId.get(house.id) || []
         houseApartments.forEach(apartment => {
           const apartmentPath = buildApartmentPath(userId, house.id, apartment.id)
-          const apartmentFileCount = getFileCountFromStore(apartmentPath)
+          const apartmentFileCount = foldersByPath.get(apartmentPath)?.fileCount || 0
           const apartmentNode: TreeNode = {
             id: `apartment-${apartment.id}`,
             name: apartment.name,
@@ -144,14 +156,13 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
             type: 'apartment',
             icon: Home,
             children: [],
-            isExpanded: expandedNodes.has(`apartment-${apartment.id}`),
             fileCount: apartmentFileCount,
             isEmpty: apartmentFileCount === 0
           }
 
           // Add apartment documents category
           const apartmentDocsPath = buildUserPath(userId, house.id, apartment.id, 'apartment_documents')
-          const apartmentDocsFileCount = getFileCountFromStore(apartmentDocsPath)
+          const apartmentDocsFileCount = foldersByPath.get(apartmentDocsPath)?.fileCount || 0
           const apartmentDocsNode: TreeNode = {
             id: `apartment-docs-${apartment.id}`,
             name: 'Wohnungsdokumente',
@@ -159,17 +170,16 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
             type: 'category',
             icon: FileText,
             children: [],
-            isExpanded: false,
             fileCount: apartmentDocsFileCount,
             isEmpty: apartmentDocsFileCount === 0
           }
           apartmentNode.children.push(apartmentDocsNode)
 
           // Add tenants for this apartment
-          const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id === apartment.id)
+          const apartmentTenants = tenantsByApartmentId.get(apartment.id) || []
           apartmentTenants.forEach(tenant => {
             const tenantPath = buildTenantPath(userId, house.id, apartment.id, tenant.id)
-            const tenantFileCount = getFileCountFromStore(tenantPath)
+            const tenantFileCount = foldersByPath.get(tenantPath)?.fileCount || 0
             const tenantNode: TreeNode = {
               id: `tenant-${tenant.id}`,
               name: tenant.name,
@@ -177,7 +187,6 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
               type: 'tenant',
               icon: Users,
               children: [],
-              isExpanded: false,
               fileCount: tenantFileCount,
               isEmpty: tenantFileCount === 0
             }
@@ -204,7 +213,6 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
         type: 'category' as const,
         icon: Folder,
         children: [] as TreeNode[],
-        isExpanded: expandedNodes.has(`custom-${folder.name}`),
         fileCount: folder.fileCount,
         isEmpty: folder.isEmpty
       }))
@@ -218,7 +226,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     if (!isLoading && !error) {
       setTreeData(buildTreeStructure())
     }
-  }, [userId, houses, apartments, tenants, expandedNodes, isLoading, error, folders])
+  }, [userId, houses, apartments, tenants, isLoading, error, folders])
 
   // Generate breadcrumbs from current path
   const generateBreadcrumbs = (path: string): BreadcrumbItem[] => {
@@ -312,7 +320,11 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
   // Handle node click with navigation interceptor
   const handleNodeClick = async (node: TreeNode) => {
     try {
-      await handleFolderClick(node.path)
+      if (onFolderClick) {
+        onFolderClick(node.path)
+      } else {
+        await handleFolderClick(node.path)
+      }
     } catch (error) {
       console.error('Navigation failed in file tree:', error)
       // Error handling is managed by the navigation interceptor
@@ -332,6 +344,62 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     })
   }
 
+  const handleCollapseAll = useCallback(() => {
+    setExpandedNodes(new Set(['root']))
+  }, [])
+
+  const handleExpandAll = useCallback(() => {
+    const allIds = new Set<string>()
+    const collectIds = (nodes: TreeNode[]) => {
+      nodes.forEach(n => {
+        allIds.add(n.id)
+        if (n.children.length > 0) collectIds(n.children)
+      })
+    }
+    collectIds(treeData)
+    setExpandedNodes(allIds)
+  }, [treeData])
+
+  // Filtered tree data based on query
+  const filteredTreeData = useMemo(() => {
+    if (!filterQuery.trim()) return treeData
+
+    const query = filterQuery.toLowerCase().trim()
+    const filterNodes = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes
+        .map(node => {
+          const matches = node.name.toLowerCase().includes(query)
+          const filteredChildren = filterNodes(node.children)
+          
+          if (matches || filteredChildren.length > 0) {
+            return {
+              ...node,
+              children: filteredChildren
+            }
+          }
+          return null
+        })
+        .filter((n): n is TreeNode => n !== null)
+    }
+
+    return filterNodes(treeData)
+  }, [treeData, filterQuery])
+
+  // Automatic expansion when searching
+  useEffect(() => {
+    if (filterQuery.trim()) {
+      const allIds = new Set<string>()
+      const collectIds = (nodes: TreeNode[]) => {
+        nodes.forEach(n => {
+          allIds.add(n.id)
+          if (n.children.length > 0) collectIds(n.children)
+        })
+      }
+      collectIds(filteredTreeData)
+      setExpandedNodes(allIds)
+    }
+  }, [filterQuery, filteredTreeData])
+
   // Render tree node
   const renderTreeNode = (node: TreeNode, level: number = 0): React.ReactNode => {
     const hasChildren = node.children.length > 0
@@ -341,64 +409,86 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     const Icon = node.icon
 
     return (
-      <div key={node.id} className="select-none">
+      <div 
+        key={node.id} 
+        className="w-full"
+        style={{ contentVisibility: 'auto', containIntrinsicSize: '0 40px' } as any}
+      >
         <div
           className={cn(
-            "flex items-center py-1 px-2 rounded-md cursor-pointer hover:bg-accent transition-colors",
-            isSelected && "bg-accent font-medium",
-            isActiveDirectory && getDirectoryActiveClasses(node.path),
-            level > 0 && "ml-4",
+            "group relative flex items-center gap-2 py-2.5 px-3.5 rounded-lg cursor-pointer transition-all duration-150 ease-out select-none active:scale-[0.99]",
+            isSelected 
+              ? "bg-accent text-white font-semibold shadow-md shadow-accent/15"
+              : isActiveDirectory && !isSelected
+                ? "bg-zinc-50/50 dark:bg-zinc-900/10 text-zinc-800 dark:text-zinc-300"
+                : "hover:bg-white dark:hover:bg-zinc-800/50 hover:shadow-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200",
             isNavigating && "opacity-50 pointer-events-none"
           )}
-          style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => handleNodeClick(node)}
           data-folder-path={node.path}
-          data-active-directory={isActiveDirectory}
-          aria-current={isActiveDirectory ? "page" : undefined}
         >
-          {hasChildren && (
+          {hasChildren ? (
             <button
-              className="mr-1 p-0.5 hover:bg-accent-foreground/10 rounded"
+              type="button"
+              className={cn(
+                "shrink-0 size-5 flex items-center justify-center rounded-full transition-all duration-150 ease-out z-10",
+                isSelected
+                  ? "hover:bg-white/20 text-white/80"
+                  : "hover:bg-zinc-200/50 dark:hover:bg-zinc-700/40 text-zinc-400 dark:text-zinc-500"
+              )}
               onClick={(e) => {
                 e.stopPropagation()
                 handleNodeExpand(node.id)
               }}
             >
-              {isExpanded ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
+              <ChevronRight 
+                className={cn(
+                  "size-3 transition-transform duration-200 ease-out shrink-0", 
+                  isExpanded && "rotate-90"
+                )} 
+              />
             </button>
+          ) : (
+            <div className="w-5 shrink-0" />
           )}
-          {!hasChildren && <div className="w-4 mr-1" />}
 
           <Icon className={cn(
-            "h-4 w-4 mr-2 shrink-0",
-            node.type === 'house' && "text-blue-500",
-            node.type === 'apartment' && "text-green-500",
-            node.type === 'tenant' && "text-purple-500",
-            node.type === 'category' && "text-orange-500",
-            node.type === 'archive' && "text-gray-500"
+            "size-3.5 shrink-0 transition-colors",
+            isSelected
+              ? "text-white"
+              : node.type === 'archive'
+                ? "text-zinc-400 dark:text-zinc-600"
+                : "text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300",
+            !isSelected && node.type === 'house' && "text-blue-500 dark:text-blue-400",
+            !isSelected && node.type === 'apartment' && "text-green-500 dark:text-green-400",
+            !isSelected && node.type === 'tenant' && "text-purple-500 dark:text-purple-400",
+            !isSelected && node.type === 'category' && "text-orange-500 dark:text-orange-400",
+            !isSelected && node.type === 'archive' && "text-gray-500 dark:text-gray-450"
           )} />
 
-          <span className="text-sm truncate flex-1">{node.name}</span>
+          <span className={cn(
+            "text-xs truncate flex-1 tracking-wide leading-none",
+            isSelected ? "text-white" : "text-zinc-700 dark:text-zinc-300"
+          )}>{node.name}</span>
 
           {node.fileCount > 0 && (
-            <span className="text-xs text-muted-foreground ml-2">
+            <span className={cn(
+              "text-[10px] ml-2 shrink-0 font-medium px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400",
+              isSelected && "bg-white/20 text-white"
+            )}>
               {node.fileCount}
             </span>
           )}
 
           {node.isEmpty && (
-            <span className="text-xs text-muted-foreground ml-2">
+            <span className="text-[10px] text-muted-foreground ml-2 shrink-0">
               leer
             </span>
           )}
         </div>
 
         {hasChildren && isExpanded && (
-          <div>
+          <div className="ml-3 pl-3.5 mt-0.5 mb-1 border-l border-zinc-200/60 dark:border-zinc-800/40 flex flex-col gap-0.5 animate-in fade-in slide-in-from-top-0.5 duration-100">
             {node.children.map(child => renderTreeNode(child, level + 1))}
           </div>
         )}
@@ -408,7 +498,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
 
   if (isLoading) {
     return (
-      <div className={cn("space-y-2", className)}>
+      <div className={cn("flex flex-col gap-2", className)}>
         <div className="animate-pulse">
           <div className="h-4 bg-muted rounded w-3/4 mb-2" />
           <div className="h-4 bg-muted rounded w-1/2 mb-2" />
@@ -420,16 +510,66 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
 
   if (error) {
     return (
-      <div className={cn("flex items-center space-x-2 text-sm text-destructive", className)}>
-        <AlertCircle className="h-4 w-4" />
+      <div className={cn("flex items-center gap-2 text-sm text-destructive", className)}>
+        <AlertCircle className="size-4" />
         <span>Fehler beim Laden der Ordnerstruktur</span>
       </div>
     )
   }
 
   return (
-    <div className={cn("space-y-1", className)}>
-      {treeData.map(node => renderTreeNode(node))}
+    <div className={cn("flex flex-col gap-3 relative", className)}>
+      {/* File Tree Toolbar */}
+      <div className="sticky top-0 bg-gray-50 dark:bg-[#22272e] z-20 pt-1 pb-2 flex items-center gap-1.5 px-0.5 border-b border-zinc-100 dark:border-zinc-800/40">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400 dark:text-zinc-500" />
+          <input
+            type="text"
+            placeholder="Ordner filtern..."
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            className="w-full h-8 pl-7.5 pr-6.5 py-0 text-[10.5px] bg-zinc-50 dark:bg-[#121212] border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent/40 transition-all font-medium"
+          />
+          {filterQuery && (
+            <button
+              type="button"
+              onClick={() => setFilterQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              <X className="size-2.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={handleExpandAll}
+            title="Alle ausklappen"
+            className="size-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+          >
+            <FolderOpen className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleCollapseAll}
+            title="Alle einklappen"
+            className="size-8 flex items-center justify-center rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-800/60 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-all shrink-0"
+          >
+            <Folder className="size-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* File Tree Body */}
+      <div className="flex flex-col gap-0.5">
+        {filteredTreeData.length === 0 ? (
+          <div className="text-[11px] text-zinc-400 dark:text-zinc-500 py-6 text-center italic">
+            Keine Ordner gefunden
+          </div>
+        ) : (
+          filteredTreeData.map(node => renderTreeNode(node))
+        )}
+      </div>
     </div>
   )
 }

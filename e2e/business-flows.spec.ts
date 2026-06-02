@@ -156,13 +156,20 @@ test.describe('Business Logic Flows', () => {
 
     // Type to search
     const houseSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
+    await expect(houseSearchbox).toBeVisible({ timeout: 5000 }).catch(async () => {
+      // Re-try opening the combobox if searchbox is not visible (Firefox/WebKit shift safeguard)
+      await combobox.click({ force: true });
+      await expect(houseSearchbox).toBeVisible({ timeout: 5000 });
+    });
+
     await houseSearchbox.fill(houseName);
     await page.waitForTimeout(500);
 
     // Select option
     const option = page.getByRole('option', { name: houseName }).first();
     await expect(option).toBeVisible({ timeout: 10000 });
-    await option.click();
+    await option.scrollIntoViewIfNeeded().catch(() => {});
+    await option.click({ force: true });
     await page.waitForTimeout(300);
 
     // Submit

@@ -4,24 +4,23 @@ import posthogProxyConfig from "@/lib/posthog-proxy"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
-const MANAGED_ROUTE_PREFIXES = [
-  "/auth",
-  "/dashboard",
-  "/betriebskosten",
-  "/finanzen",
-  "/haeuser",
-  "/wohnungen",
-  "/mieter",
-  "/todos",
-  "/mails",
-  "/dateien",
-  "/oauth",
-  "/checkout/success",
-]
+// Content Security Policy
+const IS_DEV = process.env.NODE_ENV === 'development'
+const DEV_URLS = "http://127.0.0.1:54321 http://localhost:54321"
 
-function matchesRoutePrefix(pathname: string, prefix: string) {
-  return pathname === prefix || pathname.startsWith(`${prefix}/`)
-}
+const CSP_BASE = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.posthog.com",
+  `img-src 'self' data: ${IS_DEV ? DEV_URLS : ""} https://*.supabase.co https://*.stripe.com https://*.posthog.com`,
+  `connect-src 'self' ${IS_DEV ? DEV_URLS : ""} https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com https://backend.mietevo.de`,
+  "font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai",
+  "frame-src 'self' https://*.stripe.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join('; ');
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
@@ -30,53 +29,31 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith(POSTHOG_PROXY_PATH)) {
     return NextResponse.next()
   }
-  const needsManagedHeaders = MANAGED_ROUTE_PREFIXES.some((prefix) =>
-    matchesRoutePrefix(pathname, prefix),
-  )
-  const nonce = needsManagedHeaders ? crypto.randomUUID() : null
 
-  // Content Security Policy
-  const scriptSrc = `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.stripe.com https://*.posthog.com`
-
-  const csp = [
-    "default-src 'self'",
-    scriptSrc,
-    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.posthog.com`,
-    "img-src 'self' data: https://*.supabase.co https://*.stripe.com https://*.posthog.com",
-    "connect-src 'self' https://*.supabase.co https://*.stripe.com https://api.stripe.com https://*.posthog.com https://backend.mietevo.de",
-    "font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai",
-    "frame-src 'self' https://*.stripe.com",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'self'",
-  ].join('; ');
+  const nonce = crypto.randomUUID()
 
   // Update request headers directly so they are passed downstream
-  if (nonce) {
-    request.headers.set('x-nonce', nonce)
-  }
-  if (needsManagedHeaders) {
-    request.headers.set('x-current-pathname', pathname)
-    request.headers.set('x-current-search', request.nextUrl.search)
-  }
+  request.headers.set('x-nonce', nonce)
+  request.headers.set('x-current-pathname', pathname)
+  request.headers.set('x-current-search', request.nextUrl.search)
   
   // Pre-emptively clear any potentially spoofed user data headers from external client requests
   request.headers.delete('x-user-data')
   request.headers.delete('x-user-signature')
 
   // Set CSP on request headers so Server Components can read it (e.g., for nonces)
-  request.headers.set('Content-Security-Policy', csp)
+  request.headers.set('Content-Security-Policy', CSP_BASE)
 
   // Initialize empty response to collect cookie mutations from updateSession
   let response = NextResponse.next()
 
   // Ensure Supabase session cookies are refreshed for prolonged client-side idling
   // Only execute logic for non-auth paths to avoid token churn on login flows
-  if (!matchesRoutePrefix(pathname, '/auth') && !matchesRoutePrefix(pathname, '/oauth')) {
+  const isAuthRoute = pathname.startsWith('/auth') || pathname.startsWith('/oauth')
+  if (!isAuthRoute) {
     const user = await updateSession(request, response)
 
-    if (user && needsManagedHeaders) {
+    if (user) {
       // Serialize and forward verified local user metadata to save downstream roundtrips.
       // We sign this data with a secret to prevent spoofing if middleware is bypassed.
       const userData = JSON.stringify(user)
@@ -138,7 +115,7 @@ export async function middleware(request: NextRequest) {
   finalResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
   finalResponse.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   // Set CSP on response headers so the browser enforces it
-  finalResponse.headers.set('Content-Security-Policy', csp);
+  finalResponse.headers.set('Content-Security-Policy', CSP_BASE);
 
   return finalResponse
 }

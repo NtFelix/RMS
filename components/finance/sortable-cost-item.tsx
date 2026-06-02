@@ -31,7 +31,7 @@ export interface RechnungEinzel {
 export interface SortableCostItemProps {
   item: CostItem;
   index: number;
-  costItems: CostItem[];
+  disableRemove: boolean;
   selectedHausMieter: Mieter[];
   rechnungen: Record<string, RechnungEinzel[]>;
   isSaving: boolean;
@@ -50,10 +50,10 @@ export interface SortableCostItemProps {
   selectContentRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function SortableCostItem({
+export const SortableCostItem = React.memo(function SortableCostItem({
   item,
   index,
-  costItems,
+  disableRemove,
   selectedHausMieter,
   rechnungen,
   isSaving,
@@ -86,6 +86,8 @@ export function SortableCostItem({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const itemRechnungen = rechnungen[item.id] || [];
 
   return (
     <div
@@ -187,7 +189,7 @@ export function SortableCostItem({
             variant="ghost"
             size="icon"
             onClick={() => onRemoveCostItem(index)}
-            disabled={costItems.length <= 1 || isLoadingDetails || isSaving}
+            disabled={disableRemove || isLoadingDetails || isSaving}
             aria-label="Kostenposition entfernen"
             className="h-8 w-8"
           >
@@ -223,7 +225,7 @@ export function SortableCostItem({
               {selectedHausMieter.length > 0 && (
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {selectedHausMieter.map(mieter => {
-                    const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
+                    const rechnungForMieter = itemRechnungen.find(r => r.mieterId === mieter.id);
                     return (
                       <div key={mieter.id} className="flex items-center justify-between gap-4 py-2 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
                         <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="flex-1 text-sm font-medium" title={mieter.name}>
@@ -247,7 +249,7 @@ export function SortableCostItem({
               {rechnungen[item.id] && selectedHausMieter.length > 0 && (
                 <div className="pt-2 mt-2 border-t border-gray-400 dark:border-gray-500 flex justify-end">
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0))} €
+                    Summe: {formatNumber(itemRechnungen.reduce((sum, r) => sum + Math.round((parseFloat(r.betrag) || 0) * 100), 0) / 100)} €
                   </p>
                 </div>
               )}
@@ -257,4 +259,4 @@ export function SortableCostItem({
       )}
     </div>
   );
-}
+});

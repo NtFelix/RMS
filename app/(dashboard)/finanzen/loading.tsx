@@ -4,20 +4,14 @@ import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react"
 
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-      <div
-        className="absolute inset-0 z-[-1] pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
-        }}
-      />
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl animate-pulse" style={{ animationDelay: '0ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
-              <ArrowUpCircle className="h-4 w-4 text-green-500" />
+              <ArrowUpCircle className="size-4 text-green-500" />
             </div>
           </CardHeader>
           <CardContent>
@@ -28,7 +22,7 @@ export default function Loading() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
-              <ArrowDownCircle className="h-4 w-4 text-red-500" />
+              <ArrowDownCircle className="size-4 text-red-500" />
             </div>
           </CardHeader>
           <CardContent>
@@ -39,7 +33,7 @@ export default function Loading() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <Wallet className="size-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent>
@@ -50,7 +44,7 @@ export default function Loading() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <BarChart3 className="size-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent>
