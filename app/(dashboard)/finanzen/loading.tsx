@@ -5,6 +5,12 @@ import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react"
 export default function Loading() {
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
+      {/* Tab Toggle Skeleton */}
+      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px]">
+        <Skeleton className="h-9 w-28 rounded-full" />
+        <Skeleton className="h-9 w-28 rounded-full" />
+      </div>
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl animate-pulse" style={{ animationDelay: '0ms' }}>

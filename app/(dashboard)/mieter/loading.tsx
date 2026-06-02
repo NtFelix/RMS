@@ -9,6 +9,8 @@ export default function Loading() {
       headerTitleWidth="w-40"
       headerDescriptionWidth="w-64"
       buttonWidth="w-44"
+      tabCount={3}
+      tabWidth="w-28"
       statsCards={
         <div className="flex flex-wrap gap-4">
           <Card className="flex-1 min-w-[200px] bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
