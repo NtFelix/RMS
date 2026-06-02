@@ -3,10 +3,6 @@ import { login, acceptCookieConsent } from '../e2e/utils';
 import path from 'path';
 import fs from 'fs';
 
-/**
- * Disables all CSS transitions and animations to ensure deterministic screenshots.
- * This prevents "ghosting" diffs caused by capturing a UI mid-transition.
- */
 async function disableAnimations(page: Page) {
   await page.addStyleTag({
     content: `
@@ -19,33 +15,22 @@ async function disableAnimations(page: Page) {
   });
 }
 
-/**
- * Scrolls the page from top to bottom incrementally to trigger lazy-loaded images
- * and scroll-based animations (like Intersection Observers).
- */
 async function triggerScrollAnimations(page: Page) {
   await page.evaluate(async () => {
     const scrollHeight = document.body.scrollHeight;
     const viewportHeight = window.innerHeight;
-    
-    // Scroll down in chunks to ensure all observers fire
+
     for (let i = 0; i < scrollHeight; i += viewportHeight / 2) {
       window.scrollTo(0, i);
-      // Increased delay to let JS execution and observers catch up
       await new Promise(r => setTimeout(r, 100));
     }
-    // Scroll back to the top
     window.scrollTo(0, 0);
-    // Increased settling time
     await new Promise(r => setTimeout(r, 500));
   });
 }
 
-// Ensure snapshot directory exists
 const snapshotDir = path.join(__dirname, '__snapshots__');
 
-
-// Array of public pages to screenshot
 const publicPages = [
   '/',
   '/preise',
@@ -62,7 +47,6 @@ const publicPages = [
   '/warteliste/browser-erweiterung',
 ];
 
-// Array of authenticated dashboard pages to screenshot
 const dashboardPages = [
   '/dashboard',
   '/haeuser',
@@ -75,6 +59,21 @@ const dashboardPages = [
   '/mails',
 ];
 
+const pagesWithTabs: Record<string, Array<{ tabKey: string; tabText: string }>> = {
+  '/finanzen': [
+    { tabKey: 'finanzen', tabText: 'Finanzen' },
+    { tabKey: 'uebersicht', tabText: 'Übersicht' },
+  ],
+  '/mieter': [
+    { tabKey: 'mieter', tabText: 'Mieter' },
+    { tabKey: 'uebersicht', tabText: 'Übersicht' },
+  ],
+  '/wohnungen': [
+    { tabKey: 'wohnungen', tabText: 'Wohnungen' },
+    { tabKey: 'uebersicht', tabText: 'Übersicht' },
+  ],
+};
+
 const themes = ['light', 'dark'] as const;
 
 for (const theme of themes) {
@@ -86,7 +85,6 @@ for (const theme of themes) {
   });
 
   for (const pathStr of publicPages) {
-      // Generate a safe filename based on path and theme
       const baseFilename = pathStr === '/' ? 'landing' : `${pathStr.replace(/^\//, '').replace(/\//g, '-')}`;
       const filename = `${baseFilename}-${theme}.png`;
 
@@ -96,27 +94,16 @@ for (const theme of themes) {
         await acceptCookieConsent(page);
         await disableAnimations(page);
 
-        // Force the theme using classList.toggle
         await page.evaluate((t) => {
           document.documentElement.classList.toggle('dark', t === 'dark');
           document.documentElement.classList.toggle('light', t === 'light');
         }, theme);
 
-        // Small wait to allow theme switch JS to settle
         await page.waitForTimeout(500);
-
-        // Scroll the page to trigger all animations
         await triggerScrollAnimations(page);
-
-        // Wait for the page to be fully settled
         await page.waitForLoadState('networkidle');
-        // Wait for footer as a signal that the long page has rendered
         await page.locator('footer').first().waitFor({ state: 'visible' }).catch(() => {});
 
-
-        // Capture screenshot for PostHog Visual Review
-        // We use page.screenshot instead of expect().toHaveScreenshot to avoid 
-        // baseline mismatch errors in CI, as PostHog handles the comparison.
         await page.screenshot({
           path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
           fullPage: true,
@@ -134,42 +121,65 @@ for (const theme of themes) {
     });
 
     for (const pathStr of dashboardPages) {
-      const baseFilename = `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}`;
-      const filename = `${baseFilename}-${theme}.png`;
+      const tabs = pagesWithTabs[pathStr];
 
-      test(`Dashboard Page: ${pathStr}`, async ({ page }, testInfo) => {
-        await page.goto(pathStr);
-        await page.waitForLoadState('networkidle');
-        await disableAnimations(page);
+      if (tabs) {
+        for (const tabInfo of tabs) {
+          const baseFilename = `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}-${tabInfo.tabKey}`;
+          const filename = `${baseFilename}-${theme}.png`;
 
-        // Force the theme using classList.toggle
-        await page.evaluate((t) => {
-          document.documentElement.classList.toggle('dark', t === 'dark');
-          document.documentElement.classList.toggle('light', t === 'light');
-        }, theme);
+          test(`Dashboard Page: ${pathStr} - ${tabInfo.tabText}`, async ({ page }, testInfo) => {
+            await page.goto(pathStr);
+            await page.waitForLoadState('networkidle');
+            await disableAnimations(page);
 
-        // Small wait to allow theme switch JS to settle
-        await page.waitForTimeout(500);
+            await page.evaluate((t) => {
+              document.documentElement.classList.toggle('dark', t === 'dark');
+              document.documentElement.classList.toggle('light', t === 'light');
+            }, theme);
 
-        // Scroll the page to trigger all animations
-        await triggerScrollAnimations(page);
+            await page.locator('button').filter({ hasText: tabInfo.tabText }).first().click();
+            await page.waitForTimeout(500);
 
-        await page.waitForLoadState('networkidle');
-        
-        // Instead of a hard timeout, wait for main content or chart containers
-        // This is much faster and more reliable
-        await page.locator('main').waitFor({ state: 'visible' });
-        // Optional: wait for charts if they exist (common in dashboards)
-        await page.locator('.recharts-wrapper, canvas').first().waitFor({ state: 'visible' }).catch(() => {});
+            await triggerScrollAnimations(page);
+            await page.waitForLoadState('networkidle');
 
+            await page.locator('main').waitFor({ state: 'visible' });
+            await page.locator('.recharts-wrapper, canvas').first().waitFor({ state: 'visible' }).catch(() => {});
 
-        // Capture screenshot for PostHog Visual Review
-        await page.screenshot({
-          path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
-          fullPage: true,
+            await page.screenshot({
+              path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
+              fullPage: true,
+            });
+          });
+        }
+      } else {
+        const baseFilename = `dashboard-${pathStr.replace(/^\//, '').replace(/\//g, '-')}`;
+        const filename = `${baseFilename}-${theme}.png`;
+
+        test(`Dashboard Page: ${pathStr}`, async ({ page }, testInfo) => {
+          await page.goto(pathStr);
+          await page.waitForLoadState('networkidle');
+          await disableAnimations(page);
+
+          await page.evaluate((t) => {
+            document.documentElement.classList.toggle('dark', t === 'dark');
+            document.documentElement.classList.toggle('light', t === 'light');
+          }, theme);
+
+          await page.waitForTimeout(500);
+          await triggerScrollAnimations(page);
+          await page.waitForLoadState('networkidle');
+
+          await page.locator('main').waitFor({ state: 'visible' });
+          await page.locator('.recharts-wrapper, canvas').first().waitFor({ state: 'visible' }).catch(() => {});
+
+          await page.screenshot({
+            path: path.join(snapshotDir, `${testInfo.project.name}-${filename}`),
+            fullPage: true,
+          });
         });
-      });
+      }
     }
   });
 }
-
