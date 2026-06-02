@@ -120,7 +120,8 @@ export function OccupancyChart() {
         <CardDescription>Wohnungsbelegung nach Monat</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0" ref={containerRef}>
-        <ChartContainer
+        <div className="w-full h-full" role="figure" aria-label="Wohnungsbelegung Liniendiagramm der letzten 12 Monate">
+          <ChartContainer
           className="w-full h-full"
           minHeight={300}
           config={{
@@ -141,6 +142,7 @@ export function OccupancyChart() {
             <Line type="monotone" dataKey="frei" stroke="var(--chart-3)" strokeWidth={2} />
           </LineChart>
         </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );

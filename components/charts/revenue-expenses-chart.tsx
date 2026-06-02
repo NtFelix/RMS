@@ -108,7 +108,8 @@ export function RevenueExpensesChart() {
         <CardDescription>Monatliche Übersicht der Finanzen</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-3 min-h-0" ref={containerRef}>
-        <ChartContainer
+        <div className="w-full h-full" role="figure" aria-label="Einnahmen und Ausgaben Balkendiagramm der letzten 12 Monate">
+          <ChartContainer
           className="w-full h-full"
           minHeight={300}
           config={{
@@ -129,6 +130,7 @@ export function RevenueExpensesChart() {
             <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
           </BarChart>
         </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );

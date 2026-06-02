@@ -72,7 +72,8 @@ export function TenantFluctuationChart({ data }: TenantFluctuationChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 relative" ref={containerRef}>
-        <ChartContainer
+        <div className="w-full h-full" role="figure" aria-label="Mieter-Fluktuation Balkendiagramm der letzten 12 Monate">
+          <ChartContainer
           className="w-full h-full aspect-auto"
           config={{
             einzüge: { label: "Einzüge", color: "hsl(var(--chart-1))" },
@@ -98,6 +99,7 @@ export function TenantFluctuationChart({ data }: TenantFluctuationChartProps) {
             <Bar dataKey="auszüge" fill="var(--color-auszüge)" radius={4} />
           </BarChart>
         </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );
