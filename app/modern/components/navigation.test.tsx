@@ -6,8 +6,16 @@ import Navigation from './navigation';
 import { createClient } from '@/utils/supabase/client';
 
 // Mock dependencies
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  prefetch: jest.fn(),
+  refresh: jest.fn(),
+};
+
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
+  useRouter: () => mockRouter,
 }));
 
 jest.mock('@/utils/supabase/client');
@@ -47,8 +55,8 @@ jest.mock('@/components/ui/pill-container', () => ({
 jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: any) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect }: any) => (
-    <button onClick={onSelect}>{children}</button>
+  DropdownMenuItem: ({ children, onSelect, onClick }: any) => (
+    <button onClick={onSelect || onClick}>{children}</button>
   ),
   DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
   DropdownMenuSeparator: () => <hr />,

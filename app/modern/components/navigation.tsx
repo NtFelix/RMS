@@ -155,10 +155,16 @@ export default function Navigation({ onLogin }: NavigationProps) {
     trackNavLogoutClicked();
     const supabase = createClient();
     try {
-      await supabase.auth.signOut();
-      setCurrentUser(null);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error logging out:", error.message);
+      }
     } catch (error) {
       console.error("Error logging out:", error);
+    } finally {
+      setCurrentUser(null);
+      setIsOpen(false);
+      window.location.href = "/";
     }
   };
 
