@@ -99,7 +99,7 @@ export async function getFinanceDocumentUrl(
     const fullPath = `${dokument.dateipfad}/${dokument.dateiname}`;
 
     // Get signed URL (valid for 1 hour)
-    const options: any = {};
+    const options: { download?: string | boolean } = {};
     if (download) {
         options.download = dokument.dateiname;
     }

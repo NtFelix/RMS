@@ -171,12 +171,7 @@ export function FinanceFileUpload({
         try {
             const result = await getFinanceDocumentUrl(dokumentId, true);
             if (result.success && result.url) {
-                const link = document.createElement("a");
-                link.href = result.url;
-                link.download = result.filename || "download";
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                window.open(result.url, "_self");
             } else {
                 throw new Error(result.error || "URL konnte nicht erstellt werden");
             }
