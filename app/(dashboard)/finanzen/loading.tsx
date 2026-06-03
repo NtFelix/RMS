@@ -13,8 +13,8 @@ export default function Loading() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl animate-pulse" style={{ animationDelay: '0ms' }}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] animate-pulse" style={{ animationDelay: '0ms' }}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
               <ArrowUpCircle className="size-4 text-green-500" />
@@ -24,8 +24,8 @@ export default function Loading() {
             <Skeleton className="h-8 w-24 mb-2" />
           </CardContent>
         </Card>
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl animate-pulse" style={{ animationDelay: '100ms' }}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] animate-pulse" style={{ animationDelay: '100ms' }}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
               <ArrowDownCircle className="size-4 text-red-500" />
@@ -35,8 +35,8 @@ export default function Loading() {
             <Skeleton className="h-8 w-24 mb-2" />
           </CardContent>
         </Card>
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl animate-pulse" style={{ animationDelay: '200ms' }}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] animate-pulse" style={{ animationDelay: '200ms' }}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
               <Wallet className="size-4 text-muted-foreground" />
@@ -46,8 +46,8 @@ export default function Loading() {
             <Skeleton className="h-8 w-24 mb-2" />
           </CardContent>
         </Card>
-        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl animate-pulse" style={{ animationDelay: '300ms' }}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] animate-pulse" style={{ animationDelay: '300ms' }}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
               <BarChart3 className="size-4 text-muted-foreground" />

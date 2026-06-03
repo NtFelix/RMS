@@ -7,7 +7,7 @@ export default function Loading() {
     <div className="flex flex-col gap-8 p-8">
       <div className="grid gap-4 grid-cols-1 auto-rows-auto md:grid-cols-6 md:auto-rows-[140px]">
         {/* Row 1: Three summary cards + Tenant Payment List */}
-        <Card className="col-span-1 row-span-1 md:col-span-1 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-1 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
             <CardTitle className="text-sm font-medium">Häuser</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
@@ -20,7 +20,7 @@ export default function Loading() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1 row-span-1 md:col-span-2 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-2 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
             <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
@@ -33,7 +33,7 @@ export default function Loading() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1 row-span-1 md:col-span-1 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-1 md:row-span-1 min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
             <CardTitle className="text-sm font-medium">Mieter</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
@@ -47,7 +47,7 @@ export default function Loading() {
         </Card>
 
         {/* Tenant Payment List Skeleton */}
-        <Card className="col-span-1 row-span-1 md:col-span-2 md:row-span-4 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-2 md:row-span-4 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="pb-3">
             <Skeleton className="h-5 w-40 mb-2" />
             <Skeleton className="h-4 w-56" />
@@ -69,7 +69,7 @@ export default function Loading() {
         </Card>
 
         {/* Row 2: Occupancy Chart */}
-        <Card className="col-span-1 row-span-1 md:col-span-4 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-4 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader>
             <Skeleton className="h-5 w-32 mb-2" />
             <Skeleton className="h-4 w-48" />
@@ -80,7 +80,7 @@ export default function Loading() {
         </Card>
 
         {/* Row 5: Revenue Chart + Stacked Cards */}
-        <Card className="col-span-1 row-span-1 md:col-span-4 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-4 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader>
             <Skeleton className="h-5 w-40 mb-2" />
             <Skeleton className="h-4 w-56" />
@@ -91,7 +91,7 @@ export default function Loading() {
         </Card>
 
         {/* Mobile: Individual cards, Desktop: Stacked container */}
-        <Card className="col-span-1 row-span-1 md:hidden min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:hidden min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
             <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
@@ -104,7 +104,7 @@ export default function Loading() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1 row-span-1 md:hidden min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:hidden min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
             <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
@@ -117,7 +117,7 @@ export default function Loading() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1 row-span-1 md:hidden min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:hidden min-h-[120px] h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
             <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
             <div className="p-2 bg-muted rounded-lg">
@@ -133,7 +133,7 @@ export default function Loading() {
         {/* Desktop: Stacked container */}
         <div className="hidden md:block md:col-span-2 md:row-span-3">
           <div className="h-full flex flex-col gap-4">
-            <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+            <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
               <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
                 <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
                 <div className="p-2 bg-muted rounded-lg">
@@ -146,7 +146,7 @@ export default function Loading() {
               </CardContent>
             </Card>
 
-            <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+            <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
               <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
                 <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
                 <div className="p-2 bg-muted rounded-lg">
@@ -159,7 +159,7 @@ export default function Loading() {
               </CardContent>
             </Card>
 
-            <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+            <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
               <CardHeader className="flex flex-row items-center justify-between gap-0 pb-2">
                 <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
                 <div className="p-2 bg-muted rounded-lg">
@@ -175,7 +175,7 @@ export default function Loading() {
         </div>
 
         {/* Row 8: Last Transactions + Maintenance Chart */}
-        <Card className="col-span-1 row-span-1 md:col-span-3 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-3 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader>
             <Skeleton className="h-5 w-36 mb-2" />
             <Skeleton className="h-4 w-48" />
@@ -193,7 +193,7 @@ export default function Loading() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1 row-span-1 md:col-span-3 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl">
+        <Card className="col-span-1 row-span-1 md:col-span-3 md:row-span-3 h-[300px] md:h-full overflow-hidden bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
           <CardHeader>
             <Skeleton className="h-5 w-32 mb-2" />
             <Skeleton className="h-4 w-48" />

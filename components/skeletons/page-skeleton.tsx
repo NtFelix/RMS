@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ReactNode } from "react"
 
 interface PageSkeletonProps {
-  statsCards?: ReactNode
+  children?: ReactNode
   headerTitleWidth?: string
   headerDescriptionWidth?: string
   buttonWidth?: string
@@ -12,31 +12,34 @@ interface PageSkeletonProps {
   showInstructionGuide?: boolean
   tabCount?: number
   tabWidth?: string
+  tabContainerWidth?: string
 }
 
 export function PageSkeleton({
-  statsCards,
-  headerTitleWidth = "w-48",
-  headerDescriptionWidth = "w-72",
-  buttonWidth = "w-40",
+  children,
+  headerTitleWidth = "w-32",
+  headerDescriptionWidth = "w-48",
+  buttonWidth = "w-32",
   filterCount = 3,
   tableRowCount = 5,
   showInstructionGuide = false,
-  tabCount = 2,
+  tabCount = 0,
   tabWidth = "w-24",
+  tabContainerWidth,
 }: PageSkeletonProps) {
   const isFullWidthTabs = tabCount >= 3
 
   return (
-    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* Tab Toggle Skeleton */}
+    <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 animate-in fade-in duration-500">
       {tabCount > 0 && (
         <div
-          className={
-            isFullWidthTabs
-              ? "flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-[300px] overflow-hidden"
-              : "flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px]"
-          }
+          className={`flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full ${
+            tabContainerWidth 
+              ? tabContainerWidth
+              : isFullWidthTabs
+                ? "sm:w-[300px] overflow-hidden"
+                : "sm:w-fit max-w-[400px]"
+          }`}
         >
           {Array.from({ length: tabCount }).map((_, i) =>
             isFullWidthTabs ? (
@@ -48,8 +51,8 @@ export function PageSkeleton({
         </div>
       )}
 
-      {/* Stats Cards (optional) */}
-      {statsCards}
+      {/* Children (e.g., Stats Cards) */}
+      {children}
 
       {/* Instruction Guide Skeleton (optional) */}
       {showInstructionGuide && (
