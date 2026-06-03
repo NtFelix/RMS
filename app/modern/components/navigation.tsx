@@ -205,7 +205,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
       }}
       className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
     >
-      <item.icon className="w-5 h-5 mr-3" />
+      <item.icon className="size-5 mr-3" />
       <div>
         <div className="font-medium">
           {item.name}
@@ -226,22 +226,24 @@ export default function Navigation({ onLogin }: NavigationProps) {
           <div className="flex items-center gap-2">
             <PillContainer>
               <button
+                type="button"
                 onClick={() => {
                   if (!isOpen) trackNavMobileMenuOpened();
                   setIsOpen(!isOpen);
                 }}
                 className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-2"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="size-5" />
                 <span className="text-sm font-medium">Menü</span>
               </button>
             </PillContainer>
             <Link href="/" className="flex items-center gap-1 group">
-              <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+              <div className="relative size-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                 <Image
                   src={LOGO_URL}
                   alt="Mietevo Logo"
                   fill
+                  sizes="24px"
                   className="object-cover"
                   unoptimized // Supabase images are stored as pre-optimized .avif
                 />
@@ -260,11 +262,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
               <PillContainer className="flex items-center gap-2 w-full">
                 {/* Logo Section */}
                 <Link href="/" className="flex items-center gap-2 group px-2">
-                  <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+                  <div className="relative size-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                     <Image
                       src={LOGO_URL}
                       alt="Mietevo Logo"
                       fill
+                      sizes="32px"
                       className="object-cover"
                       unoptimized // Supabase images are stored as pre-optimized .avif
                     />
