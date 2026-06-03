@@ -106,7 +106,7 @@ export function ActionMenu({
     return (
         <div
             className={cn(
-                'flex items-center gap-1 bg-background/80 backdrop-blur-sm p-1 shadow-sm border transition-all duration-200',
+                'flex items-center gap-1 bg-background/80 backdrop-blur-xs p-1 shadow-xs border transition-all duration-200',
                 isRoundedPill ? 'rounded-full' : 'rounded-lg',
                 visibilityStyles[visibility],
                 className
@@ -141,7 +141,7 @@ export function ActionMenu({
                         title={action.label}
                         {...action.dataAttributes}
                     >
-                        <Icon className="!h-3.5 !w-3.5" aria-hidden="true" />
+                        <Icon className="h-3.5! w-3.5!" aria-hidden="true" />
                     </Button>
                 );
             })}
@@ -164,14 +164,14 @@ export function ActionMenu({
                             aria-label="Auswählen"
                             title="Auswählen"
                         >
-                            <ArrowRight className="!h-3.5 !w-3.5" aria-hidden="true" />
+                            <ArrowRight className="h-3.5! w-3.5!" aria-hidden="true" />
                         </Button>
                     ) : (
                         <div
                             className="flex items-center justify-center h-7 w-7 text-muted-foreground"
                             aria-label="Press Enter to select"
                         >
-                            <ArrowRight className="!h-3.5 !w-3.5" aria-hidden="true" />
+                            <ArrowRight className="h-3.5! w-3.5!" aria-hidden="true" />
                         </div>
                     )}
                 </>

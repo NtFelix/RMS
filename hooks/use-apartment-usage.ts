@@ -5,22 +5,22 @@ import { StripePlan } from '@/types/stripe';
 
 export interface ApartmentUsage {
   count: number;
-  limit: number | null;
+  limit: number | typeof Infinity | null;
   isLoading: boolean;
   error: string | null;
   progressPercentage: number;
 }
 
-export function useApartmentUsage(user: User | null) {
+export function useApartmentUsage(user: User | null, initialData?: Partial<ApartmentUsage>) {
   const [state, setState] = useState<{
     count: number;
-    limit: number | null;
+    limit: number | typeof Infinity | null;
     isLoading: boolean;
     error: string | null;
   }>({
-    count: 0,
-    limit: null,
-    isLoading: true,
+    count: initialData?.count || 0,
+    limit: initialData?.limit !== undefined ? initialData.limit : null,
+    isLoading: initialData ? false : true,
     error: null,
   });
 
@@ -91,7 +91,10 @@ export function useApartmentUsage(user: User | null) {
     fetchApartmentData();
   }, [user, supabase]);
 
-  const progressPercentage = state.limit ? Math.min((state.count / state.limit) * 100, 100) : 0;
+  // Handle Infinity (unlimited) - no progress bar needed
+  const progressPercentage = state.limit && state.limit !== Infinity 
+    ? Math.min((state.count / state.limit) * 100, 100) 
+    : 0;
 
   return {
     count: state.count,

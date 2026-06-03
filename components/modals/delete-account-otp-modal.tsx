@@ -69,7 +69,7 @@ export function DeleteAccountOtpModal({
                                     <InputOTPSlot
                                         key={index}
                                         index={index}
-                                        className="w-12 h-14 text-2xl font-semibold border rounded-lg shadow-sm border-destructive/20 focus:border-destructive focus:ring-2 focus:ring-destructive/20 transition-all duration-200 first:rounded-lg last:rounded-lg first:border-l"
+                                        className="w-12 h-14 text-2xl font-semibold border rounded-lg shadow-xs border-destructive/20 focus:border-destructive focus:ring-2 focus:ring-destructive/20 transition-all duration-200 first:rounded-lg last:rounded-lg first:border-l"
                                     />
                                 ))}
                             </InputOTPGroup>
@@ -77,7 +77,7 @@ export function DeleteAccountOtpModal({
                     </div>
 
                     <div className="w-full flex items-start gap-3 p-4 rounded-xl bg-destructive/5 border border-destructive/10 text-destructive text-sm leading-relaxed">
-                        <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                        <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
                         <p>
                             <strong>Achtung:</strong> Diese Aktion ist unwiderruflich. Alle Ihre Immobilien, Mieter und Finanzdaten werden sofort und dauerhaft gelöscht.
                         </p>

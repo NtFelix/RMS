@@ -64,7 +64,7 @@ export function LastTransactionsContainer() {
           for (const item of data) {
             try {
               const betrag = typeof item.betrag === 'string' 
-                ? parseFloat(item.betrag) 
+                ? Math.round(parseFloat(item.betrag) * 100) / 100 
                 : Number(item.betrag);
               
               formattedTransactions.push({
@@ -113,8 +113,8 @@ export function LastTransactionsContainer() {
   };
 
   return (
-    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
-      <CardHeader className="flex-shrink-0 pb-3">
+    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
+      <CardHeader className="shrink-0 pb-3">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg">Letzte Transaktionen</CardTitle>
@@ -144,7 +144,7 @@ export function LastTransactionsContainer() {
                   className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 dark:table-row-hover transition-colors"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                       transaction.ist_einnahmen 
                         ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' 
                         : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
@@ -170,7 +170,7 @@ export function LastTransactionsContainer() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 text-right">
+                  <div className="shrink-0 text-right">
                     <p className={`text-sm font-semibold ${
                       transaction.ist_einnahmen ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>

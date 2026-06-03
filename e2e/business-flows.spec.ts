@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, hasTestCredentials, generateRandomString, acceptCookieConsent } from './utils';
+import { login, hasTestCredentials, generateRandomString, acceptCookieConsent, getUiErrorMessage } from './utils';
 
 
 import { Page } from '@playwright/test';
@@ -95,7 +95,15 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern|Aktualisieren/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    try {
+      await expect(modal).toBeHidden({ timeout: 10000 });
+    } catch (e) {
+      const errorText = await getUiErrorMessage(page);
+      if (errorText) {
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify in table
@@ -147,20 +155,37 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(300);
 
     // Type to search
-    await page.keyboard.type(houseName);
+    const houseSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
+    await expect(houseSearchbox).toBeVisible({ timeout: 5000 }).catch(async () => {
+      // Re-try opening the combobox if searchbox is not visible (Firefox/WebKit shift safeguard)
+      await combobox.click({ force: true });
+      await expect(houseSearchbox).toBeVisible({ timeout: 5000 });
+    });
+
+    await houseSearchbox.fill(houseName);
     await page.waitForTimeout(500);
 
     // Select option
     const option = page.getByRole('option', { name: houseName }).first();
     await expect(option).toBeVisible({ timeout: 10000 });
-    await option.click();
+    await option.scrollIntoViewIfNeeded().catch(() => {});
+    await option.click({ force: true });
     await page.waitForTimeout(300);
 
     // Submit
     await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
 
-    // Wait for modal to close
-    await expect(modal).not.toBeVisible({ timeout: 15000 });
+    // Wait for modal to close with better error reporting
+    try {
+      await expect(modal).not.toBeVisible({ timeout: 15000 });
+    } catch (e) {
+      // Check for error messages in the modal or page
+      const errorText = await getUiErrorMessage(page);
+      if (errorText) {
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify
@@ -206,14 +231,14 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(300);
 
     // Select Apartment
-    // It's a CustomCombobox. ID might be on the hidden input, not the trigger.
-    // We look for the combobox trigger again.
-    const combobox = modal.getByRole('combobox').first();
+    // It's a CustomCombobox with id="wohnung_id" on the button trigger.
+    const combobox = modal.locator('#wohnung_id').first();
     await expect(combobox).toBeVisible({ timeout: 10000 });
     await combobox.click();
     await page.waitForTimeout(300);
 
-    await page.keyboard.type(aptName);
+    const aptSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
+    await aptSearchbox.fill(aptName);
     await page.waitForTimeout(500);
 
     const option = page.getByRole('option', { name: aptName }).first();
@@ -221,7 +246,9 @@ test.describe('Business Logic Flows', () => {
     try {
       await expect(option).toBeVisible({ timeout: 5000 });
     } catch (e) {
-      await page.locator('button[role="combobox"]').first().click({ force: true });
+      await modal.locator('#wohnung_id').first().click({ force: true });
+      await expect(aptSearchbox).toBeVisible({ timeout: 5000 });
+      await aptSearchbox.fill(aptName);
       await expect(option).toBeVisible({ timeout: 10000 });
     }
     await option.scrollIntoViewIfNeeded().catch(() => {});
@@ -247,7 +274,15 @@ test.describe('Business Logic Flows', () => {
     await page.getByRole('button', { name: /Speichern/i }).click();
 
     // Wait for modal to close
-    await expect(modal).toBeHidden({ timeout: 10000 });
+    try {
+      await expect(modal).toBeHidden({ timeout: 10000 });
+    } catch (e) {
+      const errorText = await getUiErrorMessage(page);
+      if (errorText) {
+        throw new Error(`Failed to create entity. Error shown in UI: ${errorText}`);
+      }
+      throw e;
+    }
     await page.waitForTimeout(500);
 
     // Verify
@@ -275,7 +310,7 @@ test.describe('Business Logic Flows', () => {
       for (const entity of entities) {
         try {
           console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await safeNavigate(page, entity.path, 'networkidle');
+          await safeNavigate(page, entity.path, 'domcontentloaded');
 
           // Strategy 1: Search for the specific entity name
           let foundAndDeleted = false;

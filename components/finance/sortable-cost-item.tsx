@@ -166,7 +166,7 @@ export function SortableCostItem({
           </Select>
           {selectContentRect && hoveredBerechnungsart && hoveredItemRect && createPortal(
             <div
-              className="fixed z-[60] transition-none"
+              className="fixed z-60 transition-none"
               style={{
                 top: `${Math.round(hoveredItemRect.top)}px`,
                 right: `${window.innerWidth - Math.round(selectContentRect.left) + 8}px`,
@@ -174,7 +174,7 @@ export function SortableCostItem({
                 minHeight: `${Math.round(hoveredItemRect.height)}px`,
               }}
             >
-              <div className="h-full rounded-md border bg-popover text-popover-foreground shadow-sm p-3 text-sm flex items-center">
+              <div className="h-full rounded-md border bg-popover text-popover-foreground shadow-xs p-3 text-sm flex items-center">
                 {tooltipMap[hoveredBerechnungsart]}
               </div>
             </div>,
@@ -229,7 +229,7 @@ export function SortableCostItem({
                         <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="flex-1 text-sm font-medium" title={mieter.name}>
                           {mieter.name}
                         </Label>
-                        <div className="flex-shrink-0 w-32">
+                        <div className="shrink-0 w-32">
                           <NumberInput
                             id={`rechnung-${item.id}-${mieter.id}`}
                             step="0.01"
@@ -247,7 +247,7 @@ export function SortableCostItem({
               {rechnungen[item.id] && selectedHausMieter.length > 0 && (
                 <div className="pt-2 mt-2 border-t border-gray-400 dark:border-gray-500 flex justify-end">
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0))} €
+                    Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + Math.round((parseFloat(r.betrag) || 0) * 100), 0) / 100)} €
                   </p>
                 </div>
               )}

@@ -1,0 +1,2165 @@
+name: CI
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
+  pull_request:
+    paths-ignore:
+      - 'playwright/snapshots.yml'
+      - '**/snapshots.yml'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22'
+  # Opt into Node 24 for actions to avoid deprecation warnings
+  # and ensure future compatibility as Node 20 is being retired.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ─── Orchestrator ──────────────────────────────────────────────────────────
+
+  check-runs:
+    name: Check Runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      should-run-visual: ${{ steps.visual.outputs.should-run-visual }}
+      should-run-lighthouse: ${{ steps.lighthouse.outputs.should-run-lighthouse }}
+      lighthouse-device-matrix: ${{ steps.lighthouse.outputs.device-matrix }}
+      should-run-tests: ${{ steps.tests.outputs.should-run-tests }}
+      test-matrix: ${{ steps.tests.outputs.matrix }}
+      test-total-files: ${{ steps.tests.outputs.total-files }}
+      test-files-to-test: ${{ steps.tests.outputs.files-to-test }}
+      test-is-full-run: ${{ steps.tests.outputs.is-full-run }}
+      should-run-e2e: ${{ steps.e2e.outputs.should-run-e2e }}
+      should-run-deploy-preview: ${{ steps.deploy.outputs.should-run-deploy-preview }}
+      should-run-deploy-production: ${{ steps.deploy.outputs.should-run-deploy-production }}
+      should-run-docker: ${{ steps.deploy.outputs.should-run-docker }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+            fi
+          fi
+
+          if [ -n "$BASE_SHA" ]; then
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' || echo "")
+          else
+            CHANGED_FILES="ALL"
+          fi
+
+          echo "$CHANGED_FILES" > changed_files.txt
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "changed-count=0" >> $GITHUB_OUTPUT
+          else
+            echo "changed-count=$(echo "$CHANGED_FILES" | grep -c -v '^$' 2>/dev/null || echo 0)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check visual review scope
+        id: visual
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run-visual=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "should-run-visual=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E \
+            '^(app|components|lib|hooks|public|styles|playwright)/|\.css$|playwright\.config\.ts$' \
+            || true)
+
+          if [ -n "$CHANGED" ]; then
+            echo "should-run-visual=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-visual=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Lighthouse audit scope
+        id: lighthouse
+        run: |
+          FULL_MATRIX='["mobile", "desktop", "tablet"]'
+          DESKTOP_ONLY='["desktop"]'
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
+            echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
+            echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-lighthouse=false" >> $GITHUB_OUTPUT
+            echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check E2E scope
+        id: e2e
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-run-e2e=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-e2e=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Discover & Filter Test Files
+        id: tests
+        run: |
+          ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
+            -not -path "./node_modules/*" \
+            -not -path "./.next/*" \
+            -not -path "./coverage/*" \
+            -not -path "./.git/*" \
+            | sed 's|^\./||' \
+            | sort)
+
+          mapfile -t ALL_FILES_ARRAY <<< "$ALL_TEST_FILES"
+          TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
+
+          IS_FULL_RUN=false
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            IS_FULL_RUN=true
+          fi
+
+          PASSING_TESTS_FILE=".test-cache/passing-tests.json"
+          if [ ! -f "$PASSING_TESTS_FILE" ]; then
+            IS_FULL_RUN=true
+          fi
+
+          CHANGED_FILES=$(cat changed_files.txt)
+          if [ "$CHANGED_FILES" = "ALL" ]; then
+            IS_FULL_RUN=true
+          fi
+
+          TEST_FILES_TO_RUN=""
+          if [ "$IS_FULL_RUN" = "true" ]; then
+            TEST_FILES_TO_RUN="$ALL_TEST_FILES"
+          else
+            for TEST_FILE in "${ALL_FILES_ARRAY[@]}"; do
+              SHOULD_RUN=false
+              if grep -Fxq "$TEST_FILE" changed_files.txt 2>/dev/null; then
+                SHOULD_RUN=true
+              fi
+              SOURCE_FILE=$(echo "$TEST_FILE" | sed 's|__tests__/||g' | sed 's|\.test\.tsx\?$|.tsx|' | sed 's|\.test\.ts$|.ts|')
+              if grep -q "$SOURCE_FILE" changed_files.txt 2>/dev/null; then
+                SHOULD_RUN=true
+              fi
+              if [ "$SHOULD_RUN" = "false" ]; then
+                if [ -f "$TEST_FILE" ]; then
+                  FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                  CACHED_HASH=$(jq -r --arg file "$TEST_FILE" '.[$file] // ""' "$PASSING_TESTS_FILE")
+                  if [ "$FILE_HASH" != "$CACHED_HASH" ]; then
+                    SHOULD_RUN=true
+                  fi
+                fi
+              fi
+              if [ "$SHOULD_RUN" = "true" ]; then
+                TEST_FILES_TO_RUN="$TEST_FILES_TO_RUN $TEST_FILE"
+              fi
+            done
+          fi
+
+          TEST_FILES_TO_RUN=$(echo "$TEST_FILES_TO_RUN" | xargs)
+          if [ -z "$TEST_FILES_TO_RUN" ]; then
+            FILES_ARRAY=()
+          else
+            mapfile -t FILES_ARRAY <<< "$(echo "$TEST_FILES_TO_RUN" | tr ' ' '\n' | grep -v '^$' || true)"
+          fi
+
+          TOTAL_FILES=${#FILES_ARRAY[@]}
+          echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+          echo "is-full-run=$IS_FULL_RUN" >> $GITHUB_OUTPUT
+          if [ "$TOTAL_FILES" -gt 0 ]; then
+            echo "should-run-tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run-tests=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$TOTAL_FILES" -eq 0 ]; then
+            echo 'matrix={"include":[]}' >> $GITHUB_OUTPUT
+            echo "files-to-test=" >> $GITHUB_OUTPUT
+          else
+            NUM_GROUPS=3
+            GROUP1_FILES=""; GROUP2_FILES=""; GROUP3_FILES=""
+            INDEX=0
+            for FILE in "${FILES_ARRAY[@]}"; do
+              GROUP_NUM=$(( (INDEX % NUM_GROUPS) + 1 ))
+              case $GROUP_NUM in
+                1) GROUP1_FILES="$GROUP1_FILES $FILE" ;;
+                2) GROUP2_FILES="$GROUP2_FILES $FILE" ;;
+                3) GROUP3_FILES="$GROUP3_FILES $FILE" ;;
+              esac
+              INDEX=$((INDEX + 1))
+            done
+            GROUP1_FILES=$(echo "$GROUP1_FILES" | xargs); GROUP2_FILES=$(echo "$GROUP2_FILES" | xargs); GROUP3_FILES=$(echo "$GROUP3_FILES" | xargs)
+            INCLUDE_ARRAY="["
+            INCLUDE_ARRAY="$INCLUDE_ARRAY{\"test-group\":1,\"is-first-group\":true,\"test-files\":$(echo "$GROUP1_FILES" | jq -R .)}"
+            [ -n "$GROUP2_FILES" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,{\"test-group\":2,\"is-first-group\":false,\"test-files\":$(echo "$GROUP2_FILES" | jq -R .)}"
+            [ -n "$GROUP3_FILES" ] && INCLUDE_ARRAY="$INCLUDE_ARRAY,{\"test-group\":3,\"is-first-group\":false,\"test-files\":$(echo "$GROUP3_FILES" | jq -R .)}"
+            INCLUDE_ARRAY="$INCLUDE_ARRAY]"
+            echo "matrix={\"include\":$INCLUDE_ARRAY}" >> $GITHUB_OUTPUT
+            echo "files-to-test=$TEST_FILES_TO_RUN" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check deployment scope
+        id: deploy
+        run: |
+          IS_MAIN_BRANCH=$([[ "${{ github.ref }}" == "refs/heads/main" ]] && echo "true" || echo "false")
+          IS_PR=$([[ "${{ github.event_name }}" == "pull_request" ]] && echo "true" || echo "false")
+          
+          if [[ "$IS_PR" == "true" ]]; then
+            APP_CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" 2>/dev/null | grep -E '^(app|components|lib|hooks|public|styles|playwright|types|utils|supabase)/|\.css$|\.js$|\.tsx?$|package.*\.json|next\.config.*|tailwind\.config.*|Dockerfile|\.github/workflows' || true)
+          else
+            APP_CHANGED="true"
+          fi
+
+          RUN_DEPLOY_PREVIEW="false"
+          RUN_DEPLOY_PRODUCTION="false"
+          
+          if [[ "$IS_PR" == "true" && -n "$APP_CHANGED" ]]; then
+            RUN_DEPLOY_PREVIEW="true"
+          fi
+          
+          if [[ "$IS_MAIN_BRANCH" == "true" ]]; then
+            RUN_DEPLOY_PRODUCTION="true"
+          fi
+          
+          RUN_DOCKER="false"
+          if [[ "$RUN_DEPLOY_PREVIEW" == "true" || "$RUN_DEPLOY_PRODUCTION" == "true" || "${{ steps.e2e.outputs.should-run-e2e }}" == "true" || "${{ steps.visual.outputs.should-run-visual }}" == "true" ]]; then
+            RUN_DOCKER="true"
+          fi
+
+          echo "should-run-deploy-preview=$RUN_DEPLOY_PREVIEW" >> $GITHUB_OUTPUT
+          echo "should-run-deploy-production=$RUN_DEPLOY_PRODUCTION" >> $GITHUB_OUTPUT
+          echo "should-run-docker=$RUN_DOCKER" >> $GITHUB_OUTPUT
+
+  # ─── Always runs on every PR ─────────────────────────────────────────────────
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: check-runs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run ESLint
+        run: npm run lint
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    needs: check-runs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+  react-doctor:
+    name: React Doctor
+    runs-on: ubuntu-latest
+    needs: check-runs
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Required for diffing branches
+
+      - name: React Doctor
+        uses: millionco/react-doctor@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          diff: ${{ github.base_ref }}
+
+      - name: Send Discord notification
+        if: always()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}
+        with:
+          script: |
+            const fs = require('fs').promises;
+            const { execSync } = require('child_process');
+
+            const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+            if (!webhookUrl) {
+              console.log('Discord webhook secret is not set. Skipping Discord notification.');
+              return;
+            }
+
+            console.log('Running React Doctor scan for Discord payload...');
+            let report;
+            try {
+              execSync('npx react-doctor@latest . --diff ${{ github.base_ref }} --json > react-doctor-report.json || true');
+              const rawData = await fs.readFile('react-doctor-report.json', 'utf8');
+              report = JSON.parse(rawData);
+            } catch (error) {
+              console.error('Failed to run react-doctor or parse JSON report:', error);
+              return;
+            }
+
+            const summary = report.summary || {};
+            const errors = summary.errorCount || 0;
+            const warnings = summary.warningCount || 0;
+            const affectedFiles = summary.affectedFileCount || 0;
+            const totalDiagnostics = summary.totalDiagnosticCount || 0;
+
+            const scoreVal = (summary.score !== undefined && summary.score !== null) ? summary.score : null;
+            const displayScore = scoreVal !== null ? `${scoreVal}/100` : 'N/A';
+            const scoreLabel = summary.scoreLabel || (affectedFiles === 0 ? 'No Changes' : 'Unknown');
+
+            const getScoreColor = (score) => {
+              if (score === null || score === undefined) return 0x94A3B8; // Slate-400
+              if (score >= 90) return 0x10B981;
+              if (score >= 70) return 0xF59E0B;
+              return 0xEF4444;
+            };
+
+            const getScoreBullet = (score) => {
+              if (score === null || score === undefined) return '○';
+              if (score >= 90) return '●';
+              if (score >= 70) return '▲';
+              return '■';
+            };
+
+            const eventType = process.env.GITHUB_EVENT_NAME;
+            const branch = process.env.GITHUB_REF_NAME;
+            const runNumber = process.env.GITHUB_RUN_NUMBER;
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const repoUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
+
+            let title = 'React Doctor Health Audit';
+            let description = `**Branch:** \`${branch}\`\n**Run:** [#${runNumber}](${runUrl})`;
+
+            if (eventType === 'pull_request') {
+              const prNumber = context.payload.pull_request?.number;
+              const prUrl = context.payload.pull_request?.html_url;
+              title = `React Doctor - PR #${prNumber}`;
+              description = `**PR:** [#${prNumber}](${prUrl})\n**Branch:** \`${branch}\``;
+            }
+
+            if (affectedFiles === 0) {
+              description += '\n\n*No React files were modified in this pull request.*';
+            }
+
+            const embed = {
+              title,
+              description,
+              color: getScoreColor(scoreVal),
+              fields: [
+                {
+                  name: 'Health Score',
+                  value: `**${displayScore}** (${getScoreBullet(scoreVal)} ${scoreLabel})`,
+                  inline: true
+                },
+                {
+                  name: 'Files Inspected',
+                  value: `**${affectedFiles}** affected file(s)`,
+                  inline: true
+                },
+                {
+                  name: '\u200b',
+                  value: '\u200b',
+                  inline: true
+                },
+                {
+                  name: 'Errors',
+                  value: `**${errors}**`,
+                  inline: true
+                },
+                {
+                  name: 'Warnings',
+                  value: `**${warnings}**`,
+                  inline: true
+                },
+                {
+                  name: 'Total Findings',
+                  value: `**${totalDiagnostics}** issues found`,
+                  inline: true
+                },
+                {
+                  name: 'Links',
+                  value: `[View CI Run](${runUrl}) | [Repository](${repoUrl})`,
+                  inline: false
+                }
+              ],
+              timestamp: new Date().toISOString(),
+              footer: {
+                text: 'React Doctor CI',
+                icon_url: 'https://raw.githubusercontent.com/millionco/react-doctor/main/assets/logo.png'
+              }
+            };
+
+            try {
+              const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [embed] })
+              });
+              if (!response.ok) {
+                console.error(`Discord API returned error status: ${response.status}`);
+              } else {
+                console.log('React Doctor Discord notification sent successfully.');
+              }
+            } catch (postError) {
+              console.error('Failed to post notification to Discord:', postError);
+            }
+
+  semgrep:
+    name: Semgrep Security
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, build-app]
+    if: github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Run Semgrep Security Scan
+        run: semgrep ci
+
+  # ─── Docker Build and Smoke Test ─────────────────────────────────────────────
+
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, build-app, check-runs]
+    if: needs.check-runs.outputs.should-run-docker == 'true'
+    outputs:
+      start_time: ${{ steps.start-timer.outputs.start_time }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      pull-requests: write
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nextjs-build
+          path: .next
+
+      - name: Verify Build Artifact
+        run: |
+          if [ ! -d ".next" ] || [ ! "$(ls -A .next)" ]; then
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
+
+      - name: Comment Build Started
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        id: start-timer
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const marker = '<!-- preview-deploy-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existingComment = comments.find(c => c.body.includes(marker));
+            const body = `${marker}\n⏳ **Building Docker container...** It won't take long!`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+            core.setOutput('start_time', new Date().toISOString());
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+      - name: Authenticate Docker to Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Set Image Name & Tag
+        id: image
+        run: |
+          IMAGE_BASE="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAG="latest"
+          else
+            TAG="branch-${{ github.ref_name }}"
+          fi
+          echo "full_name=$IMAGE_BASE:$TAG" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+
+      - name: Build Docker image (local only)
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+        with:
+          context: .
+          push: false
+          load: true
+          platforms: linux/amd64
+          tags: ${{ steps.image.outputs.full_name }}
+          provenance: false
+          sbom: false
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ github.event_name == 'pull_request' && secrets.STAGING_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ github.event_name == 'pull_request' && secrets.STAGING_STRIPE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
+            NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }}
+            NEXT_PUBLIC_MIETEVO_MCP_URL=${{ secrets.NEXT_PUBLIC_MIETEVO_MCP_URL }}
+            ROBOTS_INDEXING=${{ github.event_name == 'pull_request' && 'false' || 'true' }}
+            POSTHOG_PROJECT_ID=${{ secrets.POSTHOG_PROJECT_ID }}
+            POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
+          secrets: |
+            "POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
+          cache-from: type=gha,scope=docker-build
+          cache-to: type=gha,mode=max,scope=docker-build
+
+      - name: Smoke test
+        id: smoke-test
+        run: |
+          docker run -d \
+            --name mietevo-smoke \
+            -p 3000:3000 \
+            --health-cmd='node -e "require(\"http\").get({hostname:\"localhost\",port:process.env.PORT||3000,path:\"/\",timeout:2000},(res)=>{process.exit(res.statusCode===200?0:1)}).on(\"error\",()=>process.exit(1))"' \
+            --health-interval=10s \
+            --health-timeout=5s \
+            --health-start-period=40s \
+            --health-retries=3 \
+            -e NODE_ENV=production \
+            -e NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
+            -e NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
+            ${{ steps.image.outputs.full_name }}
+
+          # Give container a moment to start
+          sleep 2
+
+          # Check 1: Verify container is still running
+          INITIAL_STATUS=$(docker inspect --format='{{.State.Status}}' mietevo-smoke 2>/dev/null || echo "not_found")
+          if [ "$INITIAL_STATUS" != "running" ]; then
+            echo "❌ Container failed to start (status: $INITIAL_STATUS)"
+            echo "Container logs:"
+            docker logs mietevo-smoke
+            exit 1
+          fi
+          echo "✓ Container started successfully"
+
+          # Check 2: Scan logs for critical errors during startup
+          STARTUP_ERRORS=$(docker logs mietevo-smoke 2>&1 | grep -iE "^.*error|^.*fatal|^.*panic|^.*uncaught|^.*exception" | grep -v "warning\|WarningLogLevel\|deprecated" | head -10 || true)
+          if [ -n "$STARTUP_ERRORS" ]; then
+            echo "⚠️  Critical errors detected in logs:"
+            echo "$STARTUP_ERRORS"
+            # Log full output for debugging
+            echo "---"
+            echo "Full container logs:"
+            docker logs mietevo-smoke | tail -50
+            exit 1
+          fi
+          echo "✓ No critical startup errors"
+
+          # Check 3: Wait for HTTP endpoint to be responsive
+          echo "Waiting for HTTP endpoint..."
+          HTTP_SUCCESS=false
+          for i in $(seq 1 30); do
+            STATUS=$(docker inspect --format='{{.State.Status}}' mietevo-smoke 2>/dev/null || echo "not_found")
+            if [ "$STATUS" != "running" ]; then
+              echo "❌ Container stopped unexpectedly (status: $STATUS)"
+              docker logs mietevo-smoke
+              exit 1
+            fi
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "307" ] || [ "$HTTP_CODE" = "302" ]; then
+              echo "✓ HTTP endpoint healthy (HTTP $HTTP_CODE)"
+              HTTP_SUCCESS=true
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "❌ HTTP endpoint did not respond after 60s"
+              echo "Last HTTP code: $HTTP_CODE"
+              echo "Container logs:"
+              docker logs mietevo-smoke
+              exit 1
+            fi
+            echo "  Attempt $i/30: HTTP $HTTP_CODE — retrying in 2s..."
+            sleep 2
+          done
+          
+          if [ "$HTTP_SUCCESS" != "true" ]; then
+            exit 1
+          fi
+
+          # Check 4: Validate response content
+          echo "Validating response content..."
+          RESPONSE_HEADERS=$(curl -s -i http://localhost:3000 2>/dev/null | head -20)
+          CONTENT_TYPE=$(echo "$RESPONSE_HEADERS" | grep -i "content-type" || true)
+          if [ -z "$CONTENT_TYPE" ]; then
+            echo "⚠️  Warning: No content-type header found"
+          else
+            echo "✓ Content-Type header present: $(echo "$CONTENT_TYPE" | cut -d: -f2- | xargs)"
+          fi
+          
+          # Check for HTML content
+          BODY=$(curl -s http://localhost:3000 2>/dev/null | head -c 500)
+          if echo "$BODY" | grep -qi "<!doctype\|<html"; then
+            echo "✓ Valid HTML response received"
+          else
+            echo "⚠️  Warning: No HTML doctype found in response"
+          fi
+
+          # Check 5: Verify Next.js assets are served
+          echo "Checking Next.js assets availability..."
+          ASSETS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/_next/static/ 2>/dev/null || echo "000")
+          if [ "$ASSETS_CHECK" = "200" ] || [ "$ASSETS_CHECK" = "404" ]; then
+            echo "✓ Next.js static assets endpoint accessible (HTTP $ASSETS_CHECK)"
+          else
+            echo "⚠️  Warning: Unexpected response from _next/static/ (HTTP $ASSETS_CHECK)"
+          fi
+          
+          # Check 6: Verify healthcheck endpoint
+          echo "Checking Docker healthcheck status..."
+          sleep 1
+          HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' mietevo-smoke 2>/dev/null || echo "none")
+          echo "Container health status: $HEALTH_STATUS"
+          if [ "$HEALTH_STATUS" = "healthy" ] || [ "$HEALTH_STATUS" = "starting" ]; then
+            echo "✓ Healthcheck passed or in progress"
+          elif [ "$HEALTH_STATUS" = "unhealthy" ]; then
+            echo "❌ Container healthcheck failed"
+            docker inspect mietevo-smoke | grep -A 10 '"Health"'
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All smoke tests passed!"
+
+      - name: Cleanup smoke test container
+        if: always()
+        run: |
+          if docker inspect mietevo-smoke &>/dev/null; then
+            echo "Stopping smoke test container..."
+            docker stop mietevo-smoke || true
+            docker rm -f mietevo-smoke || true
+            echo "✓ Cleanup complete"
+          fi
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@314ff8b43182423b84c50b1670b0e10f858f2d98 # master
+        with:
+          image-ref: ${{ steps.image.outputs.full_name }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 0
+          timeout: 10m
+          scanners: vuln,secret
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-docker
+
+      - name: Generate SBOM
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --format spdx-json \
+            --output sbom.spdx.json \
+            ${{ steps.image.outputs.full_name }}
+          echo "✓ SBOM generated"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: Dive image layer analysis
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            wagoodman/dive:latest \
+            ${{ steps.image.outputs.full_name }} --ci --lowestEfficiency 0.85 \
+            > dive-output.txt 2>&1 || true
+
+          EFFICIENCY=$(grep "efficiency" dive-output.txt | grep -oP '\d+\.?\d*%' || echo "unknown")
+          WASTED=$(grep "wasted" dive-output.txt | grep -oP '\d+\s*\w+' || echo "unknown")
+
+          {
+            echo "## Dive Image Analysis"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Efficiency | ${EFFICIENCY} |"
+            echo "| Wasted Space | ${WASTED} |"
+            echo ""
+            echo "💡 *Efficiency unter 85%? Prüfe: \`npm ci --production\`, \`rm -rf /var/lib/apt/lists/*\`, \`.dockerignore\`*"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Check non-root user
+        run: |
+          USER=$(docker inspect --format='.Config.User' ${{ steps.image.outputs.full_name }})
+          if [ -z "$USER" ] || [ "$USER" = "root" ] || [ "$USER" = "0" ]; then
+            echo "## Security: Root User Check" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Container runs as root!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo 'Add to Dockerfile:' >> $GITHUB_STEP_SUMMARY
+            echo '```dockerfile' >> $GITHUB_STEP_SUMMARY
+            echo 'RUN addgroup -S appgroup && adduser -S appuser -G appgroup' >> $GITHUB_STEP_SUMMARY
+            echo 'USER appuser' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✓ Container runs as non-root user: **$USER**"
+
+      - name: Push Docker image to Artifact Registry
+        if: success()
+        run: |
+          echo "Pushing ${{ steps.image.outputs.full_name }}..."
+          docker push ${{ steps.image.outputs.full_name }}
+          echo "✓ Image pushed successfully"
+
+  # ─── Only runs when UI files changed ─────────────────────────────────────────
+
+  build-app:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: check-runs
+    if: needs.check-runs.outputs.should-run-tests == 'true' || needs.check-runs.outputs.should-run-docker == 'true' || needs.check-runs.outputs.should-run-lighthouse == 'true'
+    outputs:
+      build-cache-key: ${{ steps.build-key.outputs.key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
+
+      - name: Generate build cache key
+        id: build-key
+        run: |
+          # Deterministic cache key based on critical build inputs
+          # Includes: package-lock.json, config files, and source code hash
+          LOCK_HASH=${{ hashFiles('**/package-lock.json') }}
+          CONFIG_HASH=${{ hashFiles('next.config.*', 'tsconfig.json', '.env.example') }}
+          SOURCE_HASH=$(find app components lib hooks types -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-source")
+          echo "key=${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}" >> $GITHUB_OUTPUT
+          echo "Cache key: ${{ runner.os }}-nextjs-build-${LOCK_HASH:0:12}-${CONFIG_HASH:0:12}-${SOURCE_HASH:0:12}"
+
+      - name: Restore build cache
+        id: build-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .next
+          key: ${{ steps.build-key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-
+
+      - name: Build Next.js app
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        run: npm run build
+        env:
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+
+      - name: Verify Build Output
+        run: |
+          echo "Verifying build output in .next directory..."
+          if [ -d ".next" ]; then
+            echo "✓ .next directory found"
+            ls -la .next | head -n 10
+          else
+            echo "❌ .next directory NOT found!"
+            exit 1
+          fi
+
+      - name: Save build cache
+        if: steps.build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .next
+          key: ${{ steps.build-key.outputs.key }}
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nextjs-build
+          path: .next
+          retention-days: 1
+          include-hidden-files: true
+
+  e2e-smoke:
+    name: E2E Smoke Check
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    env:
+      HOME: /root
+    needs: [check-runs, build-app, lint, type-check]
+    if: needs.check-runs.outputs.should-run-e2e == 'true' || needs.check-runs.outputs.should-run-visual == 'true'
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nextjs-build
+          path: .next
+
+      - name: Verify Build Artifact
+        run: |
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run Smoke Test (Chromium)
+        run: npx playwright test --project=chromium --grep "@smoke" --reporter=list || npx playwright test e2e/example.spec.ts --project=chromium --grep-invert "@visual" --reporter=list
+        env:
+          CI: true
+          NODE_ENV: production
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
+
+  e2e-test:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    env:
+      HOME: /root
+    needs: [check-runs, build-app, lint, type-check, e2e-smoke]
+    if: needs.check-runs.outputs.should-run-e2e == 'true'
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nextjs-build
+          path: .next
+
+      - name: Verify Build Artifact
+        run: |
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+
+      - name: Run Playwright tests (${{ matrix.browser }})
+        id: playwright
+        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual --reporter=list
+        env:
+          CI: true
+          NODE_ENV: production
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
+
+      - name: Upload Playwright report (${{ matrix.browser }})
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results (${{ matrix.browser }})
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  test:
+    name: Run Tests (Group ${{ matrix.test-group }})
+    runs-on: ubuntu-latest
+    needs: [check-runs, build-app, type-check, lint]
+    if: needs.check-runs.outputs.should-run-tests == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.check-runs.outputs.test-matrix) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Cache node_modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Cache Jest
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-jest
+        with:
+          path: .jest/cache
+          key: ${{ runner.os }}-jest-${{ hashFiles('**/*.test.ts', '**/*.test.tsx') }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-jest-
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+
+      - name: Get test files list
+        id: test-files
+        run: |
+          TEST_FILES_RAW="${{ matrix.test-files }}"
+
+          if [ -z "$TEST_FILES_RAW" ]; then
+            echo "No test files specified for this group"
+            echo "[]" > test_files.json
+          else
+            echo "$TEST_FILES_RAW" | tr -s '[:space:]' '\n' | grep -v '^[[:space:]]*$' | jq -R . | jq -s . > test_files.json
+          fi
+
+          if ! jq -e . test_files.json > /dev/null 2>&1; then
+            echo "Error: Invalid JSON in test_files.json"
+            cat test_files.json
+            exit 1
+          fi
+
+          echo "Test files in group ${{ matrix.test-group }}:"
+          cat test_files.json
+          echo "Number of test files: $(jq 'length' test_files.json)"
+          echo "test_files=$(cat test_files.json | jq -c .)" >> $GITHUB_OUTPUT
+
+      - name: Run test group ${{ matrix.test-group }}
+        timeout-minutes: 5
+        env:
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
+        run: |
+          rm -rf coverage/ .nyc_output/
+
+          if [ ! -f test_files.json ] || [ "$(jq 'length' test_files.json)" -eq 0 ]; then
+            echo "No test files found in this group. Skipping test execution."
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
+              mkdir -p coverage
+              echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
+            fi
+            exit 0
+          fi
+
+          JEST_ARGS="--runInBand --forceExit --detectOpenHandles --testTimeout=10000 --passWithNoTests --no-cache"
+          if [ "${{ matrix.is-first-group }}" = "true" ]; then
+            mkdir -p coverage
+            JEST_ARGS="$JEST_ARGS --coverage --testLocationInResults --json --outputFile=test-results.json"
+          fi
+
+          mapfile -t TEST_FILES_ARRAY < <(jq -r '.[]' test_files.json)
+
+          if [ ${#TEST_FILES_ARRAY[@]} -eq 0 ]; then
+            echo "No test files to run in this group."
+            if [ "${{ matrix.is-first-group }}" = "true" ]; then
+              mkdir -p coverage
+              echo '{"total": {"lines": {"pct": 100}, "statements": {"pct": 100}, "functions": {"pct": 100}, "branches": {"pct": 100}}}' > coverage/coverage-summary.json
+            fi
+            exit 0
+          fi
+
+          echo "Running test group ${{ matrix.test-group }} with ${#TEST_FILES_ARRAY[@]} test files"
+          timeout 180 npx jest $JEST_ARGS "${TEST_FILES_ARRAY[@]}" 2>&1 | tee jest-output.log || {
+            TEST_EXIT_CODE=$?
+            if [ $TEST_EXIT_CODE -eq 124 ]; then
+              echo "Tests timed out after 3 minutes"
+              exit 1
+            fi
+            exit $TEST_EXIT_CODE
+          }
+          TEST_EXIT_CODE=$?
+
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ ! -d "coverage" ]; then
+            mkdir -p coverage
+            echo '{"total": {"lines": {"pct": 0}, "statements": {"pct": 0}, "functions": {"pct": 0}, "branches": {"pct": 0}}}' > coverage/coverage-summary.json
+          fi
+
+          if [ "${{ matrix.is-first-group }}" = "true" ] && [ -d "coverage" ]; then
+            echo "Coverage report generated at: $(pwd)/coverage"
+            ls -la coverage/ || echo "Coverage directory is empty"
+          fi
+
+          exit $TEST_EXIT_CODE
+
+      - name: Upload test results
+        if: always() && matrix.is-first-group
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results
+          path: |
+            coverage/
+            test-results.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload JUnit test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-results-group-${{ matrix.test-group }}
+          path: |
+            junit-*.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Save test summary
+        if: always()
+        run: |
+          mkdir -p test-summaries
+          PASSED=0
+          FAILED=0
+          TOTAL=0
+          SUITES_PASSED=0
+          SUITES_FAILED=0
+          SUITES_TOTAL=0
+
+          if [ -f "test-results.json" ]; then
+            PASSED=$(jq -r '.numPassedTests // 0' test-results.json)
+            FAILED=$(jq -r '.numFailedTests // 0' test-results.json)
+            TOTAL=$(jq -r '.numTotalTests // 0' test-results.json)
+            SUITES_PASSED=$(jq -r '.numPassedTestSuites // 0' test-results.json)
+            SUITES_FAILED=$(jq -r '.numFailedTestSuites // 0' test-results.json)
+            SUITES_TOTAL=$(jq -r '.numTotalTestSuites // 0' test-results.json)
+          fi
+
+          cat > test-summaries/group-${{ matrix.test-group }}.json <<EOF
+          {
+            "group": ${{ matrix.test-group }},
+            "tests": {
+              "passed": $PASSED,
+              "failed": $FAILED,
+              "total": $TOTAL
+            },
+            "suites": {
+              "passed": $SUITES_PASSED,
+              "failed": $SUITES_FAILED,
+              "total": $SUITES_TOTAL
+            },
+            "status": "${{ job.status }}"
+          }
+          EOF
+
+      - name: Record passing tests
+        if: success()
+        run: |
+          mkdir -p .test-cache
+          PASSING_TESTS_FILE=".test-cache/passing-tests-group-${{ matrix.test-group }}.json"
+          echo '{}' > "$PASSING_TESTS_FILE"
+          if [ -f test_files.json ]; then
+            TEST_FILES=$(jq -r '.[]' test_files.json)
+            for TEST_FILE in $TEST_FILES; do
+              if [ -f "$TEST_FILE" ]; then
+                FILE_HASH=$(md5sum "$TEST_FILE" | cut -d' ' -f1)
+                jq --arg file "$TEST_FILE" --arg hash "$FILE_HASH" '. + {($file): $hash}' "$PASSING_TESTS_FILE" > tmp.json && mv tmp.json "$PASSING_TESTS_FILE"
+              fi
+            done
+          fi
+
+      - name: Upload passing tests data
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: passing-tests-group-${{ matrix.test-group }}
+          path: .test-cache/passing-tests-group-${{ matrix.test-group }}.json
+          retention-days: 30
+
+      - name: Upload test summary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-summary-${{ matrix.test-group }}
+          path: test-summaries/
+          retention-days: 1
+
+  test-summary:
+    name: Test Summary & Notification
+    runs-on: ubuntu-latest
+    needs: [test, e2e-test]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download test summaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: test-summary-*
+          path: test-summaries
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download Playwright reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: playwright-report-*
+          path: playwright-reports
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download passing tests data
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: passing-tests-group-*
+          path: passing-tests-data
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Summarize results
+        if: always()
+        run: |
+          TOTAL_TESTS_PASSED=0
+          TOTAL_TESTS_FAILED=0
+          TOTAL_TESTS=0
+          TOTAL_SUITES_PASSED=0
+          TOTAL_SUITES_FAILED=0
+          TOTAL_SUITES=0
+
+          if [ -d "test-summaries" ]; then
+            for file in test-summaries/*.json; do
+              if [ -f "$file" ]; then
+                TESTS_PASSED=$(jq -r '.tests.passed' "$file")
+                TESTS_FAILED=$(jq -r '.tests.failed' "$file")
+                TESTS_TOTAL=$(jq -r '.tests.total' "$file")
+                SUITES_PASSED=$(jq -r '.suites.passed' "$file")
+                SUITES_FAILED=$(jq -r '.suites.failed' "$file")
+                SUITES_TOTAL=$(jq -r '.suites.total' "$file")
+
+                TOTAL_TESTS_PASSED=$((TOTAL_TESTS_PASSED + TESTS_PASSED))
+                TOTAL_TESTS_FAILED=$((TOTAL_TESTS_FAILED + TESTS_FAILED))
+                TOTAL_TESTS=$((TOTAL_TESTS + TESTS_TOTAL))
+                TOTAL_SUITES_PASSED=$((TOTAL_SUITES_PASSED + SUITES_PASSED))
+                TOTAL_SUITES_FAILED=$((TOTAL_SUITES_FAILED + SUITES_FAILED))
+                TOTAL_SUITES=$((TOTAL_SUITES + SUITES_TOTAL))
+              fi
+            done
+          fi
+
+          {
+            echo "## Test Summary"
+            echo ""
+            echo "- Tests passed: $TOTAL_TESTS_PASSED"
+            echo "- Tests failed: $TOTAL_TESTS_FAILED"
+            echo "- Tests total: $TOTAL_TESTS"
+            echo "- Suites passed: $TOTAL_SUITES_PASSED"
+            echo "- Suites failed: $TOTAL_SUITES_FAILED"
+            echo "- Suites total: $TOTAL_SUITES"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  prepare-lhci:
+    name: Prepare LHCI Tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore LHCI tools cache
+        id: lhci-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            lhci-tools/node_modules
+            lhci-tools/package.json
+            lhci-tools/package-lock.json
+          key: lhci-tools-${{ runner.os }}-0.12.x
+
+      - name: Create package.json and install LHCI tools
+        if: steps.lhci-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p lhci-tools
+          cd lhci-tools
+          echo '{"name":"lhci-tools","private":true}' > package.json
+          npm install @lhci/cli@0.12.x wait-on
+          echo "✓ LHCI tools installed and cached"
+
+  lighthouse:
+    name: Lighthouse Audit (${{ matrix.device }})
+    runs-on: ubuntu-latest
+    needs: [check-runs, build-app, lint, type-check, prepare-lhci]
+    if: needs.check-runs.outputs.should-run-lighthouse == 'true'
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        device: ${{ fromJson(needs.check-runs.outputs.lighthouse-device-matrix) }}
+        include:
+          - device: mobile
+            form-factor: mobile
+            port: 3001
+          - device: desktop
+            form-factor: desktop
+            port: 3002
+          - device: tablet
+            form-factor: mobile
+            port: 3003
+            viewport-width: 768
+            viewport-height: 1024
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nextjs-build
+          path: .next
+
+      - name: Verify Build Artifact
+        run: |
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
+
+      - name: Install dependencies (if not cached)
+        run: |
+          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+            echo "Installing dependencies..."
+            npm ci --prefer-offline
+          else
+            echo "✓ node_modules exists and appears complete - skipping npm ci"
+          fi
+
+      - name: Restore LHCI tools cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            lhci-tools/node_modules
+            lhci-tools/package.json
+            lhci-tools/package-lock.json
+          key: lhci-tools-${{ runner.os }}-0.12.x
+
+      - name: Verify LHCI tools
+        run: |
+          echo "Verifying LHCI tools..."
+          npx --prefix lhci-tools lhci --version
+          npx --prefix lhci-tools wait-on --version
+          echo "✓ LHCI tools verified"
+
+      - name: Run Lighthouse audit
+        id: lighthouse
+        timeout-minutes: 8
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
+        run: |
+          DEVICE="${{ matrix.device }}"
+          FORM_FACTOR="${{ matrix.form-factor }}"
+          PORT="${{ matrix.port }}"
+          VIEWPORT_WIDTH="${{ matrix.viewport-width }}"
+          VIEWPORT_HEIGHT="${{ matrix.viewport-height }}"
+
+          echo "Running Lighthouse audit for $DEVICE..."
+          echo "Working directory: $(pwd)"
+
+          PORT=$PORT npm run start &
+          APP_PID=$!
+
+          cleanup() {
+            echo "Cleaning up server (PID: $APP_PID)..."
+            kill -TERM $APP_PID 2>/dev/null || true
+            sleep 2
+            kill -KILL $APP_PID 2>/dev/null || true
+            wait $APP_PID 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          echo "Waiting for server on http://localhost:$PORT..."
+          npx --prefix lhci-tools wait-on --timeout 60000 http://localhost:$PORT
+
+          SETTINGS="--settings.emulatedFormFactor=$FORM_FACTOR"
+          if [ -n "$VIEWPORT_WIDTH" ]; then
+            SETTINGS="$SETTINGS --settings.screenEmulation.width=$VIEWPORT_WIDTH --settings.screenEmulation.height=$VIEWPORT_HEIGHT"
+          fi
+
+          npx --prefix lhci-tools lhci collect \
+            --url=http://localhost:$PORT \
+            --numberOfRuns=1 \
+            $SETTINGS \
+            --settings.maxWaitForLoad=60000 \
+            --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage" \
+            --no-upload
+
+          cleanup
+          trap - EXIT
+
+          echo "Checking for generated reports..."
+          ls -la .lighthouseci/ || echo "No .lighthouseci directory found"
+
+          mkdir -p lighthouse-reports
+          if [ -d .lighthouseci ]; then
+            cp -r .lighthouseci/* lighthouse-reports/ 2>/dev/null || true
+            echo "Copied reports to lighthouse-reports/"
+            ls -la lighthouse-reports/
+          fi
+
+          JSON_COUNT=$(find lighthouse-reports -name "*.json" -type f 2>/dev/null | wc -l)
+          if [ "$JSON_COUNT" -gt 0 ]; then
+            echo "✓ Lighthouse $DEVICE audit completed successfully! Found $JSON_COUNT JSON report(s)"
+          else
+            echo "⚠ Warning: No JSON reports found for $DEVICE"
+          fi
+
+      - name: Debug - Check files before upload
+        if: failure()
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Checking lighthouse-reports directory:"
+          ls -la lighthouse-reports/ || echo "Directory not found"
+          echo "Finding JSON files:"
+          find lighthouse-reports -name "*.json" -type f 2>/dev/null || echo "No JSON files found"
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lighthouse-${{ matrix.device }}
+          path: lighthouse-reports/
+          retention-days: 7
+          if-no-files-found: warn
+
+  lighthouse-report:
+    name: Generate Lighthouse Report
+    runs-on: ubuntu-latest
+    needs: [lighthouse]
+    if: always() && needs.lighthouse.result != 'skipped'
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: lighthouse-results
+
+      - name: Generate PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs = require('fs').promises;
+            const path = require('path');
+
+            const getScoreEmoji = (score) => {
+              if (score >= 90) return '🟢';
+              if (score >= 75) return '🟡';
+              return '🔴';
+            };
+
+            const processDevice = async (device) => {
+              try {
+                const dir = `lighthouse-results/lighthouse-${device}`;
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
+
+                if (!jsonFile) {
+                  console.log(`No JSON file found for ${device}. Files:`, allFiles);
+                  return null;
+                }
+
+                const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
+                const categories = report.categories;
+
+                return {
+                  performance: Math.round(categories.performance.score * 100),
+                  accessibility: Math.round(categories.accessibility.score * 100),
+                  bestPractices: Math.round(categories['best-practices'].score * 100),
+                  seo: Math.round(categories.seo.score * 100)
+                };
+              } catch (error) {
+                console.log(`No data for ${device}: ${error.message}`);
+                return null;
+              }
+            };
+
+            const [mobile, desktop, tablet] = await Promise.all([
+              processDevice('mobile'),
+              processDevice('desktop'),
+              processDevice('tablet')
+            ]);
+
+            const formatRow = (device, scores) => {
+              if (!scores) return `| ${device} | ❌ No data | - | - | - |`;
+              return `| ${device} | ${getScoreEmoji(scores.performance)} ${scores.performance} | ${getScoreEmoji(scores.accessibility)} ${scores.accessibility} | ${getScoreEmoji(scores.bestPractices)} ${scores.bestPractices} | ${getScoreEmoji(scores.seo)} ${scores.seo} |`;
+            };
+
+            const comment = [
+              '## ⚡ Lighthouse Audit Results',
+              '',
+              '| Device | Performance | Accessibility | Best Practices | SEO |',
+              '|--------|-------------|---------------|----------------|-----|',
+              formatRow('📱 Mobile', mobile),
+              formatRow('🖥️ Desktop', desktop),
+              formatRow('📱 Tablet', tablet),
+              '',
+              '**Legend:** 🟢 90+ | 🟡 75-89 | 🔴 <75',
+              '',
+              `[View detailed reports](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Generate Actions Summary
+        if: always()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs = require('fs').promises;
+            const path = require('path');
+
+            const getScoreEmoji = (score) => {
+              if (score >= 90) return '🟢';
+              if (score >= 75) return '🟡';
+              return '🔴';
+            };
+
+            const processDevice = async (device) => {
+              try {
+                const dir = `lighthouse-results/lighthouse-${device}`;
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
+
+                if (!jsonFile) {
+                  console.log(`No JSON file found for ${device}. Files:`, allFiles);
+                  return null;
+                }
+
+                const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
+                const categories = report.categories;
+
+                return {
+                  performance: Math.round(categories.performance.score * 100),
+                  accessibility: Math.round(categories.accessibility.score * 100),
+                  bestPractices: Math.round(categories['best-practices'].score * 100),
+                  seo: Math.round(categories.seo.score * 100)
+                };
+              } catch (error) {
+                console.log(`No data for ${device}: ${error.message}`);
+                return null;
+              }
+            };
+
+            const [mobile, desktop, tablet] = await Promise.all([
+              processDevice('mobile'),
+              processDevice('desktop'),
+              processDevice('tablet')
+            ]);
+
+            const formatRow = (device, scores) => {
+              if (!scores) return `| ${device} | ❌ No data | - | - | - |`;
+              return `| ${device} | ${getScoreEmoji(scores.performance)} ${scores.performance} | ${getScoreEmoji(scores.accessibility)} ${scores.accessibility} | ${getScoreEmoji(scores.bestPractices)} ${scores.bestPractices} | ${getScoreEmoji(scores.seo)} ${scores.seo} |`;
+            };
+
+            let summary = `# ⚡ Lighthouse Audit Results\n\n`;
+            summary += `> Branch: \`${process.env.GITHUB_REF_NAME}\` • Run: #${process.env.GITHUB_RUN_NUMBER}\n\n`;
+            summary += `| Device | Performance | Accessibility | Best Practices | SEO |\n`;
+            summary += `|--------|-------------|---------------|----------------|-----|\n`;
+            summary += `${formatRow('📱 Mobile', mobile)}\n`;
+            summary += `${formatRow('🖥️ Desktop', desktop)}\n`;
+            summary += `${formatRow('📱 Tablet', tablet)}\n\n`;
+            summary += `**Legend:** 🟢 90+ | 🟡 75-89 | 🔴 <75\n\n`;
+            summary += `---\n*Generated on ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} CET*`;
+
+            await core.summary.addRaw(summary).write();
+
+      - name: Prepare Discord notification
+        if: always()
+        id: prepare-discord
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const fs = require('fs').promises;
+            const path = require('path');
+
+            const getScoreColor = (score) => {
+              if (score >= 90) return 0x00ff00;
+              if (score >= 75) return 0xffff00;
+              return 0xff0000;
+            };
+
+            const getScoreEmoji = (score) => {
+              if (score >= 90) return '🟢';
+              if (score >= 75) return '🟡';
+              return '🔴';
+            };
+
+            const processDevice = async (device) => {
+              try {
+                const dir = `lighthouse-results/lighthouse-${device}`;
+                const allFiles = await fs.readdir(dir, { recursive: true });
+                const jsonFile = allFiles.find(f => f.endsWith('.json') && f.includes('lhr-'));
+
+                if (!jsonFile) return null;
+
+                const report = JSON.parse(await fs.readFile(path.join(dir, jsonFile), 'utf8'));
+                const categories = report.categories;
+
+                return {
+                  performance: Math.round(categories.performance.score * 100),
+                  accessibility: Math.round(categories.accessibility.score * 100),
+                  bestPractices: Math.round(categories['best-practices'].score * 100),
+                  seo: Math.round(categories.seo.score * 100)
+                };
+              } catch (error) {
+                return null;
+              }
+            };
+
+            const [mobile, desktop, tablet] = await Promise.all([
+              processDevice('mobile'),
+              processDevice('desktop'),
+              processDevice('tablet')
+            ]);
+
+            const scores = [mobile, desktop, tablet].filter(s => s !== null);
+            const avgPerformance = scores.length > 0
+              ? Math.round(scores.reduce((sum, s) => sum + s.performance, 0) / scores.length)
+              : 0;
+
+            const formatField = (device, emoji, scores) => {
+              if (!scores) {
+                return {
+                  name: `${emoji} ${device}`,
+                  value: '❌ No data available',
+                  inline: true
+                };
+              }
+              return {
+                name: `${emoji} ${device}`,
+                value: [
+                  `${getScoreEmoji(scores.performance)} **Performance:** ${scores.performance}`,
+                  `${getScoreEmoji(scores.accessibility)} **Accessibility:** ${scores.accessibility}`,
+                  `${getScoreEmoji(scores.bestPractices)} **Best Practices:** ${scores.bestPractices}`,
+                  `${getScoreEmoji(scores.seo)} **SEO:** ${scores.seo}`
+                ].join('\n'),
+                inline: true
+              };
+            };
+
+            const eventType = process.env.GITHUB_EVENT_NAME;
+            const branch = process.env.GITHUB_REF_NAME;
+            const runNumber = process.env.GITHUB_RUN_NUMBER;
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const repoUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
+
+            let title = '⚡ Lighthouse Audit Results';
+            let description = `**Branch:** \`${branch}\`\n**Run:** #${runNumber}`;
+
+            if (eventType === 'pull_request') {
+              const prNumber = context.payload.pull_request?.number;
+              const prUrl = context.payload.pull_request?.html_url;
+              title = `⚡ Lighthouse Audit - PR #${prNumber}`;
+              description = `**PR:** [#${prNumber}](${prUrl})\n**Branch:** \`${branch}\``;
+            } else if (eventType === 'push') {
+              title = '⚡ Lighthouse Audit - Push to Main';
+            } else if (eventType === 'workflow_dispatch') {
+              title = '⚡ Lighthouse Audit - Manual Run';
+            }
+
+            const embed = {
+              title,
+              description,
+              color: getScoreColor(avgPerformance),
+              fields: [
+                formatField('Mobile', '📱', mobile),
+                formatField('Desktop', '🖥️', desktop),
+                formatField('Tablet', '📱', tablet),
+                {
+                  name: '📊 Legend',
+                  value: '🟢 Excellent (90+) • 🟡 Good (75-89) • 🔴 Needs Work (<75)',
+                  inline: false
+                },
+                {
+                  name: '🔗 Links',
+                  value: `[View Full Report](${runUrl}) • [Repository](${repoUrl})`,
+                  inline: false
+                }
+              ],
+              timestamp: new Date().toISOString(),
+              footer: {
+                text: 'Lighthouse CI',
+                icon_url: 'https://raw.githubusercontent.com/GoogleChrome/lighthouse/main/assets/lighthouse-logo.png'
+              }
+            };
+
+            await fs.writeFile('discord-payload.json', JSON.stringify({ embeds: [embed] }));
+            console.log('Discord payload prepared');
+
+      - name: Create device zip files and send to Discord
+        if: always()
+        run: |
+          WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}"
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "ℹ️ DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS secret is not set. Skipping Discord notification."
+            exit 0
+          fi
+
+          echo "Creating zip files for available device reports..."
+
+          cd lighthouse-results
+          for device in mobile desktop tablet; do
+            if [ -d "lighthouse-${device}" ]; then
+              echo "Creating zip for ${device}..."
+              cd "lighthouse-${device}"
+              zip -r "../../lighthouse-${device}-report.zip" . -i "*.json" "*.html" 2>/dev/null || true
+              cd ..
+
+              if [ -f "../lighthouse-${device}-report.zip" ] && [ -s "../lighthouse-${device}-report.zip" ]; then
+                echo "✓ Created lighthouse-${device}-report.zip"
+              else
+                echo "⚠ Warning: Failed to create zip for ${device}"
+              fi
+            else
+              echo "ℹ No reports found for ${device} (may not have been audited)"
+            fi
+          done
+          cd ..
+
+          echo ""
+          echo "Available zip files:"
+          ls -lh lighthouse-*-report.zip 2>/dev/null || echo "No zip files created"
+
+          echo ""
+          echo "Sending Discord notification with embed and attachments..."
+
+          CURL_ARGS=(-s -S)
+
+          FILE_COUNT=0
+          if [ -f lighthouse-mobile-report.zip ] && [ -s lighthouse-mobile-report.zip ]; then
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-mobile-report.zip")
+            FILE_COUNT=$((FILE_COUNT + 1))
+            echo "  📱 Adding mobile report"
+          fi
+
+          if [ -f lighthouse-desktop-report.zip ] && [ -s lighthouse-desktop-report.zip ]; then
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-desktop-report.zip")
+            FILE_COUNT=$((FILE_COUNT + 1))
+            echo "  🖥️ Adding desktop report"
+          fi
+
+          if [ -f lighthouse-tablet-report.zip ] && [ -s lighthouse-tablet-report.zip ]; then
+            CURL_ARGS+=(-F "files[$FILE_COUNT]=@lighthouse-tablet-report.zip")
+            FILE_COUNT=$((FILE_COUNT + 1))
+            echo "  📱 Adding tablet report"
+          fi
+
+          if [ -f discord-payload.json ]; then
+            CURL_ARGS+=(-F "payload_json=<discord-payload.json")
+          else
+            echo "❌ Error: discord-payload.json not found"
+            exit 1
+          fi
+
+          echo ""
+          echo "Sending $FILE_COUNT file(s) with embed to Discord..."
+
+          RESPONSE=$(curl "${CURL_ARGS[@]}" "$WEBHOOK_URL")
+          CURL_EXIT_CODE=$?
+
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "❌ Error: curl failed with exit code $CURL_EXIT_CODE"
+            exit $CURL_EXIT_CODE
+          fi
+
+          if [ -n "$RESPONSE" ] && echo "$RESPONSE" | grep -q "error"; then
+            echo "❌ Error from Discord API: $RESPONSE"
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ Discord notification sent successfully with $FILE_COUNT attachment(s)"
+
+  visual-review:
+    name: Visual Review (PostHog)
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    env:
+      HOME: /root
+    needs: [lint, type-check, check-runs, build-app, e2e-smoke]
+    if: needs.check-runs.outputs.should-run-visual == 'true'
+    steps:
+      - name: Checkout (latest branch tip)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nextjs-build
+          path: .next
+
+      - name: Verify Build Artifact
+        run: |
+          echo "Verifying build artifact in .next directory..."
+          if [ -d ".next" ] && [ "$(ls -A .next)" ]; then
+            echo "✓ Build artifact found and not empty"
+          else
+            echo "❌ ERROR: Build artifact NOT found or empty!"
+            exit 1
+          fi
+
+      - name: Run Playwright visual tests
+        run: npx playwright test --project=chromium --grep @visual --reporter=list
+        env:
+          BASE_URL: http://localhost:3000
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        continue-on-error: true
+
+      - name: Install PostHog Visual Review CLI
+        if: always()
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/PostHog/posthog.git /tmp/posthog
+          cd /tmp/posthog
+          git sparse-checkout set products/visual_review/cli
+          cd products/visual_review/cli
+          npm ci
+
+      - name: Create PostHog Visual Review run
+        if: always()
+        id: vr-run
+        run: |
+          RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
+            --type playwright \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} \
+            --branch ${{ github.event.pull_request.head.ref || github.ref_name }} \
+            --commit $(git rev-parse HEAD) \
+            ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }})
+          echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Created PostHog VR run: $RUN_ID"
+
+      - name: Upload snapshots to PostHog Visual Review
+        if: always() && steps.vr-run.outputs.run-id != ''
+        run: |
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run upload \
+            --run-id ${{ steps.vr-run.outputs.run-id }} \
+            --dir playwright/__snapshots__ \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }}
+
+      - name: Wait for PostHog diff processing
+        if: always() && steps.vr-run.outputs.run-id != ''
+        id: vr-complete
+        run: |
+          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
+            --run-id ${{ steps.vr-run.outputs.run-id }} \
+            --baseline playwright/snapshots.yml \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee vr-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Generate PostHog Visual Review Summary
+        if: always() && steps.vr-run.outputs.run-id != ''
+        run: |
+          REVIEW_URL="https://eu.posthog.com/project/76914/visual_review/runs/${{ steps.vr-run.outputs.run-id }}"
+          STATS=$(grep "Done:" vr-output.txt || true)
+          echo "### 🎨 PostHog Visual Review" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$STATS" ]; then
+            SUMMARY=$(echo "$STATS" | sed 's/.*Done: //')
+            echo "✅ **Processing Complete**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Result: $SUMMARY" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⏳ **Processing Timed Out / Interrupted**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The diff engine is still working or encountered an issue. Please check the dashboard manually." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔍 **[Review Visual Changes on PostHog]($REVIEW_URL)**" >> $GITHUB_STEP_SUMMARY
+          if grep -q "Visual changes detected" vr-output.txt; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> [!IMPORTANT]" >> $GITHUB_STEP_SUMMARY
+            echo "> **Visual regressions or new snapshots detected.** Please review and approve them in PostHog to update the baseline." >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.vr-complete.outputs.exit_code }}" == "1" ]; then
+             echo "Visual changes detected. Review required."
+             exit 1
+          fi
+
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: [docker-build, check-runs]
+    if: needs.check-runs.outputs.should-run-deploy-preview == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Comment Deployment Starting
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const marker = '<!-- preview-deploy-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existingComment = comments.find(c => c.body.includes(marker));
+            const body = `${marker}\n⏳ **Build finished. Deploying to Cloud Run...**`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            }
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy Preview to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3
+        id: deploy
+        with:
+          service: mietevo
+          region: europe-west1
+          image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:pr-${{ github.event.pull_request.number }}
+          tag: pr-${{ github.event.pull_request.number }}
+          labels: pr=pr-${{ github.event.pull_request.number }}
+          no_traffic: true
+          env_vars: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            ROBOTS_INDEXING=false
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
+            STRIPE_SECRET_KEY=${{ secrets.STAGING_STRIPE_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STAGING_STRIPE_WEBHOOK_SECRET }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+            TOKEN_ENCRYPTION_KEY=${{ secrets.STAGING_TOKEN_ENCRYPTION_KEY }}
+            WORKER_AUTH_KEY=${{ secrets.WORKER_AUTH_KEY }}
+            USER_HEADER_SECRET=${{ secrets.USER_HEADER_SECRET }}
+            OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
+            OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
+            OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
+
+      - name: Comment Preview URL on PR
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          START_TIME: ${{ needs.docker-build.outputs.start_time }}
+        with:
+          script: |
+            const startTimeStr = process.env.START_TIME;
+            const startTime = (startTimeStr && startTimeStr !== 'null') ? new Date(startTimeStr) : new Date();
+            const endTime = new Date();
+            const durationMs = endTime - startTime;
+            const durationSec = Math.floor(durationMs / 1000);
+            const durationStr = durationSec > 60
+              ? `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`
+              : `${durationSec}s`;
+
+            const prNumber = context.issue.number;
+            const marker = '<!-- preview-deploy-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existingComment = comments.find(c => c.body.includes(marker));
+
+            const options = {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            };
+            const formatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: 'Europe/Berlin',
+              timeZoneName: 'short'
+            });
+            const parts = formatter.formatToParts(endTime);
+            const tzPart = parts.find(part => part.type === 'timeZoneName');
+            const tzName = tzPart ? tzPart.value : 'GMT+2';
+
+            const berlinTime = endTime.toLocaleString('de-DE', {
+              ...options,
+              timeZone: 'Europe/Berlin'
+            });
+            const utcTime = endTime.toLocaleString('de-DE', {
+              ...options,
+              timeZone: 'UTC'
+            });
+            const timestamp = `${berlinTime} (${tzName}) / ${utcTime} UTC`;
+            const body = `${marker}\n✅ **New version is live!**\n\n🔗 **[Preview #${prNumber}](${process.env.DEPLOY_URL})**\n\n🕒 **Deployed at:** ${timestamp}\n⏱️ **Duration:** ${durationStr} (Build + Deploy)`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build, check-runs]
+    if: needs.check-runs.outputs.should-run-deploy-production == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3
+        with:
+          service: mietevo
+          region: europe-west1
+          image: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo:latest
+          tag: latest
+          revision_traffic: LATEST=100
+          env_vars: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_POSTHOG_KEY=${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+            NEXT_PUBLIC_POSTHOG_HOST=${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+            ROBOTS_INDEXING=true
+            NEXT_PUBLIC_WORKER_URL=${{ secrets.NEXT_PUBLIC_WORKER_URL }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            TOKEN_ENCRYPTION_KEY=${{ secrets.TOKEN_ENCRYPTION_KEY }}
+            WORKER_AUTH_KEY=${{ secrets.WORKER_AUTH_KEY }}
+            USER_HEADER_SECRET=${{ secrets.USER_HEADER_SECRET }}
+            OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
+            OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
+            OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}

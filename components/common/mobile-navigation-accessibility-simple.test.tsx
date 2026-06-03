@@ -239,7 +239,7 @@ describe('MobileBottomNavigation - Core Accessibility', () => {
         const focusableElements = screen.getAllByRole('link').concat(screen.getAllByRole('button'))
 
         focusableElements.forEach(element => {
-          expect(element).toHaveClass('focus:outline-none')
+          expect(element).toHaveClass('focus:outline-hidden')
           expect(element).toHaveClass('focus:ring-2')
           expect(element).toHaveClass('focus:ring-primary/20')
         })

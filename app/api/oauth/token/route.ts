@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 export const runtime = 'edge';
 
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
         if (!grant_type || !code || !client_id || !redirect_uri) {
             return NextResponse.json(
                 { error: 'invalid_request', error_description: 'Missing required parameters' },
-                { status: 400 }
+                { status: 400, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -59,15 +60,15 @@ export async function POST(request: NextRequest) {
 
         if (isStrictValidation) {
             if (!ALLOWED_CLIENTS.hasOwnProperty(client_id)) {
-                return NextResponse.json({ error: 'invalid_client', error_description: 'Unknown client_id' }, { status: 401 });
+                return NextResponse.json({ error: 'invalid_client', error_description: 'Unknown client_id' }, { status: 401, headers: NO_CACHE_HEADERS });
             }
             const expectedSecret = ALLOWED_CLIENTS[client_id];
             if (expectedSecret && expectedSecret !== client_secret) {
-                return NextResponse.json({ error: 'invalid_client', error_description: 'Invalid client_secret' }, { status: 401 });
+                return NextResponse.json({ error: 'invalid_client', error_description: 'Invalid client_secret' }, { status: 401, headers: NO_CACHE_HEADERS });
             }
         } else {
             console.error('CRITICAL: No OAuth clients configured. Rejecting request. Please configure ALLOWED_CLIENTS in app/api/oauth/token/route.ts or set OAUTH_CLIENT_ID env var.');
-            return NextResponse.json({ error: 'invalid_client', error_description: 'Client authentication failed: server not configured.' }, { status: 500 });
+            return NextResponse.json({ error: 'invalid_client', error_description: 'Client authentication failed: server not configured.' }, { status: 500, headers: NO_CACHE_HEADERS });
         }
 
         // Proxy to Supabase's token endpoint
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
                     error: errorData.error || 'token_exchange_failed',
                     error_description: errorData.error_description || errorData.message || `Token exchange failed: ${tokenResponse.status}`
                 },
-                { status: tokenResponse.status }
+                { status: tokenResponse.status, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -119,13 +120,13 @@ export async function POST(request: NextRequest) {
             expires_in: tokenData.expires_in,
             refresh_token: tokenData.refresh_token,
             scope: tokenData.scope || 'email',
-        });
+        }, { headers: NO_CACHE_HEADERS });
 
     } catch (err: any) {
         console.error('Token exchange error:', err);
         return NextResponse.json(
             { error: 'server_error', error_description: err.message || 'Internal server error' },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         );
     }
 }

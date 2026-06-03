@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react"
+// react-doctor-disable-next-line react-doctor/use-lazy-motion
 import { AnimatePresence, motion } from "framer-motion"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles, type LucideIcon } from "lucide-react"
@@ -63,23 +64,19 @@ interface NavigationProps {
   onLogin?: () => void;
 }
 
+const emptySubscribe = () => () => {};
 
 export default function Navigation({ onLogin }: NavigationProps) {
-  const [hasMounted, setHasMounted] = useState(false);
+  const hasMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { userName } = useUserProfile();
   const { ref: navRef, isOverflowing } = useIsOverflowing();
   const showProdukte = useFeatureFlagEnabled('show-produkte-dropdown');
   const showLoesungen = useFeatureFlagEnabled('show-loesungen-dropdown');
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   const checkIfMobile = useCallback(() => {
     if (typeof window === 'undefined' || !hasMounted) return;
@@ -103,11 +100,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
   useEffect(() => {
     const supabase = createClient();
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+    
+    // Set initial user synchronously if possible, otherwise use onAuthStateChange
+    supabase.auth.getUser().then(({ data: { user } }) => {
       setCurrentUser(user);
-    };
-    fetchUser();
+    });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setCurrentUser(session?.user ?? null);
@@ -132,15 +129,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
     }
   };
 
-  const scrollToPricing = () => {
-    const pricingSection = document.getElementById('pricing');
-    if (pricingSection) {
-      pricingSection.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      // If we're not on a page with the pricing section, redirect to home with hash
-      window.location.href = '/#pricing';
-    }
-  };
+
 
   const handleOpenLoginModal = () => {
     trackNavLoginClicked();
@@ -155,10 +144,34 @@ export default function Navigation({ onLogin }: NavigationProps) {
     trackNavLogoutClicked();
     const supabase = createClient();
     try {
-      await supabase.auth.signOut();
-      setCurrentUser(null);
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error logging out:", error.message);
+      }
     } catch (error) {
       console.error("Error logging out:", error);
+    }
+
+    try {
+      // Perform cleanup API calls
+      await Promise.allSettled([
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin',
+          keepalive: true
+        }),
+        fetch('/api/auth/clear-auth-cookie', {
+          method: 'POST',
+          credentials: 'same-origin',
+          keepalive: true
+        })
+      ]);
+    } catch (error) {
+      console.error("Error clearing session:", error);
+    } finally {
+      setCurrentUser(null);
+      setIsOpen(false);
+      window.location.replace("/");
     }
   };
 
@@ -183,7 +196,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
       }}
       className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
     >
-      <item.icon className="w-5 h-5 mr-3" />
+      <item.icon className="size-5 mr-3" />
       <div>
         <div className="font-medium">
           {item.name}
@@ -201,25 +214,27 @@ export default function Navigation({ onLogin }: NavigationProps) {
       <div className="max-w-7xl mx-auto">
         {/* Mobile Header with Menu Button and Logo */}
         {(isMobile || isOverflowing) && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <PillContainer>
               <button
+                type="button"
                 onClick={() => {
                   if (!isOpen) trackNavMobileMenuOpened();
                   setIsOpen(!isOpen);
                 }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2"
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-2"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="size-5" />
                 <span className="text-sm font-medium">Menü</span>
               </button>
             </PillContainer>
-            <Link href="/" className="flex items-center space-x-1 group">
-              <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+            <Link href="/" className="flex items-center gap-1 group">
+              <div className="relative size-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                 <Image
                   src={LOGO_URL}
                   alt="Mietevo Logo"
                   fill
+                  sizes="24px"
                   className="object-cover"
                   unoptimized // Supabase images are stored as pre-optimized .avif
                 />
@@ -237,12 +252,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
             <div className="inline-flex w-auto max-w-full" ref={navRef}>
               <PillContainer className="flex items-center gap-2 w-full">
                 {/* Logo Section */}
-                <Link href="/" className="flex items-center space-x-2 group px-2">
-                  <div className="relative w-8 h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+                <Link href="/" className="flex items-center gap-2 group px-2">
+                  <div className="relative size-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
                     <Image
                       src={LOGO_URL}
                       alt="Mietevo Logo"
                       fill
+                      sizes="32px"
                       className="object-cover"
                       unoptimized // Supabase images are stored as pre-optimized .avif
                     />
@@ -261,17 +277,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {showProdukte && (
                     <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('produkte')}>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
-                          <Package className="w-4 h-4" />
+                        <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                          <Package className="size-4" />
                           <span>Produkte</span>
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown className="size-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {produkteItems.map((item) => (
                           <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'produkte')}>
-                              <item.icon className="w-4 h-4 shrink-0" />
+                              <item.icon className="size-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
                                 <span className="font-medium">{item.name}</span>
                                 <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -286,10 +302,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {/* Funktionen Dropdown */}
                   <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('funktionen')}>
                     <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
-                        <Wrench className="w-4 h-4" />
+                      <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                        <Wrench className="size-4" />
                         <span>Funktionen</span>
-                        <ChevronDown className="w-3 h-3" />
+                        <ChevronDown className="size-3" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-[600px] p-0">
@@ -298,7 +314,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           {funktionenItems.map((item) => (
                             <DropdownMenuItem key={item.name} asChild>
                               <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'funktionen')}>
-                                <item.icon className="w-4 h-4 shrink-0" />
+                                <item.icon className="size-4 shrink-0" />
                                 <div className="flex flex-col items-start gap-0.5">
                                   <span className="font-medium">{item.name}</span>
                                   <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -308,11 +324,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           ))}
                         </div>
                         <div className="p-2">
-                          <div className="h-full w-full rounded-xl bg-gradient-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
+                          <div className="h-full w-full rounded-xl bg-linear-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
                             {/* Abstract shapes/illustration */}
-                            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
+                            <div className="absolute -right-6 -top-6 size-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
                             <div className="absolute right-2 top-2 opacity-[0.08] group-hover/card:opacity-[0.15] transition-all duration-500 transform group-hover/card:scale-110 group-hover/card:-rotate-6">
-                              <Sparkles className="w-20 h-20" />
+                              <Sparkles className="size-20" />
                             </div>
 
                             <div className="relative z-10">
@@ -330,7 +346,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                                   className="w-full group h-8 text-xs"
                                 >
                                   Kostenlos starten
-                                  <ArrowRight className="w-3 h-3 ml-2 transition-transform group-hover:translate-x-1" />
+                                  <ArrowRight className="size-3 ml-2 transition-transform group-hover:translate-x-1" />
                                 </Button>
                               </DropdownMenuItem>
                             </div>
@@ -344,17 +360,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {showLoesungen && (
                     <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('loesungen')}>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
-                          <Lightbulb className="w-4 h-4" />
+                        <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                          <Lightbulb className="size-4" />
                           <span>Lösungen</span>
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown className="size-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {loesungenItems.map((item) => (
                           <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'loesungen')}>
-                              <item.icon className="w-4 h-4 shrink-0" />
+                              <item.icon className="size-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
                                 <span className="font-medium">{item.name}</span>
                                 <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -370,19 +386,19 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <Link
                     href="/preise"
                     onClick={() => trackNavLinkClicked('Preise', '/preise')}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer"
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer"
                   >
-                    <DollarSign className="w-4 h-4" />
+                    <DollarSign className="size-4" />
                     <span>Preise</span>
                   </Link>
 
                   {/* Hilfe Dropdown */}
                   <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('hilfe')}>
                     <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-1 whitespace-nowrap cursor-pointer">
-                        <HelpCircle className="w-4 h-4" />
+                      <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                        <HelpCircle className="size-4" />
                         <span>Hilfe</span>
-                        <ChevronDown className="w-3 h-3" />
+                        <ChevronDown className="size-3" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-72">
@@ -394,7 +410,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             rel={item.rel}
                             onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}
                           >
-                            <item.icon className="w-4 h-4 shrink-0" />
+                            <item.icon className="size-4 shrink-0" />
                             <div className="flex flex-col items-start gap-0.5">
                               <span className="font-medium">{item.name}</span>
                               <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -414,20 +430,20 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {currentUser ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-2 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center space-x-2 cursor-pointer">
-                          <Avatar className="h-6 w-6">
+                        <button type="button" className="p-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-2 cursor-pointer">
+                          <Avatar className="size-6">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                             <AvatarFallback className="text-xs">
                               {currentUser.email?.charAt(0).toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
                           <span className="whitespace-nowrap">Mein Konto</span>
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown className="size-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-60 p-2">
-                        <div className="flex items-center space-x-3 px-2 py-2">
-                          <Avatar className="h-10 w-10">
+                        <div className="flex items-center gap-3 p-2">
+                          <Avatar className="size-10">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                             <AvatarFallback className="text-sm">
                               {currentUser.email?.charAt(0).toUpperCase() || 'U'}
@@ -445,22 +461,18 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
                           <Link href={ROUTES.HOME} className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
-                            <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                            <LayoutDashboard className="size-4 mr-3 text-muted-foreground group-hover:text-white" />
                             <span>Dashboard</span>
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
                           onClick={() => {
-                            // Navigate to dashboard first
+                            // Navigate to dashboard
                             window.location.href = ROUTES.HOME;
-                            // Then open settings after a small delay to ensure navigation completes
-                            setTimeout(() => {
-                              setIsSettingsOpen(true);
-                            }, 100);
                           }}
                         >
-                          <Settings className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                          <Settings className="size-4 mr-3 text-muted-foreground group-hover:text-white" />
                           <span>Einstellungen</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator className="my-2" />
@@ -468,7 +480,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           onClick={handleLogout}
                           className="px-3 py-2 rounded-xl group hover:bg-red-600 hover:text-white dark:hover:bg-red-600/90 cursor-pointer"
                         >
-                          <LogOut className="w-4 h-4 mr-3 group-hover:text-white" />
+                          <LogOut className="size-4 mr-3 group-hover:text-white" />
                           <span className="group-hover:text-white">Abmelden</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -507,7 +519,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-background/80 backdrop-blur-xs z-40"
               onClick={() => setIsOpen(false)}
             />
 
@@ -524,11 +536,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Navigation</h3>
                     <button
+                      type="button"
                       onClick={() => setIsOpen(false)}
                       className="p-1.5 rounded-full hover:bg-muted transition-colors"
                       aria-label="Menü schließen"
                     >
-                      <X className="w-5 h-5" />
+                      <X className="size-5" />
                     </button>
                   </div>
                 </div>
@@ -569,7 +582,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       onClick={() => setIsOpen(false)}
                       className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
                     >
-                      <DollarSign className="w-5 h-5 mr-3" />
+                      <DollarSign className="size-5 mr-3" />
                       <div>
                         <div className="font-medium">Preise</div>
                         <div className="text-sm text-muted-foreground">Unsere Tarife im Überblick</div>
@@ -590,8 +603,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 <div className="p-4 border-t border-border/50">
                   {currentUser ? (
                     <div className="space-y-3">
-                      <div className="flex items-center space-x-3 px-2">
-                        <Avatar className="h-10 w-10">
+                      <div className="flex items-center gap-3 px-2">
+                        <Avatar className="size-10">
                           <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                           <AvatarFallback>
                             {currentUser.email?.charAt(0).toUpperCase() || 'U'}
@@ -604,12 +617,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </div>
                       <Button asChild variant="outline" className="w-full">
                         <Link href={ROUTES.HOME}>
-                          <LayoutDashboard className="w-4 h-4 mr-2" />
+                          <LayoutDashboard className="size-4 mr-2" />
                           Dashboard
                         </Link>
                       </Button>
                       <Button variant="outline" className="w-full" onClick={handleLogout}>
-                        <LogOut className="w-4 h-4 mr-2" />
+                        <LogOut className="size-4 mr-2" />
                         Abmelden
                       </Button>
                     </div>

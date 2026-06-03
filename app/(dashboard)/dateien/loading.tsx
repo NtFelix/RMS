@@ -4,22 +4,16 @@ export const runtime = 'edge'
 
 export default function DateienLoading() {
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-      <div
-        className="absolute inset-0 z-[-1] pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
-        }}
-      />
+    <div className="flex flex-col gap-8 p-8 rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden">
       
       {/* Summary Cards Skeleton - 3 equal flex cards */}
       <div className="flex flex-wrap gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="relative overflow-hidden rounded-3xl shadow-sm flex-1 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]">
+          <div key={i} className="relative overflow-hidden rounded-3xl shadow-xs flex-1 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]">
             <div className="p-6">
               <div className="flex items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-4" />
+                <Skeleton className="size-4" />
               </div>
               <div>
                 <Skeleton className="h-8 w-28 mb-1" />
@@ -31,7 +25,7 @@ export default function DateienLoading() {
       </div>
       
       {/* Main File Container Skeleton */}
-      <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem] flex flex-col">
+      <div className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] flex flex-col">
         {/* Header */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <div className="p-6">

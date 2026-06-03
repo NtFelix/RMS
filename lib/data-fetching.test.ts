@@ -6,6 +6,10 @@ jest.mock('./supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
 }));
 
+jest.mock('./test-utils', () => ({
+  isTestEnv: jest.fn(() => false),
+}));
+
 // Tests for fetchNebenkostenList and getHausGesamtFlaeche removed - functions replaced by optimized versions
 // fetchNebenkostenListOptimized in betriebskosten-actions.ts uses get_nebenkosten_with_metrics database function
 

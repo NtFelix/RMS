@@ -147,7 +147,7 @@ function mapSupabaseError(error: any): StructuredError {
 export async function safeRpcCall<T>(
   supabase: any,
   functionName: string,
-  params: Record<string, any>,
+  params?: Record<string, any>,
   options: {
     userId?: string;
     logPerformance?: boolean;

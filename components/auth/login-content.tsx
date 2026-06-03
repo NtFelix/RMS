@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -20,12 +20,11 @@ import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
+import { getSafeAuthRedirect } from "@/lib/auth-redirects"
 
 export default function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectParam = searchParams.get('redirect')
-  const redirect = redirectParam || ROUTES.HOME
 
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
 
@@ -88,16 +87,16 @@ export default function LoginContent() {
 
     const supabase = createClient()
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) {
+    if (signInError) {
       // Track login failure (GDPR-compliant - checks consent internally)
-      trackLoginFailed('email', error.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
+      trackLoginFailed('email', signInError.code === 'invalid_credentials' ? 'invalid_credentials' : 'unknown')
 
-      setError(getAuthErrorMessage(error))
+      setError(getAuthErrorMessage(signInError))
       setIsLoading(false)
       return
     }
@@ -117,13 +116,13 @@ export default function LoginContent() {
       trackLoginSuccess('email')
     }
 
-    window.location.assign(redirect)
+    window.location.assign(getSafeAuthRedirect(redirectParam, window.location.origin))
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">
       {/* Animated grid background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
 
       {/* Gradient orbs in background */}
       <motion.div
@@ -156,20 +155,20 @@ export default function LoginContent() {
         className="relative z-10 w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]"
       >
         {/* Left side - Hero/Branding */}
-        <div className="hidden lg:flex relative lg:w-1/2 bg-gradient-to-br from-primary via-secondary to-primary p-8 md:p-12 flex-col justify-between overflow-hidden perspective-[1000px]">
+        <div className="hidden lg:flex relative lg:w-1/2 bg-linear-to-br from-primary via-secondary to-primary p-8 md:p-12 flex-col justify-between overflow-hidden perspective-[1000px]">
           {/* Gradient mesh overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,hsl(var(--accent)/0.3)_0%,transparent_50%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(var(--primary)/0.4)_0%,transparent_50%)]" />
 
           {/* Tilted Grid pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:3rem_3rem] [transform:perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-size-[3rem_3rem] transform-[perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
 
           {/* 3D Decorative elements (shared component) */}
           <Auth3DDecorations />
 
           {/* Logo */}
           <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="p-1 rounded-xl bg-white/10 backdrop-blur-sm">
+            <div className="p-1 rounded-xl bg-white/10 backdrop-blur-xs">
               {/* Using native img tag: Image is already optimized (AVIF format) and served from Supabase CDN.
                   next/image adds unnecessary overhead for small, pre-optimized images. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -330,7 +329,7 @@ export default function LoginContent() {
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Wird angemeldet...
+                    Wird angemeldet…
                   </>
                 ) : (
                   "Anmelden"
@@ -359,7 +358,8 @@ export default function LoginContent() {
                           setSocialLoading(provider.id)
                           setError(null)
 
-                          const { error } = await provider.handler('login')
+                          const safeRedirect = getSafeAuthRedirect(redirectParam, window.location.origin)
+                          const { error } = await provider.handler('login', safeRedirect)
 
                           if (error) {
                             setError(error)

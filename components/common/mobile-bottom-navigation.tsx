@@ -497,7 +497,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
   if (!mounted) {
     return (
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/50 shadow-lg shadow-black/5 mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xs border-t border-border/50 shadow-lg shadow-black/5 mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
         role="navigation"
         aria-label="Main mobile navigation"
         style={{
@@ -594,7 +594,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                         "flex items-center px-4 py-3 mx-2 rounded-lg",
                         "min-h-[44px] mobile-dropdown-item touch-feedback",
                         "transition-all duration-200 ease-out",
-                        "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                        "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                         "active:scale-95",
                         // Enhanced touch feedback
                         touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
@@ -655,13 +655,13 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                       "flex items-center px-4 py-3 mx-2 rounded-lg",
                       "min-h-[44px] mobile-dropdown-item touch-feedback",
                       "transition-all duration-200 ease-out",
-                      "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                      "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                       "active:scale-95",
                       // Enhanced touch feedback
                       touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
                       // Active state styling - mobile optimized without scaling
                       isActive
-                        ? "bg-primary/10 text-primary shadow-sm"
+                        ? "bg-primary/10 text-primary shadow-xs"
                         : "text-foreground hover:bg-accent/10",
                       // Focus state styling - mobile optimized without scaling
                       isFocused && !isActive && "bg-accent/5"
@@ -718,7 +718,7 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       <nav
         className={cn(
           "fixed bottom-0 left-0 right-0 z-50",
-          "bg-background/95 backdrop-blur-sm border-t border-border/50",
+          "bg-background/95 backdrop-blur-xs border-t border-border/50",
           "shadow-lg shadow-black/5",
           // Enhanced CSS-only responsive fallbacks
           "mobile-nav-responsive",
@@ -770,13 +770,13 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
                     "transition-all duration-200 ease-out",
                     "rounded-lg relative",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
                     // Enhanced touch feedback
                     touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling - mobile optimized without scaling
                     isActive
-                      ? "bg-primary/10 text-primary shadow-sm"
+                      ? "bg-primary/10 text-primary shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/10",
                     // Special styling when dropdown is open
                     isDropdownOpen && "bg-primary/15 text-primary",
@@ -830,13 +830,13 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
                     "transition-all duration-200 ease-out",
                     "rounded-lg relative",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
                     // Enhanced touch feedback
                     touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation
                     isActive
-                      ? "bg-primary/10 text-primary shadow-sm"
+                      ? "bg-primary/10 text-primary shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
                     // Disabled state for navigation debouncing
                     isNavigating && "opacity-70 pointer-events-none"
@@ -877,13 +877,13 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
                     "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
                     "transition-all duration-200 ease-out",
                     "rounded-lg relative",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
                     "active:scale-95",
                     // Enhanced touch feedback
                     touchedItem === item.id && "scale-95 bg-accent/20",
                     // Active state styling matching desktop navigation
                     isActive
-                      ? "bg-primary/10 text-primary shadow-sm"
+                      ? "bg-primary/10 text-primary shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
                     // Disabled state for navigation debouncing
                     isNavigating && "opacity-70 pointer-events-none"

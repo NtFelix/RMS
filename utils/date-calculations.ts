@@ -1,3 +1,5 @@
+import { parseISO } from "date-fns";
+
 /**
  * Utility functions for date-based calculations in the Betriebskosten system
  */
@@ -54,7 +56,7 @@ export function validateGermanDate(germanDate: string): { isValid: boolean; isoD
   }
   
   // Validate the actual date
-  const date = new Date(isoDate);
+  const date = parseISO(isoDate);
   if (isNaN(date.getTime())) {
     return { isValid: false, error: 'Ungültiges Datum' };
   }
@@ -95,8 +97,8 @@ export function calculateTenantOccupancy(
   const startIso = germanToIsoDate(startdatum) || startdatum;
   const endIso = germanToIsoDate(enddatum) || enddatum;
   
-  const periodStart = new Date(startIso);
-  const periodEnd = new Date(endIso);
+  const periodStart = parseISO(startIso);
+  const periodEnd = parseISO(endIso);
   const totalPeriodDays = calculateDaysBetween(periodStart, periodEnd);
   
   // If no move-in date, return 0 occupancy
@@ -105,9 +107,9 @@ export function calculateTenantOccupancy(
   }
   
   // Parse ISO date strings (YYYY-MM-DD) to Date objects
-  const tenantStart = new Date(tenant.einzug);
+  const tenantStart = parseISO(tenant.einzug);
   // Default tenant end to period end if no move-out date (still living there)
-  const tenantEnd = tenant.auszug ? new Date(tenant.auszug) : periodEnd;
+  const tenantEnd = tenant.auszug ? parseISO(tenant.auszug) : periodEnd;
   
   // Calculate overlap between tenant occupancy and billing period
   const overlapStart = new Date(Math.max(periodStart.getTime(), tenantStart.getTime()));
@@ -154,8 +156,8 @@ export function validateDateRange(startdatum: string, enddatum: string): DateRan
   
   // If both dates are valid, check the range
   if (startValidation.isValid && endValidation.isValid && startValidation.isoDate && endValidation.isoDate) {
-    const startDate = new Date(startValidation.isoDate);
-    const endDate = new Date(endValidation.isoDate);
+    const startDate = parseISO(startValidation.isoDate);
+    const endDate = parseISO(endValidation.isoDate);
     
     if (endDate <= startDate) {
       errors.range = 'Enddatum muss nach dem Startdatum liegen';
@@ -203,8 +205,8 @@ export function formatPeriodDuration(startdatum: string, enddatum: string): stri
     const startIso = germanToIsoDate(startdatum) || startdatum;
     const endIso = germanToIsoDate(enddatum) || enddatum;
     
-    const startDate = new Date(startIso);
-    const endDate = new Date(endIso);
+    const startDate = parseISO(startIso);
+    const endDate = parseISO(endIso);
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       return 'Ungültiger Zeitraum';

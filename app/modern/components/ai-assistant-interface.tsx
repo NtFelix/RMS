@@ -296,7 +296,7 @@ export default function AIAssistantInterface({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
@@ -327,7 +327,7 @@ export default function AIAssistantInterface({
                         </p>
                         {/* Show streaming indicator for assistant messages that are being updated */}
                         {message.role === 'assistant' && state.streamingMessageId === message.id && (
-                          <div className="flex-shrink-0 mt-1">
+                          <div className="shrink-0 mt-1">
                             <div className="w-2 h-2 bg-primary rounded-full animate-pulse"
                               title="Nachricht wird empfangen..." />
                           </div>
@@ -344,7 +344,7 @@ export default function AIAssistantInterface({
                 </div>
 
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1">
                     <User className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
@@ -358,7 +358,7 @@ export default function AIAssistantInterface({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-primary" />
                 </div>
                 <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">

@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { StripePlan } from '@/types/stripe';
 import { parseStorageString } from '@/lib/stripe-server';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
@@ -50,6 +51,7 @@ export async function GET() {
 
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, {
       status: 500,
+      headers: NO_CACHE_HEADERS
     });
   }
 
@@ -71,12 +73,12 @@ export async function GET() {
         featuresArray = featuresMetadata.split(',').map(f => f.trim());
       }
 
-      let limitWohnungen: number | undefined = undefined;
-      const limitWohnungenMetadata = price.metadata.limit_wohnungen || product.metadata.limit_wohnungen;
-      if (limitWohnungenMetadata) {
-        const parsedLimit = parseInt(limitWohnungenMetadata, 10);
+      let limit_wohnungen: number | undefined = undefined;
+      const limit_wohnungenMetadata = price.metadata.limit_wohnungen || product.metadata.limit_wohnungen;
+      if (limit_wohnungenMetadata) {
+        const parsedLimit = parseInt(limit_wohnungenMetadata, 10);
         if (!isNaN(parsedLimit)) {
-          limitWohnungen = parsedLimit;
+          limit_wohnungen = parsedLimit;
         }
       }
 
@@ -111,7 +113,7 @@ export async function GET() {
         interval: price.recurring?.interval || null,
         interval_count: price.recurring?.interval_count || null,
         features: featuresArray,
-        limit_wohnungen: limitWohnungen ?? null,
+        limit_wohnungen: limit_wohnungen ?? null,
         storage_limit: storageLimit, // Storage limit in bytes, 0 means no storage access
         position: position, // This position is used to sort products
         description: product.description || '',
@@ -133,7 +135,7 @@ export async function GET() {
       return 0;
     });
 
-    return NextResponse.json(plans);
+    return NextResponse.json(plans, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     let errorMessage = 'An unknown error occurred while fetching plans.';
@@ -156,6 +158,7 @@ export async function GET() {
     }
     return NextResponse.json({ error: 'Failed to fetch plans from Stripe.', details: errorMessage }, {
       status: 500,
+      headers: NO_CACHE_HEADERS
     });
   }
 }

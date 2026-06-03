@@ -216,7 +216,7 @@ describe('AI Input Validation', () => {
   describe('sanitizeInput', () => {
     it('removes HTML tags', () => {
       expect(sanitizeInput('Hello <b>world</b>')).toBe('Hello world');
-      expect(sanitizeInput('<script>alert("xss")</script>Test')).toBe('alert("xss")Test');
+      expect(sanitizeInput('<script>alert("xss")</script>Test')).toBe('Test');
       expect(sanitizeInput('<div><span>Nested</span></div>')).toBe('Nested');
     });
 

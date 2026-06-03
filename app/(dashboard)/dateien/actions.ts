@@ -1,7 +1,7 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
+import { ensureAuth } from '@/lib/auth-utils'
+import { redirect, unstable_rethrow } from 'next/navigation'
 
 /**
  * Unified Document Navigation Actions
@@ -112,18 +112,14 @@ export async function getFolderContents(userId: string, path?: string): Promise<
     const startTime = performance.now()
 
     try {
-        const supabase = await createClient()
+        const { user, supabase } = await ensureAuth()
 
-        // Verify user authentication
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user || user.id !== userId) {
+        if (user.id !== userId) {
             redirect('/auth/login')
         }
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
-            p_user_id: userId,
             p_current_path: targetPath
         })
 
@@ -178,6 +174,8 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
     } catch (error) {
+        unstable_rethrow(error)
+
         await logRpcCall('get_folder_contents', targetPath, startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'
         })
@@ -242,12 +240,9 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
     error?: string
 }> {
     try {
-        const supabase = await createClient()
+        const { user, supabase } = await ensureAuth()
 
-        // Verify user authentication
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user || user.id !== userId) {
+        if (user.id !== userId) {
             return {
                 success: false,
                 error: 'Nicht authentifiziert'

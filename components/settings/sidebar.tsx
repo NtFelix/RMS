@@ -26,7 +26,7 @@ export function SettingsSidebar({
       isSidebarCollapsed ? "w-16" : "w-56"
     )}>
       {/* Background Accent - No animation needed */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none rounded-2xl" />
+      <div className="absolute inset-0 bg-linear-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none rounded-2xl" />
       
       {/* Floating Toggle Pill */}
       <div className={cn(
@@ -44,7 +44,7 @@ export function SettingsSidebar({
                 "relative group h-9 w-9 rounded-lg motion-safe:transition-all motion-safe:duration-300",
                 "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
                 "motion-safe:hover:shadow-md motion-safe:active:scale-95",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               )}
               aria-label="Einklappen"
             >
@@ -60,7 +60,7 @@ export function SettingsSidebar({
               "relative group h-11 w-11 rounded-full motion-safe:transition-all motion-safe:duration-300",
               "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
               "motion-safe:hover:shadow-md motion-safe:active:scale-95",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             )}
             aria-label="Erweitern"
           >
@@ -85,7 +85,7 @@ export function SettingsSidebar({
                 onClick={() => onTabChange(tab.value)}
                 className={cn(
                   "group relative overflow-hidden motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-out",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                   "motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lg motion-safe:active:translate-y-0",
                   isActive && "scale-[1.02]",
                   isSidebarCollapsed 
@@ -101,7 +101,7 @@ export function SettingsSidebar({
                   "absolute inset-0 motion-safe:transition-all motion-safe:duration-500",
                   "rounded-full",
                   isActive
-                    ? "bg-gradient-to-r from-primary via-primary to-primary/90 opacity-100"
+                    ? "bg-linear-to-r from-primary via-primary to-primary/90 opacity-100"
                     : "bg-muted/30 opacity-0 group-hover:opacity-100"
                 )} />
                 
@@ -113,7 +113,7 @@ export function SettingsSidebar({
                 {/* Hover Glow Effect */}
                 <div className={cn(
                   "absolute inset-0 rounded-full opacity-0 motion-safe:group-hover:opacity-100 motion-safe:transition-opacity motion-safe:duration-500",
-                  "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent"
+                  "bg-linear-to-r from-primary/10 via-primary/5 to-transparent"
                 )} />
                 
                 {/* Content */}

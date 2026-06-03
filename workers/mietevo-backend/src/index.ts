@@ -878,7 +878,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     let parsedResult;
     try {
         parsedResult = JSON.parse(responseText);
-    } catch (e) {
+    } catch {
         // Fallback to regex if direct parse fails (maybe markdown code blocks)
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -926,7 +926,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         const clonedReq = request.clone();
         const body = await clonedReq.json() as { user_id?: string };
         if (body.user_id) userIdForTracking = body.user_id;
-    } catch (e) {
+    } catch {
         // Ignore parsing errors for requests without a body
     }
 

@@ -81,7 +81,7 @@ function CustomMonthCaption({
       <Button
         variant="outline"
         size="icon"
-        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0 rounded-lg"
+        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 shrink-0 rounded-lg"
         onClick={handlePreviousMonth}
         disabled={!canGoPrevious()}
         type="button"
@@ -122,7 +122,7 @@ function CustomMonthCaption({
       <Button
         variant="outline"
         size="icon"
-        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0 rounded-lg"
+        className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 shrink-0 rounded-lg"
         onClick={handleNextMonth}
         disabled={!canGoNext()}
         type="button"

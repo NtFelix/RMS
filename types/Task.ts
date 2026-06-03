@@ -7,6 +7,7 @@ export interface Task {
   erstellungsdatum: string
   aenderungsdatum: string
   user_id?: string
+  faelligkeitsdatum?: string | null
 }
 
 // For compatibility with existing components that expect different field names

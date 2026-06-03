@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 export const runtime = 'edge'
 
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
 
     if (!id) {
         // Return 400 if ID is missing (we strictly require it now)
-        return NextResponse.json({ confirmed: false, error: 'User ID is required' }, { status: 400 })
+        return NextResponse.json({ confirmed: false, error: 'User ID is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
 
     if (!supabaseUrl || !serviceRoleKey) {
         console.error('Missing SUPABASE_SERVICE_ROLE_KEY')
-        return NextResponse.json({ confirmed: false, error: 'Server config error' }, { status: 500 })
+        return NextResponse.json({ confirmed: false, error: 'Server config error' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
     try {
@@ -37,22 +38,22 @@ export async function GET(request: Request) {
             if (error.status !== 404) {
                 console.error('Admin getUserById error:', error)
             }
-            return NextResponse.json({ confirmed: false })
+            return NextResponse.json({ confirmed: false }, { headers: NO_CACHE_HEADERS })
         }
 
         const user = data.user
 
         if (!user) {
             // User not found (double check): Return same structure as unverified
-            return NextResponse.json({ confirmed: false })
+            return NextResponse.json({ confirmed: false }, { headers: NO_CACHE_HEADERS })
         }
 
         return NextResponse.json({
             confirmed: !!user.email_confirmed_at,
             email_confirmed_at: user.email_confirmed_at || null
-        })
+        }, { headers: NO_CACHE_HEADERS })
     } catch (error) {
         console.error('Check verification error:', error)
-        return NextResponse.json({ confirmed: false, error: 'An unexpected error occurred' }, { status: 500 })
+        return NextResponse.json({ confirmed: false, error: 'An unexpected error occurred' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 }

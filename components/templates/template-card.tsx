@@ -55,7 +55,7 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
       <Card
-        className="group relative h-full transition-all duration-300 hover:shadow-xl bg-card/50 border border-border/50 hover:border-primary/20 hover:bg-card focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 rounded-[2rem] overflow-hidden shadow-sm flex flex-col min-h-[280px]"
+        className="group relative h-full transition-all duration-300 hover:shadow-xl bg-card/50 border border-border/50 hover:border-primary/20 hover:bg-card focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 rounded-[2rem] overflow-hidden shadow-xs flex flex-col min-h-[280px]"
         data-template-card
         data-template-id={template.id}
         role="article"
@@ -69,7 +69,7 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0 pr-16">
               <div className={cn(
-                "h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110",
+                "h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110",
                 categoryConfig?.color.full || "bg-muted"
               )}>
                 <Icon className="h-5 w-5" aria-hidden="true" />
@@ -120,7 +120,7 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
         <CardContent className="py-2 px-5 flex-1">
           <div
             id={`template-description-${template.id}`}
-            className="text-sm text-muted-foreground leading-relaxed line-clamp-4 h-[5rem]"
+            className="text-sm text-muted-foreground leading-relaxed line-clamp-4 h-20"
           >
             <TemplatePreview
               content={template.inhalt}

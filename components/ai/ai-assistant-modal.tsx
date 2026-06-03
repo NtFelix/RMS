@@ -128,7 +128,7 @@ export function AIAssistantModal() {
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1 p-1">
                     <img
                       src={LOGO_URL}
                       alt="Mietevo Maskottchen"
@@ -157,7 +157,7 @@ export function AIAssistantModal() {
                 </div>
 
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1">
                     <User className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
@@ -171,7 +171,7 @@ export function AIAssistantModal() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1 p-1">
                   <img
                     src={LOGO_URL}
                     alt="Mietevo Maskottchen"
@@ -206,7 +206,7 @@ export function AIAssistantModal() {
         {/* Input Area */}
         <div className="p-4 border-t border-border bg-muted/30">
           <form onSubmit={handleSubmit} className="relative">
-            <div className="relative bg-background border-2 border-input rounded-full px-4 py-1 pr-16 shadow-sm focus-within:border-ring hover:shadow-md hover:scale-[1.01] transition-all duration-200">
+            <div className="relative bg-background border-2 border-input rounded-full px-4 py-1 pr-16 shadow-xs focus-within:border-ring hover:shadow-md hover:scale-[1.01] transition-all duration-200">
               <Input
                 ref={inputRef}
                 value={inputValue}

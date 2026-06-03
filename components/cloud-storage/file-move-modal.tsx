@@ -244,12 +244,12 @@ export function FileMoveModal({
           <div className="flex items-center flex-1 min-w-0">
             {node.type === 'folder' ? (
               node.isExpanded ? (
-                <FolderOpen className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
+                <FolderOpen className="h-4 w-4 mr-2 shrink-0 text-blue-500" />
               ) : (
-                <Folder className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
+                <Folder className="h-4 w-4 mr-2 shrink-0 text-blue-500" />
               )
             ) : (
-              <File className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500" />
+              <File className="h-4 w-4 mr-2 shrink-0 text-gray-500" />
             )}
 
             <span className="truncate text-sm">
@@ -280,7 +280,7 @@ export function FileMoveModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center">
             <Move className="h-5 w-5 mr-2" />
             {itemType === 'file' ? 'Datei' : 'Ordner'} verschieben
@@ -315,7 +315,7 @@ export function FileMoveModal({
           )}
         </div>
 
-        <DialogFooter className="flex-shrink-0">
+        <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={onClose} disabled={isMoving}>
             Abbrechen
           </Button>

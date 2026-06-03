@@ -2,9 +2,12 @@ export async function register() {
   // Add global error handler for uncaught exceptions to prevent server crashes on ECONNRESET
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     process.on('uncaughtException', (err) => {
-      if (err.message === 'aborted' && err['code'] === 'ECONNRESET') {
+      // Ignore ECONNRESET errors from aborted requests which are common in Next.js 15
+      const isAborted = err?.message?.includes('aborted');
+      const isEconnReset = err?.code === 'ECONNRESET';
+      
+      if (isAborted && isEconnReset) {
         // Ignore ECONNRESET errors which are common in Next.js/Node during client aborts
-        // console.warn('Ignored ECONNRESET error'); 
         return;
       }
       console.error('Uncaught Exception:', err);

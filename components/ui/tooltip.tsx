@@ -20,7 +20,7 @@ const TooltipContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 overflow-hidden rounded-xl border bg-popover/95 backdrop-blur-sm px-3 py-1.5 text-sm text-popover-foreground shadow-lg",
+        "z-50 overflow-hidden rounded-xl border bg-popover/95 backdrop-blur-xs px-3 py-1.5 text-sm text-popover-foreground shadow-lg",
         // Smooth enter animation
         "animate-in fade-in-0 zoom-in-[0.96] slide-in-from-left-1",
         // Smooth exit animation  

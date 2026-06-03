@@ -57,8 +57,7 @@ export async function POST(request: Request) {
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         "insert_finance_entries_batch",
         {
-          p_entries: entries,
-          p_user_id: user.id
+          p_entries: entries
         }
       )
 

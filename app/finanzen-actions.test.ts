@@ -139,12 +139,12 @@ describe('Finanzen Server Actions', () => {
       const invalidName = { ...validData, name: '' };
       const res1 = await financeServerAction(null, invalidName);
       expect(res1.success).toBe(false);
-      expect(res1.error.message).toContain('Name ist erforderlich');
+      expect(res1.error?.message).toContain('Name ist erforderlich');
 
       const invalidAmount = { ...validData, betrag: 'invalid' as any };
       const res2 = await financeServerAction(null, invalidAmount);
       expect(res2.success).toBe(false);
-      expect(res2.error.message).toContain('Betrag muss eine Zahl sein');
+      expect(res2.error?.message).toContain('Betrag muss eine Zahl sein');
     });
 
     it('should handle database errors', async () => {
@@ -152,7 +152,7 @@ describe('Finanzen Server Actions', () => {
 
         const result = await financeServerAction(null, validData);
         expect(result.success).toBe(false);
-        expect(result.error.message).toBe('DB Error');
+        expect(result.error?.message).toBe('DB Error');
     });
   });
 

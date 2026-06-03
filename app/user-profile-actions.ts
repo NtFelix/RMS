@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/utils/supabase/server';
+import { ensureAuth } from '@/lib/auth-utils';
 import { getPlanDetails } from '@/lib/stripe-server';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
@@ -8,6 +8,9 @@ import {
   createSetupIntent as createSetupIntentAction,
   getBillingAddress as getBillingAddressAction,
   updateBillingAddress as updateBillingAddressAction,
+  type BillingAddress,
+  type BillingAddressError,
+  type UpdateBillingAddressParams,
 } from './user-billing-actions';
 
 // Define the expected return type for clarity, similar to UserProfileWithSubscription
@@ -25,7 +28,7 @@ export interface UserProfileForSettings extends SupabaseProfile {
     interval?: string | null;
     interval_count?: number | null;
     features: string[];
-    limitWohnungen: number | null;
+    limit_wohnungen: number | null;
   } | null | undefined;
   hasActiveSubscription: boolean;
   currentWohnungenCount: number;
@@ -40,13 +43,7 @@ export interface UserProfileForSettings extends SupabaseProfile {
 
 export async function getUserProfileForSettings(): Promise<UserProfileForSettings | { error: string; details?: any }> {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      console.error('Auth error in getUserProfileForSettings:', authError);
-      return { error: 'Not authenticated', details: authError?.message };
-    }
+    const { user, supabase } = await ensureAuth();
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -90,27 +87,28 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 
     return responseData;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Generic server error in getUserProfileForSettings:', error);
-    return { error: 'Internal server error', details: error.message };
+    const message = error instanceof Error ? error.message : "Internal server error";
+    return { error: 'Internal server error', details: message };
   }
 }
 
 export async function getBillingAddress(
   stripeCustomerId: string
-): ReturnType<typeof getBillingAddressAction> {
+): Promise<BillingAddress | BillingAddressError> {
   return getBillingAddressAction(stripeCustomerId);
 }
 
 export async function updateBillingAddress(
   stripeCustomerId: string,
-  details: Parameters<typeof updateBillingAddressAction>[1],
-): ReturnType<typeof updateBillingAddressAction> {
+  details: UpdateBillingAddressParams,
+): Promise<{ success: boolean; error?: string }> {
   return updateBillingAddressAction(stripeCustomerId, details);
 }
 
 export async function createSetupIntent(
   stripeCustomerId: string
-): ReturnType<typeof createSetupIntentAction> {
+): Promise<{ clientSecret: string } | { error: string }> {
   return createSetupIntentAction(stripeCustomerId);
 }
