@@ -66,16 +66,6 @@ interface NavigationProps {
 
 const emptySubscribe = () => () => {};
 
-const scrollToPricing = () => {
-  const pricingSection = document.getElementById('pricing');
-  if (pricingSection) {
-    pricingSection.scrollIntoView({ behavior: 'smooth' });
-  } else {
-    // If we're not on a page with the pricing section, redirect to home with hash
-    window.location.href = '/#pricing';
-  }
-};
-
 export default function Navigation({ onLogin }: NavigationProps) {
   const hasMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [isOpen, setIsOpen] = useState(false);
@@ -168,11 +158,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
       await Promise.allSettled([
         fetch('/api/auth/logout', {
           method: 'POST',
-          credentials: 'same-origin'
+          credentials: 'same-origin',
+          keepalive: true
         }),
         fetch('/api/auth/clear-auth-cookie', {
           method: 'POST',
-          credentials: 'same-origin'
+          credentials: 'same-origin',
+          keepalive: true
         })
       ]);
     } catch (error) {
