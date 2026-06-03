@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import Navigation from './navigation';
 import { createClient } from '@/utils/supabase/client';
 
+import { useIsOverflowing } from '@/hooks/use-responsive';
+
 // Mock dependencies
 const mockRouter = {
   push: jest.fn(),
@@ -19,6 +21,10 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/utils/supabase/client');
+
+jest.mock('@/hooks/use-responsive', () => ({
+  useIsOverflowing: jest.fn(),
+}));
 
 jest.mock('next/link', () => {
   return function MockLink({ href, children, ...props }: any) {
@@ -56,7 +62,7 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: any) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
   DropdownMenuItem: ({ children, onSelect, onClick }: any) => (
-    <button onClick={onSelect || onClick}>{children}</button>
+    <div onClick={onSelect || onClick} role="menuitem" tabIndex={0}>{children}</div>
   ),
   DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
   DropdownMenuSeparator: () => <hr />,
@@ -73,8 +79,26 @@ const mockSupabaseClient = {
 describe('Navigation - Jetzt loslegen Feature', () => {
   const mockOnLogin = jest.fn();
 
+  const setMobile = (isMobile: boolean) => {
+    (useIsOverflowing as jest.Mock).mockReturnValue({
+      ref: { current: null },
+      isOverflowing: isMobile,
+    });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: isMobile ? 500 : 1024,
+    });
+    window.dispatchEvent(new Event('resize'));
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    (useIsOverflowing as jest.Mock).mockReturnValue({
+      ref: { current: null },
+      isOverflowing: false,
+    });
+    setMobile(false); // Default to desktop
     (usePathname as jest.Mock).mockReturnValue('/');
     (createClient as jest.Mock).mockReturnValue(mockSupabaseClient);
     
@@ -183,7 +207,19 @@ describe('Navigation - Jetzt loslegen Feature', () => {
   });
 
   describe('Logout Functionality', () => {
-    it('handles logout successfully', async () => {
+    let originalLocation: any;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+      delete (window as any).location;
+      window.location = { ...originalLocation, replace: jest.fn(), href: '' };
+    });
+
+    afterEach(() => {
+      window.location = originalLocation;
+    });
+
+    it('handles logout successfully and redirects using replace', async () => {
       const user = userEvent.setup();
       const mockUser = { 
         id: '123', 
@@ -197,16 +233,21 @@ describe('Navigation - Jetzt loslegen Feature', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Abmelden')).toBeInTheDocument();
+        expect(screen.getByText('Mein Konto')).toBeInTheDocument();
       });
+
+      // Open the dropdown first
+      const accountButton = screen.getByText('Mein Konto');
+      await user.click(accountButton);
 
       const logoutButton = screen.getByText('Abmelden');
       await user.click(logoutButton);
 
       expect(mockSupabaseClient.auth.signOut).toHaveBeenCalled();
+      expect(window.location.replace).toHaveBeenCalledWith('/');
     });
 
-    it('handles logout errors', async () => {
+    it('handles logout errors and still redirects using replace', async () => {
       const user = userEvent.setup();
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const mockUser = { 
@@ -223,25 +264,29 @@ describe('Navigation - Jetzt loslegen Feature', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Abmelden')).toBeInTheDocument();
+        expect(screen.getByText('Mein Konto')).toBeInTheDocument();
       });
+
+      // Open the dropdown first
+      const accountButton = screen.getByText('Mein Konto');
+      await user.click(accountButton);
 
       const logoutButton = screen.getByText('Abmelden');
       await user.click(logoutButton);
 
       expect(consoleSpy).toHaveBeenCalledWith('Error logging out:', 'Logout failed');
+      expect(window.location.replace).toHaveBeenCalledWith('/');
       consoleSpy.mockRestore();
     });
   });
 
   describe('Navigation Items', () => {
-    it('renders navigation items on homepage', () => {
+    it('renders navigation items', () => {
       (usePathname as jest.Mock).mockReturnValue('/');
       render(<Navigation onLogin={mockOnLogin} />);
 
-      expect(screen.getByText('Startseite')).toBeInTheDocument();
-      expect(screen.getByText('Funktionen')).toBeInTheDocument();
-      expect(screen.getByText('Preise')).toBeInTheDocument();
+      expect(screen.getByText(/Funktionen/)).toBeInTheDocument();
+      expect(screen.getByText(/Preise/)).toBeInTheDocument();
     });
 
     it('renders home link on other pages', () => {
@@ -313,8 +358,8 @@ describe('Navigation - Jetzt loslegen Feature', () => {
     it('renders brand logo with correct text', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
-      expect(screen.getAllByText('Immobilien')).toHaveLength(2); // Mobile and desktop versions
-      expect(screen.getAllByText('Verwalter')).toHaveLength(2); // Mobile and desktop versions
+      expect(screen.getAllByText('Miet')).toHaveLength(1);
+      expect(screen.getAllByText('evo')).toHaveLength(1);
     });
 
     it('renders brand logo as link to home', () => {

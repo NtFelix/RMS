@@ -93,7 +93,7 @@ export function UserSettings({
       setIsLoadingLogout(false);
 
       // Redirect to home
-      window.location.href = '/';
+      window.location.replace('/');
     }
   }
 

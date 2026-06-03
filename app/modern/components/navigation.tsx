@@ -164,7 +164,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
     } finally {
       setCurrentUser(null);
       setIsOpen(false);
-      window.location.href = "/";
+      window.location.replace("/");
     }
   };
 
