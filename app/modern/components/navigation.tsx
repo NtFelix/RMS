@@ -326,7 +326,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         <div className="p-2">
                           <div className="h-full w-full rounded-xl bg-linear-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
                             {/* Abstract shapes/illustration */}
-                            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
+                            <div className="absolute -right-6 -top-6 size-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
                             <div className="absolute right-2 top-2 opacity-[0.08] group-hover/card:opacity-[0.15] transition-all duration-500 transform group-hover/card:scale-110 group-hover/card:-rotate-6">
                               <Sparkles className="size-20" />
                             </div>
@@ -346,7 +346,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                                   className="w-full group h-8 text-xs"
                                 >
                                   Kostenlos starten
-                                  <ArrowRight className="w-3 h-3 ml-2 transition-transform group-hover:translate-x-1" />
+                                  <ArrowRight className="size-3 ml-2 transition-transform group-hover:translate-x-1" />
                                 </Button>
                               </DropdownMenuItem>
                             </div>
@@ -431,7 +431,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button type="button" className="p-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-2 cursor-pointer">
-                          <Avatar className="h-6 w-6">
+                          <Avatar className="size-6">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                             <AvatarFallback className="text-xs">
                               {currentUser.email?.charAt(0).toUpperCase() || 'U'}
@@ -443,7 +443,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-60 p-2">
                         <div className="flex items-center gap-3 p-2">
-                          <Avatar className="h-10 w-10">
+                          <Avatar className="size-10">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                             <AvatarFallback className="text-sm">
                               {currentUser.email?.charAt(0).toUpperCase() || 'U'}
@@ -604,7 +604,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {currentUser ? (
                     <div className="space-y-3">
                       <div className="flex items-center gap-3 px-2">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="size-10">
                           <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                           <AvatarFallback>
                             {currentUser.email?.charAt(0).toUpperCase() || 'U'}
@@ -645,4 +645,3 @@ export default function Navigation({ onLogin }: NavigationProps) {
     </nav>
   )
 }
-
