@@ -100,12 +100,11 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
   useEffect(() => {
     const supabase = createClient();
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      // react-doctor-disable-next-line react-doctor/no-initialize-state
+    
+    // Set initial user synchronously if possible, otherwise use onAuthStateChange
+    supabase.auth.getUser().then(({ data: { user } }) => {
       setCurrentUser(user);
-    };
-    fetchUser();
+    });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setCurrentUser(session?.user ?? null);
@@ -278,17 +277,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {showProdukte && (
                     <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('produkte')}>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                          <Package className="w-4 h-4" />
+                        <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                          <Package className="size-4" />
                           <span>Produkte</span>
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown className="size-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {produkteItems.map((item) => (
                           <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'produkte')}>
-                              <item.icon className="w-4 h-4 shrink-0" />
+                              <item.icon className="size-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
                                 <span className="font-medium">{item.name}</span>
                                 <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -303,10 +302,10 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {/* Funktionen Dropdown */}
                   <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('funktionen')}>
                     <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                        <Wrench className="w-4 h-4" />
+                      <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                        <Wrench className="size-4" />
                         <span>Funktionen</span>
-                        <ChevronDown className="w-3 h-3" />
+                        <ChevronDown className="size-3" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-[600px] p-0">
@@ -315,7 +314,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           {funktionenItems.map((item) => (
                             <DropdownMenuItem key={item.name} asChild>
                               <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'funktionen')}>
-                                <item.icon className="w-4 h-4 shrink-0" />
+                                <item.icon className="size-4 shrink-0" />
                                 <div className="flex flex-col items-start gap-0.5">
                                   <span className="font-medium">{item.name}</span>
                                   <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -361,17 +360,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {showLoesungen && (
                     <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('loesungen')}>
                       <DropdownMenuTrigger asChild>
-                        <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                          <Lightbulb className="w-4 h-4" />
+                        <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                          <Lightbulb className="size-4" />
                           <span>Lösungen</span>
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown className="size-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-72">
                         {loesungenItems.map((item) => (
                           <DropdownMenuItem key={item.name} asChild>
                             <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'loesungen')}>
-                              <item.icon className="w-4 h-4 shrink-0" />
+                              <item.icon className="size-4 shrink-0" />
                               <div className="flex flex-col items-start gap-0.5">
                                 <span className="font-medium">{item.name}</span>
                                 <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -389,17 +388,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     onClick={() => trackNavLinkClicked('Preise', '/preise')}
                     className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer"
                   >
-                    <DollarSign className="w-4 h-4" />
+                    <DollarSign className="size-4" />
                     <span>Preise</span>
                   </Link>
 
                   {/* Hilfe Dropdown */}
                   <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('hilfe')}>
                     <DropdownMenuTrigger asChild>
-                      <button className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                        <HelpCircle className="w-4 h-4" />
+                      <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                        <HelpCircle className="size-4" />
                         <span>Hilfe</span>
-                        <ChevronDown className="w-3 h-3" />
+                        <ChevronDown className="size-3" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-72">
@@ -411,7 +410,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             rel={item.rel}
                             onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}
                           >
-                            <item.icon className="w-4 h-4 shrink-0" />
+                            <item.icon className="size-4 shrink-0" />
                             <div className="flex flex-col items-start gap-0.5">
                               <span className="font-medium">{item.name}</span>
                               <span className="text-xs text-muted-foreground">{item.description}</span>
@@ -431,7 +430,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   {currentUser ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="p-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-2 cursor-pointer">
+                        <button type="button" className="p-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-2 cursor-pointer">
                           <Avatar className="h-6 w-6">
                             <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
                             <AvatarFallback className="text-xs">
@@ -439,7 +438,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             </AvatarFallback>
                           </Avatar>
                           <span className="whitespace-nowrap">Mein Konto</span>
-                          <ChevronDown className="w-3 h-3" />
+                          <ChevronDown className="size-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-60 p-2">
@@ -462,7 +461,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
                           <Link href={ROUTES.HOME} className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
-                            <LayoutDashboard className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                            <LayoutDashboard className="size-4 mr-3 text-muted-foreground group-hover:text-white" />
                             <span>Dashboard</span>
                           </Link>
                         </DropdownMenuItem>
@@ -473,7 +472,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             window.location.href = ROUTES.HOME;
                           }}
                         >
-                          <Settings className="w-4 h-4 mr-3 text-muted-foreground group-hover:text-white" />
+                          <Settings className="size-4 mr-3 text-muted-foreground group-hover:text-white" />
                           <span>Einstellungen</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator className="my-2" />
@@ -481,7 +480,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           onClick={handleLogout}
                           className="px-3 py-2 rounded-xl group hover:bg-red-600 hover:text-white dark:hover:bg-red-600/90 cursor-pointer"
                         >
-                          <LogOut className="w-4 h-4 mr-3 group-hover:text-white" />
+                          <LogOut className="size-4 mr-3 group-hover:text-white" />
                           <span className="group-hover:text-white">Abmelden</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -537,11 +536,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Navigation</h3>
                     <button
+                      type="button"
                       onClick={() => setIsOpen(false)}
                       className="p-1.5 rounded-full hover:bg-muted transition-colors"
                       aria-label="Menü schließen"
                     >
-                      <X className="w-5 h-5" />
+                      <X className="size-5" />
                     </button>
                   </div>
                 </div>
@@ -582,7 +582,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       onClick={() => setIsOpen(false)}
                       className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
                     >
-                      <DollarSign className="w-5 h-5 mr-3" />
+                      <DollarSign className="size-5 mr-3" />
                       <div>
                         <div className="font-medium">Preise</div>
                         <div className="text-sm text-muted-foreground">Unsere Tarife im Überblick</div>
@@ -617,12 +617,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       </div>
                       <Button asChild variant="outline" className="w-full">
                         <Link href={ROUTES.HOME}>
-                          <LayoutDashboard className="w-4 h-4 mr-2" />
+                          <LayoutDashboard className="size-4 mr-2" />
                           Dashboard
                         </Link>
                       </Button>
                       <Button variant="outline" className="w-full" onClick={handleLogout}>
-                        <LogOut className="w-4 h-4 mr-2" />
+                        <LogOut className="size-4 mr-2" />
                         Abmelden
                       </Button>
                     </div>
