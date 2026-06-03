@@ -1,6 +1,7 @@
 // jest.setup.js
 import '@testing-library/jest-dom'
 import 'jest-axe/extend-expect'
+import 'jest-location-mock'
 
 // Add TextEncoder/TextDecoder polyfills for Node.js environment
 const { TextEncoder, TextDecoder } = require('util');
@@ -74,6 +75,12 @@ global.Headers = class Headers extends Map {
     }
   }
 };
+
+global.fetch = jest.fn(() =>
+  Promise.resolve(
+    Response.json({ success: true })
+  )
+);
 
 jest.mock('@supabase/ssr', () => {
   return {

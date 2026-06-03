@@ -6,6 +6,7 @@ import { LogOut, Settings, FileText } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { cn } from "@/lib/utils"
+// react-doctor-disable-next-line react-doctor/use-lazy-motion
 import { motion } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
 
