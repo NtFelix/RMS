@@ -328,7 +328,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                             {/* Abstract shapes/illustration */}
                             <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
                             <div className="absolute right-2 top-2 opacity-[0.08] group-hover/card:opacity-[0.15] transition-all duration-500 transform group-hover/card:scale-110 group-hover/card:-rotate-6">
-                              <Sparkles className="w-20 h-20" />
+                              <Sparkles className="size-20" />
                             </div>
 
                             <div className="relative z-10">
@@ -645,3 +645,4 @@ export default function Navigation({ onLogin }: NavigationProps) {
     </nav>
   )
 }
+
