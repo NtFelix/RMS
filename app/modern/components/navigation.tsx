@@ -1,64 +1,25 @@
 "use client"
 
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react"
-// react-doctor-disable-next-line react-doctor/use-lazy-motion
-import { AnimatePresence, motion } from "framer-motion"
-import { useFeatureFlagEnabled } from "posthog-js/react"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen, Package, Wrench, Lightbulb, HelpCircle, FileText, Building2, Users, Calculator, TrendingUp, BarChart3, Shield, Zap, MessageSquare, Phone, Mail, ChevronDown, Settings, ArrowRight, Sparkles, type LucideIcon } from "lucide-react"
-
+import { Menu } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2, INFO_EMAIL, ROUTES, EXTERNAL_LINKS } from "@/lib/constants"
-import { Button } from '@/components/ui/button'
-import { User } from "@supabase/supabase-js";
-import { createClient } from "@/utils/supabase/client";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { PillContainer } from "@/components/ui/pill-container";
-import { useUserProfile } from "@/hooks/use-user-profile";
+import { LOGO_URL, BRAND_NAME_PART_1, BRAND_NAME_PART_2 } from "@/lib/constants"
+import { User } from "@supabase/supabase-js"
+import { createClient } from "@/utils/supabase/client"
+import { PillContainer } from "@/components/ui/pill-container"
+import { useIsOverflowing } from "@/hooks/use-responsive"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { useIsOverflowing } from "@/hooks/use-responsive";
-
-import {
-  trackNavLinkClicked,
-  trackNavDropdownOpened,
   trackNavLoginClicked,
   trackNavRegisterClicked,
   trackNavLogoutClicked,
   trackNavMobileMenuOpened,
-  type NavDropdown,
-} from "@/lib/posthog-landing-events";
-import type { NavItem } from "@/lib/types";
+} from "@/lib/posthog-landing-events"
+import { useFeatureFlagEnabled } from "posthog-js/react"
 
-// Navigation dropdown items
-const produkteItems: NavItem[] = [
-  { name: "Web-Anwendung", href: ROUTES.HOME, icon: LayoutDashboard, description: "Die Web-Anwendung" },
-  { name: "Browser-Erweiterung", href: "/warteliste/browser-erweiterung", icon: Package, description: "Demnächst verfügbar" },
-  { name: "Mobile App", href: "/warteliste/mobile-app", icon: Phone, description: "Demnächst verfügbar" },
-]
-
-const funktionenItems: NavItem[] = [
-  { name: "Wohnungsverwaltung", href: "/funktionen/wohnungsverwaltung", icon: Building2, description: "Verwalten Sie Ihre Wohnungen zentral" },
-  { name: "Finanzverwaltung", href: "/funktionen/finanzverwaltung", icon: TrendingUp, description: "Behalten Sie Ihre Finanzen im Blick" },
-  { name: "Betriebskosten", href: "/funktionen/betriebskosten", icon: Calculator, description: "Automatische Nebenkostenabrechnung" },
-]
-
-const loesungenItems: NavItem[] = [
-  { name: "Für Privatvermieter", href: "/loesungen/privatvermieter", icon: Home, description: "Perfekt für private Vermieter" },
-  { name: "Für kleine bis mittlere Hausverwaltungen", href: "/loesungen/kleine-mittlere-hausverwaltungen", icon: Building2, description: "Professionelle Verwaltungslösung" },
-  { name: "Für große Hausverwaltungen", href: "/loesungen/grosse-hausverwaltungen", icon: TrendingUp, description: "Enterprise-Lösungen für große Portfolios" },
-]
-
-const hilfeItems: NavItem[] = [
-  { name: "Dokumentation", href: EXTERNAL_LINKS.DOCUMENTATION, icon: BookOpen, description: "Ausführliche Anleitungen", target: "_blank", rel: "noopener noreferrer" },
-  { name: "Kontakt", href: `mailto:${INFO_EMAIL}`, icon: Mail, description: "Schreiben Sie uns" },
-]
+import { DesktopNavigation } from "./navigation/DesktopNavigation"
+import { MobileNavigation } from "./navigation/MobileNavigation"
 
 interface NavigationProps {
   onLogin?: () => void;
@@ -73,7 +34,6 @@ export default function Navigation({ onLogin }: NavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const { userName } = useUserProfile();
   const { ref: navRef, isOverflowing } = useIsOverflowing();
   const showProdukte = useFeatureFlagEnabled('show-produkte-dropdown');
   const showLoesungen = useFeatureFlagEnabled('show-loesungen-dropdown');
@@ -114,22 +74,6 @@ export default function Navigation({ onLogin }: NavigationProps) {
       authListener?.subscription.unsubscribe();
     };
   }, []);
-
-  const handleNavClick = (href: string) => {
-    if (href.startsWith("#") && pathname === "/") {
-      const element = document.querySelector(href);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-      setIsOpen(false);
-    } else if (href.startsWith("#")) {
-      window.location.href = `/${href}`;
-    } else {
-      window.location.href = href;
-    }
-  };
-
-
 
   const handleOpenLoginModal = () => {
     trackNavLoginClicked();
@@ -184,31 +128,6 @@ export default function Navigation({ onLogin }: NavigationProps) {
     return <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4 h-16"></nav>;
   }
 
-  const renderNavItem = (item: NavItem, dropdown?: NavDropdown) => (
-    <Link
-      key={item.name}
-      href={item.href}
-      target={item.target}
-      rel={item.rel}
-      onClick={() => {
-        trackNavLinkClicked(item.name, item.href, dropdown);
-        setIsOpen(false);
-      }}
-      className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
-    >
-      <item.icon className="size-5 mr-3" />
-      <div>
-        <div className="font-medium">
-          {item.name}
-          {item.target === "_blank" && (
-            <span className="sr-only"> (öffnet in neuem Tab)</span>
-          )}
-        </div>
-        <div className="text-sm text-muted-foreground">{item.description}</div>
-      </div>
-    </Link>
-  );
-
   return (
     <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4">
       <div className="max-w-7xl mx-auto">
@@ -248,400 +167,28 @@ export default function Navigation({ onLogin }: NavigationProps) {
 
         {/* Desktop Navigation */}
         {!isMobile && !isOverflowing && (
-          <div className="flex justify-center">
-            <div className="inline-flex w-auto max-w-full" ref={navRef}>
-              <PillContainer className="flex items-center gap-2 w-full">
-                {/* Logo Section */}
-                <Link href="/" className="flex items-center gap-2 group px-2">
-                  <div className="relative size-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
-                    <Image
-                      src={LOGO_URL}
-                      alt="Mietevo Logo"
-                      fill
-                      sizes="32px"
-                      className="object-cover"
-                      unoptimized // Supabase images are stored as pre-optimized .avif
-                    />
-                  </div>
-                  <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors whitespace-nowrap">
-                    <span className="text-primary">{BRAND_NAME_PART_1}</span>{BRAND_NAME_PART_2}
-                  </span>
-                </Link>
-
-                {/* Divider */}
-                <div className="h-8 w-px bg-border/50 mx-2" />
-
-                {/* Navigation Items Section */}
-                <div className="flex items-center gap-1">
-                  {/* Produkte Dropdown */}
-                  {showProdukte && (
-                    <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('produkte')}>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                          <Package className="size-4" />
-                          <span>Produkte</span>
-                          <ChevronDown className="size-3" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-72">
-                        {produkteItems.map((item) => (
-                          <DropdownMenuItem key={item.name} asChild>
-                            <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'produkte')}>
-                              <item.icon className="size-4 shrink-0" />
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="font-medium">{item.name}</span>
-                                <span className="text-xs text-muted-foreground">{item.description}</span>
-                              </div>
-                            </Link>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-
-                  {/* Funktionen Dropdown */}
-                  <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('funktionen')}>
-                    <DropdownMenuTrigger asChild>
-                      <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                        <Wrench className="size-4" />
-                        <span>Funktionen</span>
-                        <ChevronDown className="size-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[600px] p-0">
-                      <div className="grid grid-cols-2">
-                        <div className="p-2">
-                          {funktionenItems.map((item) => (
-                            <DropdownMenuItem key={item.name} asChild>
-                              <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'funktionen')}>
-                                <item.icon className="size-4 shrink-0" />
-                                <div className="flex flex-col items-start gap-0.5">
-                                  <span className="font-medium">{item.name}</span>
-                                  <span className="text-xs text-muted-foreground">{item.description}</span>
-                                </div>
-                              </Link>
-                            </DropdownMenuItem>
-                          ))}
-                        </div>
-                        <div className="p-2">
-                          <div className="h-full w-full rounded-xl bg-linear-to-br from-primary/5 via-muted/20 to-transparent border border-border/50 p-4 flex flex-col justify-between relative overflow-hidden group/card hover:border-primary/20 transition-colors">
-                            {/* Abstract shapes/illustration */}
-                            <div className="absolute -right-6 -top-6 size-32 bg-primary/10 rounded-full blur-3xl group-hover/card:bg-primary/20 transition-colors duration-500" />
-                            <div className="absolute right-2 top-2 opacity-[0.08] group-hover/card:opacity-[0.15] transition-all duration-500 transform group-hover/card:scale-110 group-hover/card:-rotate-6">
-                              <Sparkles className="size-20" />
-                            </div>
-
-                            <div className="relative z-10">
-                              <div className="font-semibold text-sm mb-1">Mietevo erleben</div>
-                              <p className="text-xs text-muted-foreground">
-                                Starten Sie jetzt und entdecken Sie alle Funktionen in der kostenlosen Testphase.
-                              </p>
-                            </div>
-
-                            <div className="relative z-10 mt-2">
-                              <DropdownMenuItem asChild>
-                                <Button
-                                  onClick={handleRegisterClick}
-                                  size="sm"
-                                  className="w-full group h-8 text-xs"
-                                >
-                                  Kostenlos starten
-                                  <ArrowRight className="size-3 ml-2 transition-transform group-hover:translate-x-1" />
-                                </Button>
-                              </DropdownMenuItem>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {/* Lösungen Dropdown */}
-                  {showLoesungen && (
-                    <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('loesungen')}>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                          <Lightbulb className="size-4" />
-                          <span>Lösungen</span>
-                          <ChevronDown className="size-3" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-72">
-                        {loesungenItems.map((item) => (
-                          <DropdownMenuItem key={item.name} asChild>
-                            <Link href={item.href} onClick={() => trackNavLinkClicked(item.name, item.href, 'loesungen')}>
-                              <item.icon className="size-4 shrink-0" />
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="font-medium">{item.name}</span>
-                                <span className="text-xs text-muted-foreground">{item.description}</span>
-                              </div>
-                            </Link>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-
-                  {/* Preise Link */}
-                  <Link
-                    href="/preise"
-                    onClick={() => trackNavLinkClicked('Preise', '/preise')}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer"
-                  >
-                    <DollarSign className="size-4" />
-                    <span>Preise</span>
-                  </Link>
-
-                  {/* Hilfe Dropdown */}
-                  <DropdownMenu onOpenChange={(open) => open && trackNavDropdownOpened('hilfe')}>
-                    <DropdownMenuTrigger asChild>
-                      <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-1 whitespace-nowrap cursor-pointer">
-                        <HelpCircle className="size-4" />
-                        <span>Hilfe</span>
-                        <ChevronDown className="size-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-72">
-                      {hilfeItems.map((item) => (
-                        <DropdownMenuItem key={item.name} asChild>
-                          <Link
-                            href={item.href}
-                            target={item.target}
-                            rel={item.rel}
-                            onClick={() => trackNavLinkClicked(item.name, item.href, 'hilfe')}
-                          >
-                            <item.icon className="size-4 shrink-0" />
-                            <div className="flex flex-col items-start gap-0.5">
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">{item.description}</span>
-                            </div>
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Divider */}
-                <div className="h-8 w-px bg-border/50 mx-2" />
-
-                {/* Auth Section */}
-                <div className="flex items-center pr-0">
-                  {currentUser ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" className="p-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 hover:text-foreground dark:btn-ghost-hover transition-colors duration-200 flex items-center gap-2 cursor-pointer">
-                          <Avatar className="size-6">
-                            <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
-                            <AvatarFallback className="text-xs">
-                              {currentUser.email?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="whitespace-nowrap">Mein Konto</span>
-                          <ChevronDown className="size-3" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-60 p-2">
-                        <div className="flex items-center gap-3 p-2">
-                          <Avatar className="size-10">
-                            <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
-                            <AvatarFallback className="text-sm">
-                              {currentUser.email?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-medium line-clamp-1">
-                              {userName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {currentUser.email || 'Konto verwalten'}
-                            </p>
-                          </div>
-                        </div>
-                        <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuItem asChild className="px-3 py-2 rounded-xl group">
-                          <Link href={ROUTES.HOME} className="w-full hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90">
-                            <LayoutDashboard className="size-4 mr-3 text-muted-foreground group-hover:text-white" />
-                            <span>Dashboard</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
-                          onClick={() => {
-                            // Navigate to dashboard
-                            window.location.href = ROUTES.HOME;
-                          }}
-                        >
-                          <Settings className="size-4 mr-3 text-muted-foreground group-hover:text-white" />
-                          <span>Einstellungen</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuItem
-                          onClick={handleLogout}
-                          className="px-3 py-2 rounded-xl group hover:bg-red-600 hover:text-white dark:hover:bg-red-600/90 cursor-pointer"
-                        >
-                          <LogOut className="size-4 mr-3 group-hover:text-white" />
-                          <span className="group-hover:text-white">Abmelden</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        onClick={handleOpenLoginModal}
-                        className="px-4 py-2 h-9 text-sm font-medium text-foreground hover:bg-muted/50"
-                      >
-                        Anmelden
-                      </Button>
-                      <Button
-                        onClick={handleRegisterClick}
-                        className="ml-2 px-4 py-2 h-9 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
-                      >
-                        Kostenlos testen
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </PillContainer>
-            </div>
-          </div>
+          <DesktopNavigation
+            navRef={navRef}
+            showProdukte={showProdukte ?? false}
+            showLoesungen={showLoesungen ?? false}
+            currentUser={currentUser}
+            handleLogout={handleLogout}
+            handleOpenLoginModal={handleOpenLoginModal}
+            handleRegisterClick={handleRegisterClick}
+          />
         )}
       </div>
 
       {/* Mobile Navigation */}
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* Backdrop with blur */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-xs z-40"
-              onClick={() => setIsOpen(false)}
-            />
-
-            {/* Mobile Menu */}
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.2 }}
-              className="fixed inset-y-0 left-0 w-80 max-w-[90vw] bg-background border-r border-border/50 z-50 shadow-xl overflow-y-auto"
-            >
-              <div className="h-full flex flex-col">
-                <div className="p-4 border-b border-border/50">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Navigation</h3>
-                    <button
-                      type="button"
-                      onClick={() => setIsOpen(false)}
-                      className="p-1.5 rounded-full hover:bg-muted transition-colors"
-                      aria-label="Menü schließen"
-                    >
-                      <X className="size-5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-1">
-                  {/* Produkte Section */}
-                  {showProdukte && (
-                    <div className="mb-4">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Produkte
-                      </div>
-                      {produkteItems.map((item) => renderNavItem(item))}
-                    </div>
-                  )}
-
-                  {/* Funktionen Section */}
-                  <div className="mb-4">
-                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Funktionen
-                    </div>
-                    {funktionenItems.map((item) => renderNavItem(item))}
-                  </div>
-
-                  {/* Lösungen Section */}
-                  {showLoesungen && (
-                    <div className="mb-4">
-                      <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Lösungen
-                      </div>
-                      {loesungenItems.map((item) => renderNavItem(item))}
-                    </div>
-                  )}
-
-                  {/* Preise Section */}
-                  <div className="mb-4">
-                    <Link
-                      href="/preise"
-                      onClick={() => setIsOpen(false)}
-                      className="flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 hover:bg-muted/50"
-                    >
-                      <DollarSign className="size-5 mr-3" />
-                      <div>
-                        <div className="font-medium">Preise</div>
-                        <div className="text-sm text-muted-foreground">Unsere Tarife im Überblick</div>
-                      </div>
-                    </Link>
-                  </div>
-
-                  {/* Hilfe Section */}
-                  <div className="mb-4">
-                    <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Hilfe
-                    </div>
-                    {hilfeItems.map((item) => renderNavItem(item))}
-                  </div>
-                </div>
-
-                {/* Auth Section */}
-                <div className="p-4 border-t border-border/50">
-                  {currentUser ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 px-2">
-                        <Avatar className="size-10">
-                          <AvatarImage src={currentUser.user_metadata?.avatar_url} alt={currentUser.email || 'User'} />
-                          <AvatarFallback>
-                            {currentUser.email?.charAt(0).toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{currentUser.email}</p>
-                          <p className="text-xs text-muted-foreground">Konto verwalten</p>
-                        </div>
-                      </div>
-                      <Button asChild variant="outline" className="w-full">
-                        <Link href={ROUTES.HOME}>
-                          <LayoutDashboard className="size-4 mr-2" />
-                          Dashboard
-                        </Link>
-                      </Button>
-                      <Button variant="outline" className="w-full" onClick={handleLogout}>
-                        <LogOut className="size-4 mr-2" />
-                        Abmelden
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Button onClick={handleOpenLoginModal} className="w-full">
-                        Anmelden
-                      </Button>
-                      <Button variant="outline" onClick={() => router.push('/auth/register')} className="w-full">
-                        Kostenlos testen
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <MobileNavigation
+        isOpen={isOpen}
+        setIsOpen={setIsOpen}
+        showProdukte={showProdukte ?? false}
+        showLoesungen={showLoesungen ?? false}
+        currentUser={currentUser}
+        handleLogout={handleLogout}
+        handleOpenLoginModal={handleOpenLoginModal}
+      />
     </nav>
   )
 }
