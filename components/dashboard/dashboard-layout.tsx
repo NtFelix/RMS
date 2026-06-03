@@ -20,6 +20,7 @@ export function DashboardLayout({
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [transitionEnabled, setTransitionEnabled] = useState(false)
   const { preference } = useSidebarStore()
 
   // Prevent hydration errors and handle responsive behavior
@@ -36,6 +37,11 @@ export function DashboardLayout({
     // Set initial state
     checkScreenSize()
 
+    // Enable transitions after initial mount settles to avoid hydration collapse transition
+    const timer = setTimeout(() => {
+      setTransitionEnabled(true)
+    }, 100)
+
     // Add resize listener for responsive behavior with debouncing
     let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
@@ -50,6 +56,7 @@ export function DashboardLayout({
     return () => {
       window.removeEventListener('resize', handleResize)
       clearTimeout(resizeTimeout)
+      clearTimeout(timer)
     }
   }, [])
 
@@ -110,7 +117,10 @@ export function DashboardLayout({
       <div className="flex min-h-screen bg-background w-full max-w-full">
         {/* Desktop sidebar */}
         <div 
-          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
+          className={cn(
+            "desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0",
+            transitionEnabled && "transition-all duration-300 ease-in-out"
+          )}
           style={{
             width: preference === 'expanded' ? "16rem" : "5rem"
           }}
