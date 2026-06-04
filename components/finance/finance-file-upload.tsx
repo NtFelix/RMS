@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useCallback, useRef, useReducer, useEffect } from "react";
 import { Upload, File, X, Download, Eye, Loader2, FileText, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -28,6 +28,66 @@ interface DocumentInfo {
     mime_type: string | null;
 }
 
+type State = {
+    isUploading: boolean;
+    isDeleting: boolean;
+    isLoading: boolean;
+    documentInfo: DocumentInfo | null;
+    isDragOver: boolean;
+};
+
+type Action =
+    | { type: "SET_UPLOADING"; payload: boolean }
+    | { type: "SET_DELETING"; payload: boolean }
+    | { type: "SET_LOADING"; payload: boolean }
+    | { type: "SET_DOCUMENT_INFO"; payload: DocumentInfo | null }
+    | { type: "SET_DRAG_OVER"; payload: boolean }
+    | { type: "RESET_STATE" };
+
+const initialState: State = {
+    isUploading: false,
+    isDeleting: false,
+    isLoading: false,
+    documentInfo: null,
+    isDragOver: false,
+};
+
+function reducer(state: State, action: Action): State {
+    switch (action.type) {
+        case "SET_UPLOADING":
+            return { ...state, isUploading: action.payload };
+        case "SET_DELETING":
+            return { ...state, isDeleting: action.payload };
+        case "SET_LOADING":
+            return { ...state, isLoading: action.payload };
+        case "SET_DOCUMENT_INFO":
+            return { ...state, documentInfo: action.payload };
+        case "SET_DRAG_OVER":
+            return { ...state, isDragOver: action.payload };
+        case "RESET_STATE":
+            return initialState;
+        default:
+            return state;
+    }
+}
+
+const getFileIcon = (mimeType: string | null) => {
+    if (mimeType?.startsWith("image/")) {
+        return <ImageIcon className="size-5 text-blue-500" />;
+    }
+    if (mimeType === "application/pdf") {
+        return <FileText className="size-5 text-red-500" />;
+    }
+    return <File className="size-5 text-gray-500" />;
+};
+
+const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 export function FinanceFileUpload({
     dokumentId,
     wohnungId,
@@ -35,47 +95,50 @@ export function FinanceFileUpload({
     onDocumentChange,
     disabled = false,
 }: FinanceFileUploadProps) {
-    const [isUploading, setIsUploading] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [documentInfo, setDocumentInfo] = useState<DocumentInfo | null>(null);
-    const [isDragOver, setIsDragOver] = useState(false);
+    const [state, dispatch] = useReducer(reducer, initialState);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const { isUploading, isDeleting, isLoading, documentInfo, isDragOver } = state;
+
     // Load document info when dokumentId changes
-    React.useEffect(() => {
+    useEffect(() => {
+        let isMounted = true;
         if (dokumentId) {
-            setIsLoading(true);
+            dispatch({ type: "SET_LOADING", payload: true });
             getFinanceDocumentInfo(dokumentId)
                 .then((result) => {
-                    if (result.success && result.document) {
-                        setDocumentInfo(result.document);
-                    } else {
-                        setDocumentInfo(null);
+                    if (isMounted) {
+                        dispatch({
+                            type: "SET_DOCUMENT_INFO",
+                            payload: result.success ? result.document || null : null,
+                        });
                     }
                 })
-                .catch(() => setDocumentInfo(null))
-                .finally(() => setIsLoading(false));
+                .catch(() => {
+                    if (isMounted) dispatch({ type: "SET_DOCUMENT_INFO", payload: null });
+                })
+                .finally(() => {
+                    if (isMounted) dispatch({ type: "SET_LOADING", payload: false });
+                });
         } else {
-            setDocumentInfo(null);
+            dispatch({ type: "SET_DOCUMENT_INFO", payload: null });
         }
+        return () => {
+            isMounted = false;
+        };
     }, [dokumentId]);
 
     const handleFileSelect = useCallback(
         async (file: File) => {
             if (disabled || isUploading) return;
 
-            setIsUploading(true);
+            dispatch({ type: "SET_UPLOADING", payload: true });
 
             try {
                 const formData = new FormData();
                 formData.append("file", file);
-                if (wohnungId) {
-                    formData.append("wohnung_id", wohnungId);
-                }
-                if (financeId) {
-                    formData.append("finance_id", financeId);
-                }
+                if (wohnungId) formData.append("wohnung_id", wohnungId);
+                if (financeId) formData.append("finance_id", financeId);
 
                 const response = await fetch("/api/finance-files/upload", {
                     method: "POST",
@@ -102,7 +165,7 @@ export function FinanceFileUpload({
                     variant: "destructive",
                 });
             } finally {
-                setIsUploading(false);
+                dispatch({ type: "SET_UPLOADING", payload: false });
             }
         },
         [wohnungId, financeId, onDocumentChange, disabled, isUploading]
@@ -111,43 +174,14 @@ export function FinanceFileUpload({
     const handleFileChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
-            if (file) {
-                handleFileSelect(file);
-            }
-            // Reset input so same file can be selected again
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
+            if (file) handleFileSelect(file);
+            if (fileInputRef.current) fileInputRef.current.value = "";
         },
         [handleFileSelect]
     );
-
-    const handleDrop = useCallback(
-        (e: React.DragEvent<HTMLDivElement>) => {
-            e.preventDefault();
-            setIsDragOver(false);
-
-            const file = e.dataTransfer.files?.[0];
-            if (file) {
-                handleFileSelect(file);
-            }
-        },
-        [handleFileSelect]
-    );
-
-    const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragOver(true);
-    }, []);
-
-    const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setIsDragOver(false);
-    }, []);
 
     const handleView = useCallback(async () => {
         if (!dokumentId) return;
-
         try {
             const result = await getFinanceDocumentUrl(dokumentId);
             if (result.success && result.url) {
@@ -167,7 +201,6 @@ export function FinanceFileUpload({
 
     const handleDownload = useCallback(async () => {
         if (!dokumentId) return;
-
         try {
             const result = await getFinanceDocumentUrl(dokumentId, true);
             if (result.success && result.url) {
@@ -187,13 +220,12 @@ export function FinanceFileUpload({
 
     const handleRemove = useCallback(async () => {
         if (!dokumentId || isDeleting) return;
-
-        setIsDeleting(true);
+        dispatch({ type: "SET_DELETING", payload: true });
         try {
             const result = await deleteFinanceDocument(dokumentId);
             if (result.success) {
                 onDocumentChange(null);
-                setDocumentInfo(null);
+                dispatch({ type: "SET_DOCUMENT_INFO", payload: null });
                 toast({
                     title: "Datei entfernt",
                     description: "Die angehängte Datei wurde entfernt.",
@@ -210,107 +242,169 @@ export function FinanceFileUpload({
                 variant: "destructive",
             });
         } finally {
-            setIsDeleting(false);
+            dispatch({ type: "SET_DELETING", payload: false });
         }
     }, [dokumentId, onDocumentChange, isDeleting]);
 
-    const getFileIcon = (mimeType: string | null) => {
-        if (mimeType?.startsWith("image/")) {
-            return <ImageIcon className="h-5 w-5 text-blue-500" />;
-        }
-        if (mimeType === "application/pdf") {
-            return <FileText className="h-5 w-5 text-red-500" />;
-        }
-        return <File className="h-5 w-5 text-gray-500" />;
-    };
-
-    const formatFileSize = (bytes: number | null) => {
-        if (!bytes) return "";
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    };
-
-    // Show existing document
     if (dokumentId && documentInfo) {
         return (
-            <div className="space-y-2">
-                <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-                    {getFileIcon(documentInfo.mime_type)}
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{documentInfo.dateiname}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {formatFileSize(documentInfo.dateigroesse)}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleView}
-                            disabled={disabled}
-                            title="Ansehen"
-                        >
-                            <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleDownload}
-                            disabled={disabled}
-                            title="Herunterladen"
-                        >
-                            <Download className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleRemove}
-                            disabled={disabled || isDeleting}
-                            title="Entfernen"
-                        >
-                            {isDeleting ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <X className="h-4 w-4" />
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            <DocumentPreview
+                documentInfo={documentInfo}
+                isDeleting={isDeleting}
+                disabled={disabled}
+                onView={handleView}
+                onDownload={handleDownload}
+                onRemove={handleRemove}
+            />
         );
     }
 
-    // Show loading state
     if (isLoading) {
         return (
             <div className="flex items-center justify-center p-4 border rounded-lg bg-muted/30">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
         );
     }
 
-    // Show upload area
+    return (
+        <UploadZone
+            fileInputRef={fileInputRef}
+            isUploading={isUploading}
+            isDragOver={isDragOver}
+            disabled={disabled}
+            onFileChange={handleFileChange}
+            onFileSelect={handleFileSelect}
+            setDragOver={(payload) => dispatch({ type: "SET_DRAG_OVER", payload })}
+        />
+    );
+}
+
+interface DocumentPreviewProps {
+    documentInfo: DocumentInfo;
+    isDeleting: boolean;
+    disabled: boolean;
+    onView: () => void;
+    onDownload: () => void;
+    onRemove: () => void;
+}
+
+function DocumentPreview({
+    documentInfo,
+    isDeleting,
+    disabled,
+    onView,
+    onDownload,
+    onRemove,
+}: DocumentPreviewProps) {
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                {getFileIcon(documentInfo.mime_type)}
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{documentInfo.dateiname}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {formatFileSize(documentInfo.dateigroesse)}
+                    </p>
+                </div>
+                <div className="flex items-center gap-1">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={onView}
+                        disabled={disabled}
+                        title="Ansehen"
+                    >
+                        <Eye className="size-4" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={onDownload}
+                        disabled={disabled}
+                        title="Herunterladen"
+                    >
+                        <Download className="size-4" />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={onRemove}
+                        disabled={disabled || isDeleting}
+                        title="Entfernen"
+                    >
+                        {isDeleting ? (
+                            <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                            <X className="size-4" />
+                        )}
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+interface UploadZoneProps {
+    fileInputRef: React.RefObject<HTMLInputElement | null>;
+    isUploading: boolean;
+    isDragOver: boolean;
+    disabled: boolean;
+    onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onFileSelect: (file: File) => void;
+    setDragOver: (over: boolean) => void;
+}
+
+function UploadZone({
+    fileInputRef,
+    isUploading,
+    isDragOver,
+    disabled,
+    onFileChange,
+    onFileSelect,
+    setDragOver,
+}: UploadZoneProps) {
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) onFileSelect(file);
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setDragOver(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setDragOver(false);
+    };
+
     return (
         <div className="space-y-2">
             <input
                 ref={fileInputRef}
                 type="file"
                 accept={FILE_INPUT_ACCEPT}
-                onChange={handleFileChange}
+                onChange={onFileChange}
                 className="hidden"
                 disabled={disabled || isUploading}
+                aria-label="Datei auswählen"
             />
-            <div
+            <button
+                type="button"
+                disabled={disabled || isUploading}
+                aria-disabled={disabled || isUploading}
                 onClick={() => !disabled && !isUploading && fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 className={cn(
-                    "flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
+                    "w-full flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                     isDragOver && "border-primary bg-primary/5",
                     !isDragOver && "border-muted-foreground/25 hover:border-muted-foreground/50",
                     disabled && "opacity-50 cursor-not-allowed",
@@ -319,12 +413,12 @@ export function FinanceFileUpload({
             >
                 {isUploading ? (
                     <>
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">Wird hochgeladen...</p>
+                        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Wird hochgeladen…</p>
                     </>
                 ) : (
                     <>
-                        <Upload className="h-6 w-6 text-muted-foreground" />
+                        <Upload className="size-6 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground text-center">
                             Datei hierher ziehen oder <span className="text-primary">klicken</span> zum Auswählen
                         </p>
@@ -333,7 +427,7 @@ export function FinanceFileUpload({
                         </p>
                     </>
                 )}
-            </div>
+            </button>
         </div>
     );
 }
