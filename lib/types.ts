@@ -89,11 +89,17 @@ export type NebenkostenChartDatum = {
 
 export interface Rechnung {
     id: string;
-    user_id: string;
+    erstellt_von: string;
+    organisation_id: string;
     nebenkosten_id: string | null;
     mieter_id: string | null;
     name: string;
     betrag: number | null;
+    erstellt_am?: string;
+    geaendert_am?: string | null;
+    geaendert_von?: string | null;
+    geloescht_am?: string | null;
+    geloescht_von?: string | null;
 }
 
 export type RechnungSql = {
@@ -102,7 +108,8 @@ export type RechnungSql = {
     mieter_id: string;
     betrag: number;
     name: string;
-    user_id: string;
+    erstellt_von: string;
+    organisation_id: string;
 };
 
 // Re-export zaehler types
@@ -131,21 +138,19 @@ export type ZaehlerAblesung = {
     zaehlerstand: number;
     verbrauch: number;
     kommentar?: string | null;
-    user_id: string;
+    erstellt_von: string;
+    organisation_id: string;
+    erstellt_am?: string;
+    geaendert_am?: string | null;
+    geaendert_von?: string | null;
+    geloescht_am?: string | null;
+    geloescht_von?: string | null;
 };
 
 // Legacy types for backward compatibility
 export type WasserZaehler = Zaehler;
 export type WasserAblesung = ZaehlerAblesung;
-
-/**
- * Deprecated alias kept for compatibility with older Wasserzähler modal code.
- * It now represents readings from Zaehler_Ablesungen plus optional tenant/billing context.
- */
-export type Wasserzaehler = ZaehlerAblesung & {
-    mieter_id?: string;
-    nebenkosten_id?: string | null;
-};
+export type Wasserzaehler = ZaehlerAblesung & { mieter_id?: string; nebenkosten_id?: string | null };
 
 export type MeterReadingFormEntry = {
     id: string; // Used as key
@@ -162,10 +167,6 @@ export type MeterReadingFormData = {
     nebenkosten_id?: string; // Optional to match data-fetching
     entries: MeterReadingFormEntry[];
 };
-
-// Deprecated aliases
-export type WasserzaehlerFormEntry = MeterReadingFormEntry;
-export type WasserzaehlerFormData = MeterReadingFormData;
 
 export type Finanzen = {
     id: string;

@@ -166,7 +166,8 @@ describe('AbrechnungModal Optimization', () => {
       mieter_id: 'tenant-1',
       name: 'Heizung',
       betrag: 200,
-      user_id: 'user-1',
+      erstellt_von: 'user-1',
+      organisation_id: 'org-1',
     },
   ];
 
@@ -178,7 +179,8 @@ describe('AbrechnungModal Optimization', () => {
       zaehlerstand: 150,
       verbrauch: 50,
       nebenkosten_id: 'test-id',
-      user_id: 'user-1',
+      erstellt_von: 'user-1',
+      organisation_id: 'org-1',
       zaehler_id: 'meter-1',
     },
   ];

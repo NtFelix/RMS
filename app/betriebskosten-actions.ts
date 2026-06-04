@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, MeterReadingFormData, Mieter, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new water types
+import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
 import { logAction } from '@/lib/logging-middleware';
 import { type SupabaseClient } from "@supabase/supabase-js";
@@ -226,16 +226,11 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
     return { success: false, message: errorMessage, data: null };
   }
 
-  const dataWithUserId = rechnungen.map(rechnung => ({
-    ...rechnung,
-    user_id: user.id,
-  }));
-
-  console.log('[Server Action] Inserting', dataWithUserId.length, 'records into Rechnungen table');
+  console.log('[Server Action] Inserting', rechnungen.length, 'records into Rechnungen table');
 
   const { data, error } = await supabase
     .from("Rechnungen")
-    .insert(dataWithUserId)
+    .insert(rechnungen)
     .select(); // .select() returns the inserted rows
 
   if (data) {
@@ -297,8 +292,7 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
   const { error } = await supabase
     .from("Rechnungen")
     .delete()
-    .eq("nebenkosten_id", nebenkostenId)
-    .eq("user_id", user.id);
+    .eq("nebenkosten_id", nebenkostenId);
 
   if (error) {
     console.error('Error deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
@@ -451,7 +445,8 @@ async function getPreviousWasserzaehlerRecordAction(
               ablese_datum: previousYearData.ablese_datum,
               zaehlerstand: previousYearData.zaehlerstand || 0,
               verbrauch: previousYearData.verbrauch || 0,
-              user_id: previousYearData.user_id,
+              erstellt_von: previousYearData.erstellt_von,
+              organisation_id: previousYearData.organisation_id,
               zaehler_id: previousYearData.zaehler_id
             }
           };
@@ -464,7 +459,6 @@ async function getPreviousWasserzaehlerRecordAction(
       .from("Zaehler_Ablesungen")
       .select("*")
       .in("zaehler_id", meterIds)
-      .eq("user_id", user.id)
       .order("ablese_datum", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -486,7 +480,8 @@ async function getPreviousWasserzaehlerRecordAction(
           ablese_datum: data.ablese_datum,
           zaehlerstand: data.zaehlerstand || 0,
           verbrauch: data.verbrauch || 0,
-          user_id: data.user_id,
+          erstellt_von: data.erstellt_von,
+          organisation_id: data.organisation_id,
           zaehler_id: data.zaehler_id
         }
       };
@@ -546,8 +541,7 @@ async function fetchMeterReadingsForMieters(
   let query = supabase
     .from("Zaehler_Ablesungen")
     .select("*")
-    .in("zaehler_id", meterIds)
-    .eq("user_id", userId);
+    .in("zaehler_id", meterIds);
 
   // Add date range if provided
   if (startDate) query = query.gte("ablese_datum", startDate);
@@ -578,7 +572,8 @@ async function fetchMeterReadingsForMieters(
       ablese_datum: reading.ablese_datum,
       zaehlerstand: reading.zaehlerstand || 0,
       verbrauch: reading.verbrauch || 0,
-      user_id: reading.user_id || userId,
+      erstellt_von: reading.erstellt_von || userId,
+      organisation_id: reading.organisation_id,
       zaehler_id: reading.zaehler_id
     };
   });
@@ -725,7 +720,7 @@ export async function getWasserzaehlerByHausAndYearAction(
       const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
       return { success: false, message: errorMessage };
     }
-    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
+    const { mieterList, existingReadings } = await fetchMeterReadingsByHausAndYear(hausId, year);
 
     return {
       success: true,

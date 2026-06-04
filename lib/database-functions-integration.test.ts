@@ -141,9 +141,9 @@ describe('Database Functions Type Definitions', () => {
       const mockData: AbrechnungModalData = {
         nebenkosten_data: { id: 'test', startdatum: '2023-01-01', enddatum: '2023-12-31', erstellt_von: 'u1', haeuser_id: 'h1', nebenkostenart: [], betrag: [], berechnungsart: [], zaehlerkosten: {}, zaehlerverbrauch: {} },
         tenants: [{ id: 'tenant1', erstellt_von: 'u1', name: 'Tenant 1', wohnung_id: 'w1', email: 't@t.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, notiz: null, nebenkosten: [] }],
-        rechnungen: [{ id: 'rechnung1', betrag: 100, name: 'Bill 1', user_id: 'u1', nebenkosten_id: 'nk1', mieter_id: 't1' }],
+        rechnungen: [{ id: 'rechnung1', betrag: 100, name: 'Bill 1', erstellt_von: 'u1', organisation_id: 'org1', nebenkosten_id: 'nk1', mieter_id: 't1' }],
         meters: [],
-        readings: [{ id: 'reading1', verbrauch: 50, zaehler_id: 'm1', ablese_datum: '2023-01-01', zaehlerstand: 100, user_id: 'u1' }]
+        readings: [{ id: 'reading1', verbrauch: 50, zaehler_id: 'm1', ablese_datum: '2023-01-01', zaehlerstand: 100, erstellt_von: 'u1', organisation_id: 'org1' }]
       };
 
       expect(typeof mockData.nebenkosten_data).toBe('object');

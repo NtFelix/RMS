@@ -496,7 +496,7 @@ export const deleteWasserZaehler = deleteZaehler;
 /**
  * Create a new reading
  */
-export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id'>) {
+export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'erstellt_von' | 'organisation_id'>) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -509,7 +509,7 @@ export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'user_id
 
     const { data: result, error } = await supabase
       .from("Zaehler_Ablesungen")
-      .insert([{ ...data, user_id: user.id }])
+      .insert([data])
       .select()
       .single();
 
@@ -540,7 +540,7 @@ export const createWasserAblesung = createAblesung;
 /**
  * Update a reading
  */
-export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAblesung, 'id' | 'user_id'>>) {
+export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAblesung, 'id' | 'erstellt_von' | 'organisation_id'>>) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -555,7 +555,6 @@ export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAbles
       .from("Zaehler_Ablesungen")
       .update(data)
       .eq("id", id)
-      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -623,7 +622,7 @@ export const deleteWasserAblesung = deleteAblesung;
 /**
  * Bulk create readings
  */
-export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' | 'user_id'>[]) {
+export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' | 'erstellt_von' | 'organisation_id'>[]) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -643,15 +642,14 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
     const { data: meters, error: metersError } = await supabase
       .from("Zaehler")
       .select('id')
-      .in('id', meterIds)
-      .eq('user_id', user.id);
+      .in('id', meterIds);
 
     if (metersError) throw metersError;
 
     const ownedMeterIds = new Set(meters?.map(m => m.id) || []);
     const validReadings = readings
       .filter(r => ownedMeterIds.has(r.zaehler_id))
-      .map(r => ({ ...r, user_id: user.id } as ZaehlerAblesung));
+      .map(r => r as ZaehlerAblesung);
 
     if (validReadings.length === 0) {
       return { success: false, message: "Keine gültigen Zähler gefunden, für die Sie berechtigt sind." };

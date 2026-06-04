@@ -52,9 +52,9 @@ jest.mock('@/lib/utils', () => ({
 const betriebskostenActions = require('@/app/betriebskosten-actions');
 
 const fetchNebenkostenListOptimized = betriebskostenActions.fetchNebenkostenListOptimized;
-const getWasserzaehlerModalDataAction = betriebskostenActions.getWasserzaehlerModalDataAction;
+const getWasserzaehlerModalDataAction = betriebskostenActions.getMeterModalDataAction;
 const getAbrechnungModalDataAction = betriebskostenActions.getAbrechnungModalDataAction;
-const saveWasserzaehlerData = betriebskostenActions.saveWasserzaehlerData;
+const saveWasserzaehlerData = betriebskostenActions.saveMeterReadingsOptimized;
 
 const mockSupabaseClient = {
   auth: {

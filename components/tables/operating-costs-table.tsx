@@ -24,7 +24,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog"
-import type { Nebenkosten, Mieter, Wasserzaehler, Rechnung, Haus } from "@/lib/types";
+import type { Nebenkosten, Mieter, ZaehlerAblesung, Rechnung, Haus } from "@/lib/types";
 import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed WasserzaehlerModalData
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"

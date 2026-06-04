@@ -7,14 +7,12 @@ jest.mock('@/utils/supabase/server');
 jest.mock('next/cache');
 jest.mock('@/lib/data-fetching');
 
-import { handleSubmit, deleteHouseAction, getWasserzaehlerModalDataLegacyAction } from './actions';
+import { handleSubmit, deleteHouseAction } from './actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { fetchWasserzaehlerModalData } from '@/lib/data-fetching';
 
 const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
 const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
-const mockFetchWasserzaehlerModalData = fetchWasserzaehlerModalData as jest.MockedFunction<typeof fetchWasserzaehlerModalData>;
 
 describe('House Actions', () => {
   let mockSupabase: any;
@@ -146,49 +144,6 @@ describe('House Actions', () => {
         error: { message: errorMessage },
       });
       expect(mockRevalidatePath).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getWasserzaehlerModalDataLegacyAction', () => {
-    it('successfully fetches wasserzaehler modal data', async () => {
-      const mockData = {
-        mieterList: [
-          { id: '1', name: 'Mieter 1' },
-          { id: '2', name: 'Mieter 2' },
-        ],
-        existingReadings: [
-          { id: '1', value: 100 },
-          { id: '2', value: 200 },
-        ],
-      };
-
-      mockFetchWasserzaehlerModalData.mockResolvedValue(mockData as any);
-
-      const nebenkostenId = 'nebenkosten-123';
-      const result = await getWasserzaehlerModalDataLegacyAction(nebenkostenId);
-
-      expect(mockFetchWasserzaehlerModalData).toHaveBeenCalledWith(nebenkostenId);
-      expect(result).toEqual(mockData);
-    });
-
-    it('handles errors and returns empty data', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Fetch error');
-      mockFetchWasserzaehlerModalData.mockRejectedValue(error);
-
-      const nebenkostenId = 'nebenkosten-123';
-      const result = await getWasserzaehlerModalDataLegacyAction(nebenkostenId);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in getWasserzaehlerModalDataLegacyAction:',
-        error
-      );
-      expect(result).toEqual({
-        mieterList: [],
-        existingReadings: [],
-      });
-
-      consoleErrorSpy.mockRestore();
     });
   });
 });
