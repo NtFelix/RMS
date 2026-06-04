@@ -107,8 +107,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
 
     const { count, error: countError } = await supabase
       .from('Wohnungen')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .select('*', { count: 'exact', head: true });
 
     if (countError) {
       console.error('Error counting apartments:', countError);
@@ -216,8 +215,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
     if (currentApartmentLimit !== Infinity && currentApartmentLimit !== null) {
       const { count, error: countError } = await supabase
         .from('Wohnungen')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .select('*', { count: 'exact', head: true });
 
       if (countError) {
         console.error('Error counting apartments for update:', countError);
@@ -250,8 +248,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
         miete: parseFloat(formData.miete),
         haus_id: formData.haus_id || null
       })
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) {
       return { error: error.message };
@@ -284,8 +281,7 @@ export async function loescheWohnung(id: string) {
   try {
     const { error } = await supabase.from('Wohnungen')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) {
       logAction(actionName, 'error', { apartment_id: id, error_message: error.message });

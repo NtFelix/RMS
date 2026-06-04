@@ -22,7 +22,7 @@ import { ExportAbrechnungDropdown } from "@/components/abrechnung/export-abrechn
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import type { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/types";
+import type { Nebenkosten, Mieter, Wohnung, Rechnung, Zaehler, ZaehlerAblesung } from "@/lib/types";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { getTenantMeterCost } from "@/utils/water-cost-calculations";
@@ -198,8 +198,8 @@ interface AbrechnungModalProps {
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
   rechnungen: Rechnung[];
-  meters?: WasserZaehler[]; // Updated to use new generic meter type
-  readings?: WasserAblesung[]; // Updated to use new generic reading type
+  meters?: Zaehler[]; // Updated to use new generic meter type
+  readings?: ZaehlerAblesung[]; // Updated to use new generic reading type
   ownerName: string;
   ownerAddress: string;
   actualPayments?: any[]; // Actual financial entries

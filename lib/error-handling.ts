@@ -191,6 +191,8 @@ export async function safeRpcCall<T>(
       parameters: logPerformance ? params : undefined,
       errorMessage: error?.message
     };
+    // Add metric to performance monitor
+    PerformanceMonitor.addMetric(performanceMetrics);
 
     // Log performance metrics
     if (logPerformance) {
@@ -255,6 +257,9 @@ export async function safeRpcCall<T>(
       parameters: logPerformance ? params : undefined,
       errorMessage: error.message
     };
+
+    // Add metric to performance monitor
+    PerformanceMonitor.addMetric(performanceMetrics);
 
     // Handle timeout errors specifically
     if (error.message?.includes('timed out')) {

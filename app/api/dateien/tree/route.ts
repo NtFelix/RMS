@@ -121,13 +121,11 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
     const { data: houses } = await supabase
       .from('Haeuser')
       .select('id, name')
-      .eq('user_id', userId)
       .order('name')
 
     const { data: apartments } = await supabase
       .from('Wohnungen')
       .select('id, name, haus_id')
-      .eq('user_id', userId)
       .order('name')
 
     const houseIds = new Set(houses?.map((h: any) => h.id) || [])
@@ -257,17 +255,14 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
     const { data: houses } = await supabase
       .from('Haeuser')
       .select('id, name')
-      .eq('user_id', userId)
 
     const { data: apartments } = await supabase
       .from('Wohnungen')
       .select('id, name, haus_id')
-      .eq('user_id', userId)
 
     const { data: tenants } = await supabase
       .from('Mieter')
       .select('id, name, wohnung_id')
-      .eq('user_id', userId)
 
     const houseIds = new Set(houses?.map((h: any) => h.id) || [])
     const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])

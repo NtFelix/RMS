@@ -21,7 +21,7 @@ export default async function HaeuserPage() {
       'get_haeuser_overview',
       {},
       async () => {
-        const { data, error } = await supabase.from('Haeuser').select('*').eq('user_id', user.id);
+        const { data, error } = await supabase.from('Haeuser').select('*');
         if (error) throw error;
         return data;
       },
@@ -32,7 +32,7 @@ export default async function HaeuserPage() {
       'get_haeuser_wohnungen_overview',
       {},
       async () => {
-        const { data, error } = await supabase.from('Wohnungen').select('*').eq('user_id', user.id);
+        const { data, error } = await supabase.from('Wohnungen').select('*');
         if (error) throw error;
         return data;
       },
@@ -43,7 +43,7 @@ export default async function HaeuserPage() {
       'get_haeuser_mieter_overview',
       {},
       async () => {
-        const { data, error } = await supabase.from('Mieter').select('wohnung_id,einzug,auszug').eq('user_id', user.id);
+        const { data, error } = await supabase.from('Mieter').select('wohnung_id,einzug,auszug');
         if (error) throw error;
         return data;
       },

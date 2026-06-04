@@ -137,9 +137,9 @@ export async function deleteFinanceDocument(
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    let user, supabase;
+    let supabase;
     try {
-        ({ user, supabase } = await ensureAuth());
+        ({ supabase } = await ensureAuth());
     } catch (authError: unknown) {
         const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
         return { success: false, error: errorMessage };
@@ -148,18 +148,13 @@ export async function deleteFinanceDocument(
     // Get document metadata first
     const { data: dokument, error: docError } = await supabase
         .from("Dokumente_Metadaten")
-        .select("dateipfad, dateiname, user_id")
+        .select("dateipfad, dateiname")
         .eq("id", dokumentId)
         .single();
 
     if (docError || !dokument) {
         console.error("Error fetching document metadata:", docError);
         return { success: false, error: "Dokument nicht gefunden" };
-    }
-
-    // Verify user owns this document
-    if (dokument.user_id !== user.id) {
-        return { success: false, error: "Keine Berechtigung" };
     }
 
     const fullPath = `${dokument.dateipfad}/${dokument.dateiname}`;

@@ -29,9 +29,6 @@ export type {
   Rechnung,
   RechnungSql,
   Finanzen as FinanzenData,
-  Wasserzaehler,
-  WasserzaehlerFormEntry,
-  WasserzaehlerFormData,
   MeterReadingFormEntry,
   MeterReadingFormData
 } from '../lib/data-fetching';

@@ -210,7 +210,6 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
                   .from('Haeuser')
                   .select('name')
                   .eq('id', segment)
-                  .eq('user_id', actualUserId)
                   .single()
                 
                 if (house) {
@@ -228,7 +227,6 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
                   .from('Wohnungen')
                   .select('name')
                   .eq('id', segment)
-                  .eq('user_id', actualUserId)
                   .single()
                 
                 if (apartment) {

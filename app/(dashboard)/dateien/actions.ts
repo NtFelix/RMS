@@ -294,7 +294,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 .from('Haeuser')
                 .select('id')
                 .eq('id', houseId)
-                .eq('user_id', userId)
                 .single()
 
             if (house) {
@@ -310,7 +309,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 .from('Wohnungen')
                 .select('id')
                 .eq('id', apartmentId)
-                .eq('user_id', userId)
                 .single()
 
             if (apartment) {
@@ -326,7 +324,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 .from('Mieter')
                 .select('id')
                 .eq('id', tenantId)
-                .eq('user_id', userId)
                 .single()
 
             if (tenant) {
@@ -342,7 +339,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             .from('Dokumente_Metadaten')
             .select('dateipfad, dateiname')
             .like('dateipfad', `${folderPath}%`)
-            .eq('user_id', userId)
 
         if (listError) {
             return {

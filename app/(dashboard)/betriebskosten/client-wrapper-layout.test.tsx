@@ -38,7 +38,7 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       zaehlerkosten: { 'Wasser': 50 },
       zaehlerverbrauch: { 'Wasser': 100 },
       haeuser_id: 'h1',
-      user_id: 'u1',
+      erstellt_von: 'u1',
       haus_name: 'Haus A',
       gesamt_flaeche: 100,
       anzahl_wohnungen: 2,
@@ -55,7 +55,7 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       zaehlerkosten: { 'Wasser': 75 },
       zaehlerverbrauch: { 'Wasser': 150 },
       haeuser_id: 'h2',
-      user_id: 'u1',
+      erstellt_von: 'u1',
       haus_name: 'Haus B',
       gesamt_flaeche: 150,
       anzahl_wohnungen: 3,
@@ -64,8 +64,8 @@ describe('BetriebskostenClientView - Layout Changes', () => {
   ];
 
   const mockHaeuser = [
-    { id: 'h1', name: 'Haus A', ort: 'Ort A', strasse: 'Strasse A', user_id: 'u1' },
-    { id: 'h2', name: 'Haus B', ort: 'Ort B', strasse: 'Strasse B', user_id: 'u1' }
+    { id: 'h1', name: 'Haus A', ort: 'Ort A', strasse: 'Strasse A', erstellt_von: 'u1' },
+    { id: 'h2', name: 'Haus B', ort: 'Ort B', strasse: 'Strasse B', erstellt_von: 'u1' }
   ];
 
   const defaultProps = {

@@ -48,6 +48,12 @@ jest.mock('@/app/mieter-actions', () => ({
   getMieterByHausIdAction: jest.fn(),
 }));
 
+jest.mock('@/components/abrechnung/create-abrechnung-dropdown', () => ({
+  CreateAbrechnungDropdown: ({ onBlankClick, buttonText }: any) => (
+    <button onClick={onBlankClick}>{buttonText}</button>
+  ),
+}));
+
 const mockOpenBetriebskostenModal = jest.fn();
 const mockToast = jest.fn();
 const mockRouterRefresh = jest.fn();
@@ -68,7 +74,7 @@ const mockNebenkostenData = [{
   berechnungsart: ['Einheit'], 
   wasserkosten: 50, 
   haeuser_id: 'h1', 
-  user_id: 'u1' 
+  erstellt_von: 'u1' 
 }];
 
 const mockHaeuserData = [{ 
@@ -76,7 +82,7 @@ const mockHaeuserData = [{
   name: 'Haus A', 
   ort: 'Ort A', 
   strasse: 'Strasse A', 
-  user_id: 'u1'
+  erstellt_von: 'u1'
 }];
 
 const mockUserId = "user123";
@@ -129,8 +135,8 @@ describe('BetriebskostenClientWrapper', () => {
     render(<BetriebskostenClientWrapper {...defaultProps} />);
     
     // Check if the filter buttons are rendered
-    expect(screen.getByText('Alle')).toBeInTheDocument();
-    expect(screen.getByText('Noch nicht erledigt')).toBeInTheDocument();
+    expect(screen.getByText('Alle Abrechnungen')).toBeInTheDocument();
+    expect(screen.getByText('Aktuelles Jahr')).toBeInTheDocument();
     expect(screen.getByText('Vorherige Abrechnungen')).toBeInTheDocument();
   });
 
@@ -138,12 +144,12 @@ describe('BetriebskostenClientWrapper', () => {
     render(<BetriebskostenClientWrapper {...defaultProps} />);
     
     // Check if the table headers are rendered
-    expect(screen.getByText('Jahr')).toBeInTheDocument();
+    expect(screen.getByText('Zeitraum')).toBeInTheDocument();
     expect(screen.getByText('Haus')).toBeInTheDocument();
     expect(screen.getByText('Kostenarten')).toBeInTheDocument();
     expect(screen.getByText('Beträge')).toBeInTheDocument();
     expect(screen.getByText('Berechnungsarten')).toBeInTheDocument();
-    expect(screen.getByText('Wasserkosten')).toBeInTheDocument();
+    expect(screen.getByText('Zählerkosten')).toBeInTheDocument();
   });
 
   it('displays a message when no data is available', () => {

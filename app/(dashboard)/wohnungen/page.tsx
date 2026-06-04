@@ -30,10 +30,10 @@ export default async function WohnungenPage() {
     housesResult
   ] = await Promise.all([
     fetchUserProfile(),
-    supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)').eq('user_id', user.id),
-    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name').eq('user_id', user.id),
-    supabase.from('Haeuser').select('id,name').eq('user_id', user.id)
+    supabase.from('Wohnungen').select('*', { count: 'exact', head: true }),
+    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
+    supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
+    supabase.from('Haeuser').select('id,name')
   ]);
 
   if (userProfile) {

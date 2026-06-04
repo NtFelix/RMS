@@ -234,7 +234,7 @@ describe('abrechnung-calculations', () => {
       ist_einnahmen: true,
       name: 'Nebenkosten',
       notiz: null,
-      user_id: 'u1',
+      erstellt_von: 'u1',
       dokument_id: null,
       tags: ['Nebenkosten']
     } as Finanzen);
@@ -303,7 +303,7 @@ describe('abrechnung-calculations', () => {
       ist_einnahmen: true,
       name: 'Nebenkosten',
       notiz: null,
-      user_id: 'u1',
+      erstellt_von: 'u1',
       dokument_id: null,
       tags: ['Nebenkosten']
     } as Finanzen);

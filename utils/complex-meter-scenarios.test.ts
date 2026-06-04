@@ -2,7 +2,7 @@ import {
     calculateTenantMeterCosts,
     getTenantMeterCost,
 } from '@/utils/water-cost-calculations';
-import { Mieter, WasserZaehler, WasserAblesung } from '@/lib/data-fetching';
+import { Mieter, Zaehler, ZaehlerAblesung } from '@/lib/data-fetching';
 
 /**
  * EXTENSIVE INTEGRATION SCENARIOS
@@ -19,20 +19,20 @@ describe('Complex Meter Cost Scenarios', () => {
     // Helper to create basic tenant
     const createTenant = (id: string, name: string, wohnungId: string, einzug = periodStart, auszug: string | null = null): Mieter => ({
         id, name, wohnung_id: wohnungId, einzug, auszug,
-        email: null, telefonnummer: null, notiz: null, nebenkosten: null, user_id: 'user-1',
+        email: null, telefonnummer: null, notiz: null, nebenkosten: null, erstellt_von: 'user-1',
         Wohnungen: { name: `Apt ${wohnungId}`, groesse: 50 },
     });
 
     // Helper to create meter
-    const createMeter = (id: string, type: 'kaltwasser' | 'warmwasser' | 'gas', wohnungId: string): WasserZaehler => ({
+    const createMeter = (id: string, type: 'kaltwasser' | 'warmwasser' | 'gas', wohnungId: string): Zaehler => ({
         id, custom_id: `M-${id}`, wohnung_id: wohnungId, zaehler_typ: type,
-        erstellungsdatum: '2024-01-01', eichungsdatum: null, user_id: 'user-1', einheit: 'm³', ist_aktiv: true,
+        erstellungsdatum: '2024-01-01', eichungsdatum: null, erstellt_von: 'user-1', einheit: 'm³', ist_aktiv: true,
     });
 
     // Helper to create reading
-    const createReading = (meterId: string, val: number, date = periodEnd, prevVal = 0): WasserAblesung => ({
+    const createReading = (meterId: string, val: number, date = periodEnd, prevVal = 0): ZaehlerAblesung => ({
         id: `R-${meterId}`, zaehler_id: meterId, ablese_datum: date,
-        zaehlerstand: prevVal + val, verbrauch: val, user_id: 'user-1',
+        zaehlerstand: prevVal + val, verbrauch: val, erstellt_von: 'user-1', organisation_id: 'org-1',
     });
 
     describe('Scenario 1: The "Discrepancy" Case (Mixed Meter Types)', () => {

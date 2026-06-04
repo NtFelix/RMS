@@ -17,7 +17,6 @@ interface FinanzInput {
   notiz?: string | null;
   dokument_id?: string | null;
   tags?: string[] | null;
-  user_id?: string;
 }
 
 export async function financeServerAction(id: string | null, data: FinanzInput): Promise<{ success: boolean; error?: { message: string }; data?: any }> {
@@ -39,8 +38,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     wohnung_id: data.wohnung_id || null,
     datum: data.datum || null,
     notiz: data.notiz || null,
-    dokument_id: data.dokument_id || null,
-    user_id: user.id
+    dokument_id: data.dokument_id || null
   };
 
   if (typeof payload.name !== 'string' || payload.name.trim() === '') {
@@ -58,7 +56,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     let dbResponse;
     if (id) {
       // Update existing record
-      dbResponse = await supabase.from("Finanzen").update(payload).eq("id", id).eq("user_id", user.id).select().single();
+      dbResponse = await supabase.from("Finanzen").update(payload).eq("id", id).select().single();
     } else {
       // Create new record
       dbResponse = await supabase.from("Finanzen").insert(payload).select().single();
@@ -119,7 +117,6 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
         ist_einnahmen: !currentStatus
       })
       .eq('id', id)
-      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -144,8 +141,7 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
     const { error } = await supabase
       .from("Finanzen")
       .delete()
-      .eq("id", financeId)
-      .eq("user_id", user.id);
+      .eq("id", financeId);
 
     if (error) {
       // Log the error for server-side visibility
@@ -179,7 +175,6 @@ export async function getAggregatedMaintenanceData(): Promise<{ success: boolean
         .from("Finanzen")
         .select("name, betrag")
         .eq("ist_einnahmen", false)
-        .eq("user_id", user.id)
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
       if (error) {

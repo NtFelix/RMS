@@ -51,22 +51,29 @@ jest.mock('@/lib/posthog-logger', () => ({
 describe('wohnungServerAction', () => {
   let mockSupabase: any;
   let mockAuth: any;
+  let currentMockCount = 0;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    currentMockCount = 0;
 
     mockAuth = {
       getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
     };
 
     // Helper to allow deep chaining
-    const mockChain = {
-      select: jest.fn().mockReturnThis(),
+    const mockChain: any = {
       insert: jest.fn().mockReturnThis(),
       update: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(),
     };
+    mockChain.select = jest.fn().mockImplementation((projection, options) => {
+      if (options && options.count === 'exact') {
+        return Promise.resolve({ count: currentMockCount, error: null });
+      }
+      return mockChain;
+    });
 
     mockSupabase = {
       from: jest.fn().mockReturnValue(mockChain),
@@ -112,9 +119,6 @@ describe('wohnungServerAction', () => {
       // Setup the mock chain to handle specific calls
       const mockChain = mockSupabase.from();
 
-      // Handle count query: select('*', ...).eq('user_id', ...) -> returns { count: 0, error: null }
-      mockChain.eq.mockResolvedValue({ count: 0, error: null });
-
       // Handle insert query: insert(...).select().single() -> returns { data: ..., error: null }
       mockChain.single.mockResolvedValue({ data: { id: 'new-apt-id', name: 'Test' }, error: null });
     });
@@ -157,9 +161,7 @@ describe('wohnungServerAction', () => {
 
     it('fails if apartment limit reached', async () => {
       (getPlanDetails as jest.Mock).mockResolvedValue({ limit_wohnungen: 2 });
-
-      const mockChain = mockSupabase.from();
-      mockChain.eq.mockResolvedValue({ count: 2, error: null }); // Already have 2
+      currentMockCount = 2; // Already have 2
 
       const result = await wohnungServerAction(null, { name: 'Test Apt', groesse: 50, miete: 500 });
       expect(result.success).toBe(false);
@@ -168,9 +170,7 @@ describe('wohnungServerAction', () => {
 
     it('allows creation if limit is Infinity', async () => {
       (getPlanDetails as jest.Mock).mockResolvedValue({ limit_wohnungen: null }); // Infinity
-
-      const mockChain = mockSupabase.from();
-      mockChain.eq.mockResolvedValue({ count: 100, error: null });
+      currentMockCount = 100;
 
       const result = await wohnungServerAction(null, { name: 'Test Apt', groesse: 50, miete: 500 });
       expect(result.success).toBe(true);

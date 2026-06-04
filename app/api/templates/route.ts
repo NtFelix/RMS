@@ -21,7 +21,6 @@ export async function GET() {
     const { data, error } = await supabase
       .from('Vorlagen')
       .select('*')
-      .eq('user_id', user.id)
       .order('aktualisiert_am', { ascending: false });
 
     if (error) {
@@ -123,7 +122,6 @@ export async function POST(request: Request) {
       inhalt: templateData.inhalt,
       kategorie: templateData.kategorie,
       kontext_anforderungen: templateData.kontext_anforderungen || [],
-      user_id: user.id
     };
 
 

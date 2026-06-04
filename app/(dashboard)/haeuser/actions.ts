@@ -62,8 +62,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       const { error } = await supabase
         .from("Haeuser")
         .update(houseData)
-        .eq("id", id)
-        .eq("user_id", user.id);
+        .eq("id", id);
 
       if (error) {
         logAction(actionName, 'error', { house_id: id, house_name: houseName, error_message: error.message });
@@ -72,7 +71,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     } else {
       const { error: insertError } = await supabase
         .from("Haeuser")
-        .insert({ ...houseData, user_id: user.id });
+        .insert(houseData);
 
       if (insertError) {
         logAction(actionName, 'error', { house_name: houseName, error_message: insertError.message });
@@ -99,8 +98,7 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
     const { error } = await supabase
       .from("Haeuser")
       .delete()
-      .eq("id", houseId)
-      .eq("user_id", user.id);
+      .eq("id", houseId);
 
     if (error) {
       logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
@@ -118,19 +116,5 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   }
 }
 
-// Added imports for the new action
-import { fetchWasserzaehlerModalData, Mieter, Wasserzaehler } from "@/lib/data-fetching";
 
-export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
-  try {
-    await ensureAuth();
-
-    const data = await fetchWasserzaehlerModalData(nebenkostenId);
-    return data;
-  } catch (error: unknown) {
-    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error instanceof Error ? error.message : error);
-    // Return empty data on error, consistent with fetchWasserzaehlerModalData's own error handling for some cases.
-    return { mieterList: [], existingReadings: [] };
-  }
-}
 

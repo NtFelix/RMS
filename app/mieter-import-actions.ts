@@ -107,7 +107,6 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
                 email: mail.absender.match(/<([^>]+)>/)?.[1] ?? mail.absender,
                 status: 'bewerber',
                 bewerbung_mail_id: mail.id,
-                user_id: userId,
                 // bewerbung_metadaten left empty for now, to be filled by AI later
             };
         });

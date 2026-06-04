@@ -27,7 +27,6 @@ export async function PATCH(
       .from('Zaehler')
       .select('id, wohnung_id')
       .eq('id', id)
-      .eq('user_id', user.id)
       .single()
 
     if (fetchError || !existing) {
@@ -47,7 +46,6 @@ export async function PATCH(
       .from('Zaehler')
       .update(updateData)
       .eq('id', id)
-      .eq('user_id', user.id)
       .select()
       .single()
 
@@ -92,19 +90,16 @@ export async function DELETE(
       .from('Zaehler')
       .select('id, wohnung_id')
       .eq('id', id)
-      .eq('user_id', user.id)
       .single()
 
     if (fetchError || !existing) {
       return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
-    // Delete Wasserzähler
     const { error } = await supabase
       .from('Zaehler')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
 
     if (error) {
       console.error('Error deleting Wasserzähler:', error)

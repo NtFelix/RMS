@@ -6,7 +6,7 @@
  * and data validation.
  */
 
-import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung, Finanzen, Rechnung } from "@/lib/types";
+import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung } from "@/lib/types";
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
@@ -194,8 +194,8 @@ export function calculateMeterCostDistribution(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
   allTenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[]
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[]
 ): MeterCostBreakdown {
   // Pass per-type costs and consumption to the calculation function
   // This ensures each meter type gets its own price per unit
@@ -384,8 +384,8 @@ export function formatCurrency(amount: number): string {
 export function validateCalculationData(
   nebenkosten: Nebenkosten,
   tenants: Mieter[],
-  waterMeters?: WasserZaehler[],
-  waterReadings?: WasserAblesung[]
+  waterMeters?: Zaehler[],
+  waterReadings?: ZaehlerAblesung[]
 ): CalculationValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -474,8 +474,8 @@ export function calculateCompleteTenantResult(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
   allTenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
   prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
   rechnungen?: Rechnung[]
@@ -554,8 +554,8 @@ export function calculateCompleteTenantResult(
 export function calculateAbrechnungSummary(
   tenants: Mieter[],
   nebenkosten: Nebenkosten,
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
   prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
 ) {

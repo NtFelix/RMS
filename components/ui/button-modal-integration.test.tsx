@@ -244,7 +244,7 @@ describe('Button Modal Integration Tests', () => {
       
       const props = {
         initialNebenkosten: [],
-        initialHaeuser: [{ id: '1', name: 'Test House', ort: 'Test City', strasse: 'Test St', user_id: 'u1' }],
+        initialHaeuser: [{ id: '1', name: 'Test House', ort: 'Test City', strasse: 'Test St', erstellt_von: 'u1' }],
         ownerName: 'Test Owner',
       };
 

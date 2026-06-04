@@ -19,12 +19,10 @@ export async function GET(
 
     const { id: wohnungId } = await params;
     
-    // Fetch apartment rent information
     const { data: apartment, error } = await supabase
       .from('Wohnungen')
       .select('miete')
       .eq('id', wohnungId)
-      .eq('user_id', userProfile.id) // Ensure user owns this apartment
       .single();
 
     if (error) {
