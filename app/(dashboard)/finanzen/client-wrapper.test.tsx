@@ -392,8 +392,8 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     it('handles balance fetch errors', async () => {
       mockRpc.mockImplementationOnce(() => Promise.resolve({
         data: null,
-        error: { message: 'Balance API Error' } as any
-      }));
+        error: { message: 'Balance API Error' }
+      } as any));
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
