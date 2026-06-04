@@ -249,7 +249,7 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
       newUrl.searchParams.delete('provider')
       window.history.replaceState({}, '', newUrl.toString())
     }
-  }, [searchParams])
+  }, [searchParams, getParam])
 
   return <>{children}</>
 }
