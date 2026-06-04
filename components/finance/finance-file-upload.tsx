@@ -367,19 +367,19 @@ function UploadZone({
     onFileSelect,
     setDragOver,
 }: UploadZoneProps) {
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
         e.preventDefault();
         setDragOver(false);
         const file = e.dataTransfer.files?.[0];
         if (file) onFileSelect(file);
     };
 
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
         e.preventDefault();
         setDragOver(true);
     };
 
-    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
         e.preventDefault();
         setDragOver(false);
     };
