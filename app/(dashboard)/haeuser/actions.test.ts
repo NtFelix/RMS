@@ -28,7 +28,7 @@ describe('House Actions', () => {
       delete: jest.fn().mockReturnThis(),
       eq: jest.fn().mockResolvedValue({ error: null }),
       auth: {
-        getUser: jest.fn(),
+        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user1' } }, error: null }),
       },
     };
 

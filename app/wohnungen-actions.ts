@@ -143,8 +143,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       // Get current apartment count for the user
       const { count, error: countError } = await supabase
         .from('Wohnungen')
-        .select('*', { count: 'exact', head: true })
-        .eq('erstellt_von', user.id);
+        .select('*', { count: 'exact', head: true });
 
       if (countError) throw countError;
 
@@ -164,24 +163,20 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       }
     }
 
-    // Add erstellt_von to the payload for new records
-    const fullPayload = { ...payload, erstellt_von: user.id };
-
     let dbResponse;
     if (id) {
       // Update existing record
       dbResponse = await supabase
         .from("Wohnungen")
-        .update(fullPayload)
+        .update(payload)
         .eq("id", id)
-        .eq("erstellt_von", user.id)
         .select()
         .single();
     } else {
       // Create new record
       dbResponse = await supabase
         .from("Wohnungen")
-        .insert(fullPayload)
+        .insert(payload)
         .select()
         .single();
     }
@@ -210,8 +205,8 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         properties: {
           property_id: dbResponse.data.id,
           name: data.name,
-          size: fullPayload.groesse,
-          rent: fullPayload.miete,
+          size: payload.groesse,
+          rent: payload.miete,
           has_house: !!data.haus_id,
           source: 'server_action'
         }
@@ -226,8 +221,8 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     }
 
     return { success: true, data: dbResponse.data as WohnungDbRecord };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+  } catch (error: any) {
+    const errorMessage = error?.message || "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', {
       apartment_id: id,
       error_message: errorMessage

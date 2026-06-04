@@ -27,7 +27,6 @@ export async function PATCH(
       .from('Zaehler_Ablesungen')
       .select('id, zaehler_id')
       .eq('id', id)
-      .eq('user_id', user.id)
       .maybeSingle()
 
     if (fetchError || !existing) {
@@ -44,7 +43,6 @@ export async function PATCH(
         kommentar: kommentar || null,
       })
       .eq('id', id)
-      .eq('user_id', user.id)
       .select('*')
       .single()
 
@@ -89,7 +87,6 @@ export async function DELETE(
       .from('Zaehler_Ablesungen')
       .select('id, zaehler_id')
       .eq('id', id)
-      .eq('user_id', user.id)
       .maybeSingle()
 
     if (fetchError || !existing) {
@@ -101,7 +98,6 @@ export async function DELETE(
       .from('Zaehler_Ablesungen')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
 
     if (error) {
       console.error('Error deleting Zaehler_Ablesung:', error)

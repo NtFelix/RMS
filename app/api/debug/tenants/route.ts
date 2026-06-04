@@ -21,11 +21,9 @@ export async function GET(request: NextRequest) {
     const apartmentId = searchParams.get('apartmentId')
 
     if (!apartmentId) {
-      // Get all tenants for this user
       const { data: allTenants, error: allTenantsError } = await supabase
         .from('Mieter')
-        .select('id, name, wohnung_id, user_id')
-        .eq('user_id', user.id)
+        .select('id, name, wohnung_id')
 
       return NextResponse.json({
         userId: user.id,
@@ -36,19 +34,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get tenants for specific apartment
     const { data: tenants, error: tenantsError } = await supabase
       .from('Mieter')
-      .select('id, name, wohnung_id, user_id')
+      .select('id, name, wohnung_id')
       .eq('wohnung_id', apartmentId)
-      .eq('user_id', user.id)
 
-    // Also get apartment info
     const { data: apartment, error: apartmentError } = await supabase
       .from('Wohnungen')
-      .select('id, name, haus_id, user_id')
+      .select('id, name, haus_id')
       .eq('id', apartmentId)
-      .eq('user_id', user.id)
       .single()
 
     return NextResponse.json({

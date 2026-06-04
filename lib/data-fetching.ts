@@ -591,8 +591,7 @@ export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, u
   try {
     const { count, error } = await supabaseClient
       .from("Wohnungen")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId);
+      .select("*", { count: "exact", head: true });
 
     if (error) {
       console.error("Error fetching Wohnungen count:", error);

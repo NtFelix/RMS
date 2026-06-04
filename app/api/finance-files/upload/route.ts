@@ -105,7 +105,6 @@ export async function POST(request: NextRequest) {
                 dateiname: uniqueFilename,
                 dateigroesse: file.size,
                 mime_type: file.type,
-                erstellt_von: user.id,
             })
             .select("id")
             .single();
@@ -134,8 +133,7 @@ export async function POST(request: NextRequest) {
             const { error: linkError } = await supabase
                 .from("Finanzen")
                 .update({ dokument_id: metadataRecord.id })
-                .eq("id", financeId)
-                .eq("erstellt_von", user.id); // Security: ensure user owns the finance entry
+                .eq("id", financeId);
 
             if (linkError) {
                 logger.error("Error linking document to finance entry", linkError instanceof Error ? linkError : new Error(String(linkError)), {

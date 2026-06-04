@@ -114,7 +114,6 @@ export async function POST(request: NextRequest) {
         })
         .eq('dateipfad', filePath)
         .eq('dateiname', fileName)
-        .eq('user_id', user.id)
 
       if (dbUpdateError) {
         throw dbUpdateError

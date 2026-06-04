@@ -34,7 +34,6 @@ export async function GET(
       .from('Vorlagen')
       .select('*')
       .eq('id', resolvedParams.id)
-      .eq('user_id', user.id)
       .single();
 
     if (error) {
@@ -162,7 +161,6 @@ export async function PUT(
       .from('Vorlagen')
       .update(updateData)
       .eq('id', resolvedParams.id)
-      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -238,7 +236,6 @@ export async function DELETE(
       .from('Vorlagen')
       .select('id, titel')
       .eq('id', resolvedParams.id)
-      .eq('user_id', user.id)
       .single();
 
     if (checkError) {
@@ -262,8 +259,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('Vorlagen')
       .delete()
-      .eq('id', resolvedParams.id)
-      .eq('user_id', user.id);
+      .eq('id', resolvedParams.id);
 
     if (error) {
       console.error('DELETE /api/templates/[id] database error:', error);

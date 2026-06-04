@@ -51,12 +51,12 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     let finalTenantId = id as string | null;
 
     if (id) {
-      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string).eq('erstellt_von', user.id);
+      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { data: newTenant, error } = await supabase.from('Mieter').insert({ ...payload, erstellt_von: user.id }).select('id').single();
+      const { data: newTenant, error } = await supabase.from('Mieter').insert(payload).select('id').single();
       if (error) {
         return { success: false, error: { message: error.message } };
       }
@@ -115,8 +115,7 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
     const { error } = await supabase
       .from("Mieter")
       .delete()
-      .eq("id", tenantId)
-      .eq("erstellt_von", user.id);
+      .eq("id", tenantId);
 
     if (error) {
       console.error("Error deleting tenant from Supabase:", error);
@@ -286,7 +285,6 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
       .from('Mieter')
       .select('kaution')
       .eq('id', tenantId)
-      .eq('erstellt_von', user.id)
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
@@ -303,8 +301,7 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
     const { error: updateError } = await supabase
       .from('Mieter')
       .update({ kaution: kautionData })
-      .eq('id', tenantId)
-      .eq('erstellt_von', user.id);
+      .eq('id', tenantId);
 
     if (updateError) {
       console.error("Error updating kaution data:", updateError);
@@ -336,8 +333,7 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
     const { error } = await supabase
       .from('Mieter')
       .update({ wohnung_id: apartmentId || null })
-      .eq('id', tenantId)
-      .eq('erstellt_von', user.id);
+      .eq('id', tenantId);
 
     if (error) {
       console.error('Error updating tenant apartment:', error);
@@ -372,7 +368,6 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
       .from('Mieter')
       .select('wohnung_id, Wohnungen(miete)')
       .eq('id', tenantId)
-      .eq('erstellt_von', user.id)
       .single();
 
     if (tenantError) {
@@ -413,8 +408,7 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
     const { error } = await supabase
       .from('Mieter')
       .delete()
-      .eq('status', 'bewerber')
-      .eq('erstellt_von', user.id);
+      .eq('status', 'bewerber');
 
     if (error) {
       console.error('Error deleting all applicants:', error);

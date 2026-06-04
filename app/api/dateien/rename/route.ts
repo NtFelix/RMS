@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
       .select('dateiname')
       .eq('dateipfad', directory)
       .eq('dateiname', currentFileName)
-      .eq('user_id', user.id)
       .single()
 
     let actualFileName = currentFileName
@@ -99,7 +98,6 @@ export async function POST(request: NextRequest) {
         .from('Dokumente_Metadaten')
         .select('dateiname')
         .eq('dateipfad', directory)
-        .eq('user_id', user.id)
         .ilike('dateiname', currentFileName)
 
       if (similarFiles && similarFiles.length > 0) {
@@ -149,7 +147,6 @@ export async function POST(request: NextRequest) {
         })
         .eq('dateipfad', directory)
         .eq('dateiname', actualFileName)
-        .eq('user_id', user.id)
 
       if (dbUpdateError) {
         console.error('Failed to update DB metadata:', dbUpdateError)
@@ -185,7 +182,6 @@ export async function POST(request: NextRequest) {
           })
           .eq('dateipfad', directory)
           .eq('dateiname', newName)
-          .eq('user_id', user.id)
         console.log('DB rollback completed successfully')
       } catch (rollbackError) {
         console.error('CRITICAL: Failed to rollback DB changes:', rollbackError)

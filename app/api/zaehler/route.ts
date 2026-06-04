@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
       .from('Wohnungen')
       .select('id')
       .eq('id', wohnungId)
-      .eq('erstellt_von', user.id)
       .single()
 
     if (wohnungError || !wohnung) {
@@ -39,7 +38,6 @@ export async function GET(request: NextRequest) {
       .from('Zaehler')
       .select('*')
       .eq('wohnung_id', wohnungId)
-      .eq('erstellt_von', user.id)
       .order('erstellungsdatum', { ascending: true })
 
     if (error) {
@@ -55,7 +53,6 @@ export async function GET(request: NextRequest) {
       .from('Zaehler_Ablesungen')
       .select('id, zaehler_id, ablese_datum, zaehlerstand, verbrauch')
       .in('zaehler_id', meterIds)
-      .eq('user_id', user.id)
       .order('ablese_datum', { ascending: false });
 
     // Create a map of the latest reading for each meter
@@ -109,7 +106,6 @@ export async function POST(request: NextRequest) {
       .from('Wohnungen')
       .select('id')
       .eq('id', wohnung_id)
-      .eq('erstellt_von', user.id)
       .single()
 
     if (wohnungError || !wohnung) {
@@ -123,7 +119,6 @@ export async function POST(request: NextRequest) {
         custom_id: custom_id || null,
         wohnung_id,
         eichungsdatum: eichungsdatum || null,
-        erstellt_von: user.id,
         zaehler_typ: zaehler_typ || 'wasser',
         einheit: einheit || 'm³',
         kommentar: kommentar || null,

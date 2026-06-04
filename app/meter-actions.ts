@@ -46,7 +46,7 @@ export async function getMeterForHausAction(hausId: string) {
         console.log(`[${new Date().toISOString()}] [WARN] Database function 'get_zaehler_for_haus' not available, using fallback queries`);
 
         // Fallback to individual queries
-        return await getMeterForHausFallback(supabase, hausId, user.id, startTime);
+        return await getMeterForHausFallback(supabase, hausId, startTime);
       }
 
       console.error("Error fetching meter data for house:", error);
@@ -121,7 +121,6 @@ interface FallbackResult {
 async function getMeterForHausFallback(
   supabase: SupabaseClientType,
   hausId: string,
-  userId: string,
   startTime: number
 ): Promise<FallbackResult> {
   try {
@@ -129,7 +128,6 @@ async function getMeterForHausFallback(
       .from("Wohnungen")
       .select("id, name, groesse, miete, haus_id")
       .eq("haus_id", hausId)
-      .eq("erstellt_von", userId)
       .order('name', { ascending: true });
 
     if (wohnungenError) throw wohnungenError;
@@ -146,7 +144,6 @@ async function getMeterForHausFallback(
       .from("Zaehler")
       .select("*")
       .in("wohnung_id", wohnungIds)
-      .eq("erstellt_von", userId)
       .order('custom_id', { ascending: true });
 
     if (metersError) throw metersError;
@@ -162,7 +159,6 @@ async function getMeterForHausFallback(
           .from("Zaehler_Ablesungen")
           .select("*")
           .in("zaehler_id", meterIds)
-          .eq("user_id", userId)
           .order('ablese_datum', { ascending: false })
         : { data: null, error: null },
 
@@ -170,7 +166,6 @@ async function getMeterForHausFallback(
         .from("Mieter")
         .select("id, name, wohnung_id, einzug, auszug")
         .in("wohnung_id", wohnungIds)
-        .eq("erstellt_von", userId)
         .order('name', { ascending: true })
     ]);
 
@@ -295,9 +290,9 @@ export const getWasserAblesenDataAction = getAblesungenForZaehlerAction;
  * Fetch readings for multiple meters
  */
 export async function getReadingsForMetersAction(meterIds: string[]) {
-  let user, supabase;
+  let supabase;
   try {
-    ({ user, supabase } = await ensureAuth());
+    ({ supabase } = await ensureAuth());
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     return { success: false, message: errorMessage };
@@ -319,8 +314,7 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
     const { data, error } = await supabase
       .from("Zaehler_Ablesungen")
       .select("*")
-      .in("zaehler_id", meterIds)
-      .eq("user_id", user.id);
+      .in("zaehler_id", meterIds);
 
     if (error) throw error;
 
@@ -334,7 +328,7 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
 /**
  * Create a new meter
  */
-export async function createZaehler(data: Omit<Zaehler, 'id' | 'erstellt_von'>) {
+export async function createZaehler(data: Omit<Zaehler, 'id' | 'erstellt_von' | 'organisation_id'>) {
   const actionName = 'createMeter';
   let user, supabase;
   try {
@@ -350,7 +344,7 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'erstellt_von'>) 
 
     const { data: result, error } = await supabase
       .from("Zaehler")
-      .insert([{ ...data, erstellt_von: user.id }])
+      .insert([data])
       .select()
       .single();
 
@@ -383,7 +377,7 @@ export const createWasserZaehler = createZaehler;
 /**
  * Update a meter
  */
-export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id' | 'erstellt_von'>>) {
+export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id' | 'erstellt_von' | 'organisation_id'>>) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -397,7 +391,7 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
     // Pre-check for better error messages
     const { data: existingMeter, error: fetchError } = await supabase
       .from("Zaehler")
-      .select('id, erstellt_von')
+      .select('id')
       .eq('id', id)
       .single();
 
@@ -405,15 +399,10 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
       return { success: false, message: "Zähler nicht gefunden." };
     }
 
-    if (existingMeter.erstellt_von !== user.id) {
-      return { success: false, message: "Keine Berechtigung zum Aktualisieren dieses Zählers." };
-    }
-
     const { data: result, error } = await supabase
       .from("Zaehler")
       .update(data)
       .eq("id", id)
-      .eq("erstellt_von", user.id)
       .select()
       .single();
 
@@ -458,7 +447,7 @@ export async function deleteZaehler(id: string) {
     // Pre-check for better error messages
     const { data: existingMeter, error: fetchError } = await supabase
       .from("Zaehler")
-      .select('id, erstellt_von')
+      .select('id')
       .eq('id', id)
       .single();
 
@@ -466,15 +455,10 @@ export async function deleteZaehler(id: string) {
       return { success: false, message: "Zähler nicht gefunden." };
     }
 
-    if (existingMeter.erstellt_von !== user.id) {
-      return { success: false, message: "Keine Berechtigung zum Löschen dieses Zählers." };
-    }
-
     const { error } = await supabase
       .from("Zaehler")
       .delete()
-      .eq("id", id)
-      .eq("erstellt_von", user.id);
+      .eq("id", id);
 
     if (error) {
       console.error("Error deleting meter:", error);
@@ -599,8 +583,7 @@ export async function deleteAblesung(id: string) {
     const { error } = await supabase
       .from("Zaehler_Ablesungen")
       .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
 
     if (error) {
       console.error("Error deleting reading:", error);
