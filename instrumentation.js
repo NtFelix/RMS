@@ -17,22 +17,34 @@ export async function register() {
 
   // Initialize PostHog OpenTelemetry Tracing
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { registerOTel } = await import('@vercel/otel');
-    const { PostHogTraceExporter } = await import('@posthog/ai/otel');
-
     if (process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY) {
       const projectToken = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY;
       const host = process.env.POSTHOG_HOST || 'https://eu.i.posthog.com';
 
       try {
-        registerOTel({
-          serviceName: 'mietevo',
-          traceExporter: new PostHogTraceExporter({
-            projectToken: projectToken,
-            host: host,
-          }),
+        const { NodeSDK } = require('@opentelemetry/sdk-node');
+        const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+        const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
+
+        const exporter = new OTLPTraceExporter({
+          url: host.replace(/\/$/, '') + '/v1/traces',
+          headers: {
+            Authorization: `Bearer ${projectToken}`,
+          },
         });
-        console.log('[PostHog] OpenTelemetry Tracing registered');
+
+        const sdk = new NodeSDK({
+          traceExporter: exporter,
+          instrumentations: [getNodeAutoInstrumentations({
+             // Explicitly disable fs, net, dns instrumentations to avoid excessive noise
+            '@opentelemetry/instrumentation-fs': { enabled: false },
+            '@opentelemetry/instrumentation-net': { enabled: false },
+            '@opentelemetry/instrumentation-dns': { enabled: false },
+          })]
+        });
+
+        sdk.start();
+        console.log('[PostHog] NodeSDK Tracing registered via OTLP');
       } catch (err) {
         console.error('[PostHog] Failed to register OpenTelemetry Tracing:', err);
       }
