@@ -144,7 +144,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       const { count, error: countError } = await supabase
         .from('Wohnungen')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('erstellt_von', user.id);
 
       if (countError) throw countError;
 
@@ -164,8 +164,8 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       }
     }
 
-    // Add user_id to the payload for new records
-    const fullPayload = { ...payload, user_id: user.id };
+    // Add erstellt_von to the payload for new records
+    const fullPayload = { ...payload, erstellt_von: user.id };
 
     let dbResponse;
     if (id) {
@@ -174,7 +174,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         .from("Wohnungen")
         .update(fullPayload)
         .eq("id", id)
-        .eq("user_id", user.id)
+        .eq("erstellt_von", user.id)
         .select()
         .single();
     } else {

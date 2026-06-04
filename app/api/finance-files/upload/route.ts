@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
                 dateiname: uniqueFilename,
                 dateigroesse: file.size,
                 mime_type: file.type,
-                user_id: user.id,
+                erstellt_von: user.id,
             })
             .select("id")
             .single();
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
                 .from("Finanzen")
                 .update({ dokument_id: metadataRecord.id })
                 .eq("id", financeId)
-                .eq("user_id", user.id); // Security: ensure user owns the finance entry
+                .eq("erstellt_von", user.id); // Security: ensure user owns the finance entry
 
             if (linkError) {
                 logger.error("Error linking document to finance entry", linkError instanceof Error ? linkError : new Error(String(linkError)), {

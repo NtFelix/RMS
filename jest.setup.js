@@ -90,6 +90,16 @@ jest.mock('@supabase/ssr', () => {
         signUp: jest.fn(),
         resetPasswordForEmail: jest.fn(),
       },
+      from: jest.fn(() => ({
+        select: jest.fn(() => Promise.resolve({ data: [], error: null })),
+        insert: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        update: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        delete: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+      rpc: jest.fn(() => Promise.resolve({
+        data: [{ total_balance: 9600, total_income: 12000, total_expenses: 2400 }],
+        error: null
+      })),
     })),
   };
 });
@@ -177,6 +187,7 @@ jest.mock('@/app/betriebskosten-actions', () => ({
   getNebenkostenDetailsAction: jest.fn(),
   createRechnungenBatch: jest.fn(),
   deleteRechnungenByNebenkostenId: jest.fn(),
+  getAbrechnungModalDataAction: jest.fn(() => Promise.resolve({ success: true, data: null })),
 }));
 
 // Mock hooks to prevent actual imports during testing

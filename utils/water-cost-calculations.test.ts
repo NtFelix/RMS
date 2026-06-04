@@ -35,7 +35,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 1',
       groesse: 50,
@@ -52,7 +52,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 1',
       groesse: 50,
@@ -69,7 +69,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 2',
       groesse: 60,
@@ -83,7 +83,7 @@ describe('Water Cost Calculations', () => {
     wohnung_id: apartment1Id,
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
     ist_aktiv: true,
@@ -95,7 +95,7 @@ describe('Water Cost Calculations', () => {
     wohnung_id: apartment2Id,
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
     ist_aktiv: true,
@@ -196,7 +196,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment1Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'kaltwasser',
         einheit: 'm³',
         ist_aktiv: true,
@@ -261,7 +261,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'warmwasser',
         einheit: 'm³',
         ist_aktiv: true,
@@ -406,7 +406,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'gas',
         einheit: 'm³',
         ist_aktiv: true,
@@ -418,7 +418,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'warmwasser',
         einheit: 'm³',
         ist_aktiv: true,
@@ -496,7 +496,7 @@ describe('Water Cost Calculations', () => {
       const gasMeterA: WasserZaehler = {
         id: 'gas-a', custom_id: 'G-A', wohnung_id: apartment1Id,
         erstellungsdatum: '2024-01-01', eichungsdatum: null,
-        user_id: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
+        erstellt_von: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
       };
       const coldMeterA: WasserZaehler = {
         ...meter1, // already apt-1 kaltwasser
@@ -504,7 +504,7 @@ describe('Water Cost Calculations', () => {
       const gasMeterB: WasserZaehler = {
         id: 'gas-b', custom_id: 'G-B', wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01', eichungsdatum: null,
-        user_id: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
+        erstellt_von: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
       };
       const coldMeterB: WasserZaehler = {
         ...meter2, // already apt-2 kaltwasser

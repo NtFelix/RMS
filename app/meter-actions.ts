@@ -129,7 +129,7 @@ async function getMeterForHausFallback(
       .from("Wohnungen")
       .select("id, name, groesse, miete, haus_id")
       .eq("haus_id", hausId)
-      .eq("user_id", userId)
+      .eq("erstellt_von", userId)
       .order('name', { ascending: true });
 
     if (wohnungenError) throw wohnungenError;
@@ -146,7 +146,7 @@ async function getMeterForHausFallback(
       .from("Zaehler")
       .select("*")
       .in("wohnung_id", wohnungIds)
-      .eq("user_id", userId)
+      .eq("erstellt_von", userId)
       .order('custom_id', { ascending: true });
 
     if (metersError) throw metersError;
@@ -170,7 +170,7 @@ async function getMeterForHausFallback(
         .from("Mieter")
         .select("id, name, wohnung_id, einzug, auszug")
         .in("wohnung_id", wohnungIds)
-        .eq("user_id", userId)
+        .eq("erstellt_von", userId)
         .order('name', { ascending: true })
     ]);
 
@@ -334,7 +334,7 @@ export async function getReadingsForMetersAction(meterIds: string[]) {
 /**
  * Create a new meter
  */
-export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
+export async function createZaehler(data: Omit<Zaehler, 'id' | 'erstellt_von'>) {
   const actionName = 'createMeter';
   let user, supabase;
   try {
@@ -350,7 +350,7 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'user_id'>) {
 
     const { data: result, error } = await supabase
       .from("Zaehler")
-      .insert([{ ...data, user_id: user.id }])
+      .insert([{ ...data, erstellt_von: user.id }])
       .select()
       .single();
 
@@ -383,7 +383,7 @@ export const createWasserZaehler = createZaehler;
 /**
  * Update a meter
  */
-export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id' | 'user_id'>>) {
+export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id' | 'erstellt_von'>>) {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -397,7 +397,7 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
     // Pre-check for better error messages
     const { data: existingMeter, error: fetchError } = await supabase
       .from("Zaehler")
-      .select('id, user_id')
+      .select('id, erstellt_von')
       .eq('id', id)
       .single();
 
@@ -405,7 +405,7 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
       return { success: false, message: "Zähler nicht gefunden." };
     }
 
-    if (existingMeter.user_id !== user.id) {
+    if (existingMeter.erstellt_von !== user.id) {
       return { success: false, message: "Keine Berechtigung zum Aktualisieren dieses Zählers." };
     }
 
@@ -413,7 +413,7 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
       .from("Zaehler")
       .update(data)
       .eq("id", id)
-      .eq("user_id", user.id)
+      .eq("erstellt_von", user.id)
       .select()
       .single();
 
@@ -458,7 +458,7 @@ export async function deleteZaehler(id: string) {
     // Pre-check for better error messages
     const { data: existingMeter, error: fetchError } = await supabase
       .from("Zaehler")
-      .select('id, user_id')
+      .select('id, erstellt_von')
       .eq('id', id)
       .single();
 
@@ -466,7 +466,7 @@ export async function deleteZaehler(id: string) {
       return { success: false, message: "Zähler nicht gefunden." };
     }
 
-    if (existingMeter.user_id !== user.id) {
+    if (existingMeter.erstellt_von !== user.id) {
       return { success: false, message: "Keine Berechtigung zum Löschen dieses Zählers." };
     }
 
@@ -474,7 +474,7 @@ export async function deleteZaehler(id: string) {
       .from("Zaehler")
       .delete()
       .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("erstellt_von", user.id);
 
     if (error) {
       console.error("Error deleting meter:", error);

@@ -7,7 +7,7 @@ export type Wohnung = {
     groesse: number;
     name: string;
     miete: number;
-    user_id: string;
+    erstellt_von: string;
     haus_id: string | null;
 };
 
@@ -15,7 +15,7 @@ export type Haus = {
     id: string;
     ort: string | null;
     name: string;
-    user_id: string;
+    erstellt_von: string;
     strasse: string | null;
     groesse?: number | null;
 };
@@ -30,7 +30,7 @@ export type Mieter = {
     telefonnummer: string | null;
     notiz: string | null;
     nebenkosten: NebenkostenEntry[] | null;
-    user_id: string;
+    erstellt_von: string;
     Wohnungen?: {
         name: string;
         groesse: number;
@@ -39,7 +39,7 @@ export type Mieter = {
 
 export type Aufgabe = {
     id: string;
-    user_id: string;
+    erstellt_von: string;
     ist_erledigt: boolean;
     name: string;
     beschreibung: string;
@@ -65,7 +65,7 @@ export type Nebenkosten = {
     zaehlerkosten: Record<string, number> | null;
     zaehlerverbrauch: Record<string, number> | null;
     haeuser_id: string;
-    user_id: string;
+    erstellt_von: string;
     Haeuser?: { name: string } | null;
     Rechnungen?: RechnungSql[] | null;
     gesamtFlaeche?: number;
@@ -120,7 +120,7 @@ export type Zaehler = {
     zaehler_typ: ZaehlerTyp;
     einheit: string;
     ist_aktiv?: boolean;
-    user_id: string;
+    erstellt_von: string;
     kommentar?: string | null;
 };
 
@@ -175,7 +175,7 @@ export type Finanzen = {
     betrag: number;
     ist_einnahmen: boolean;
     notiz: string | null;
-    user_id: string;
+    erstellt_von: string;
     dokument_id: string | null;
     tags?: string[] | null;
 };

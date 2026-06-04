@@ -74,10 +74,10 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     let dbResponse;
     if (id) {
       // Update existing record - ensuring it belongs to the user
-      dbResponse = await supabase.from("Aufgaben").update(payload).eq("id", id).eq("user_id", user.id).select().single();
+      dbResponse = await supabase.from("Aufgaben").update(payload).eq("id", id).eq("erstellt_von", user.id).select().single();
     } else {
       // Create new record
-      const insertPayload = { ...payload, user_id: user.id, ist_erledigt: payload.ist_erledigt ?? false };
+      const insertPayload = { ...payload, erstellt_von: user.id, ist_erledigt: payload.ist_erledigt ?? false };
       dbResponse = await supabase.from("Aufgaben").insert(insertPayload).select().single();
     }
 
@@ -118,7 +118,7 @@ export async function toggleTaskStatusAction(
         aenderungsdatum: new Date().toISOString(),
       })
       .eq("id", taskId)
-      .eq("user_id", user.id)
+      .eq("erstellt_von", user.id)
       .select()
       .single();
 
@@ -168,7 +168,7 @@ export async function bulkUpdateTaskStatusesAction(
         aenderungsdatum: new Date().toISOString(),
       })
       .in("id", taskIds)
-      .eq("user_id", user.id)
+      .eq("erstellt_von", user.id)
       .select("id");
 
     if (error) {
@@ -214,7 +214,7 @@ export async function bulkDeleteTasksAction(
       .from("Aufgaben")
       .delete()
       .in("id", taskIds)
-      .eq("user_id", user.id);
+      .eq("erstellt_von", user.id);
 
     if (error) {
       logAction(actionName, 'error', { task_count: taskIds.length, error_message: error.message });
@@ -251,7 +251,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
       .from("Aufgaben")
       .delete()
       .eq("id", taskId)
-      .eq("user_id", user.id);
+      .eq("erstellt_von", user.id);
 
     if (error) {
       logAction(actionName, 'error', { task_id: taskId, error_message: error.message });
@@ -294,7 +294,7 @@ export async function updateTaskDueDateAction(
         aenderungsdatum: new Date().toISOString(),
       })
       .eq("id", taskId)
-      .eq("user_id", user.id)
+      .eq("erstellt_von", user.id)
       .select()
       .single();
 

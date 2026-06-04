@@ -27,7 +27,7 @@ export async function PATCH(
       .from('Zaehler')
       .select('id, wohnung_id')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('erstellt_von', user.id)
       .single()
 
     if (fetchError || !existing) {
@@ -47,7 +47,7 @@ export async function PATCH(
       .from('Zaehler')
       .update(updateData)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('erstellt_von', user.id)
       .select()
       .single()
 
@@ -92,7 +92,7 @@ export async function DELETE(
       .from('Zaehler')
       .select('id, wohnung_id')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('erstellt_von', user.id)
       .single()
 
     if (fetchError || !existing) {
@@ -104,7 +104,7 @@ export async function DELETE(
       .from('Zaehler')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('erstellt_von', user.id)
 
     if (error) {
       console.error('Error deleting Wasserzähler:', error)

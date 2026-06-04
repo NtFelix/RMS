@@ -36,7 +36,7 @@ const mockDeleteRechnungenByNebenkostenId = deleteRechnungenByNebenkostenId as j
 const mockGetMieterByHausIdAction = getMieterByHausIdAction as jest.MockedFunction<typeof getMieterByHausIdAction>;
 
 describe('BetriebskostenEditModal', () => {
-  const mockHaeuser = [{ id: 'h1', name: 'Haus A', ort: 'Ort', strasse: 'Strasse', user_id: 'u1' }];
+  const mockHaeuser = [{ id: 'h1', name: 'Haus A', ort: 'Ort', strasse: 'Strasse', erstellt_von: 'u1' }];
   const mockCloseBetriebskostenModal = jest.fn();
   const mockSetBetriebskostenModalDirty = jest.fn();
   const mockBetriebskostenModalOnSuccess = jest.fn();
@@ -113,7 +113,7 @@ describe('BetriebskostenEditModal', () => {
       expect(screen.getByText('Haus *')).toBeInTheDocument(); // CustomCombobox doesn't have proper label association
       expect(screen.getByLabelText('Startdatum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Enddatum *')).toBeInTheDocument();
-      expect(screen.getByLabelText('Wasserkosten (€)')).toBeInTheDocument();
+      expect(screen.getByText('Zählerkosten (€)')).toBeInTheDocument();
       expect(screen.getByText('Kostenaufstellung')).toBeInTheDocument();
       expect(screen.getByText('-1 Jahr')).toBeInTheDocument();
       expect(screen.getByText('+1 Jahr')).toBeInTheDocument();
@@ -182,7 +182,7 @@ describe('BetriebskostenEditModal', () => {
 
       expect(screen.getAllByPlaceholderText('Kostenart')).toHaveLength(1);
       expect(screen.getAllByPlaceholderText('Betrag (€)')).toHaveLength(1);
-      expect(screen.getAllByRole('combobox')).toHaveLength(2); // 1 for Haus, 1 for Berechnungsart
+      expect(screen.getAllByRole('combobox')).toHaveLength(3); // 1 for Haus, 1 for Berechnungsart, 1 for adding meter cost
     });
   });
 
@@ -196,11 +196,10 @@ describe('BetriebskostenEditModal', () => {
         nebenkostenart: ['Strom', 'Wasser'],
         betrag: [100, 50],
         berechnungsart: ['pro Flaeche', 'pro Mieter'],
-        wasserkosten: 20,
-        zaehlerkosten: {},
+        zaehlerkosten: { kaltwasser: 20 },
         zaehlerverbrauch: {},
         Haeuser: { name: 'Haus A' },
-        user_id: 'u1',
+        erstellt_von: 'u1',
         Rechnungen: [],
       };
 
@@ -509,11 +508,10 @@ describe('BetriebskostenEditModal', () => {
         nebenkostenart: ['Strom'],
         betrag: [100],
         berechnungsart: ['pauschal'],
-        wasserkosten: 20,
-        zaehlerkosten: {},
+        zaehlerkosten: { kaltwasser: 20 },
         zaehlerverbrauch: {},
         Haeuser: { name: 'Haus A' },
-        user_id: 'u1',
+        erstellt_von: 'u1',
         Rechnungen: [],
       };
 
@@ -557,7 +555,7 @@ describe('BetriebskostenEditModal', () => {
         zaehlerkosten: {},
         zaehlerverbrauch: {},
         Haeuser: { name: 'Haus A' },
-        user_id: 'u1',
+        erstellt_von: 'u1',
         Rechnungen: [],
       };
 

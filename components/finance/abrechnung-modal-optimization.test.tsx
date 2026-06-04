@@ -117,7 +117,7 @@ describe('AbrechnungModal Optimization', () => {
     zaehlerkosten: { 'Wasser': 500 },
     zaehlerverbrauch: { 'Wasser': 100 },
     haeuser_id: 'house-1',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Haeuser: { name: 'Test House' },
     gesamtFlaeche: 200,
     anzahlWohnungen: 4,
@@ -135,7 +135,7 @@ describe('AbrechnungModal Optimization', () => {
       telefonnummer: '123456789',
       notiz: '',
       nebenkosten: [],
-      user_id: 'user-1',
+      erstellt_von: 'user-1',
       Wohnungen: {
         name: 'Apartment 1',
         groesse: 50,
@@ -151,7 +151,7 @@ describe('AbrechnungModal Optimization', () => {
       telefonnummer: '987654321',
       notiz: '',
       nebenkosten: [],
-      user_id: 'user-1',
+      erstellt_von: 'user-1',
       Wohnungen: {
         name: 'Apartment 2',
         groesse: 60,

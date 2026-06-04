@@ -19,14 +19,14 @@ describe('Complex Meter Cost Scenarios', () => {
     // Helper to create basic tenant
     const createTenant = (id: string, name: string, wohnungId: string, einzug = periodStart, auszug: string | null = null): Mieter => ({
         id, name, wohnung_id: wohnungId, einzug, auszug,
-        email: null, telefonnummer: null, notiz: null, nebenkosten: null, user_id: 'user-1',
+        email: null, telefonnummer: null, notiz: null, nebenkosten: null, erstellt_von: 'user-1',
         Wohnungen: { name: `Apt ${wohnungId}`, groesse: 50 },
     });
 
     // Helper to create meter
     const createMeter = (id: string, type: 'kaltwasser' | 'warmwasser' | 'gas', wohnungId: string): WasserZaehler => ({
         id, custom_id: `M-${id}`, wohnung_id: wohnungId, zaehler_typ: type,
-        erstellungsdatum: '2024-01-01', eichungsdatum: null, user_id: 'user-1', einheit: 'm³', ist_aktiv: true,
+        erstellungsdatum: '2024-01-01', eichungsdatum: null, erstellt_von: 'user-1', einheit: 'm³', ist_aktiv: true,
     });
 
     // Helper to create reading

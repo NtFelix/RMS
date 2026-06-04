@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       .from('Wohnungen')
       .select('id')
       .eq('id', wohnungId)
-      .eq('user_id', user.id)
+      .eq('erstellt_von', user.id)
       .single()
 
     if (wohnungError || !wohnung) {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       .from('Zaehler')
       .select('*')
       .eq('wohnung_id', wohnungId)
-      .eq('user_id', user.id)
+      .eq('erstellt_von', user.id)
       .order('erstellungsdatum', { ascending: true })
 
     if (error) {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       .from('Wohnungen')
       .select('id')
       .eq('id', wohnung_id)
-      .eq('user_id', user.id)
+      .eq('erstellt_von', user.id)
       .single()
 
     if (wohnungError || !wohnung) {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         custom_id: custom_id || null,
         wohnung_id,
         eichungsdatum: eichungsdatum || null,
-        user_id: user.id,
+        erstellt_von: user.id,
         zaehler_typ: zaehler_typ || 'wasser',
         einheit: einheit || 'm³',
         kommentar: kommentar || null,

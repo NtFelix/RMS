@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     const { count, error: countError } = await supabase
       .from('Wohnungen')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .eq('erstellt_von', userId);
 
     if (countError) {
       console.error('API: Error counting apartments:', countError);
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     }
     const { data, error } = await supabase
       .from('Wohnungen')
-      .insert({ name, groesse, miete, haus_id, user_id: userId }) // Add user_id here
+      .insert({ name, groesse, miete, haus_id, erstellt_von: userId }) // Add erstellt_von here
       .select();
     if (error) {
       console.error("Supabase Insert Error (Wohnungen):", error);

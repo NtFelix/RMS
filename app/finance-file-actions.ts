@@ -143,7 +143,7 @@ export async function deleteFinanceDocument(
     // Get document metadata first
     const { data: dokument, error: docError } = await supabase
         .from("Dokumente_Metadaten")
-        .select("dateipfad, dateiname, user_id")
+        .select("dateipfad, dateiname, erstellt_von")
         .eq("id", dokumentId)
         .single();
 
@@ -153,7 +153,7 @@ export async function deleteFinanceDocument(
     }
 
     // Verify user owns this document
-    if (dokument.user_id !== user.id) {
+    if (dokument.erstellt_von !== user.id) {
         return { success: false, error: "Keine Berechtigung" };
     }
 
