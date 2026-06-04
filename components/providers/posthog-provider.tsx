@@ -79,6 +79,8 @@ async function initializePostHog(nonce?: string) {
     // GDPR: Always opt-out by default, require explicit consent
     opt_out_capturing_by_default: true,
     nonce: nonce, // Add nonce for CSP
+    // Enable tracing headers for PostHog Observability
+    __add_tracing_headers: true, // Will default to tracing all requests, which is safe for same-origin
     // Enable early access features
     bootstrap: {
       distinctID: undefined, // Will be set when user is identified
