@@ -36,6 +36,16 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    await requirePermission('aufgaben', id ? 'bearbeiten' : 'erstellen');
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
   const payload: Record<string, any> = {
     name: data.name,
     beschreibung: data.beschreibung || null,
@@ -88,7 +98,7 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     logAction(actionName, 'success', { task_id: dbResponse.data?.id, task_name: data.name });
     return { success: true, data: dbResponse.data as AufgabeDbRecord };
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+    const errorMessage = error instanceof Error ? error.message : (error as any)?.message || "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -107,6 +117,16 @@ export async function toggleTaskStatusAction(
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    await requirePermission('aufgaben', 'bearbeiten');
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
 
@@ -132,7 +152,7 @@ export async function toggleTaskStatusAction(
     return { success: true, task: data };
 
   } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    const errorMessage = e instanceof Error ? e.message : (e as any)?.message || "An unknown server error occurred";
     logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -159,6 +179,16 @@ export async function bulkUpdateTaskStatusesAction(
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    await requirePermission('aufgaben', 'bearbeiten');
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
   try {
     const { data, error } = await supabase
       .from("Aufgaben")
@@ -181,7 +211,7 @@ export async function bulkUpdateTaskStatusesAction(
     return { success: true, updatedCount };
 
   } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
+    const errorMessage = e instanceof Error ? e.message : (e as any)?.message || "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -207,6 +237,16 @@ export async function bulkDeleteTasksAction(
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    await requirePermission('aufgaben', 'loeschen');
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
   try {
     const { count, error } = await supabase
       .from("Aufgaben")
@@ -224,7 +264,7 @@ export async function bulkDeleteTasksAction(
     return { success: true, deletedCount: count || 0 };
 
   } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
+    const errorMessage = e instanceof Error ? e.message : (e as any)?.message || "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -240,6 +280,16 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    await requirePermission('aufgaben', 'loeschen');
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
 
@@ -260,7 +310,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
     return { success: true, taskId };
 
   } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    const errorMessage = e instanceof Error ? e.message : (e as any)?.message || "An unknown server error occurred";
     logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
@@ -279,6 +329,16 @@ export async function updateTaskDueDateAction(
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    await requirePermission('aufgaben', 'bearbeiten');
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }
 
@@ -304,7 +364,7 @@ export async function updateTaskDueDateAction(
     return { success: true, task: data as AufgabeDbRecord };
 
   } catch (e: unknown) {
-    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    const errorMessage = e instanceof Error ? e.message : (e as any)?.message || "An unknown server error occurred";
     logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
     return { success: false, error: { message: errorMessage } };
   }

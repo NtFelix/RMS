@@ -20,6 +20,17 @@ jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
 }));
 
+jest.mock('@/lib/permissions', () => ({
+  hasPermission: jest.fn().mockResolvedValue(true),
+  requirePermission: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/lib/object-scope', () => ({
+  getAccessibleHaeuserIds: jest.fn().mockResolvedValue(null),
+  getAccessibleWohnungIds: jest.fn().mockResolvedValue(null),
+  applyHaeuserScope: jest.fn((query, column, ids) => query),
+}));
+
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -128,7 +139,7 @@ describe('betriebskosten-actions', () => {
 
       expect(result).toEqual({
         success: false,
-        message: 'User not authenticated',
+        message: 'Nicht authentifiziert',
         data: null,
       });
     });

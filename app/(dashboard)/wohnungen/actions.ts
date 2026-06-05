@@ -38,6 +38,26 @@ export async function speichereWohnung(formData: WohnungFormData) {
   }
   logAction(actionName, 'start', { apartment_name: formData.name });
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('wohnungen', 'erstellen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const targetHausId = formData.haus_id;
+      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+        return { error: "Zugriff auf das angegebene Haus verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { apartment_name: formData.name, error_message: errorMessage });
+    return { error: errorMessage };
+  }
+
   try {
     const userId = user.id;
 
@@ -175,6 +195,35 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
   }
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('wohnungen', 'bearbeiten');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const targetHausId = formData.haus_id;
+      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+        return { error: "Zugriff auf das angegebene Haus verweigert." };
+      }
+      
+      const { data: existingWohnung, error: fetchError } = await supabase
+        .from("Wohnungen")
+        .select("haus_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+        return { error: "Zugriff auf diese Wohnung verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { apartment_id: id, apartment_name: formData.name, error_message: errorMessage });
+    return { error: errorMessage };
+  }
+
   try {
     const userId = user.id;
 
@@ -277,6 +326,30 @@ export async function loescheWohnung(id: string) {
     return { error: errorMessage };
   }
   logAction(actionName, 'start', { apartment_id: id });
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('wohnungen', 'loeschen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: existingWohnung, error: fetchError } = await supabase
+        .from("Wohnungen")
+        .select("haus_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+        return { error: "Zugriff auf diese Wohnung verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { apartment_id: id, error_message: errorMessage });
+    return { error: errorMessage };
+  }
 
   try {
     const { error } = await supabase.from('Wohnungen')

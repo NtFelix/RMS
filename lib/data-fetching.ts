@@ -50,10 +50,13 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 export async function fetchHaeuser(supabaseClient?: SupabaseClient) {
   const supabase = supabaseClient || createSupabaseServerClient();
+  const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+  const haeuserIds = await getAccessibleHaeuserIds();
 
-  const { data, error } = await supabase
-    .from("Haeuser")
-    .select('*, groesse');
+  let query = supabase.from("Haeuser").select('*, groesse');
+  query = applyHaeuserScope(query, 'id', haeuserIds);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching Haeuser:", error);
@@ -65,10 +68,13 @@ export async function fetchHaeuser(supabaseClient?: SupabaseClient) {
 
 export async function fetchWohnungen(supabaseClient?: SupabaseClient) {
   const supabase = supabaseClient || createSupabaseServerClient();
+  const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+  const haeuserIds = await getAccessibleHaeuserIds();
 
-  const { data, error } = await supabase
-    .from("Wohnungen")
-    .select('*');
+  let query = supabase.from("Wohnungen").select('*');
+  query = applyHaeuserScope(query, 'haus_id', haeuserIds);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching Wohnungen:", error);
@@ -80,10 +86,15 @@ export async function fetchWohnungen(supabaseClient?: SupabaseClient) {
 
 export async function fetchMieter(supabaseClient?: SupabaseClient) {
   const supabase = supabaseClient || createSupabaseServerClient();
+  const { getAccessibleWohnungIds } = await import("./object-scope");
+  const wohnungIds = await getAccessibleWohnungIds();
 
-  const { data, error } = await supabase
-    .from("Mieter")
-    .select('*, Wohnungen(name, groesse, miete)');
+  let query = supabase.from("Mieter").select('*, Wohnungen(name, groesse, miete)');
+  if (wohnungIds !== null) {
+    query = query.in('wohnung_id', wohnungIds);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching Mieter:", error);
@@ -111,10 +122,15 @@ export async function fetchAufgaben(supabaseClient?: SupabaseClient) {
 
 export async function fetchFinanzen(supabaseClient?: SupabaseClient) {
   const supabase = supabaseClient || createSupabaseServerClient();
+  const { getAccessibleWohnungIds } = await import("./object-scope");
+  const wohnungIds = await getAccessibleWohnungIds();
 
-  const { data, error } = await supabase
-    .from("Finanzen")
-    .select('*');
+  let query = supabase.from("Finanzen").select('*');
+  if (wohnungIds !== null) {
+    query = query.in('wohnung_id', wohnungIds);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching Finanzen:", error);
@@ -126,8 +142,11 @@ export async function fetchFinanzen(supabaseClient?: SupabaseClient) {
 
 export async function fetchNebenkosten(year?: string, supabaseClient?: SupabaseClient): Promise<Nebenkosten[]> {
   const supabase = supabaseClient || createSupabaseServerClient();
+  const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+  const haeuserIds = await getAccessibleHaeuserIds();
 
   let query = supabase.from("Nebenkosten").select('*');
+  query = applyHaeuserScope(query, 'haeuser_id', haeuserIds);
 
   // If year is provided, filter by date range that overlaps with that year
   if (year) {
@@ -232,11 +251,15 @@ export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): 
 
 export async function fetchFinanzenByMonth(supabaseClient?: SupabaseClient) {
   const supabase = supabaseClient || createSupabaseServerClient();
+  const { getAccessibleWohnungIds } = await import("./object-scope");
+  const wohnungIds = await getAccessibleWohnungIds();
 
-  const { data, error } = await supabase
-    .from("Finanzen")
-    .select('*')
-    .order('datum', { ascending: true });
+  let query = supabase.from("Finanzen").select('*');
+  if (wohnungIds !== null) {
+    query = query.in('wohnung_id', wohnungIds);
+  }
+
+  const { data, error } = await query.order('datum', { ascending: true });
 
   if (error) {
     console.error("Error fetching Finanzen by month:", error);
@@ -458,6 +481,12 @@ export async function fetchMeterReadingsByHausAndDateRange(
   supabaseClient?: SupabaseClient
 ): Promise<{ mieterList: Mieter[]; existingReadings: (ZaehlerAblesung & { mieter_id?: string })[] }> {
   const supabase = supabaseClient || createSupabaseServerClient();
+  const { getAccessibleHaeuserIds } = await import("./object-scope");
+  const haeuserIds = await getAccessibleHaeuserIds();
+
+  if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
+    return { mieterList: [], existingReadings: [] };
+  }
 
   try {
     // Optimized: Run queries in parallel using joins instead of waterfall
@@ -548,11 +577,17 @@ export async function fetchMeterReadingsModalData(nebenkostenId: string): Promis
   const supabase = createSupabaseServerClient();
 
   try {
-    const { data: nebenkostenEntry, error: nebenkostenError } = await supabase
+    const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+    const haeuserIds = await getAccessibleHaeuserIds();
+
+    let query = supabase
       .from('Nebenkosten')
       .select('haeuser_id, startdatum, enddatum')
-      .eq('id', nebenkostenId)
-      .single();
+      .eq('id', nebenkostenId);
+
+    query = applyHaeuserScope(query, 'haeuser_id', haeuserIds);
+
+    const { data: nebenkostenEntry, error: nebenkostenError } = await query.single();
 
     if (nebenkostenError || !nebenkostenEntry) {
       console.error('Error fetching Nebenkosten entry for ID %s:', nebenkostenId, nebenkostenError);
@@ -589,9 +624,16 @@ export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, u
   }
 
   try {
-    const { count, error } = await supabaseClient
+    const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+    const haeuserIds = await getAccessibleHaeuserIds();
+
+    let query = supabaseClient
       .from("Wohnungen")
       .select("*", { count: "exact", head: true });
+
+    query = applyHaeuserScope(query, 'haus_id', haeuserIds);
+
+    const { count, error } = await query;
 
     if (error) {
       console.error("Error fetching Wohnungen count:", error);

@@ -31,6 +31,37 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('finanzen', id ? 'bearbeiten' : 'erstellen');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const targetWohnungId = data.wohnung_id;
+      if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
+        return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
+      }
+      
+      if (id) {
+        const { data: existingFinance, error: fetchError } = await supabase
+          .from("Finanzen")
+          .select("wohnung_id")
+          .eq("id", id)
+          .single();
+        if (fetchError || !existingFinance || !existingFinance.wohnung_id || !wohnungIds.includes(existingFinance.wohnung_id)) {
+          return { success: false, error: { message: "Zugriff auf diesen Finanzeintrag verweigert." } };
+        }
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { finance_id: id, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
   // Ensure betrag is a number and handle potential string input from forms
   const payload: FinanzInput = {
     ...data,
@@ -93,7 +124,7 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
 
     return { success: true, data: dbResponse.data };
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+    const errorMessage = error instanceof Error ? error.message : (error as any)?.message || "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', { finance_id: id, error_message: errorMessage });
     console.error("Error in financeServerAction:", error);
     return { success: false, error: { message: errorMessage } };
@@ -106,6 +137,29 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
     ({ user, supabase } = await ensureAuth());
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('finanzen', 'bearbeiten');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const { data: existingFinance, error: fetchError } = await supabase
+        .from("Finanzen")
+        .select("wohnung_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingFinance || !existingFinance.wohnung_id || !wohnungIds.includes(existingFinance.wohnung_id)) {
+        return { success: false, error: { message: "Zugriff auf diesen Finanzeintrag verweigert." } };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
     return { success: false, error: { message: errorMessage } };
   }
 
@@ -129,7 +183,7 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
     return { success: true, data };
   } catch (error: unknown) {
     console.error('Unexpected error in toggleFinanceStatusAction:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Ein unerwarteter Fehler ist aufgetreten.';
+    const errorMessage = error instanceof Error ? error.message : (error as any)?.message || 'Ein unerwarteter Fehler ist aufgetreten.';
     return { success: false, error: { message: errorMessage } };
   }
 }
@@ -137,6 +191,24 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
 export async function deleteFinanceAction(financeId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
     const { user, supabase } = await ensureAuth();
+
+    // Permission & scope checks
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('finanzen', 'loeschen');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const { data: existingFinance, error: fetchError } = await supabase
+        .from("Finanzen")
+        .select("wohnung_id")
+        .eq("id", financeId)
+        .single();
+      if (fetchError || !existingFinance || !existingFinance.wohnung_id || !wohnungIds.includes(existingFinance.wohnung_id)) {
+        return { success: false, error: { message: "Zugriff auf diesen Finanzeintrag verweigert." } };
+      }
+    }
 
     const { error } = await supabase
       .from("Finanzen")
@@ -155,7 +227,7 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
 
   } catch (e: unknown) {
     console.error("Unexpected error in deleteFinanceAction:", e);
-    const message = e instanceof Error ? e.message : "An unknown server error occurred";
+    const message = e instanceof Error ? e.message : (e as any)?.message || "An unknown server error occurred";
     return { success: false, error: { message } };
   }
 }
@@ -164,6 +236,13 @@ export async function getAggregatedMaintenanceData(): Promise<{ success: boolean
   try {
     const { user, supabase } = await ensureAuth();
 
+    // Permission & scope checks
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('finanzen', 'ansehen');
+    const wohnungIds = await getAccessibleWohnungIds();
+
     let allFinanzenData: any[] = [];
     let page = 0;
     const pageSize = 5000;
@@ -171,11 +250,17 @@ export async function getAggregatedMaintenanceData(): Promise<{ success: boolean
 
     // Fetch all expenses for this user
     while (hasMore) {
-      const { data, error } = await supabase
+      let query = supabase
         .from("Finanzen")
         .select("name, betrag")
         .eq("ist_einnahmen", false)
         .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (wohnungIds !== null) {
+        query = query.in("wohnung_id", wohnungIds);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         throw error;
@@ -226,7 +311,7 @@ export async function getAggregatedMaintenanceData(): Promise<{ success: boolean
     return { success: true, data: filteredData };
   } catch (error: unknown) {
     console.error('Error fetching aggregated maintenance data:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Ein unerwarteter Fehler ist aufgetreten.';
+    const errorMessage = error instanceof Error ? error.message : (error as any)?.message || 'Ein unerwarteter Fehler ist aufgetreten.';
     return { success: false, error: { message: errorMessage } };
   }
 }

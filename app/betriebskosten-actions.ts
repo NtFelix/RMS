@@ -83,9 +83,28 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
     return { success: false, message: errorMessage, data: null };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'erstellen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      if (!formData.haeuser_id || !haeuserIds.includes(formData.haeuser_id)) {
+        return { success: false, message: "Zugriff auf das angegebene Haus verweigert.", data: null };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: errorMessage });
+    return { success: false, message: errorMessage, data: null };
+  }
+
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .insert([formData])
+    .insert([{ ...formData, user_id: user.id }])
     .select()
     .single();
 
@@ -111,6 +130,34 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage, data: null };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'bearbeiten');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      if (formData.haeuser_id && !haeuserIds.includes(formData.haeuser_id)) {
+        return { success: false, message: "Zugriff auf das angegebene Haus verweigert.", data: null };
+      }
+      
+      const { data: existingNK, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingNK || !existingNK.haeuser_id || !haeuserIds.includes(existingNK.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert.", data: null };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: errorMessage });
     return { success: false, message: errorMessage, data: null };
   }
 
@@ -142,6 +189,30 @@ export async function deleteNebenkosten(id: string) {
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, message: errorMessage };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'loeschen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: existingNK, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingNK || !existingNK.haeuser_id || !haeuserIds.includes(existingNK.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: errorMessage });
     return { success: false, message: errorMessage };
   }
 
@@ -177,6 +248,28 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     return { success: false, message: errorMessage, data: [] };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'loeschen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: existingNKs, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .in("id", ids);
+      if (fetchError || !existingNKs || existingNKs.some(nk => !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id))) {
+        return { success: false, count: 0, message: "Zugriff verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, count: 0, message: errorMessage };
   }
 
 
@@ -218,11 +311,39 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
     return { success: false, message: errorMessage, data: null };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'erstellen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && rechnungen.length > 0) {
+      const nkIds = Array.from(new Set(rechnungen.map(r => r.nebenkosten_id)));
+      const { data: nks, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .in("id", nkIds);
+      if (fetchError || !nks || nks.some(nk => !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id))) {
+        return { success: false, message: "Zugriff verweigert.", data: null };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage, data: null };
+  }
+
   console.log('[Server Action] Inserting', rechnungen.length, 'records into Rechnungen table');
+
+  const rechnungenWithUser = rechnungen.map(r => ({
+    ...r,
+    user_id: user.id
+  }));
 
   const { data, error } = await supabase
     .from("Rechnungen")
-    .insert(rechnungen)
+    .insert(rechnungenWithUser)
     .select(); // .select() returns the inserted rows
 
   if (data) {
@@ -281,6 +402,29 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'loeschen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: nk, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", nebenkostenId)
+        .single();
+      if (fetchError || !nk || !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
+
   const { error } = await supabase
     .from("Rechnungen")
     .delete()
@@ -310,6 +454,24 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
       return { success: false, message: errorMessage };
+    }
+
+    // Permission & scope checks
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'ansehen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: nk, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !nk || !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert." };
+      }
     }
     const { data, error } = await supabase
       .from("Nebenkosten")
@@ -703,6 +865,22 @@ export async function getWasserzaehlerByHausAndYearAction(
       ({ user } = await ensureAuth());
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, message: errorMessage };
+    }
+
+    // Permission & scope checks
+    try {
+      const { requirePermission } = await import("@/lib/permissions");
+      const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+      
+      await requirePermission('betriebskosten', 'ansehen');
+      
+      const haeuserIds = await getAccessibleHaeuserIds();
+      if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
+        return { success: false, message: "Zugriff auf dieses Haus verweigert." };
+      }
+    } catch (permError) {
+      const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
       return { success: false, message: errorMessage };
     }
     const { mieterList, existingReadings } = await fetchMeterReadingsByHausAndYear(hausId, year);
@@ -1135,6 +1313,22 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'ansehen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
+      return { success: false, message: "Zugriff auf dieses Haus verweigert.", data: null };
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage, data: null };
+  }
+
   try {
     // First, get the latest Nebenkosten ID for the house
     const { data: latestNebenkosten, error: nebError } = await supabase
@@ -1216,6 +1410,29 @@ export async function getMeterModalDataAction(
     logger.warn('Unauthenticated access attempt', {
       error_message: errorMessage
     });
+    return { success: false, message: errorMessage };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'ansehen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: nk, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", nebenkostenId)
+        .single();
+      if (fetchError || !nk || !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
     return { success: false, message: errorMessage };
   }
 
@@ -1649,6 +1866,29 @@ export async function getAbrechnungModalDataAction(
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'ansehen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: nk, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", nebenkostenId)
+        .single();
+      if (fetchError || !nk || !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
+
   try {
 
     logger.info('Starting Abrechnung modal data fetch', {
@@ -2045,6 +2285,29 @@ export async function createAbrechnungCalculationAction(
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'erstellen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: nk, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", nebenkostenId)
+        .single();
+      if (fetchError || !nk || !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
+
   try {
 
     logger.info('Starting Abrechnung calculation process', {
@@ -2260,6 +2523,29 @@ export async function createAbrechnungCalculationOptimizedAction(
       operation: 'createAbrechnungCalculationOptimizedAction',
       error_message: errorMessage
     });
+    return { success: false, message: errorMessage };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('betriebskosten', 'erstellen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const { data: nk, error: fetchError } = await supabase
+        .from("Nebenkosten")
+        .select("haeuser_id")
+        .eq("id", nebenkostenId)
+        .single();
+      if (fetchError || !nk || !nk.haeuser_id || !haeuserIds.includes(nk.haeuser_id)) {
+        return { success: false, message: "Zugriff verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
     return { success: false, message: errorMessage };
   }
 

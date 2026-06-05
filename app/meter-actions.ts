@@ -22,6 +22,22 @@ export async function getMeterForHausAction(hausId: string) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     return { success: false, message: errorMessage };
   }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('zaehler', 'ansehen');
+    
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
+      return { success: false, message: "Zugriff auf dieses Haus verweigert." };
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
   const startTime = Date.now();
 
   try {
@@ -338,6 +354,25 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'erstellt_von' | 
     logAction(actionName, 'error', { error_message: errorMessage });
     return { success: false, message: errorMessage };
   }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('zaehler', 'erstellen');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      if (!data.wohnung_id || !wohnungIds.includes(data.wohnung_id)) {
+        return { success: false, message: "Zugriff auf die angegebene Wohnung verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: errorMessage });
+    return { success: false, message: errorMessage };
+  }
   logAction(actionName, 'start', { apartment_id: data.wohnung_id });
 
   try {
@@ -383,6 +418,33 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
     ({ user, supabase } = await ensureAuth());
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('zaehler', 'bearbeiten');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      if (data.wohnung_id && !wohnungIds.includes(data.wohnung_id)) {
+        return { success: false, message: "Zugriff auf die angegebene Wohnung verweigert." };
+      }
+      
+      const { data: existingMeter, error: fetchError } = await supabase
+        .from("Zaehler")
+        .select("wohnung_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+        return { success: false, message: "Zugriff auf diesen Zähler verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
     return { success: false, message: errorMessage };
   }
 
@@ -442,6 +504,29 @@ export async function deleteZaehler(id: string) {
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('zaehler', 'loeschen');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const { data: existingMeter, error: fetchError } = await supabase
+        .from("Zaehler")
+        .select("wohnung_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+        return { success: false, message: "Zugriff auf diesen Zähler verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
+
   try {
 
     // Pre-check for better error messages
@@ -489,6 +574,29 @@ export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'erstell
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('zaehler', 'erstellen');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const { data: meter, error: meterError } = await supabase
+        .from("Zaehler")
+        .select("wohnung_id")
+        .eq("id", data.zaehler_id)
+        .single();
+      if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
+        return { success: false, message: "Zugriff auf den Zähler verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
+
   try {
 
     const { data: result, error } = await supabase
@@ -530,6 +638,49 @@ export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAbles
     ({ user, supabase } = await ensureAuth());
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, message: errorMessage };
+  }
+
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('zaehler', 'bearbeiten');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      if (data.zaehler_id) {
+        const { data: meter, error: meterError } = await supabase
+          .from("Zaehler")
+          .select("wohnung_id")
+          .eq("id", data.zaehler_id)
+          .single();
+        if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
+          return { success: false, message: "Zugriff auf den Zähler verweigert." };
+        }
+      }
+      
+      const { data: existingReading, error: fetchError } = await supabase
+        .from("Zaehler_Ablesungen")
+        .select("zaehler_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingReading) {
+        return { success: false, message: "Ablesung nicht gefunden." };
+      }
+      
+      const { data: existingMeter, error: meterError } = await supabase
+        .from("Zaehler")
+        .select("wohnung_id")
+        .eq("id", existingReading.zaehler_id)
+        .single();
+      if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+        return { success: false, message: "Zugriff auf die Ablesung verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
     return { success: false, message: errorMessage };
   }
 
@@ -578,6 +729,38 @@ export async function deleteAblesung(id: string) {
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    await requirePermission('zaehler', 'loeschen');
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const { data: existingReading, error: fetchError } = await supabase
+        .from("Zaehler_Ablesungen")
+        .select("zaehler_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingReading) {
+        return { success: false, message: "Ablesung nicht gefunden." };
+      }
+      
+      const { data: existingMeter, error: meterError } = await supabase
+        .from("Zaehler")
+        .select("wohnung_id")
+        .eq("id", existingReading.zaehler_id)
+        .single();
+      if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+        return { success: false, message: "Zugriff auf die Ablesung verweigert." };
+      }
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
+
   try {
 
     const { error } = await supabase
@@ -614,6 +797,15 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    await requirePermission('zaehler', 'erstellen');
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    return { success: false, message: errorMessage };
+  }
+
   try {
 
     if (readings.length === 0) {
@@ -622,10 +814,19 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
 
     const meterIds = Array.from(new Set(readings.map(r => r.zaehler_id).filter((id): id is string => !!id)));
 
-    const { data: meters, error: metersError } = await supabase
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    let query = supabase
       .from("Zaehler")
       .select('id')
       .in('id', meterIds);
+
+    if (wohnungIds !== null) {
+      query = query.in('wohnung_id', wohnungIds);
+    }
+
+    const { data: meters, error: metersError } = await query;
 
     if (metersError) throw metersError;
 

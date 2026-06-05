@@ -110,6 +110,46 @@ jest.mock('next/navigation', () => ({
     replace: jest.fn(),
     refresh: jest.fn(),
   }),
+  redirect: jest.fn(),
+}));
+
+jest.mock('@/lib/permissions', () => ({
+  hasPermission: jest.fn().mockResolvedValue(true),
+  requirePermission: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/lib/object-scope', () => ({
+  getAccessibleHaeuserIds: jest.fn().mockResolvedValue(null),
+  getAccessibleWohnungIds: jest.fn().mockResolvedValue(null),
+  applyHaeuserScope: jest.fn((query, column, ids) => query),
+}));
+
+jest.mock('@/lib/auth-utils', () => ({
+  ensureAuth: jest.fn().mockImplementation(async () => {
+    const { createClient } = require('@/utils/supabase/server');
+    const supabase = await createClient();
+    if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
+      try {
+        const res = await supabase.auth.getUser();
+        if (res) {
+          if (res.error || (res.data && res.data.user === null)) {
+            throw new Error("Nicht authentifiziert");
+          }
+          if (res.data && res.data.user) {
+            return { user: res.data.user, supabase };
+          }
+        }
+      } catch (e) {
+        if (e.message === "Nicht authentifiziert") {
+          throw e;
+        }
+      }
+    }
+    return {
+      user: { id: 'test-user-id', email: 'test@example.com' },
+      supabase,
+    };
+  }),
 }));
 
 jest.mock('next/server', () => ({

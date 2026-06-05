@@ -28,6 +28,25 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission & scope checks
+  try {
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    if (id) {
+      await requirePermission('haeuser', 'bearbeiten');
+      const haeuserIds = await getAccessibleHaeuserIds();
+      if (haeuserIds !== null && !haeuserIds.includes(id)) {
+        return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+      }
+    } else {
+      await requirePermission('haeuser', 'erstellen');
+    }
+  } catch (permError) {
+    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
+    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
   try {
     // Process groesse field
     const groesseValue = formData.get("groesse");
@@ -94,6 +113,15 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
 
   try {
     const { user, supabase } = await ensureAuth();
+
+    // Permission & scope checks
+    const { requirePermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    await requirePermission('haeuser', 'loeschen');
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(houseId)) {
+      return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+    }
 
     const { error } = await supabase
       .from("Haeuser")

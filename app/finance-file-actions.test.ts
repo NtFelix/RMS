@@ -136,6 +136,7 @@ describe('finance-file-actions', () => {
         data: {
           dateipfad: 'path/to',
           dateiname: 'file.pdf',
+          user_id: 'test-user-id',
         },
         error: null,
       });
@@ -224,7 +225,8 @@ describe('finance-file-actions', () => {
               dateiname: 'test.pdf',
               dateipfad: 'path/to',
               dateigroesse: 1024,
-              mime_type: 'application/pdf'
+              mime_type: 'application/pdf',
+              user_id: 'test-user-id'
           };
 
           mockSupabase.single.mockResolvedValue({
