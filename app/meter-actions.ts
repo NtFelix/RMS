@@ -24,19 +24,16 @@ export async function getMeterForHausAction(hausId: string) {
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('zaehler', 'ansehen');
-    
-    const haeuserIds = await getAccessibleHaeuserIds();
-    if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
-      return { success: false, message: "Zugriff auf dieses Haus verweigert." };
-    }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, message: errorMessage };
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('zaehler', 'ansehen'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
+    return { success: false, message: "Zugriff auf dieses Haus verweigert." };
   }
   const startTime = Date.now();
 
@@ -356,22 +353,19 @@ export async function createZaehler(data: Omit<Zaehler, 'id' | 'erstellt_von' | 
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('zaehler', 'erstellen');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      if (!data.wohnung_id || !wohnungIds.includes(data.wohnung_id)) {
-        return { success: false, message: "Zugriff auf die angegebene Wohnung verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('zaehler', 'erstellen'))) {
+    logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: "Keine Berechtigung" });
+    return { success: false, message: "Keine Berechtigung" };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    if (!data.wohnung_id || !wohnungIds.includes(data.wohnung_id)) {
+      return { success: false, message: "Zugriff auf die angegebene Wohnung verweigert." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { apartment_id: data.wohnung_id, error_message: errorMessage });
-    return { success: false, message: errorMessage };
   }
   logAction(actionName, 'start', { apartment_id: data.wohnung_id });
 
@@ -422,30 +416,27 @@ export async function updateZaehler(id: string, data: Partial<Omit<Zaehler, 'id'
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('zaehler', 'bearbeiten');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      if (data.wohnung_id && !wohnungIds.includes(data.wohnung_id)) {
-        return { success: false, message: "Zugriff auf die angegebene Wohnung verweigert." };
-      }
-      
-      const { data: existingMeter, error: fetchError } = await supabase
-        .from("Zaehler")
-        .select("wohnung_id")
-        .eq("id", id)
-        .single();
-      if (fetchError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
-        return { success: false, message: "Zugriff auf diesen Zähler verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('zaehler', 'bearbeiten'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    if (data.wohnung_id && !wohnungIds.includes(data.wohnung_id)) {
+      return { success: false, message: "Zugriff auf die angegebene Wohnung verweigert." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, message: errorMessage };
+    
+    const { data: existingMeter, error: fetchError } = await supabase
+      .from("Zaehler")
+      .select("wohnung_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+      return { success: false, message: "Zugriff auf diesen Zähler verweigert." };
+    }
   }
 
   try {
@@ -505,26 +496,23 @@ export async function deleteZaehler(id: string) {
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('zaehler', 'loeschen');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      const { data: existingMeter, error: fetchError } = await supabase
-        .from("Zaehler")
-        .select("wohnung_id")
-        .eq("id", id)
-        .single();
-      if (fetchError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
-        return { success: false, message: "Zugriff auf diesen Zähler verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('zaehler', 'loeschen'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const { data: existingMeter, error: fetchError } = await supabase
+      .from("Zaehler")
+      .select("wohnung_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+      return { success: false, message: "Zugriff auf diesen Zähler verweigert." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, message: errorMessage };
   }
 
   try {
@@ -575,26 +563,23 @@ export async function createAblesung(data: Omit<ZaehlerAblesung, 'id' | 'erstell
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('zaehler', 'erstellen');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      const { data: meter, error: meterError } = await supabase
-        .from("Zaehler")
-        .select("wohnung_id")
-        .eq("id", data.zaehler_id)
-        .single();
-      if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
-        return { success: false, message: "Zugriff auf den Zähler verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('zaehler', 'erstellen'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const { data: meter, error: meterError } = await supabase
+      .from("Zaehler")
+      .select("wohnung_id")
+      .eq("id", data.zaehler_id)
+      .single();
+    if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
+      return { success: false, message: "Zugriff auf den Zähler verweigert." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, message: errorMessage };
   }
 
   try {
@@ -642,46 +627,43 @@ export async function updateAblesung(id: string, data: Partial<Omit<ZaehlerAbles
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('zaehler', 'bearbeiten');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      if (data.zaehler_id) {
-        const { data: meter, error: meterError } = await supabase
-          .from("Zaehler")
-          .select("wohnung_id")
-          .eq("id", data.zaehler_id)
-          .single();
-        if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
-          return { success: false, message: "Zugriff auf den Zähler verweigert." };
-        }
-      }
-      
-      const { data: existingReading, error: fetchError } = await supabase
-        .from("Zaehler_Ablesungen")
-        .select("zaehler_id")
-        .eq("id", id)
-        .single();
-      if (fetchError || !existingReading) {
-        return { success: false, message: "Ablesung nicht gefunden." };
-      }
-      
-      const { data: existingMeter, error: meterError } = await supabase
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('zaehler', 'bearbeiten'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    if (data.zaehler_id) {
+      const { data: meter, error: meterError } = await supabase
         .from("Zaehler")
         .select("wohnung_id")
-        .eq("id", existingReading.zaehler_id)
+        .eq("id", data.zaehler_id)
         .single();
-      if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
-        return { success: false, message: "Zugriff auf die Ablesung verweigert." };
+      if (meterError || !meter || !meter.wohnung_id || !wohnungIds.includes(meter.wohnung_id)) {
+        return { success: false, message: "Zugriff auf den Zähler verweigert." };
       }
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, message: errorMessage };
+    
+    const { data: existingReading, error: fetchError } = await supabase
+      .from("Zaehler_Ablesungen")
+      .select("zaehler_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingReading) {
+      return { success: false, message: "Ablesung nicht gefunden." };
+    }
+    
+    const { data: existingMeter, error: meterError } = await supabase
+      .from("Zaehler")
+      .select("wohnung_id")
+      .eq("id", existingReading.zaehler_id)
+      .single();
+    if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+      return { success: false, message: "Zugriff auf die Ablesung verweigert." };
+    }
   }
 
   try {
@@ -730,35 +712,32 @@ export async function deleteAblesung(id: string) {
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('zaehler', 'loeschen');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      const { data: existingReading, error: fetchError } = await supabase
-        .from("Zaehler_Ablesungen")
-        .select("zaehler_id")
-        .eq("id", id)
-        .single();
-      if (fetchError || !existingReading) {
-        return { success: false, message: "Ablesung nicht gefunden." };
-      }
-      
-      const { data: existingMeter, error: meterError } = await supabase
-        .from("Zaehler")
-        .select("wohnung_id")
-        .eq("id", existingReading.zaehler_id)
-        .single();
-      if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
-        return { success: false, message: "Zugriff auf die Ablesung verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('zaehler', 'loeschen'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const { data: existingReading, error: fetchError } = await supabase
+      .from("Zaehler_Ablesungen")
+      .select("zaehler_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingReading) {
+      return { success: false, message: "Ablesung nicht gefunden." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, message: errorMessage };
+    
+    const { data: existingMeter, error: meterError } = await supabase
+      .from("Zaehler")
+      .select("wohnung_id")
+      .eq("id", existingReading.zaehler_id)
+      .single();
+    if (meterError || !existingMeter || !existingMeter.wohnung_id || !wohnungIds.includes(existingMeter.wohnung_id)) {
+      return { success: false, message: "Zugriff auf die Ablesung verweigert." };
+    }
   }
 
   try {
@@ -798,12 +777,9 @@ export async function bulkCreateAblesungen(readings: Omit<ZaehlerAblesung, 'id' 
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    await requirePermission('zaehler', 'erstellen');
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, message: errorMessage };
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('zaehler', 'erstellen'))) {
+    return { success: false, message: "Keine Berechtigung" };
   }
 
   try {

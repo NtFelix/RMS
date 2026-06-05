@@ -37,13 +37,10 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
   }
 
   // Permission checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    await requirePermission('aufgaben', id ? 'bearbeiten' : 'erstellen');
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('aufgaben', id ? 'bearbeiten' : 'erstellen'))) {
+    logAction(actionName, 'error', { task_id: id, task_name: data.name, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
   }
 
   const payload: Record<string, any> = {
@@ -121,13 +118,10 @@ export async function toggleTaskStatusAction(
   }
 
   // Permission checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    await requirePermission('aufgaben', 'bearbeiten');
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('aufgaben', 'bearbeiten'))) {
+    logAction(actionName, 'error', { task_id: taskId, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
   }
 
   try {
@@ -180,13 +174,10 @@ export async function bulkUpdateTaskStatusesAction(
   }
 
   // Permission checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    await requirePermission('aufgaben', 'bearbeiten');
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('aufgaben', 'bearbeiten'))) {
+    logAction(actionName, 'error', { task_count: taskIds.length, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
   }
 
   try {
@@ -238,13 +229,10 @@ export async function bulkDeleteTasksAction(
   }
 
   // Permission checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    await requirePermission('aufgaben', 'loeschen');
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { task_count: taskIds.length, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('aufgaben', 'loeschen'))) {
+    logAction(actionName, 'error', { task_count: taskIds.length, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
   }
 
   try {
@@ -284,13 +272,10 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   }
 
   // Permission checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    await requirePermission('aufgaben', 'loeschen');
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('aufgaben', 'loeschen'))) {
+    logAction(actionName, 'error', { task_id: taskId, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
   }
 
   try {
@@ -333,13 +318,10 @@ export async function updateTaskDueDateAction(
   }
 
   // Permission checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    await requirePermission('aufgaben', 'bearbeiten');
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { task_id: taskId, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('aufgaben', 'bearbeiten'))) {
+    logAction(actionName, 'error', { task_id: taskId, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
   }
 
   try {

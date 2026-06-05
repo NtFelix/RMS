@@ -191,32 +191,29 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('wohnungen', 'bearbeiten');
-    
-    const haeuserIds = await getAccessibleHaeuserIds();
-    if (haeuserIds !== null) {
-      const targetHausId = formData.haus_id;
-      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
-        return { error: "Zugriff auf das angegebene Haus verweigert." };
-      }
-      
-      const { data: existingWohnung, error: fetchError } = await supabase
-        .from("Wohnungen")
-        .select("haus_id")
-        .eq("id", id)
-        .single();
-      if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
-        return { error: "Zugriff auf diese Wohnung verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'bearbeiten'))) {
+    logAction(actionName, 'error', { apartment_id: id, apartment_name: formData.name, error_message: "Keine Berechtigung" });
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const targetHausId = formData.haus_id;
+    if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+      return { error: "Zugriff auf das angegebene Haus verweigert." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { apartment_id: id, apartment_name: formData.name, error_message: errorMessage });
-    return { error: errorMessage };
+    
+    const { data: existingWohnung, error: fetchError } = await supabase
+      .from("Wohnungen")
+      .select("haus_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+      return { error: "Zugriff auf diese Wohnung verweigert." };
+    }
   }
 
   try {
@@ -323,27 +320,24 @@ export async function loescheWohnung(id: string) {
   logAction(actionName, 'start', { apartment_id: id });
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('wohnungen', 'loeschen');
-    
-    const haeuserIds = await getAccessibleHaeuserIds();
-    if (haeuserIds !== null) {
-      const { data: existingWohnung, error: fetchError } = await supabase
-        .from("Wohnungen")
-        .select("haus_id")
-        .eq("id", id)
-        .single();
-      if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
-        return { error: "Zugriff auf diese Wohnung verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'loeschen'))) {
+    logAction(actionName, 'error', { apartment_id: id, error_message: "Keine Berechtigung" });
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const { data: existingWohnung, error: fetchError } = await supabase
+      .from("Wohnungen")
+      .select("haus_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+      return { error: "Zugriff auf diese Wohnung verweigert." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { apartment_id: id, error_message: errorMessage });
-    return { error: errorMessage };
   }
 
   try {

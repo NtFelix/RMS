@@ -32,34 +32,31 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('finanzen', id ? 'bearbeiten' : 'erstellen'))) {
+    logAction(actionName, 'error', { error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const targetWohnungId = data.wohnung_id;
+    if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
+      return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
+    }
     
-    await requirePermission('finanzen', id ? 'bearbeiten' : 'erstellen');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      const targetWohnungId = data.wohnung_id;
-      if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
-        return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
-      }
-      
-      if (id) {
-        const { data: existingFinance, error: fetchError } = await supabase
-          .from("Finanzen")
-          .select("wohnung_id")
-          .eq("id", id)
-          .single();
-        if (fetchError || !existingFinance || !existingFinance.wohnung_id || !wohnungIds.includes(existingFinance.wohnung_id)) {
-          return { success: false, error: { message: "Zugriff auf diesen Finanzeintrag verweigert." } };
-        }
+    if (id) {
+      const { data: existingFinance, error: fetchError } = await supabase
+        .from("Finanzen")
+        .select("wohnung_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingFinance || !existingFinance.wohnung_id || !wohnungIds.includes(existingFinance.wohnung_id)) {
+        return { success: false, error: { message: "Zugriff auf diesen Finanzeintrag verweigert." } };
       }
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { finance_id: id, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
   }
 
   // Ensure betrag is a number and handle potential string input from forms
@@ -141,26 +138,23 @@ export async function toggleFinanceStatusAction(id: string, currentStatus: boole
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('finanzen', 'bearbeiten');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      const { data: existingFinance, error: fetchError } = await supabase
-        .from("Finanzen")
-        .select("wohnung_id")
-        .eq("id", id)
-        .single();
-      if (fetchError || !existingFinance || !existingFinance.wohnung_id || !wohnungIds.includes(existingFinance.wohnung_id)) {
-        return { success: false, error: { message: "Zugriff auf diesen Finanzeintrag verweigert." } };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('finanzen', 'bearbeiten'))) {
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const { data: existingFinance, error: fetchError } = await supabase
+      .from("Finanzen")
+      .select("wohnung_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingFinance || !existingFinance.wohnung_id || !wohnungIds.includes(existingFinance.wohnung_id)) {
+      return { success: false, error: { message: "Zugriff auf diesen Finanzeintrag verweigert." } };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -193,10 +187,12 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
     const { user, supabase } = await ensureAuth();
 
     // Permission & scope checks
-    const { requirePermission } = await import("@/lib/permissions");
+    const { hasPermission } = await import("@/lib/permissions");
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     
-    await requirePermission('finanzen', 'loeschen');
+    if (!(await hasPermission('finanzen', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
     
     const wohnungIds = await getAccessibleWohnungIds();
     if (wohnungIds !== null) {
@@ -237,10 +233,12 @@ export async function getAggregatedMaintenanceData(): Promise<{ success: boolean
     const { user, supabase } = await ensureAuth();
 
     // Permission & scope checks
-    const { requirePermission } = await import("@/lib/permissions");
+    const { hasPermission } = await import("@/lib/permissions");
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     
-    await requirePermission('finanzen', 'ansehen');
+    if (!(await hasPermission('finanzen', 'ansehen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
     const wohnungIds = await getAccessibleWohnungIds();
 
     let allFinanzenData: any[] = [];

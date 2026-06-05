@@ -24,34 +24,31 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', id ? 'bearbeiten' : 'erstellen'))) {
+    logAction(actionName, 'error', { tenant_name: tenantName, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const targetWohnungId = formData.get('wohnung_id') as string | null;
+    if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
+      return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
+    }
     
-    await requirePermission('mieter', id ? 'bearbeiten' : 'erstellen');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      const targetWohnungId = formData.get('wohnung_id') as string | null;
-      if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
-        return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
-      }
-      
-      if (id) {
-        const { data: existingTenant, error: fetchError } = await supabase
-          .from("Mieter")
-          .select("wohnung_id")
-          .eq("id", id as string)
-          .single();
-        if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
-          return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
-        }
+    if (id) {
+      const { data: existingTenant, error: fetchError } = await supabase
+        .from("Mieter")
+        .select("wohnung_id")
+        .eq("id", id as string)
+        .single();
+      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
       }
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { tenant_name: tenantName, error_message: errorMessage });
-    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -145,10 +142,12 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
     }
 
     // Permission & scope checks
-    const { requirePermission } = await import("@/lib/permissions");
+    const { hasPermission } = await import("@/lib/permissions");
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     
-    await requirePermission('mieter', 'loeschen');
+    if (!(await hasPermission('mieter', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
     
     const wohnungIds = await getAccessibleWohnungIds();
     if (wohnungIds !== null) {
@@ -208,19 +207,16 @@ export async function getMieterByHausIdAction(
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('mieter', 'ansehen');
-    
-    const haeuserIds = await getAccessibleHaeuserIds();
-    if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
-      return { success: false, error: "Zugriff auf dieses Haus verweigert.", data: null };
-    }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, error: errorMessage, data: null };
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'ansehen'))) {
+    return { success: false, error: "Keine Berechtigung", data: null };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
+    return { success: false, error: "Zugriff auf dieses Haus verweigert.", data: null };
   }
 
   // Validate date parameters if provided
@@ -307,27 +303,24 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('mieter', 'bearbeiten');
-    
-    const tenantId = formData.get('tenantId') as string;
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null && tenantId) {
-      const { data: existingTenant, error: fetchError } = await supabase
-        .from("Mieter")
-        .select("wohnung_id")
-        .eq("id", tenantId)
-        .single();
-      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
-        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'bearbeiten'))) {
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const tenantId = formData.get('tenantId') as string;
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null && tenantId) {
+    const { data: existingTenant, error: fetchError } = await supabase
+      .from("Mieter")
+      .select("wohnung_id")
+      .eq("id", tenantId)
+      .single();
+    if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -419,30 +412,27 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('mieter', 'bearbeiten');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      if (apartmentId && !wohnungIds.includes(apartmentId)) {
-        return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
-      }
-      
-      const { data: existingTenant, error: fetchError } = await supabase
-        .from("Mieter")
-        .select("wohnung_id")
-        .eq("id", tenantId)
-        .single();
-      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
-        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'bearbeiten'))) {
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    if (apartmentId && !wohnungIds.includes(apartmentId)) {
+      return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, error: { message: errorMessage } };
+    
+    const { data: existingTenant, error: fetchError } = await supabase
+      .from("Mieter")
+      .select("wohnung_id")
+      .eq("id", tenantId)
+      .single();
+    if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+    }
   }
 
   try {
@@ -479,26 +469,23 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
   }
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('mieter', 'ansehen');
-    
-    const wohnungIds = await getAccessibleWohnungIds();
-    if (wohnungIds !== null) {
-      const { data: existingTenant, error: fetchError } = await supabase
-        .from("Mieter")
-        .select("wohnung_id")
-        .eq("id", tenantId)
-        .single();
-      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
-        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'ansehen'))) {
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const { data: existingTenant, error: fetchError } = await supabase
+      .from("Mieter")
+      .select("wohnung_id")
+      .eq("id", tenantId)
+      .single();
+    if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    return { success: false, error: { message: errorMessage } };
   }
 
   try {
@@ -545,10 +532,12 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
     }
 
     // Permission & scope checks
-    const { requirePermission } = await import("@/lib/permissions");
+    const { hasPermission } = await import("@/lib/permissions");
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     
-    await requirePermission('mieter', 'loeschen');
+    if (!(await hasPermission('mieter', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
     
     const wohnungIds = await getAccessibleWohnungIds();
     let query = supabase.from('Mieter').delete().eq('status', 'bewerber');
