@@ -7,6 +7,7 @@
 
 export interface Env {
     POSTHOG_API_KEY?: string;
+    NEXT_PUBLIC_POSTHOG_KEY?: string;
     POSTHOG_HOST?: string;
     [key: string]: unknown;
 }
@@ -79,7 +80,11 @@ export class WorkerLogger {
         // Console log for local debugging / real-time logs in dashboard
         console.log(`[${severity.toUpperCase()}] ${message}`, JSON.stringify(attributes));
 
-        const apiKey = this.env.POSTHOG_API_KEY;
+        const envApiKey = this.env.POSTHOG_API_KEY;
+        let apiKey = envApiKey;
+        if (envApiKey && envApiKey.startsWith('phx_')) {
+            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY || envApiKey;
+        }
         if (!apiKey) return;
 
         const timestamp = new Date().toISOString();
@@ -113,7 +118,11 @@ export class WorkerLogger {
     async flush() {
         if (this.logs.length === 0) return;
 
-        const apiKey = this.env.POSTHOG_API_KEY;
+        const envApiKey2 = this.env.POSTHOG_API_KEY;
+        let apiKey = envApiKey2;
+        if (envApiKey2 && envApiKey2.startsWith('phx_')) {
+            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY || envApiKey2;
+        }
         const host = this.env.POSTHOG_HOST || 'https://eu.i.posthog.com';
         const endpoint = `${host.replace(/\/$/, '')}/i/v1/logs`;
 
