@@ -9,9 +9,12 @@ export async function searchMailSenders(query: string) {
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-        const { requirePermission } = await import("@/lib/permissions");
-        await requirePermission('mieter', 'ansehen');
     } catch {
+        return [];
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
         return [];
     }
 
@@ -39,9 +42,12 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-        const { requirePermission } = await import("@/lib/permissions");
-        await requirePermission('mieter', 'ansehen');
     } catch {
+        return [];
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
         return [];
     }
 
@@ -77,10 +83,13 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-        const { requirePermission } = await import("@/lib/permissions");
-        await requirePermission('mieter', 'erstellen');
-    } catch (permError) {
-        return { success: false, error: permError instanceof Error ? permError.message : "Nicht autorisiert" };
+    } catch (authError) {
+        return { success: false, error: "Nicht authentifiziert" };
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'erstellen'))) {
+        return { success: false, error: "Keine Berechtigung" };
     }
     const userId = user.id;
 
@@ -236,10 +245,13 @@ export async function checkWorkerQueueStatus(userId: string) {
     let user;
     try {
         ({ user } = await ensureAuth());
-        const { requirePermission } = await import("@/lib/permissions");
-        await requirePermission('mieter', 'ansehen');
     } catch {
         return { hasMore: false, error: "Nicht authentifiziert" };
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
+        return { hasMore: false, error: "Keine Berechtigung" };
     }
 
     if (user.id !== userId) {

@@ -7,6 +7,10 @@ jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
 }));
 
+jest.mock('@/lib/permissions', () => ({
+  hasPermission: jest.fn().mockResolvedValue(true),
+}));
+
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -171,6 +175,15 @@ describe('finance-file-actions', () => {
 
       expect(result).toEqual({ success: false, error: 'Dokument nicht gefunden' });
     });
+
+    it('should return error if user lacks permission', async () => {
+      const { hasPermission } = require('@/lib/permissions');
+      (hasPermission as jest.Mock).mockResolvedValueOnce(false);
+
+      const result = await getFinanceDocumentUrl('doc1');
+
+      expect(result).toEqual({ success: false, error: 'Keine Berechtigung' });
+    });
   });
 
   describe('deleteFinanceDocument', () => {
@@ -197,20 +210,9 @@ describe('finance-file-actions', () => {
       expect(revalidatePath).toHaveBeenCalledWith('/finanzen');
     });
 
-    it('should return error if user does not own document', async () => {
-      mockSupabase.auth.getUser.mockResolvedValue({
-        data: { user: { id: 'user456' } },
-        error: null,
-      });
-
-      mockSupabase.single.mockResolvedValue({
-        data: {
-          dateipfad: 'path/to',
-          dateiname: 'file.pdf',
-          user_id: 'user123',
-        },
-        error: null,
-      });
+    it('should return error if user lacks permission', async () => {
+      const { hasPermission } = require('@/lib/permissions');
+      (hasPermission as jest.Mock).mockResolvedValueOnce(false);
 
       const result = await deleteFinanceDocument('doc1');
 
@@ -254,6 +256,15 @@ describe('finance-file-actions', () => {
               success: false,
               error: 'Dokument nicht gefunden'
           });
+      });
+
+      it('should return error if user lacks permission', async () => {
+          const { hasPermission } = require('@/lib/permissions');
+          (hasPermission as jest.Mock).mockResolvedValueOnce(false);
+
+          const result = await getFinanceDocumentInfo('doc1');
+
+          expect(result).toEqual({ success: false, error: 'Keine Berechtigung' });
       });
   });
 });

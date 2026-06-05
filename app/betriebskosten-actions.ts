@@ -104,7 +104,7 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
 
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .insert([{ ...formData, user_id: user.id }])
+    .insert([formData])
     .select()
     .single();
 
@@ -336,14 +336,9 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
   console.log('[Server Action] Inserting', rechnungen.length, 'records into Rechnungen table');
 
-  const rechnungenWithUser = rechnungen.map(r => ({
-    ...r,
-    user_id: user.id
-  }));
-
   const { data, error } = await supabase
     .from("Rechnungen")
-    .insert(rechnungenWithUser)
+    .insert(rechnungen)
     .select(); // .select() returns the inserted rows
 
   if (data) {

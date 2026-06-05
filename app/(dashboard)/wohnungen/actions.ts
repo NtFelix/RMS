@@ -20,7 +20,7 @@ interface WohnungData {
   name: string | null;
   miete: number;
   haus_id: string | null;
-  user_id: string;
+  erstellt_von?: string;
   groesse?: number;
 }
 
@@ -39,23 +39,19 @@ export async function speichereWohnung(formData: WohnungFormData) {
   logAction(actionName, 'start', { apartment_name: formData.name });
 
   // Permission & scope checks
-  try {
-    const { requirePermission } = await import("@/lib/permissions");
-    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
-    
-    await requirePermission('wohnungen', 'erstellen');
-    
-    const haeuserIds = await getAccessibleHaeuserIds();
-    if (haeuserIds !== null) {
-      const targetHausId = formData.haus_id;
-      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
-        return { error: "Zugriff auf das angegebene Haus verweigert." };
-      }
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'erstellen'))) {
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const targetHausId = formData.haus_id;
+    if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+      return { error: "Zugriff auf das angegebene Haus verweigert." };
     }
-  } catch (permError) {
-    const errorMessage = permError instanceof Error ? permError.message : "Berechtigungsfehler";
-    logAction(actionName, 'error', { apartment_name: formData.name, error_message: errorMessage });
-    return { error: errorMessage };
   }
 
   try {
@@ -156,7 +152,6 @@ export async function speichereWohnung(formData: WohnungFormData) {
       name: formData.name || null,
       miete: parseFloat(formData.miete),
       haus_id: formData.haus_id || null,
-      user_id: userId
     };
 
     // Only add groesse if it's provided and a valid number

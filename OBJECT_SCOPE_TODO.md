@@ -44,3 +44,8 @@ AND (
 )
 ```
 or equivalent logic matching the table associations (e.g. joining on `Wohnungen` to check `haus_id`).
+
+---
+
+## Performance / später
+- Middleware: check_permission-RPC pro Request → später via JWT-Custom-Claims (Supabase Auth Hook) cachen, um DB-Roundtrip im Edge-Pfad zu vermeiden.

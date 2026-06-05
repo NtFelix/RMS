@@ -124,7 +124,7 @@ describe('betriebskosten-actions', () => {
       });
       expect(mockSupabase.from).toHaveBeenCalledWith('Nebenkosten');
       expect(mockSupabase.insert).toHaveBeenCalledWith([
-        expect.objectContaining({ ...mockFormData, user_id: 'user123' })
+        mockFormData
       ]);
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
     });
@@ -268,9 +268,7 @@ describe('betriebskosten-actions', () => {
       const result = await createRechnungenBatch(mockRechnungen);
 
       expect(result).toEqual({ success: true, data: [{}] });
-      expect(mockSupabase.insert).toHaveBeenCalledWith([
-        expect.objectContaining({ user_id: 'user123', nebenkosten_id: 'nb1' }),
-      ]);
+      expect(mockSupabase.insert).toHaveBeenCalledWith(mockRechnungen);
     });
 
     it('should handle error', async () => {

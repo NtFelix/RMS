@@ -1,14 +1,14 @@
-"use client";
-
 import React from 'react';
-import { useRouter } from 'next/navigation';
-import { ShieldAlert, Home, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ShieldAlert } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { UnauthorizedButtons } from './unauthorized-buttons';
 
-const UnauthorizedPage = () => {
-  const router = useRouter();
+export const metadata = {
+  title: "Kein Zugriff",
+  description: "Sie haben keine Berechtigung für diese Seite."
+};
 
+export default function UnauthorizedPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-foreground">
       <Card className="max-w-md w-full shadow-lg rounded-[2.5rem] border border-border/50">
@@ -29,29 +29,9 @@ const UnauthorizedPage = () => {
           </p>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 px-8 pb-8">
-          <Button
-            variant="default"
-            size="lg"
-            className="w-full h-12 rounded-2xl cursor-pointer"
-            onClick={() => router.push('/dashboard')}
-          >
-            <Home className="mr-2 h-5 w-5" />
-            Zum Dashboard
-          </Button>
-
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full h-12 rounded-2xl cursor-pointer"
-            onClick={() => router.back()}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Zurück
-          </Button>
+          <UnauthorizedButtons />
         </CardFooter>
       </Card>
     </div>
   );
-};
-
-export default UnauthorizedPage;
+}
