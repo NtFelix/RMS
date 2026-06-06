@@ -13,6 +13,11 @@ export async function searchMailSenders(query: string) {
         return [];
     }
 
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
+        return [];
+    }
+
     if (!query || query.length < 2) return [];
 
     // Assuming 'absender' is the column name in Mail_Metadaten
@@ -38,6 +43,11 @@ export async function getMailsBySender(sender: string, startDate?: Date, endDate
     try {
         ({ user, supabase } = await ensureAuth());
     } catch {
+        return [];
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
         return [];
     }
 
@@ -73,8 +83,13 @@ export async function createApplicantsFromMails(mails: { id: string, absender: s
     let user, supabase;
     try {
         ({ user, supabase } = await ensureAuth());
-    } catch {
+    } catch (authError) {
         return { success: false, error: "Nicht authentifiziert" };
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'erstellen'))) {
+        return { success: false, error: "Keine Berechtigung" };
     }
     const userId = user.id;
 
@@ -232,6 +247,11 @@ export async function checkWorkerQueueStatus(userId: string) {
         ({ user } = await ensureAuth());
     } catch {
         return { hasMore: false, error: "Nicht authentifiziert" };
+    }
+
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('mieter', 'ansehen'))) {
+        return { hasMore: false, error: "Keine Berechtigung" };
     }
 
     if (user.id !== userId) {

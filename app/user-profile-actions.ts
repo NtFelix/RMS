@@ -42,9 +42,15 @@ export interface UserProfileForSettings extends SupabaseProfile {
 }
 
 export async function getUserProfileForSettings(): Promise<UserProfileForSettings | { error: string; details?: any }> {
+  let user, supabase;
   try {
-    const { user, supabase } = await ensureAuth();
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: 'Not authenticated', details: errorMessage };
+  }
 
+  try {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')

@@ -91,6 +91,45 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (id) {
+    if (!(await hasPermission('wohnungen', 'bearbeiten'))) {
+      logAction(actionName, 'error', { apartment_id: id, apartment_name: data.name, error_message: "Keine Berechtigung" });
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const targetHausId = data.haus_id;
+      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+        return { success: false, error: { message: "Zugriff auf das angegebene Haus verweigert." } };
+      }
+      
+      const { data: existingWohnung, error: fetchError } = await supabase
+        .from("Wohnungen")
+        .select("haus_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+        return { success: false, error: { message: "Zugriff auf diese Wohnung verweigert." } };
+      }
+    }
+  } else {
+    if (!(await hasPermission('wohnungen', 'erstellen'))) {
+      logAction(actionName, 'error', { apartment_id: id, apartment_name: data.name, error_message: "Keine Berechtigung" });
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const targetHausId = data.haus_id;
+      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+        return { success: false, error: { message: "Zugriff auf das angegebene Haus verweigert." } };
+      }
+    }
+  }
+
   const payload = {
 
     name: data.name,

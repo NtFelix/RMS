@@ -398,7 +398,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
             </div>
             <CardContent className="flex flex-col gap-6">
               <div className="flex flex-col gap-4 mt-4 sm:mt-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" data-testid="house-filters">
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     {[
                       { value: "all", shortLabel: "Alle", fullLabel: "Alle Häuser" },
@@ -407,6 +407,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                     ].map(({ value, shortLabel, fullLabel }) => (
                       <ResponsiveFilterButton
                         key={value}
+                        data-testid={`filter-${value}`}
                         shortLabel={shortLabel}
                         fullLabel={fullLabel}
                         isActive={filter === value}
@@ -415,6 +416,7 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                     ))}
                   </div>
                   <SearchInput
+                    data-testid="search-input"
                     placeholder="Suchen..."
                     className="rounded-full"
                     mode="table"

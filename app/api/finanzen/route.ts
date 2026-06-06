@@ -52,6 +52,11 @@ async function fetchPaginatedData(
 
 export async function GET(request: Request) {
   try {
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('finanzen', 'ansehen'))) {
+      return NextResponse.json({ error: 'Verboten' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') ?? '1', 10);
     const pageSize = parseInt(searchParams.get('pageSize') ?? PAGINATION.DEFAULT_PAGE_SIZE.toString(), 10);
@@ -63,11 +68,17 @@ export async function GET(request: Request) {
     const sortDirection = searchParams.get('sortDirection') as 'asc' | 'desc' || 'desc';
 
     const supabase = await createClient();
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
 
     // Base query with only the fields we need
     let query = supabase
       .from('Finanzen')
       .select('*, Wohnungen(name)', { count: 'exact' });
+
+    if (wohnungIds !== null) {
+      query = query.in('wohnung_id', wohnungIds);
+    }
 
     // Apply filters
     if (searchQuery) {
@@ -142,8 +153,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('finanzen', 'erstellen'))) {
+      return NextResponse.json({ error: 'Verboten' }, { status: 403 });
+    }
+
     const supabase = await createClient();
     const data = await request.json();
+
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      if (!data.wohnung_id || !wohnungIds.includes(data.wohnung_id)) {
+        return NextResponse.json({ error: 'Zugriff verweigert.' }, { status: 403 });
+      }
+    }
 
     const { error, data: result } = await supabase
       .from('Finanzen')
@@ -181,10 +205,31 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('finanzen', 'bearbeiten'))) {
+      return NextResponse.json({ error: 'Verboten' }, { status: 403 });
+    }
+
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
     const supabase = await createClient();
     const data = await request.json();
+
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      if (data.wohnung_id && !wohnungIds.includes(data.wohnung_id)) {
+        return NextResponse.json({ error: 'Zugriff verweigert.' }, { status: 403 });
+      }
+      const { data: existing } = await supabase
+        .from('Finanzen')
+        .select('wohnung_id')
+        .eq('id', id)
+        .single();
+      if (!existing || !existing.wohnung_id || !wohnungIds.includes(existing.wohnung_id)) {
+        return NextResponse.json({ error: 'Zugriff verweigert.' }, { status: 403 });
+      }
+    }
 
     const { error, data: result } = await supabase
       .from('Finanzen')
@@ -222,6 +267,11 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('finanzen', 'loeschen'))) {
+      return NextResponse.json({ error: 'Verboten' }, { status: 403 });
+    }
+
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
 
@@ -233,6 +283,20 @@ export async function DELETE(request: Request) {
     }
 
     const supabase = await createClient();
+
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const { data: existing } = await supabase
+        .from('Finanzen')
+        .select('wohnung_id')
+        .eq('id', id)
+        .single();
+      if (!existing || !existing.wohnung_id || !wohnungIds.includes(existing.wohnung_id)) {
+        return NextResponse.json({ error: 'Zugriff verweigert.' }, { status: 403 });
+      }
+    }
+
     const { error } = await supabase.from('Finanzen').delete().match({ id });
 
     if (error) {

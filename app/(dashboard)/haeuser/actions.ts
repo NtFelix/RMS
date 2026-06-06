@@ -28,6 +28,24 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (id) {
+    if (!(await hasPermission('haeuser', 'bearbeiten'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(id)) {
+      return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+    }
+  } else {
+    if (!(await hasPermission('haeuser', 'erstellen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+  }
+
   try {
     // Process groesse field
     const groesseValue = formData.get("groesse");
@@ -94,6 +112,18 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
 
   try {
     const { user, supabase } = await ensureAuth();
+
+    // Permission & scope checks
+    const { hasPermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    if (!(await hasPermission('haeuser', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(houseId)) {
+      return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+    }
 
     const { error } = await supabase
       .from("Haeuser")
