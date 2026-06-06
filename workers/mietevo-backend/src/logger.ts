@@ -83,7 +83,7 @@ export class WorkerLogger {
         const envApiKey = this.env.POSTHOG_API_KEY;
         let apiKey = envApiKey;
         if (envApiKey && envApiKey.startsWith('phx_')) {
-            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY || envApiKey;
+            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY;
         }
         if (!apiKey) return;
 
@@ -121,7 +121,7 @@ export class WorkerLogger {
         const envApiKey2 = this.env.POSTHOG_API_KEY;
         let apiKey = envApiKey2;
         if (envApiKey2 && envApiKey2.startsWith('phx_')) {
-            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY || envApiKey2;
+            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY;
         }
         const host = this.env.POSTHOG_HOST || 'https://eu.i.posthog.com';
         const endpoint = `${host.replace(/\/$/, '')}/i/v1/logs`;

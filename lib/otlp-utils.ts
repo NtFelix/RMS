@@ -16,10 +16,10 @@ import resolvePostHogHost from './posthog-host';
 export const SERVICE_NAME = 'mietevo';
 export const POSTHOG_API_KEY = (() => {
     const key = process.env.POSTHOG_API_KEY;
-    if (key?.startsWith('phx_')) {
-        return process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    if (key && !key.startsWith('phx_')) {
+        return key;
     }
-    return key || process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    return process.env.NEXT_PUBLIC_POSTHOG_KEY;
 })();
 export const POSTHOG_HOST = resolvePostHogHost();
 

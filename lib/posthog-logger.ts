@@ -34,7 +34,7 @@ const IS_TEST = process.env.NODE_ENV === 'test';
 const DEBUG_MODE = process.env.POSTHOG_LOGS_DEBUG === 'true';
 
 // Always send logs to PostHog when API key is configured (both dev and production)
-const SHOULD_SEND_TO_POSTHOG = true; // Use real API key logic inside flushLogs
+const SHOULD_SEND_TO_POSTHOG = !!POSTHOG_API_KEY;
 
 // Suppress noisy logs in CI/test environments
 const QUIET_MODE = IS_CI || IS_TEST;
@@ -76,7 +76,7 @@ async function flushLogs(): Promise<void> {
         return;
     }
 
-    if (!POSTHOG_API_KEY) {
+    if (!SHOULD_SEND_TO_POSTHOG) {
         debugLog('Skipping flush - POSTHOG_API_KEY not configured');
         logBatch = [];
         return;
@@ -213,7 +213,7 @@ function log(
     }
 
     // Queue for sending to PostHog if configured
-    if (POSTHOG_API_KEY) {
+    if (SHOULD_SEND_TO_POSTHOG) {
         logBatch.push({
             timestamp,
             severityText,

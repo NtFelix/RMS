@@ -963,7 +963,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         // Initialize PostHog only if we have work
         let posthogKey = env.POSTHOG_API_KEY;
         if (posthogKey && posthogKey.startsWith('phx_')) {
-            posthogKey = env.NEXT_PUBLIC_POSTHOG_KEY || posthogKey;
+            posthogKey = env.NEXT_PUBLIC_POSTHOG_KEY;
         }
 
         if (posthogKey) {
