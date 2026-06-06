@@ -640,6 +640,176 @@ function OrganisationMembersTab({
 }
 // End of extracted sub-components
 
+function useOrganisationActions({
+  uiState,
+  dispatch,
+  setMembers,
+  setInvitations,
+  startInviteTransition,
+  startActionTransition,
+  toast: showToast
+}: {
+  uiState: UiState;
+  dispatch: React.Dispatch<UiAction>;
+  setMembers: React.Dispatch<React.SetStateAction<Member[]>>;
+  setInvitations: React.Dispatch<React.SetStateAction<Invitation[]>>;
+  startInviteTransition: (callback: () => void) => void;
+  startActionTransition: (callback: () => void) => void;
+  toast: typeof toast;
+}) {
+  const handleInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uiState.inviteEmail) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(uiState.inviteEmail)) {
+      showToast({
+        title: "Ungültige E-Mail-Adresse",
+        description: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    startInviteTransition(async () => {
+      const res = await createEinladungAction(uiState.inviteEmail, uiState.inviteRole);
+      if (res.success) {
+        showToast({
+          title: "Einladung gesendet",
+          description: `Die Einladung für ${uiState.inviteEmail} wurde erfolgreich erstellt.`,
+          variant: "success"
+        });
+        dispatch({ type: 'CLEAR_INVITE_EMAIL' });
+        if (res.data) {
+          setInvitations(prev => [res.data, ...prev]);
+        }
+      } else {
+        showToast({
+          title: "Einladung fehlgeschlagen",
+          description: res.error?.message || "Ein Fehler ist aufgetreten.",
+          variant: "destructive"
+        });
+      }
+    });
+  };
+
+  const handleRevoke = (id: string, email: string) => {
+    dispatch({
+      type: 'SET_PENDING_CONFIRM',
+      payload: { type: 'revoke', invitationId: id, memberName: email }
+    });
+  };
+
+  const confirmRevoke = () => {
+    if (!uiState.pendingConfirm?.invitationId) return;
+    const { invitationId } = uiState.pendingConfirm;
+
+    startActionTransition(async () => {
+      const res = await revokeEinladungAction(invitationId);
+      if (res.success) {
+        showToast({ title: "Einladung widerrufen", description: "Die Einladung wurde erfolgreich widerrufen.", variant: "success" });
+        setInvitations(prev => prev.filter(i => i.id !== invitationId));
+      } else {
+        showToast({ title: "Fehler", description: res.error?.message || "Die Einladung konnte nicht widerrufen werden.", variant: "destructive" });
+      }
+      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
+    });
+  };
+
+  const handleRoleChange = (memberId: string, name: string, newRole: string) => {
+    dispatch({
+      type: 'SET_PENDING_CONFIRM',
+      payload: { type: 'role', memberId, value: newRole, memberName: name }
+    });
+  };
+
+  const confirmRoleChange = () => {
+    if (!uiState.pendingConfirm?.memberId || !uiState.pendingConfirm?.value) return;
+    const { memberId, value: newRole, memberName } = uiState.pendingConfirm;
+
+    startActionTransition(async () => {
+      const res = await setMitgliedRolleAction(memberId, newRole);
+      if (res.success) {
+        showToast({
+          title: "Rolle aktualisiert",
+          description: `Die Rolle von ${memberName} wurde auf ${
+            newRole === 'owner' ? 'Inhaber' : newRole === 'admin' ? 'Administrator' : 'Mitarbeiter'
+          } geändert.`,
+          variant: "success"
+        });
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as Member['rolle'] } : m));
+      } else {
+        showToast({ title: "Fehler beim Ändern der Rolle", description: res.error?.message || "Die Rolle konnte nicht geändert werden.", variant: "destructive" });
+      }
+      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
+    });
+  };
+
+  const handleStatusChange = (memberId: string, name: string, newStatus: string) => {
+    dispatch({
+      type: 'SET_PENDING_CONFIRM',
+      payload: { type: 'status', memberId, value: newStatus, memberName: name }
+    });
+  };
+
+  const confirmStatusChange = () => {
+    if (!uiState.pendingConfirm?.memberId || !uiState.pendingConfirm?.value) return;
+    const { memberId, value: newStatus, memberName } = uiState.pendingConfirm;
+
+    startActionTransition(async () => {
+      const res = await setMitgliedStatusAction(memberId, newStatus);
+      if (res.success) {
+        showToast({
+          title: "Status aktualisiert",
+          description: `Der Status von ${memberName} wurde auf ${
+            newStatus === 'aktiv' ? 'Aktiv' : 'Deaktiviert'
+          } geändert.`,
+          variant: "success"
+        });
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as Member['status'] } : m));
+      } else {
+        showToast({ title: "Fehler beim Ändern des Status", description: res.error?.message || "Der Status konnte nicht geändert werden.", variant: "destructive" });
+      }
+      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
+    });
+  };
+
+  const handleRemove = (memberId: string, name: string) => {
+    dispatch({
+      type: 'SET_PENDING_CONFIRM',
+      payload: { type: 'delete', memberId, memberName: name }
+    });
+  };
+
+  const confirmRemove = () => {
+    if (!uiState.pendingConfirm?.memberId) return;
+    const { memberId, memberName } = uiState.pendingConfirm;
+
+    startActionTransition(async () => {
+      const res = await removeMitgliedAction(memberId);
+      if (res.success) {
+        showToast({ title: "Mitarbeiter entfernt", description: `${memberName} wurde aus der Organisation entfernt.`, variant: "success" });
+        setMembers(prev => prev.filter(m => m.mitglied_id !== memberId));
+      } else {
+        showToast({ title: "Fehler beim Entfernen", description: res.error?.message || "Der Mitarbeiter konnte nicht entfernt werden.", variant: "destructive" });
+      }
+      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
+    });
+  };
+
+  return {
+    handleInvite,
+    handleRevoke,
+    handleRoleChange,
+    handleStatusChange,
+    handleRemove,
+    confirmRevoke,
+    confirmRoleChange,
+    confirmStatusChange,
+    confirmRemove
+  };
+}
+
 export default function OrganisationClientView({
   initialMembers,
   initialInvitations,
@@ -670,195 +840,25 @@ export default function OrganisationClientView({
 
   const hasVerwaltenPermission = canManage || isUserOwner;
 
-  // Invite action
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uiState.inviteEmail) return;
-
-    // Client-side email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(uiState.inviteEmail)) {
-      toast({
-        title: "Ungültige E-Mail-Adresse",
-        description: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    startInviteTransition(async () => {
-      const res = await createEinladungAction(uiState.inviteEmail, uiState.inviteRole);
-      if (res.success) {
-        toast({
-          title: "Einladung gesendet",
-          description: `Die Einladung für ${uiState.inviteEmail} wurde erfolgreich erstellt.`,
-          variant: "success"
-        });
-        dispatch({ type: 'CLEAR_INVITE_EMAIL' });
-        // Optimistically add invitation or reload list
-        // Since Next.js action does revalidatePath, reloading the router or updating state:
-        if (res.data) {
-          setInvitations(prev => [res.data, ...prev]);
-        }
-      } else {
-        toast({
-          title: "Einladung fehlgeschlagen",
-          description: res.error?.message || "Ein Fehler ist aufgetreten.",
-          variant: "destructive"
-        });
-      }
-    });
-  };
-
-  // Revoke action
-  const handleRevoke = (id: string, email: string) => {
-    dispatch({
-      type: 'SET_PENDING_CONFIRM',
-      payload: {
-        type: 'revoke',
-        invitationId: id,
-        memberName: email
-      }
-    });
-  };
-
-  const confirmRevoke = () => {
-    if (!uiState.pendingConfirm?.invitationId) return;
-    const { invitationId } = uiState.pendingConfirm;
-
-    startActionTransition(async () => {
-      const res = await revokeEinladungAction(invitationId);
-      if (res.success) {
-        toast({
-          title: "Einladung widerrufen",
-          description: "Die Einladung wurde erfolgreich widerrufen.",
-          variant: "success"
-        });
-        setInvitations(prev => prev.filter(i => i.id !== invitationId));
-      } else {
-        toast({
-          title: "Fehler",
-          description: res.error?.message || "Die Einladung konnte nicht widerrufen werden.",
-          variant: "destructive"
-        });
-      }
-      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
-    });
-  };
-
-  // Role change action
-  const handleRoleChange = (memberId: string, name: string, newRole: string) => {
-    dispatch({
-      type: 'SET_PENDING_CONFIRM',
-      payload: {
-        type: 'role',
-        memberId,
-        value: newRole,
-        memberName: name
-      }
-    });
-  };
-
-  const confirmRoleChange = () => {
-    if (!uiState.pendingConfirm?.memberId || !uiState.pendingConfirm?.value) return;
-    const { memberId, value: newRole, memberName } = uiState.pendingConfirm;
-
-    startActionTransition(async () => {
-      const res = await setMitgliedRolleAction(memberId, newRole);
-      if (res.success) {
-        toast({
-          title: "Rolle aktualisiert",
-          description: `Die Rolle von ${memberName} wurde auf ${
-            newRole === 'owner' ? 'Inhaber' : newRole === 'admin' ? 'Administrator' : 'Mitarbeiter'
-          } geändert.`,
-          variant: "success"
-        });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as Member['rolle'] } : m));
-      } else {
-        toast({
-          title: "Fehler beim Ändern der Rolle",
-          description: res.error?.message || "Die Rolle konnte nicht geändert werden.",
-          variant: "destructive"
-        });
-      }
-      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
-    });
-  };
-
-  // Status change action
-  const handleStatusChange = (memberId: string, name: string, newStatus: string) => {
-    dispatch({
-      type: 'SET_PENDING_CONFIRM',
-      payload: {
-        type: 'status',
-        memberId,
-        value: newStatus,
-        memberName: name
-      }
-    });
-  };
-
-  const confirmStatusChange = () => {
-    if (!uiState.pendingConfirm?.memberId || !uiState.pendingConfirm?.value) return;
-    const { memberId, value: newStatus, memberName } = uiState.pendingConfirm;
-
-    startActionTransition(async () => {
-      const res = await setMitgliedStatusAction(memberId, newStatus);
-      if (res.success) {
-        toast({
-          title: "Status aktualisiert",
-          description: `Der Status von ${memberName} wurde auf ${
-            newStatus === 'aktiv' ? 'Aktiv' : 'Deaktiviert'
-          } geändert.`,
-          variant: "success"
-        });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as Member['status'] } : m));
-      } else {
-        toast({
-          title: "Fehler beim Ändern des Status",
-          description: res.error?.message || "Der Status konnte nicht geändert werden.",
-          variant: "destructive"
-        });
-      }
-      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
-    });
-  };
-
-  // Delete/Remove action
-  const handleRemove = (memberId: string, name: string) => {
-    dispatch({
-      type: 'SET_PENDING_CONFIRM',
-      payload: {
-        type: 'delete',
-        memberId,
-        memberName: name
-      }
-    });
-  };
-
-  const confirmRemove = () => {
-    if (!uiState.pendingConfirm?.memberId) return;
-    const { memberId, memberName } = uiState.pendingConfirm;
-
-    startActionTransition(async () => {
-      const res = await removeMitgliedAction(memberId);
-      if (res.success) {
-        toast({
-          title: "Mitarbeiter entfernt",
-          description: `${memberName} wurde aus der Organisation entfernt.`,
-          variant: "success"
-        });
-        setMembers(prev => prev.filter(m => m.mitglied_id !== memberId));
-      } else {
-        toast({
-          title: "Fehler beim Entfernen",
-          description: res.error?.message || "Der Mitarbeiter konnte nicht entfernt werden.",
-          variant: "destructive"
-        });
-      }
-      dispatch({ type: 'SET_PENDING_CONFIRM', payload: null });
-    });
-  };
+  const {
+    handleInvite,
+    handleRevoke,
+    handleRoleChange,
+    handleStatusChange,
+    handleRemove,
+    confirmRevoke,
+    confirmRoleChange,
+    confirmStatusChange,
+    confirmRemove
+  } = useOrganisationActions({
+    uiState,
+    dispatch,
+    setMembers,
+    setInvitations,
+    startInviteTransition,
+    startActionTransition,
+    toast
+  });
 
   // Compute stats for overview tab
   const stats = useMemo(() => {

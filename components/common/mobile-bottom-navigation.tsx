@@ -130,14 +130,335 @@ function navReducer(state: NavUiState, action: NavAction): NavUiState {
   }
 }
 
+function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteActive: (route: string) => boolean) {
+  const { setOpen: setCommandMenuOpen } = useCommandMenu()
+  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
+
+  const [navState, dispatch] = useReducer(navReducer, initialNavState)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const moreButtonRef = useRef<HTMLButtonElement>(null)
+  const dropdownItemRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+
+  // Hydration safety and responsive behavior
+  useEffect(() => {
+    dispatch({ type: 'SET_MOUNTED', payload: true })
+
+    const checkScreenSize = () => {
+      const newIsMobile = window.innerWidth < 768
+      dispatch({ type: 'SET_MOBILE', payload: newIsMobile })
+      return newIsMobile
+    }
+
+    checkScreenSize()
+
+    let resizeTimeout: ReturnType<typeof setTimeout>
+    const handleResize = () => {
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        const newIsMobile = checkScreenSize()
+
+        if (!newIsMobile && navState.isDropdownOpen) {
+          dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
+          dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Navigation switched to desktop mode.' })
+        }
+
+        if (newIsMobile !== navState.isMobile) {
+          dispatch({ type: 'SET_ANNOUNCEMENT', payload:
+            newIsMobile
+              ? 'Switched to mobile navigation.'
+              : 'Switched to desktop navigation.'
+          })
+        }
+      }, 150)
+    }
+
+    window.addEventListener('resize', handleResize, { passive: true })
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      clearTimeout(resizeTimeout)
+    }
+  }, [navState.isDropdownOpen, navState.isMobile])
+
+  // Debounced navigation handler
+  const debouncedNavigate = useDebouncedCallback((callback: () => void) => {
+    if (navState.isNavigating) return
+
+    dispatch({ type: 'SET_NAVIGATING', payload: true })
+    callback()
+
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current)
+    }
+    navigationTimeoutRef.current = setTimeout(() => {
+      dispatch({ type: 'SET_NAVIGATING', payload: false })
+    }, 300)
+  }, 150)
+
+  // Touch feedback handlers
+  const handleTouchStart = useCallback((itemId: string, event: React.TouchEvent) => {
+    dispatch({ type: 'SET_TOUCHED_ITEM', payload: itemId })
+    dispatch({ type: 'SET_TOUCH_START_TIME', payload: Date.now() })
+    dispatch({ type: 'SET_TOUCH_START_POSITION', payload: {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY
+    }})
+  }, [])
+
+  const handleTouchEnd = useCallback((itemId: string, event: React.TouchEvent) => {
+    const touchEndTime = Date.now()
+    const touchDuration = touchEndTime - navState.touchStartTime
+
+    if (touchDuration < 500) {
+      const touchEndPosition = {
+        x: event.changedTouches[0].clientX,
+        y: event.changedTouches[0].clientY
+      }
+      const touchDistance = Math.sqrt(
+        Math.pow(touchEndPosition.x - navState.touchStartPosition.x, 2) +
+        Math.pow(touchEndPosition.y - navState.touchStartPosition.y, 2)
+      )
+      if (touchDistance < 10) {
+        if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
+          try { navigator.vibrate(10) } catch { }
+        }
+      }
+    }
+
+    if (touchDuration < 500 && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
+      try { navigator.vibrate(10) } catch { }
+    }
+
+    setTimeout(() => {
+      dispatch({ type: 'SET_TOUCHED_ITEM', payload: null })
+    }, 150)
+  }, [navState.touchStartTime, navState.touchStartPosition])
+
+  const handleTouchCancel = useCallback(() => {
+    dispatch({ type: 'SET_TOUCHED_ITEM', payload: null })
+  }, [])
+
+  // Dropdown toggle
+  const handleMoreClick = () => {
+    debouncedNavigate(() => {
+      const newState = !navState.isDropdownOpen
+      dispatch({ type: 'SET_DROPDOWN_OPEN', payload: newState })
+      dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: -1 })
+
+      if (newState) {
+        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu opened. Use arrow keys to navigate.' })
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (dropdownItemRefs.current[0]) {
+              dropdownItemRefs.current[0]?.focus()
+              dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: 0 })
+            }
+          })
+        })
+      } else {
+        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
+        requestAnimationFrame(() => {
+          moreButtonRef.current?.focus()
+        })
+      }
+    })
+  }
+
+  // Search click
+  const handleSearchClick = () => {
+    debouncedNavigate(() => {
+      setCommandMenuOpen(true)
+      dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Search opened.' })
+    })
+  }
+
+  // Primary navigation items
+  const primaryNavItems: NavigationItem[] = [
+    { id: 'home', title: 'Home', href: ROUTES.HOME, icon: BarChart3 },
+    { id: 'tenants', title: 'Mieter', href: '/mieter', icon: Users },
+    { id: 'search', title: 'Suchen', icon: SearchIcon, onClick: handleSearchClick },
+    { id: 'finance', title: 'Finanzen', href: '/finanzen', icon: Wallet },
+    { id: 'more', title: 'Mehr', icon: Menu, onClick: handleMoreClick }
+  ]
+
+  // Profile click
+  const handleProfileClick = () => {
+    dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: true })
+    dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
+    dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Settings opened.' })
+  }
+
+  // Logout
+  const handleLogout = async () => {
+    dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
+    dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Logging out...' })
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+    } catch (error) {
+      console.error('Error signing out:', error)
+      dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Logout failed.' })
+    }
+  }
+
+  // Dropdown items
+  const dropdownItems: DropdownItem[] = [
+    { id: 'profile', title: 'Profil', icon: User, onClick: handleProfileClick },
+    { id: 'homepage', title: 'Homepage', href: '/', icon: Globe },
+    { id: 'houses', title: 'Häuser', href: '/haeuser', icon: Building2 },
+    { id: 'apartments', title: 'Wohnungen', href: '/wohnungen', icon: Home },
+    { id: 'operating-costs', title: 'Betriebskosten', href: '/betriebskosten', icon: FileSpreadsheet },
+    { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden },
+    { id: 'tasks', title: 'Aufgaben', href: '/todos', icon: CheckSquare },
+    { id: 'documents', title: 'Dokumente', href: '/dateien', icon: Folder, hidden: !documentsEnabled },
+    { id: 'logout', title: 'Abmelden', icon: LogOut, onClick: handleLogout }
+  ]
+
+  // More button active state
+  const dropdownRoutes = dropdownItems
+    .filter(item => item.href && !item.onClick)
+    .map(item => item.href!)
+
+  const isMoreActive = dropdownRoutes.some(route => isRouteActive(route))
+
+  // Visible dropdown items
+  const visibleDropdownItems = dropdownItems.filter(item => !item.hidden)
+
+  // Keyboard navigation
+  const handleDropdownKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!navState.isDropdownOpen) return
+
+    switch (event.key) {
+      case 'Escape':
+        event.preventDefault()
+        dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
+        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
+        moreButtonRef.current?.focus()
+        break
+      case 'ArrowDown':
+        event.preventDefault()
+        const nextIndex = navState.focusedItemIndex < visibleDropdownItems.length - 1
+          ? navState.focusedItemIndex + 1
+          : 0
+        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: nextIndex })
+        dropdownItemRefs.current[nextIndex]?.focus()
+        break
+      case 'ArrowUp':
+        event.preventDefault()
+        const prevIndex = navState.focusedItemIndex > 0
+          ? navState.focusedItemIndex - 1
+          : visibleDropdownItems.length - 1
+        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: prevIndex })
+        dropdownItemRefs.current[prevIndex]?.focus()
+        break
+      case 'Home':
+        event.preventDefault()
+        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: 0 })
+        dropdownItemRefs.current[0]?.focus()
+        break
+      case 'End':
+        event.preventDefault()
+        const lastIndex = visibleDropdownItems.length - 1
+        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: lastIndex })
+        dropdownItemRefs.current[lastIndex]?.focus()
+        break
+      case 'Tab':
+        dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
+        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
+        break
+    }
+  }, [navState.isDropdownOpen, navState.focusedItemIndex, visibleDropdownItems.length])
+
+  // Navigation selection
+  const handleNavigationSelect = useCallback((itemTitle: string, callback?: () => void) => {
+    if (navState.isNavigating) return
+
+    dispatch({ type: 'SET_NAVIGATING', payload: true })
+    dispatch({ type: 'SET_ANNOUNCEMENT', payload: `Navigating to ${itemTitle}.` })
+
+    callback?.()
+
+    setTimeout(() => {
+      dispatch({ type: 'SET_NAVIGATING', payload: false })
+    }, 300)
+  }, [navState.isNavigating])
+
+  // Click outside handler
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        moreButtonRef.current &&
+        !moreButtonRef.current.contains(event.target as Node)
+      ) {
+        dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
+        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
+      }
+    }
+
+    if (navState.isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside, { passive: true })
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('touchstart', handleClickOutside)
+      }
+    }
+  }, [navState.isDropdownOpen])
+
+  // Keyboard event listener
+  useEffect(() => {
+    if (navState.isDropdownOpen) {
+      document.addEventListener('keydown', handleDropdownKeyDown)
+      return () => {
+        document.removeEventListener('keydown', handleDropdownKeyDown)
+      }
+    }
+  }, [navState.isDropdownOpen, handleDropdownKeyDown])
+
+  // Announcement auto-clear
+  useEffect(() => {
+    if (navState.announcement) {
+      const timer = setTimeout(() => dispatch({ type: 'SET_ANNOUNCEMENT', payload: '' }), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [navState.announcement])
+
+  // Cleanup navigation timeout
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  return {
+    navState,
+    dispatch,
+    dropdownRef,
+    moreButtonRef,
+    dropdownItemRefs,
+    primaryNavItems,
+    dropdownItems,
+    isMoreActive,
+    visibleDropdownItems,
+    handleNavigationSelect,
+    handleTouchStart,
+    handleTouchEnd,
+    handleTouchCancel
+  }
+}
+
 // Extracted sub-components
 function PrimaryNavBar({
   items,
   moreButtonRef,
-  isMoreActive,
-  isDropdownOpen,
-  isNavigating,
-  touchedItem,
+  navState: { isMoreActive, isDropdownOpen, isNavigating, touchedItem },
   isRouteActive,
   onNavigationSelect,
   onMoreClick,
@@ -148,10 +469,7 @@ function PrimaryNavBar({
 }: {
   items: NavigationItem[];
   moreButtonRef: React.RefObject<HTMLButtonElement | null>;
-  isMoreActive: boolean;
-  isDropdownOpen: boolean;
-  isNavigating: boolean;
-  touchedItem: string | null;
+  navState: { isMoreActive: boolean; isDropdownOpen: boolean; isNavigating: boolean; touchedItem: string | null };
   isRouteActive: (route: string) => boolean;
   onNavigationSelect: (itemTitle: string, callback?: () => void) => void;
   onMoreClick: () => void;
@@ -477,427 +795,14 @@ function MoreDropdownMenu({
 
 export default function MobileBottomNavigation({ className, sidebarData }: MobileBottomNavigationProps) {
   const { isRouteActive } = useSidebarActiveState()
-  const { setOpen: setCommandMenuOpen } = useCommandMenu()
-  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
-  const [navState, dispatch] = useReducer(navReducer, initialNavState)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const moreButtonRef = useRef<HTMLButtonElement>(null)
-  const dropdownItemRefs = useRef<(HTMLAnchorElement | null)[]>([])
-  const navigationTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const {
+    navState, dispatch,
+    dropdownRef, moreButtonRef, dropdownItemRefs,
+    primaryNavItems, dropdownItems, isMoreActive,
+    handleNavigationSelect, handleTouchStart, handleTouchEnd, handleTouchCancel
+  } = useMobileNavigation(sidebarData, isRouteActive)
 
-  // Hydration safety and responsive behavior
-  useEffect(() => {
-    // Set mounted to true to prevent hydration mismatches
-    dispatch({ type: 'SET_MOUNTED', payload: true })
-
-    // Check initial screen size
-    const checkScreenSize = () => {
-      const newIsMobile = window.innerWidth < 768
-      dispatch({ type: 'SET_MOBILE', payload: newIsMobile })
-      return newIsMobile
-    }
-
-    // Set initial state
-    checkScreenSize()
-
-    // Add resize listener for responsive behavior with debouncing
-    let resizeTimeout: ReturnType<typeof setTimeout>
-    const handleResize = () => {
-      clearTimeout(resizeTimeout)
-      resizeTimeout = setTimeout(() => {
-        const newIsMobile = checkScreenSize()
-
-        // Close dropdown when switching from mobile to desktop
-        if (!newIsMobile && navState.isDropdownOpen) {
-          dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
-          dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Navigation switched to desktop mode.' })
-        }
-
-        // Announce responsive behavior changes
-        if (newIsMobile !== navState.isMobile) {
-          dispatch({ type: 'SET_ANNOUNCEMENT', payload:
-            newIsMobile
-              ? 'Switched to mobile navigation.'
-              : 'Switched to desktop navigation.'
-          })
-        }
-      }, 150) // Debounce resize events
-    }
-
-    window.addEventListener('resize', handleResize, { passive: true })
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      clearTimeout(resizeTimeout)
-    }
-  }, [navState.isDropdownOpen, navState.isMobile])
-
-  // Debounced navigation handler to prevent rapid navigation attempts
-  const debouncedNavigate = useDebouncedCallback((callback: () => void) => {
-    if (navState.isNavigating) return
-
-    dispatch({ type: 'SET_NAVIGATING', payload: true })
-    callback()
-
-    // Reset navigation state after a short delay
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current)
-    }
-    navigationTimeoutRef.current = setTimeout(() => {
-      dispatch({ type: 'SET_NAVIGATING', payload: false })
-    }, 300)
-  }, 150)
-
-  // Enhanced touch feedback handlers
-  const handleTouchStart = useCallback((itemId: string, event: React.TouchEvent) => {
-    dispatch({ type: 'SET_TOUCHED_ITEM', payload: itemId })
-    dispatch({ type: 'SET_TOUCH_START_TIME', payload: Date.now() })
-    dispatch({ type: 'SET_TOUCH_START_POSITION', payload: {
-      x: event.touches[0].clientX,
-      y: event.touches[0].clientY
-    }})
-  }, [])
-
-  const handleTouchEnd = useCallback((itemId: string, event: React.TouchEvent) => {
-    const touchEndTime = Date.now()
-    const touchDuration = touchEndTime - navState.touchStartTime
-
-    // Only trigger if it's a quick tap (not a long press or drag)
-    if (touchDuration < 500) {
-      const touchEndPosition = {
-        x: event.changedTouches[0].clientX,
-        y: event.changedTouches[0].clientY
-      }
-
-      // Check if touch didn't move too much (not a swipe)
-      const touchDistance = Math.sqrt(
-        Math.pow(touchEndPosition.x - navState.touchStartPosition.x, 2) +
-        Math.pow(touchEndPosition.y - navState.touchStartPosition.y, 2)
-      )
-
-      if (touchDistance < 10) {
-        // Valid tap - provide haptic feedback if available
-        if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
-          try {
-            navigator.vibrate(10)
-          } catch {
-            // Silently fail if vibration is not supported
-          }
-        }
-      }
-    }
-
-    // Always provide haptic feedback for valid touch end events
-    if (touchDuration < 500 && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
-      try {
-        navigator.vibrate(10)
-      } catch {
-        // Silently fail if vibration is not supported
-      }
-    }
-
-    // Clear touched state after a short delay for visual feedback
-    setTimeout(() => {
-      dispatch({ type: 'SET_TOUCHED_ITEM', payload: null })
-    }, 150)
-  }, [navState.touchStartTime, navState.touchStartPosition])
-
-  const handleTouchCancel = useCallback(() => {
-    dispatch({ type: 'SET_TOUCHED_ITEM', payload: null })
-  }, [])
-
-  // Handle dropdown toggle with debouncing
-  const handleMoreClick = () => {
-    debouncedNavigate(() => {
-      const newState = !navState.isDropdownOpen
-      dispatch({ type: 'SET_DROPDOWN_OPEN', payload: newState })
-      dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: -1 })
-
-      // Announce state change to screen readers
-      if (newState) {
-        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu opened. Use arrow keys to navigate.' })
-        // Focus first item when opening - use multiple animation frames for better timing
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (dropdownItemRefs.current[0]) {
-              dropdownItemRefs.current[0]?.focus()
-              dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: 0 })
-            }
-          })
-        })
-      } else {
-        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
-        // Return focus to More button when closing
-        requestAnimationFrame(() => {
-          moreButtonRef.current?.focus()
-        })
-      }
-    })
-  }
-
-  // Handle search button click with debouncing
-  const handleSearchClick = () => {
-    debouncedNavigate(() => {
-      setCommandMenuOpen(true)
-      dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Search opened.' })
-    })
-  }
-
-
-
-  // Define primary navigation items
-  const primaryNavItems: NavigationItem[] = [
-    {
-      id: 'home',
-      title: 'Home',
-      href: ROUTES.HOME,
-      icon: BarChart3
-    },
-    {
-      id: 'tenants',
-      title: 'Mieter',
-      href: '/mieter',
-      icon: Users
-    },
-    {
-      id: 'search',
-      title: 'Suchen',
-      icon: SearchIcon,
-      onClick: handleSearchClick
-    },
-    {
-      id: 'finance',
-      title: 'Finanzen',
-      href: '/finanzen',
-      icon: Wallet
-    },
-    {
-      id: 'more',
-      title: 'Mehr',
-      icon: Menu,
-      onClick: handleMoreClick
-    }
-  ]
-
-  // Handle profile button click
-  const handleProfileClick = () => {
-    dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: true })
-    dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
-    dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Settings opened.' })
-  }
-
-  // Handle logout
-  const handleLogout = async () => {
-    dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
-    dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Logging out...' })
-
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        throw error
-      }
-      // Redirect will be handled by middleware
-    } catch (error) {
-      console.error('Error signing out:', error)
-      dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Logout failed.' })
-    }
-  }
-
-
-
-  // Define dropdown items for "More" menu
-  const dropdownItems: DropdownItem[] = [
-    {
-      id: 'profile',
-      title: 'Profil',
-      icon: User,
-      onClick: handleProfileClick
-    },
-    {
-      id: 'homepage',
-      title: 'Homepage',
-      href: '/',
-      icon: Globe
-    },
-    {
-      id: 'houses',
-      title: 'Häuser',
-      href: '/haeuser',
-      icon: Building2
-    },
-    {
-      id: 'apartments',
-      title: 'Wohnungen',
-      href: '/wohnungen',
-      icon: Home
-    },
-    {
-      id: 'operating-costs',
-      title: 'Betriebskosten',
-      href: '/betriebskosten',
-      icon: FileSpreadsheet
-    },
-    {
-      id: 'organisation',
-      title: 'Organisationen',
-      href: '/organisation',
-      icon: Building2,
-      hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden
-    },
-    {
-      id: 'tasks',
-      title: 'Aufgaben',
-      href: '/todos',
-      icon: CheckSquare
-    },
-    {
-      id: 'documents',
-      title: 'Dokumente',
-      href: '/dateien',
-      icon: Folder,
-      hidden: !documentsEnabled
-    },
-    {
-      id: 'logout',
-      title: 'Abmelden',
-      icon: LogOut,
-      onClick: handleLogout
-    }
-  ]
-
-  // Define dropdown routes to check for "More" button active state (only include items with href)
-  const dropdownRoutes = dropdownItems
-    .filter(item => item.href && !item.onClick) // Only include link items, not button items
-    .map(item => item.href!)
-
-  // Check if any dropdown route is active to highlight "More" button
-  const isMoreActive = dropdownRoutes.some(route => isRouteActive(route))
-
-  // Get visible dropdown items for keyboard navigation
-  const visibleDropdownItems = dropdownItems.filter(item => !item.hidden)
-
-  // Keyboard navigation handler for dropdown
-  const handleDropdownKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!navState.isDropdownOpen) return
-
-    switch (event.key) {
-      case 'Escape':
-        event.preventDefault()
-        dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
-        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
-        moreButtonRef.current?.focus()
-        break
-
-      case 'ArrowDown':
-        event.preventDefault()
-        const nextIndex = navState.focusedItemIndex < visibleDropdownItems.length - 1
-          ? navState.focusedItemIndex + 1
-          : 0
-        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: nextIndex })
-        dropdownItemRefs.current[nextIndex]?.focus()
-        break
-
-      case 'ArrowUp':
-        event.preventDefault()
-        const prevIndex = navState.focusedItemIndex > 0
-          ? navState.focusedItemIndex - 1
-          : visibleDropdownItems.length - 1
-        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: prevIndex })
-        dropdownItemRefs.current[prevIndex]?.focus()
-        break
-
-      case 'Home':
-        event.preventDefault()
-        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: 0 })
-        dropdownItemRefs.current[0]?.focus()
-        break
-
-      case 'End':
-        event.preventDefault()
-        const lastIndex = visibleDropdownItems.length - 1
-        dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: lastIndex })
-        dropdownItemRefs.current[lastIndex]?.focus()
-        break
-
-      case 'Tab':
-        // Allow normal tab behavior but close dropdown
-        dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
-        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
-        break
-    }
-  }, [navState.isDropdownOpen, navState.focusedItemIndex, visibleDropdownItems.length])
-
-  // Handle navigation item selection with debouncing
-  const handleNavigationSelect = useCallback((itemTitle: string, callback?: () => void) => {
-    if (navState.isNavigating) return
-
-    dispatch({ type: 'SET_NAVIGATING', payload: true })
-    dispatch({ type: 'SET_ANNOUNCEMENT', payload: `Navigating to ${itemTitle}.` })
-
-    // Execute callback immediately for better UX
-    callback?.()
-
-    // Reset navigation state after delay
-    setTimeout(() => {
-      dispatch({ type: 'SET_NAVIGATING', payload: false })
-    }, 300)
-  }, [navState.isNavigating])
-
-  // Enhanced click/touch outside handler to close dropdown
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent | TouchEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        moreButtonRef.current &&
-        !moreButtonRef.current.contains(event.target as Node)
-      ) {
-        dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
-        dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'More menu closed.' })
-      }
-    }
-
-    if (navState.isDropdownOpen) {
-      // Listen for both mouse and touch events for better mobile support
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('touchstart', handleClickOutside, { passive: true })
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-        document.removeEventListener('touchstart', handleClickOutside)
-      }
-    }
-  }, [navState.isDropdownOpen])
-
-  // Keyboard navigation event listener
-  useEffect(() => {
-    if (navState.isDropdownOpen) {
-      document.addEventListener('keydown', handleDropdownKeyDown)
-      return () => {
-        document.removeEventListener('keydown', handleDropdownKeyDown)
-      }
-    }
-  }, [navState.isDropdownOpen, handleDropdownKeyDown])
-
-  // Clear announcement after it's been read
-  useEffect(() => {
-    if (navState.announcement) {
-      const timer = setTimeout(() => dispatch({ type: 'SET_ANNOUNCEMENT', payload: '' }), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [navState.announcement])
-
-  // Cleanup navigation timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  // Prevent hydration mismatches by rendering a CSS-only fallback until mounted
   if (!navState.mounted) {
     return (
       <nav
@@ -905,16 +810,12 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
         role="navigation"
         aria-label="Main mobile navigation"
         style={{
-          // CSS-only fallback - ensure proper responsive behavior
           display: 'block',
-          // Safe area support with balanced padding
           paddingTop: '0.5rem',
           paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
         }}
       >
-        {/* Main navigation items fallback */}
         <div className="flex items-center justify-around px-1 h-16">
-          {/* Render static navigation items as fallback with enhanced styling */}
           <div className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-3 py-2 text-muted-foreground rounded-lg mobile-nav-item">
             <BarChart3 className="w-5 h-5 mb-1 transition-all duration-300" aria-hidden="true" />
             <span className="text-xs font-medium transition-all duration-300">Home</span>
@@ -940,7 +841,6 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
     )
   }
 
-  // Don't render on desktop screens (additional safety check)
   if (!navState.isMobile && navState.mounted) {
     return null
   }
@@ -963,17 +863,10 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
         onCloseDropdown={() => dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })}
       />
 
-      {/* Screen reader announcements */}
-      <div
-        className="sr-only"
-        aria-live="polite"
-        aria-atomic="true"
-        role="status"
-      >
+      <output className="sr-only" aria-live="polite" aria-atomic="true">
         {navState.announcement}
-      </div>
+      </output>
 
-      {/* Hidden description for More button */}
       <div id="more-button-description" className="sr-only">
         Opens additional navigation options. Use arrow keys to navigate when open.
       </div>
@@ -981,10 +874,12 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
       <PrimaryNavBar
         items={primaryNavItems}
         moreButtonRef={moreButtonRef}
-        isMoreActive={isMoreActive}
-        isDropdownOpen={navState.isDropdownOpen}
-        isNavigating={navState.isNavigating}
-        touchedItem={navState.touchedItem}
+        navState={{
+          isMoreActive,
+          isDropdownOpen: navState.isDropdownOpen,
+          isNavigating: navState.isNavigating,
+          touchedItem: navState.touchedItem
+        }}
         isRouteActive={isRouteActive}
         onNavigationSelect={handleNavigationSelect}
         onMoreClick={() => dispatch({ type: 'TOGGLE_DROPDOWN' })}
@@ -993,7 +888,6 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
         onTouchCancel={handleTouchCancel}
         className={className}
       />
-      {/* Settings Modal */}
       <SettingsModal open={navState.isSettingsModalOpen} onOpenChange={(open) => dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: open })} />
     </>
   )

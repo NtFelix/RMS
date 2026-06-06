@@ -8,14 +8,14 @@ import OrganisationClientView from "./client-wrapper";
 import { safeRpcCall } from "@/lib/error-handling";
 
 export default async function OrganisationPage() {
-  // Enforce permission and authenticate in parallel
-  const [, { supabase, user }] = await Promise.all([
-    requirePermission('organisation', 'ansehen'),
-    requireAuthenticatedUser()
-  ]);
+  // Get authenticated user first
+  const { supabase, user } = await requireAuthenticatedUser();
 
-  // Get active organization using safeRpcCall
-  const orgIdResult = await safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id });
+  // Enforce permission and get active organization in parallel
+  const [_, orgIdResult] = await Promise.all([
+    requirePermission('organisation', 'ansehen'),
+    safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id })
+  ]);
   const orgId = orgIdResult.data;
   if (!orgIdResult.success || !orgId) {
     console.error("No organisation context found:", orgIdResult.message);
