@@ -91,5 +91,5 @@ jobs:
           --type playwright
           --token ${{ secrets.POSTHOG_VR_TOKEN }}
           --branch ${{ github.head_ref }}
-          --commit ${{ github.sha }}
+          --commit ${{ github.event.pull_request.head.sha || github.sha }}
           --pr ${{ github.event.pull_request.number }}
