@@ -18,6 +18,7 @@ import {
   Globe
 } from 'lucide-react'
 import { useSidebarActiveState } from '@/hooks/use-active-state-manager'
+import { SidebarUserData } from '@/lib/server/user-data'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
@@ -58,9 +59,10 @@ interface DropdownItem {
 
 interface MobileBottomNavigationProps {
   className?: string
+  sidebarData?: SidebarUserData
 }
 
-export default function MobileBottomNavigation({ className }: MobileBottomNavigationProps) {
+export default function MobileBottomNavigation({ className, sidebarData }: MobileBottomNavigationProps) {
   const { isRouteActive } = useSidebarActiveState()
   const { setOpen: setCommandMenuOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
@@ -341,6 +343,13 @@ export default function MobileBottomNavigation({ className }: MobileBottomNaviga
       title: 'Betriebskosten',
       href: '/betriebskosten',
       icon: FileSpreadsheet
+    },
+    {
+      id: 'organisation',
+      title: 'Organisationen',
+      href: '/organisation',
+      icon: Building2,
+      hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden
     },
     {
       id: 'tasks',

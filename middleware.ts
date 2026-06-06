@@ -18,6 +18,7 @@ const MANAGED_ROUTE_PREFIXES = [
   "/dateien",
   "/oauth",
   "/checkout/success",
+  "/organisation",
 ]
 
 const ROUTE_PERMISSIONS: Record<string, string> = {
@@ -242,5 +243,7 @@ export const config = {
     "/dateien/:path*",
     "/checkout/success",
     "/oauth/:path*",
+    "/organisation",
+    "/organisation/:path*",
   ],
 }
