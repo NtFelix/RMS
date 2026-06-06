@@ -172,7 +172,7 @@ export default function ConsentUI({
     // Fetch authorization details on mount
     useEffect(() => {
         const fetchDetails = async () => {
-            if (noAuthId || initialData || initialError) {
+            if (isDemo || noAuthId || initialData || initialError) {
                 setIsLoading(false);
                 return;
             }
@@ -193,27 +193,18 @@ export default function ConsentUI({
                 // Auto-approved: Supabase already granted access — redirect immediately
                 const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
                 if (success && data && !data.client) {
-                    if (autoRedirectUrl) {
-                        safeRedirect(autoRedirectUrl);
-                        return;
+                    if (!autoRedirectUrl) {
+                        throw new Error('Automatische Autorisierung fehlgeschlagen: Keine Weiterleitung erhalten.');
                     }
-                    setLoadError('Automatische Autorisierung fehlgeschlagen: Keine Weiterleitung erhalten.');
-                    setIsLoading(false);
+                    if (!isValidRedirect(autoRedirectUrl) && !isValidSupabaseRedirect(autoRedirectUrl)) {
+                        throw new Error('Ungültige Weiterleitungs-URL. Zugriff verweigert aus Sicherheitsgründen.');
+                    }
+                    safeRedirect(autoRedirectUrl);
                     return;
                 }
 
                 if (!success || detailsError) {
-                    const errMsg = detailsError || 'Failed to load details';
-                    // Redirect to login if not authenticated
-                    if (errMsg.toLowerCase().includes('nicht authentifiziert') ||
-                        errMsg.toLowerCase().includes('not authenticated')) {
-                        const loginUrl = `/auth/login?redirect=${encodeURIComponent(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`)}`;
-                        window.location.href = loginUrl;
-                        return;
-                    }
-                    setLoadError(errMsg);
-                    setIsLoading(false);
-                    return;
+                    throw new Error(detailsError || 'Failed to load details');
                 }
 
                 setAuthDetails(data);
