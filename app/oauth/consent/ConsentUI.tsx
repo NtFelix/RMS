@@ -133,7 +133,10 @@ export default function ConsentUI({
 }: ConsentUIProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError);
+    const [overrideType, setOverrideType] = useState<string | null>(null);
+    const resolvedType = overrideType || type;
+    const noAuthId = !authorizationId || resolvedType === 'error';
+    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError && !noAuthId);
     const [authDetails, setAuthDetails] = useState<AuthorizationDetails | null>(
         isDemo ? {
             id: authorizationId,
@@ -147,7 +150,7 @@ export default function ConsentUI({
 
     // Auto-close success window after a delay with visible countdown
     useEffect(() => {
-        if (type !== 'success' || typeof window === 'undefined') return;
+        if (resolvedType !== 'success' || typeof window === 'undefined') return;
 
         const interval = setInterval(() => {
             setCountdown(prev => Math.max(0, prev - 1));
@@ -164,15 +167,13 @@ export default function ConsentUI({
             clearInterval(interval);
             clearTimeout(timer);
         };
-    }, [type]);
+    }, [resolvedType]);
 
     // Fetch authorization details on mount
     useEffect(() => {
         const fetchDetails = async () => {
-            if (isDemo || !authorizationId || type === 'error' || initialData || initialError) {
-                if (initialData || initialError) {
-                    setIsLoading(false);
-                }
+            if (noAuthId || initialData || initialError) {
+                setIsLoading(false);
                 return;
             }
 
@@ -180,29 +181,59 @@ export default function ConsentUI({
                 // Must use server action — browser cannot call Supabase Auth directly
                 // because Supabase returns Access-Control-Allow-Origin: * which
                 // browsers block when credentials: include is set.
-                const { success, data, error: detailsError } = await getAuthorizationDetailsAction(authorizationId);
+                const result = await getAuthorizationDetailsAction(authorizationId);
+                const { success, data, error: detailsError, alreadyProcessed } = result;
 
-                if (!success || detailsError) {
-                    setLoadError(detailsError || 'Failed to load details');
+                if (alreadyProcessed) {
+                    setOverrideType('success');
                     setIsLoading(false);
                     return;
                 }
 
-                // If auto_approved, Supabase has already granted access and the redirect_to
-                // URL is immediately usable. We still show the consent screen so the user
-                // knows what was approved, but the approve button uses the existing redirect
-                // instead of POSTing to the decision endpoint (which returns 405 on auto-approved).
+                // Auto-approved: Supabase already granted access — redirect immediately
+                const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
+                if (success && data && !data.client) {
+                    if (autoRedirectUrl) {
+                        safeRedirect(autoRedirectUrl);
+                        return;
+                    }
+                    setLoadError('Automatische Autorisierung fehlgeschlagen: Keine Weiterleitung erhalten.');
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (!success || detailsError) {
+                    const errMsg = detailsError || 'Failed to load details';
+                    // Redirect to login if not authenticated
+                    if (errMsg.toLowerCase().includes('nicht authentifiziert') ||
+                        errMsg.toLowerCase().includes('not authenticated')) {
+                        const loginUrl = `/auth/login?redirect=${encodeURIComponent(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`)}`;
+                        window.location.href = loginUrl;
+                        return;
+                    }
+                    setLoadError(errMsg);
+                    setIsLoading(false);
+                    return;
+                }
 
                 setAuthDetails(data);
             } catch (err: any) {
-                setLoadError(err.message || 'Failed to load authorization details');
+                const errMsg = err.message || 'Failed to load authorization details';
+                // Redirect to login if not authenticated
+                if (errMsg.toLowerCase().includes('nicht authentifiziert') ||
+                    errMsg.toLowerCase().includes('not authenticated')) {
+                    const loginUrl = `/auth/login?redirect=${encodeURIComponent(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`)}`;
+                    window.location.href = loginUrl;
+                    return;
+                }
+                setLoadError(errMsg);
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchDetails();
-    }, [authorizationId, type, isDemo, initialData, initialError]);
+    }, [authorizationId, type, isDemo, initialData, initialError, noAuthId, resolvedType]);
 
     // Side-channel: Fetch requested scopes directly from the Mietevo Worker 
     // because Supabase filters out any scopes it doesn't officially support.
@@ -366,7 +397,7 @@ export default function ConsentUI({
     }
 
     // Error state
-    if (type === 'error' || error || loadError) {
+    if (resolvedType === 'error' || error || loadError) {
         return (
             <FullScreenLayout>
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
@@ -392,7 +423,7 @@ export default function ConsentUI({
     }
 
     // Success state — authorization already processed
-    if (type === 'success') {
+    if (resolvedType === 'success') {
         return (
             <FullScreenLayout>
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">

@@ -1,11 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import ConsentUI from './ConsentUI';
-import { getAuthorizationDetailsAction } from './actions';
-import { safeServerRedirect } from '@/lib/oauth-utils';
-
-export const runtime = 'edge';
 
 interface PageProps {
     searchParams: Promise<{
@@ -21,15 +14,10 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     const error = params.error;
     const message = params.message;
 
-    // Handle error state
     if (error && message) {
-        return <ConsentUI
-            type="error"
-            error={message}
-        />;
+        return <ConsentUI type="error" error={message} />;
     }
 
-    // If no authorization_id, show error
     if (!authorizationId) {
         return <ConsentUI
             type="error"
@@ -37,79 +25,5 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         />;
     }
 
-    // Create Supabase server client
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll: () => cookieStore.getAll(),
-                setAll: (cookiesToSet) => {
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        cookieStore.set(name, value, options)
-                    );
-                },
-            },
-        }
-    );
-
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-        // 1. Properly construct the path with its parameters
-        const consentPath = `/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`;
-
-        // 2. Encode the ENTIRE path as a query parameter
-        // Note: Use '/auth/login' as the base path and add the '?'
-        const loginUrl = `/auth/login?redirect=${encodeURIComponent(consentPath)}`;
-
-        // 3. Perform the redirect
-        redirect(loginUrl);
-    }
-
-    // When Supabase has already auto-approved the app, it responds with a ConsentResponse
-    // (which includes redirect_url) instead of an AuthorizationDetailsResponse.
-    // It does NOT include an `auto_approved` property in the JSON, nor does it include `client`.
-    // We must NOT POST a decision in this case — Supabase returns 405 Method Not Allowed
-    // or 400 Validation Failed. Instead, redirect directly.
-    const { success, data, error: fetchError, alreadyProcessed } = await getAuthorizationDetailsAction(authorizationId);
-
-    // When the authorization was already consumed (400 from Supabase or already processed), it means
-    // the auto_approved redirect already completed the OAuth flow successfully.
-    // Show a success screen instead of an error.
-    if (alreadyProcessed) {
-        return <ConsentUI type="success" />;
-    }
-
-    // Detect auto-approval: Supabase successfully returned a payload without client details
-    const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
-    const isAutoApproved = success && !data?.client;
-
-    if (isAutoApproved) {
-        console.info('[OAuth SSR] auto_approved detected', {
-            authorizationId,
-            redirect_to: data?.redirect_to,
-            redirect_url: data?.redirect_url,
-            resolved: autoRedirectUrl,
-        });
-
-        if (autoRedirectUrl) {
-            safeServerRedirect(autoRedirectUrl as string);
-        }
-
-        // auto_approved but no redirect url — redirect to a user-friendly error page
-        // instead of silently rendering the consent UI which would cause a 400 on approve.
-        redirect(`/oauth/consent?error=true&message=${encodeURIComponent('Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden.')}`);
-    }
-
-    return (
-        <ConsentUI
-            type="consent"
-            authorizationId={authorizationId}
-            initialData={success ? (data || undefined) : undefined}
-            initialError={!success ? (fetchError || undefined) : undefined}
-        />
-    );
+    return <ConsentUI type="consent" authorizationId={authorizationId} />;
 }
