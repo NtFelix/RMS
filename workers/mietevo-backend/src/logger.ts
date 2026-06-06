@@ -12,6 +12,14 @@ export interface Env {
     [key: string]: unknown;
 }
 
+export function getPostHogApiKey(env: Env): string | undefined {
+    const key = env.POSTHOG_API_KEY;
+    if (key && !key.startsWith('phx_')) {
+        return key;
+    }
+    return env.NEXT_PUBLIC_POSTHOG_KEY;
+}
+
 export interface LogAttributes {
     [key: string]: string | number | boolean | string[] | number[] | null | undefined;
 }
@@ -63,7 +71,7 @@ export class WorkerLogger {
     constructor(env: Env, ctx: ExecutionContext) {
         this.env = env;
         this.ctx = ctx;
-        if (!this.env.POSTHOG_API_KEY) {
+        if (!getPostHogApiKey(this.env)) {
             console.warn('[WorkerLogger] POSTHOG_API_KEY not set. Logs will not be sent to PostHog.');
         }
     }
@@ -80,11 +88,7 @@ export class WorkerLogger {
         // Console log for local debugging / real-time logs in dashboard
         console.log(`[${severity.toUpperCase()}] ${message}`, JSON.stringify(attributes));
 
-        const envApiKey = this.env.POSTHOG_API_KEY;
-        let apiKey = envApiKey;
-        if (envApiKey && envApiKey.startsWith('phx_')) {
-            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY;
-        }
+        const apiKey = getPostHogApiKey(this.env);
         if (!apiKey) return;
 
         const timestamp = new Date().toISOString();
@@ -118,11 +122,7 @@ export class WorkerLogger {
     async flush() {
         if (this.logs.length === 0) return;
 
-        const envApiKey2 = this.env.POSTHOG_API_KEY;
-        let apiKey = envApiKey2;
-        if (envApiKey2 && envApiKey2.startsWith('phx_')) {
-            apiKey = this.env.NEXT_PUBLIC_POSTHOG_KEY;
-        }
+        const apiKey = getPostHogApiKey(this.env);
         const host = this.env.POSTHOG_HOST || 'https://eu.i.posthog.com';
         const endpoint = `${host.replace(/\/$/, '')}/i/v1/logs`;
 

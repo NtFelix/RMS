@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { WorkerLogger, ExecutionContext } from './logger';
+import { WorkerLogger, ExecutionContext, getPostHogApiKey } from './logger';
 import pako from 'pako';
 import { PostHog } from 'posthog-node';
 
@@ -961,10 +961,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         }
 
         // Initialize PostHog only if we have work
-        let posthogKey = env.POSTHOG_API_KEY;
-        if (posthogKey && posthogKey.startsWith('phx_')) {
-            posthogKey = env.NEXT_PUBLIC_POSTHOG_KEY;
-        }
+        const posthogKey = getPostHogApiKey(env);
 
         if (posthogKey) {
             posthog = new PostHog(posthogKey, {
