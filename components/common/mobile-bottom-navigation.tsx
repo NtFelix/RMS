@@ -130,6 +130,351 @@ function navReducer(state: NavUiState, action: NavAction): NavUiState {
   }
 }
 
+// Extracted sub-components
+function PrimaryNavBar({
+  items,
+  moreButtonRef,
+  isMoreActive,
+  isDropdownOpen,
+  isNavigating,
+  touchedItem,
+  isRouteActive,
+  onNavigationSelect,
+  onMoreClick,
+  onTouchStart,
+  onTouchEnd,
+  onTouchCancel,
+  className
+}: {
+  items: NavigationItem[];
+  moreButtonRef: React.RefObject<HTMLButtonElement | null>;
+  isMoreActive: boolean;
+  isDropdownOpen: boolean;
+  isNavigating: boolean;
+  touchedItem: string | null;
+  isRouteActive: (route: string) => boolean;
+  onNavigationSelect: (itemTitle: string, callback?: () => void) => void;
+  onMoreClick: () => void;
+  onTouchStart: (itemId: string, event: React.TouchEvent) => void;
+  onTouchEnd: (itemId: string, event: React.TouchEvent) => void;
+  onTouchCancel: () => void;
+  className?: string;
+}) {
+  return (
+    <nav
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50",
+        "bg-background/95 backdrop-blur-xs border-t border-border/50",
+        "shadow-lg shadow-black/5",
+        "mobile-nav-responsive",
+        "hydration-safe-mobile",
+        "prevent-layout-shift",
+        "mobile-nav-container",
+        className
+      )}
+      role="navigation"
+      aria-label="Main mobile navigation"
+      style={{
+        display: 'block',
+        paddingTop: '0.5rem',
+        paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
+      }}
+    >
+      <div className="flex items-center justify-around px-1 h-16">
+        {items.map((item) => {
+          const IconComponent = item.icon;
+          let isActive = false;
+          if (item.href) {
+            isActive = isRouteActive(item.href);
+          } else if (item.id === 'more') {
+            isActive = isMoreActive;
+          }
+
+          if (item.id === 'more') {
+            return (
+              <button
+                key={item.id}
+                ref={moreButtonRef}
+                onClick={onMoreClick}
+                onTouchStart={(e) => onTouchStart(item.id, e)}
+                onTouchEnd={(e) => onTouchEnd(item.id, e)}
+                onTouchCancel={onTouchCancel}
+                disabled={isNavigating}
+                className={cn(
+                  "flex flex-col items-center justify-center",
+                  "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
+                  "transition-all duration-200 ease-out",
+                  "rounded-lg relative",
+                  "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                  "active:scale-95",
+                  touchedItem === item.id && "scale-95 bg-accent/20",
+                  isActive
+                    ? "bg-primary/10 text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/10",
+                  isDropdownOpen && "bg-primary/15 text-primary",
+                  isNavigating && "opacity-70 pointer-events-none"
+                )}
+                aria-label={`${item.title} menu${isActive ? ' (current section)' : ''}`}
+                aria-current={isActive ? "page" : undefined}
+                aria-expanded={isDropdownOpen}
+                aria-haspopup="menu"
+                aria-controls={isDropdownOpen ? "more-dropdown-menu" : undefined}
+                aria-describedby="more-button-description"
+              >
+                <IconComponent
+                  className={cn("w-5 h-5 mb-1 transition-all duration-300 ease-out", isActive && "", isDropdownOpen && "rotate-180 ")}
+                  aria-hidden="true"
+                />
+                <span className={cn("text-xs transition-all duration-300 ease-out", isActive ? "font-semibold tracking-wide" : "font-medium", isDropdownOpen && "font-semibold tracking-wide")}>
+                  {item.title}
+                </span>
+              </button>
+            );
+          }
+
+          if (item.href) {
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                onClick={(e) => {
+                  if (isNavigating) { e.preventDefault(); return; }
+                  onNavigationSelect(item.title);
+                }}
+                onTouchStart={(e) => onTouchStart(item.id, e)}
+                onTouchEnd={(e) => onTouchEnd(item.id, e)}
+                onTouchCancel={onTouchCancel}
+                className={cn(
+                  "flex flex-col items-center justify-center",
+                  "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
+                  "transition-all duration-200 ease-out",
+                  "rounded-lg relative",
+                  "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                  "active:scale-95",
+                  touchedItem === item.id && "scale-95 bg-accent/20",
+                  isActive
+                    ? "bg-primary/10 text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
+                  isNavigating && "opacity-70 pointer-events-none"
+                )}
+                aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <IconComponent className={cn("w-5 h-5 mb-1 transition-all duration-300 ease-out", isActive && "")} aria-hidden="true" />
+                <span className={cn("text-xs transition-all duration-300 ease-out", isActive ? "font-semibold tracking-wide" : "font-medium")}>
+                  {item.title}
+                </span>
+              </Link>
+            );
+          } else {
+            return (
+              <button
+                key={item.id}
+                onClick={() => { onNavigationSelect(item.title, () => { item.onClick?.(); }); }}
+                onTouchStart={(e) => onTouchStart(item.id, e)}
+                onTouchEnd={(e) => onTouchEnd(item.id, e)}
+                onTouchCancel={onTouchCancel}
+                disabled={isNavigating}
+                className={cn(
+                  "flex flex-col items-center justify-center",
+                  "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
+                  "transition-all duration-200 ease-out",
+                  "rounded-lg relative",
+                  "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                  "active:scale-95",
+                  touchedItem === item.id && "scale-95 bg-accent/20",
+                  isActive
+                    ? "bg-primary/10 text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
+                  isNavigating && "opacity-70 pointer-events-none"
+                )}
+                aria-label={`${item.title}${item.id === 'search' ? ' - Open search' : ''}${isActive ? ' (current page)' : ''}`}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <IconComponent className={cn("w-5 h-5 mb-1 transition-all duration-300 ease-out", isActive && "")} aria-hidden="true" />
+                <span className={cn("text-xs transition-all duration-300 ease-out", isActive ? "font-semibold tracking-wide" : "font-medium")}>
+                  {item.title}
+                </span>
+              </button>
+            );
+          }
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function MoreDropdownMenu({
+  isOpen,
+  dropdownRef,
+  items,
+  focusedItemIndex,
+  touchedItem,
+  onItemRef,
+  isRouteActive,
+  onNavigationSelect,
+  onTouchStart,
+  onTouchEnd,
+  onTouchCancel,
+  onFocusItem,
+  onCloseDropdown
+}: {
+  isOpen: boolean;
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  items: DropdownItem[];
+  focusedItemIndex: number;
+  touchedItem: string | null;
+  onItemRef: (index: number, el: HTMLAnchorElement | HTMLButtonElement | null) => void;
+  isRouteActive: (route: string) => boolean;
+  onNavigationSelect: (itemTitle: string, callback?: () => void) => void;
+  onTouchStart: (itemId: string, event: React.TouchEvent) => void;
+  onTouchEnd: (itemId: string, event: React.TouchEvent) => void;
+  onTouchCancel: () => void;
+  onFocusItem: (index: number) => void;
+  onCloseDropdown: () => void;
+}) {
+  if (!isOpen) return null;
+
+  const visibleItems = items.filter(item => !item.hidden);
+
+  return (
+    <div
+      id="more-dropdown-menu"
+      ref={dropdownRef}
+      className={cn(
+        "fixed bottom-16 left-0 right-0 z-40",
+        "bg-background/98 backdrop-blur-md border border-border/40 rounded-t-xl shadow-xl shadow-black/15",
+        "mx-3 mb-2 mobile-dropdown",
+        "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-out",
+        "overflow-hidden"
+      )}
+      role="menu"
+      aria-label="More navigation options"
+      aria-orientation="vertical"
+      aria-activedescendant={
+        focusedItemIndex >= 0
+          ? `dropdown-item-${visibleItems[focusedItemIndex]?.id}`
+          : undefined
+      }
+    >
+      <div className="py-2">
+        {visibleItems.map((item, index) => {
+          const IconComponent = item.icon;
+          const isActive = item.href ? isRouteActive(item.href) : false;
+          const isFocused = index === focusedItemIndex;
+
+          if (item.onClick) {
+            return (
+              <div key={item.id}>
+                <button
+                  id={`dropdown-item-${item.id}`}
+                  ref={(el) => onItemRef(index, el as any)}
+                  onClick={() => {
+                    onNavigationSelect(item.title, () => {
+                      item.onClick?.();
+                    });
+                  }}
+                  onMouseEnter={() => onFocusItem(index)}
+                  onFocus={() => onFocusItem(index)}
+                  onTouchStart={(e) => onTouchStart(`dropdown-${item.id}`, e)}
+                  onTouchEnd={(e) => onTouchEnd(`dropdown-${item.id}`, e)}
+                  onTouchCancel={onTouchCancel}
+                  className={cn(
+                    "flex items-center px-4 py-3 mx-2 rounded-lg",
+                    "min-h-[44px] mobile-dropdown-item touch-feedback",
+                    "transition-all duration-200 ease-out",
+                    "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                    "active:scale-95",
+                    touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
+                    "text-foreground hover:bg-accent/10",
+                    isFocused && "bg-accent/5"
+                  )}
+                  role="menuitem"
+                  tabIndex={0}
+                  aria-label={`Open ${item.title}`}
+                >
+                  <IconComponent
+                    className={cn(
+                      "w-5 h-5 mr-3 transition-all duration-300 ease-out",
+                      isFocused && "text-foreground"
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className={cn(
+                    "text-sm transition-all duration-300 ease-out",
+                    "font-medium",
+                    isFocused && "font-medium"
+                  )}>
+                    {item.title}
+                  </span>
+                </button>
+                {item.id === 'profile' && (
+                  <div className="mx-4 my-3 border-t border-border/30" />
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <div key={item.id}>
+              <Link
+                id={`dropdown-item-${item.id}`}
+                ref={(el) => onItemRef(index, el)}
+                href={item.href!}
+                onClick={() => {
+                  onNavigationSelect(item.title, () => {
+                    onCloseDropdown();
+                  });
+                }}
+                onMouseEnter={() => onFocusItem(index)}
+                onFocus={() => onFocusItem(index)}
+                onTouchStart={(e) => onTouchStart(`dropdown-${item.id}`, e)}
+                onTouchEnd={(e) => onTouchEnd(`dropdown-${item.id}`, e)}
+                onTouchCancel={onTouchCancel}
+                className={cn(
+                  "flex items-center px-4 py-3 mx-2 rounded-lg",
+                  "min-h-[44px] mobile-dropdown-item touch-feedback",
+                  "transition-all duration-200 ease-out",
+                  "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
+                  "active:scale-95",
+                  touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
+                  isActive
+                    ? "bg-primary/10 text-primary shadow-xs"
+                    : "text-foreground hover:bg-accent/10",
+                  isFocused && !isActive && "bg-accent/5"
+                )}
+                role="menuitem"
+                tabIndex={0}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
+              >
+                <IconComponent
+                  className={cn(
+                    "w-5 h-5 mr-3 transition-all duration-300 ease-out",
+                    isActive && "text-primary",
+                    isFocused && !isActive && "text-foreground"
+                  )}
+                  aria-hidden="true"
+                />
+                <span className={cn(
+                  "text-sm transition-all duration-300 ease-out",
+                  isActive ? "font-semibold text-primary" : "font-medium",
+                  isFocused && !isActive && "font-medium"
+                )}>
+                  {item.title}
+                </span>
+              </Link>
+              {item.id === 'documents' && (
+                <div className="mx-4 my-3 border-t border-border/30" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function MobileBottomNavigation({ className, sidebarData }: MobileBottomNavigationProps) {
   const { isRouteActive } = useSidebarActiveState()
   const { setOpen: setCommandMenuOpen } = useCommandMenu()
@@ -602,162 +947,21 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
 
   return (
     <>
-      {/* Dropdown Menu - positioned above navigation bar */}
-      {navState.isDropdownOpen && (
-        <div
-          id="more-dropdown-menu"
-          ref={dropdownRef}
-          className={cn(
-            "fixed bottom-16 left-0 right-0 z-40",
-            "bg-background/98 backdrop-blur-md border border-border/40 rounded-t-xl shadow-xl shadow-black/15",
-            "mx-3 mb-2 mobile-dropdown",
-            "animate-in slide-in-from-bottom-4 fade-in-0 duration-300 ease-out",
-            // Ensure proper background and prevent overlap
-            "overflow-hidden"
-          )}
-          role="menu"
-          aria-label="More navigation options"
-          aria-orientation="vertical"
-          aria-activedescendant={
-            navState.focusedItemIndex >= 0
-              ? `dropdown-item-${visibleDropdownItems[navState.focusedItemIndex]?.id}`
-              : undefined
-          }
-        >
-          <div className="py-2">
-            {visibleDropdownItems.map((item, index) => {
-              const IconComponent = item.icon
-              const isActive = item.href ? isRouteActive(item.href) : false
-              const isFocused = index === navState.focusedItemIndex
-
-              // Handle button items (like profile)
-              if (item.onClick) {
-                return (
-                  <div key={item.id}>
-                    <button
-                      id={`dropdown-item-${item.id}`}
-                      ref={(el) => {
-                        dropdownItemRefs.current[index] = el as any
-                      }}
-                      onClick={() => {
-                        handleNavigationSelect(item.title, () => {
-                          item.onClick?.()
-                        })
-                      }}
-                      onMouseEnter={() => dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: index })}
-                      onFocus={() => dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: index })}
-                      onTouchStart={(e) => handleTouchStart(`dropdown-${item.id}`, e)}
-                      onTouchEnd={(e) => handleTouchEnd(`dropdown-${item.id}`, e)}
-                      onTouchCancel={handleTouchCancel}
-                      className={cn(
-                        "flex items-center px-4 py-3 mx-2 rounded-lg",
-                        "min-h-[44px] mobile-dropdown-item touch-feedback",
-                        "transition-all duration-200 ease-out",
-                        "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                        "active:scale-95",
-                        // Enhanced touch feedback
-                        navState.touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
-                        // Button styling - exactly identical to link items (no active state since buttons don't have href)
-                        "text-foreground hover:bg-accent/10",
-                        // Focus state styling - exactly identical to link items
-                        isFocused && "bg-accent/5"
-                      )}
-                      role="menuitem"
-                      tabIndex={0}
-                      aria-label={`Open ${item.title}`}
-                    >
-                      <IconComponent
-                        className={cn(
-                          "w-5 h-5 mr-3 transition-all duration-300 ease-out",
-                          // Icon styling exactly identical to link items (no active state for buttons)
-                          isFocused && "text-foreground"
-                        )}
-                        aria-hidden="true"
-                      />
-                      <span className={cn(
-                        "text-sm transition-all duration-300 ease-out",
-                        // Text styling exactly identical to link items (no active state for buttons)
-                        "font-medium",
-                        isFocused && "font-medium"
-                      )}>
-                        {item.title}
-                      </span>
-                    </button>
-                    {/* Add separator after profile */}
-                    {item.id === 'profile' && (
-                      <div className="mx-4 my-3 border-t border-border/30" />
-                    )}
-                  </div>
-                )
-              }
-
-              // Handle link items
-              return (
-                <div key={item.id}>
-                  <Link
-                    id={`dropdown-item-${item.id}`}
-                    ref={(el) => {
-                      dropdownItemRefs.current[index] = el
-                    }}
-                    href={item.href!}
-                      onClick={() => {
-                        handleNavigationSelect(item.title, () => {
-                          dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
-                        })
-                      }}
-                      onMouseEnter={() => dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: index })}
-                      onFocus={() => dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: index })}
-                      onTouchStart={(e) => handleTouchStart(`dropdown-${item.id}`, e)}
-                      onTouchEnd={(e) => handleTouchEnd(`dropdown-${item.id}`, e)}
-                      onTouchCancel={handleTouchCancel}
-                      className={cn(
-                        "flex items-center px-4 py-3 mx-2 rounded-lg",
-                        "min-h-[44px] mobile-dropdown-item touch-feedback",
-                        "transition-all duration-200 ease-out",
-                        "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                        "active:scale-95",
-                        // Enhanced touch feedback
-                        navState.touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
-                      // Active state styling - mobile optimized without scaling
-                      isActive
-                        ? "bg-primary/10 text-primary shadow-xs"
-                        : "text-foreground hover:bg-accent/10",
-                      // Focus state styling - mobile optimized without scaling
-                      isFocused && !isActive && "bg-accent/5"
-                    )}
-                    role="menuitem"
-                    tabIndex={0}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
-                  >
-                    <IconComponent
-                      className={cn(
-                        "w-5 h-5 mr-3 transition-all duration-300 ease-out",
-                        isActive && "text-primary",
-                        isFocused && !isActive && "text-foreground"
-                      )}
-                      aria-hidden="true"
-                    />
-                    <span className={cn(
-                      "text-sm transition-all duration-300 ease-out",
-                      isActive ? "font-semibold text-primary" : "font-medium",
-                      isFocused && !isActive && "font-medium"
-                    )}>
-                      {item.title}
-                    </span>
-                  </Link>
-                  {/* Add separator before logout */}
-                  {item.id === 'documents' && (
-                    <div className="mx-4 my-3 border-t border-border/30" />
-                  )}
-                </div>
-              )
-            })}
-
-
-          </div>
-        </div>
-      )}
+      <MoreDropdownMenu
+        isOpen={navState.isDropdownOpen}
+        dropdownRef={dropdownRef}
+        items={dropdownItems}
+        focusedItemIndex={navState.focusedItemIndex}
+        touchedItem={navState.touchedItem}
+        onItemRef={(index, el) => { dropdownItemRefs.current[index] = el as HTMLAnchorElement | null; }}
+        isRouteActive={isRouteActive}
+        onNavigationSelect={handleNavigationSelect}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        onFocusItem={(index) => dispatch({ type: 'SET_FOCUSED_ITEM_INDEX', payload: index })}
+        onCloseDropdown={() => dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })}
+      />
 
       {/* Screen reader announcements */}
       <div
@@ -774,201 +978,21 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
         Opens additional navigation options. Use arrow keys to navigate when open.
       </div>
 
-      <nav
-        className={cn(
-          "fixed bottom-0 left-0 right-0 z-50",
-          "bg-background/95 backdrop-blur-xs border-t border-border/50",
-          "shadow-lg shadow-black/5",
-          // Enhanced CSS-only responsive fallbacks
-          "mobile-nav-responsive",
-          "hydration-safe-mobile",
-          // Prevent layout shift during hydration
-          "prevent-layout-shift",
-          // Mobile navigation container optimizations
-          "mobile-nav-container",
-          className
-        )}
-        role="navigation"
-        aria-label="Main mobile navigation"
-        // Enhanced CSS-only fallback for responsive behavior
-        style={{
-          // Ensure proper responsive behavior even without JS
-          display: 'block',
-          // Safe area support with balanced padding
-          paddingTop: '0.5rem',
-          paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
-        }}
-      >
-        {/* Main navigation items */}
-        <div className="flex items-center justify-around px-1 h-16">
-          {primaryNavItems.map((item) => {
-            const IconComponent = item.icon
-
-            // Determine if this item is active
-            let isActive = false
-            if (item.href) {
-              isActive = isRouteActive(item.href)
-            } else if (item.id === 'more') {
-              // Special case: "More" button is active if any dropdown route is active
-              isActive = isMoreActive
-            }
-
-            // Handle "More" button separately due to ref requirement
-            if (item.id === 'more') {
-              return (
-                <button
-                  key={item.id}
-                  ref={moreButtonRef}
-                  onClick={item.onClick}
-                  onTouchStart={(e) => handleTouchStart(item.id, e)}
-                  onTouchEnd={(e) => handleTouchEnd(item.id, e)}
-                  onTouchCancel={handleTouchCancel}
-                  disabled={navState.isNavigating}
-                  className={cn(
-                    "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
-                    "transition-all duration-200 ease-out",
-                    "rounded-lg relative",
-                    "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                    "active:scale-95",
-                    // Enhanced touch feedback
-                    navState.touchedItem === item.id && "scale-95 bg-accent/20",
-                    // Active state styling - mobile optimized without scaling
-                    isActive
-                      ? "bg-primary/10 text-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10",
-                    // Special styling when dropdown is open
-                    navState.isDropdownOpen && "bg-primary/15 text-primary",
-                    // Disabled state for navigation debouncing
-                    navState.isNavigating && "opacity-70 pointer-events-none"
-                  )}
-                  aria-label={`${item.title} menu${isActive ? ' (current section)' : ''}`}
-                  aria-current={isActive ? "page" : undefined}
-                  aria-expanded={navState.isDropdownOpen}
-                  aria-haspopup="menu"
-                  aria-controls={navState.isDropdownOpen ? "more-dropdown-menu" : undefined}
-                  aria-describedby="more-button-description"
-                >
-                  <IconComponent
-                    className={cn(
-                      "w-5 h-5 mb-1 transition-all duration-300 ease-out",
-                      isActive && "",
-                      navState.isDropdownOpen && "rotate-180 "
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className={cn(
-                    "text-xs transition-all duration-300 ease-out",
-                    isActive ? "font-semibold tracking-wide" : "font-medium",
-                    navState.isDropdownOpen && "font-semibold tracking-wide"
-                  )}>
-                    {item.title}
-                  </span>
-                </button>
-              )
-            }
-
-            // If item has href, render as Link, otherwise as button
-            if (item.href) {
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  onClick={(e) => {
-                    if (navState.isNavigating) {
-                      e.preventDefault()
-                      return
-                    }
-                    handleNavigationSelect(item.title)
-                  }}
-                  onTouchStart={(e) => handleTouchStart(item.id, e)}
-                  onTouchEnd={(e) => handleTouchEnd(item.id, e)}
-                  onTouchCancel={handleTouchCancel}
-                  className={cn(
-                    "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
-                    "transition-all duration-200 ease-out",
-                    "rounded-lg relative",
-                    "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                    "active:scale-95",
-                    // Enhanced touch feedback
-                    navState.touchedItem === item.id && "scale-95 bg-accent/20",
-                    // Active state styling matching desktop navigation
-                    isActive
-                      ? "bg-primary/10 text-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
-                    // Disabled state for navigation debouncing
-                    navState.isNavigating && "opacity-70 pointer-events-none"
-                  )}
-                  aria-label={`Navigate to ${item.title}${isActive ? ' (current page)' : ''}`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <IconComponent
-                    className={cn(
-                      "w-5 h-5 mb-1 transition-all duration-300 ease-out",
-                      isActive && ""
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className={cn(
-                    "text-xs transition-all duration-300 ease-out",
-                    isActive ? "font-semibold tracking-wide" : "font-medium"
-                  )}>
-                    {item.title}
-                  </span>
-                </Link>
-              )
-            } else {
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    handleNavigationSelect(item.title, () => {
-                      item.onClick?.()
-                    })
-                  }}
-                  onTouchStart={(e) => handleTouchStart(item.id, e)}
-                  onTouchEnd={(e) => handleTouchEnd(item.id, e)}
-                  onTouchCancel={handleTouchCancel}
-                  disabled={navState.isNavigating}
-                  className={cn(
-                    "flex flex-col items-center justify-center",
-                    "min-h-[44px] min-w-[44px] px-3 py-2 mobile-nav-item touch-feedback",
-                    "transition-all duration-200 ease-out",
-                    "rounded-lg relative",
-                    "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                    "active:scale-95",
-                    // Enhanced touch feedback
-                    navState.touchedItem === item.id && "scale-95 bg-accent/20",
-                    // Active state styling matching desktop navigation
-                    isActive
-                      ? "bg-primary/10 text-primary shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 ",
-                    // Disabled state for navigation debouncing
-                    navState.isNavigating && "opacity-70 pointer-events-none"
-                  )}
-                  aria-label={`${item.title}${item.id === 'search' ? ' - Open search' : ''}${isActive ? ' (current page)' : ''}`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <IconComponent
-                    className={cn(
-                      "w-5 h-5 mb-1 transition-all duration-300 ease-out",
-                      isActive && ""
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className={cn(
-                    "text-xs transition-all duration-300 ease-out",
-                    isActive ? "font-semibold tracking-wide" : "font-medium"
-                  )}>
-                    {item.title}
-                  </span>
-                </button>
-              )
-            }
-          })}
-        </div>
-      </nav>
+      <PrimaryNavBar
+        items={primaryNavItems}
+        moreButtonRef={moreButtonRef}
+        isMoreActive={isMoreActive}
+        isDropdownOpen={navState.isDropdownOpen}
+        isNavigating={navState.isNavigating}
+        touchedItem={navState.touchedItem}
+        isRouteActive={isRouteActive}
+        onNavigationSelect={handleNavigationSelect}
+        onMoreClick={() => dispatch({ type: 'TOGGLE_DROPDOWN' })}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        className={className}
+      />
       {/* Settings Modal */}
       <SettingsModal open={navState.isSettingsModalOpen} onOpenChange={(open) => dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: open })} />
     </>

@@ -280,6 +280,364 @@ function OrganisationConfirmDialog({
     </AlertDialog>
   );
 }
+function OrganisationMembersTable({
+  filteredMembers,
+  hasVerwaltenPermission,
+  isPending,
+  currentUserId,
+  onRoleChange,
+  onStatusChange,
+  onRemove
+}: {
+  filteredMembers: Member[];
+  hasVerwaltenPermission: boolean;
+  isPending: boolean;
+  currentUserId?: string;
+  onRoleChange: (memberId: string, name: string, newRole: string) => void;
+  onStatusChange: (memberId: string, name: string, newStatus: string) => void;
+  onRemove: (memberId: string, name: string) => void;
+}) {
+  return (
+    <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl">Aktive &amp; Deaktivierte Mitglieder</CardTitle>
+        <CardDescription>Mitglieder, die Zugriff auf diese Organisation haben.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
+              <TableRow>
+                <TableHead className="py-3 pl-6">Mitglied</TableHead>
+                <TableHead className="py-3">Rolle</TableHead>
+                <TableHead className="py-3">Status</TableHead>
+                <TableHead className="py-3">Hinzugef&uuml;gt am</TableHead>
+                {hasVerwaltenPermission && <TableHead className="py-3 pr-6 text-right">Aktionen</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredMembers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={hasVerwaltenPermission ? 5 : 4} className="py-8 text-center text-muted-foreground">
+                    Keine Mitglieder gefunden.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredMembers.map((member) => {
+                  const fullName = member.first_name || member.last_name
+                    ? `${member.first_name || ""} ${member.last_name || ""}`.trim()
+                    : "";
+                  const initials = member.first_name || member.last_name
+                    ? ((member.first_name?.charAt(0) ?? "") + (member.last_name?.charAt(0) ?? "")).toUpperCase()
+                    : member.email.charAt(0).toUpperCase();
+                  const isCurrentUser = member.user_id === currentUserId;
+                  const isOwnerRow = member.rolle === 'owner';
+
+                  return (
+                    <TableRow key={member.mitglied_id} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
+                      <TableCell className="py-4 pl-6 flex items-center gap-3">
+                        <Avatar className="h-9 w-9 border border-zinc-200/20">
+                          <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">{initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-sm">
+                            {fullName || member.email.split('@')[0]}
+                            {isCurrentUser && <span className="text-[10px] ml-2 text-zinc-400 font-normal border border-zinc-200 dark:border-zinc-800 px-1.5 py-0.5 rounded-full">Du</span>}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{member.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
+                          <Select defaultValue={member.rolle} onValueChange={(val) => onRoleChange(member.mitglied_id, fullName || member.email, val)} disabled={isPending}>
+                            <SelectTrigger className="w-[130px] h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent className="rounded-lg">
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className={cn("capitalize rounded-full font-medium text-[11px]", isOwnerRow ? "bg-indigo-50/80 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400 border-indigo-200/50" : member.rolle === 'admin' ? "bg-purple-50/80 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 border-purple-200/50" : "bg-zinc-50/80 text-zinc-700 dark:bg-zinc-950/30 dark:text-zinc-400 border-zinc-200/50")}>
+                            {isOwnerRow ? "Inhaber" : member.rolle === 'admin' ? "Admin" : "Mitarbeiter"}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
+                          <Select defaultValue={member.status} onValueChange={(val) => onStatusChange(member.mitglied_id, fullName || member.email, val)} disabled={isPending}>
+                            <SelectTrigger className="w-[120px] h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent className="rounded-lg">
+                              <SelectItem value="aktiv">Aktiv</SelectItem>
+                              <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className={cn("rounded-full font-medium text-[11px]", member.status === 'aktiv' ? "bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200/50" : "bg-rose-50/80 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200/50")}>
+                            {member.status === 'aktiv' ? "Aktiv" : "Deaktiviert"}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
+                        {new Date(member.erstellt_am).toLocaleDateString("de-DE")}
+                      </TableCell>
+                      {hasVerwaltenPermission && (
+                        <TableCell className="py-4 pr-6 text-right">
+                          {!isOwnerRow && !isCurrentUser ? (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg" onClick={() => onRemove(member.mitglied_id, fullName || member.email)} disabled={isPending} title="Mitglied entfernen">
+                              <Trash2 className="size-4" />
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OrganisationInvitationsTable({
+  invitations,
+  expiredInvitationIds,
+  hasVerwaltenPermission,
+  isPending,
+  onRevoke
+}: {
+  invitations: Invitation[];
+  expiredInvitationIds: Set<string>;
+  hasVerwaltenPermission: boolean;
+  isPending: boolean;
+  onRevoke: (id: string, email: string) => void;
+}) {
+  return (
+    <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl">Ausstehende Einladungen</CardTitle>
+        <CardDescription>Eingeladene Personen, die ihre Einladung noch nicht angenommen haben.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
+              <TableRow>
+                <TableHead className="py-3 pl-6">E-Mail-Adresse</TableHead>
+                <TableHead className="py-3">Eingeladen als</TableHead>
+                <TableHead className="py-3">Eingeladen am</TableHead>
+                <TableHead className="py-3">Ablaufdatum</TableHead>
+                {hasVerwaltenPermission && <TableHead className="py-3 pr-6 text-right">Aktionen</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invitations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={hasVerwaltenPermission ? 5 : 4} className="py-8 text-center text-muted-foreground">
+                    Keine ausstehenden Einladungen vorhanden.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                invitations.map((invite) => {
+                  const isExpired = expiredInvitationIds.has(invite.id);
+                  return (
+                    <TableRow key={invite.id} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
+                      <TableCell className="py-4 pl-6 font-medium text-sm flex items-center gap-3">
+                        <Avatar className="h-9 w-9 border border-zinc-200/20">
+                          <AvatarFallback className="bg-zinc-100 text-zinc-500 text-xs font-bold"><Mail className="size-4" /></AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-sm">{invite.email}</span>
+                          {isExpired && <span className="text-[10px] text-rose-500 font-medium">Abgelaufen</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <Badge variant="outline" className={cn("capitalize rounded-full font-medium text-[11px]", invite.rolle === 'admin' ? "bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 border-purple-200/50" : "bg-zinc-50 text-zinc-700 dark:bg-zinc-950/30 dark:text-zinc-400 border-zinc-200/50")}>
+                          {invite.rolle === 'admin' ? "Admin" : "Mitarbeiter"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>{new Date(invite.erstellt_am).toLocaleDateString("de-DE")}</TableCell>
+                      <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>{new Date(invite.expires_at).toLocaleDateString("de-DE")}</TableCell>
+                      {hasVerwaltenPermission && (
+                        <TableCell className="py-4 pr-6 text-right">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg" onClick={() => onRevoke(invite.id, invite.email)} disabled={isPending} title="Einladung widerrufen">
+                            <X className="size-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OrganisationInvitePanel({
+  inviteEmail,
+  inviteRole,
+  isInviting,
+  onInviteEmailChange,
+  onInviteRoleChange,
+  onInvite
+}: {
+  inviteEmail: string;
+  inviteRole: "admin" | "mitarbeiter";
+  isInviting: boolean;
+  onInviteEmailChange: (val: string) => void;
+  onInviteRoleChange: (val: "admin" | "mitarbeiter") => void;
+  onInvite: (e: React.FormEvent) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
+        <CardHeader>
+          <CardTitle className="text-xl">Mitarbeiter einladen</CardTitle>
+          <CardDescription>Senden Sie eine Einladung per E-Mail, um neue Teammitglieder hinzuzuf&uuml;gen.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onInvite} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="email-input">E-Mail-Adresse</label>
+              <Input id="email-input" type="email" placeholder="z.B. mitarbeiter@firma.de" value={inviteEmail} onChange={(e) => onInviteEmailChange(e.target.value)} className="rounded-xl border-zinc-200/80 dark:border-zinc-800/80 h-10" required disabled={isInviting} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="role-select">Rolle</label>
+              <Select value={inviteRole} onValueChange={(val) => onInviteRoleChange(val as "admin" | "mitarbeiter")} disabled={isInviting}>
+                <SelectTrigger id="role-select" className="rounded-xl h-10"><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+                  <SelectItem value="admin">Administrator</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full mt-2 h-10 rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center justify-center gap-2 font-medium" disabled={isInviting || !inviteEmail}>
+              {isInviting ? (
+                <><Clock className="size-4 animate-spin" /><span>Wird eingeladen...</span></>
+              ) : (
+                <><PlusCircle className="size-4" /><span>Einladen</span></>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function OrganisationMembersTab({
+  searchQuery,
+  roleFilter,
+  statusFilter,
+  inviteEmail,
+  inviteRole,
+  filteredMembers,
+  invitations,
+  expiredInvitationIds,
+  hasVerwaltenPermission,
+  isPending,
+  isInviting,
+  currentUserId,
+  onSearchChange,
+  onRoleFilterChange,
+  onStatusFilterChange,
+  onInviteEmailChange,
+  onInviteRoleChange,
+  onInvite,
+  onRevoke,
+  onRoleChange,
+  onStatusChange,
+  onRemove
+}: {
+  searchQuery: string;
+  roleFilter: string;
+  statusFilter: string;
+  inviteEmail: string;
+  inviteRole: "admin" | "mitarbeiter";
+  filteredMembers: Member[];
+  invitations: Invitation[];
+  expiredInvitationIds: Set<string>;
+  hasVerwaltenPermission: boolean;
+  isPending: boolean;
+  isInviting: boolean;
+  currentUserId?: string;
+  onSearchChange: (val: string) => void;
+  onRoleFilterChange: (val: string) => void;
+  onStatusFilterChange: (val: string) => void;
+  onInviteEmailChange: (val: string) => void;
+  onInviteRoleChange: (val: "admin" | "mitarbeiter") => void;
+  onInvite: (e: React.FormEvent) => void;
+  onRevoke: (id: string, email: string) => void;
+  onRoleChange: (memberId: string, name: string, newRole: string) => void;
+  onStatusChange: (memberId: string, name: string, newStatus: string) => void;
+  onRemove: (memberId: string, name: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
+        <div className="flex flex-1 items-center gap-4 max-w-md">
+          <SearchInput placeholder="Mitarbeiter suchen..." value={searchQuery} onChange={(e) => onSearchChange(e.target.value)} className="w-full" />
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={roleFilter} onValueChange={(val) => onRoleFilterChange(val)}>
+            <SelectTrigger className="w-[160px] rounded-xl"><SelectValue placeholder="Rolle filtern" /></SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">Alle Rollen</SelectItem>
+              <SelectItem value="owner">Inhaber</SelectItem>
+              <SelectItem value="admin">Administrator</SelectItem>
+              <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={(val) => onStatusFilterChange(val)}>
+            <SelectTrigger className="w-[160px] rounded-xl"><SelectValue placeholder="Status filtern" /></SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">Alle Status</SelectItem>
+              <SelectItem value="aktiv">Aktiv</SelectItem>
+              <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-3 items-start">
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          <OrganisationMembersTable
+            filteredMembers={filteredMembers}
+            hasVerwaltenPermission={hasVerwaltenPermission}
+            isPending={isPending}
+            currentUserId={currentUserId}
+            onRoleChange={onRoleChange}
+            onStatusChange={onStatusChange}
+            onRemove={onRemove}
+          />
+          <OrganisationInvitationsTable
+            invitations={invitations}
+            expiredInvitationIds={expiredInvitationIds}
+            hasVerwaltenPermission={hasVerwaltenPermission}
+            isPending={isPending}
+            onRevoke={onRevoke}
+          />
+        </div>
+        {hasVerwaltenPermission && (
+          <OrganisationInvitePanel
+            inviteEmail={inviteEmail}
+            inviteRole={inviteRole}
+            isInviting={isInviting}
+            onInviteEmailChange={onInviteEmailChange}
+            onInviteRoleChange={onInviteRoleChange}
+            onInvite={onInvite}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
 // End of extracted sub-components
 
 export default function OrganisationClientView({
@@ -556,337 +914,31 @@ export default function OrganisationClientView({
 
       {uiState.currentTab === "overview" && <OrganisationOverviewTab stats={stats} />}
 
-      {/* Tab: Mitarbeiter */}
       {uiState.currentTab === "members" && (
-        <div className="flex flex-col gap-8">
-          {/* Header Controls & Filter */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
-            <div className="flex flex-1 items-center gap-4 max-w-md">
-              <SearchInput
-                placeholder="Mitarbeiter suchen..."
-                value={uiState.searchQuery}
-                onChange={(e) => dispatch({ type: 'SET_SEARCH_QUERY', payload: e.target.value })}
-                className="w-full"
-              />
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Select value={uiState.roleFilter} onValueChange={(val) => dispatch({ type: 'SET_ROLE_FILTER', payload: val })}>
-                <SelectTrigger className="w-[160px] rounded-xl">
-                  <SelectValue placeholder="Rolle filtern" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">Alle Rollen</SelectItem>
-                  <SelectItem value="owner">Inhaber</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                  <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={uiState.statusFilter} onValueChange={(val) => dispatch({ type: 'SET_STATUS_FILTER', payload: val })}>
-                <SelectTrigger className="w-[160px] rounded-xl">
-                  <SelectValue placeholder="Status filtern" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">Alle Status</SelectItem>
-                  <SelectItem value="aktiv">Aktiv</SelectItem>
-                  <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-8 lg:grid-cols-3 items-start">
-            {/* Table of Members */}
-            <div className="lg:col-span-2 flex flex-col gap-6">
-              <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">Aktive & Deaktivierte Mitglieder</CardTitle>
-                  <CardDescription>
-                    Mitglieder, die Zugriff auf diese Organisation haben.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-                        <TableRow>
-                          <TableHead className="py-3 pl-6">Mitglied</TableHead>
-                          <TableHead className="py-3">Rolle</TableHead>
-                          <TableHead className="py-3">Status</TableHead>
-                          <TableHead className="py-3">Hinzugefügt am</TableHead>
-                          {hasVerwaltenPermission && <TableHead className="py-3 pr-6 text-right">Aktionen</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredMembers.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={hasVerwaltenPermission ? 5 : 4} className="py-8 text-center text-muted-foreground">
-                              Keine Mitglieder gefunden.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredMembers.map((member) => {
-                            const fullName = member.first_name || member.last_name
-                              ? `${member.first_name || ""} ${member.last_name || ""}`.trim()
-                              : "";
-                            const initials = member.first_name || member.last_name
-                              ? ((member.first_name?.charAt(0) ?? "") + (member.last_name?.charAt(0) ?? "")).toUpperCase()
-                              : member.email.charAt(0).toUpperCase();
-
-                            const isCurrentUser = member.user_id === currentUser?.id;
-                            const isOwnerRow = member.rolle === 'owner';
-
-                            return (
-                              <TableRow key={member.mitglied_id} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
-                                <TableCell className="py-4 pl-6 flex items-center gap-3">
-                                  <Avatar className="h-9 w-9 border border-zinc-200/20">
-                                    <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
-                                      {initials}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex flex-col">
-                                    <span className="font-semibold text-sm">
-                                      {fullName || member.email.split('@')[0]}
-                                      {isCurrentUser && <span className="text-[10px] ml-2 text-zinc-400 font-normal border border-zinc-200 dark:border-zinc-800 px-1.5 py-0.5 rounded-full">Du</span>}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">{member.email}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-4">
-                                  {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
-                                    <Select
-                                      defaultValue={member.rolle}
-                                      onValueChange={(val) => handleRoleChange(member.mitglied_id, fullName || member.email, val)}
-                                      disabled={isPending}
-                                    >
-                                      <SelectTrigger className="w-[130px] h-8 rounded-lg text-xs">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="rounded-lg">
-                                        <SelectItem value="admin">Admin</SelectItem>
-                                        <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <Badge variant="outline" className={cn(
-                                      "capitalize rounded-full font-medium text-[11px]",
-                                      isOwnerRow ? "bg-indigo-50/80 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400 border-indigo-200/50" :
-                                      member.rolle === 'admin' ? "bg-purple-50/80 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 border-purple-200/50" :
-                                      "bg-zinc-50/80 text-zinc-700 dark:bg-zinc-950/30 dark:text-zinc-400 border-zinc-200/50"
-                                    )}>
-                                      {isOwnerRow ? "Inhaber" : member.rolle === 'admin' ? "Admin" : "Mitarbeiter"}
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                                <TableCell className="py-4">
-                                  {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
-                                    <Select
-                                      defaultValue={member.status}
-                                      onValueChange={(val) => handleStatusChange(member.mitglied_id, fullName || member.email, val)}
-                                      disabled={isPending}
-                                    >
-                                      <SelectTrigger className="w-[120px] h-8 rounded-lg text-xs">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="rounded-lg">
-                                        <SelectItem value="aktiv">Aktiv</SelectItem>
-                                        <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <Badge variant="outline" className={cn(
-                                      "rounded-full font-medium text-[11px]",
-                                      member.status === 'aktiv' ? "bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200/50" :
-                                      "bg-rose-50/80 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200/50"
-                                    )}>
-                                      {member.status === 'aktiv' ? "Aktiv" : "Deaktiviert"}
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                                <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
-                                  {new Date(member.erstellt_am).toLocaleDateString("de-DE")}
-                                </TableCell>
-                                {hasVerwaltenPermission && (
-                                  <TableCell className="py-4 pr-6 text-right">
-                                    {!isOwnerRow && !isCurrentUser ? (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg"
-                                        onClick={() => handleRemove(member.mitglied_id, fullName || member.email)}
-                                        disabled={isPending}
-                                        title="Mitglied entfernen"
-                                      >
-                                        <Trash2 className="size-4" />
-                                      </Button>
-                                    ) : null}
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            );
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Open Invitations Table */}
-              <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">Ausstehende Einladungen</CardTitle>
-                  <CardDescription>
-                    Eingeladene Personen, die ihre Einladung noch nicht angenommen haben.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-                        <TableRow>
-                          <TableHead className="py-3 pl-6">E-Mail-Adresse</TableHead>
-                          <TableHead className="py-3">Eingeladen als</TableHead>
-                          <TableHead className="py-3">Eingeladen am</TableHead>
-                          <TableHead className="py-3">Ablaufdatum</TableHead>
-                          {hasVerwaltenPermission && <TableHead className="py-3 pr-6 text-right">Aktionen</TableHead>}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {invitations.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={hasVerwaltenPermission ? 5 : 4} className="py-8 text-center text-muted-foreground">
-                              Keine ausstehenden Einladungen vorhanden.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          invitations.map((invite) => {
-                            const isExpired = expiredInvitationIds.has(invite.id);
-                            return (
-                              <TableRow key={invite.id} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
-                                <TableCell className="py-4 pl-6 font-medium text-sm flex items-center gap-3">
-                                  <Avatar className="h-9 w-9 border border-zinc-200/20">
-                                    <AvatarFallback className="bg-zinc-100 text-zinc-500 text-xs font-bold">
-                                      <Mail className="size-4" />
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex flex-col">
-                                    <span className="font-semibold text-sm">{invite.email}</span>
-                                    {isExpired && <span className="text-[10px] text-rose-500 font-medium">Abgelaufen</span>}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-4">
-                                  <Badge variant="outline" className={cn(
-                                    "capitalize rounded-full font-medium text-[11px]",
-                                    invite.rolle === 'admin' ? "bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 border-purple-200/50" :
-                                    "bg-zinc-50 text-zinc-700 dark:bg-zinc-950/30 dark:text-zinc-400 border-zinc-200/50"
-                                  )}>
-                                    {invite.rolle === 'admin' ? "Admin" : "Mitarbeiter"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
-                                  {new Date(invite.erstellt_am).toLocaleDateString("de-DE")}
-                                </TableCell>
-                                <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
-                                  {new Date(invite.expires_at).toLocaleDateString("de-DE")}
-                                </TableCell>
-                                {hasVerwaltenPermission && (
-                                  <TableCell className="py-4 pr-6 text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg"
-                                      onClick={() => handleRevoke(invite.id, invite.email)}
-                                      disabled={isPending}
-                                      title="Einladung widerrufen"
-                                    >
-                                      <X className="size-4" />
-                                    </Button>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            );
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Invite Form Side Section */}
-            {hasVerwaltenPermission && (
-              <div className="flex flex-col gap-6">
-                <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
-                  <CardHeader>
-                    <CardTitle className="text-xl">Mitarbeiter einladen</CardTitle>
-                    <CardDescription>
-                      Senden Sie eine Einladung per E-Mail, um neue Teammitglieder hinzuzufügen.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleInvite} className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="email-input">
-                          E-Mail-Adresse
-                        </label>
-                        <Input
-                          id="email-input"
-                          type="email"
-                          placeholder="z.B. mitarbeiter@firma.de"
-                          value={uiState.inviteEmail}
-                          onChange={(e) => dispatch({ type: 'SET_INVITE_EMAIL', payload: e.target.value })}
-                          className="rounded-xl border-zinc-200/80 dark:border-zinc-800/80 h-10"
-                          required
-                          disabled={isInviting}
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="role-select">
-                          Rolle
-                        </label>
-                        <Select
-                          value={uiState.inviteRole}
-                          onValueChange={(val: "admin" | "mitarbeiter") => dispatch({ type: 'SET_INVITE_ROLE', payload: val })}
-                          disabled={isInviting}
-                        >
-                          <SelectTrigger id="role-select" className="rounded-xl h-10">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl">
-                            <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-                            <SelectItem value="admin">Administrator</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <Button
-                        type="submit"
-                         className="w-full mt-2 h-10 rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center justify-center gap-2 font-medium"
-                         disabled={isInviting || !uiState.inviteEmail}
-                       >
-                        {isInviting ? (
-                          <>
-                            <Clock className="size-4 animate-spin" />
-                            <span>Wird eingeladen...</span>
-                          </>
-                        ) : (
-                          <>
-                            <PlusCircle className="size-4" />
-                            <span>Einladen</span>
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-        </div>
+        <OrganisationMembersTab
+          searchQuery={uiState.searchQuery}
+          roleFilter={uiState.roleFilter}
+          statusFilter={uiState.statusFilter}
+          inviteEmail={uiState.inviteEmail}
+          inviteRole={uiState.inviteRole}
+          filteredMembers={filteredMembers}
+          invitations={invitations}
+          expiredInvitationIds={expiredInvitationIds}
+          hasVerwaltenPermission={hasVerwaltenPermission}
+          isPending={isPending}
+          isInviting={isInviting}
+          currentUserId={currentUser?.id}
+          onSearchChange={(val) => dispatch({ type: 'SET_SEARCH_QUERY', payload: val })}
+          onRoleFilterChange={(val) => dispatch({ type: 'SET_ROLE_FILTER', payload: val })}
+          onStatusFilterChange={(val) => dispatch({ type: 'SET_STATUS_FILTER', payload: val })}
+          onInviteEmailChange={(val) => dispatch({ type: 'SET_INVITE_EMAIL', payload: val })}
+          onInviteRoleChange={(val) => dispatch({ type: 'SET_INVITE_ROLE', payload: val })}
+          onInvite={handleInvite}
+          onRevoke={handleRevoke}
+          onRoleChange={handleRoleChange}
+          onStatusChange={handleStatusChange}
+          onRemove={handleRemove}
+        />
       )}
 
       <OrganisationConfirmDialog
