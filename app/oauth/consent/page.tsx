@@ -1,3 +1,5 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import ConsentUI from './ConsentUI';
 
 interface PageProps {
@@ -23,6 +25,18 @@ export default async function ConsentPage({ searchParams }: PageProps) {
             type="error"
             error="Missing authorization_id. This page requires an OAuth authorization request."
         />;
+    }
+
+    // Lightweight auth check: verify Supabase session cookie exists before rendering consent UI.
+    // This avoids a flash of the consent page followed by redirect to login.
+    // Using createServerClient + getUser() caused 524 timeouts on Cloud Run (network requests),
+    // but reading a cookie is instant and safe.
+    const cookieStore = await cookies();
+    const allCookies = cookieStore.getAll();
+    const hasSession = allCookies.some(c => c.name.startsWith('sb-'));
+    if (!hasSession) {
+        const loginUrl = `/auth/login?redirect=${encodeURIComponent(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`)}`;
+        redirect(loginUrl);
     }
 
     return <ConsentUI type="consent" authorizationId={authorizationId} />;

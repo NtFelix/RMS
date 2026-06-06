@@ -190,18 +190,8 @@ export default function ConsentUI({
                     return;
                 }
 
-                // Auto-approved: Supabase already granted access — redirect immediately
-                const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
-                if (success && data && !data.client) {
-                    if (!autoRedirectUrl) {
-                        throw new Error('Automatische Autorisierung fehlgeschlagen: Keine Weiterleitung erhalten.');
-                    }
-                    if (!isValidRedirect(autoRedirectUrl) && !isValidSupabaseRedirect(autoRedirectUrl)) {
-                        throw new Error('Ungültige Weiterleitungs-URL. Zugriff verweigert aus Sicherheitsgründen.');
-                    }
-                    safeRedirect(autoRedirectUrl);
-                    return;
-                }
+                // Auto-approved: set auth details (without client info) and let user approve manually.
+                // The redirect happens in handleDecision when the user clicks "Allow".
 
                 if (!success || detailsError) {
                     throw new Error(detailsError || 'Failed to load details');
@@ -275,9 +265,16 @@ export default function ConsentUI({
     };
 
     const clientId = authDetails?.client?.id;
+    // For auto-approved authorizations (no client info), infer client name from redirect URL
+    const autoApprovedRedirect = (authDetails as any)?.redirect_url || (authDetails as any)?.redirect_to;
+    const inferredName = !clientId && autoApprovedRedirect
+        ? (autoApprovedRedirect.includes('mcp.mietevo.de')
+            ? 'Mietevo MCP Server'
+            : 'Externe Anwendung')
+        : undefined;
     const { name: clientName, icon: clientIcon } = getSmartClientConfig(
         clientId,
-        authDetails?.client?.name || initialClientName,
+        authDetails?.client?.name || initialClientName || inferredName,
         authDetails?.client?.logo_uri
     );
 
