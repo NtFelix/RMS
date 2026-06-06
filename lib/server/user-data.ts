@@ -10,6 +10,8 @@ export interface SidebarUserData {
   userInitials: string;
   apartmentCount: number;
   apartmentLimit: number | typeof Infinity | null;
+  hasOrganisationPermission: boolean;
+  isOrganisationHidden: boolean;
 }
 
 /**
@@ -28,14 +30,16 @@ export async function getSidebarUserData(
       ...guestData,
       apartmentCount: 0,
       apartmentLimit: Infinity, // Guest users = unlimited (consistent with normalizeApartmentLimit)
+      hasOrganisationPermission: false,
+      isOrganisationHidden: false,
     }
   }
 
   // Use shared utility for display name and initials
   const displayData = getUserDisplayData(user);
 
-  // Parallel fetch for apartment count and profile if not provided
-  const [countResult, secondaryProfileResult] = await Promise.all([
+  // Parallel fetch for apartment count, profile, organisation info if not provided
+  const [countResult, secondaryProfileResult, hasOrgPermResult, orgIdResult] = await Promise.all([
     supabase
       .from('Wohnungen')
       .select('id', { count: 'exact', head: true })
@@ -45,8 +49,26 @@ export async function getSidebarUserData(
       .from('profiles')
       .select('stripe_subscription_status, stripe_price_id')
       .eq('id', user.id)
-      .single() : Promise.resolve({ data: profile })
+      .single() : Promise.resolve({ data: profile }),
+    supabase.rpc('check_permission', {
+      p_modul: 'organisation',
+      p_aktion: 'ansehen',
+    }),
+    supabase.rpc('current_organisation_id')
   ]);
+
+  const hasOrganisationPermission = hasOrgPermResult.data === true;
+  const orgId = orgIdResult.data;
+  let isOrganisationHidden = false;
+
+  if (orgId) {
+    const { data: orgData } = await supabase
+      .from('Organisation')
+      .select('ist_versteckt')
+      .eq('id', orgId)
+      .maybeSingle();
+    isOrganisationHidden = orgData?.ist_versteckt ?? false;
+  }
 
   let apartmentLimit: number | typeof Infinity | null = null;
   const activeProfile = profile || secondaryProfileResult.data;
@@ -77,5 +99,7 @@ export async function getSidebarUserData(
     ...displayData,
     apartmentCount: countResult.count || 0,
     apartmentLimit,
+    hasOrganisationPermission,
+    isOrganisationHidden,
   }
 }

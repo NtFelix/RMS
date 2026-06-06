@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, FolderOpen, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle, GripVertical, FileText, HardDrive, File, Archive } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, Folder, FolderOpen, Mail, Search, ChevronLeft, ChevronRight, Inbox, MessageCircle, PanelLeft, ChevronDown, User, Truck, Package, MapPin, ShoppingCart, Lock, Settings, PlusCircle, Activity, Bell, Loader2, Droplet, Flame, Gauge, Zap, Fuel, Thermometer, Clock, CalendarOff, CheckCircle2, Circle, GripVertical, FileText, HardDrive, File, Archive, Network } from "lucide-react"
 import { motion, Variants, AnimatePresence } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { createClient as createBrowserClient } from "@/utils/supabase/client"
@@ -75,6 +75,11 @@ const sidebarNavGroups: SidebarNavGroupType[] = [
         title: "Suche",
         href: ROUTES.SEARCH,
         icon: Search,
+      },
+      {
+        title: "Organisationen",
+        href: "/organisation",
+        icon: Network,
       },
     ]
   },
@@ -500,7 +505,15 @@ function SidebarContent({
         <nav className="grid gap-1 px-3">
           <TooltipProvider delayDuration={100} skipDelayDuration={300}>
             {sidebarNavGroups.flatMap((group) => group.items).filter(
-              item => !featureFlags.has(item.href) || featureFlags.get(item.href)
+              item => {
+                if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
+                  return false;
+                }
+                if (item.href === "/organisation") {
+                  return sidebarData.hasOrganisationPermission && !sidebarData.isOrganisationHidden;
+                }
+                return true;
+              }
             ).map((item) => {
               const isActive = isRouteActive(item.href);
 

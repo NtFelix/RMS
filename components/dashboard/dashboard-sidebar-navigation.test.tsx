@@ -36,6 +36,8 @@ const mockSidebarData: SidebarUserData = {
   userInitials: 'TU',
   apartmentCount: 5,
   apartmentLimit: 10,
+  hasOrganisationPermission: true,
+  isOrganisationHidden: false,
 }
 
 describe('DashboardSidebar Navigation', () => {

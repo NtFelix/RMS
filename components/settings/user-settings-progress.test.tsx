@@ -60,6 +60,8 @@ describe('UserSettings with Progress Bar', () => {
     userInitials: 'TU',
     apartmentCount: 0,
     apartmentLimit: null,
+    hasOrganisationPermission: true,
+    isOrganisationHidden: false,
   }
 
   const setupMocks = (apartmentCount: number, apartmentLimit: number | null) => {
