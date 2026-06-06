@@ -89,7 +89,7 @@ export default function OrganisationClientView({
   initialMembers,
   initialInvitations,
   currentUser,
-  canManage = true,
+  canManage = false,
   rpcError = null
 }: OrganisationClientViewProps) {
   const [currentTab, setCurrentTab] = useState<"overview" | "members">("overview");
@@ -567,7 +567,7 @@ export default function OrganisationClientView({
                                     </Badge>
                                   )}
                                 </TableCell>
-                                <TableCell className="py-4 text-xs text-muted-foreground">
+                                <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
                                   {new Date(member.erstellt_am).toLocaleDateString("de-DE")}
                                 </TableCell>
                                 {hasVerwaltenPermission && (
@@ -648,10 +648,10 @@ export default function OrganisationClientView({
                                     {invite.rolle === 'admin' ? "Admin" : "Mitarbeiter"}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="py-4 text-xs text-muted-foreground">
+                                <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
                                   {new Date(invite.erstellt_am).toLocaleDateString("de-DE")}
                                 </TableCell>
-                                <TableCell className="py-4 text-xs text-muted-foreground">
+                                <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
                                   {new Date(invite.expires_at).toLocaleDateString("de-DE")}
                                 </TableCell>
                                 {hasVerwaltenPermission && (

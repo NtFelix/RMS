@@ -49,6 +49,10 @@ export default async function OrganisationPage() {
     console.error("Error loading members details:", membersResult.message);
   }
 
+  if (invitationsResult.error) {
+    console.error("Error loading invitations:", invitationsResult.error.message);
+  }
+
   const members = membersResult.data ?? [];
   const invitations = invitationsResult.data ?? [];
 

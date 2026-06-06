@@ -27,6 +27,14 @@ export const createEinladungAction = withLogging(
       return { success: false, error: { message: "Keine Berechtigung zum Verwalten der Organisation." } };
     }
 
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { success: false, error: { message: "Ungültige E-Mail-Adresse." } };
+    }
+
+    if (rolle !== 'admin' && rolle !== 'mitarbeiter') {
+      return { success: false, error: { message: "Ungültige Rolle." } };
+    }
+
     const { data, error } = await supabase.rpc('create_einladung', {
       p_email: email,
       p_rolle: rolle,
@@ -96,6 +104,10 @@ export const setMitgliedRolleAction = withLogging(
       return { success: false, error: { message: "Keine Berechtigung zum Verwalten der Organisation." } };
     }
 
+    if (rolle !== 'admin' && rolle !== 'mitarbeiter') {
+      return { success: false, error: { message: "Ungültige Rolle." } };
+    }
+
     const { error } = await supabase.rpc('set_mitglied_rolle', {
       p_mitglied_id: mitgliedId,
       p_rolle: rolle
@@ -129,6 +141,10 @@ export const setMitgliedStatusAction = withLogging(
 
     if (!(await hasPermission('organisation', 'verwalten'))) {
       return { success: false, error: { message: "Keine Berechtigung zum Verwalten der Organisation." } };
+    }
+
+    if (status !== 'aktiv' && status !== 'deaktiviert') {
+      return { success: false, error: { message: "Ungültige Statusänderung." } };
     }
 
     const { error } = await supabase.rpc('set_mitglied_status', {
