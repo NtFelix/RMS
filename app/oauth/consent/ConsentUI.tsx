@@ -133,10 +133,9 @@ export default function ConsentUI({
 }: ConsentUIProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
-    const [overrideType, setOverrideType] = useState<string | null>(null);
-    const resolvedType = overrideType || type;
-    const noAuthId = !authorizationId || resolvedType === 'error';
-    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError && !noAuthId);
+    const [isAlreadyProcessed, setIsAlreadyProcessed] = useState(false);
+    const hasNoAuthId = !authorizationId || type === 'error';
+    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError && !hasNoAuthId);
     const [authDetails, setAuthDetails] = useState<AuthorizationDetails | null>(
         isDemo ? {
             id: authorizationId,
@@ -150,7 +149,7 @@ export default function ConsentUI({
 
     // Auto-close success window after a delay with visible countdown
     useEffect(() => {
-        if (resolvedType !== 'success' || typeof window === 'undefined') return;
+        if (!isAlreadyProcessed && type !== 'success') return;
 
         const interval = setInterval(() => {
             setCountdown(prev => Math.max(0, prev - 1));
@@ -167,31 +166,25 @@ export default function ConsentUI({
             clearInterval(interval);
             clearTimeout(timer);
         };
-    }, [resolvedType]);
+    }, [isAlreadyProcessed, type]);
 
     // Fetch authorization details on mount
     useEffect(() => {
         const fetchDetails = async () => {
-            if (isDemo || noAuthId || initialData || initialError) {
+            if (isDemo || !authorizationId || type === 'error' || initialData || initialError) {
                 setIsLoading(false);
                 return;
             }
 
             try {
-                // Must use server action — browser cannot call Supabase Auth directly
-                // because Supabase returns Access-Control-Allow-Origin: * which
-                // browsers block when credentials: include is set.
                 const result = await getAuthorizationDetailsAction(authorizationId);
                 const { success, data, error: detailsError, alreadyProcessed } = result;
 
                 if (alreadyProcessed) {
-                    setOverrideType('success');
+                    setIsAlreadyProcessed(true);
                     setIsLoading(false);
                     return;
                 }
-
-                // Auto-approved: set auth details (without client info) and let user approve manually.
-                // The redirect happens in handleDecision when the user clicks "Allow".
 
                 if (!success || detailsError) {
                     throw new Error(detailsError || 'Failed to load details');
@@ -200,7 +193,6 @@ export default function ConsentUI({
                 setAuthDetails(data);
             } catch (err: any) {
                 const errMsg = err.message || 'Failed to load authorization details';
-                // Redirect to login if not authenticated
                 if (errMsg.toLowerCase().includes('nicht authentifiziert') ||
                     errMsg.toLowerCase().includes('not authenticated')) {
                     const loginUrl = `/auth/login?redirect=${encodeURIComponent(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`)}`;
@@ -214,7 +206,7 @@ export default function ConsentUI({
         };
 
         fetchDetails();
-    }, [authorizationId, type, isDemo, initialData, initialError, noAuthId, resolvedType]);
+    }, [authorizationId, type, isDemo, initialData, initialError]);
 
     // Side-channel: Fetch requested scopes directly from the Mietevo Worker 
     // because Supabase filters out any scopes it doesn't officially support.
@@ -385,7 +377,7 @@ export default function ConsentUI({
     }
 
     // Error state
-    if (resolvedType === 'error' || error || loadError) {
+    if (type === 'error' || error || loadError) {
         return (
             <FullScreenLayout>
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
@@ -411,7 +403,7 @@ export default function ConsentUI({
     }
 
     // Success state — authorization already processed
-    if (resolvedType === 'success') {
+    if (isAlreadyProcessed || type === 'success') {
         return (
             <FullScreenLayout>
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
