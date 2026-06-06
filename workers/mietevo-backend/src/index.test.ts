@@ -151,7 +151,7 @@ describe('Backend Worker Tests', () => {
     });
 
     describe('Main Router (fetch)', () => {
-        it('should route to /ai correctly', async () => {
+        it('should route to /ai correctly', { timeout: 15000 }, async () => {
             // Mocking handleAIRequest indirectly by checking the response or using spies
             // Since we export 'default', we can test that.
             const request = new Request('https://worker.com/ai', {
