@@ -14,7 +14,13 @@ export interface LogAttributes {
 import resolvePostHogHost from './posthog-host';
 
 export const SERVICE_NAME = 'mietevo';
-export const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
+export const POSTHOG_API_KEY = (() => {
+    const key = process.env.POSTHOG_API_KEY;
+    if (key && !key.startsWith('phx_')) {
+        return key;
+    }
+    return process.env.NEXT_PUBLIC_POSTHOG_KEY;
+})();
 export const POSTHOG_HOST = resolvePostHogHost();
 
 /**
