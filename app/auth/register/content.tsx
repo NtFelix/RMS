@@ -21,6 +21,7 @@ import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 import { authState } from "@/lib/auth-state"
+import { syncSupportIdentity } from "@/lib/posthog-support"
 
 const benefits = [
   "14 Tage kostenlos testen",
@@ -112,6 +113,7 @@ export default function RegisterPage() {
           is_anonymous: false,
         })
       }
+      await syncSupportIdentity(posthog, data.user.id)
       // Track registration success (GDPR-compliant - checks consent internally)
       trackRegisterSuccess('email')
     }

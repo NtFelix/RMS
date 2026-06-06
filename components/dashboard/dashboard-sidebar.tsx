@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
@@ -34,6 +35,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { useModalStore } from "@/hooks/use-modal-store"
+import { useSupportStore } from "@/hooks/use-support-store"
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/common/navigation-interceptor"
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
@@ -403,10 +405,11 @@ function SidebarContent({
   // Feature flags for sidebar bottom actions
   const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
   const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
+  const { openSupport, unreadCount: supportUnreadCount } = useSupportStore()
 
   // Unread badge indicators for sidebar bottom actions
   // TODO: Implement later logic to check for unread messages / support requests in the inbox
-  const hasUnreadMessages = false
+  const hasUnreadMessages = supportUnreadCount > 0
   // TODO: Implement later logic to check for unread notifications in the notification center
   const hasUnreadNotifications = false
 
@@ -605,7 +608,7 @@ function SidebarContent({
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
                   <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
-                  <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Offen</span>
+                  <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">{supportUnreadCount} Offen</span>
                 </div>
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
@@ -617,12 +620,13 @@ function SidebarContent({
                   </p>
                 </div>
                 <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
-                  <Link 
-                    href="/support" 
+                  <button
+                    type="button"
+                    onClick={() => openSupport()}
                     className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
                   >
-                    Support kontaktieren
-                  </Link>
+                    Support öffnen
+                  </button>
                 </div>
               </div>
             </PopoverContent>
@@ -685,4 +689,3 @@ function SidebarContent({
     </div>
   )
 }
-
