@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useReducer, useRef, useCallback } from 'react'
+import React, { useEffect, useReducer, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import {
   BarChart3,
@@ -86,8 +86,6 @@ type NavAction =
   | { type: 'SET_NAVIGATING'; payload: boolean }
   | { type: 'SET_TOUCH_START_TIME'; payload: number }
   | { type: 'SET_TOUCH_START_POSITION'; payload: { x: number; y: number } }
-  | { type: 'CLOSE_DROPDOWN_AND_ANNOUNCE'; payload: string }
-  | { type: 'OPEN_DROPDOWN_AND_FOCUS'; payload: string }
   | { type: 'TOGGLE_DROPDOWN' }
 
 const initialNavState: NavUiState = {
@@ -125,12 +123,8 @@ function navReducer(state: NavUiState, action: NavAction): NavUiState {
       return { ...state, touchStartTime: action.payload }
     case 'SET_TOUCH_START_POSITION':
       return { ...state, touchStartPosition: action.payload }
-    case 'CLOSE_DROPDOWN_AND_ANNOUNCE':
-      return { ...state, isDropdownOpen: false, focusedItemIndex: -1, announcement: action.payload }
-    case 'OPEN_DROPDOWN_AND_FOCUS':
-      return { ...state, isDropdownOpen: true, focusedItemIndex: -1, announcement: action.payload }
     case 'TOGGLE_DROPDOWN':
-      return { ...state, isDropdownOpen: !state.isDropdownOpen, focusedItemIndex: state.isDropdownOpen ? -1 : -1 }
+      return { ...state, isDropdownOpen: !state.isDropdownOpen, focusedItemIndex: !state.isDropdownOpen ? -1 : state.focusedItemIndex }
     default:
       return state
   }
@@ -217,12 +211,12 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
     dispatch({ type: 'SET_TOUCH_START_POSITION', payload: {
       x: event.touches[0].clientX,
       y: event.touches[0].clientY
-    }}
+    }})
   }, [])
 
   const handleTouchEnd = useCallback((itemId: string, event: React.TouchEvent) => {
     const touchEndTime = Date.now()
-    const touchDuration = touchEndTime - touchStartTime
+    const touchDuration = touchEndTime - navState.touchStartTime
 
     // Only trigger if it's a quick tap (not a long press or drag)
     if (touchDuration < 500) {
@@ -242,7 +236,7 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
         if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
           try {
             navigator.vibrate(10)
-          } catch (error) {
+          } catch {
             // Silently fail if vibration is not supported
           }
         }
@@ -253,7 +247,7 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
     if (touchDuration < 500 && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
       try {
         navigator.vibrate(10)
-      } catch (error) {
+      } catch {
         // Silently fail if vibration is not supported
       }
     }

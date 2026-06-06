@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useReducer, useTransition, useMemo, useCallback } from "react";
+import { useState, useReducer, useTransition, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,21 +16,13 @@ import {
   Users,
   Shield,
   Mail,
-  UserMinus,
-  UserCheck,
-  UserX,
   X,
   PlusCircle,
   Network,
-  Calendar,
   Lock,
-  ArrowRight,
-  UserCog,
-  Pencil,
   Trash2,
   AlertTriangle,
-  Clock,
-  RotateCcw
+  Clock
 } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
 import {
@@ -146,8 +138,151 @@ function uiReducer(state: UiState, action: UiAction): UiState {
   }
 }
 
+// Extracted sub-components for maintainability
+function OrganisationTabToggle({
+  currentTab,
+  onTabChange
+}: {
+  currentTab: "overview" | "members";
+  onTabChange: (tab: "overview" | "members") => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
+      <m.button
+        layout
+        type="button"
+        onClick={() => onTabChange("overview")}
+        className={cn(
+          "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+          currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        {currentTab === "overview" && (
+          <m.div
+            layoutId="active-org-tab-pill"
+            className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          />
+        )}
+        <Network className="size-4 shrink-0" />
+        <span>&Uuml;bersicht</span>
+      </m.button>
+
+      <m.button
+        layout
+        type="button"
+        onClick={() => onTabChange("members")}
+        className={cn(
+          "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
+          currentTab === "members" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        {currentTab === "members" && (
+          <m.div
+            layoutId="active-org-tab-pill"
+            className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          />
+        )}
+        <Users className="size-4 shrink-0" />
+        <span>Mitarbeiter</span>
+      </m.button>
+    </div>
+  );
+}
+
+function OrganisationOverviewTab({ stats }: { stats: { active: number; admins: number; pendingInvites: number; ownerName: string } }) {
+  return (
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <StatCard
+        title="Aktive Mitarbeiter"
+        value={stats.active}
+        icon={<Users className="size-4 text-emerald-500" />}
+        description="Mitarbeiter mit aktivem Zugriff"
+      />
+      <StatCard
+        title="Administratoren / Inhaber"
+        value={stats.admins}
+        icon={<Shield className="size-4 text-purple-500" />}
+        description="Mitarbeiter mit Verwaltungsrechten"
+      />
+      <StatCard
+        title="Offene Einladungen"
+        value={stats.pendingInvites}
+        icon={<Mail className="size-4 text-amber-500" />}
+        description="Ausstehende Einladungen"
+      />
+      <StatCard
+        title="Organisationseigent&uuml;mer"
+        value={stats.ownerName.split('@')[0]}
+        icon={<Lock className="size-4 text-indigo-500" />}
+        description={stats.ownerName}
+      />
+    </div>
+  );
+}
+
+function OrganisationConfirmDialog({
+  pendingConfirm,
+  isPending,
+  onConfirm,
+  onClose
+}: {
+  pendingConfirm: UiState['pendingConfirm'];
+  isPending: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <AlertDialog open={pendingConfirm !== null} onOpenChange={(open) => !open && onClose()}>
+      <AlertDialogContent className="rounded-[2rem] max-w-md border border-zinc-200/50 dark:border-zinc-800/50">
+        <AlertDialogHeader className="flex flex-col gap-3">
+          <div className="mx-auto bg-amber-500/10 text-amber-500 p-4 rounded-full w-fit">
+            <AlertTriangle className="size-8" />
+          </div>
+          <AlertDialogTitle className="text-xl font-bold text-center">
+            {pendingConfirm?.type === 'revoke' && "Einladung widerrufen"}
+            {pendingConfirm?.type === 'role' && "Rolle &auml;ndern"}
+            {pendingConfirm?.type === 'status' && "Status &auml;ndern"}
+            {pendingConfirm?.type === 'delete' && "Mitglied entfernen"}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-center text-sm text-muted-foreground leading-relaxed">
+            {pendingConfirm?.type === 'revoke' && (
+              <>M&ouml;chten Sie die Einladung f&uuml;r <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich widerrufen? Die Person wird die Einladung nicht mehr annehmen k&ouml;nnen.</>
+            )}
+            {pendingConfirm?.type === 'role' && (
+              <>M&ouml;chten Sie die Rolle von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'owner' ? 'Inhaber' : pendingConfirm.value === 'admin' ? 'Administrator' : 'Mitarbeiter'}</strong> &auml;ndern?</>
+            )}
+            {pendingConfirm?.type === 'status' && (
+              <>M&ouml;chten Sie den Status von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'aktiv' ? 'Aktiv' : 'Deaktiviert'}</strong> &auml;ndern?</>
+            )}
+            {pendingConfirm?.type === 'delete' && (
+              <>M&ouml;chten Sie <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich aus der Organisation entfernen? Der Zugriff auf alle Daten dieser Organisation geht sofort verloren.</>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-4">
+          <AlertDialogCancel className="rounded-xl flex-1 border border-zinc-200 dark:border-zinc-800" disabled={isPending}>
+            Abbrechen
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="rounded-xl flex-1 bg-amber-500 hover:bg-amber-600 text-white font-medium"
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm();
+            }}
+            disabled={isPending}
+          >
+            {isPending ? "Bitte warten..." : "Best&auml;tigen"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+// End of extracted sub-components
+
 export default function OrganisationClientView({
-  org,
   initialMembers,
   initialInvitations,
   currentUser,
@@ -157,9 +292,7 @@ export default function OrganisationClientView({
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invitations, setInvitations] = useState<Invitation[]>(initialInvitations);
-  const [expiredInvitationIds, setExpiredInvitationIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
+  const expiredInvitationIds = useMemo(() => {
     const now = new Date();
     const expired = new Set<string>();
     invitations.forEach(invite => {
@@ -167,7 +300,7 @@ export default function OrganisationClientView({
         expired.add(invite.id);
       }
     });
-    setExpiredInvitationIds(expired);
+    return expired;
   }, [invitations]);
 
   const [isInviting, startInviteTransition] = useTransition();
@@ -282,7 +415,7 @@ export default function OrganisationClientView({
           } geändert.`,
           variant: "success"
         });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as any } : m));
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as Member['rolle'] } : m));
       } else {
         toast({
           title: "Fehler beim Ändern der Rolle",
@@ -321,7 +454,7 @@ export default function OrganisationClientView({
           } geändert.`,
           variant: "success"
         });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as any } : m));
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as Member['status'] } : m));
       } else {
         toast({
           title: "Fehler beim Ändern des Status",
@@ -416,78 +549,12 @@ export default function OrganisationClientView({
         </div>
       )}
 
-      {/* 2-way sliding toggle */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-        <m.button
-          layout
-          type="button"
-          onClick={() => dispatch({ type: 'SET_TAB', payload: "overview" })}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            uiState.currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {uiState.currentTab === "overview" && (
-            <m.div
-              layoutId="active-org-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Network className="size-4 shrink-0" />
-          <span>Übersicht</span>
-        </m.button>
+      <OrganisationTabToggle
+        currentTab={uiState.currentTab}
+        onTabChange={(tab) => dispatch({ type: 'SET_TAB', payload: tab })}
+      />
 
-        <m.button
-          layout
-          type="button"
-          onClick={() => dispatch({ type: 'SET_TAB', payload: "members" })}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            uiState.currentTab === "members" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {uiState.currentTab === "members" && (
-            <m.div
-              layoutId="active-org-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Users className="size-4 shrink-0" />
-          <span>Mitarbeiter</span>
-        </m.button>
-      </div>
-
-      {/* Tab: Übersicht */}
-      {uiState.currentTab === "overview" && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Aktive Mitarbeiter"
-            value={stats.active}
-            icon={<Users className="size-4 text-emerald-500" />}
-            description="Mitarbeiter mit aktivem Zugriff"
-          />
-          <StatCard
-            title="Administratoren / Inhaber"
-            value={stats.admins}
-            icon={<Shield className="size-4 text-purple-500" />}
-            description="Mitarbeiter mit Verwaltungsrechten"
-          />
-          <StatCard
-            title="Offene Einladungen"
-            value={stats.pendingInvites}
-            icon={<Mail className="size-4 text-amber-500" />}
-            description="Ausstehende Einladungen"
-          />
-          <StatCard
-            title="Organisationseigentümer"
-            value={stats.ownerName.split('@')[0]}
-            icon={<Lock className="size-4 text-indigo-500" />}
-            description={stats.ownerName}
-          />
-        </div>
-      )}
+      {uiState.currentTab === "overview" && <OrganisationOverviewTab stats={stats} />}
 
       {/* Tab: Mitarbeiter */}
       {uiState.currentTab === "members" && (
@@ -783,7 +850,7 @@ export default function OrganisationClientView({
                         </label>
                         <Select
                           value={uiState.inviteRole}
-                          onValueChange={(val: any) => dispatch({ type: 'SET_INVITE_ROLE', payload: val })}
+                          onValueChange={(val: "admin" | "mitarbeiter") => dispatch({ type: 'SET_INVITE_ROLE', payload: val })}
                           disabled={isInviting}
                         >
                           <SelectTrigger id="role-select" className="rounded-xl h-10">
@@ -796,8 +863,8 @@ export default function OrganisationClientView({
                         </Select>
                       </div>
 
-                       <Button
-                         type="submit"
+                      <Button
+                        type="submit"
                          className="w-full mt-2 h-10 rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center justify-center gap-2 font-medium"
                          disabled={isInviting || !uiState.inviteEmail}
                        >
@@ -822,54 +889,17 @@ export default function OrganisationClientView({
         </div>
       )}
 
-      {/* Confirmation Dialogs */}
-      <AlertDialog open={uiState.pendingConfirm !== null} onOpenChange={(open) => !open && dispatch({ type: 'SET_PENDING_CONFIRM', payload: null })}>
-        <AlertDialogContent className="rounded-[2rem] max-w-md border border-zinc-200/50 dark:border-zinc-800/50">
-          <AlertDialogHeader className="flex flex-col gap-3">
-            <div className="mx-auto bg-amber-500/10 text-amber-500 p-4 rounded-full w-fit">
-              <AlertTriangle className="size-8" />
-            </div>
-            <AlertDialogTitle className="text-xl font-bold text-center">
-              {uiState.pendingConfirm?.type === 'revoke' && "Einladung widerrufen"}
-              {uiState.pendingConfirm?.type === 'role' && "Rolle ändern"}
-              {uiState.pendingConfirm?.type === 'status' && "Status ändern"}
-              {uiState.pendingConfirm?.type === 'delete' && "Mitglied entfernen"}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-sm text-muted-foreground leading-relaxed">
-              {uiState.pendingConfirm?.type === 'revoke' && (
-                <>Möchten Sie die Einladung für <strong className="text-foreground">{uiState.pendingConfirm.memberName}</strong> wirklich widerrufen? Die Person wird die Einladung nicht mehr annehmen können.</>
-              )}
-              {uiState.pendingConfirm?.type === 'role' && (
-                <>Möchten Sie die Rolle von <strong className="text-foreground">{uiState.pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{uiState.pendingConfirm.value === 'owner' ? 'Inhaber' : uiState.pendingConfirm.value === 'admin' ? 'Administrator' : 'Mitarbeiter'}</strong> ändern?</>
-              )}
-              {uiState.pendingConfirm?.type === 'status' && (
-                <>Möchten Sie den Status von <strong className="text-foreground">{uiState.pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{uiState.pendingConfirm.value === 'aktiv' ? 'Aktiv' : 'Deaktiviert'}</strong> ändern?</>
-              )}
-              {uiState.pendingConfirm?.type === 'delete' && (
-                <>Möchten Sie <strong className="text-foreground">{uiState.pendingConfirm.memberName}</strong> wirklich aus der Organisation entfernen? Der Zugriff auf alle Daten dieser Organisation geht sofort verloren.</>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-4">
-            <AlertDialogCancel className="rounded-xl flex-1 border border-zinc-200 dark:border-zinc-800" disabled={isPending}>
-              Abbrechen
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="rounded-xl flex-1 bg-amber-500 hover:bg-amber-600 text-white font-medium"
-              onClick={(e) => {
-                e.preventDefault();
-                if (uiState.pendingConfirm?.type === 'revoke') confirmRevoke();
-                if (uiState.pendingConfirm?.type === 'role') confirmRoleChange();
-                if (uiState.pendingConfirm?.type === 'status') confirmStatusChange();
-                if (uiState.pendingConfirm?.type === 'delete') confirmRemove();
-              }}
-              disabled={isPending}
-            >
-              {isPending ? "Bitte warten..." : "Bestätigen"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <OrganisationConfirmDialog
+        pendingConfirm={uiState.pendingConfirm}
+        isPending={isPending}
+        onConfirm={() => {
+          if (uiState.pendingConfirm?.type === 'revoke') confirmRevoke();
+          if (uiState.pendingConfirm?.type === 'role') confirmRoleChange();
+          if (uiState.pendingConfirm?.type === 'status') confirmStatusChange();
+          if (uiState.pendingConfirm?.type === 'delete') confirmRemove();
+        }}
+        onClose={() => dispatch({ type: 'SET_PENDING_CONFIRM', payload: null })}
+      />
     </div>
     </LazyMotion>
   );

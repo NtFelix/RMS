@@ -8,10 +8,11 @@ import OrganisationClientView from "./client-wrapper";
 import { safeRpcCall } from "@/lib/error-handling";
 
 export default async function OrganisationPage() {
-  // Enforce permission for viewing organisation page
-  await requirePermission('organisation', 'ansehen');
-
-  const { supabase, user } = await requireAuthenticatedUser();
+  // Enforce permission and authenticate in parallel
+  const [, { supabase, user }] = await Promise.all([
+    requirePermission('organisation', 'ansehen'),
+    requireAuthenticatedUser()
+  ]);
 
   // Get active organization using safeRpcCall
   const orgIdResult = await safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id });
