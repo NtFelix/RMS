@@ -5,6 +5,7 @@ import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { requirePermission, hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import OrganisationClientView from "./client-wrapper";
+import { safeRpcCall } from "@/lib/error-handling";
 
 export default async function OrganisationPage() {
   // Enforce permission for viewing organisation page
@@ -12,10 +13,11 @@ export default async function OrganisationPage() {
 
   const { supabase, user } = await requireAuthenticatedUser();
 
-  // Get active organization
-  const { data: orgId, error: orgIdError } = await supabase.rpc('current_organisation_id');
-  if (orgIdError || !orgId) {
-    console.error("No organisation context found:", orgIdError);
+  // Get active organization using safeRpcCall
+  const orgIdResult = await safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id });
+  const orgId = orgIdResult.data;
+  if (!orgIdResult.success || !orgId) {
+    console.error("No organisation context found:", orgIdResult.message);
     redirect("/unauthorized");
   }
 
@@ -33,7 +35,7 @@ export default async function OrganisationPage() {
 
   // Fetch members and open invitations in parallel
   const [membersResult, invitationsResult, canManage] = await Promise.all([
-    supabase.rpc('get_organisation_mitglieder'),
+    safeRpcCall<any[]>(supabase, 'get_organisation_mitglieder', undefined, { userId: user.id }),
     supabase
       .from('Organisation_Einladungen')
       .select('*')
@@ -43,13 +45,8 @@ export default async function OrganisationPage() {
     hasPermission('organisation', 'verwalten')
   ]);
 
-  if (membersResult.error) {
-    console.error("Error loading members details:", {
-      message: membersResult.error.message,
-      code: membersResult.error.code,
-      details: membersResult.error.details,
-      hint: membersResult.error.hint
-    });
+  if (!membersResult.success) {
+    console.error("Error loading members details:", membersResult.message);
   }
 
   const members = membersResult.data ?? [];
@@ -62,7 +59,7 @@ export default async function OrganisationPage() {
       initialInvitations={invitations}
       currentUser={user}
       canManage={canManage}
-      rpcError={membersResult.error ? membersResult.error.message : null}
+      rpcError={!membersResult.success ? (membersResult.message ?? 'Fehler beim Laden der Mitglieder') : null}
     />
   );
 }
