@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
 import posthogProxyConfig from "@/lib/posthog-proxy"
+import { createServerClient } from "@supabase/ssr"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
@@ -19,6 +20,20 @@ const MANAGED_ROUTE_PREFIXES = [
   "/checkout/success",
 ]
 
+const ROUTE_PERMISSIONS: Record<string, string> = {
+  "/betriebskosten": "betriebskosten",
+  "/finanzen": "finanzen",
+  "/haeuser": "haeuser",
+  "/wohnungen": "wohnungen",
+  "/mieter": "mieter",
+  "/zaehler": "zaehler",
+  "/todos": "aufgaben",
+  "/dateien": "dokumente",
+  "/vorlagen": "vorlagen",
+  "/einstellungen": "organisation",
+  "/organisation": "organisation",
+}
+
 function matchesRoutePrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
@@ -30,6 +45,11 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith(POSTHOG_PROXY_PATH)) {
     return NextResponse.next()
   }
+  
+  if (pathname === '/unauthorized') {
+    return NextResponse.next()
+  }
+
   const needsManagedHeaders = MANAGED_ROUTE_PREFIXES.some((prefix) =>
     matchesRoutePrefix(pathname, prefix),
   )
@@ -75,6 +95,62 @@ export async function middleware(request: NextRequest) {
   // Only execute logic for non-auth paths to avoid token churn on login flows
   if (!matchesRoutePrefix(pathname, '/auth') && !matchesRoutePrefix(pathname, '/oauth')) {
     const user = await updateSession(request, response)
+
+    if (user) {
+      const matchedPrefix = Object.keys(ROUTE_PERMISSIONS).find((prefix) =>
+        matchesRoutePrefix(pathname, prefix)
+      )
+
+      if (matchedPrefix) {
+        const modul = ROUTE_PERMISSIONS[matchedPrefix]
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            cookies: {
+              getAll() {
+                return request.cookies.getAll()
+              },
+              setAll(cookiesToSet) {
+                cookiesToSet.forEach(({ name, value, options }) => {
+                  request.cookies.set(name, value)
+                  response.cookies.set(name, value, options)
+                })
+              },
+            },
+          }
+        )
+
+        try {
+          const { data: hasPerm, error: permError } = await supabase.rpc('check_permission', {
+            p_modul: modul,
+            p_aktion: 'ansehen',
+          })
+
+          if (permError || hasPerm !== true) {
+            if (permError) {
+              console.error(`[Middleware] Error checking permission for ${modul}:`, permError.message)
+            }
+            const redirectUrl = request.nextUrl.clone()
+            redirectUrl.pathname = '/unauthorized'
+            const redirectResponse = NextResponse.redirect(redirectUrl)
+            response.headers.forEach((value, key) => {
+              redirectResponse.headers.append(key, value)
+            })
+            return redirectResponse
+          }
+        } catch (e) {
+          console.error(`[Middleware] Exception checking permission for ${modul}:`, e)
+          const redirectUrl = request.nextUrl.clone()
+          redirectUrl.pathname = '/unauthorized'
+          const redirectResponse = NextResponse.redirect(redirectUrl)
+          response.headers.forEach((value, key) => {
+            redirectResponse.headers.append(key, value)
+          })
+          return redirectResponse
+        }
+      }
+    }
 
     if (user && needsManagedHeaders) {
       // Serialize and forward verified local user metadata to save downstream roundtrips.

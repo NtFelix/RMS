@@ -4,6 +4,28 @@ import FinanzenClientWrapper from './client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
 
 // Mock dependencies
+const mockRpc = jest.fn(() => Promise.resolve({
+  data: [{ total_balance: 9600, total_income: 12000, total_expenses: 2400 }],
+  error: null
+}));
+
+jest.mock('@supabase/ssr', () => ({
+  createBrowserClient: jest.fn(() => ({
+    auth: {
+      signInWithPassword: jest.fn(),
+      signUp: jest.fn(),
+      resetPasswordForEmail: jest.fn(),
+    },
+    from: jest.fn(() => ({
+      select: jest.fn(() => Promise.resolve({ data: [], error: null })),
+      insert: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      update: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      delete: jest.fn(() => Promise.resolve({ data: null, error: null })),
+    })),
+    rpc: mockRpc,
+  })),
+}));
+
 jest.mock('@/hooks/use-modal-store');
 jest.mock('@/hooks/use-debounce', () => ({
   useDebounce: (value: string) => value,
@@ -92,6 +114,18 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
           json: () => Promise.resolve(mockSummaryData),
         } as Response);
       }
+      if (urlString.includes('/api/finanzen/analytics')) {
+        if (urlString.includes('action=summary')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockSummaryData),
+          } as Response);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([2023, 2024]),
+        } as Response);
+      }
       if (urlString.includes('/api/finanzen')) {
         return Promise.resolve({
           ok: true,
@@ -113,7 +147,7 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
       render(<FinanzenClientWrapper {...defaultProps} />);
 
       // Should NOT have the old page header structure
-      expect(screen.queryByText('Finanzen')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Finanzen', level: 1 })).not.toBeInTheDocument();
       expect(screen.queryByText('Verwalten Sie Ihre Finanzen und Transaktionen')).not.toBeInTheDocument();
     });
 
@@ -137,7 +171,7 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
 
       // Verify the saldo is not in the old position (top header area)
       const { container } = render(<FinanzenClientWrapper {...defaultProps} />);
-      const summaryCards = container.querySelector('.grid.gap-4.md\\:grid-cols-2.lg\\:grid-cols-4');
+      const summaryCards = container.querySelector('div[class*="grid-cols-4"]');
       const saldoCards = screen.getAllByText('Aktueller Saldo');
       // Find the saldo card that's in a Card component (not in skeleton)
       let saldoCard = null;
@@ -164,18 +198,23 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
       const mainContainer = container.firstChild as HTMLElement;
       const children = Array.from(mainContainer.children);
 
-      // First child should be summary cards grid
-      expect(children[0]).toHaveClass('grid', 'gap-4');
+      // Switcher is first
+      expect(children[0]).toHaveClass('flex', 'items-center');
+      // Summary cards grid is second
+      expect(children[1]).toHaveClass('flex-col', 'sm:grid');
 
       // Should have proper gap between sections
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'sm:gap-8');
     });
 
     it('removes add transaction button from header area', () => {
       render(<FinanzenClientWrapper {...defaultProps} />);
 
-      // Should not have the old header with add button
-      expect(screen.queryByText('Transaktion hinzufügen')).not.toBeInTheDocument();
+      // Find the add button and verify it is inside the card
+      const addButton = screen.getByRole('button', { name: /Transaktion hinzufügen/i });
+      expect(addButton.closest('div[class*="Card"], div[class*="card"]')).toBeInTheDocument();
+      // Should not have any other page-level button
+      expect(screen.getAllByRole('button', { name: /Transaktion hinzufügen/i }).length).toBe(1);
     });
   });
 
@@ -232,8 +271,9 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
       render(<FinanzenClientWrapper {...defaultProps} />);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/finanzen/balance')
+        expect(mockRpc).toHaveBeenCalledWith(
+          'get_filtered_financial_summary',
+          expect.any(Object)
         );
       });
     });
@@ -245,22 +285,22 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
 
       // Main container should have responsive padding
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
     });
 
     it('summary cards have responsive grid layout', () => {
       const { container } = render(<FinanzenClientWrapper {...defaultProps} />);
 
-      const summaryGrid = container.querySelector('.grid.gap-4.md\\:grid-cols-2.lg\\:grid-cols-4');
+      const summaryGrid = container.querySelector('div[class*="grid-cols-4"]');
       expect(summaryGrid).toBeInTheDocument();
-      expect(summaryGrid).toHaveClass('md:grid-cols-2', 'lg:grid-cols-4');
+      expect(summaryGrid).toHaveClass('sm:grid-cols-2', 'md:grid-cols-4');
     });
 
     it('maintains responsive spacing between sections', () => {
       const { container } = render(<FinanzenClientWrapper {...defaultProps} />);
 
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('gap-8');
+      expect(mainContainer).toHaveClass('sm:gap-8');
     });
   });
 
@@ -350,16 +390,10 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     });
 
     it('handles balance fetch errors', async () => {
-      mockFetch.mockImplementation((url: string | Request | URL) => {
-        const urlString = typeof url === 'string' ? url : 'url' in url ? url.url : url.toString();
-        if (urlString.includes('/api/finanzen/balance')) {
-          return Promise.reject(new Error('Balance API Error'));
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        } as Response);
-      });
+      mockRpc.mockImplementationOnce(() => Promise.resolve({
+        data: null,
+        error: { message: 'Balance API Error' }
+      } as any));
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 

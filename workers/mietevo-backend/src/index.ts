@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { WorkerLogger, ExecutionContext } from './logger';
+import { WorkerLogger, ExecutionContext, getPostHogApiKey } from './logger';
 import pako from 'pako';
 import { PostHog } from 'posthog-node';
 
@@ -15,6 +15,7 @@ export interface Env {
     SUPABASE_URL: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
     POSTHOG_API_KEY?: string;
+    NEXT_PUBLIC_POSTHOG_KEY?: string;
     POSTHOG_HOST?: string;
     RATE_LIMITER: unknown; // Using 'unknown' instead of 'any'
     WORKER_AUTH_KEY?: string;
@@ -960,8 +961,10 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         }
 
         // Initialize PostHog only if we have work
-        if (env.POSTHOG_API_KEY) {
-            posthog = new PostHog(env.POSTHOG_API_KEY, {
+        const posthogKey = getPostHogApiKey(env);
+
+        if (posthogKey) {
+            posthog = new PostHog(posthogKey, {
                 host: env.POSTHOG_HOST || 'https://eu.i.posthog.com',
                 flushAt: 1,
                 flushInterval: 0,

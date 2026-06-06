@@ -90,6 +90,16 @@ jest.mock('@supabase/ssr', () => {
         signUp: jest.fn(),
         resetPasswordForEmail: jest.fn(),
       },
+      from: jest.fn(() => ({
+        select: jest.fn(() => Promise.resolve({ data: [], error: null })),
+        insert: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        update: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        delete: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+      rpc: jest.fn(() => Promise.resolve({
+        data: [{ total_balance: 9600, total_income: 12000, total_expenses: 2400 }],
+        error: null
+      })),
     })),
   };
 });
@@ -99,6 +109,46 @@ jest.mock('next/navigation', () => ({
     push: jest.fn(),
     replace: jest.fn(),
     refresh: jest.fn(),
+  }),
+  redirect: jest.fn(),
+}));
+
+jest.mock('@/lib/permissions', () => ({
+  hasPermission: jest.fn().mockResolvedValue(true),
+  requirePermission: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/lib/object-scope', () => ({
+  getAccessibleHaeuserIds: jest.fn().mockResolvedValue(null),
+  getAccessibleWohnungIds: jest.fn().mockResolvedValue(null),
+  applyHaeuserScope: jest.fn((query, column, ids) => query),
+}));
+
+jest.mock('@/lib/auth-utils', () => ({
+  ensureAuth: jest.fn().mockImplementation(async () => {
+    const { createClient } = require('@/utils/supabase/server');
+    const supabase = await createClient();
+    if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
+      try {
+        const res = await supabase.auth.getUser();
+        if (res) {
+          if (res.error || (res.data && res.data.user === null)) {
+            throw new Error("Nicht authentifiziert");
+          }
+          if (res.data && res.data.user) {
+            return { user: res.data.user, supabase };
+          }
+        }
+      } catch (e) {
+        if (e.message === "Nicht authentifiziert") {
+          throw e;
+        }
+      }
+    }
+    return {
+      user: { id: 'test-user-id', email: 'test@example.com' },
+      supabase,
+    };
   }),
 }));
 
@@ -177,6 +227,7 @@ jest.mock('@/app/betriebskosten-actions', () => ({
   getNebenkostenDetailsAction: jest.fn(),
   createRechnungenBatch: jest.fn(),
   deleteRechnungenByNebenkostenId: jest.fn(),
+  getAbrechnungModalDataAction: jest.fn(() => Promise.resolve({ success: true, data: null })),
 }));
 
 // Mock hooks to prevent actual imports during testing

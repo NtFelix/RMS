@@ -8,15 +8,15 @@
  * - Prorated water usage for partial periods
  */
 
-import type { Mieter, WasserAblesung, WasserZaehler } from "@/lib/types";
+import type { Mieter, ZaehlerAblesung, Zaehler } from "@/lib/types";
 import { calculateTenantOccupancy } from "./date-calculations";
 
 /**
  * Represents a water reading with associated tenant and period information
  */
 export interface WaterReadingWithContext {
-  reading: WasserAblesung;
-  meter: WasserZaehler;
+  reading: ZaehlerAblesung;
+  meter: Zaehler;
   tenant: Mieter;
   apartmentId: string;
 }
@@ -130,15 +130,15 @@ function getApartmentTenantsInPeriod(
  */
 export function calculateTenantMeterConsumption(
   tenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   periodStart: string,
   periodEnd: string
 ): TenantMeterConsumption[] {
   const consumptionByTenant: Map<string, TenantMeterConsumption> = new Map();
 
   // Group meters by apartment
-  const metersByApartment = new Map<string, WasserZaehler[]>();
+  const metersByApartment = new Map<string, Zaehler[]>();
   meters.forEach(meter => {
     if (!meter.wohnung_id) return;
 
@@ -269,8 +269,8 @@ export function calculateTenantMeterConsumption(
  */
 export function calculateTenantMeterCosts(
   tenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   zaehlerkosten: Record<string, number>,
   zaehlerverbrauch: Record<string, number>,
   periodStart: string,
@@ -368,8 +368,8 @@ export function calculateTenantMeterCosts(
 export function getTenantMeterCost(
   tenantId: string,
   tenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   zaehlerkosten: Record<string, number>,
   zaehlerverbrauch: Record<string, number>,
   periodStart: string,

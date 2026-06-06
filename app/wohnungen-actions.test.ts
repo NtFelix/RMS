@@ -69,17 +69,21 @@ describe('Wohnungen Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockSelect.mockReturnThis();
+    mockSelect.mockImplementation(async (projection, options) => {
+      if (options && options.count === 'exact') {
+        const eqResult = await mockSelectEq();
+        if (eqResult) return eqResult;
+        return { count: 0, error: null };
+      }
+      return {
+        eq: mockSelectEq,
+        single: mockSingle,
+      };
+    });
     mockInsert.mockReturnThis();
     mockUpdateEq.mockReturnThis();
     mockSelectEq.mockReturnThis();
     mockSingle.mockReturnThis();
-
-    // Setup select chain
-    mockSelect.mockReturnValue({
-        eq: mockSelectEq,
-        single: mockSingle,
-    });
 
     // Setup insert chain
     mockInsert.mockReturnValue({

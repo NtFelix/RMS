@@ -35,7 +35,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 1',
       groesse: 50,
@@ -52,7 +52,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 1',
       groesse: 50,
@@ -69,7 +69,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 2',
       groesse: 60,
@@ -83,7 +83,7 @@ describe('Water Cost Calculations', () => {
     wohnung_id: apartment1Id,
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
     ist_aktiv: true,
@@ -95,7 +95,7 @@ describe('Water Cost Calculations', () => {
     wohnung_id: apartment2Id,
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
     ist_aktiv: true,
@@ -107,7 +107,8 @@ describe('Water Cost Calculations', () => {
     ablese_datum: '2025-06-05', // Reading on the day tenant2 moves out
     zaehlerstand: 150,
     verbrauch: 100, // 100 m³ consumed up to June 5th
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
+    organisation_id: 'org-1',
     zaehler_id: 'meter-1',
   };
 
@@ -116,7 +117,8 @@ describe('Water Cost Calculations', () => {
     ablese_datum: '2025-12-31', // End of year reading
     zaehlerstand: 250,
     verbrauch: 100, // Additional 100 m³ from June 5th to end of year
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
+    organisation_id: 'org-1',
     zaehler_id: 'meter-1',
   };
 
@@ -125,7 +127,8 @@ describe('Water Cost Calculations', () => {
     ablese_datum: '2025-12-31',
     zaehlerstand: 180,
     verbrauch: 180, // 180 m³ for the whole year
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
+    organisation_id: 'org-1',
     zaehler_id: 'meter-2',
   };
 
@@ -196,7 +199,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment1Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'kaltwasser',
         einheit: 'm³',
         ist_aktiv: true,
@@ -207,7 +210,8 @@ describe('Water Cost Calculations', () => {
         ablese_datum: '2025-12-31',
         zaehlerstand: 50,
         verbrauch: 50,
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
         zaehler_id: 'meter-1b',
       };
 
@@ -261,7 +265,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'warmwasser',
         einheit: 'm³',
         ist_aktiv: true,
@@ -272,7 +276,8 @@ describe('Water Cost Calculations', () => {
         ablese_datum: '2025-12-31',
         zaehlerstand: 90,
         verbrauch: 90, // 90 m³ warm water
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
         zaehler_id: 'meter-warm-2',
       };
 
@@ -406,7 +411,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'gas',
         einheit: 'm³',
         ist_aktiv: true,
@@ -418,7 +423,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'warmwasser',
         einheit: 'm³',
         ist_aktiv: true,
@@ -429,7 +434,8 @@ describe('Water Cost Calculations', () => {
         ablese_datum: '2025-12-31',
         zaehlerstand: 68,
         verbrauch: 68,
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
         zaehler_id: 'gas-meter',
       };
 
@@ -444,7 +450,8 @@ describe('Water Cost Calculations', () => {
         ablese_datum: '2025-12-31',
         zaehlerstand: 428,
         verbrauch: 428,
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
         zaehler_id: 'warm-meter',
       };
 
@@ -496,7 +503,7 @@ describe('Water Cost Calculations', () => {
       const gasMeterA: WasserZaehler = {
         id: 'gas-a', custom_id: 'G-A', wohnung_id: apartment1Id,
         erstellungsdatum: '2024-01-01', eichungsdatum: null,
-        user_id: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
+        erstellt_von: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
       };
       const coldMeterA: WasserZaehler = {
         ...meter1, // already apt-1 kaltwasser
@@ -504,7 +511,7 @@ describe('Water Cost Calculations', () => {
       const gasMeterB: WasserZaehler = {
         id: 'gas-b', custom_id: 'G-B', wohnung_id: apartment2Id,
         erstellungsdatum: '2024-01-01', eichungsdatum: null,
-        user_id: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
+        erstellt_von: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
       };
       const coldMeterB: WasserZaehler = {
         ...meter2, // already apt-2 kaltwasser
@@ -512,19 +519,19 @@ describe('Water Cost Calculations', () => {
 
       const gasReadingA: WasserAblesung = {
         id: 'gr-a', ablese_datum: '2025-12-31', zaehlerstand: 30, verbrauch: 30,
-        user_id: 'user-1', zaehler_id: 'gas-a',
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'gas-a',
       };
       const coldReadingA: WasserAblesung = {
         id: 'cr-a', ablese_datum: '2025-12-31', zaehlerstand: 100, verbrauch: 100,
-        user_id: 'user-1', zaehler_id: 'meter-1',
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'meter-1',
       };
       const gasReadingB: WasserAblesung = {
         id: 'gr-b', ablese_datum: '2025-12-31', zaehlerstand: 10, verbrauch: 10,
-        user_id: 'user-1', zaehler_id: 'gas-b',
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'gas-b',
       };
       const coldReadingB: WasserAblesung = {
         id: 'cr-b', ablese_datum: '2025-12-31', zaehlerstand: 200, verbrauch: 200,
-        user_id: 'user-1', zaehler_id: 'meter-2',
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'meter-2',
       };
 
       const zaehlerkosten = { gas: 120, kaltwasser: 600 }; // 3€/m³ gas, 2€/m³ water

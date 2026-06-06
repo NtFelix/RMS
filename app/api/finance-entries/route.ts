@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     const fallbackStartTime = Date.now()
     const { data, error } = await supabase
       .from("Finanzen")
-      .insert(entries.map(entry => ({ ...entry, user_id: user.id })))
+      .insert(entries)
       .select()
 
     const fallbackDuration = Date.now() - fallbackStartTime
@@ -178,7 +178,6 @@ export async function GET(request: Request) {
     let query = supabase
       .from("Finanzen")
       .select("*")
-      .eq("user_id", user.id)
       .order("datum", { ascending: false })
       .range(offset, offset + limit - 1)
 

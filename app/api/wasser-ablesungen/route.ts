@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
       .from('Zaehler')
       .select('id')
       .eq('id', wasserZaehlerId)
-      .eq('user_id', user.id)
       .maybeSingle()
 
     if (zaehlerError || !zaehler) {
@@ -39,7 +38,6 @@ export async function GET(request: NextRequest) {
       .from('Zaehler_Ablesungen')
       .select('*')
       .eq('zaehler_id', wasserZaehlerId)
-      .eq('user_id', user.id)
       .order('ablese_datum', { ascending: false })
 
     if (error) {
@@ -77,7 +75,6 @@ export async function POST(request: NextRequest) {
       .from('Zaehler')
       .select('id')
       .eq('id', meterId)
-      .eq('user_id', user.id)
       .maybeSingle()
 
     if (zaehlerError || !zaehler) {
@@ -92,7 +89,6 @@ export async function POST(request: NextRequest) {
         zaehlerstand: zaehlerstand || null,
         verbrauch: verbrauch || 0,
         zaehler_id: meterId,
-        user_id: user.id,
         kommentar: body.kommentar || null,
       })
       .select('*')

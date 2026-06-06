@@ -20,7 +20,7 @@ interface WohnungData {
   name: string | null;
   miete: number;
   haus_id: string | null;
-  user_id: string;
+  erstellt_von?: string;
   groesse?: number;
 }
 
@@ -37,6 +37,22 @@ export async function speichereWohnung(formData: WohnungFormData) {
     return { error: errorMessage };
   }
   logAction(actionName, 'start', { apartment_name: formData.name });
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'erstellen'))) {
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const targetHausId = formData.haus_id;
+    if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+      return { error: "Zugriff auf das angegebene Haus verweigert." };
+    }
+  }
 
   try {
     const userId = user.id;
@@ -107,8 +123,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
 
     const { count, error: countError } = await supabase
       .from('Wohnungen')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .select('*', { count: 'exact', head: true });
 
     if (countError) {
       console.error('Error counting apartments:', countError);
@@ -137,7 +152,6 @@ export async function speichereWohnung(formData: WohnungFormData) {
       name: formData.name || null,
       miete: parseFloat(formData.miete),
       haus_id: formData.haus_id || null,
-      user_id: userId
     };
 
     // Only add groesse if it's provided and a valid number
@@ -175,6 +189,32 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
     return { error: errorMessage };
   }
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'bearbeiten'))) {
+    logAction(actionName, 'error', { apartment_id: id, apartment_name: formData.name, error_message: "Keine Berechtigung" });
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const targetHausId = formData.haus_id;
+    if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+      return { error: "Zugriff auf das angegebene Haus verweigert." };
+    }
+    
+    const { data: existingWohnung, error: fetchError } = await supabase
+      .from("Wohnungen")
+      .select("haus_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+      return { error: "Zugriff auf diese Wohnung verweigert." };
+    }
+  }
 
   try {
     const userId = user.id;
@@ -216,8 +256,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
     if (currentApartmentLimit !== Infinity && currentApartmentLimit !== null) {
       const { count, error: countError } = await supabase
         .from('Wohnungen')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .select('*', { count: 'exact', head: true });
 
       if (countError) {
         console.error('Error counting apartments for update:', countError);
@@ -250,8 +289,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
         miete: parseFloat(formData.miete),
         haus_id: formData.haus_id || null
       })
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) {
       return { error: error.message };
@@ -281,11 +319,31 @@ export async function loescheWohnung(id: string) {
   }
   logAction(actionName, 'start', { apartment_id: id });
 
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'loeschen'))) {
+    logAction(actionName, 'error', { apartment_id: id, error_message: "Keine Berechtigung" });
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const { data: existingWohnung, error: fetchError } = await supabase
+      .from("Wohnungen")
+      .select("haus_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+      return { error: "Zugriff auf diese Wohnung verweigert." };
+    }
+  }
+
   try {
     const { error } = await supabase.from('Wohnungen')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) {
       logAction(actionName, 'error', { apartment_id: id, error_message: error.message });

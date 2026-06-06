@@ -91,6 +91,45 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     return { success: false, error: { message: errorMessage } };
   }
 
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (id) {
+    if (!(await hasPermission('wohnungen', 'bearbeiten'))) {
+      logAction(actionName, 'error', { apartment_id: id, apartment_name: data.name, error_message: "Keine Berechtigung" });
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const targetHausId = data.haus_id;
+      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+        return { success: false, error: { message: "Zugriff auf das angegebene Haus verweigert." } };
+      }
+      
+      const { data: existingWohnung, error: fetchError } = await supabase
+        .from("Wohnungen")
+        .select("haus_id")
+        .eq("id", id)
+        .single();
+      if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+        return { success: false, error: { message: "Zugriff auf diese Wohnung verweigert." } };
+      }
+    }
+  } else {
+    if (!(await hasPermission('wohnungen', 'erstellen'))) {
+      logAction(actionName, 'error', { apartment_id: id, apartment_name: data.name, error_message: "Keine Berechtigung" });
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null) {
+      const targetHausId = data.haus_id;
+      if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+        return { success: false, error: { message: "Zugriff auf das angegebene Haus verweigert." } };
+      }
+    }
+  }
+
   const payload = {
 
     name: data.name,
@@ -143,8 +182,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       // Get current apartment count for the user
       const { count, error: countError } = await supabase
         .from('Wohnungen')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .select('*', { count: 'exact', head: true });
 
       if (countError) throw countError;
 
@@ -164,24 +202,20 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       }
     }
 
-    // Add user_id to the payload for new records
-    const fullPayload = { ...payload, user_id: user.id };
-
     let dbResponse;
     if (id) {
       // Update existing record
       dbResponse = await supabase
         .from("Wohnungen")
-        .update(fullPayload)
+        .update(payload)
         .eq("id", id)
-        .eq("user_id", user.id)
         .select()
         .single();
     } else {
       // Create new record
       dbResponse = await supabase
         .from("Wohnungen")
-        .insert(fullPayload)
+        .insert(payload)
         .select()
         .single();
     }
@@ -210,8 +244,8 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         properties: {
           property_id: dbResponse.data.id,
           name: data.name,
-          size: fullPayload.groesse,
-          rent: fullPayload.miete,
+          size: payload.groesse,
+          rent: payload.miete,
           has_house: !!data.haus_id,
           source: 'server_action'
         }
@@ -226,8 +260,8 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     }
 
     return { success: true, data: dbResponse.data as WohnungDbRecord };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.";
+  } catch (error: any) {
+    const errorMessage = error?.message || "Ein unbekannter Fehler ist aufgetreten.";
     logAction(actionName, 'error', {
       apartment_id: id,
       error_message: errorMessage
