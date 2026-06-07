@@ -2,60 +2,77 @@
 
 import { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
-import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+import { useModalStore } from "@/hooks/use-modal-store";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Basic House interface - replace with actual type if available elsewhere
+// Helper component for Property Header with Hover Info
+function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: any, label: string, infoText: string, htmlFor: string }) {
+  return (
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <div className="flex items-center gap-3 text-muted-foreground/70 cursor-help transition-colors hover:text-foreground/90 w-fit group/header">
+          <Icon className="h-4 w-4 group-hover/header:text-primary transition-colors" />
+          <Label htmlFor={htmlFor} className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
+            {label}
+          </Label>
+        </div>
+      </HoverCardTrigger>
+      <HoverCardContent side="top" align="start" className="w-80 shadow-2xl border-border/40 bg-background/95 backdrop-blur-md rounded-[28px] p-5 overflow-hidden">
+        <div className="flex gap-4 items-start">
+          <div className="flex-none h-12 w-12 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner border border-amber-500/20">
+            <Lightbulb className="h-6 w-6" />
+          </div>
+          <div className="space-y-1.5 pt-1">
+            <h4 className="font-bold text-foreground text-sm uppercase tracking-tight">Tipp</h4>
+            <p className="text-sm leading-relaxed text-muted-foreground/90">{infoText}</p>
+          </div>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+// Basic House interface
 interface House {
   id: string;
   name: string;
   strasse?: string;
   ort: string;
   groesse?: number | null;
-  // Add other fields as necessary
 }
 
 interface HouseEditModalProps {
-  // open: boolean; // Controlled by useModalStore.isHouseModalOpen
-  // onOpenChange: (open: boolean) => void; // Now useModalStore.closeHouseModal
-  // initialData?: House; // Now useModalStore.houseInitialData
   serverAction: (id: string | null, formData: FormData) => Promise<{
     success: boolean;
     error?: { message: string };
     data?: any;
   }>;
-  // onSuccess?: (data: any) => void; // Now useModalStore.houseModalOnSuccess
 }
 
-// Note: The props `open`, `onOpenChange`, `initialData`, `onSuccess` are now
-// managed via `useModalStore`. This component might be simplified if it directly
-// consumes from the store, or the parent component using this modal will pass these
-// props from the store. For this step, we'll assume the props are still passed
-// but we'll also use the store for dirty checking and close confirmation.
-
 export function HouseEditModal(props: HouseEditModalProps) {
-  const {
-    // open, // Now from store
-    // onOpenChange, // Now from store's closeHouseModal
-    // initialData, // Now from store
-    serverAction,
-    // onSuccess // Now from store
-  } = props;
+  const { serverAction } = props;
 
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,67 +86,56 @@ export function HouseEditModal(props: HouseEditModalProps) {
     houseModalOnSuccess,
     isHouseModalDirty,
     setHouseModalDirty,
-    openConfirmationModal,
-    confirmationModalConfig // Added to avoid direct call to CONFIRMATION_MODAL_DEFAULTS from component
   } = useModalStore();
 
   const [formData, setFormData] = useState({
-    name: houseInitialData?.name || "",
-    strasse: houseInitialData?.strasse || "",
-    ort: houseInitialData?.ort || "",
-    groesse: houseInitialData?.groesse ?? null,
+    name: "",
+    strasse: "",
+    ort: "",
+    groesse: null as number | null,
   });
 
   useEffect(() => {
-    if (houseInitialData) {
-      setFormData({
-        name: houseInitialData.name,
-        strasse: houseInitialData.strasse || "",
-        ort: houseInitialData.ort,
-        groesse: houseInitialData.groesse ?? null,
-      });
-      if (houseInitialData.groesse != null) {
-        setAutomaticSize(false);
-        setManualGroesse(String(houseInitialData.groesse));
+    if (isHouseModalOpen) {
+      if (houseInitialData) {
+        setFormData({
+          name: houseInitialData.name,
+          strasse: houseInitialData.strasse || "",
+          ort: houseInitialData.ort,
+          groesse: houseInitialData.groesse ?? null,
+        });
+        if (houseInitialData.groesse != null) {
+          setAutomaticSize(false);
+          setManualGroesse(String(houseInitialData.groesse));
+        } else {
+          setAutomaticSize(true);
+          setManualGroesse('');
+        }
       } else {
+        setFormData({ name: "", strasse: "", ort: "", groesse: null });
         setAutomaticSize(true);
         setManualGroesse('');
       }
-    } else {
-      setFormData({ name: "", strasse: "", ort: "", groesse: null });
-      setAutomaticSize(true);
-      setManualGroesse('');
     }
-    // When modal opens or initialData changes, reset dirty state
-    setHouseModalDirty(false);
-  }, [houseInitialData, isHouseModalOpen, setHouseModalDirty]); // Added isHouseModalOpen to reset on open
+  }, [houseInitialData, isHouseModalOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    setHouseModalDirty(true); // Set dirty on any input change
-  };
-
-  const handleCheckboxChange = (checked: boolean) => {
-    setAutomaticSize(checked);
-    setHouseModalDirty(true); // Set dirty on checkbox change
+    if (!isHouseModalDirty) setHouseModalDirty(true);
   };
 
   const handleManualGroesseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setManualGroesse(e.target.value);
-    setHouseModalDirty(true); // Set dirty on manual size change
+    if (!isHouseModalDirty) setHouseModalDirty(true);
   };
 
   const attemptClose = () => {
-    // This function is called by DialogContent's onAttemptClose
-    // or by the cancel button if dirty.
-    // The store's closeHouseModal() already has the logic to check isHouseModalDirty
-    // and open confirmation if needed.
     closeHouseModal();
   };
 
   const handleCancelClick = () => {
-    closeHouseModal({ force: true }); // Force close for "Abbrechen" button
+    closeHouseModal({ force: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,9 +171,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
           houseModalOnSuccess(successData);
         }
 
-        setHouseModalDirty(false); // Reset dirty state on successful save
+        setHouseModalDirty(false);
         useOnboardingStore.getState().completeStep('create-house-form');
-        closeHouseModal(); // This will now close directly as dirty is false
+        closeHouseModal();
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -182,109 +188,219 @@ export function HouseEditModal(props: HouseEditModalProps) {
     }
   };
 
-  // If the modal is not open (controlled by store), don't render anything
   if (!isHouseModalOpen) {
     return null;
   }
 
   return (
-    <Dialog open={isHouseModalOpen} onOpenChange={(open) => !open && attemptClose()}>
-      <DialogContent
+    <Sheet open={isHouseModalOpen} onOpenChange={(open) => !open && attemptClose()}>
+      <SheetContent
         id="house-form-container"
-        className="sm:max-w-[425px]"
+        className="sm:max-w-[600px] flex flex-col h-full p-0 gap-0"
         isDirty={isHouseModalDirty}
-        onAttemptClose={attemptClose} // Use the new prop
+        onAttemptClose={attemptClose}
       >
-        <DialogHeader>
-          <DialogTitle>{houseInitialData ? "Haus bearbeiten" : "Haus hinzufügen"}</DialogTitle>
-          <DialogDescription>
-            {houseInitialData ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <LabelWithTooltip
-              htmlFor="name"
-              infoText="Geben Sie einen eindeutigen Namen für das Haus ein. Dieser wird in der Übersicht und in Dropdown-Menüs angezeigt."
-            >
-              Name
-            </LabelWithTooltip>
-            <Input
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              placeholder="z.B. Hauptstraße"
-              disabled={isSubmitting}
-            />
+        {/* Top Navigation Bar */}
+        <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-4 z-10 pointer-events-none">
+          <div className="pointer-events-auto">
+            {/* The actual SheetClose button is in components/ui/sheet.tsx at left-4 top-4 */}
           </div>
-          <div className="space-y-2">
-            <LabelWithTooltip
-              htmlFor="strasse"
-              infoText="Geben Sie die vollständige Adresse des Hauses ein. Dieses Feld wird für die Abrechnung und die generierte PDF benötigt. Wir empfehlen dringend, die Adresse anzugeben, da sie in den offiziellen Dokumenten erscheint."
-            >
-              Straße
-            </LabelWithTooltip>
-            <Input
-              id="strasse"
-              name="strasse"
-              value={formData.strasse}
-              onChange={handleInputChange}
-              placeholder="z.B. Hauptstraße 1"
-              disabled={isSubmitting}
-            />
-          </div>
-          <div className="space-y-2">
-            <LabelWithTooltip
-              htmlFor="ort"
-              infoText="Geben Sie den Ort des Hauses ein. Dieses Feld ist optional, wird aber für die Abrechnung und die generierte PDF benötigt. Die Ortsangabe erscheint in den offiziellen Dokumenten und wird für die korrekte Zuordnung verwendet."
-            >
-              Ort
-            </LabelWithTooltip>
-            <Input
-              id="ort"
-              name="ort"
-              value={formData.ort}
-              onChange={handleInputChange}
-              placeholder="z.B. Berlin"
-              disabled={isSubmitting}
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="automaticSize"
-              checked={automaticSize}
-              onCheckedChange={(checked) => handleCheckboxChange(Boolean(checked))}
-              disabled={isSubmitting}
-            />
-            <LabelWithTooltip
-              htmlFor="automaticSize"
-              infoText="Wenn aktiviert, wird die Gesamtgröße des Hauses automatisch aus der Summe der Wohnungsflächen berechnet. Deaktivieren Sie diese Option, um die Größe manuell festzulegen."
-            >
-              Größe automatisch berechnen
-            </LabelWithTooltip>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="manualGroesse">Größe in m²</Label>
-            <NumberInput
-              id="manualGroesse"
-              name="manualGroesse"
-              value={manualGroesse}
-              onChange={handleManualGroesseChange}
-              disabled={automaticSize || isSubmitting}
-              placeholder={automaticSize ? "Automatisch berechnet" : "Manuell eingeben"}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
-              Abbrechen
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Wird gespeichert..." : (houseInitialData ? "Aktualisieren" : "Speichern")}
-            </Button>
-          </DialogFooter>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-lg opacity-50 hover:opacity-100 hover:bg-muted pointer-events-auto"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span className="sr-only">Actions</span>
+          </Button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <ScrollArea className="flex-1">
+            <div className="max-w-[520px] mx-auto pt-20 pb-10 px-8 space-y-12">
+              
+              {/* Header Section */}
+              <div className="space-y-4">
+                <div className="text-primary/80">
+                  <Building2 className="h-10 w-10" />
+                </div>
+                <div className="space-y-1">
+                  <SheetTitle className="text-4xl font-bold tracking-tight">
+                    {houseInitialData ? formData.name || "Unbenanntes Haus" : "Haus hinzufügen"}
+                  </SheetTitle>
+                  <SheetDescription className="text-base text-muted-foreground/80">
+                    {houseInitialData 
+                      ? "Bearbeiten Sie die Informationen für dieses Objekt." 
+                      : "Legen Sie ein neues Haus in Ihrer Verwaltung an."}
+                  </SheetDescription>
+                </div>
+              </div>
+
+              {/* Properties Section */}
+              <div className="space-y-8">
+                {/* Name Property */}
+                <div className="space-y-2">
+                  <PropertyHeader 
+                    icon={Home}
+                    label="Name"
+                    htmlFor="name"
+                    infoText="Geben Sie einen eindeutigen Namen für das Haus ein. Dieser wird in der Übersicht und in Dropdown-Menüs angezeigt."
+                  />
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Einen Namen geben..."
+                    disabled={isSubmitting}
+                    className="text-xl font-medium placeholder:opacity-30 h-auto py-2 rounded-xl border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                  />
+                </div>
+
+                {/* Address Section */}
+                <div className="space-y-6 pt-4 border-t border-border/40">
+                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                    Standort
+                  </div>
+                  
+                  <div className="grid gap-6">
+                    <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+                      <PropertyHeader 
+                        icon={MapPin}
+                        label="Straße"
+                        htmlFor="strasse"
+                        infoText="Geben Sie die vollständige Adresse des Hauses ein. Dieses Feld wird für die Abrechnung und die generierte PDF benötigt."
+                      />
+                      <Input
+                        id="strasse"
+                        name="strasse"
+                        value={formData.strasse}
+                        onChange={handleInputChange}
+                        placeholder="Straße und Hausnummer"
+                        disabled={isSubmitting}
+                        className="rounded-xl h-10 text-sm border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+                      <PropertyHeader 
+                        icon={MapPin}
+                        label="Ort"
+                        htmlFor="ort"
+                        infoText="Geben Sie den Ort des Hauses ein. Die Ortsangabe erscheint in den offiziellen Dokumenten."
+                      />
+                      <Input
+                        id="ort"
+                        name="ort"
+                        value={formData.ort}
+                        onChange={handleInputChange}
+                        placeholder="PLZ und Stadt"
+                        disabled={isSubmitting}
+                        className="rounded-xl h-10 text-sm border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Calculation Section */}
+                <div className="space-y-6 pt-4 border-t border-border/40">
+                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                    Kennzahlen
+                  </div>
+
+                  <div className="grid gap-6">
+                    <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+                      <PropertyHeader 
+                        icon={Ruler}
+                        label="Berechnung"
+                        htmlFor="automaticSize"
+                        infoText="Wenn aktiviert, wird die Gesamtgröße des Hauses automatisch aus der Summe der Wohnungsflächen berechnet."
+                      />
+                      <Label 
+                        htmlFor="automaticSize"
+                        className={cn(
+                          "flex items-center justify-between h-10 px-3 rounded-xl cursor-pointer transition-colors border outline-hidden focus-within:ring-1 focus-within:ring-ring",
+                          automaticSize ? "bg-primary/5 text-primary border-primary/10" : "bg-muted/30 text-muted-foreground border-border/50"
+                        )}
+                      >
+                        <span className="text-sm font-medium cursor-pointer">Automatisch</span>
+                        <Checkbox
+                          id="automaticSize"
+                          checked={automaticSize}
+                          onCheckedChange={(checked) => {
+                            setAutomaticSize(!!checked);
+                            if (!isHouseModalDirty) setHouseModalDirty(true);
+                          }}
+                          disabled={isSubmitting}
+                          className="h-4 w-4"
+                        />
+                      </Label>
+                    </div>
+
+                    {!automaticSize && (
+                      <div className="grid grid-cols-[140px_1fr] items-center gap-4 animate-in fade-in slide-in-from-top-1">
+                        <div className="flex items-center gap-2 text-muted-foreground/70">
+                          <Ruler className="h-4 w-4 opacity-0" />
+                          <Label htmlFor="manualGroesse" className="text-sm">Fläche (m²)</Label>
+                        </div>
+                        <div className="relative">
+                          <NumberInput
+                            id="manualGroesse"
+                            name="manualGroesse"
+                            value={manualGroesse}
+                            onChange={handleManualGroesseChange}
+                            disabled={isSubmitting}
+                            placeholder="Manuelle Größe..."
+                            className="rounded-xl h-10 text-sm border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Info / Description Style */}
+                <div className="space-y-4 pt-4 border-t border-border/40">
+                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                    Beschreibung
+                  </div>
+                  <div className="bg-muted/20 rounded-xl p-4 text-sm text-muted-foreground/80 leading-relaxed border border-border/50">
+                    <div className="flex gap-2 items-start">
+                      <Info className="h-4 w-4 mt-0.5 shrink-0 opacity-40" />
+                      <p>
+                        Diese Informationen werden für die automatische Erstellung von Nebenkostenabrechnungen und offiziellen Dokumenten verwendet. Bitte stellen Sie sicher, dass alle Standortdaten korrekt sind.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+
+          <SheetFooter className="p-8 pt-4">
+            <div className="max-w-[520px] mx-auto w-full flex gap-3">
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={handleCancelClick} 
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl h-11 text-muted-foreground hover:text-foreground"
+              >
+                Abbrechen
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl h-11 shadow-sm font-semibold"
+              >
+                {isSubmitting 
+                  ? "Wird gespeichert..." 
+                  : (houseInitialData ? "Änderungen speichern" : "Haus anlegen")}
+              </Button>
+            </div>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -3,7 +3,7 @@
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
+import { ChevronsRight } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -51,27 +51,99 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  isDirty?: boolean
+  onAttemptClose?: () => void
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content
-      ref={ref}
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
-    >
-      {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-        <X className="h-3 w-3" />
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
-    </SheetPrimitive.Content>
-  </SheetPortal>
-))
+>(({ side = "right", className, children, isDirty, onAttemptClose, ...props }, ref) => {
+  const handleInteraction = (
+    event: Parameters<NonNullable<React.ComponentProps<typeof SheetPrimitive.Content>['onInteractOutside']>>[0]
+  ) => {
+    if (!event) return;
+
+    // Check if the interaction is with a combobox or popover element
+    const target = event.target as Element;
+
+    if (target?.closest('[data-radix-popover-content]') ||
+      target?.closest('[data-radix-popper-content-wrapper]') ||
+      target?.hasAttribute('cmdk-input') ||
+      target?.hasAttribute('cmdk-item') ||
+      target?.hasAttribute('cmdk-list') ||
+      target?.closest('[role="combobox"]') ||
+      target?.closest('[role="option"]') ||
+      target?.closest('[role="listbox"]') ||
+      target?.closest('[data-dialog-ignore-interaction]') ||
+      target?.closest('[data-combobox-dropdown]') ||
+      target?.hasAttribute('data-combobox-input') ||
+      target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
+      return;
+    }
+
+    if (isDirty && onAttemptClose) {
+      event.preventDefault();
+      onAttemptClose();
+    } else if (props.onInteractOutside) {
+      props.onInteractOutside(event);
+    }
+  };
+
+  const handleCloseButtonClick = (
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    if (isDirty && onAttemptClose) {
+      event.preventDefault();
+      onAttemptClose();
+    }
+  }
+
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        onInteractOutside={handleInteraction}
+        onOpenAutoFocus={(e) => {
+          // Prevent auto focus to allow combobox inputs to work
+          e.preventDefault();
+        }}
+        onCloseAutoFocus={(e) => {
+          // Prevent auto focus on close
+          e.preventDefault();
+        }}
+        onFocusOutside={(e) => {
+          // Don't prevent focus from moving to combobox elements or when combobox is actively being used
+          const target = e.target as Element;
+          const activeComboboxInput = document.querySelector('[data-combobox-active="true"]')
+
+          if (target?.hasAttribute('data-combobox-input') ||
+            target?.hasAttribute('data-combobox-active') ||
+            target?.closest('[data-dialog-ignore-interaction]') ||
+            target?.closest('[data-combobox-dropdown]') ||
+            target?.closest('[role="listbox"]') ||
+            target?.closest('[role="option"]') ||
+            activeComboboxInput) {
+            e.preventDefault();
+          }
+        }}
+        {...props}
+      >
+        {children}
+        <SheetPrimitive.Close 
+          onClick={handleCloseButtonClick}
+          className="absolute left-4 top-4 rounded-full p-2 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-muted focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary"
+        >
+          <ChevronsRight className="h-5 w-5" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  )
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({
