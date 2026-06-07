@@ -45,13 +45,17 @@ describe('error-handling utilities', () => {
     });
 
     it('should handle timeout', async () => {
+      jest.useFakeTimers();
       const mockSupabase = {
-        rpc: jest.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)))
+        rpc: jest.fn().mockImplementation(() => new Promise(() => {}))
       };
-      const result = await safeRpcCall(mockSupabase, 'test_func', {}, { timeoutMs: 10 });
+      const promise = safeRpcCall(mockSupabase, 'test_func', {}, { timeoutMs: 10 });
+      jest.advanceTimersByTime(10);
+      const result = await promise;
       expect(result.success).toBe(false);
       expect(result.message).toContain('dauerte zu lange');
       expect(logger.error).toHaveBeenCalled();
+      jest.useRealTimers();
     });
 
     it('should handle fetch errors', async () => {

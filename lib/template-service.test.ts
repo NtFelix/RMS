@@ -37,7 +37,7 @@ describe('template-service', () => {
         json: jest.fn().mockResolvedValue(mockTemplate)
       });
 
-      const payload = { titel: 'Test', inhalt: 'Content', kategorie: 'sonstiges' as any, kontext_anforderungen: null };
+      const payload = { titel: 'Test', inhalt: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Content' }] }] }, kategorie: 'sonstiges' as any, kontext_anforderungen: [] };
       const result = await TemplateService.createTemplate(payload);
       expect(result).toEqual(mockTemplate);
       expect(global.fetch).toHaveBeenCalledWith('/api/templates', expect.objectContaining({
@@ -53,7 +53,7 @@ describe('template-service', () => {
         json: jest.fn().mockResolvedValue(mockTemplate)
       });
 
-      const payload = { titel: 'Test Updated', inhalt: 'Content', kategorie: 'sonstiges' as any, kontext_anforderungen: null };
+      const payload = { titel: 'Test Updated', inhalt: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Content' }] }] }, kategorie: 'sonstiges' as any, kontext_anforderungen: [] };
       const result = await TemplateService.updateTemplate('1', payload);
       expect(result).toEqual(mockTemplate);
       expect(global.fetch).toHaveBeenCalledWith('/api/templates/1', expect.objectContaining({
@@ -99,23 +99,38 @@ describe('template-service', () => {
 
     it('should optimistically create template', async () => {
       const mockCreated = { id: 'server-id', titel: 'Test' };
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: jest.fn().mockResolvedValue(mockCreated)
+      let resolveFetch: any;
+      const fetchPromise = new Promise((resolve) => {
+        resolveFetch = () => resolve({
+          ok: true,
+          json: jest.fn().mockResolvedValue(mockCreated)
+        });
       });
+      (global.fetch as jest.Mock).mockReturnValue(fetchPromise);
 
-      const payload = { titel: 'Test', inhalt: 'Content', kategorie: 'sonstiges' as any, kontext_anforderungen: null };
-      await service.createTemplate(payload);
+      const payload = { titel: 'Test', inhalt: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Content' }] }] }, kategorie: 'sonstiges' as any, kontext_anforderungen: [] };
+      const createPromise = service.createTemplate(payload);
 
-      const templates = service.getTemplates();
-      expect(templates[0].id).toBe('server-id');
+      // Verify optimistic state before fetch resolves
+      const templatesDuringRequest = service.getTemplates();
+      expect(templatesDuringRequest).toHaveLength(1);
+      expect(templatesDuringRequest[0].id).toMatch(/^temp-/);
+
+      // Resolve fetch and wait for completion
+      resolveFetch();
+      await createPromise;
+
+      // Verify final state
+      const templatesAfterRequest = service.getTemplates();
+      expect(templatesAfterRequest).toHaveLength(1);
+      expect(templatesAfterRequest[0].id).toBe('server-id');
       expect(onSuccess).toHaveBeenCalled();
     });
 
     it('should rollback on create failure', async () => {
       (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
-      const payload = { titel: 'Test', inhalt: 'Content', kategorie: 'sonstiges' as any, kontext_anforderungen: null };
+      const payload = { titel: 'Test', inhalt: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Content' }] }] }, kategorie: 'sonstiges' as any, kontext_anforderungen: [] };
       await expect(service.createTemplate(payload)).rejects.toThrow('Network error');
 
       const templates = service.getTemplates();
