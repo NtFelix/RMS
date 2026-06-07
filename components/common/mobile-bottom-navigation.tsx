@@ -524,7 +524,7 @@ function PrimaryNavBar({
                   "transition-all duration-200 ease-out",
                   "rounded-lg relative",
                   "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                  "active:scale-95",
+                  "active:scale-[0.99]",
                   touchedItem === item.id && "scale-95 bg-accent/20",
                   isActive
                     ? "bg-primary/10 text-primary shadow-xs"
@@ -568,7 +568,7 @@ function PrimaryNavBar({
                   "transition-all duration-200 ease-out",
                   "rounded-lg relative",
                   "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                  "active:scale-95",
+                  "active:scale-[0.99]",
                   touchedItem === item.id && "scale-95 bg-accent/20",
                   isActive
                     ? "bg-primary/10 text-primary shadow-xs"
@@ -599,7 +599,7 @@ function PrimaryNavBar({
                   "transition-all duration-200 ease-out",
                   "rounded-lg relative",
                   "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                  "active:scale-95",
+                  "active:scale-[0.99]",
                   touchedItem === item.id && "scale-95 bg-accent/20",
                   isActive
                     ? "bg-primary/10 text-primary shadow-xs"
@@ -702,7 +702,7 @@ function MoreDropdownMenu({
                     "min-h-[44px] mobile-dropdown-item touch-feedback",
                     "transition-all duration-200 ease-out",
                     "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                    "active:scale-95",
+                    "active:scale-[0.99]",
                     touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
                     "text-foreground hover:bg-accent/10",
                     isFocused && "bg-accent/5"
@@ -754,7 +754,7 @@ function MoreDropdownMenu({
                   "min-h-[44px] mobile-dropdown-item touch-feedback",
                   "transition-all duration-200 ease-out",
                   "focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-2 focus:ring-offset-background",
-                  "active:scale-95",
+                  "active:scale-[0.99]",
                   touchedItem === `dropdown-${item.id}` && "scale-95 bg-accent/20",
                   isActive
                     ? "bg-primary/10 text-primary shadow-xs"

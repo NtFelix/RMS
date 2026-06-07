@@ -226,7 +226,7 @@ export function TagInput({
                                                 whileTap={{ scale: 0.95 }}
                                                 className={cn(
                                                     "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300",
-                                                    "border flex items-center gap-1.5 active:scale-95",
+                                                    "border flex items-center gap-1.5 active:scale-[0.99]",
                                                     isSelected
                                                         ? cn(
                                                             "bg-linear-to-br border-primary/50 text-primary shadow-xs",

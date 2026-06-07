@@ -188,7 +188,7 @@ export function MetersDonutChart({
                   strokeDasharray={s.strokeDasharray}
                   strokeDashoffset={s.strokeDashoffset}
                   strokeLinecap="round"
-                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
+                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.01]"
                   onMouseEnter={() => setHoveredKey(s.key)}
                   onMouseLeave={() => setHoveredKey(null)}
                 />
@@ -784,7 +784,7 @@ export function NebenkostenDonutChart({ nebenkosten }: NebenkostenDonutChartProp
                   strokeDasharray={s.strokeDasharray}
                   strokeDashoffset={s.strokeDashoffset}
                   strokeLinecap="round"
-                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.02]"
+                  className="transition-all duration-300 cursor-pointer origin-center hover:scale-[1.01]"
                   onMouseEnter={() => setHoveredKey(s.key)}
                   onMouseLeave={() => setHoveredKey(null)}
                 />

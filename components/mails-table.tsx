@@ -259,7 +259,7 @@ export function MailsTable({
                       aria-label="Alle E-Mails auswählen"
                       checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
                       onCheckedChange={handleSelectAll}
-                      className="transition-transform duration-100 hover:scale-105"
+                      className="transition-transform duration-100 hover:scale-[1.01]"
                     />
                   </div>
                 </TableHead>

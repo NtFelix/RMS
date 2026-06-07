@@ -130,7 +130,7 @@ export function DocumentsSummaryCards({
         "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]",
         isUploadDisabled
           ? "cursor-not-allowed opacity-60"
-          : "cursor-pointer hover:shadow-md hover:scale-[1.02]",
+          : "cursor-pointer hover:shadow-md hover:scale-[1.01]",
         isDragging && !isUploadDisabled && "ring-2 ring-primary ring-offset-2 scale-[1.02]"
       )}
       onDragEnter={handleDragEnter}
@@ -206,7 +206,7 @@ export function DocumentsSummaryCards({
           className={cn(
             "relative overflow-hidden rounded-3xl shadow-xs transition-all duration-200 cursor-pointer group flex-1",
             "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]",
-            "hover:shadow-md hover:scale-[1.02]"
+            "hover:shadow-md hover:scale-[1.01]"
           )}
           onClick={onCreateFolder}
         >

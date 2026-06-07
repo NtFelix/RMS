@@ -628,7 +628,7 @@ describe('MobileBottomNavigation - Accessibility Compliance', () => {
 
         touchElements.forEach(element => {
           expect(element).toHaveClass('touch-feedback')
-          expect(element).toHaveClass('active:scale-95')
+          expect(element).toHaveClass('active:scale-[0.99]')
         })
       })
     })

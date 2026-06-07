@@ -398,7 +398,7 @@ const FeaturePreviewSection = () => {
                         <Switch
                           checked={f.flagKey && isFeaturePending(f.flagKey) ? pendingFeatureUpdates[f.flagKey] : !!f.enabled}
                           onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
-                          className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-105 transition-transform duration-150 ease-in-out"
+                          className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-[1.01] transition-transform duration-150 ease-in-out"
                           disabled={isLoadingFeatures || isFeaturePending(f.flagKey)}
                         />
                       </div>

@@ -142,12 +142,12 @@ export default function BottomCTA({
                       <Button
                         size="lg"
                         variant="outline"
-                        className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
+                        className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-[1.01] hover:shadow-lg"
                         onClick={handleDemoRequest}
                       >
                         <span className="flex items-center">
                           {secondaryButtonText}
-                          <ExternalLink className="ml-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+                          <ExternalLink className="ml-2 w-5 h-5 group-hover:scale-[1.01] transition-transform" />
                         </span>
                       </Button>
                     </AlertDialogTrigger>

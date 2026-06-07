@@ -229,7 +229,7 @@ export function MailActionsDropdown({
     onDeletePermanently,
   });
 
-  const dropdownItemClass = "focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.02] dark:context-menu-item";
+  const dropdownItemClass = "focus:bg-gray-200 focus:text-foreground hover:bg-gray-100 hover:scale-[1.01] dark:context-menu-item";
 
   return (
     <>
@@ -258,7 +258,7 @@ export function MailActionsDropdown({
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={actions.handleDeleteClick}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950 hover:bg-red-50 hover:scale-[1.02]"
+            className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950 hover:bg-red-50 hover:scale-[1.01]"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Löschen

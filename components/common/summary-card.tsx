@@ -118,7 +118,7 @@ export function SummaryCard({
           // sichtbare Border wie im Main-Design
           "border border-gray-200 dark:border-[#3C4251]",
           // Add cursor pointer and hover scale when onClick is provided
-          onClick && "cursor-pointer hover:scale-[1.02] transition-transform duration-200",
+          onClick && "cursor-pointer hover:scale-[1.01] transition-transform duration-200",
           className
         )}
         onClick={onClick}

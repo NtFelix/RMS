@@ -64,7 +64,7 @@ const ToastAction = React.forwardRef<
   <ToastPrimitives.Action
     ref={ref}
     className={cn(
-      "inline-flex h-8 shrink-0 items-center justify-center rounded-lg border bg-transparent px-3 text-sm font-medium ring-offset-background transition-all duration-200 hover:bg-secondary hover:scale-105 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 hover:group-[.destructive]:border-destructive/30 hover:group-[.destructive]:bg-destructive hover:group-[.destructive]:text-destructive-foreground focus:group-[.destructive]:ring-destructive group-[.success]:border-muted/40 hover:group-[.success]:border-success/30 hover:group-[.success]:bg-success hover:group-[.success]:text-success-foreground focus:group-[.success]:ring-success", // Corrected success styles for ToastAction
+      "inline-flex h-8 shrink-0 items-center justify-center rounded-lg border bg-transparent px-3 text-sm font-medium ring-offset-background transition-all duration-200 hover:bg-secondary hover:scale-[1.01] focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 hover:group-[.destructive]:border-destructive/30 hover:group-[.destructive]:bg-destructive hover:group-[.destructive]:text-destructive-foreground focus:group-[.destructive]:ring-destructive group-[.success]:border-muted/40 hover:group-[.success]:border-success/30 hover:group-[.success]:bg-success hover:group-[.success]:text-success-foreground focus:group-[.success]:ring-success", // Corrected success styles for ToastAction
       className
     )}
     {...props}
@@ -79,7 +79,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-2 top-2 rounded-lg p-1 text-foreground/50 opacity-0 transition-all duration-200 hover:text-foreground hover:scale-110 hover:rotate-90 focus:opacity-100 focus:outline-hidden focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-red-300 hover:group-[.destructive]:text-red-50 focus:group-[.destructive]:ring-red-400 focus:group-[.destructive]:ring-offset-red-600 group-[.success]:text-green-300 hover:group-[.success]:text-green-50 focus:group-[.success]:ring-green-400 focus:group-[.success]:ring-offset-green-600", // Corrected to only include ToastClose styles
+      "absolute right-2 top-2 rounded-lg p-1 text-foreground/50 opacity-0 transition-all duration-200 hover:text-foreground hover:scale-[1.01] hover:rotate-90 focus:opacity-100 focus:outline-hidden focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-red-300 hover:group-[.destructive]:text-red-50 focus:group-[.destructive]:ring-red-400 focus:group-[.destructive]:ring-offset-red-600 group-[.success]:text-green-300 hover:group-[.success]:text-green-50 focus:group-[.success]:ring-green-400 focus:group-[.success]:ring-offset-green-600", // Corrected to only include ToastClose styles
       className
     )}
     toast-close=""

@@ -43,13 +43,13 @@ export function SettingsSidebar({
               className={cn(
                 "relative group h-9 w-9 rounded-lg motion-safe:transition-all motion-safe:duration-300",
                 "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
-                "motion-safe:hover:shadow-md motion-safe:active:scale-95",
+                "motion-safe:hover:shadow-md motion-safe:active:scale-[0.99]",
                 "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               )}
               aria-label="Einklappen"
             >
               <div className="absolute inset-0 flex items-center justify-center">
-                <PanelLeftClose className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:scale-110" />
+                <PanelLeftClose className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:scale-[1.01]" />
               </div>
             </button>
           </div>
@@ -59,13 +59,13 @@ export function SettingsSidebar({
             className={cn(
               "relative group h-11 w-11 rounded-full motion-safe:transition-all motion-safe:duration-300",
               "bg-muted/50 hover:bg-muted border border-border/50 hover:border-border",
-              "motion-safe:hover:shadow-md motion-safe:active:scale-95",
+              "motion-safe:hover:shadow-md motion-safe:active:scale-[0.99]",
               "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             )}
             aria-label="Erweitern"
           >
             <div className="absolute inset-0 flex items-center justify-center">
-              <PanelLeft className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:scale-110" />
+              <PanelLeft className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:scale-[1.01]" />
             </div>
           </button>
         )}
@@ -130,13 +130,13 @@ export function SettingsSidebar({
                       "relative flex items-center justify-center rounded-full motion-safe:transition-all motion-safe:duration-500 h-7 w-7",
                       isActive
                         ? "bg-primary-foreground/20 shadow-lg motion-safe:scale-110"
-                        : "bg-background/50 motion-safe:group-hover:bg-background/80 motion-safe:group-hover:scale-110"
+                        : "bg-background/50 motion-safe:group-hover:bg-background/80 motion-safe:group-hover:scale-[1.01]"
                     )}>
                       <tab.icon className={cn(
                         "motion-safe:transition-all motion-safe:duration-500",
                         isActive 
                           ? "h-4 w-4 text-primary-foreground motion-safe:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" 
-                          : "h-4 w-4 text-muted-foreground motion-safe:group-hover:text-foreground motion-safe:group-hover:scale-110 motion-safe:group-hover:rotate-3"
+                          : "h-4 w-4 text-muted-foreground motion-safe:group-hover:text-foreground motion-safe:group-hover:scale-[1.01] motion-safe:group-hover:rotate-3"
                       )} />
                     </div>
                   </div>

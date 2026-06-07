@@ -267,7 +267,7 @@ export function CustomCombobox({
                   aria-selected={value === option.value}
                   aria-disabled={option.disabled}
                   className={cn(
-                    "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg p-2 text-sm outline-hidden transition-all duration-150 active:scale-[0.98]",
+                    "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg p-2 text-sm outline-hidden transition-all duration-150 active:scale-[0.998]",
                     option.disabled
                       ? "pointer-events-none opacity-50"
                       : [

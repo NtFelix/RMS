@@ -625,7 +625,7 @@ export function TemplateEditorModal({
                           </>
                         ) : (
                           <>
-                            <Save size={18} className="transition-transform group-hover:scale-110" />
+                            <Save size={18} className="transition-transform group-hover:scale-[1.01]" />
                             <span>{template ? 'Änderungen speichern' : 'Vorlage erstellen'}</span>
                           </>
                         )}

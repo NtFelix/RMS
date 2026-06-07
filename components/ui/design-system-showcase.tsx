@@ -156,7 +156,7 @@ const DesignSystemShowcase = React.forwardRef<HTMLDivElement, DesignSystemShowca
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-xl text-center space-y-2 hover:shadow-md hover:scale-[1.02] transition-all duration-200 cursor-pointer">
+              <div className="p-4 border rounded-xl text-center space-y-2 hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-pointer">
                 <div className="w-8 h-8 bg-primary rounded-full mx-auto"></div>
                 <p className="text-sm font-medium">Hover Scale</p>
                 <p className="text-xs text-muted-foreground">scale-[1.02]</p>

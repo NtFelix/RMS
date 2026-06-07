@@ -140,7 +140,7 @@ export function DatePicker({
                   variant="outline"
                   size="icon"
                   className={cn(
-                    "absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full text-muted-foreground hover:text-foreground border-0 bg-muted/50 hover:bg-muted hover:scale-105 transition-all duration-200",
+                    "absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full text-muted-foreground hover:text-foreground border-0 bg-muted/50 hover:bg-muted hover:scale-[1.01] transition-all duration-200",
                     disabled && "cursor-not-allowed opacity-50"
                   )}
                   disabled={disabled}

@@ -492,7 +492,7 @@ function SidebarContent({
             animate={isCollapsed ? "collapsed" : "expanded"}
             onClick={toggleCollapse}
             type="button"
-            className="flex items-center justify-center rounded-xl size-10 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 shrink-0 z-50 focus:outline-none cursor-pointer hover:scale-105 active:scale-95"
+            className="flex items-center justify-center rounded-xl size-10 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-all duration-200 shrink-0 z-50 focus:outline-none cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
             title="Menü einklappen"
           >
             <PanelLeft className="size-5" />
@@ -586,11 +586,11 @@ function SidebarContent({
           <Popover>
             <PopoverTrigger asChild>
               <button className={cn(
-                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] group cursor-pointer",
                 "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
                 "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
               )}>
-                <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
+                <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-[1.01]" />
                 {hasUnreadMessages && (
                   <span className="absolute top-2.5 right-2.5 size-2 bg-accent rounded-full border-2 border-white dark:border-[#181818]" />
                 )}
@@ -634,11 +634,11 @@ function SidebarContent({
           <Popover>
             <PopoverTrigger asChild>
               <button className={cn(
-                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] group cursor-pointer",
                 "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
                 "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
               )}>
-                <Bell className="size-5 transition-transform duration-200 group-hover:scale-110" />
+                <Bell className="size-5 transition-transform duration-200 group-hover:scale-[1.01]" />
                 {hasUnreadNotifications && (
                   <span className="absolute top-2.5 right-3 size-2 bg-red-500 rounded-full border-2 border-white dark:border-[#181818]" />
                 )}

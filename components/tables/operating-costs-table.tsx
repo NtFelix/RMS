@@ -422,14 +422,14 @@ export function OperatingCostsTable({
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.999] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                 <TableHead className="w-12 pl-0 pr-0 -ml-2">
                   <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox
                       aria-label="Alle Abrechnungen auswählen"
                       checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
                       onCheckedChange={handleSelectAll}
-                      className="transition-transform duration-100 hover:scale-105"
+                      className="transition-transform duration-100 hover:scale-[1.01]"
                     />
                   </div>
                 </TableHead>
@@ -465,7 +465,7 @@ export function OperatingCostsTable({
                               contextMenuRefs.current.delete(item.id)
                             }
                           }}
-                          className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+                          className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.999] ${isSelected
                             ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                             }`}

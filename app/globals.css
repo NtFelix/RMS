@@ -499,7 +499,7 @@
   will-change: transform, background-color, color;
 
   &:active {
-    transform: scale(0.95);
+    transform: scale(0.98);
   }
 }
 

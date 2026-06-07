@@ -228,7 +228,7 @@ describe('SummaryCard', () => {
     render(<SummaryCard {...defaultProps} onClick={onClickMock} />);
     
     const card = screen.getByText('Total Rent').closest('[class*="hover:scale-"]');
-    expect(card).toHaveClass('hover:scale-[1.02]');
+    expect(card).toHaveClass('hover:scale-[1.01]');
   });
 });
 

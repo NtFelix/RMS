@@ -187,7 +187,7 @@ const MobileCard = React.forwardRef<HTMLDivElement, MobileCardProps>(
           "rounded-lg md:rounded-2xl border bg-card text-card-foreground shadow-xs",
           compact ? "p-3 md:p-4" : "p-4 md:p-6",
           interactive && "touch-feedback hover-desktop cursor-pointer transition-all duration-200",
-          interactive && "hover:shadow-md active:scale-[0.98]",
+          interactive && "hover:shadow-md active:scale-[0.99]",
           className
         )}
         {...props}

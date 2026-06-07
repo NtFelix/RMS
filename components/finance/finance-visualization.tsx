@@ -270,7 +270,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-                <Icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                <Icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:scale-[1.01]" />
                 <span>{chart.label}</span>
               </motion.button>
             );

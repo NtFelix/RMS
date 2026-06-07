@@ -113,7 +113,7 @@ export function SidebarSwitcherCards({ className }: SidebarSwitcherCardsProps) {
             onClick={() => handlePreferenceChange(option.value)}
             className={cn(
               "relative flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 overflow-hidden cursor-pointer",
-              "hover:scale-[1.02] active:scale-[0.98] transition-all duration-300",
+              "hover:scale-[1.01] active:scale-[0.99] transition-all duration-300",
               isActive
                 ? "border-primary bg-primary/5 shadow-xs"
                 : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/20 hover:border-gray-300 dark:hover:border-gray-700"

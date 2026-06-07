@@ -82,7 +82,7 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
         }
       }}
       className={cn(
-        "rounded-lg px-3 py-2 text-sm transition-all duration-150 active:scale-[0.98]",
+        "rounded-lg px-3 py-2 text-sm transition-all duration-150 active:scale-[0.998]",
         className
       )}
       {...props}

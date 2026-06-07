@@ -312,7 +312,7 @@ export function NKCarousel() {
 
                   <button
                     onClick={() => setActiveId(null)}
-                    className="absolute top-6 right-6 w-8 h-8 rounded-full bg-muted/50 hover:bg-muted flex items-center justify-center transition-all hover:scale-110 z-20"
+                    className="absolute top-6 right-6 w-8 h-8 rounded-full bg-muted/50 hover:bg-muted flex items-center justify-center transition-all hover:scale-[1.01] z-20"
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
                   </button>

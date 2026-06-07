@@ -604,7 +604,7 @@ export function CloudStorageItemCard({
                   <div className={cn(
                     "p-3 rounded-xl transition-colors",
                     bgColor,
-                    "group-hover:scale-105 transition-transform"
+                    "group-hover:scale-[1.01] transition-transform"
                   )}>
                     {isLoading ? (
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

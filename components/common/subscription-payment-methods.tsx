@@ -85,7 +85,7 @@ const CreditCardDisplay = ({ paymentMethod, cardholderName }: { paymentMethod: P
   
   return (
     <div 
-      className={`relative w-full max-w-md aspect-[1.586/1] rounded-2xl p-6 shadow-lg cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${brandStyles.gradient} ${brandStyles.textColor}`}
+      className={`relative w-full max-w-md aspect-[1.586/1] rounded-2xl p-6 shadow-lg cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.01] ${brandStyles.gradient} ${brandStyles.textColor}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

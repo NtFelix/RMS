@@ -571,7 +571,7 @@ describe('MobileBottomNavigation - Comprehensive Functionality Tests', () => {
 
       // Touch feedback should be cleared after a delay (check that scale-95 from touch is removed)
       await waitFor(() => {
-        // The element might still have scale-95 from active:scale-95 CSS class, 
+        // The element might still have scale-95 from active:scale-[0.99] CSS class, 
         // but the touch-specific scale-95 should be cleared
         const classes = homeButton.className
         // Count occurrences of scale-95 - should be 1 or less after touch end

@@ -8,7 +8,7 @@ const inputVariants = cva(
   {
     variants: {
       sizeVariant: {
-        default: "h-10 px-4 py-2 text-base md:text-sm focus-visible:scale-[1.01] hover:border-ring/50",
+        default: "h-10 px-4 py-2 text-base md:text-sm hover:border-ring/50",
         sm: "h-9 px-3 py-1 text-xs focus:border-primary focus:bg-background/80 hover:border-border/80",
       },
     },
