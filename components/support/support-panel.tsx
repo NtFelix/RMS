@@ -162,12 +162,14 @@ export function SupportPanel() {
     })
   }, [isAvailable, posthog, user?.id])
 
-  const refreshTickets = useCallback(async () => {
+  const refreshTickets = useCallback(async (isBackground = false) => {
     if (!posthog || !isAvailable) {
       return
     }
 
-    setTicketsLoading(true)
+    if (!isBackground) {
+      setTicketsLoading(true)
+    }
     try {
       const response = await loadSupportTickets(posthog)
 
@@ -175,7 +177,7 @@ export function SupportPanel() {
         return
       }
 
-      const normalizedTickets = [...response.results].sort((a, b) => {
+      const normalizedTickets = response.results.toSorted((a, b) => {
         return new Date(b.last_message_at || b.created_at).getTime() - new Date(a.last_message_at || a.created_at).getTime()
       })
 
@@ -190,17 +192,21 @@ export function SupportPanel() {
     } catch (error) {
       setTicketsError(error instanceof Error ? error.message : 'Tickets konnten nicht geladen werden.')
     } finally {
-      setTicketsLoading(false)
+      if (!isBackground) {
+        setTicketsLoading(false)
+      }
     }
   }, [isAvailable, isComposingNewTicket, posthog, selectedTicketId, setUnreadCount])
 
-  const refreshMessages = useCallback(async (ticketId: string | null) => {
+  const refreshMessages = useCallback(async (ticketId: string | null, isBackground = false) => {
     if (!posthog || !isAvailable || !ticketId) {
       setMessages([])
       return
     }
 
-    setMessagesLoading(true)
+    if (!isBackground) {
+      setMessagesLoading(true)
+    }
     setMessageError(null)
 
     try {
@@ -219,7 +225,9 @@ export function SupportPanel() {
     } catch (error) {
       setMessageError(error instanceof Error ? error.message : 'Nachrichten konnten nicht geladen werden.')
     } finally {
-      setMessagesLoading(false)
+      if (!isBackground) {
+        setMessagesLoading(false)
+      }
     }
   }, [isAvailable, posthog])
 
@@ -248,7 +256,7 @@ export function SupportPanel() {
     }
 
     const ticketsTimer = window.setInterval(() => {
-      void refreshTickets()
+      void refreshTickets(true)
     }, SUPPORT_POLL_INTERVAL_MS)
 
     return () => window.clearInterval(ticketsTimer)
@@ -260,7 +268,7 @@ export function SupportPanel() {
     }
 
     const messagesTimer = window.setInterval(() => {
-      void refreshMessages(visibleTicketId)
+      void refreshMessages(visibleTicketId, true)
     }, SUPPORT_POLL_INTERVAL_MS)
 
     return () => window.clearInterval(messagesTimer)

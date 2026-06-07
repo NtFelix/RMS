@@ -608,7 +608,7 @@ function SidebarContent({
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
                   <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
-                  <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">{supportUnreadCount} Offen</span>
+                  <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">{supportUnreadCount} Ungelesen</span>
                 </div>
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">

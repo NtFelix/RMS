@@ -69,7 +69,7 @@ export interface SupportConversationsClient {
   restoreFromUrlToken?: () => Promise<unknown>
 }
 
-const supportIdentityCache = new Map<string, SupportIdentityResponse>()
+const supportIdentityCache = new Map<string, Promise<SupportIdentityResponse | null>>()
 
 export function buildSupportTraits(user: User | null | undefined) {
   if (!user) {
@@ -100,35 +100,49 @@ export async function syncSupportIdentity(
     return null
   }
 
-  const cachedIdentity = supportIdentityCache.get(distinctId)
-  if (cachedIdentity) {
-    supportPosthog.setIdentity(cachedIdentity.distinctId, cachedIdentity.hash)
-    return cachedIdentity
+  const cachedPromise = supportIdentityCache.get(distinctId)
+  if (cachedPromise) {
+    const identity = await cachedPromise
+    if (identity) {
+      supportPosthog.setIdentity(identity.distinctId, identity.hash)
+    }
+    return identity
   }
 
-  try {
-    const response = await fetch('/api/support/identity', {
-      method: 'GET',
-      credentials: 'same-origin',
-      headers: {
-        accept: 'application/json',
-      },
-    })
+  const fetchPromise = (async () => {
+    try {
+      const response = await fetch('/api/support/identity', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+          accept: 'application/json',
+        },
+      })
 
-    if (!response.ok) {
+      if (!response.ok) {
+        return null
+      }
+
+      const payload = (await response.json()) as SupportIdentityResponse
+
+      if (!payload?.distinctId || !payload?.hash) {
+        return null
+      }
+
+      return payload
+    } catch {
       return null
     }
+  })()
 
-    const payload = (await response.json()) as SupportIdentityResponse
+  supportIdentityCache.set(distinctId, fetchPromise)
 
-    if (!payload?.distinctId || !payload?.hash) {
-      return null
-    }
-
-    supportIdentityCache.set(payload.distinctId, payload)
-    supportPosthog.setIdentity(payload.distinctId, payload.hash)
-    return payload
-  } catch {
-    return null
+  const identity = await fetchPromise
+  if (identity) {
+    supportPosthog.setIdentity(identity.distinctId, identity.hash)
+  } else {
+    supportIdentityCache.delete(distinctId)
   }
+
+  return identity
 }
