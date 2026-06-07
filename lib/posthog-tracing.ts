@@ -98,12 +98,14 @@ export function initTracing(): void {
       'deployment.environment': process.env.NODE_ENV || 'development',
       'service.version': process.env.npm_package_version || '1.0.0',
     }),
-    spanProcessor: new BatchSpanProcessor(exporter, {
-      maxQueueSize: 2048,
-      maxExportBatchSize: 512,
-      scheduledDelayMillis: process.env.NODE_ENV === 'production' ? 5000 : 1000,
-      exportTimeoutMillis: 30000,
-    }),
+    spanProcessors: [
+      new BatchSpanProcessor(exporter, {
+        maxQueueSize: 2048,
+        maxExportBatchSize: 512,
+        scheduledDelayMillis: process.env.NODE_ENV === 'production' ? 5000 : 1000,
+        exportTimeoutMillis: 30000,
+      }),
+    ],
   });
 
   sdk.start();
