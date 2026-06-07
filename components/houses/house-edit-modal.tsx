@@ -24,8 +24,20 @@ import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb } from "lucide-react";
+import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb, Eye, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from "@/components/ui/custom-dropdown";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
 
 // Helper component for Property Header with Hover Info
 function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: any, label: string, infoText: string, htmlFor: string }) {
@@ -78,6 +90,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [automaticSize, setAutomaticSize] = useState(true);
   const [manualGroesse, setManualGroesse] = useState<string>('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { openHausOverviewModal } = useModalStore();
 
   const {
     isHouseModalOpen,
@@ -136,6 +151,43 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
   const handleCancelClick = () => {
     closeHouseModal({ force: true });
+  };
+
+  const handleDelete = async () => {
+    if (!houseInitialData) return;
+    try {
+      setIsDeleting(true);
+      const result = await deleteHouseAction(houseInitialData.id);
+
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: `Das Haus "${formData.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        setHouseModalDirty(false);
+        closeHouseModal();
+        if (houseModalOnSuccess) {
+          houseModalOnSuccess({ deleted: true, id: houseInitialData.id });
+        }
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Das Haus konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Unerwarteter Fehler beim Löschen des Hauses:", error);
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -205,14 +257,31 @@ export function HouseEditModal(props: HouseEditModalProps) {
           <div className="pointer-events-auto">
             {/* The actual SheetClose button is in components/ui/sheet.tsx at left-4 top-4 */}
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-lg opacity-50 hover:opacity-100 hover:bg-muted pointer-events-auto"
-          >
-            <MoreHorizontal className="h-5 w-5" />
-            <span className="sr-only">Actions</span>
-          </Button>
+          {houseInitialData && (
+            <CustomDropdown
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-lg opacity-50 hover:opacity-100 hover:bg-muted pointer-events-auto cursor-pointer"
+                >
+                  <MoreHorizontal className="h-5 w-5" />
+                  <span className="sr-only">Aktionen</span>
+                </Button>
+              }
+              align="end"
+            >
+              <CustomDropdownItem onClick={() => openHausOverviewModal(houseInitialData.id)}>
+                <Eye className="h-4 w-4 mr-2" />
+                <span>Übersicht</span>
+              </CustomDropdownItem>
+              <CustomDropdownSeparator />
+              <CustomDropdownItem onClick={() => setDeleteDialogOpen(true)} className="text-red-600 focus:text-red-600">
+                <Trash2 className="h-4 w-4 mr-2" />
+                <span>Löschen</span>
+              </CustomDropdownItem>
+            </CustomDropdown>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
@@ -400,6 +469,23 @@ export function HouseEditModal(props: HouseEditModalProps) {
             </div>
           </SheetFooter>
         </form>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Haus löschen?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Möchten Sie das Haus "{formData.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+                {isDeleting ? "Löschen..." : "Löschen"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );
