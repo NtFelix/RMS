@@ -271,7 +271,7 @@ export function CustomCombobox({
                     option.disabled
                       ? "pointer-events-none opacity-50"
                       : [
-                        highlightedIndex === index ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                        highlightedIndex === index ? "bg-gray-200 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-gray-200"
                       ]
                   )}
                   onClick={() => {

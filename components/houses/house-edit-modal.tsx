@@ -240,10 +240,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
     }
   };
 
-  if (!isHouseModalOpen) {
-    return null;
-  }
-
   return (
     <Sheet open={isHouseModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <SheetContent
@@ -263,7 +259,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-lg opacity-50 hover:opacity-100 hover:bg-muted pointer-events-auto cursor-pointer"
+                  className="rounded-lg opacity-50 hover:opacity-100 hover:bg-gray-200 pointer-events-auto cursor-pointer h-8 w-8"
                 >
                   <MoreHorizontal className="h-5 w-5" />
                   <span className="sr-only">Aktionen</span>
