@@ -40,7 +40,7 @@ export function TenantPaymentBento() {
           </div>
           <button
             type="button"
-            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+            className="p-2 rounded-lg hover:bg-hover-bg transition-colors duration-150"
             onClick={() => openTenantPaymentOverviewModal()}
             title="Maximieren"
           >

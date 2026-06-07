@@ -65,6 +65,7 @@
   --color-context-menu-checkbox: hsl(var(--primary) / 0.15);
   --color-context-menu-radio: hsl(var(--primary) / 0.15);
   --color-modal-close-hover: hsl(var(--primary) / 0.15);
+  --color-hover-bg: hsl(var(--hover-bg));
 
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
@@ -732,6 +733,7 @@
     --border: 180 6% 95%;
     --input: 214.3 31.8% 91.4%;
     --ring: 210 29% 24%;
+    --hover-bg: 220 13% 91%;
     --radius: 1rem;
 
     /* Chart Farben */
@@ -786,6 +788,7 @@
     /* #22252b - input-bg (original) */
     --ring: 220 39% 25%;
     /* #2D4A6B - darker blue ring */
+    --hover-bg: 220 11% 20%;
 
     /* Custom variables for specific use cases */
     --btn-bg: 215 25% 19%;

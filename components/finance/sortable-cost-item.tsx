@@ -99,7 +99,7 @@ export function SortableCostItem({
         <div className="flex items-center justify-center flex-none w-8 h-10">
           <button
             type="button"
-            className="cursor-grab active:cursor-grabbing p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600"
+            className="cursor-grab active:cursor-grabbing p-2 hover:bg-hover-bg rounded-lg transition-colors flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600"
             {...attributes}
             {...listeners}
             aria-label="Kostenposition verschieben"

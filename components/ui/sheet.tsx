@@ -135,7 +135,7 @@ const SheetContent = React.forwardRef<
       >
         {children}
         <SheetPrimitive.Close asChild onClick={handleCloseButtonClick}>
-          <Button variant="ghost" size="icon" className="absolute left-4 top-4 rounded-lg opacity-50 hover:opacity-100 hover:bg-gray-200 cursor-pointer h-8 w-8">
+          <Button variant="ghost" size="icon" className="absolute left-4 top-4 rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg cursor-pointer h-8 w-8">
             <ChevronsRight className="h-5 w-5" />
             <span className="sr-only">Close</span>
           </Button>

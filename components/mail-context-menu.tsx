@@ -229,7 +229,7 @@ export function MailActionsDropdown({
     onDeletePermanently,
   });
 
-  const dropdownItemClass = "focus:bg-gray-200 focus:text-foreground hover:bg-gray-200 dark:context-menu-item";
+  const dropdownItemClass = "focus:bg-hover-bg focus:text-foreground hover:bg-hover-bg dark:context-menu-item";
 
   return (
     <>
@@ -238,7 +238,7 @@ export function MailActionsDropdown({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 p-0 hover:bg-gray-200"
+            className="h-7 w-7 p-0 hover:bg-hover-bg"
           >
             <span className="sr-only">Menü öffnen</span>
             <MoreVertical className="h-3.5 w-3.5" />
