@@ -257,33 +257,31 @@ export function HouseEditModal(props: HouseEditModalProps) {
           <div className="pointer-events-auto">
             {/* The actual SheetClose button is in components/ui/sheet.tsx at left-4 top-4 */}
           </div>
-          <CustomDropdown
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-lg opacity-50 hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-800 pointer-events-auto cursor-pointer h-8 w-8"
-              >
-                <MoreHorizontal className="h-5 w-5" />
-                <span className="sr-only">Aktionen</span>
-              </Button>
-            }
-            align="end"
-          >
-            {houseInitialData && (
-              <>
-                <CustomDropdownItem onClick={() => openHausOverviewModal(houseInitialData.id)}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  <span>Übersicht</span>
-                </CustomDropdownItem>
-                <CustomDropdownSeparator />
-                <CustomDropdownItem onClick={() => setDeleteDialogOpen(true)} className="text-red-600 focus:text-red-600">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  <span>Löschen</span>
-                </CustomDropdownItem>
-              </>
-            )}
-          </CustomDropdown>
+          {houseInitialData && (
+            <CustomDropdown
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-lg opacity-50 hover:opacity-100 hover:bg-muted pointer-events-auto cursor-pointer"
+                >
+                  <MoreHorizontal className="h-5 w-5" />
+                  <span className="sr-only">Aktionen</span>
+                </Button>
+              }
+              align="end"
+            >
+              <CustomDropdownItem onClick={() => openHausOverviewModal(houseInitialData.id)}>
+                <Eye className="h-4 w-4 mr-2" />
+                <span>Übersicht</span>
+              </CustomDropdownItem>
+              <CustomDropdownSeparator />
+              <CustomDropdownItem onClick={() => setDeleteDialogOpen(true)} className="text-red-600 focus:text-red-600">
+                <Trash2 className="h-4 w-4 mr-2" />
+                <span>Löschen</span>
+              </CustomDropdownItem>
+            </CustomDropdown>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
