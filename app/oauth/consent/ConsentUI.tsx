@@ -65,6 +65,8 @@ import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/c
 
 import { isValidRedirect, isValidSupabaseRedirect } from '@/lib/oauth-utils';
 
+const EMPTY_SCOPES: string[] = [];
+
 /**
  * Validates a redirect URL before navigating to it.
  * Only HTTPS URLs whose origin is in the allowlist or the project's Supabase instance are accepted.
@@ -126,7 +128,7 @@ export default function ConsentUI({
     clientName: initialClientName,
     clientIcon: initialClientIcon,
     redirectUri: initialRedirectUri,
-    scopes: initialScopes = [],
+    scopes: initialScopes = EMPTY_SCOPES,
     isDemo = false,
     initialData,
     initialError
@@ -134,16 +136,16 @@ export default function ConsentUI({
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
     const [isAlreadyProcessed, setIsAlreadyProcessed] = useState(false);
-    const hasNoAuthId = !authorizationId || type === 'error';
-    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError && !hasNoAuthId);
     const [authDetails, setAuthDetails] = useState<AuthorizationDetails | null>(
         isDemo ? {
             id: authorizationId,
             client: { name: initialClientName, logo_uri: initialClientIcon },
             redirect_uri: initialRedirectUri,
-            scopes: initialScopes
+            scopes: initialScopes.length > 0 ? initialScopes : undefined
         } : (initialData || null)
     );
+    const hasNoAuthId = !authorizationId || type === 'error';
+    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError && !hasNoAuthId);
     const [loadError, setLoadError] = useState<string | null>(initialError || null);
     const [countdown, setCountdown] = useState(5);
 
