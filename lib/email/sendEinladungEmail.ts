@@ -62,7 +62,7 @@ export async function sendEinladungEmail(
 
   try {
     const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? "Mietevo <einladung@mietevo.de>",
+      from: process.env.RESEND_FROM_EMAIL ?? "Mietevo <service@mietevo.de>",
       to: toEmail,
       subject: `Du wurdest zu ${organisationsName} auf Mietevo eingeladen`,
       html,
