@@ -92,7 +92,7 @@ test.describe('Business Logic Flows', () => {
     await page.fill('#manualGroesse', '150');
 
     // Submit
-    await page.getByRole('button', { name: /Speichern|Aktualisieren/i }).click();
+    await page.getByRole('button', { name: /anlegen|speichern|aktualisieren/i }).click();
 
     // Wait for modal to close
     try {
