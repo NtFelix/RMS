@@ -5,6 +5,7 @@ import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { hasPermission } from "@/lib/permissions";
 import { withLogging } from "@/lib/logging-middleware";
+import { sendEinladungEmail } from "@/lib/email/sendEinladungEmail";
 
 /**
  * Invites a new member to the current organization.
@@ -43,6 +44,28 @@ export const createEinladungAction = withLogging(
 
     if (error) {
       return { success: false, error: { message: error.message } };
+    }
+
+    // Fire-and-forget: send invitation email.
+    // Runs after the RPC succeeds; failures are logged but never surface to the caller.
+    if (data?.token) {
+      // Attempt to read org name from einstellungen; fall back gracefully.
+      const orgName = await supabase
+        .from('Organisation')
+        .select('einstellungen')
+        .eq('id', data.organisation_id)
+        .single()
+        .then(({ data: org }) => (org?.einstellungen as { name?: string } | null)?.name ?? 'Mietevo');
+
+      const einladerName = user.email ?? 'Ein Administrator';
+
+      void sendEinladungEmail({
+        toEmail: email,
+        einladerName,
+        organisationsName: orgName,
+        rolle: rolle as 'admin' | 'mitarbeiter',
+        token: data.token,
+      });
     }
 
     revalidatePath('/organisation');
