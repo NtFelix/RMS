@@ -34,15 +34,18 @@ jest.mock('stripe', () => {
 
 describe('user-billing-actions', () => {
   let mockSupabase: any;
-  const originalEnv = process.env;
+  const originalEnv = { ...process.env };
 
   afterEach(() => {
-    process.env = originalEnv;
+    for (const key in process.env) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
   });
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
-
     jest.clearAllMocks();
 
     mockSupabase = {

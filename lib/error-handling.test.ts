@@ -20,6 +20,7 @@ jest.mock('@/lib/posthog-logger', () => ({
 describe('error-handling utilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (PerformanceMonitor as any).metrics = [];
   });
 
   describe('safeRpcCall', () => {

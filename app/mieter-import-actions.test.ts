@@ -30,15 +30,18 @@ jest.mock('@/lib/posthog-logger', () => ({
 
 describe('mieter-import-actions', () => {
   let mockSupabase: any;
-  const originalEnv = process.env;
+  const originalEnv = { ...process.env };
 
   afterEach(() => {
-    process.env = originalEnv;
+    for (const key in process.env) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
   });
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
-
     jest.clearAllMocks();
     global.fetch = jest.fn();
 
