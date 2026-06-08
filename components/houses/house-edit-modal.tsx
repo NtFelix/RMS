@@ -24,7 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb, Eye, Trash2 } from "lucide-react";
+import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb, Eye, Trash2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from "@/components/ui/custom-dropdown";
 import {
@@ -40,7 +40,7 @@ import {
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
 
 // Helper component for Property Header with Hover Info
-function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: any, label: string, infoText: string, htmlFor: string }) {
+function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: LucideIcon, label: string, infoText: string, htmlFor: string }) {
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
@@ -131,8 +131,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
         setAutomaticSize(true);
         setManualGroesse('');
       }
+      setHouseModalDirty(false);
     }
-  }, [houseInitialData, isHouseModalOpen]);
+  }, [houseInitialData, isHouseModalOpen, setHouseModalDirty]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

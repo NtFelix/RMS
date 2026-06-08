@@ -150,7 +150,7 @@ export function FormModalShell({
         }
         return (
           <CustomDropdownItem
-            key={item.label}
+            key={item.label + "-" + i}
             onClick={item.onClick}
             className={item.destructive ? "text-red-600 focus:text-red-600" : undefined}
           >

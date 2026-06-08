@@ -79,8 +79,7 @@ const SheetContent = React.forwardRef<
       target?.closest('[role="listbox"]') ||
       target?.closest('[data-dialog-ignore-interaction]') ||
       target?.closest('[data-combobox-dropdown]') ||
-      target?.hasAttribute('data-combobox-input') ||
-      target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
+      target?.hasAttribute('data-combobox-input')) {
       return;
     }
 
