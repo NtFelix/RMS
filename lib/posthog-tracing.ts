@@ -19,11 +19,25 @@ import { diag, DiagLogLevel } from '@opentelemetry/api';
 import { SERVICE_NAME, POSTHOG_API_KEY, POSTHOG_HOST } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
 
+const safeStringify = (val: unknown): string => {
+  if (val instanceof Error) {
+    return val.stack || val.message;
+  }
+  if (typeof val === 'object' && val !== null) {
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
+};
+
 const createPostHogDiagLogger = () => {
-  const log = (severity: 'debug' | 'info' | 'warn' | 'error') => (message: any, ...args: any[]) => {
-    const text = typeof message === 'string' ? message : JSON.stringify(message);
+  const log = (severity: 'debug' | 'info' | 'warn' | 'error') => (message: unknown, ...args: unknown[]) => {
+    const text = typeof message === 'string' ? message : safeStringify(message);
     const formattedMessage = args.length > 0
-      ? `${text} ${args.map(a => JSON.stringify(a)).join(' ')}`
+      ? `${text} ${args.map(safeStringify).join(' ')}`
       : text;
 
     const consoleMethod = severity === 'error' ? console.error : severity === 'warn' ? console.warn : console.log;
@@ -31,7 +45,7 @@ const createPostHogDiagLogger = () => {
 
     posthogLogger[severity](`[OTel] ${text}`, {
       'otel.message': text,
-      'otel.args': args.length > 0 ? JSON.stringify(args) : undefined,
+      'otel.args': args.length > 0 ? safeStringify(args) : undefined,
       'otel.diagnostic': true
     });
   };
@@ -98,9 +112,8 @@ export function initTracing(): void {
 
   console.log('[PostHog Tracing] ✅ Initialized — exporting traces to', endpoint);
 
-  const handleShutdown = async () => {
-    await shutdownTracing().catch(() => {});
-    process.exit(0);
+  const handleShutdown = () => {
+    shutdownTracing().catch(() => {});
   };
 
   process.on('SIGTERM', handleShutdown);
