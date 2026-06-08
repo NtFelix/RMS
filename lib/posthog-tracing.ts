@@ -14,28 +14,23 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { resourceFromAttributes } from '@opentelemetry/resources';
-import { diag, DiagConsoleLogger, DiagLogLevel, DiagLogFunction } from '@opentelemetry/api';
+import { diag, DiagLogLevel } from '@opentelemetry/api';
 
 import { SERVICE_NAME, POSTHOG_API_KEY, POSTHOG_HOST } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
 
-/**
- * A custom OpenTelemetry Diagnostic Logger that forwards logs to PostHog
- */
 const createPostHogDiagLogger = () => {
-  const log = (severity: 'debug' | 'info' | 'warn' | 'error'): DiagLogFunction => (message, ...args) => {
-    // Format the message with args
-    const formattedMessage = args.length > 0 
-      ? `${message} ${args.map(a => JSON.stringify(a)).join(' ')}`
-      : message;
-    
-    // Always log to console as well for Docker logs
+  const log = (severity: 'debug' | 'info' | 'warn' | 'error') => (message: any, ...args: any[]) => {
+    const text = typeof message === 'string' ? message : JSON.stringify(message);
+    const formattedMessage = args.length > 0
+      ? `${text} ${args.map(a => JSON.stringify(a)).join(' ')}`
+      : text;
+
     const consoleMethod = severity === 'error' ? console.error : severity === 'warn' ? console.warn : console.log;
     consoleMethod(`[OTel ${severity.toUpperCase()}] ${formattedMessage}`);
 
-    // Forward to PostHog logs
-    posthogLogger[severity](`[OTel] ${message}`, {
-      'otel.message': message,
+    posthogLogger[severity](`[OTel] ${text}`, {
+      'otel.message': text,
       'otel.args': args.length > 0 ? JSON.stringify(args) : undefined,
       'otel.diagnostic': true
     });
@@ -50,8 +45,6 @@ const createPostHogDiagLogger = () => {
   };
 };
 
-// Enable diagnostic logging for OpenTelemetry
-// We forward these to PostHog logs so we can see why traces might be failing in Docker
 diag.setLogger(createPostHogDiagLogger(), DiagLogLevel.INFO);
 
 function getTracesEndpoint(): string {
@@ -61,10 +54,6 @@ function getTracesEndpoint(): string {
 
 let sdk: NodeSDK | null = null;
 
-/**
- * Initialize the OpenTelemetry NodeSDK for tracing.
- * Safe to call multiple times — subsequent calls are no-ops.
- */
 export function initTracing(): void {
   if (sdk) return;
 
@@ -74,14 +63,11 @@ export function initTracing(): void {
     serviceName: SERVICE_NAME,
     endpoint,
     hasApiKey: !!POSTHOG_API_KEY,
-    apiKeyPrefix: POSTHOG_API_KEY ? `${POSTHOG_API_KEY.substring(0, 8)}...` : 'none',
     environment: process.env.NODE_ENV || 'development'
   });
 
   if (!POSTHOG_API_KEY) {
-    console.warn(
-      '[PostHog Tracing] ⚠️ POSTHOG_API_KEY not set — tracing disabled'
-    );
+    console.warn('[PostHog Tracing] ⚠️ POSTHOG_API_KEY not set — tracing disabled');
     return;
   }
 
@@ -100,10 +86,10 @@ export function initTracing(): void {
     }),
     spanProcessors: [
       new BatchSpanProcessor(exporter, {
-        maxQueueSize: 2048,
-        maxExportBatchSize: 512,
-        scheduledDelayMillis: process.env.NODE_ENV === 'production' ? 5000 : 1000,
-        exportTimeoutMillis: 30000,
+        scheduledDelayMillis: 1000,
+        exportTimeoutMillis: 10000,
+        maxQueueSize: 1024,
+        maxExportBatchSize: 128,
       }),
     ],
   });
@@ -112,26 +98,15 @@ export function initTracing(): void {
 
   console.log('[PostHog Tracing] ✅ Initialized — exporting traces to', endpoint);
 
-  // Handle graceful shutdown
-  const handleShutdown = () => {
-    shutdownTracing()
-      .then(() => {
-        console.log('[PostHog Tracing] 🛑 SDK shut down successfully');
-        process.exit(0);
-      })
-      .catch((err) => {
-        console.error('[PostHog Tracing] ❌ Error during shutdown:', err);
-        process.exit(1);
-      });
+  const handleShutdown = async () => {
+    await shutdownTracing().catch(() => {});
+    process.exit(0);
   };
 
   process.on('SIGTERM', handleShutdown);
   process.on('SIGINT', handleShutdown);
 }
 
-/**
- * Gracefully shut down the SDK and flush pending spans.
- */
 export async function shutdownTracing(): Promise<void> {
   if (sdk) {
     await sdk.shutdown();
