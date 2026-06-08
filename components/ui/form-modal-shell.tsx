@@ -38,11 +38,14 @@ import { MoreHorizontal, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface FormModalAction {
+  kind: "action";
   label: string;
   icon?: React.ComponentType<{ className?: string }>;
   onClick: () => void;
   destructive?: boolean;
 }
+
+type DropdownEntry = FormModalAction | { kind: "separator" };
 
 export interface FormModalDeleteConfig {
   onDelete: () => Promise<void>;
@@ -117,12 +120,13 @@ export function FormModalShell({
 }: FormModalShellProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const dropdownItems = [...actions];
+  const dropdownItems: DropdownEntry[] = [...actions];
   if (deleteConfig) {
     if (actions.length > 0) {
-      dropdownItems.push({ label: "separator" } as any);
+      dropdownItems.push({ kind: "separator" });
     }
     dropdownItems.push({
+      kind: "action",
       label: "Löschen",
       icon: Trash2,
       onClick: () => setDeleteOpen(true),
@@ -144,8 +148,8 @@ export function FormModalShell({
       }
       align="end"
     >
-      {dropdownItems.map((item: any, i: number) => {
-        if (item.label === "separator") {
+      {dropdownItems.map((item, i) => {
+        if (item.kind === "separator") {
           return <CustomDropdownSeparator key={`sep-${i}`} />;
         }
         return (

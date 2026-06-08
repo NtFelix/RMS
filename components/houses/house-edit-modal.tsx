@@ -44,7 +44,11 @@ function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: Lucide
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
-        <div className="flex items-center gap-3 text-muted-foreground/70 cursor-help transition-colors hover:text-foreground/90 w-fit group/header">
+        <div
+          tabIndex={0}
+          role="button"
+          className="flex items-center gap-3 text-muted-foreground/70 cursor-help transition-colors hover:text-foreground/90 w-fit group/header"
+        >
           <Icon className="h-4 w-4 group-hover/header:text-primary transition-colors" />
           <Label htmlFor={htmlFor} className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
             {label}
@@ -92,6 +96,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const [manualGroesse, setManualGroesse] = useState<string>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const isPending = isSubmitting || isDeleting;
   const { openHausOverviewModal } = useModalStore();
 
   const {
@@ -155,7 +160,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
   };
 
   const handleDelete = async () => {
-    if (!houseInitialData) return;
+    if (!houseInitialData || isPending) return;
     try {
       setIsDeleting(true);
       const result = await deleteHouseAction(houseInitialData.id);
@@ -193,6 +198,17 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPending) return;
+
+    if (!automaticSize && (manualGroesse === '' || isNaN(Number(manualGroesse)))) {
+      toast({
+        title: "Eingabefehler",
+        description: "Bitte geben Sie eine gültige Größe in m² ein.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     const form = new FormData();

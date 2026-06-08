@@ -107,13 +107,19 @@ const SheetContent = React.forwardRef<
         ref={ref}
         className={cn(sheetVariants({ side }), className)}
         onInteractOutside={handleInteraction}
+        onEscapeKeyDown={(e) => {
+          if (isDirty && onAttemptClose) {
+            e.preventDefault();
+            onAttemptClose();
+          }
+        }}
         onOpenAutoFocus={(e) => {
           // Prevent auto focus to allow combobox inputs to work
           e.preventDefault();
         }}
         onCloseAutoFocus={(e) => {
-          // Prevent auto focus on close
-          e.preventDefault();
+          // Let focus return to trigger on normal close (accessibility).
+          // Only prevent when the sheet is closing because of navigation (submit success).
         }}
         onFocusOutside={(e) => {
           // Don't prevent focus from moving to combobox elements or when combobox is actively being used
@@ -136,7 +142,7 @@ const SheetContent = React.forwardRef<
         <SheetPrimitive.Close asChild onClick={handleCloseButtonClick}>
           <Button variant="ghost" size="icon" className="absolute left-4 top-4 rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg cursor-pointer h-8 w-8">
             <ChevronsRight className="h-5 w-5" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Schließen</span>
           </Button>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
