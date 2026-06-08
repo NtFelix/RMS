@@ -1,8 +1,15 @@
-import { Resend } from "resend";
+/**
+ * Sends an organisation invitation email via the Resend REST API.
+ *
+ * Uses native `fetch` instead of the Resend Node.js SDK so this module
+ * is compatible with the Edge Runtime (where organisation-actions.ts runs).
+ *
+ * Design intent: fire-and-forget.  Errors are logged but NEVER propagate to
+ * the caller – the invitation record in the DB is already the source of truth.
+ */
+
 import { render } from "@react-email/render";
 import EinladungEmail from "@/emails/EinladungEmail";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export interface SendEinladungEmailOptions {
   /** Email address of the invitee */
@@ -17,65 +24,73 @@ export interface SendEinladungEmailOptions {
   token: string;
 }
 
-/**
- * Sends an organisation invitation email via Resend.
- *
- * This function is designed to be called as a fire-and-forget side-effect
- * after the `create_einladung` RPC succeeds. Errors are logged but NEVER
- * bubble up to the caller – the invitation record in the DB is already the
- * source of truth.
- */
 export async function sendEinladungEmail(
   options: SendEinladungEmailOptions
 ): Promise<void> {
-  const {
-    toEmail,
-    einladerName,
-    organisationsName,
-    rolle,
-    token,
-  } = options;
+  const { toEmail, einladerName, organisationsName, rolle, token } = options;
 
-  if (!process.env.RESEND_API_KEY) {
-    console.warn("[sendEinladungEmail] RESEND_API_KEY is not set – email not sent.");
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      "[sendEinladungEmail] RESEND_API_KEY is not set – skipping email."
+    );
     return;
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const akzeptierenUrl = `${appUrl}/einladung/annehmen?token=${encodeURIComponent(token)}`;
 
+  // Render the React Email template to an HTML string.
+  // @react-email/render v2 is pure JS – compatible with Edge Runtime.
   let html: string;
   try {
     html = await render(
-      EinladungEmail({
-        einladerName,
-        organisationsName,
-        rolle,
-        akzeptierenUrl,
-      })
+      EinladungEmail({ einladerName, organisationsName, rolle, akzeptierenUrl })
     );
   } catch (renderError) {
-    console.error("[sendEinladungEmail] Failed to render email template:", renderError);
+    const msg =
+      renderError instanceof Error ? renderError.message : String(renderError);
+    console.error("[sendEinladungEmail] Template render failed:", msg);
     return;
   }
 
-  try {
-    const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? "Mietevo <service@mietevo.de>",
-      to: toEmail,
-      subject: `Du wurdest zu ${organisationsName} auf Mietevo eingeladen`,
-      html,
-    });
+  const from =
+    process.env.RESEND_FROM_EMAIL ?? "Mietevo <service@mietevo.de>";
+  const subject = `Du wurdest zu ${organisationsName} auf Mietevo eingeladen`;
 
-    if (error) {
-      console.error("[sendEinladungEmail] Resend API error:", error);
-    } else {
-      console.log(
-        `[sendEinladungEmail] Email sent to ${toEmail} for organisation ${organisationsName}`
-      );
-    }
-  } catch (sendError) {
-    console.error("[sendEinladungEmail] Unexpected error sending email:", sendError);
+  // Call the Resend REST API directly – no Node.js SDK, Edge-safe.
+  let response: Response;
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to: toEmail, subject, html }),
+    });
+  } catch (networkError) {
+    const msg =
+      networkError instanceof Error ? networkError.message : String(networkError);
+    console.error("[sendEinladungEmail] Network error calling Resend API:", msg);
+    return;
   }
+
+  if (!response.ok) {
+    let body = "(empty)";
+    try {
+      body = await response.text();
+    } catch {
+      // ignore
+    }
+    console.error(
+      `[sendEinladungEmail] Resend API returned ${response.status}: ${body}`
+    );
+    return;
+  }
+
+  console.log(
+    `[sendEinladungEmail] Sent to ${toEmail} (org: ${organisationsName}, token: ${token.slice(0, 8)}…)`
+  );
 }

@@ -59,7 +59,7 @@ export const createEinladungAction = withLogging(
 
       const einladerName = user.email ?? 'Ein Administrator';
 
-      void sendEinladungEmail({
+      await sendEinladungEmail({
         toEmail: email,
         einladerName,
         organisationsName: orgName,
