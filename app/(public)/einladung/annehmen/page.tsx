@@ -196,13 +196,13 @@ function EinladungAnnehmenPage() {
                 description="Du bist der Organisation beigetreten. Du wirst zum Dashboard weitergeleitet."
                 action={
                   <Button
-                    onClick={() => router.push("/organisation")}
+                    onClick={() => router.push("/dashboard")}
                     className="w-full h-12 rounded-xl text-base font-semibold mt-6"
                   >
                     Zum Dashboard
                   </Button>
                 }
-                autoRedirect={{ href: "/organisation", delayMs: 3000 }}
+                autoRedirect={{ href: "/dashboard", delayMs: 3000 }}
               />
             )}
 
