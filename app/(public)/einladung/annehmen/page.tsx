@@ -16,10 +16,11 @@ export default function EinladungAnnehmenPageWrapper() {
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: "#f1f3f3" }}>
       <div className="flex flex-col items-center gap-4">
         <svg
-          className="animate-spin size-7 text-zinc-500"
+          className="animate-spin size-7"
+          style={{ color: "#6b7280" }}
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -27,7 +28,7 @@ function LoadingFallback() {
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
         </svg>
-        <p className="text-sm text-zinc-500">Einladung wird geladen…</p>
+        <p className="text-sm" style={{ color: "#6b7280" }}>Einladung wird geladen…</p>
       </div>
     </div>
   );
@@ -72,14 +73,26 @@ function EinladungAnnehmenPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
-      <div className="w-full max-w-md">
-        {/* Wordmark */}
-        <p className="text-center text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mb-8 select-none">
-          mietevo
-        </p>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: "#f1f3f3" }}>
+      <div className="w-full max-w-[600px]">
+        {/* Logo */}
+        <div className="text-center mb-[35px]">
+          <img
+            src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon/favicon.png"
+            alt="Mietevo Mascot"
+            className="w-[90px] h-[90px] mx-auto block rounded-[20px]"
+            style={{ boxShadow: "0 10px 15px -3px rgba(43,62,79,0.2)" }}
+          />
+        </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/60 dark:border-zinc-800/60 p-8">
+        <div
+          className="bg-white p-10"
+          style={{
+            borderRadius: "24px",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
+            border: "1px solid #e5e7eb",
+          }}
+        >
           {(status === "idle" || status === "loading" || isPending) && (
             <StatusView
               icon={<Spinner />}
@@ -94,10 +107,7 @@ function EinladungAnnehmenPage() {
               title="Erfolgreich beigetreten!"
               description="Du bist der Organisation beigetreten. Du wirst zum Dashboard weitergeleitet."
               action={
-                <button
-                  onClick={() => router.push("/organisation")}
-                  className="mt-6 w-full rounded-xl bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 text-sm font-semibold py-3 hover:opacity-90 transition-opacity"
-                >
+                <button onClick={() => router.push("/organisation")} className="mt-6" style={btnBaseStyle}>
                   Zum Dashboard
                 </button>
               }
@@ -111,10 +121,7 @@ function EinladungAnnehmenPage() {
               title="Anmeldung erforderlich"
               description="Du musst dich mit der eingeladenen E-Mail-Adresse anmelden, um die Einladung anzunehmen."
               action={
-                <button
-                  onClick={handleLoginRedirect}
-                  className="mt-6 w-full rounded-xl bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 text-sm font-semibold py-3 hover:opacity-90 transition-opacity"
-                >
+                <button onClick={handleLoginRedirect} className="mt-6" style={btnBaseStyle}>
                   Jetzt anmelden
                 </button>
               }
@@ -127,10 +134,7 @@ function EinladungAnnehmenPage() {
               title="Einladung ungültig"
               description={errorMessage ?? "Die Einladung konnte nicht angenommen werden."}
               action={
-                <button
-                  onClick={() => router.push("/")}
-                  className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm font-semibold py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                >
+                <button onClick={() => router.push("/")} className="mt-6" style={btnBaseStyle}>
                   Zur Startseite
                 </button>
               }
@@ -143,10 +147,7 @@ function EinladungAnnehmenPage() {
               title="Kein Einladungslink"
               description="Der Link ist ungültig oder unvollständig. Bitte prüfe die E-Mail und öffne den Link erneut."
               action={
-                <button
-                  onClick={() => router.push("/")}
-                  className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm font-semibold py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                >
+                <button onClick={() => router.push("/")} className="mt-6" style={btnBaseStyle}>
                   Zur Startseite
                 </button>
               }
@@ -154,13 +155,33 @@ function EinladungAnnehmenPage() {
           )}
         </div>
 
-        <p className="text-center text-xs text-zinc-400 dark:text-zinc-600 mt-6">
-          © {new Date().getFullYear()} Mietevo – Immobilienverwaltung
+        <p className="text-center mt-10 pt-[30px]" style={{ fontSize: "14px", color: "#6b7280", borderTop: "1px solid #e5e7eb" }}>
+          Bei Fragen erreichst du uns unter{" "}
+          <a href="mailto:support@mietevo.de" style={{ color: "#2b3e4f", textDecoration: "none", fontWeight: 600 }}>support@mietevo.de</a>
+        </p>
+        <p className="text-center mt-2" style={{ fontSize: "14px", color: "#6b7280" }}>
+          &copy; {new Date().getFullYear()} Mietevo. Alle Rechte vorbehalten.
         </p>
       </div>
     </div>
   );
 }
+
+const btnBaseStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  backgroundColor: "#2b3e4f",
+  color: "white",
+  textDecoration: "none",
+  padding: "18px 0",
+  borderRadius: "20px",
+  fontWeight: 600,
+  fontSize: "18px",
+  boxShadow: "0 10px 15px -3px rgba(43,62,79,0.3)",
+  border: "none",
+  cursor: "pointer",
+  transition: "all 0.3s ease",
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -186,13 +207,13 @@ function StatusView({
   }, [autoRedirect, router]);
 
   return (
-    <div className="flex flex-col items-center text-center gap-4">
-      <div className="flex items-center justify-center w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800">
+    <div className="flex flex-col items-center text-center" style={{ gap: "16px" }}>
+      <div className="flex items-center justify-center w-16 h-16 rounded-full" style={{ backgroundColor: "#f1f3f3" }}>
         {icon}
       </div>
       <div>
-        <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 mb-1">{title}</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{description}</p>
+        <h1 style={{ color: "#2b3e4f", fontSize: "28px", fontWeight: 800, letterSpacing: "-0.025em", marginBottom: "20px" }}>{title}</h1>
+        <p style={{ fontSize: "16px", color: "#2b3e4f", lineHeight: 1.7, margin: 0 }}>{description}</p>
       </div>
       {action}
     </div>
