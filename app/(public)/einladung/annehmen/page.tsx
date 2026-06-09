@@ -70,8 +70,8 @@ function EinladungAnnehmenPage() {
   };
 
   const handleLoginRedirect = () => {
-    const redirectUrl = encodeURIComponent(`/einladung/annehmen?token=${token}`);
-    router.push(`/auth/login?redirect=${redirectUrl}`);
+    const redirectUrl = `/einladung/annehmen?token=${encodeURIComponent(token ?? "")}`;
+    router.push(`/auth/login?redirect=${encodeURIComponent(redirectUrl)}`);
   };
 
   return (

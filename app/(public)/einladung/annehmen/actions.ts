@@ -19,32 +19,48 @@ export async function acceptEinladungAction(token: string): Promise<AcceptEinlad
     return { success: false, error: "Ungültiger Einladungslink.", code: "not_found" };
   }
 
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return { success: false, error: "Du musst angemeldet sein, um eine Einladung anzunehmen.", code: "not_authenticated" };
+  let supabase;
+  try {
+    supabase = await createClient();
+  } catch {
+    return { success: false, error: "Serverfehler beim Erstellen der Verbindung.", code: "unknown" };
   }
 
-  const { error } = await supabase.rpc("accept_einladung", {
-    p_token: token.trim(),
-  });
+  let user;
+  try {
+    const { data: { user: u }, error: authError } = await supabase.auth.getUser();
+    if (authError || !u) {
+      return { success: false, error: "Du musst angemeldet sein, um eine Einladung anzunehmen.", code: "not_authenticated" };
+    }
+    user = u;
+  } catch {
+    return { success: false, error: "Authentifizierungsfehler.", code: "not_authenticated" };
+  }
 
-  if (error) {
-    console.error("[acceptEinladungAction] RPC error:", error);
+  try {
+    const { error } = await supabase.rpc("accept_einladung", {
+      p_token: token.trim(),
+    });
 
-    // Map well-known Postgres exception messages to structured codes
-    const msg = error.message ?? "";
-    if (msg.includes("email does not match")) {
-      return { success: false, error: "Die Einladung ist nicht für deine E-Mail-Adresse.", code: "email_mismatch" };
+    if (error) {
+      console.error("[acceptEinladungAction] RPC error:", error);
+
+      const msg = error.message ?? "";
+      if (msg.includes("email does not match")) {
+        return { success: false, error: "Die Einladung ist nicht für deine E-Mail-Adresse.", code: "email_mismatch" };
+      }
+      if (msg.includes("expired")) {
+        return { success: false, error: "Diese Einladung ist abgelaufen.", code: "expired" };
+      }
+      if (msg.includes("not open") || msg.includes("not found") || msg.includes("Invitation")) {
+        return { success: false, error: "Die Einladung konnte nicht gefunden werden oder wurde bereits verwendet.", code: "not_found" };
+      }
+      return { success: false, error: "Die Einladung konnte nicht angenommen werden.", code: "unknown" };
     }
-    if (msg.includes("expired")) {
-      return { success: false, error: "Diese Einladung ist abgelaufen.", code: "expired" };
-    }
-    if (msg.includes("not open") || msg.includes("not found") || msg.includes("Invitation")) {
-      return { success: false, error: "Die Einladung konnte nicht gefunden werden oder wurde bereits verwendet.", code: "not_found" };
-    }
-    return { success: false, error: "Die Einladung konnte nicht angenommen werden.", code: "unknown" };
+  } catch (rpcError) {
+    const msg = rpcError instanceof Error ? rpcError.message : String(rpcError);
+    console.error("[acceptEinladungAction] Unexpected RPC error:", msg);
+    return { success: false, error: "Ein unerwarteter Fehler ist aufgetreten.", code: "unknown" };
   }
 
   return { success: true };

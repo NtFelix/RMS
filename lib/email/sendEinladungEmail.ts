@@ -251,7 +251,7 @@ export async function sendEinladungEmail(
 
   let response: Response;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 15_000);
 
   try {
     response = await fetch("https://api.resend.com/emails", {
