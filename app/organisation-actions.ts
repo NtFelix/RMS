@@ -50,12 +50,15 @@ export const createEinladungAction = withLogging(
     let emailResult: { sent: boolean; error?: string } = { sent: false };
     if (data?.token) {
       try {
-        const orgName = await supabase
-          .from('Organisation')
-          .select('einstellungen')
-          .eq('id', data.organisation_id)
-          .single()
-          .then(({ data: org }) => (org?.einstellungen as { name?: string } | null)?.name ?? 'Mietevo');
+        let orgName = 'Mietevo';
+        if (data?.organisation_id) {
+          const { data: org } = await supabase
+            .from('Organisation')
+            .select('einstellungen')
+            .eq('id', data.organisation_id)
+            .single();
+          orgName = (org?.einstellungen as { name?: string } | null)?.name ?? 'Mietevo';
+        }
 
         const einladerName = user.email ?? 'Ein Administrator';
 

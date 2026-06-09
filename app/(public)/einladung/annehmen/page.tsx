@@ -278,12 +278,14 @@ function StatusView({
   autoRedirect?: { href: string; delayMs: number };
 }) {
   const router = useRouter();
+  const href = autoRedirect?.href;
+  const delayMs = autoRedirect?.delayMs;
 
   useEffect(() => {
-    if (!autoRedirect) return;
-    const t = setTimeout(() => router.push(autoRedirect.href), autoRedirect.delayMs);
+    if (!href || delayMs === undefined) return;
+    const t = setTimeout(() => router.push(href), delayMs);
     return () => clearTimeout(t);
-  }, [autoRedirect, router]);
+  }, [href, delayMs, router]);
 
   return (
     <div className="flex flex-col items-center text-center gap-4">

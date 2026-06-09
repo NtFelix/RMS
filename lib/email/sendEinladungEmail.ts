@@ -250,6 +250,9 @@ export async function sendEinladungEmail(
   const subject = `Du wurdest zu ${organisationsName} auf Mietevo eingeladen`;
 
   let response: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
     response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -258,12 +261,15 @@ export async function sendEinladungEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ from, to: toEmail, subject, html }),
+      signal: controller.signal,
     });
   } catch (networkError) {
     const msg =
       networkError instanceof Error ? networkError.message : String(networkError);
     console.error("[sendEinladungEmail] Network error calling Resend API:", msg);
     return { sent: false, error: `Network error: ${msg}` };
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
