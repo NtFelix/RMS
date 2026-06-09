@@ -2,7 +2,11 @@
 
 import { Suspense, useEffect, useState, useTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { acceptEinladungAction } from "./actions";
+import { LOGO_URL } from "@/lib/constants";
 
 type Status = "idle" | "loading" | "success" | "error" | "no_token" | "not_authenticated";
 
@@ -16,11 +20,11 @@ export default function EinladungAnnehmenPageWrapper() {
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: "#f1f3f3" }}>
-      <div className="flex flex-col items-center gap-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+      <div className="flex flex-col items-center gap-4 relative z-10">
         <svg
-          className="animate-spin size-7"
-          style={{ color: "#6b7280" }}
+          className="animate-spin size-7 text-muted-foreground"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -28,7 +32,7 @@ function LoadingFallback() {
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
         </svg>
-        <p className="text-sm" style={{ color: "#6b7280" }}>Einladung wird geladen…</p>
+        <p className="text-sm text-muted-foreground">Einladung wird geladen…</p>
       </div>
     </div>
   );
@@ -57,7 +61,6 @@ function EinladungAnnehmenPage() {
       if (result.success) {
         setStatus("success");
       } else if (result.code === "not_authenticated") {
-        // Redirect to login, then come back
         setStatus("not_authenticated");
       } else {
         setStatus("error");
@@ -73,115 +76,176 @@ function EinladungAnnehmenPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: "#f1f3f3" }}>
-      <div className="w-full max-w-[600px]">
-        {/* Logo */}
-        <div className="text-center mb-[35px]">
-          <img
-            src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon/favicon.png"
-            alt="Mietevo Mascot"
-            className="w-[90px] h-[90px] mx-auto block rounded-[20px]"
-            style={{ boxShadow: "0 10px 15px -3px rgba(43,62,79,0.2)" }}
-          />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">
+      {/* Animated grid background */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+
+      {/* Gradient orbs */}
+      <motion.div
+        className="hidden md:block absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/20 blur-[100px]"
+        animate={{
+          x: [0, 50, 0],
+          y: [0, 30, 0],
+          scale: [1, 1.1, 1],
+        }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="hidden md:block absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-secondary/20 blur-[100px]"
+        animate={{
+          x: [0, -40, 0],
+          y: [0, -50, 0],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      {/* Radial spotlight */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,hsl(var(--muted)/0.8)_0%,transparent_50%)]" />
+
+      {/* Main card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-5xl bg-card rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[600px]"
+      >
+        {/* Left - Hero / Branding */}
+        <div className="hidden lg:flex relative lg:w-1/2 bg-linear-to-br from-primary via-secondary to-primary p-8 md:p-12 flex-col justify-between overflow-hidden perspective-[1000px]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,hsl(var(--accent)/0.3)_0%,transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(var(--primary)/0.4)_0%,transparent_50%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-size-[3rem_3rem] transform-[perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
+
+          <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="p-1 rounded-xl bg-white/10 backdrop-blur-xs">
+              <img src={LOGO_URL} alt="Mietevo Logo" className="h-8 w-8 object-contain" />
+            </div>
+            <span className="text-white font-semibold text-lg">Mietevo</span>
+          </Link>
+
+          <div className="relative z-10 py-8 lg:py-0">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight"
+            >
+              {status === "success"
+                ? "Willkommen im Team!"
+                : "Du wurdest eingeladen"}
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="mt-6 text-white/80 text-base md:text-lg max-w-md leading-relaxed"
+            >
+              {status === "success"
+                ? "Tritt deiner Organisation bei und verwalte gemeinsam eure Immobilien."
+                : "Jemand möchte dich zu seiner Organisation auf Mietevo einladen."}
+            </motion.p>
+          </div>
+
+          <div className="relative z-10" />
         </div>
 
-        <div
-          className="bg-white p-10"
-          style={{
-            borderRadius: "24px",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          {(status === "idle" || status === "loading" || isPending) && (
-            <StatusView
-              icon={<Spinner />}
-              title="Einladung wird verarbeitet…"
-              description="Bitte warte einen Moment."
-            />
-          )}
+        {/* Right - Status */}
+        <div className="lg:w-1/2 p-6 md:p-12 flex flex-col justify-center bg-card">
+          <div className="lg:hidden flex justify-center mb-8">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="p-1 rounded-xl bg-primary/10">
+                <img src={LOGO_URL} alt="Mietevo Logo" className="h-8 w-8 object-contain" />
+              </div>
+              <span className="text-foreground font-semibold text-lg">Mietevo</span>
+            </Link>
+          </div>
 
-          {status === "success" && (
-            <StatusView
-              icon={<CheckCircle />}
-              title="Erfolgreich beigetreten!"
-              description="Du bist der Organisation beigetreten. Du wirst zum Dashboard weitergeleitet."
-              action={
-                <button onClick={() => router.push("/organisation")} className="mt-6" style={btnBaseStyle}>
-                  Zum Dashboard
-                </button>
-              }
-              autoRedirect={{ href: "/organisation", delayMs: 3000 }}
-            />
-          )}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="max-w-sm mx-auto w-full"
+          >
+            {(status === "idle" || status === "loading" || isPending) && (
+              <StatusView
+                icon={<Spinner />}
+                title="Einladung wird verarbeitet…"
+                description="Bitte warte einen Moment."
+              />
+            )}
 
-          {status === "not_authenticated" && (
-            <StatusView
-              icon={<LockIcon />}
-              title="Anmeldung erforderlich"
-              description="Du musst dich mit der eingeladenen E-Mail-Adresse anmelden, um die Einladung anzunehmen."
-              action={
-                <button onClick={handleLoginRedirect} className="mt-6" style={btnBaseStyle}>
-                  Jetzt anmelden
-                </button>
-              }
-            />
-          )}
+            {status === "success" && (
+              <StatusView
+                icon={<CheckCircle />}
+                title="Erfolgreich beigetreten!"
+                description="Du bist der Organisation beigetreten. Du wirst zum Dashboard weitergeleitet."
+                action={
+                  <Button
+                    onClick={() => router.push("/organisation")}
+                    className="w-full h-12 rounded-xl text-base font-semibold mt-6"
+                  >
+                    Zum Dashboard
+                  </Button>
+                }
+                autoRedirect={{ href: "/organisation", delayMs: 3000 }}
+              />
+            )}
 
-          {status === "error" && (
-            <StatusView
-              icon={<XCircle />}
-              title="Einladung ungültig"
-              description={errorMessage ?? "Die Einladung konnte nicht angenommen werden."}
-              action={
-                <button onClick={() => router.push("/")} className="mt-6" style={btnBaseStyle}>
-                  Zur Startseite
-                </button>
-              }
-            />
-          )}
+            {status === "not_authenticated" && (
+              <StatusView
+                icon={<LockIcon />}
+                title="Anmeldung erforderlich"
+                description="Du musst dich mit der eingeladenen E-Mail-Adresse anmelden, um die Einladung anzunehmen."
+                action={
+                  <Button
+                    onClick={handleLoginRedirect}
+                    className="w-full h-12 rounded-xl text-base font-semibold mt-6"
+                  >
+                    Jetzt anmelden
+                  </Button>
+                }
+              />
+            )}
 
-          {status === "no_token" && (
-            <StatusView
-              icon={<XCircle />}
-              title="Kein Einladungslink"
-              description="Der Link ist ungültig oder unvollständig. Bitte prüfe die E-Mail und öffne den Link erneut."
-              action={
-                <button onClick={() => router.push("/")} className="mt-6" style={btnBaseStyle}>
-                  Zur Startseite
-                </button>
-              }
-            />
-          )}
+            {status === "error" && (
+              <StatusView
+                icon={<XCircle />}
+                title="Einladung ungültig"
+                description={errorMessage ?? "Die Einladung konnte nicht angenommen werden."}
+                action={
+                  <Button
+                    onClick={() => router.push("/")}
+                    variant="outline"
+                    className="w-full h-12 rounded-xl text-base font-semibold mt-6"
+                  >
+                    Zur Startseite
+                  </Button>
+                }
+              />
+            )}
+
+            {status === "no_token" && (
+              <StatusView
+                icon={<XCircle />}
+                title="Kein Einladungslink"
+                description="Der Link ist ungültig oder unvollständig. Bitte prüfe die E-Mail und öffne den Link erneut."
+                action={
+                  <Button
+                    onClick={() => router.push("/")}
+                    variant="outline"
+                    className="w-full h-12 rounded-xl text-base font-semibold mt-6"
+                  >
+                    Zur Startseite
+                  </Button>
+                }
+              />
+            )}
+          </motion.div>
         </div>
-
-        <p className="text-center mt-10 pt-[30px]" style={{ fontSize: "14px", color: "#6b7280", borderTop: "1px solid #e5e7eb" }}>
-          Bei Fragen erreichst du uns unter{" "}
-          <a href="mailto:support@mietevo.de" style={{ color: "#2b3e4f", textDecoration: "none", fontWeight: 600 }}>support@mietevo.de</a>
-        </p>
-        <p className="text-center mt-2" style={{ fontSize: "14px", color: "#6b7280" }}>
-          &copy; {new Date().getFullYear()} Mietevo. Alle Rechte vorbehalten.
-        </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
-
-const btnBaseStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  backgroundColor: "#2b3e4f",
-  color: "white",
-  textDecoration: "none",
-  padding: "18px 0",
-  borderRadius: "20px",
-  fontWeight: 600,
-  fontSize: "18px",
-  boxShadow: "0 10px 15px -3px rgba(43,62,79,0.3)",
-  border: "none",
-  cursor: "pointer",
-  transition: "all 0.3s ease",
-};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -207,25 +271,23 @@ function StatusView({
   }, [autoRedirect, router]);
 
   return (
-    <div className="flex flex-col items-center text-center" style={{ gap: "16px" }}>
-      <div className="flex items-center justify-center w-16 h-16 rounded-full" style={{ backgroundColor: "#f1f3f3" }}>
-        {icon}
-      </div>
+    <div className="flex flex-col items-center text-center gap-4">
+      <div className="flex items-center justify-center w-16 h-16 rounded-full bg-muted">{icon}</div>
       <div>
-        <h1 style={{ color: "#2b3e4f", fontSize: "28px", fontWeight: 800, letterSpacing: "-0.025em", marginBottom: "20px" }}>{title}</h1>
-        <p style={{ fontSize: "16px", color: "#2b3e4f", lineHeight: 1.7, margin: 0 }}>{description}</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">{title}</h1>
+        <p className="mt-2 text-muted-foreground leading-relaxed">{description}</p>
       </div>
       {action}
     </div>
   );
 }
 
-// ─── Icons (inline SVG — no extra dependency) ────────────────────────────────
+// ─── Icons (inline SVG) ──────────────────────────────────────────────────────
 
 function Spinner() {
   return (
     <svg
-      className="animate-spin size-7 text-zinc-500"
+      className="animate-spin size-7 text-muted-foreground"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
