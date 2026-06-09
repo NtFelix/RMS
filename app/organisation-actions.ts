@@ -46,25 +46,31 @@ export const createEinladungAction = withLogging(
       return { success: false, error: { message: error.message } };
     }
 
-    // Send invitation email.
+    // Send invitation email (fire-and-forget — DB invite is already the source of truth).
     let emailResult: { sent: boolean; error?: string } = { sent: false };
     if (data?.token) {
-      const orgName = await supabase
-        .from('Organisation')
-        .select('einstellungen')
-        .eq('id', data.organisation_id)
-        .single()
-        .then(({ data: org }) => (org?.einstellungen as { name?: string } | null)?.name ?? 'Mietevo');
+      try {
+        const orgName = await supabase
+          .from('Organisation')
+          .select('einstellungen')
+          .eq('id', data.organisation_id)
+          .single()
+          .then(({ data: org }) => (org?.einstellungen as { name?: string } | null)?.name ?? 'Mietevo');
 
-      const einladerName = user.email ?? 'Ein Administrator';
+        const einladerName = user.email ?? 'Ein Administrator';
 
-      emailResult = await sendEinladungEmail({
-        toEmail: email,
-        einladerName,
-        organisationsName: orgName,
-        rolle: rolle as 'admin' | 'mitarbeiter',
-        token: data.token,
-      });
+        emailResult = await sendEinladungEmail({
+          toEmail: email,
+          einladerName,
+          organisationsName: orgName,
+          rolle: rolle as 'admin' | 'mitarbeiter',
+          token: data.token,
+        });
+      } catch (emailError: unknown) {
+        const msg = emailError instanceof Error ? emailError.message : String(emailError);
+        console.error("[createEinladungAction] Email sending failed:", msg);
+        emailResult = { sent: false, error: `E-Mail-Versand fehlgeschlagen: ${msg}` };
+      }
     }
 
     revalidatePath('/organisation');

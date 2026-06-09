@@ -48,13 +48,13 @@ function EinladungAnnehmenPage() {
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!token) {
-      setStatus("no_token");
-      return;
-    }
+    if (!token) setStatus("no_token");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
+  const handleAccept = () => {
+    if (!token) return;
     setStatus("loading");
-
     startTransition(async () => {
       const result = await acceptEinladungAction(token);
 
@@ -67,8 +67,7 @@ function EinladungAnnehmenPage() {
         setErrorMessage(result.error);
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  };
 
   const handleLoginRedirect = () => {
     const redirectUrl = encodeURIComponent(`/einladung/annehmen?token=${token}`);
@@ -166,7 +165,23 @@ function EinladungAnnehmenPage() {
             transition={{ delay: 0.3, duration: 0.5 }}
             className="max-w-sm mx-auto w-full"
           >
-            {(status === "idle" || status === "loading" || isPending) && (
+            {status === "idle" && (
+              <StatusView
+                icon={<MailIcon />}
+                title="Einladung annehmen"
+                description="Klicke auf den Button, um die Einladung anzunehmen und der Organisation beizutreten."
+                action={
+                  <Button
+                    onClick={handleAccept}
+                    className="w-full h-12 rounded-xl text-base font-semibold mt-6"
+                  >
+                    Einladung annehmen
+                  </Button>
+                }
+              />
+            )}
+
+            {(status === "loading" || isPending) && (
               <StatusView
                 icon={<Spinner />}
                 title="Einladung wird verarbeitet…"
@@ -283,6 +298,14 @@ function StatusView({
 }
 
 // ─── Icons (inline SVG) ──────────────────────────────────────────────────────
+
+function MailIcon() {
+  return (
+    <svg className="size-8 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="currentColor" />
+    </svg>
+  );
+}
 
 function Spinner() {
   return (
