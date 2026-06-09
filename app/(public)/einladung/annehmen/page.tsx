@@ -1,12 +1,39 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { acceptEinladungAction } from "./actions";
 
 type Status = "idle" | "loading" | "success" | "error" | "no_token" | "not_authenticated";
 
-export default function EinladungAnnehmenPage() {
+export default function EinladungAnnehmenPageWrapper() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <EinladungAnnehmenPage />
+    </Suspense>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
+      <div className="flex flex-col items-center gap-4">
+        <svg
+          className="animate-spin size-7 text-zinc-500"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+        <p className="text-sm text-zinc-500">Einladung wird geladen…</p>
+      </div>
+    </div>
+  );
+}
+
+function EinladungAnnehmenPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");

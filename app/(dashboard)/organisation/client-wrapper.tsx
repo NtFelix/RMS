@@ -674,10 +674,13 @@ function useOrganisationActions({
     startInviteTransition(async () => {
       const res = await createEinladungAction(uiState.inviteEmail, uiState.inviteRole);
       if (res.success) {
+        const emailOk = res.email?.sent;
         showToast({
-          title: "Einladung gesendet",
-          description: `Die Einladung für ${uiState.inviteEmail} wurde erfolgreich erstellt.`,
-          variant: "success"
+          title: emailOk ? "Einladung gesendet" : "Einladung erstellt",
+          description: emailOk
+            ? `Die Einladung für ${uiState.inviteEmail} wurde versendet.`
+            : `Die Einladung für ${uiState.inviteEmail} wurde erstellt, aber die E-Mail konnte nicht versendet werden${res.email?.error ? ` (${res.email.error})` : ''}.`,
+          variant: emailOk ? "success" : "default"
         });
         dispatch({ type: 'CLEAR_INVITE_EMAIL' });
         if (res.data) {

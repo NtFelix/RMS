@@ -1,7 +1,5 @@
 "use server";
 
-export const runtime = 'nodejs';
-
 import { createClient } from "@/utils/supabase/server";
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
@@ -17,7 +15,7 @@ export const createEinladungAction = withLogging(
   async (
     email: string,
     rolle: string
-  ): Promise<{ success: boolean; data?: any; error?: { message: string } }> => {
+  ): Promise<{ success: boolean; data?: any; error?: { message: string }; email?: { sent: boolean; error?: string } }> => {
     let user, supabase;
     try {
       ({ user, supabase } = await ensureAuth());
@@ -48,10 +46,9 @@ export const createEinladungAction = withLogging(
       return { success: false, error: { message: error.message } };
     }
 
-    // Fire-and-forget: send invitation email.
-    // Runs after the RPC succeeds; failures are logged but never surface to the caller.
+    // Send invitation email.
+    let emailResult: { sent: boolean; error?: string } = { sent: false };
     if (data?.token) {
-      // Attempt to read org name from einstellungen; fall back gracefully.
       const orgName = await supabase
         .from('Organisation')
         .select('einstellungen')
@@ -61,7 +58,7 @@ export const createEinladungAction = withLogging(
 
       const einladerName = user.email ?? 'Ein Administrator';
 
-      await sendEinladungEmail({
+      emailResult = await sendEinladungEmail({
         toEmail: email,
         einladerName,
         organisationsName: orgName,
@@ -71,7 +68,7 @@ export const createEinladungAction = withLogging(
     }
 
     revalidatePath('/organisation');
-    return { success: true, data };
+    return { success: true, data, email: emailResult };
   }
 );
 
