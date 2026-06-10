@@ -15,6 +15,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { diag, DiagLogLevel } from '@opentelemetry/api';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 
 import { SERVICE_NAME, POSTHOG_API_KEY, POSTHOG_HOST } from './otlp-utils';
 import { posthogLogger } from './posthog-logger';
@@ -105,6 +106,9 @@ export function initTracing(): void {
         maxQueueSize: 1024,
         maxExportBatchSize: 128,
       }),
+    ],
+    instrumentations: [
+      new HttpInstrumentation(),
     ],
   });
 
