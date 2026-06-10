@@ -53,8 +53,7 @@ describe("acceptEinladungAction", () => {
     mockRpc.mockResolvedValue({ error: { message: "email does not match" } });
 
     const result = await acceptEinladungAction("valid-token");
-    expect(result.code).toBe("email_mismatch");
-    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ success: false, code: "email_mismatch" });
   });
 
   it("should return expired when invitation is expired", async () => {
@@ -62,8 +61,7 @@ describe("acceptEinladungAction", () => {
     mockRpc.mockResolvedValue({ error: { message: "Invitation expired" } });
 
     const result = await acceptEinladungAction("valid-token");
-    expect(result.code).toBe("expired");
-    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ success: false, code: "expired" });
   });
 
   it("should return not_found when invitation not found", async () => {
@@ -71,8 +69,7 @@ describe("acceptEinladungAction", () => {
     mockRpc.mockResolvedValue({ error: { message: "Invitation not found" } });
 
     const result = await acceptEinladungAction("valid-token");
-    expect(result.code).toBe("not_found");
-    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ success: false, code: "not_found" });
   });
 
   it("should return not_found for not open", async () => {
@@ -80,8 +77,7 @@ describe("acceptEinladungAction", () => {
     mockRpc.mockResolvedValue({ error: { message: "Invitation not open" } });
 
     const result = await acceptEinladungAction("valid-token");
-    expect(result.code).toBe("not_found");
-    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ success: false, code: "not_found" });
   });
 
   it("should return unknown for generic RPC errors", async () => {
@@ -89,8 +85,7 @@ describe("acceptEinladungAction", () => {
     mockRpc.mockResolvedValue({ error: { message: "Some other database error" } });
 
     const result = await acceptEinladungAction("valid-token");
-    expect(result.code).toBe("unknown");
-    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ success: false, code: "unknown" });
   });
 
   it("should return unknown when RPC throws unexpectedly", async () => {
@@ -98,8 +93,7 @@ describe("acceptEinladungAction", () => {
     mockRpc.mockRejectedValue(new Error("Unexpected error"));
 
     const result = await acceptEinladungAction("valid-token");
-    expect(result.code).toBe("unknown");
-    expect(result.success).toBe(false);
+    expect(result).toMatchObject({ success: false, code: "unknown" });
   });
 
   it("should return success when everything works", async () => {
