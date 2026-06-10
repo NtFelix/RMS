@@ -317,6 +317,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
+      statuses: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -324,10 +326,9 @@ jobs:
           fetch-depth: 0 # Required for diffing branches
 
       - name: React Doctor
-        uses: millionco/react-doctor@main
+        uses: millionco/react-doctor@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          diff: ${{ github.base_ref }}
+          scope: changed
 
       - name: Send Discord notification
         if: always()
