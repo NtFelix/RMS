@@ -76,6 +76,10 @@ export function initTracing(): void {
   // that would try to export to localhost:4318 and fail.
   process.env.OTEL_METRICS_EXPORTER = 'none';
 
+  // Enable verbose Next.js OpenTelemetry spans (render, metadata, component
+  // resolution, etc.) that are hidden by default.
+  process.env.NEXT_OTEL_VERBOSE = '1';
+
   const endpoint = getTracesEndpoint();
 
   console.log('[PostHog Tracing] 🚀 Initializing...', {
