@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
   SheetDescription,
   SheetFooter,
@@ -19,7 +18,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
@@ -42,31 +40,38 @@ import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
 // Helper component for Property Header with Hover Info
 function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: LucideIcon, label: string, infoText: string, htmlFor: string }) {
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
-      <HoverCardTrigger asChild>
-        <div
-          tabIndex={0}
-          role="button"
-          className="flex items-center gap-3 text-muted-foreground/70 cursor-help transition-colors hover:text-foreground/90 w-fit group/header"
-        >
-          <Icon className="h-4 w-4 group-hover/header:text-primary transition-colors" />
-          <Label htmlFor={htmlFor} className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
-            {label}
-          </Label>
-        </div>
-      </HoverCardTrigger>
-      <HoverCardContent side="top" align="start" className="w-80 shadow-2xl border-border/40 bg-background/95 backdrop-blur-md rounded-[28px] p-5 overflow-hidden">
-        <div className="flex gap-4 items-start">
-          <div className="flex-none h-12 w-12 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner border border-amber-500/20">
-            <Lightbulb className="h-6 w-6" />
-          </div>
-          <div className="space-y-1.5 pt-1">
-            <h4 className="font-bold text-foreground text-sm uppercase tracking-tight">Tipp</h4>
-            <p className="text-sm leading-relaxed text-muted-foreground/90">{infoText}</p>
-          </div>
-        </div>
-      </HoverCardContent>
-    </HoverCard>
+    <>
+      <Label htmlFor={htmlFor} className="block sm:hidden text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        {label}
+      </Label>
+      <div className="hidden sm:block">
+        <HoverCard openDelay={200} closeDelay={100}>
+          <HoverCardTrigger asChild>
+            <div
+              tabIndex={0}
+              role="button"
+              className="flex items-center gap-3 text-muted-foreground/70 cursor-help transition-colors hover:text-foreground/90 w-fit group/header focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-[4px]"
+            >
+              <Icon className="h-4 w-4 group-hover/header:text-primary transition-colors" />
+              <Label htmlFor={htmlFor} className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
+                {label}
+              </Label>
+            </div>
+          </HoverCardTrigger>
+          <HoverCardContent side="top" align="start" className="w-80 shadow-2xl border-border/40 bg-background/95 backdrop-blur-md rounded-[28px] p-5 overflow-hidden">
+            <div className="flex gap-4 items-start">
+              <div className="flex-none h-12 w-12 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner border border-amber-500/20">
+                <Lightbulb className="h-6 w-6" />
+              </div>
+              <div className="space-y-1.5 pt-1">
+                <h4 className="font-bold text-foreground text-sm uppercase tracking-tight">Tipp</h4>
+                <p className="text-sm leading-relaxed text-muted-foreground/90">{infoText}</p>
+              </div>
+            </div>
+          </HoverCardContent>
+        </HoverCard>
+      </div>
+    </>
   );
 }
 
@@ -90,7 +95,6 @@ interface HouseEditModalProps {
 export function HouseEditModal(props: HouseEditModalProps) {
   const { serverAction } = props;
 
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [automaticSize, setAutomaticSize] = useState(true);
   const [manualGroesse, setManualGroesse] = useState<string>('');
@@ -168,7 +172,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
       if (result.success) {
         toast({
           title: "Erfolg",
-          description: `Das Haus "${formData.name}" wurde erfolgreich gelöscht.`,
+          description: `Das Haus "${houseInitialData.name}" wurde erfolgreich gelöscht.`,
           variant: "success",
         });
         setHouseModalDirty(false);
@@ -299,18 +303,18 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <ScrollArea className="flex-1">
-            <div className="max-w-[520px] mx-auto pt-20 pb-10 px-8 space-y-12">
+            <div className="max-w-[520px] mx-auto pt-14 sm:pt-20 pb-10 px-4 sm:px-8 space-y-6 sm:space-y-12">
               
               {/* Header Section */}
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="text-primary/80">
-                  <Building2 className="h-10 w-10" />
+                  <Building2 className="h-8 w-8 sm:h-10 sm:w-10" />
                 </div>
                 <div className="space-y-1">
-                  <SheetTitle className="text-4xl font-bold tracking-tight">
+                  <SheetTitle className="text-2xl sm:text-4xl font-bold tracking-tight">
                     {houseInitialData ? formData.name || "Unbenanntes Haus" : "Haus hinzufügen"}
                   </SheetTitle>
-                  <SheetDescription className="text-base text-muted-foreground/80">
+                  <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
                     {houseInitialData 
                       ? "Bearbeiten Sie die Informationen für dieses Objekt." 
                       : "Legen Sie ein neues Haus in Ihrer Verwaltung an."}
@@ -319,9 +323,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
               </div>
 
               {/* Properties Section */}
-              <div className="space-y-8">
+              <div className="space-y-4 sm:space-y-8">
                 {/* Name Property */}
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                   <PropertyHeader 
                     icon={Home}
                     label="Name"
@@ -335,18 +339,18 @@ export function HouseEditModal(props: HouseEditModalProps) {
                     onChange={handleInputChange}
                     placeholder="Einen Namen geben..."
                     disabled={isSubmitting}
-                    className="text-xl font-medium placeholder:opacity-30 h-auto py-2 rounded-xl border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                    className="text-base sm:text-xl font-medium placeholder:opacity-30 h-auto py-2 rounded-xl border-primary/20 bg-primary/5 focus:bg-background transition-colors"
                   />
                 </div>
 
                 {/* Address Section */}
-                <div className="space-y-6 pt-4 border-t border-border/40">
-                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                <div className="sm:space-y-6 sm:pt-4 sm:border-t sm:border-border/40">
+                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                     Standort
                   </div>
                   
-                  <div className="grid gap-6">
-                    <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+                  <div className="sm:grid sm:gap-6 space-y-3 sm:space-y-0">
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
                       <PropertyHeader 
                         icon={MapPin}
                         label="Straße"
@@ -364,7 +368,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
                       />
                     </div>
 
-                    <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
                       <PropertyHeader 
                         icon={MapPin}
                         label="Ort"
@@ -385,13 +389,13 @@ export function HouseEditModal(props: HouseEditModalProps) {
                 </div>
 
                 {/* Calculation Section */}
-                <div className="space-y-6 pt-4 border-t border-border/40">
-                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                <div className="sm:space-y-6 sm:pt-4 sm:border-t sm:border-border/40">
+                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                     Kennzahlen
                   </div>
 
-                  <div className="grid gap-6">
-                    <div className="grid grid-cols-[140px_1fr] items-center gap-4">
+                  <div className="sm:grid sm:gap-6 space-y-3 sm:space-y-0">
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
                       <PropertyHeader 
                         icon={Ruler}
                         label="Berechnung"
@@ -420,11 +424,8 @@ export function HouseEditModal(props: HouseEditModalProps) {
                     </div>
 
                     {!automaticSize && (
-                      <div className="grid grid-cols-[140px_1fr] items-center gap-4 animate-in fade-in slide-in-from-top-1">
-                        <div className="flex items-center gap-2 text-muted-foreground/70">
-                          <Ruler className="h-4 w-4 opacity-0" />
-                          <Label htmlFor="manualGroesse" className="text-sm">Fläche (m²)</Label>
-                        </div>
+                      <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0 animate-in fade-in slide-in-from-top-1">
+                        <Label htmlFor="manualGroesse" className="text-sm text-muted-foreground/70">Fläche (m²)</Label>
                         <div className="relative">
                           <NumberInput
                             id="manualGroesse"
@@ -442,7 +443,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
                 </div>
 
                 {/* Additional Info / Description Style */}
-                <div className="space-y-4 pt-4 border-t border-border/40">
+                <div className="hidden sm:block space-y-4 pt-4 border-t border-border/40">
                   <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                     Beschreibung
                   </div>
@@ -459,7 +460,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             </div>
           </ScrollArea>
 
-          <SheetFooter className="p-8 pt-4">
+          <SheetFooter className="px-4 pb-6 pt-2 sm:p-8 sm:pt-4">
             <div className="max-w-[520px] mx-auto w-full flex gap-3">
               <Button 
                 type="button" 
@@ -494,12 +495,12 @@ export function HouseEditModal(props: HouseEditModalProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Haus löschen?</AlertDialogTitle>
               <AlertDialogDescription>
-                Möchten Sie das Haus "{formData.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+                Möchten Sie das Haus "{houseInitialData?.name || formData.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+              <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDelete(); }} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
                 {isDeleting ? "Löschen..." : "Löschen"}
               </AlertDialogAction>
             </AlertDialogFooter>

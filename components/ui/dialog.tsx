@@ -125,14 +125,19 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(dialogContentVariants({ size }), className)}
-        onInteractOutside={handleInteraction} // Assign the correctly typed handler
+        onInteractOutside={handleInteraction}
+        onEscapeKeyDown={(e) => {
+          if (isDirty && onAttemptClose) {
+            e.preventDefault();
+            onAttemptClose();
+          }
+        }}
         onOpenAutoFocus={(e) => {
           // Prevent auto focus to allow combobox inputs to work
           e.preventDefault();
         }}
         onCloseAutoFocus={(e) => {
-          // Prevent auto focus on close
-          e.preventDefault();
+          // Intentionally empty: let Radix restore focus to the trigger element.
         }}
         onFocusOutside={(e) => {
           // Don't prevent focus from moving to combobox elements or when combobox is actively being used

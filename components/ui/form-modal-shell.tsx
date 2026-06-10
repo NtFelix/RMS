@@ -182,7 +182,10 @@ export function FormModalShell({
             Abbrechen
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={deleteConfig.onDelete}
+            onClick={(e) => {
+              e.preventDefault();
+              deleteConfig.onDelete().finally(() => setDeleteOpen(false));
+            }}
             disabled={deleteConfig.isDeleting}
             className="bg-red-600 hover:bg-red-700"
           >
@@ -199,7 +202,7 @@ export function FormModalShell({
         <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogContent
             id={id}
-            size={size !== "lg" ? size : undefined}
+            size={size}
             className={contentClassName}
             isDirty={isDirty}
             onAttemptClose={onAttemptClose}
@@ -209,10 +212,15 @@ export function FormModalShell({
                 {actionsDropdown}
               </div>
             )}
-            <form onSubmit={onSubmit} className="flex flex-col">
+            <form onSubmit={(e) => { e.preventDefault(); onSubmit?.(e); }} className="flex flex-col">
               <DialogHeader>
                 <div className="flex items-start justify-between gap-4 pr-10">
                   <div>
+                    {Icon && (
+                      <div className="text-primary/80 mb-3">
+                        <Icon className="h-8 w-8" />
+                      </div>
+                    )}
                     <DialogTitle>{title}</DialogTitle>
                     {description && (
                       <DialogDescription>{description}</DialogDescription>
@@ -220,9 +228,11 @@ export function FormModalShell({
                   </div>
                 </div>
               </DialogHeader>
-              <div className="py-4 space-y-4">
-                {children}
-              </div>
+              <ScrollArea className="max-h-[60vh]">
+                <div className="py-4 space-y-4">
+                  {children}
+                </div>
+              </ScrollArea>
               <DialogFooter>
                 <Button
                   type="button"

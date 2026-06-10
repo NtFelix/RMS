@@ -118,8 +118,7 @@ const SheetContent = React.forwardRef<
           e.preventDefault();
         }}
         onCloseAutoFocus={(e) => {
-          // Let focus return to trigger on normal close (accessibility).
-          // Only prevent when the sheet is closing because of navigation (submit success).
+          // Intentionally empty: let Radix restore focus to the trigger element.
         }}
         onFocusOutside={(e) => {
           // Don't prevent focus from moving to combobox elements or when combobox is actively being used
