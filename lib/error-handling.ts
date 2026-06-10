@@ -12,6 +12,7 @@
 
 import { logger } from '@/utils/logger';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 /**
  * Performance metrics for database function calls
@@ -232,6 +233,19 @@ export async function safeRpcCall<T>(
         retryable: structuredError.retryable
       });
 
+      try {
+        posthogLogger.error(`RPC call failed: ${functionName}`, {
+          'rpc.function': functionName,
+          'rpc.user_id': userId,
+          'rpc.error_message': error.message || 'Unknown database error',
+          'rpc.error_code': error.code || 'unknown',
+          'rpc.duration_ms': executionTime,
+          'rpc.error_category': structuredError.category
+        });
+      } catch (phError) {
+        console.error('Failed to log RPC failure to PostHog:', phError);
+      }
+
       return {
         success: false,
         message: structuredError.userMessage,
@@ -271,6 +285,18 @@ export async function safeRpcCall<T>(
         errorCategory: ErrorCategory.TIMEOUT
       });
 
+      try {
+        posthogLogger.error(`RPC call timeout: ${functionName}`, {
+          'rpc.function': functionName,
+          'rpc.user_id': userId,
+          'rpc.duration_ms': executionTime,
+          'rpc.timeout_ms': timeoutMs,
+          'rpc.error_category': ErrorCategory.TIMEOUT
+        });
+      } catch (phError) {
+        console.error('Failed to log RPC timeout to PostHog:', phError);
+      }
+
       return {
         success: false,
         message: 'Die Anfrage dauerte zu lange. Bitte versuchen Sie es erneut.',
@@ -287,6 +313,17 @@ export async function safeRpcCall<T>(
         errorCategory: ErrorCategory.NETWORK
       });
 
+      try {
+        posthogLogger.error(`RPC call network error: ${functionName}`, {
+          'rpc.function': functionName,
+          'rpc.user_id': userId,
+          'rpc.duration_ms': executionTime,
+          'rpc.error_category': ErrorCategory.NETWORK
+        });
+      } catch (phError) {
+        console.error('Failed to log RPC network error to PostHog:', phError);
+      }
+
       return {
         success: false,
         message: 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.',
@@ -301,6 +338,18 @@ export async function safeRpcCall<T>(
       executionTime,
       errorCategory: ErrorCategory.UNKNOWN
     });
+
+    try {
+      posthogLogger.error(`Unexpected error in RPC call: ${functionName}`, {
+        'rpc.function': functionName,
+        'rpc.user_id': userId,
+        'rpc.duration_ms': executionTime,
+        'rpc.error_message': error.message || 'Unknown error',
+        'rpc.error_category': ErrorCategory.UNKNOWN
+      });
+    } catch (phError) {
+      console.error('Failed to log unexpected RPC error to PostHog:', phError);
+    }
 
     return {
       success: false,

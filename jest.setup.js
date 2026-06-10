@@ -43,6 +43,10 @@ global.Response = class Response {
     this.statusText = init?.statusText || 'OK';
     this.headers = new Map(Object.entries(init?.headers || {}));
   }
+
+  get ok() {
+    return this.status >= 200 && this.status < 300;
+  }
   
   json() {
     return Promise.resolve(JSON.parse(this.body));
