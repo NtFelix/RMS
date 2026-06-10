@@ -49,7 +49,7 @@ const getScopeDetails = (scope: string) => {
 };
 
 interface ConsentUIProps {
-    type: 'consent' | 'error' | 'loading' | 'success' | 'manage';
+    type: 'consent' | 'error' | 'loading' | 'success';
     error?: string;
     authorizationId?: string;
     clientName?: string;
@@ -59,7 +59,6 @@ interface ConsentUIProps {
     isDemo?: boolean;
     initialData?: AuthorizationDetails;
     initialError?: string;
-    autoRedirectUrl?: string;
 }
 
 import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/constants';
@@ -130,8 +129,7 @@ export default function ConsentUI({
     scopes: initialScopes = [],
     isDemo = false,
     initialData,
-    initialError,
-    autoRedirectUrl
+    initialError
 }: ConsentUIProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
@@ -235,7 +233,7 @@ export default function ConsentUI({
     }, [authDetails]);
 
     // Smart client logo detection based on name or ID
-    const getSmartClientConfig = (id?: string, name?: string, providedUri?: string, redirectTarget?: string) => {
+    const getSmartClientConfig = (id?: string, name?: string, providedUri?: string) => {
         const lowerName = (name || '').toLowerCase();
 
         // 1. Check known IDs first
@@ -250,27 +248,20 @@ export default function ConsentUI({
         if (lowerName.includes('claude') || lowerName.includes('anthropic')) return { name: name || 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' };
         if (lowerName.includes('chatgpt') || lowerName.includes('openai')) return { name: name || 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' };
 
-        // 4. Guess from the redirect/callback URL (the target application the user is connecting from)
-        if (redirectTarget) {
-            const lowerRedirect = redirectTarget.toLowerCase();
-            if (lowerRedirect.includes('notion.so')) return { name: name || 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' };
-            if (lowerRedirect.includes('perplexity')) return { name: name || 'Perplexity', icon: null };
-        }
-
-        // 5. Default fallback
+        // 4. Default fallback
         return { name: name || initialClientName || 'Unbekannte Anwendung', icon: initialClientIcon || null };
     };
 
     const clientId = authDetails?.client?.id;
-    const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
     const { name: clientName, icon: clientIcon } = getSmartClientConfig(
         clientId,
         authDetails?.client?.name || initialClientName,
-        authDetails?.client?.logo_uri,
-		redirectUri || autoRedirectUrl
-	);
+        authDetails?.client?.logo_uri
+    );
 
-	// Merge Supabase scopes with our custom stashed scopes
+    const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
+
+    // Merge Supabase scopes with our custom stashed scopes
     const rawSupabaseScopes = typeof authDetails?.scopes === 'string' ? authDetails.scopes.split(' ') : (authDetails?.scopes || []);
     const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...customScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
     const scopes = mergedScopes.length > 0 ? mergedScopes : ['openid', 'email'];
@@ -424,158 +415,6 @@ export default function ConsentUI({
                         </div>
                     </CardContent>
                 </Card>
-            </FullScreenLayout>
-        );
-    }
-
-    // Manage screen — app was previously authorized, show details + continue/manage actions
-    if (type === 'manage') {
-        return (
-            <FullScreenLayout
-                showGlow
-                motionProps={{
-                    initial: { opacity: 0, y: 30, scale: 0.95 },
-                    animate: { opacity: 1, y: 0, scale: 1 },
-                    transition: { duration: 0.6, type: "spring", bounce: 0.4 }
-                }}
-            >
-                <div className="relative group">
-                    <div className="absolute -inset-0.5 bg-linear-to-br from-primary/30 to-primary/0 dark:from-primary/40 dark:to-primary/5 rounded-[2.5rem] blur-md opacity-30 dark:opacity-50 group-hover:opacity-60 dark:group-hover:opacity-80 transition duration-1000 group-hover:duration-300" />
-
-                    <Card className="relative border-border/50 dark:border-border/30 bg-background/80 dark:bg-background/60 backdrop-blur-2xl shadow-xl dark:shadow-2xl rounded-[2.5rem] overflow-hidden">
-                        <CardHeader className="text-center pt-10 px-8">
-                            <div className="flex items-center justify-center gap-6 mb-8">
-                                <motion.div
-                                    initial={{ x: -20, opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    transition={{ delay: 0.2, duration: 0.5 }}
-                                    className="relative"
-                                >
-                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                    {clientIcon ? (
-                                        <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
-                                            <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
-                                            <img
-                                                src={clientIcon}
-                                                alt={clientName}
-                                                className="w-10 h-10 object-contain drop-shadow-xs relative z-10"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                            <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
-                                            <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
-                                        </div>
-                                    )}
-                                </motion.div>
-
-                                <motion.div
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ delay: 0.4, type: "spring" }}
-                                >
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 shadow-xs">
-                                        <Check className="w-3.5 h-3.5 text-green-500" />
-                                        <span className="text-xs font-medium text-green-600 dark:text-green-400">Verbunden</span>
-                                    </div>
-                                </motion.div>
-
-                                <motion.div
-                                    initial={{ x: 20, opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    transition={{ delay: 0.3, duration: 0.5 }}
-                                    className="relative"
-                                >
-                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
-                                        <img
-                                            src={LOGO_URL}
-                                            alt={BRAND_NAME}
-                                            className="w-10 h-10 object-contain relative z-10 dark:brightness-110"
-                                        />
-                                    </div>
-                                </motion.div>
-                            </div>
-
-                            <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-linear-to-br from-foreground to-muted-foreground pb-1">
-                                Bereits verbunden
-                            </CardTitle>
-                            <CardDescription className="text-base mt-2 max-w-sm mx-auto text-muted-foreground">
-                                <span className="font-semibold text-foreground">{clientName}</span> ist bereits mit Ihrem {BRAND_NAME}-Konto verbunden.
-                            </CardDescription>
-                        </CardHeader>
-
-                        <CardContent className="px-8 pb-4">
-                            {scopes.length > 0 && (
-                                <div className="mb-6">
-                                    <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
-                                        Aktuelle Berechtigungen:
-                                    </h3>
-                                    <div className="rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-2">
-                                        {scopes.map((scope, index) => {
-                                            const details = getScopeDetails(scope);
-                                            return (
-                                                <motion.div
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: 0.1 * index }}
-                                                    key={scope}
-                                                    className="flex items-start gap-4 p-3.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 dark:border-border/30 dark:hover:border-border/80 transition-all duration-300"
-                                                >
-                                                    <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                        <Check className="w-4 h-4 text-green-500" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold text-foreground mb-0.5">
-                                                            {details.title}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground leading-relaxed">
-                                                            {details.description}
-                                                        </p>
-                                                    </div>
-                                                </motion.div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {processError && (
-                                <Alert variant="destructive" className="rounded-xl mb-4 bg-destructive/10 text-destructive border-destructive/20">
-                                    <AlertDescription>{processError}</AlertDescription>
-                                </Alert>
-                            )}
-                        </CardContent>
-
-                        <CardFooter className="flex flex-col gap-3 px-8 pb-8">
-                            <Button
-                                onClick={() => autoRedirectUrl ? safeRedirect(autoRedirectUrl) : window.close()}
-                                disabled={isProcessing}
-                                className="w-full h-12 rounded-xl text-base font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] dark:hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all duration-300"
-                            >
-                                <Check className="w-5 h-5 mr-2" />
-                                Verbinden
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => window.open('/', '_blank')}
-                                className="w-full h-12 rounded-xl text-base font-medium"
-                            >
-                                <ShieldAlert className="w-4 h-4 mr-2" />
-                                Verwalten
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                onClick={() => window.close()}
-                                className="w-full h-12 rounded-xl text-base font-medium hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            >
-                                <X className="w-4 h-4 mr-2" />
-                                Schließen
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </div>
             </FullScreenLayout>
         );
     }
