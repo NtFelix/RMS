@@ -72,6 +72,10 @@ let sdk: NodeSDK | null = null;
 export function initTracing(): void {
   if (sdk) return;
 
+  // Prevent the SDK from creating a default PeriodicExportingMetricReader
+  // that would try to export to localhost:4318 and fail.
+  process.env.OTEL_METRICS_EXPORTER = 'none';
+
   const endpoint = getTracesEndpoint();
 
   console.log('[PostHog Tracing] 🚀 Initializing...', {
