@@ -1,6 +1,7 @@
 "use client" // Make this a client component
 import type React from "react"
 import { AuthProvider } from "@/components/auth/auth-provider"
+import { SidebarUserData } from "@/lib/server/user-data"
 import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier'
 import { Suspense } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
@@ -52,8 +53,10 @@ import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 
 export default function DashboardInnerLayout({
   children,
+  sidebarData,
 }: Readonly<{
   children: React.ReactNode
+  sidebarData: SidebarUserData
 }>) {
   const {
     // Tenant modal state and actions
@@ -150,7 +153,7 @@ export default function DashboardInnerLayout({
         </Suspense>
         {/* <GlobalDragDropProvider> */}
         <CommandMenu />
-        <DashboardLayout>{children}</DashboardLayout>
+        <DashboardLayout sidebarData={sidebarData}>{children}</DashboardLayout>
         {/* Render modals: They control their own open/close state via the store */}
         {/* TenantEditModal needs serverAction. Other props are from store. */}
         <TenantEditModal serverAction={tenantServerAction} />
