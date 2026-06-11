@@ -118,6 +118,65 @@ const METER_ICON_MAP = {
   fuel: Fuel,
 };
 
+function MeterCostItem({
+  typ,
+  zaehlerkosten,
+  onValueChange,
+  onRemove,
+  isSaving,
+  isFormLoading,
+}: {
+  typ: ZaehlerTyp;
+  zaehlerkosten: Record<string, string>;
+  onValueChange: (typ: ZaehlerTyp, value: string) => void;
+  onRemove: (typ: ZaehlerTyp) => void;
+  isSaving: boolean;
+  isFormLoading: boolean;
+}) {
+  const config = ZAEHLER_CONFIG[typ];
+  const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+      transition={{ duration: 0.2 }}
+      className="group flex flex-col gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/10 border border-gray-200 dark:border-gray-800 rounded-[2rem]"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-[1rem] bg-primary text-primary-foreground transition-all duration-300 shadow-sm border border-primary/20">
+            <Icon className="w-4 h-4" />
+          </div>
+          <span className="text-sm font-bold">{config.label}</span>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+          onClick={() => onRemove(typ)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+      <div className="relative mt-auto">
+        <NumberInput
+          id={`zaehlerkosten-${typ}`}
+          value={zaehlerkosten[typ] || ''}
+          onChange={(e) => onValueChange(typ, e.target.value)}
+          placeholder="0,00"
+          step="0.01"
+          disabled={isSaving || isFormLoading}
+          className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-all font-medium text-lg"
+        />
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">€</span>
+      </div>
+    </motion.div>
+  );
+}
+
 interface BetriebskostenEditModalPropsRefactored { }
 
 export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefactored) {
@@ -1337,52 +1396,17 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                           <AnimatePresence mode="popLayout">
                             {(Object.keys(ZAEHLER_CONFIG) as ZaehlerTyp[])
                               .filter(typ => zaehlerkosten[typ] !== undefined)
-                              .map((typ) => {
-                                const config = ZAEHLER_CONFIG[typ];
-                                const Icon = METER_ICON_MAP[config.icon as keyof typeof METER_ICON_MAP];
-
-                                return (
-                                  <motion.div
-                                    key={typ}
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="group flex flex-col gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/10 border border-gray-200 dark:border-gray-800 rounded-[2rem]"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-[1rem] bg-primary text-primary-foreground transition-all duration-300 shadow-sm border border-primary/20">
-                                          <Icon className="w-4 h-4" />
-                                        </div>
-                                        <span className="text-sm font-bold">{config.label}</span>
-                                      </div>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-                                        onClick={() => handleRemoveZaehlerkosten(typ)}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                    <div className="relative mt-auto">
-                                      <NumberInput
-                                        id={`zaehlerkosten-${typ}`}
-                                        value={zaehlerkosten[typ] || ''}
-                                        onChange={(e) => handleZaehlerkostenChange(typ, e.target.value)}
-                                        placeholder="0,00"
-                                        step="0.01"
-                                        disabled={isSaving || isFormLoading}
-                                        className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-all font-medium text-lg"
-                                      />
-                                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">€</span>
-                                    </div>
-                                  </motion.div>
-                                );
-                              })}
+                              .map((typ) => (
+                                <MeterCostItem
+                                  key={typ}
+                                  typ={typ}
+                                  zaehlerkosten={zaehlerkosten}
+                                  onValueChange={handleZaehlerkostenChange}
+                                  onRemove={handleRemoveZaehlerkosten}
+                                  isSaving={isSaving}
+                                  isFormLoading={isFormLoading}
+                                />
+                              ))}
                           </AnimatePresence>
                         </div>
 
