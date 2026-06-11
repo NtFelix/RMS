@@ -5,6 +5,7 @@ import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { hasPermission } from "@/lib/permissions";
 import { withLogging } from "@/lib/logging-middleware";
+import { sendEinladungEmail } from "@/lib/email/sendEinladungEmail";
 
 /**
  * Invites a new member to the current organization.
@@ -14,7 +15,7 @@ export const createEinladungAction = withLogging(
   async (
     email: string,
     rolle: string
-  ): Promise<{ success: boolean; data?: any; error?: { message: string } }> => {
+  ): Promise<{ success: boolean; data?: any; error?: { message: string }; email?: { sent: boolean; error?: string } }> => {
     let user, supabase;
     try {
       ({ user, supabase } = await ensureAuth());
@@ -45,8 +46,38 @@ export const createEinladungAction = withLogging(
       return { success: false, error: { message: error.message } };
     }
 
+    // Send invitation email (fire-and-forget — DB invite is already the source of truth).
+    let emailResult: { sent: boolean; error?: string } = { sent: false };
+    if (data?.token) {
+      try {
+        let orgName = 'Mietevo';
+        if (data?.organisation_id) {
+          const { data: org } = await supabase
+            .from('Organisation')
+            .select('einstellungen')
+            .eq('id', data.organisation_id)
+            .single();
+          orgName = (org?.einstellungen as { name?: string } | null)?.name ?? 'Mietevo';
+        }
+
+        const einladerName = user.email ?? 'Ein Administrator';
+
+        emailResult = await sendEinladungEmail({
+          toEmail: email,
+          einladerName,
+          organisationsName: orgName,
+          rolle: rolle as 'admin' | 'mitarbeiter',
+          token: data.token,
+        });
+      } catch (emailError: unknown) {
+        const msg = emailError instanceof Error ? emailError.message : String(emailError);
+        console.error("[createEinladungAction] Email sending failed:", msg);
+        emailResult = { sent: false, error: `E-Mail-Versand fehlgeschlagen: ${msg}` };
+      }
+    }
+
     revalidatePath('/organisation');
-    return { success: true, data };
+    return { success: true, data, email: emailResult };
   }
 );
 

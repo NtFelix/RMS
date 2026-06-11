@@ -317,6 +317,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
+      statuses: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -324,10 +326,9 @@ jobs:
           fetch-depth: 0 # Required for diffing branches
 
       - name: React Doctor
-        uses: millionco/react-doctor@main
+        uses: millionco/react-doctor@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          diff: ${{ github.base_ref }}
+          scope: changed
 
       - name: Send Discord notification
         if: always()
@@ -600,6 +601,7 @@ jobs:
             POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
           secrets: |
             "POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
+            "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}"
           cache-from: type=gha,scope=docker-build
           cache-to: type=gha,mode=max,scope=docker-build
 
@@ -2052,6 +2054,8 @@ jobs:
             OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
             OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
 
       - name: Comment Preview URL on PR
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2163,3 +2167,5 @@ jobs:
             OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
             OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
