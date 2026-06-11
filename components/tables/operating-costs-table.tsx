@@ -191,10 +191,6 @@ export function OperatingCostsTable({
     openOperatingCostsOverviewModal(item);
   };
 
-  const handleCloseOverview = () => {
-    // No longer needed locally
-  };
-
   // Old handleOpenWasserzaehlerModal function removed - now using new WasserZaehlerAblesenModal
 
   // Old handleSaveWasserzaehler function removed - now using new WasserZaehlerAblesenModal

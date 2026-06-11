@@ -1032,10 +1032,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
     setBetriebskostenModalDirty(true);
   };
 
-  const handleZaehlerkostenChange = (zaehlerTyp: string, value: string) => {
+  const handleZaehlerkostenChange = useCallback((zaehlerTyp: string, value: string) => {
     setZaehlerkosten(prev => ({ ...prev, [zaehlerTyp]: value }));
     setBetriebskostenModalDirty(true);
-  };
+  }, [setZaehlerkosten, setBetriebskostenModalDirty]);
 
   const handleRemoveZaehlerkosten = (zaehlerTyp: string) => {
     setZaehlerkosten(prev => {
