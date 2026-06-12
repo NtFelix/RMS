@@ -42,14 +42,14 @@ export function useTenantPayments() {
             )
 
             const formattedData: TenantBentoItem[] = activeTenants.map((mieter: any) => {
-                const mieteRaw = Number(mieter.Wohnungen.miete) || 0
+                const mieteRaw = Number(mieter.Wohnungen?.miete) || 0
                 const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
 
                 return {
                     id: mieter.id,
                     tenant: mieter.name,
-                    apartment: mieter.Wohnungen.name,
-                    apartmentId: mieter.Wohnungen.id,
+                    apartment: mieter.Wohnungen?.name || 'Keine Wohnung',
+                    apartmentId: mieter.Wohnungen?.id || '',
                     mieteRaw,
                     nebenkostenRaw,
                     actualRent: mieter.actualRent || 0,
