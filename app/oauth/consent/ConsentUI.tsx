@@ -444,7 +444,7 @@ export default function ConsentUI({
 
                     <Card className="relative border-border/50 dark:border-border/30 bg-background/80 dark:bg-background/60 backdrop-blur-2xl shadow-xl dark:shadow-2xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="text-center pt-10 px-8">
-                            <div className="flex items-center justify-center gap-6 mb-8">
+                            <div className="flex items-center justify-center gap-4 mb-8">
                                 <motion.div
                                     initial={{ x: -20, opacity: 0 }}
                                     animate={{ x: 0, opacity: 1 }}
@@ -469,15 +469,16 @@ export default function ConsentUI({
                                     )}
                                 </motion.div>
 
+                                {/* Arrow between origin and product */}
                                 <motion.div
                                     initial={{ scale: 0, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
                                     transition={{ delay: 0.4, type: "spring" }}
+                                    className="flex items-center justify-center text-muted-foreground/60"
                                 >
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 shadow-xs">
-                                        <Check className="w-3.5 h-3.5 text-green-500" />
-                                        <span className="text-xs font-medium text-green-600 dark:text-green-400">Verbunden</span>
-                                    </div>
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
+                                    </svg>
                                 </motion.div>
 
                                 <motion.div
@@ -498,11 +499,28 @@ export default function ConsentUI({
                                 </motion.div>
                             </div>
 
+                            {/* Origin / Product labels */}
+                            <div className="flex justify-center gap-4 mb-6">
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ursprung</span>
+                                    <span className="text-sm font-semibold text-foreground">{clientName}</span>
+                                </div>
+                                <div className="flex flex-col items-center text-muted-foreground/60">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
+                                    </svg>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Produkt</span>
+                                    <span className="text-sm font-semibold text-primary">Mietevo MCP</span>
+                                </div>
+                            </div>
+
                             <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-linear-to-br from-foreground to-muted-foreground pb-1">
                                 Bereits verbunden
                             </CardTitle>
                             <CardDescription className="text-base mt-2 max-w-sm mx-auto text-muted-foreground">
-                                <span className="font-semibold text-foreground">{clientName}</span> ist bereits mit Ihrem {BRAND_NAME}-Konto verbunden.
+                                <span className="font-semibold text-foreground">{clientName}</span> ist bereits mit <span className="font-semibold text-primary">Mietevo MCP</span> verbunden.
                             </CardDescription>
                         </CardHeader>
 
@@ -613,70 +631,87 @@ export default function ConsentUI({
                 <div className="absolute -inset-0.5 bg-linear-to-br from-primary/30 to-primary/0 dark:from-primary/40 dark:to-primary/5 rounded-[2.5rem] blur-md opacity-30 dark:opacity-50 group-hover:opacity-60 dark:group-hover:opacity-80 transition duration-1000 group-hover:duration-300" />
 
                 <Card className="relative border-border/50 dark:border-border/30 bg-background/80 dark:bg-background/60 backdrop-blur-2xl shadow-xl dark:shadow-2xl rounded-[2.5rem] overflow-hidden">
-                    <CardHeader className="text-center pt-10 px-8">
-                        {/* App logos */}
-                        <div className="flex items-center justify-center gap-6 mb-8">
-                            <motion.div
-                                initial={{ x: -20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.2, duration: 0.5 }}
-                                className="relative"
-                            >
-                                <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                {clientIcon ? (
-                                    <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
-                                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
+                        <CardHeader className="text-center pt-10 px-8">
+                            {/* App logos with origin → product flow */}
+                            <div className="flex items-center justify-center gap-4 mb-8">
+                                <motion.div
+                                    initial={{ x: -20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    transition={{ delay: 0.2, duration: 0.5 }}
+                                    className="relative"
+                                >
+                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
+                                    {clientIcon ? (
+                                        <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
+                                            <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
+                                            <img
+                                                src={clientIcon}
+                                                alt={clientName}
+                                                className="w-10 h-10 object-contain drop-shadow-xs relative z-10"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
+                                            <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
+                                            <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
+                                        </div>
+                                    )}
+                                </motion.div>
+
+                                {/* Arrow between origin and product */}
+                                <motion.div
+                                    initial={{ scale: 0, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ delay: 0.4, type: "spring" }}
+                                    className="flex items-center justify-center text-muted-foreground/60"
+                                >
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
+                                    </svg>
+                                </motion.div>
+
+                                <motion.div
+                                    initial={{ x: 20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    transition={{ delay: 0.3, duration: 0.5 }}
+                                    className="relative"
+                                >
+                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
+                                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
+                                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
                                         <img
-                                            src={clientIcon}
-                                            alt={clientName}
-                                            className="w-10 h-10 object-contain drop-shadow-xs relative z-10"
+                                            src={LOGO_URL}
+                                            alt={BRAND_NAME}
+                                            className="w-10 h-10 object-contain relative z-10 dark:brightness-110"
                                         />
                                     </div>
-                                ) : (
-                                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                        <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
-                                        <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
-                                    </div>
-                                )}
-                            </motion.div>
+                                </motion.div>
+                            </div>
 
-                            <motion.div
-                                initial={{ scale: 0, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: 0.4, type: "spring" }}
-                                className="flex flex-col items-center justify-center"
-                            >
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted dark:bg-secondary/50 border border-border/30 dark:border-border/50 shadow-xs dark:shadow-inner">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/80 animate-pulse" />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-pulse" style={{ animationDelay: '200ms' }} />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-primary/30 animate-pulse" style={{ animationDelay: '400ms' }} />
+                            {/* Origin / Product labels */}
+                            <div className="flex justify-center gap-4 mb-6">
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ursprung</span>
+                                    <span className="text-sm font-semibold text-foreground">{clientName}</span>
                                 </div>
-                            </motion.div>
+                                <div className="flex flex-col items-center text-muted-foreground/60">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
+                                    </svg>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Produkt</span>
+                                    <span className="text-sm font-semibold text-primary">Mietevo MCP</span>
+                                </div>
+                            </div>
 
-                            <motion.div
-                                initial={{ x: 20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.3, duration: 0.5 }}
-                                className="relative"
-                            >
-                                <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                    <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
-                                    <img
-                                        src={LOGO_URL}
-                                        alt={BRAND_NAME}
-                                        className="w-10 h-10 object-contain relative z-10 dark:brightness-110"
-                                    />
-                                </div>
-                            </motion.div>
-                        </div>
-                        <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-linear-to-br from-foreground to-muted-foreground pb-1">
-                            Verknüpfung erlauben
-                        </CardTitle>
-                        <CardDescription className="text-base mt-2 max-w-sm mx-auto text-muted-foreground">
-                            <span className="font-semibold text-foreground">{clientName}</span> fordert Zugriff auf Ihr {BRAND_NAME}-Konto an.
-                        </CardDescription>
-                    </CardHeader>
+                            <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-linear-to-br from-foreground to-muted-foreground pb-1">
+                                Verbindung autorisieren
+                            </CardTitle>
+                            <CardDescription className="text-base mt-2 max-w-sm mx-auto text-muted-foreground">
+                                <span className="font-semibold text-foreground">{clientName}</span> möchte sich mit <span className="font-semibold text-primary">Mietevo MCP</span> verbinden.
+                            </CardDescription>
+                        </CardHeader>
                     <CardContent className="px-8 pb-4">
                         {scopes.length > 0 && (
                             <div className="mb-8">
