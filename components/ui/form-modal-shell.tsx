@@ -37,6 +37,8 @@ import {
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const EMPTY_ACTIONS: FormModalAction[] = [];
+
 export interface FormModalAction {
   kind: "action";
   label: string;
@@ -110,7 +112,7 @@ export function FormModalShell({
   submitLabel,
   loadingLabel,
   children,
-  actions = [],
+  actions = EMPTY_ACTIONS,
   deleteConfig,
   variant = "sheet",
   icon: Icon,
@@ -154,7 +156,7 @@ export function FormModalShell({
         }
         return (
           <CustomDropdownItem
-            key={item.label + "-" + i}
+            key={item.label}
             onClick={item.onClick}
             className={item.destructive ? "text-red-600 focus:text-red-600" : undefined}
           >
