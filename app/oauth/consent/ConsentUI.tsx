@@ -234,32 +234,114 @@ export default function ConsentUI({
         fetchCustomScopes();
     }, [authDetails]);
 
-    // Smart client logo detection based on name or ID
+    // Smart client logo detection based on name, ID, or redirect URI
     const getSmartClientConfig = (id?: string, name?: string, providedUri?: string, redirectTarget?: string) => {
         const lowerName = (name || '').toLowerCase();
 
-        // 1. Check known IDs first
+        // 1. Check known Mietevo IDs first
         if (id === OAUTH_CLIENT_IDS.MIETEVO) return { name: 'Mietevo', icon: LOGO_URL };
         if (id === OAUTH_CLIENT_IDS.MIETEVO_PUBLIC_MCP) return { name: 'Mietevo Public MCP', icon: LOGO_URL };
 
-        // 2. Use provided URI if it exists
+        // 2. Use provided URI if it exists (from Supabase client.logo_uri)
         if (providedUri) return { name: name || 'Unbekannte Anwendung', icon: providedUri };
 
-        // 3. Smart guess based on popular tools you might integrate
-        if (lowerName.includes('notion')) return { name: name || 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' };
-        if (lowerName.includes('claude') || lowerName.includes('anthropic')) return { name: name || 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' };
-        if (lowerName.includes('chatgpt') || lowerName.includes('openai')) return { name: name || 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' };
-
-        // 4. Guess from the redirect/callback URL (the target application the user is connecting from)
-        if (redirectTarget) {
-            const lowerRedirect = redirectTarget.toLowerCase();
-            if (lowerRedirect.includes('notion.so')) return { name: name || 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' };
-            if (lowerRedirect.includes('perplexity')) return { name: name || 'Perplexity', icon: null };
+        // 3. Extract client identity from CIMD URL (client_id is often an HTTPS URL)
+        // Client ID Metadata Documents use HTTPS URLs as client_id
+        // e.g., https://claude.ai/oauth/claude-code-client-metadata
+        // The host identifies the client platform
+        if (id && id.startsWith('https://')) {
+            try {
+                const clientIdUrl = new URL(id);
+                const host = clientIdUrl.hostname.toLowerCase();
+                const cimdConfig = getClientConfigFromHost(host);
+                if (cimdConfig) return { name: name || cimdConfig.name, icon: cimdConfig.icon };
+            } catch {
+                // Invalid URL, fall through
+            }
         }
 
-        // 5. Default fallback
+        // 4. Detect from redirect URI (cloud clients use their domain as callback)
+        // e.g., https://claude.ai/callback, https://www.notion.so/workflows/mcp/oauth/callback
+        if (redirectTarget) {
+            try {
+                const redirectUrl = new URL(redirectTarget);
+                const host = redirectUrl.hostname.toLowerCase();
+                const redirectConfig = getClientConfigFromHost(host);
+                if (redirectConfig) return { name: name || redirectConfig.name, icon: redirectConfig.icon };
+            } catch {
+                // Invalid URL, fall through
+            }
+        }
+
+        // 5. Smart guess based on popular tool names (from client.name)
+        if (lowerName.includes('notion')) return { name: name || 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' };
+        if (lowerName.includes('claude') || lowerName.includes('anthropic')) return { name: name || 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' };
+        if (lowerName.includes('chatgpt') || lowerName.includes('openai') || lowerName.includes('codex')) return { name: name || 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' };
+        if (lowerName.includes('perplexity')) return { name: name || 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' };
+        if (lowerName.includes('cursor')) return { name: name || 'Cursor', icon: 'https://cursor.com/favicon.ico' };
+        if (lowerName.includes('gemini') || lowerName.includes('google')) return { name: name || 'Gemini', icon: 'https://www.google.com/favicon.ico' };
+        if (lowerName.includes('windsurf') || lowerName.includes('codeium')) return { name: name || 'Windsurf', icon: 'https://windsurf.com/favicon.ico' };
+
+        // 6. Default fallback
         return { name: name || initialClientName || 'Unbekannte Anwendung', icon: initialClientIcon || null };
     };
+
+    // Map known OAuth client hosts to display names and icons
+    // Based on Client ID Metadata Document (CIMD) hosts and redirect URI hosts
+    function getClientConfigFromHost(host: string): { name: string; icon: string } | null {
+        const normalizedHost = host.replace(/^www\./, ''); // Normalize www subdomain
+
+        const knownClients: Record<string, { name: string; icon: string }> = {
+            // Notion
+            'notion.so': { name: 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' },
+            'api.notion.com': { name: 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' },
+
+            // Anthropic / Claude
+            'claude.ai': { name: 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' },
+            'anthropic.com': { name: 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' },
+
+            // OpenAI / ChatGPT / Codex
+            'chatgpt.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
+            'openai.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
+            'api.openai.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
+
+            // Perplexity
+            'perplexity.ai': { name: 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' },
+            'api.perplexity.ai': { name: 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' },
+
+            // Cursor (uses mcp-remote)
+            'cursor.com': { name: 'Cursor', icon: 'https://cursor.com/favicon.ico' },
+            'cursor.sh': { name: 'Cursor', icon: 'https://cursor.com/favicon.ico' },
+
+            // Google / Gemini
+            'google.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
+            'vertexaisearch.cloud.google.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
+            'generativelanguage.googleapis.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
+
+            // Windsurf / Codeium
+            'windsurf.com': { name: 'Windsurf', icon: 'https://windsurf.com/favicon.ico' },
+            'codeium.com': { name: 'Windsurf', icon: 'https://windsurf.com/favicon.ico' },
+
+            // Replit
+            'replit.com': { name: 'Replit', icon: 'https://replit.com/favicon.ico' },
+
+            // Sourcegraph / Cody
+            'sourcegraph.com': { name: 'Cody', icon: 'https://sourcegraph.com/favicon.ico' },
+            'cody.dev': { name: 'Cody', icon: 'https://sourcegraph.com/favicon.ico' },
+        };
+
+        // Exact match
+        if (knownClients[normalizedHost]) return knownClients[normalizedHost];
+
+        // Subdomain match (e.g., api.notion.com -> notion.so)
+        for (const [knownHost, config] of Object.entries(knownClients)) {
+            if (normalizedHost === knownHost || normalizedHost.endsWith('.' + knownHost)) {
+                return config;
+            }
+        }
+
+        return null;
+    }
 
     const clientId = authDetails?.client?.id;
     const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
@@ -267,10 +349,10 @@ export default function ConsentUI({
         clientId,
         authDetails?.client?.name || initialClientName,
         authDetails?.client?.logo_uri,
-		redirectUri || autoRedirectUrl
-	);
+        redirectUri || autoRedirectUrl
+    );
 
-	// Merge Supabase scopes with our custom stashed scopes
+    // Merge Supabase scopes with our custom stashed scopes
     const rawSupabaseScopes = typeof authDetails?.scopes === 'string' ? authDetails.scopes.split(' ') : (authDetails?.scopes || []);
     const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...customScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
     const scopes = mergedScopes.length > 0 ? mergedScopes : ['openid', 'email'];
