@@ -550,7 +550,20 @@ export default function ConsentUI({
 
                         <CardFooter className="flex flex-col gap-3 px-8 pb-8">
                             <Button
-                                onClick={() => autoRedirectUrl ? safeRedirect(autoRedirectUrl) : window.close()}
+                                onClick={() => {
+                                    if (autoRedirectUrl) {
+                                        if (isValidRedirect(autoRedirectUrl) || isValidSupabaseRedirect(autoRedirectUrl)) {
+                                            safeRedirect(autoRedirectUrl);
+                                        } else {
+                                            setProcessError('Ungültige Weiterleitungs-URL. Zugriff verweigert aus Sicherheitsgründen.');
+                                        }
+                                    } else {
+                                        window.close();
+                                        setTimeout(() => {
+                                            window.location.href = '/';
+                                        }, 100);
+                                    }
+                                }}
                                 disabled={isProcessing}
                                 className="w-full h-12 rounded-xl text-base font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] dark:hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all duration-300"
                             >
@@ -559,7 +572,7 @@ export default function ConsentUI({
                             </Button>
                             <Button
                                 variant="outline"
-                                onClick={() => window.open('/', '_blank')}
+                                onClick={() => window.open('/einstellungen', '_blank')}
                                 className="w-full h-12 rounded-xl text-base font-medium"
                             >
                                 <ShieldAlert className="w-4 h-4 mr-2" />
@@ -567,7 +580,12 @@ export default function ConsentUI({
                             </Button>
                             <Button
                                 variant="ghost"
-                                onClick={() => window.close()}
+                                onClick={() => {
+                                    window.close();
+                                    setTimeout(() => {
+                                        window.location.href = '/';
+                                    }, 100);
+                                }}
                                 className="w-full h-12 rounded-xl text-base font-medium hover:bg-destructive/10 hover:text-destructive transition-colors"
                             >
                                 <X className="w-4 h-4 mr-2" />

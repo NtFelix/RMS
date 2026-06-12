@@ -90,6 +90,14 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     const isAutoApproved = success && !data?.client;
 
     if (isAutoApproved) {
+        if (!autoRedirectUrl) {
+            return (
+                <ConsentUI
+                    type="error"
+                    error="Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden."
+                />
+            );
+        }
         return (
             <ConsentUI
                 type="manage"
