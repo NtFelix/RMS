@@ -4,12 +4,22 @@ import type { User } from "@supabase/supabase-js"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 
 export async function updateSession(request: NextRequest, response: NextResponse): Promise<User | null> {
+  const currentOrgId = request.cookies.get('current_organisation_id')?.value
+  const globalHeaders: Record<string, string> = {}
+  if (currentOrgId) {
+    globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: {
+        headers: globalHeaders
+      },
       cookies: {
         getAll() {
+
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {

@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { LogOut, Settings, FileText } from "lucide-react"
+import { LogOut, Settings, FileText, Check } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { cn } from "@/lib/utils"
 // react-doctor-disable-next-line react-doctor/use-lazy-motion
 import { motion } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
+import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
+
 
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
@@ -39,6 +41,50 @@ export function UserSettings({
   const [openModal, setOpenModal] = useState(false)
   const { openTemplatesModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
+
+  interface OrganisationItem {
+    organisation_id: string;
+    owner_id: string;
+    rolle: 'owner' | 'admin' | 'mitarbeiter';
+    name: string;
+  }
+
+  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
+  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
+
+  useEffect(() => {
+    const loadOrganisations = async () => {
+      try {
+        const res = await getMyOrganisationsAction()
+        if (res.success && res.data) {
+          setOrganisations(res.data)
+          setCurrentOrgId(res.currentOrgId ?? null)
+        }
+      } catch (e) {
+        console.error("Failed to load organisations:", e)
+      }
+    }
+    loadOrganisations()
+  }, [])
+
+  const handleSwitchOrg = async (orgId: string | null) => {
+    if (orgId === currentOrgId) return;
+    setIsSwitchingOrg(true);
+    try {
+      const res = await switchOrganisationAction(orgId);
+      if (res.success) {
+        window.location.reload();
+      } else {
+        console.error("Failed to switch organisation:", res.error?.message);
+      }
+    } catch (e) {
+      console.error("Exception switching organisation:", e);
+    } finally {
+      setIsSwitchingOrg(false);
+    }
+  };
+
 
   // Use custom hooks for data fetching
   const {
@@ -185,6 +231,52 @@ export function UserSettings({
           <span>Einstellungen</span>
         </CustomDropdownItem>
         <CustomDropdownSeparator />
+        <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
+          Organisationen:
+        </CustomDropdownLabel>
+        <CustomDropdownItem
+          onClick={() => handleSwitchOrg(null)}
+          disabled={isSwitchingOrg}
+          className="flex items-center cursor-pointer"
+        >
+          {currentOrgId === null ? (
+            <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+          ) : (
+            <div className="mr-2 size-4 shrink-0" />
+          )}
+          <span className={cn(currentOrgId === null && "font-medium text-emerald-600 dark:text-emerald-400")}>
+            Privat
+          </span>
+        </CustomDropdownItem>
+        {organisations.map((org) => {
+          const isActive = currentOrgId === org.organisation_id;
+          const roleLabel =
+            org.rolle === 'owner' ? 'Owner' :
+            org.rolle === 'admin' ? 'Admin' :
+            'Mitarbeiter';
+
+          return (
+            <CustomDropdownItem
+              key={org.organisation_id}
+              onClick={() => handleSwitchOrg(org.organisation_id)}
+              disabled={isSwitchingOrg}
+              className="flex items-center cursor-pointer"
+            >
+              {isActive ? (
+                <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+              ) : (
+                <div className="mr-2 size-4 shrink-0" />
+              )}
+              <span className={cn(
+                "truncate",
+                isActive && "font-medium text-emerald-600 dark:text-emerald-400"
+              )}>
+                {org.name} <span className="text-xs text-gray-400 font-normal">({roleLabel})</span>
+              </span>
+            </CustomDropdownItem>
+          )
+        })}
+        <CustomDropdownSeparator />
         <CustomDropdownItem
           onClick={handleLogout}
           disabled={isLoadingLogout}
@@ -194,6 +286,7 @@ export function UserSettings({
         </CustomDropdownItem>
       </CustomDropdown>
       <SettingsModal open={openModal} onOpenChange={setOpenModal} />
+
     </>
   )
 }
