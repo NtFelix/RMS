@@ -142,7 +142,7 @@ export function TenantPaymentBento() {
                     <button
                       type="button"
                       className="flex-1 px-2 py-1 rounded-full text-xs font-medium border transition-colors duration-150 bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-900/50 flex items-center justify-center gap-1"
-                      disabled={updatingStatus === tenant.id}
+                      disabled={updatingStatus === tenant.id || !tenant.apartmentId}
                       onClick={() => openTenantPaymentEditModal({
                         id: tenant.id,
                         tenant: tenant.tenant,
@@ -168,7 +168,7 @@ export function TenantPaymentBento() {
                             : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/50'
                         }`
                       }
-                      disabled={updatingStatus === tenant.id}
+                      disabled={updatingStatus === tenant.id || !tenant.apartmentId}
                       onClick={() => toggleRentPayment(tenant)}
                     >
                       {updatingStatus === tenant.id ? (
