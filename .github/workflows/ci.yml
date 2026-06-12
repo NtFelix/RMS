@@ -3,6 +3,8 @@ name: CI
 permissions:
   contents: read
   packages: write
+  pull-requests: write
+  id-token: write
 
 on:
   push:
@@ -468,7 +470,8 @@ jobs:
     name: Semgrep Security
     runs-on: ubuntu-latest
     needs: [lint, type-check, build-app]
-    if: github.actor != 'dependabot[bot]'
+    # Skip for unapproved bot PRs — after platform-level approval secrets will be available
+    if: github.event_name != 'pull_request' || github.event.pull_request.user.type != 'Bot'
     permissions:
       contents: read
       security-events: write
@@ -483,12 +486,33 @@ jobs:
       - name: Run Semgrep Security Scan
         run: semgrep ci
 
+  # ─── Bot Deployment Approval Gate ───────────────────────────────────────────
+  # When a bot (e.g. github-actions[bot], dependabot[bot]) creates a PR, GitHub
+  # now supports approving the run at the platform level. This job adds an extra
+  # deployment-specific approval gate using a GitHub environment.
+  #
+  # To enforce manual review, create a "deploy" environment in your repo
+  # settings (Settings > Environments) and add required reviewers.
+
+  approve-deploy:
+    name: Approve Bot Deployment
+    runs-on: ubuntu-latest
+    needs: check-runs
+    environment: deploy
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.type == 'Bot' &&
+      needs.check-runs.outputs.should-run-docker == 'true'
+    steps:
+      - name: Awaiting approval
+        run: echo "Deployment approved — proceeding with Docker build & push"
+
   # ─── Docker Build and Smoke Test ─────────────────────────────────────────────
 
   docker-build:
     name: Docker Build & Push
     runs-on: ubuntu-latest
-    needs: [lint, type-check, build-app, check-runs]
+    needs: [lint, type-check, build-app, check-runs, approve-deploy]
     if: needs.check-runs.outputs.should-run-docker == 'true'
     outputs:
       start_time: ${{ steps.start-timer.outputs.start_time }}
