@@ -66,6 +66,161 @@ import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/c
 
 import { isValidRedirect, isValidSupabaseRedirect } from '@/lib/oauth-utils';
 
+// Logo header — logos, arrow, and labels shared between manage and consent screens
+function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | null; clientName: string }) {
+    return (
+        <>
+            <div className="flex items-center justify-center gap-4 mb-8">
+                <motion.div
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
+                    className="relative"
+                >
+                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
+                    {clientIcon ? (
+                        <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
+                            <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
+                            <img src={clientIcon} alt={clientName} className="w-10 h-10 object-contain drop-shadow-xs relative z-10" />
+                        </div>
+                    ) : (
+                        <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
+                            <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
+                            <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
+                        </div>
+                    )}
+                </motion.div>
+
+                <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.4, type: "spring" }}
+                    className="flex items-center justify-center text-muted-foreground/60"
+                >
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
+                    </svg>
+                </motion.div>
+
+                <motion.div
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                    className="relative"
+                >
+                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
+                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
+                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
+                        <img src={LOGO_URL} alt={BRAND_NAME} className="w-10 h-10 object-contain relative z-10 dark:brightness-110" />
+                    </div>
+                </motion.div>
+            </div>
+
+            <div className="flex justify-center gap-4 mb-6">
+                <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ursprung</span>
+                    <span className="text-sm font-semibold text-foreground">{clientName}</span>
+                </div>
+                <div className="flex flex-col items-center text-muted-foreground/60">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
+                    </svg>
+                </div>
+                <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Produkt</span>
+                    <span className="text-sm font-semibold text-primary">Mietevo MCP</span>
+                </div>
+            </div>
+        </>
+    );
+}
+
+// Map known OAuth client hosts to display names and icons
+// Based on Client ID Metadata Document (CIMD) hosts and redirect URI hosts
+function getClientConfigFromHost(host: string): { name: string; icon: string } | null {
+    const normalizedHost = host.replace(/^www\./, '');
+
+    const knownClients: Record<string, { name: string; icon: string }> = {
+        'notion.so': { name: 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' },
+        'api.notion.com': { name: 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' },
+        'claude.ai': { name: 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' },
+        'anthropic.com': { name: 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' },
+        'chatgpt.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
+        'openai.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
+        'api.openai.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
+        'perplexity.ai': { name: 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' },
+        'api.perplexity.ai': { name: 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' },
+        'cursor.com': { name: 'Cursor', icon: 'https://cursor.com/favicon.ico' },
+        'cursor.sh': { name: 'Cursor', icon: 'https://cursor.com/favicon.ico' },
+        'google.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
+        'vertexaisearch.cloud.google.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
+        'generativelanguage.googleapis.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
+        'windsurf.com': { name: 'Windsurf', icon: 'https://windsurf.com/favicon.ico' },
+        'codeium.com': { name: 'Windsurf', icon: 'https://windsurf.com/favicon.ico' },
+        'replit.com': { name: 'Replit', icon: 'https://replit.com/favicon.ico' },
+        'sourcegraph.com': { name: 'Cody', icon: 'https://sourcegraph.com/favicon.ico' },
+        'cody.dev': { name: 'Cody', icon: 'https://sourcegraph.com/favicon.ico' },
+    };
+
+    if (knownClients[normalizedHost]) return knownClients[normalizedHost];
+
+    for (const [knownHost, config] of Object.entries(knownClients)) {
+        if (normalizedHost === knownHost || normalizedHost.endsWith('.' + knownHost)) {
+            return config;
+        }
+    }
+
+    return null;
+}
+
+function getSmartClientConfig(
+    id: string | undefined,
+    name: string | undefined,
+    providedUri: string | undefined,
+    redirectTarget: string | undefined,
+    defaultName: string | undefined,
+    defaultIcon: string | null | undefined
+): { name: string; icon: string | null } {
+    const lowerName = (name || '').toLowerCase();
+
+    if (id === OAUTH_CLIENT_IDS.MIETEVO) return { name: 'Mietevo', icon: LOGO_URL };
+    if (id === OAUTH_CLIENT_IDS.MIETEVO_PUBLIC_MCP) return { name: 'Mietevo Public MCP', icon: LOGO_URL };
+
+    if (providedUri) return { name: name || 'Unbekannte Anwendung', icon: providedUri };
+
+    if (id && id.startsWith('https://')) {
+        try {
+            const clientIdUrl = new URL(id);
+            const host = clientIdUrl.hostname.toLowerCase();
+            const cimdConfig = getClientConfigFromHost(host);
+            if (cimdConfig) return { name: name || cimdConfig.name, icon: cimdConfig.icon };
+        } catch {
+            // Invalid URL, fall through
+        }
+    }
+
+    if (redirectTarget) {
+        try {
+            const redirectUrl = new URL(redirectTarget);
+            const host = redirectUrl.hostname.toLowerCase();
+            const redirectConfig = getClientConfigFromHost(host);
+            if (redirectConfig) return { name: name || redirectConfig.name, icon: redirectConfig.icon };
+        } catch {
+            // Invalid URL, fall through
+        }
+    }
+
+    if (lowerName.includes('notion')) return { name: name || 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' };
+    if (lowerName.includes('claude') || lowerName.includes('anthropic')) return { name: name || 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' };
+    if (lowerName.includes('chatgpt') || lowerName.includes('openai') || lowerName.includes('codex')) return { name: name || 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' };
+    if (lowerName.includes('perplexity')) return { name: name || 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' };
+    if (lowerName.includes('cursor')) return { name: name || 'Cursor', icon: 'https://cursor.com/favicon.ico' };
+    if (lowerName.includes('gemini') || lowerName.includes('google')) return { name: name || 'Gemini', icon: 'https://www.google.com/favicon.ico' };
+    if (lowerName.includes('windsurf') || lowerName.includes('codeium')) return { name: name || 'Windsurf', icon: 'https://windsurf.com/favicon.ico' };
+
+    return { name: name || defaultName || 'Unbekannte Anwendung', icon: defaultIcon || null };
+}
+
 /**
  * Validates a redirect URL before navigating to it.
  * Only HTTPS URLs whose origin is in the allowlist or the project's Supabase instance are accepted.
@@ -234,122 +389,15 @@ export default function ConsentUI({
         fetchCustomScopes();
     }, [authDetails]);
 
-    // Smart client logo detection based on name, ID, or redirect URI
-    const getSmartClientConfig = (id?: string, name?: string, providedUri?: string, redirectTarget?: string) => {
-        const lowerName = (name || '').toLowerCase();
-
-        // 1. Check known Mietevo IDs first
-        if (id === OAUTH_CLIENT_IDS.MIETEVO) return { name: 'Mietevo', icon: LOGO_URL };
-        if (id === OAUTH_CLIENT_IDS.MIETEVO_PUBLIC_MCP) return { name: 'Mietevo Public MCP', icon: LOGO_URL };
-
-        // 2. Use provided URI if it exists (from Supabase client.logo_uri)
-        if (providedUri) return { name: name || 'Unbekannte Anwendung', icon: providedUri };
-
-        // 3. Extract client identity from CIMD URL (client_id is often an HTTPS URL)
-        // Client ID Metadata Documents use HTTPS URLs as client_id
-        // e.g., https://claude.ai/oauth/claude-code-client-metadata
-        // The host identifies the client platform
-        if (id && id.startsWith('https://')) {
-            try {
-                const clientIdUrl = new URL(id);
-                const host = clientIdUrl.hostname.toLowerCase();
-                const cimdConfig = getClientConfigFromHost(host);
-                if (cimdConfig) return { name: name || cimdConfig.name, icon: cimdConfig.icon };
-            } catch {
-                // Invalid URL, fall through
-            }
-        }
-
-        // 4. Detect from redirect URI (cloud clients use their domain as callback)
-        // e.g., https://claude.ai/callback, https://www.notion.so/workflows/mcp/oauth/callback
-        if (redirectTarget) {
-            try {
-                const redirectUrl = new URL(redirectTarget);
-                const host = redirectUrl.hostname.toLowerCase();
-                const redirectConfig = getClientConfigFromHost(host);
-                if (redirectConfig) return { name: name || redirectConfig.name, icon: redirectConfig.icon };
-            } catch {
-                // Invalid URL, fall through
-            }
-        }
-
-        // 5. Smart guess based on popular tool names (from client.name)
-        if (lowerName.includes('notion')) return { name: name || 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' };
-        if (lowerName.includes('claude') || lowerName.includes('anthropic')) return { name: name || 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' };
-        if (lowerName.includes('chatgpt') || lowerName.includes('openai') || lowerName.includes('codex')) return { name: name || 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' };
-        if (lowerName.includes('perplexity')) return { name: name || 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' };
-        if (lowerName.includes('cursor')) return { name: name || 'Cursor', icon: 'https://cursor.com/favicon.ico' };
-        if (lowerName.includes('gemini') || lowerName.includes('google')) return { name: name || 'Gemini', icon: 'https://www.google.com/favicon.ico' };
-        if (lowerName.includes('windsurf') || lowerName.includes('codeium')) return { name: name || 'Windsurf', icon: 'https://windsurf.com/favicon.ico' };
-
-        // 6. Default fallback
-        return { name: name || initialClientName || 'Unbekannte Anwendung', icon: initialClientIcon || null };
-    };
-
-    // Map known OAuth client hosts to display names and icons
-    // Based on Client ID Metadata Document (CIMD) hosts and redirect URI hosts
-    function getClientConfigFromHost(host: string): { name: string; icon: string } | null {
-        const normalizedHost = host.replace(/^www\./, ''); // Normalize www subdomain
-
-        const knownClients: Record<string, { name: string; icon: string }> = {
-            // Notion
-            'notion.so': { name: 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' },
-            'api.notion.com': { name: 'Notion', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png' },
-
-            // Anthropic / Claude
-            'claude.ai': { name: 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' },
-            'anthropic.com': { name: 'Claude', icon: 'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg' },
-
-            // OpenAI / ChatGPT / Codex
-            'chatgpt.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
-            'openai.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
-            'api.openai.com': { name: 'ChatGPT', icon: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg' },
-
-            // Perplexity
-            'perplexity.ai': { name: 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' },
-            'api.perplexity.ai': { name: 'Perplexity', icon: 'https://www.perplexity.ai/favicon.ico' },
-
-            // Cursor (uses mcp-remote)
-            'cursor.com': { name: 'Cursor', icon: 'https://cursor.com/favicon.ico' },
-            'cursor.sh': { name: 'Cursor', icon: 'https://cursor.com/favicon.ico' },
-
-            // Google / Gemini
-            'google.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
-            'vertexaisearch.cloud.google.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
-            'generativelanguage.googleapis.com': { name: 'Gemini', icon: 'https://www.google.com/favicon.ico' },
-
-            // Windsurf / Codeium
-            'windsurf.com': { name: 'Windsurf', icon: 'https://windsurf.com/favicon.ico' },
-            'codeium.com': { name: 'Windsurf', icon: 'https://windsurf.com/favicon.ico' },
-
-            // Replit
-            'replit.com': { name: 'Replit', icon: 'https://replit.com/favicon.ico' },
-
-            // Sourcegraph / Cody
-            'sourcegraph.com': { name: 'Cody', icon: 'https://sourcegraph.com/favicon.ico' },
-            'cody.dev': { name: 'Cody', icon: 'https://sourcegraph.com/favicon.ico' },
-        };
-
-        // Exact match
-        if (knownClients[normalizedHost]) return knownClients[normalizedHost];
-
-        // Subdomain match (e.g., api.notion.com -> notion.so)
-        for (const [knownHost, config] of Object.entries(knownClients)) {
-            if (normalizedHost === knownHost || normalizedHost.endsWith('.' + knownHost)) {
-                return config;
-            }
-        }
-
-        return null;
-    }
-
     const clientId = authDetails?.client?.id;
     const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
     const { name: clientName, icon: clientIcon } = getSmartClientConfig(
         clientId,
         authDetails?.client?.name || initialClientName,
         authDetails?.client?.logo_uri,
-        redirectUri || autoRedirectUrl
+        redirectUri || autoRedirectUrl,
+        initialClientName,
+        initialClientIcon
     );
 
     // Merge Supabase scopes with our custom stashed scopes
@@ -526,78 +574,7 @@ export default function ConsentUI({
 
                     <Card className="relative border-border/50 dark:border-border/30 bg-background/80 dark:bg-background/60 backdrop-blur-2xl shadow-xl dark:shadow-2xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="text-center pt-10 px-8">
-                            <div className="flex items-center justify-center gap-4 mb-8">
-                                <motion.div
-                                    initial={{ x: -20, opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    transition={{ delay: 0.2, duration: 0.5 }}
-                                    className="relative"
-                                >
-                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                    {clientIcon ? (
-                                        <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
-                                            <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
-                                            <img
-                                                src={clientIcon}
-                                                alt={clientName}
-                                                className="w-10 h-10 object-contain drop-shadow-xs relative z-10"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                            <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
-                                            <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
-                                        </div>
-                                    )}
-                                </motion.div>
-
-                                {/* Arrow between origin and product */}
-                                <motion.div
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ delay: 0.4, type: "spring" }}
-                                    className="flex items-center justify-center text-muted-foreground/60"
-                                >
-                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
-                                    </svg>
-                                </motion.div>
-
-                                <motion.div
-                                    initial={{ x: 20, opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    transition={{ delay: 0.3, duration: 0.5 }}
-                                    className="relative"
-                                >
-                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
-                                        <img
-                                            src={LOGO_URL}
-                                            alt={BRAND_NAME}
-                                            className="w-10 h-10 object-contain relative z-10 dark:brightness-110"
-                                        />
-                                    </div>
-                                </motion.div>
-                            </div>
-
-                            {/* Origin / Product labels */}
-                            <div className="flex justify-center gap-4 mb-6">
-                                <div className="flex flex-col items-center">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ursprung</span>
-                                    <span className="text-sm font-semibold text-foreground">{clientName}</span>
-                                </div>
-                                <div className="flex flex-col items-center text-muted-foreground/60">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
-                                    </svg>
-                                </div>
-                                <div className="flex flex-col items-center">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Produkt</span>
-                                    <span className="text-sm font-semibold text-primary">Mietevo MCP</span>
-                                </div>
-                            </div>
-
+                            <OriginProductLogos clientIcon={clientIcon} clientName={clientName} />
                             <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-linear-to-br from-foreground to-muted-foreground pb-1">
                                 Bereits verbunden
                             </CardTitle>
@@ -714,79 +691,7 @@ export default function ConsentUI({
 
                 <Card className="relative border-border/50 dark:border-border/30 bg-background/80 dark:bg-background/60 backdrop-blur-2xl shadow-xl dark:shadow-2xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="text-center pt-10 px-8">
-                            {/* App logos with origin → product flow */}
-                            <div className="flex items-center justify-center gap-4 mb-8">
-                                <motion.div
-                                    initial={{ x: -20, opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    transition={{ delay: 0.2, duration: 0.5 }}
-                                    className="relative"
-                                >
-                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                    {clientIcon ? (
-                                        <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
-                                            <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
-                                            <img
-                                                src={clientIcon}
-                                                alt={clientName}
-                                                className="w-10 h-10 object-contain drop-shadow-xs relative z-10"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                            <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
-                                            <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
-                                        </div>
-                                    )}
-                                </motion.div>
-
-                                {/* Arrow between origin and product */}
-                                <motion.div
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ delay: 0.4, type: "spring" }}
-                                    className="flex items-center justify-center text-muted-foreground/60"
-                                >
-                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
-                                    </svg>
-                                </motion.div>
-
-                                <motion.div
-                                    initial={{ x: 20, opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    transition={{ delay: 0.3, duration: 0.5 }}
-                                    className="relative"
-                                >
-                                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
-                                        <img
-                                            src={LOGO_URL}
-                                            alt={BRAND_NAME}
-                                            className="w-10 h-10 object-contain relative z-10 dark:brightness-110"
-                                        />
-                                    </div>
-                                </motion.div>
-                            </div>
-
-                            {/* Origin / Product labels */}
-                            <div className="flex justify-center gap-4 mb-6">
-                                <div className="flex flex-col items-center">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ursprung</span>
-                                    <span className="text-sm font-semibold text-foreground">{clientName}</span>
-                                </div>
-                                <div className="flex flex-col items-center text-muted-foreground/60">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
-                                    </svg>
-                                </div>
-                                <div className="flex flex-col items-center">
-                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Produkt</span>
-                                    <span className="text-sm font-semibold text-primary">Mietevo MCP</span>
-                                </div>
-                            </div>
-
+                            <OriginProductLogos clientIcon={clientIcon} clientName={clientName} />
                             <CardTitle className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight bg-clip-text text-transparent bg-linear-to-br from-foreground to-muted-foreground pb-1">
                                 Verbindung autorisieren
                             </CardTitle>
