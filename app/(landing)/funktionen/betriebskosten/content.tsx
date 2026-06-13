@@ -193,6 +193,8 @@ export default function UtilityCostPage() {
             variant="secondary"
             text="Muster Abrechnung"
             href={EXAMPLE_BILL_PDF_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="h-14 px-8 rounded-xl font-bold border-2"
           />
         </motion.div>
@@ -474,13 +476,56 @@ export default function UtilityCostPage() {
               </div>
             </motion.div>
 
+            {/* Feature 5: Automatischer Leerstand (lg:col-span-2) */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+                className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              >
+                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
+                <div className="relative h-full flex flex-col">
+                  {/* Mock Area */}
+                  <div className="relative h-[240px] mt-6 mx-6 overflow-hidden bg-black/5 dark:bg-black/20 rounded-[2rem] border border-black/5 dark:border-white/5 flex items-center justify-center p-4">
+                    <div className="w-full bg-background/50 border border-border/40 rounded-xl p-4 space-y-2 select-none text-xs">
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
+                        <span>Leerstand</span>
+                        <span className="text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded">45 Tage</span>
+                      </div>
+                      <div className="w-full h-2 bg-foreground/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-500 w-[12%]" />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-foreground/80 font-mono">
+                        <span>Anteil:</span>
+                        <span className="font-bold">12.33% / 154,20 €</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content Area */}
+                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                        <RefreshCw size={20} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">ZEITRÄUME</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-foreground mb-1">Automatischer Leerstand</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Leerstände tagesgenau erfassen und Kosten automatisch für den korrekten Zeitraum zuweisen.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
             {/* Feature 4: Professionelle Dokumente — mock top, content bottom */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="lg:col-span-4 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              transition={{ delay: 0.4 }}
+              className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
             >
               <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
               <div className="relative h-full flex flex-col">
@@ -519,208 +564,21 @@ export default function UtilityCostPage() {
                   </div>
                   <h3 className="text-2xl font-bold text-foreground mb-1">Professionelle Dokumente</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">Generieren Sie formgerechte Abrechnungen mit nur einem Klick. Klar strukturiert und verständlich.</p>
-                  <Button variant="link" className="text-primary p-0 h-auto font-bold flex items-center gap-2 group-hover:translate-x-1 transition-transform w-fit mt-2">
-                    Muster herunterladen <FileDown size={14} />
+                  <Button asChild variant="outline" className="mt-4 w-full flex items-center justify-center gap-2 font-semibold">
+                    <a href={EXAMPLE_BILL_PDF_URL} target="_blank" rel="noopener noreferrer">
+                      Muster herunterladen <FileDown size={14} />
+                    </a>
                   </Button>
                 </div>
               </div>
             </motion.div>
+
+
           </div>
         </div>
       </section>
 
-      {/* Transparenz & Abrechnung Section */}
-      <section className="py-24 relative overflow-hidden bg-background">
-        <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 max-w-7xl relative z-10">
-          <div className="py-20">
-            <div className="text-center w-full max-w-3xl mx-auto mb-20">
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
-                Klarheit statt Konflikt.
-              </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                Erstellen Sie Abrechnungen, die Ihre Mieter auf den ersten Blick verstehen. Eine transparente, gesetzeskonforme Aufschlüsselung aller Kosten schafft Vertrauen und spart Zeit.
-              </p>
-            </div>
-
-            {/* Bento Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 max-w-7xl mx-auto">
-              
-              {/* Card 1: Variable Umlageschlüssel (lg:col-span-4) */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="lg:col-span-4 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
-              >
-                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
-                <div className="relative h-full flex flex-col">
-                  {/* Mock Area */}
-                  <div className="relative h-[240px] mt-6 mx-6 overflow-hidden bg-black/5 dark:bg-black/20 rounded-[2rem] border border-black/5 dark:border-white/5 flex items-center justify-center p-6">
-                    <div className="w-full max-w-md bg-background/50 border border-border/40 rounded-xl p-4 space-y-2.5 font-mono text-xs select-none">
-                      <div className="flex justify-between border-b border-border/20 pb-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wide">
-                        <span>Umlageart</span>
-                        <span>Schlüsselwert</span>
-                        <span>Anteil</span>
-                      </div>
-                      <div className="flex justify-between text-foreground/80">
-                        <span>Wohnfläche</span>
-                        <span>450,00 qm</span>
-                        <span>65.5%</span>
-                      </div>
-                      <div className="flex justify-between text-foreground/80">
-                        <span>Personen</span>
-                        <span>12 Pers.</span>
-                        <span>22.0%</span>
-                      </div>
-                      <div className="flex justify-between text-foreground/80">
-                        <span>Einheiten</span>
-                        <span>6 WE</span>
-                        <span>12.5%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Content Area */}
-                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <Key size={20} />
-                      </div>
-                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">PRÄZISE VERTEILUNG</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-1">Variable Umlageschlüssel</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      Volle Flexibilität bei der Kostenverteilung. Verteilen Sie Betriebskosten präzise nach Wohnfläche, Personenanzahl, Wohneinheiten oder MEA.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Card 2: Automatischer Leerstand (lg:col-span-2) */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
-              >
-                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
-                <div className="relative h-full flex flex-col">
-                  {/* Mock Area */}
-                  <div className="relative h-[240px] mt-6 mx-6 overflow-hidden bg-black/5 dark:bg-black/20 rounded-[2rem] border border-black/5 dark:border-white/5 flex items-center justify-center p-4">
-                    <div className="w-full bg-background/50 border border-border/40 rounded-xl p-4 space-y-2 select-none text-xs">
-                      <div className="flex justify-between items-center text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
-                        <span>Leerstand</span>
-                        <span className="text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded">45 Tage</span>
-                      </div>
-                      <div className="w-full h-2 bg-foreground/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 w-[12%]" />
-                      </div>
-                      <div className="flex justify-between text-[11px] text-foreground/80 font-mono">
-                        <span>Anteil:</span>
-                        <span className="font-bold">12.33% / 154,20 €</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Content Area */}
-                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <RefreshCw size={20} />
-                      </div>
-                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">ZEITRÄUME</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-1">Automatischer Leerstand</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      Leerstände tagesgenau erfassen und Kosten automatisch dem Eigentümer zuweisen.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Card 3: Rechtssichere Abrechnung (lg:col-span-2) */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
-              >
-                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
-                <div className="relative h-full flex flex-col">
-                  {/* Mock Area */}
-                  <div className="relative h-[240px] mt-6 mx-6 overflow-hidden bg-black/5 dark:bg-black/20 rounded-[2rem] border border-black/5 dark:border-white/5 flex items-center justify-center p-4">
-                    <div className="space-y-2 select-none text-[11px] text-foreground/80 w-full px-2">
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/20">
-                        <Check size={12} className="text-emerald-500 stroke-[3]" />
-                        <span>§ 556 BGB konform</span>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/20">
-                        <Check size={12} className="text-emerald-500 stroke-[3]" />
-                        <span>Formell ordnungsgemäß</span>
-                      </div>
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/20">
-                        <Check size={12} className="text-emerald-500 stroke-[3]" />
-                        <span>Belegprüfungs-ready</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Content Area */}
-                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <CheckCircle2 size={20} />
-                      </div>
-                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">GESETZKONFORM</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-1">Rechtssichere Abrechnung</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      Schutz vor Widersprüchen durch BGB-konforme Form und Angaben.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Card 4: Action / CTA Button (lg:col-span-4) */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3 }}
-                className="lg:col-span-4 group relative rounded-[2.5rem] overflow-hidden bg-linear-to-br from-primary/5 via-transparent to-transparent border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
-              >
-                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
-                <div className="relative h-full flex flex-col justify-between">
-                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                        <Coins size={20} />
-                      </div>
-                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">JETZT STARTEN</span>
-                    </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-1">Bereit für transparente Abrechnungen?</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      Starten Sie in wenigen Minuten. Digitalisieren Sie Zählerstände, erfassen Sie Kostenbelege und generieren Sie rechtssichere Abrechnungen für all Ihre Mieter.
-                    </p>
-                  </div>
-                  
-                  <div className="p-8 md:p-10 pt-0 relative z-10">
-                    <CTAButton
-                      variant="primary"
-                      text="Jetzt kostenlos starten"
-                      href="/?getStarted=true"
-                      className="h-12 px-6 rounded-xl font-bold shadow-md shadow-primary/10 w-full sm:w-fit justify-center"
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </section>
-{/* Bottom CTA Section */}
+      {/* Bottom CTA Section */}
       <BottomCTA
         onGetStarted={() => window.location.href = '/?getStarted=true'}
         title="Bereit für transparente"
