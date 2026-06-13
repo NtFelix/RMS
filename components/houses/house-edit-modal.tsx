@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Sheet,
   SheetContent,
@@ -101,6 +101,77 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const isPending = isSubmitting || isDeleting;
   const { openHausOverviewModal } = useModalStore();
+
+  // Resize State & Ref
+  const [width, setWidth] = useState(600); // default width in px
+  const [isResizing, setIsResizing] = useState(false);
+  const widthRef = useRef(width);
+
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
+
+  // Load saved width from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedWidth = localStorage.getItem("house-modal-width");
+      if (savedWidth) {
+        const parsed = parseInt(savedWidth, 10);
+        if (!isNaN(parsed)) {
+          setWidth(parsed);
+        }
+      }
+    }
+  }, []);
+
+  // Listen to reset event from settings
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const handleResetWidth = () => {
+        setWidth(600);
+      };
+      window.addEventListener("reset-house-modal-width", handleResetWidth);
+      return () => {
+        window.removeEventListener("reset-house-modal-width", handleResetWidth);
+      };
+    }
+  }, []);
+
+  const startResizing = (mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
+      const newWidth = window.innerWidth - mouseMoveEvent.clientX;
+      const minWidth = 360;
+      const maxWidth = window.innerWidth * 0.9;
+      setWidth(Math.max(minWidth, Math.min(newWidth, maxWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      localStorage.setItem("house-modal-width", String(widthRef.current));
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   const {
     isHouseModalOpen,
@@ -264,10 +335,28 @@ export function HouseEditModal(props: HouseEditModalProps) {
     <Sheet open={isHouseModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <SheetContent
         id="house-form-container"
-        className="sm:max-w-[50vw] flex flex-col h-full p-0 gap-0"
+        className="w-full sm:w-[var(--sheet-width)] sm:max-w-none flex flex-col h-full p-0 gap-0"
+        style={{
+          "--sheet-width": `${width}px`,
+          transition: isResizing ? "none" : undefined
+        } as React.CSSProperties}
         isDirty={isHouseModalDirty}
         onAttemptClose={attemptClose}
       >
+        {/* Resize Handle */}
+        <div
+          onMouseDown={startResizing}
+          className={cn(
+            "absolute -left-1 top-0 bottom-0 w-2 cursor-ew-resize z-50 select-none group/resize-handle hidden sm:block",
+            isResizing ? "cursor-ew-resize" : ""
+          )}
+        >
+          {/* Visual highlight line positioned exactly on the border (center of the handle) */}
+          <div className={cn(
+            "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-all duration-150 ease-in-out",
+            isResizing ? "bg-primary" : "bg-transparent group-hover/resize-handle:bg-primary/40"
+          )} />
+        </div>
         {/* Top Navigation Bar */}
         <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-4 z-10 pointer-events-none">
           <div className="pointer-events-auto">
