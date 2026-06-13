@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { useSearch } from "@/hooks/use-search"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useSearchModalIntegration } from "@/hooks/use-search-modal-integration"
 import { toast } from "@/hooks/use-toast"
-import { ActionMenu } from "@/components/ui/action-menu"
 import { SearchResult } from "@/types/search"
 import { 
   Search, 
@@ -19,15 +19,14 @@ import {
   AlertCircle,
   TrendingUp,
   ChevronRight,
-  WifiOff,
-  History
+  History,
+  WifiOff
 } from "lucide-react"
-import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
 
 export default function SuchePage() {
+  const router = useRouter()
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   
   const {
@@ -53,7 +52,7 @@ export default function SuchePage() {
   const entityCache = useRef<Record<string, { data: any[], timestamp: number }>>({})
   const ENTITY_CACHE_DURATION = 2 * 60 * 1000 // 2 minutes
 
-  const fetchEntityData = useCallback(async (entityType: string, forceRefresh = false) => {
+  const fetchEntityData = useCallback(async (entityType: 'wohnungen' | 'haeuser' | 'finanzen' | 'todos', forceRefresh = false) => {
     const cacheKey = entityType
     const cached = entityCache.current[cacheKey]
 
@@ -85,44 +84,8 @@ export default function SuchePage() {
   }, [])
 
   const refreshSearchResults = useCallback(() => {
-    if (query.trim()) {
-      const currentQuery = query
-      clearSearch()
-      setTimeout(() => setQuery(currentQuery), 100)
-    }
-  }, [query, clearSearch, setQuery])
-
-  const createModalSuccessCallback = useCallback((entityName: string, entityType?: string) => {
-    return () => {
-      if (entityType) {
-        invalidateEntityCache(entityType)
-        switch (entityType) {
-          case 'mieter':
-            invalidateEntityCache('wohnungen')
-            break
-          case 'wohnungen':
-            invalidateEntityCache('mieter')
-            invalidateEntityCache('haeuser')
-            break
-          case 'haeuser':
-            invalidateEntityCache('wohnungen')
-            break
-          case 'finanzen':
-            invalidateEntityCache('wohnungen')
-            break
-        }
-      } else {
-        entityCache.current = {}
-      }
-
-      refreshSearchResults()
-
-      toast({
-        title: 'Erfolg',
-        description: `${entityName} wurde erfolgreich aktualisiert.`,
-      })
-    }
-  }, [refreshSearchResults, invalidateEntityCache])
+    retry()
+  }, [retry])
 
   useSearchModalIntegration({
     onEntityUpdated: (entityType, entityName) => {
@@ -187,8 +150,6 @@ export default function SuchePage() {
       const response = await fetch(`/api/haeuser/${houseId}`)
       if (!response.ok) throw new Error('House not found')
       const house = await response.json()
-      const onSuccess = createModalSuccessCallback('Haus', 'haeuser')
-
       const houseWithContext = searchResult ? {
         ...house,
         _searchContext: {
@@ -198,7 +159,7 @@ export default function SuchePage() {
         }
       } : house
 
-      useModalStore.getState().openHouseModal(houseWithContext, onSuccess)
+      useModalStore.getState().openHouseModal(houseWithContext)
     } catch (error) {
       console.error('Error loading house for edit:', error)
       toast({
@@ -218,7 +179,6 @@ export default function SuchePage() {
       const apartment = apartments.find((a: any) => a.id === apartmentId)
 
       if (apartment) {
-        const onSuccess = createModalSuccessCallback('Wohnung', 'wohnungen')
         const apartmentWithContext = searchResult ? {
           ...apartment,
           _searchContext: {
@@ -230,8 +190,7 @@ export default function SuchePage() {
 
         useModalStore.getState().openWohnungModal(
           apartmentWithContext,
-          houses,
-          onSuccess
+          houses
         )
       } else {
         toast({
@@ -259,7 +218,6 @@ export default function SuchePage() {
       const finance = finances.find((f: any) => f.id === financeId)
 
       if (finance) {
-        const onSuccess = createModalSuccessCallback('Finanzeintrag', 'finanzen')
         const financeWithContext = searchResult ? {
           ...finance,
           _searchContext: {
@@ -269,7 +227,7 @@ export default function SuchePage() {
           }
         } : finance
 
-        useModalStore.getState().openFinanceModal(financeWithContext, wohnungen, onSuccess)
+        useModalStore.getState().openFinanceModal(financeWithContext, wohnungen)
       } else {
         toast({
           title: 'Fehler',
@@ -293,7 +251,6 @@ export default function SuchePage() {
       const task = tasks.find((t: any) => t.id === taskId)
 
       if (task) {
-        const onSuccess = createModalSuccessCallback('Aufgabe', 'todos')
         const taskWithContext = searchResult ? {
           ...task,
           _searchContext: {
@@ -303,7 +260,7 @@ export default function SuchePage() {
           }
         } : task
 
-        useModalStore.getState().openAufgabeModal(taskWithContext, onSuccess)
+        useModalStore.getState().openAufgabeModal(taskWithContext)
       } else {
         toast({
           title: 'Fehler',
@@ -421,6 +378,105 @@ export default function SuchePage() {
     })
   }
 
+  const handleDeleteTenant = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Mieter löschen',
+      description: `Möchten Sie den Mieter "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/mieter/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('mieter')
+            toast({
+              title: 'Erfolg',
+              description: 'Mieter wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting tenant:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Mieter konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  const handleDeleteHouse = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Haus löschen',
+      description: `Möchten Sie das Haus "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/haeuser/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('haeuser')
+            toast({
+              title: 'Erfolg',
+              description: 'Haus wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting house:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Haus konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  const handleDeleteApartment = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Wohnung löschen',
+      description: `Möchten Sie die Wohnung "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/wohnungen/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('wohnungen')
+            toast({
+              title: 'Erfolg',
+              description: 'Wohnung wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting apartment:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Wohnung konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
   const handleSearchResultAction = (result: SearchResult, actionIndex: number) => {
     const action = result.actions?.[actionIndex]
     if (!action) return
@@ -428,12 +484,15 @@ export default function SuchePage() {
     switch (result.type) {
       case 'tenant':
         if (action.label === 'Bearbeiten') handleEditTenant(result.id, result)
+        else if (action.label === 'Löschen') handleDeleteTenant(result)
         break
       case 'house':
         if (action.label === 'Bearbeiten') handleEditHouse(result.id, result)
+        else if (action.label === 'Löschen') handleDeleteHouse(result)
         break
       case 'apartment':
         if (action.label === 'Bearbeiten') handleEditApartment(result.id, result)
+        else if (action.label === 'Löschen') handleDeleteApartment(result)
         break
       case 'finance':
         if (action.label === 'Bearbeiten') {
@@ -489,23 +548,6 @@ export default function SuchePage() {
     }
   }
 
-  const getTypeBadgeStyles = (type: string) => {
-    switch (type) {
-      case "tenant": 
-        return "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-150/40 dark:border-indigo-900/30"
-      case "house": 
-        return "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-150/40 dark:border-amber-900/30"
-      case "apartment": 
-        return "bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border-sky-150/40 dark:border-sky-900/30"
-      case "finance": 
-        return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-150/40 dark:border-emerald-900/30"
-      case "task": 
-        return "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-150/40 dark:border-rose-900/30"
-      default: 
-        return "bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
-    }
-  }
-
   const getLink = (item: { type: string }) => {
     switch (item.type) {
       case "tenant": return "/mieter"
@@ -537,10 +579,7 @@ export default function SuchePage() {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-6rem)] w-full bg-zinc-50/30 dark:bg-zinc-950/10 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden select-none relative">
-      {/* Background gradients */}
-      <div className="absolute top-0 right-0 size-96 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 size-80 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
+    <div className="flex flex-col min-h-[calc(100vh-6rem)] w-full rounded-[2rem] md:rounded-[2.5rem] overflow-hidden select-none relative">
       
       <div className="flex-1 flex flex-col w-full relative z-10">
         {/* Main section that animates padding/layout to shift position */}
@@ -569,7 +608,7 @@ export default function SuchePage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className={cn(
-                  "w-full h-15 pl-13 pr-24 text-sm sm:text-base font-semibold rounded-2xl bg-white dark:bg-zinc-900/60",
+                  "w-full h-15 pl-13 pr-24 text-sm sm:text-base font-semibold rounded-full bg-white dark:bg-zinc-900/60",
                   "border border-zinc-200 dark:border-zinc-800/80 shadow-md",
                   "focus:shadow-lg focus:shadow-accent/5 dark:focus:shadow-none focus:ring-4 focus:ring-accent/10 focus:border-accent/40 focus:outline-none",
                   "transition-all duration-300"
@@ -582,13 +621,13 @@ export default function SuchePage() {
                     type="button"
                     onClick={clearSearch}
                     aria-label="Suche löschen"
-                    className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-all duration-200 cursor-pointer"
+                    className="p-1 rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-all duration-200 cursor-pointer"
                   >
                     <X className="size-4.5" />
                   </button>
                 )}
                 {query && !isLoading && (
-                  <span className="hidden sm:inline-block text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800/80 text-zinc-550 dark:text-zinc-400 px-2 py-1 rounded-md shrink-0 select-none">
+                  <span className="hidden sm:inline-block text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800/80 text-zinc-550 dark:text-zinc-400 px-2 py-1 rounded-full shrink-0 select-none">
                     {filteredResults.length} {filteredResults.length === 1 ? "Treffer" : "Treffer"}
                   </span>
                 )}
@@ -610,7 +649,7 @@ export default function SuchePage() {
                       type="button"
                       onClick={() => setSelectedCategory(cat.id)}
                       className={cn(
-                        "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-97 select-none border",
+                        "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-97 select-none border",
                         selectedCategory === cat.id
                           ? "bg-accent text-white shadow-xs border-accent"
                           : "bg-white/40 dark:bg-zinc-900/40 text-zinc-650 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100 border-zinc-250/60 dark:border-zinc-800/80"
@@ -619,7 +658,7 @@ export default function SuchePage() {
                       <span>{cat.label}</span>
                       {cat.count > 0 && (
                         <span className={cn(
-                          "px-1.5 py-0.5 rounded-md text-[9px] font-extrabold",
+                          "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold",
                           selectedCategory === cat.id 
                             ? "bg-white/20 text-white" 
                             : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
@@ -662,30 +701,29 @@ export default function SuchePage() {
               )}
             </AnimatePresence>
 
-            {/* Clean Recent Searches dropdown under input ONLY when query is empty and recentSearches exists */}
+            {/* Recent Searches */}
             {!hasQuery && recentSearches.length > 0 && (
-              <div className="flex flex-col gap-2 mt-2 w-full">
-                <div className="flex items-center justify-between text-zinc-400 dark:text-zinc-500 px-1">
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <History className="size-3" /> Letzte Suchanfragen
-                  </h3>
+              <div className="flex flex-col gap-1 mt-2">
+                <div className="flex items-center gap-2 px-2.5 py-2">
+                  <History className="size-4 text-zinc-400" />
+                  <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Letzte Suchanfragen
+                  </span>
                 </div>
-                <div className="flex flex-col border border-zinc-200/50 dark:border-zinc-800/60 rounded-2xl overflow-hidden bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xs shadow-xs">
-                  {recentSearches.map((search, index) => (
+                <div className="flex flex-col">
+                  {recentSearches.slice(0, 5).map((search) => (
                     <button
                       key={search}
                       type="button"
-                      onClick={() => {
-                        setQuery(search)
-                        addToRecentSearches(search)
-                      }}
-                      className={cn(
-                        "flex items-center justify-between px-4 py-3.5 text-left font-semibold text-xs sm:text-sm text-zinc-700 dark:text-zinc-355 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer group",
-                        index !== recentSearches.length - 1 && "border-b border-zinc-100 dark:border-zinc-850/50"
-                      )}
+                      onClick={() => setQuery(search)}
+                      className="flex items-center gap-3 px-2.5 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer text-left"
                     >
-                      <span className="truncate group-hover:text-zinc-950 dark:group-hover:text-zinc-50 transition-colors">{search}</span>
-                      <ChevronRight className="size-4 text-zinc-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200" />
+                      <div className="p-1.5 bg-zinc-50 dark:bg-zinc-850/80 rounded-full text-zinc-400 shrink-0">
+                        <History className="size-4.5" />
+                      </div>
+                      <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                        {search}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -769,7 +807,7 @@ export default function SuchePage() {
                       <span>Mietevo-Datenbank wird durchsucht...</span>
                     </div>
                     {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="h-20 w-full bg-white dark:bg-[#181818]/60 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl animate-pulse" />
+                      <div key={i} className="h-20 w-full bg-white dark:bg-[#181818]/60 border border-zinc-200/50 dark:border-zinc-800/40 rounded-full animate-pulse" />
                     ))}
                   </motion.div>
                   
@@ -793,14 +831,14 @@ export default function SuchePage() {
                   </motion.div>
                   
                 ) : (
-                  
+
                   /* Results Display Stream */
                   <motion.div
                     key="results"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="flex flex-col gap-3"
+                    className="flex flex-col gap-6"
                   >
                     {/* Search Performance Indicators */}
                     <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 dark:text-zinc-500 px-2.5 mb-1 select-none">
@@ -812,145 +850,48 @@ export default function SuchePage() {
                       )}
                     </div>
 
-                    {filteredResults.map((item) => {
-                      const ItemIcon = getIcon(item.type)
-                      const badgeClasses = getTypeBadgeStyles(item.type)
-                      
+                    {([
+                      { key: 'tenant', label: 'Mieter', icon: Users, color: 'text-indigo-500' },
+                      { key: 'house', label: 'Häuser', icon: Building2, color: 'text-amber-500' },
+                      { key: 'apartment', label: 'Wohnungen', icon: Home, color: 'text-sky-500' },
+                      { key: 'finance', label: 'Finanzen', icon: Wallet, color: 'text-emerald-500' },
+                      { key: 'task', label: 'Aufgaben', icon: CheckSquare, color: 'text-rose-500' },
+                    ] as const).map(group => {
+                      const groupItems = filteredResults.filter(item => item.type === group.key)
+                      if (groupItems.length === 0) return null
+                      const GroupIcon = group.icon
+
                       return (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="group"
-                        >
-                          <Link href={getLink(item)}>
-                            <Card className={cn(
-                              "bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xs border border-zinc-200/60 dark:border-zinc-800/55 shadow-2xs rounded-2xl relative",
-                              "hover:shadow-md hover:border-accent/30 dark:hover:border-accent/30 hover:bg-white dark:hover:bg-zinc-900 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer overflow-hidden"
-                            )}>
-                              <CardContent className="p-4 flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                  {/* Icon Indicator */}
-                                  <div className="p-3 bg-zinc-50 dark:bg-zinc-850/80 rounded-xl text-zinc-400 dark:text-zinc-500 group-hover:text-accent group-hover:bg-accent/5 transition-all duration-300 shrink-0">
-                                    <ItemIcon className="size-5 transition-transform duration-300 group-hover:scale-105" />
+                        <div key={group.key} className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 px-2.5 py-2">
+                            <GroupIcon className={cn("size-4", group.color)} />
+                            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                              {group.label}
+                            </span>
+                            <span className="text-[10px] font-bold text-zinc-300 dark:text-zinc-600">
+                              {groupItems.length}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            {groupItems.map(item => {
+                              const ItemIcon = getIcon(item.type)
+                              return (
+                                <div
+                                  key={item.id}
+                                  onClick={() => router.push(getLink(item))}
+                                  className="flex items-center gap-3 px-2.5 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer"
+                                >
+                                  <div className="p-1.5 bg-zinc-50 dark:bg-zinc-850/80 rounded-full text-zinc-400 shrink-0">
+                                    <ItemIcon className="size-4.5" />
                                   </div>
-
-                                  {/* Main Information */}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-                                      <span className="font-bold text-zinc-900 dark:text-zinc-100 text-sm md:text-base truncate group-hover:text-accent transition-colors duration-200">
-                                        {item.title}
-                                      </span>
-                                      {item.subtitle && (
-                                        <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 truncate max-w-[12rem] sm:max-w-none">
-                                          {item.subtitle}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1 text-xs text-zinc-500 dark:text-zinc-455 font-semibold">
-                                      <span className={cn(
-                                        "px-2 py-0.5 border rounded-md text-[9px] uppercase tracking-wider font-extrabold",
-                                        badgeClasses
-                                      )}>
-                                        {getTypeLabel(item.type)}
-                                      </span>
-                                      {item.context && (
-                                        <span className="truncate max-w-[15rem] md:max-w-sm">
-                                          {item.context}
-                                        </span>
-                                      )}
-                                      {item.type === "house" && item.metadata?.address && (
-                                        <span className="truncate max-w-[15rem] md:max-w-sm text-zinc-450">
-                                          {item.metadata.address}
-                                        </span>
-                                      )}
-                                      {item.type === "apartment" && item.metadata?.house_name && (
-                                        <span className="truncate max-w-[15rem] md:max-w-sm text-zinc-450">
-                                          {item.metadata.house_name}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
+                                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                                    {item.title}
+                                  </span>
                                 </div>
-
-                                <div className="flex items-center gap-3 shrink-0">
-                                  {/* Specific metadata / pricing tag displayed on right */}
-                                  <div className="text-right shrink-0">
-                                    {item.type === "finance" && item.metadata?.amount && (
-                                      <span className={cn(
-                                        "px-2.5 py-1 rounded-xl text-xs font-bold shadow-3xs",
-                                        item.metadata.type === "income"
-                                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                                          : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
-                                      )}>
-                                        {item.metadata.type === "income" ? "+" : "-"}{item.metadata.amount} €
-                                      </span>
-                                    )}
-                                    {item.type === "apartment" && item.metadata?.rent && (
-                                      <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                                        {item.metadata.rent} €
-                                      </span>
-                                    )}
-                                    {item.type === "house" && item.metadata?.apartment_count && (
-                                      <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 bg-zinc-100/80 dark:bg-zinc-850 px-2 py-1 rounded-lg border border-zinc-200/20">
-                                        {item.metadata.apartment_count} Einheiten
-                                      </span>
-                                    )}
-                                    {item.type === "tenant" && item.metadata?.status && (
-                                      <span className={cn(
-                                        "text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md border",
-                                        item.metadata.status === "active" 
-                                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                                          : "bg-zinc-100/80 dark:bg-zinc-850 text-zinc-450 border-zinc-200/30"
-                                      )}>
-                                        {item.metadata.status === "active" ? "Aktiv" : "Inaktiv"}
-                                      </span>
-                                    )}
-                                    {item.type === "task" && item.metadata?.due_date && (
-                                      <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 bg-zinc-100/50 dark:bg-zinc-850 px-2 py-0.5 rounded-md border border-zinc-200/20">
-                                        Fällig {new Date(item.metadata.due_date).toLocaleDateString('de-DE')}
-                                      </span>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Actions Section */}
-                                  {item.actions && item.actions.length > 0 && (
-                                    <div 
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                      }}
-                                      onMouseDown={(e) => {
-                                        e.stopPropagation();
-                                      }}
-                                      className="relative z-20 shrink-0 ml-2"
-                                    >
-                                      <ActionMenu
-                                        actions={item.actions.map((action, index) => ({
-                                          id: `action-${item.id}-${index}`,
-                                          icon: action.icon,
-                                          label: action.label,
-                                          onClick: () => handleSearchResultAction(item as any, index),
-                                          variant: action.variant || 'default',
-                                        }))}
-                                        shape="pill"
-                                        visibility="always"
-                                        stopPropagation={true}
-                                      />
-                                    </div>
-                                  )}
-
-                                  {/* Hover Arrow (shown if no actions) */}
-                                  {(!item.actions || item.actions.length === 0) && (
-                                    <div className="hidden sm:block text-zinc-300 dark:text-zinc-700 group-hover:text-accent group-hover:translate-x-1 transition-all duration-300 pl-1 shrink-0">
-                                      <ChevronRight className="size-5" />
-                                    </div>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        </motion.div>
+                              )
+                            })}
+                          </div>
+                        </div>
                       )
                     })}
                   </motion.div>
