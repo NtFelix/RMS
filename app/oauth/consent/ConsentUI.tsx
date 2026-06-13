@@ -65,6 +65,8 @@ import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/c
 
 import { isValidRedirect, isValidSupabaseRedirect } from '@/lib/oauth-utils';
 
+const EMPTY_SCOPES: string[] = [];
+
 /**
  * Validates a redirect URL before navigating to it.
  * Only HTTPS URLs whose origin is in the allowlist or the project's Supabase instance are accepted.
@@ -126,28 +128,30 @@ export default function ConsentUI({
     clientName: initialClientName,
     clientIcon: initialClientIcon,
     redirectUri: initialRedirectUri,
-    scopes: initialScopes = [],
+    scopes: initialScopes = EMPTY_SCOPES,
     isDemo = false,
     initialData,
     initialError
 }: ConsentUIProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError);
+    const [isAlreadyProcessed, setIsAlreadyProcessed] = useState(false);
     const [authDetails, setAuthDetails] = useState<AuthorizationDetails | null>(
         isDemo ? {
             id: authorizationId,
             client: { name: initialClientName, logo_uri: initialClientIcon },
             redirect_uri: initialRedirectUri,
-            scopes: initialScopes
+            scopes: initialScopes.length > 0 ? initialScopes : undefined
         } : (initialData || null)
     );
+    const hasNoAuthId = !authorizationId || type === 'error';
+    const [isLoading, setIsLoading] = useState(!isDemo && !initialData && !initialError && !hasNoAuthId);
     const [loadError, setLoadError] = useState<string | null>(initialError || null);
     const [countdown, setCountdown] = useState(5);
 
     // Auto-close success window after a delay with visible countdown
     useEffect(() => {
-        if (type !== 'success' || typeof window === 'undefined') return;
+        if (!isAlreadyProcessed && type !== 'success') return;
 
         const interval = setInterval(() => {
             setCountdown(prev => Math.max(0, prev - 1));
@@ -164,38 +168,40 @@ export default function ConsentUI({
             clearInterval(interval);
             clearTimeout(timer);
         };
-    }, [type]);
+    }, [isAlreadyProcessed, type]);
 
     // Fetch authorization details on mount
     useEffect(() => {
         const fetchDetails = async () => {
             if (isDemo || !authorizationId || type === 'error' || initialData || initialError) {
-                if (initialData || initialError) {
-                    setIsLoading(false);
-                }
+                setIsLoading(false);
                 return;
             }
 
             try {
-                // Must use server action — browser cannot call Supabase Auth directly
-                // because Supabase returns Access-Control-Allow-Origin: * which
-                // browsers block when credentials: include is set.
-                const { success, data, error: detailsError } = await getAuthorizationDetailsAction(authorizationId);
+                const result = await getAuthorizationDetailsAction(authorizationId);
+                const { success, data, error: detailsError, alreadyProcessed } = result;
 
-                if (!success || detailsError) {
-                    setLoadError(detailsError || 'Failed to load details');
+                if (alreadyProcessed) {
+                    setIsAlreadyProcessed(true);
                     setIsLoading(false);
                     return;
                 }
 
-                // If auto_approved, Supabase has already granted access and the redirect_to
-                // URL is immediately usable. We still show the consent screen so the user
-                // knows what was approved, but the approve button uses the existing redirect
-                // instead of POSTing to the decision endpoint (which returns 405 on auto-approved).
+                if (!success || detailsError) {
+                    throw new Error(detailsError || 'Failed to load details');
+                }
 
                 setAuthDetails(data);
             } catch (err: any) {
-                setLoadError(err.message || 'Failed to load authorization details');
+                const errMsg = err.message || 'Failed to load authorization details';
+                if (errMsg.toLowerCase().includes('nicht authentifiziert') ||
+                    errMsg.toLowerCase().includes('not authenticated')) {
+                    const loginUrl = `/auth/login?redirect=${encodeURIComponent(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`)}`;
+                    window.location.href = loginUrl;
+                    return;
+                }
+                setLoadError(errMsg);
             } finally {
                 setIsLoading(false);
             }
@@ -253,9 +259,16 @@ export default function ConsentUI({
     };
 
     const clientId = authDetails?.client?.id;
+    // For auto-approved authorizations (no client info), infer client name from redirect URL
+    const autoApprovedRedirect = (authDetails as any)?.redirect_url || (authDetails as any)?.redirect_to;
+    const inferredName = !clientId && autoApprovedRedirect
+        ? (autoApprovedRedirect.includes('mcp.mietevo.de')
+            ? 'Mietevo MCP Server'
+            : 'Externe Anwendung')
+        : undefined;
     const { name: clientName, icon: clientIcon } = getSmartClientConfig(
         clientId,
-        authDetails?.client?.name || initialClientName,
+        authDetails?.client?.name || initialClientName || inferredName,
         authDetails?.client?.logo_uri
     );
 
@@ -392,7 +405,7 @@ export default function ConsentUI({
     }
 
     // Success state — authorization already processed
-    if (type === 'success') {
+    if (isAlreadyProcessed || type === 'success') {
         return (
             <FullScreenLayout>
                 <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
