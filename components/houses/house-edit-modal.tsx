@@ -310,8 +310,17 @@ export function HouseEditModal(props: HouseEditModalProps) {
                   <Building2 className="h-8 w-8 sm:h-10 sm:w-10" />
                 </div>
                 <div className="space-y-1">
-                  <SheetTitle className="text-2xl sm:text-4xl font-bold tracking-tight">
-                    {houseInitialData ? formData.name || "Unbenanntes Haus" : "Haus hinzufügen"}
+                  <SheetTitle asChild className="text-2xl sm:text-4xl font-bold tracking-tight">
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder={houseInitialData ? "Unbenanntes Haus" : "Haus hinzufügen"}
+                      disabled={isSubmitting}
+                      className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+                    />
                   </SheetTitle>
                   <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
                     {houseInitialData 
@@ -323,24 +332,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
               {/* Properties Section */}
               <div className="space-y-4 sm:space-y-8">
-                {/* Name Property */}
-                <div className="space-y-1.5 sm:space-y-2">
-                  <PropertyHeader 
-                    icon={Home}
-                    label="Name"
-                    htmlFor="name"
-                    infoText="Geben Sie einen eindeutigen Namen für das Haus ein. Dieser wird in der Übersicht und in Dropdown-Menüs angezeigt."
-                  />
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Einen Namen geben..."
-                    disabled={isSubmitting}
-                    className="text-base sm:text-xl font-medium placeholder:opacity-30 h-auto py-2 rounded-xl border-primary/20 bg-primary/5 focus:bg-background transition-colors"
-                  />
-                </div>
 
                 {/* Address Section */}
                 <div className="sm:space-y-6 sm:pt-4 sm:border-t sm:border-border/40">
@@ -363,7 +354,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
                         onChange={handleInputChange}
                         placeholder="Straße und Hausnummer"
                         disabled={isSubmitting}
-                        className="rounded-xl h-10 text-sm border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                        className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
                       />
                     </div>
 
@@ -381,7 +372,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
                         onChange={handleInputChange}
                         placeholder="PLZ und Stadt"
                         disabled={isSubmitting}
-                        className="rounded-xl h-10 text-sm border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                        className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -433,7 +424,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
                             onChange={handleManualGroesseChange}
                             disabled={isSubmitting}
                             placeholder="Manuelle Größe..."
-                            className="rounded-xl h-10 text-sm border-primary/20 bg-primary/5 focus:bg-background transition-colors"
+                            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
                           />
                         </div>
                       </div>
