@@ -152,7 +152,7 @@ export function FormModalShell({
     >
       {dropdownItems.map((item, i) => {
         if (item.kind === "separator") {
-          return <CustomDropdownSeparator key={`sep-${i}`} />;
+          return <CustomDropdownSeparator key="action-separator" />;
         }
         return (
           <CustomDropdownItem
