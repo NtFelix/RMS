@@ -399,18 +399,19 @@ export function HouseEditModal(props: HouseEditModalProps) {
                   <Building2 className="h-8 w-8 sm:h-10 sm:w-10" />
                 </div>
                 <div className="space-y-1">
-                  <SheetTitle asChild className="text-2xl sm:text-4xl font-bold tracking-tight">
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder={houseInitialData ? "Unbenanntes Haus" : "Haus hinzufügen"}
-                      disabled={isSubmitting}
-                      className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
-                    />
+                  <SheetTitle className="sr-only">
+                    {houseInitialData ? "Haus bearbeiten" : "Haus hinzufügen"}
                   </SheetTitle>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder={houseInitialData ? "Unbenanntes Haus" : "Haus hinzufügen"}
+                    disabled={isSubmitting}
+                    className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+                  />
                   <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
                     {houseInitialData 
                       ? "Bearbeiten Sie die Informationen für dieses Objekt." 
