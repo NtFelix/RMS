@@ -1,37 +1,150 @@
 'use client';
 
-import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Smartphone, AlertTriangle, Key, RefreshCw, Layers, Calendar, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 import BottomCTA from '@/components/ui/bottom-cta';
 import { cn } from '@/lib/utils';
 
+
+
 export default function UtilityCostPage() {
 
-  const mockCostItems = [
-    { id: 1, art: 'Grundsteuer', betrag: '1.250,00 €', schluessel: 'Anteilig' },
-    { id: 2, art: 'Straßenreinigung', betrag: '450,00 €', schluessel: 'Anteilig' },
-    { id: 3, art: 'Müllabfuhr', betrag: '890,00 €', schluessel: 'Einheiten' },
-    { id: 4, art: 'Gebäudeversicherung', betrag: '1.450,00 €', schluessel: 'Anteilig' },
+  const meterSteps = [
+    {
+      title: "Kosten & Belege erfassen",
+      icon: Receipt,
+      description: "Erfassen Sie alle angefallenen Ausgaben für Ihre Liegenschaften und weisen Sie diese direkt den passenden Kostenarten zu.",
+      mockup: (
+        <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Receipt size={15} />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-foreground/90">Kosten erfassen</div>
+              <div className="text-[9px] text-muted-foreground">Rechnungsbelege</div>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {[
+              { name: "Grundsteuer B", amount: "1.250,50 €" },
+              { name: "Müllabfuhr", amount: "340,20 €" },
+              { name: "Hauswart", amount: "250,00 €" }
+            ].map((row, i) => (
+              <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/5 border border-border/40 text-xs">
+                <span className="font-semibold text-foreground/80">{row.name}</span>
+                <span className="font-mono font-bold text-foreground">{row.amount}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Zählerstände importieren",
+      icon: Smartphone,
+      description: "Geben Sie die Zählerstände Ihrer Mieter für Heizung, Wasser oder Strom ein oder importieren Sie diese gesammelt für das gesamte Objekt.",
+      mockup: (
+        <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Smartphone size={15} />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-foreground/90">Zähler ablesen</div>
+              <div className="text-[9px] text-muted-foreground">Eingabe Mobil</div>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="p-2.5 rounded-lg border border-border/60 bg-muted/5">
+              <div className="text-[9px] font-bold text-muted-foreground uppercase">Wasserzähler Küche</div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-xs font-semibold text-foreground">Kaltwasser</span>
+                <span className="font-mono text-xs font-bold px-2 py-0.5 bg-foreground/5 rounded border border-border/40">345,20 m³</span>
+              </div>
+            </div>
+            <button className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/10 hover:bg-primary/90 transition-colors">
+              Speichern
+            </button>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Plausibilität & Double Check",
+      icon: AlertTriangle,
+      description: "Lassen Sie das System die Berechnungen automatisch prüfen. Eventuelle Eingabefehler oder extreme Abweichungen werden sofort signalisiert.",
+      mockup: (
+        <div className="w-[280px] bg-background border border-destructive/20 shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-destructive/45 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+              <AlertTriangle size={15} />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-destructive uppercase tracking-wider">Plausi-Warnung</div>
+              <div className="text-[9px] text-muted-foreground">Eingabefehler?</div>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            <div className="p-3 bg-destructive/5 rounded-lg border border-destructive/10 text-xs">
+              <span className="font-bold text-foreground">Hoher Verbrauch (+45%)</span>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                Der eingegebene Zählerstand weicht erheblich vom Vorjahreswert ab (238,10 m³).
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button className="flex-1 py-1.5 rounded-lg bg-foreground/5 border border-border text-foreground font-bold text-[10px] hover:bg-foreground/10">Abbrechen</button>
+              <button className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground font-bold text-[10px] hover:bg-destructive/90 shadow-xs">Ignorieren</button>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "PDFs gesammelt exportieren",
+      icon: FileDown,
+      description: "Generieren Sie die fertigen Dokumente mit einem Klick. Exportieren Sie alle PDFs gesammelt in einer Zip-Datei oder wählen Sie einzelne Mieter aus.",
+      mockup: (
+        <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <FileDown size={15} />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-foreground/90">Batch PDF Export</div>
+              <div className="text-[9px] text-muted-foreground">Dokumente herunterladen</div>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            <div className="space-y-1.5 text-[10px] text-foreground/80">
+              <div className="flex items-center justify-between p-1.5 rounded bg-muted/20 border border-border/20">
+                <span className="flex items-center gap-1.5 font-medium"><Check size={10} className="text-emerald-500 stroke-[3]" /> Alle Mieter</span>
+                <span className="text-muted-foreground font-mono">6 PDFs</span>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded bg-background border border-border/10">
+                <span className="flex items-center gap-1.5 font-medium"><Check size={10} className="text-primary stroke-[3]" /> Whg. 01 - Müller</span>
+                <span className="text-muted-foreground">Bereit</span>
+              </div>
+              <div className="flex items-center justify-between p-1.5 rounded bg-background border border-border/10">
+                <span className="flex items-center gap-1.5 font-medium"><Check size={10} className="text-primary stroke-[3]" /> Whg. 02 - Schmidt</span>
+                <span className="text-muted-foreground">Bereit</span>
+              </div>
+            </div>
+            <button className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/10 hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5">
+              <FileDown size={13} /> Export starten
+            </button>
+          </div>
+        </div>
+      )
+    }
   ];
 
-  const mockMeterReadings = [
-    { id: 1, name: 'Wasserzähler Küche', reading: '345.20 m³', trend: '+2%', status: 'Erfasst', lastUpdate: '12.10.2023' },
-    { id: 2, name: 'Wasserzähler Bad', reading: '123.50 m³', trend: '-5%', status: 'Erfasst', lastUpdate: '12.10.2023' },
-    { id: 3, name: 'Strom Allgemein', reading: '4521.0 kWh', trend: '+1%', status: 'Ausstehend', lastUpdate: '01.01.2023' },
-    { id: 4, name: 'Heizung Haupt', reading: '892.10 kWh', trend: '0%', status: 'Erfasst', lastUpdate: '15.10.2023' },
-  ];
 
-  const mockSettlements = [
-    { id: 1, tenant: 'Max Mustermann', unit: 'EG Links', period: '01.01.23 - 31.12.23', result: 'Nachzahlung', amount: '120,50 €' },
-    { id: 2, tenant: 'Erika Musterfrau', unit: '1. OG Rechts', period: '01.01.23 - 31.12.23', result: 'Guthaben', amount: '45,20 €' },
-    { id: 3, tenant: 'Klaus Schmidt', unit: '2. OG Mitte', period: '01.01.23 - 31.12.23', result: 'Guthaben', amount: '150,00 €' },
-    { id: 4, tenant: 'Julia Weber', unit: 'DG Links', period: '01.01.23 - 31.12.23', result: 'Nachzahlung', amount: '12,90 €' },
-  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -42,14 +155,7 @@ export default function UtilityCostPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="container mx-auto px-4 pt-32 pb-20 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold mb-8"
-        >
-          BETRIEBSKOSTENABRECHNUNG
-        </motion.div>
+      <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pt-44 pb-20 text-center max-w-7xl">
 
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
@@ -93,12 +199,12 @@ export default function UtilityCostPage() {
       </div>
 
       {/* Main Showcase */}
-      <div className="container mx-auto px-4 pb-32">
+      <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="max-w-5xl mx-auto"
+          className="max-w-7xl mx-auto"
         >
           <MacWindow className="shadow-2xl border-border/50 bg-background/50 backdrop-blur-xl">
             <MediaContent
@@ -119,14 +225,14 @@ export default function UtilityCostPage() {
 
       {/* Feature Section - Bento Grid Style */}
       <section className="py-24 relative overflow-hidden bg-muted/10">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center max-w-3xl mx-auto mb-20"
           >
-            <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Vom Beleg zur <span className="text-primary italic">fertigen Abrechnung.</span></h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Alle Funktionen <span className="text-primary italic">im Gesamtüberblick.</span></h2>
             <p className="text-lg text-muted-foreground">Ein nahtloser Workflow, der Zeit spart und Fehler eliminiert.</p>
           </motion.div>
 
@@ -342,180 +448,268 @@ export default function UtilityCostPage() {
       </section>
 
       {/* Deep Dive Details Section */}
-      <section className="py-0 relative">
-        <div className="container mx-auto px-4">
+      <section className="py-24 relative overflow-hidden bg-background">
+        <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 max-w-7xl relative z-10">
+          
+          {/* Section 1: Zählererfassung & Tracking - Alternating Storytelling Timeline */}
+          <div className="py-20 first:pt-0 relative">
+            <div className="text-center w-full max-w-3xl mx-auto mb-24">
+              <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">In 4 Schritten <span className="text-primary italic">zur Abrechnung.</span></h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Der einfache Leitfaden zur Erstellung Ihrer Betriebskostenabrechnung – Schritt für Schritt.
+              </p>
+            </div>
 
-          {/* Detail 1: Meter Monitor */}
-          <div className="py-24 border-t border-border/20">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                className="order-2 lg:order-1"
-              >
-                <div className="relative rounded-3xl border border-border bg-background shadow-lg hover:shadow-xl dark:shadow-none overflow-hidden group/container transition-all duration-500 hover:border-primary/20">
-                  <div className="p-5 border-b border-border bg-muted/5 flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="flex space-x-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <div className="w-2 h-2 rounded-full bg-border" />
-                      </div>
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] ml-2">Meter_Monitor_v2</span>
+            <div className="relative">
+              {meterSteps.map((step, index) => {
+                const isEven = index % 2 === 0;
+                return (
+                  <div 
+                    key={index}
+                    className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center relative py-10 lg:py-16"
+                  >
+                    {/* Segment of the timeline line */}
+                    {index === 0 && (
+                      <div className="absolute left-1/2 top-1/2 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                    )}
+                    {index > 0 && index < meterSteps.length - 1 && (
+                      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                    )}
+                    {index === meterSteps.length - 1 && (
+                      <div className="absolute left-1/2 top-0 bottom-1/2 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                    )}
+
+                    {/* Timeline Node in the center (visible only on lg screens) */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background border-4 border-primary flex items-center justify-center hidden lg:flex z-10 shadow-xs">
+                      <span className="text-[10px] font-bold text-primary font-mono">{index + 1}</span>
                     </div>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full border border-border/40">Zähler OK</span>
-                  </div>
-                  <div className="divide-y divide-border/40 relative z-10">
-                    {mockMeterReadings.map((meter) => {
-                      const isWater = meter.name.toLowerCase().includes('wasser');
-                      const isStrom = meter.name.toLowerCase().includes('strom');
-                      const Icon = isWater ? Droplets : isStrom ? Zap : Flame;
-                      const iconColor = isWater ? 'text-blue-500' : isStrom ? 'text-yellow-500' : 'text-orange-500';
-                      const iconBg = isWater ? 'bg-blue-500/10' : isStrom ? 'bg-yellow-500/10' : 'bg-orange-500/10';
-                      const trendColor = meter.trend.startsWith('+') ? 'text-rose-500' : meter.trend.startsWith('-') ? 'text-emerald-500' : 'text-muted-foreground';
 
-                      return (
-                        <div
-                          key={meter.id}
-                          className="p-4.5 flex items-center justify-between bg-background/50 hover:bg-muted/10 transition-all duration-300 group/row cursor-default"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center border border-border/40 transition-transform group-hover/row:scale-105", iconBg, iconColor)}>
-                              <Icon size={16} />
-                            </div>
-                            <div className="group-hover/row:translate-x-0.5 transition-transform duration-200">
-                              <div className="font-bold text-sm tracking-tight group-hover/row:text-primary transition-colors duration-200">{meter.name}</div>
-                              <div className="text-[10px] text-muted-foreground">Aktualisiert • {meter.lastUpdate}</div>
-                            </div>
-                          </div>
-
-                          <div className="text-right flex flex-col items-end gap-0.5">
-                            <span className="font-mono text-sm font-bold text-foreground/80 group-hover/row:text-primary transition-colors duration-200">
-                              {meter.reading}
-                            </span>
-                            <div className={cn("text-[9px] font-bold flex items-center gap-1", trendColor)}>
-                              {meter.trend !== "0%" && (
-                                meter.trend.startsWith('+') ? (
-                                  <TrendingUp size={10} />
-                                ) : (
-                                  <TrendingDown size={10} />
-                                )
-                              )}
-                              <span>{meter.trend}</span>
-                            </div>
-                          </div>
+                    {/* Left side column: Text for even indices, mockup for odd indices */}
+                    <div className={cn(
+                      "lg:col-span-5 flex flex-col justify-center",
+                      isEven ? "order-1 lg:order-1 text-left" : "order-1 lg:order-3 text-left lg:text-left"
+                    )}>
+                      {/* Badge */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                          <step.icon size={12} className="stroke-[2.5]" />
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-              <div className="order-1 lg:order-2">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-6">
-                  <Filter className="w-6 h-6" />
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold mb-4 text-balance">Jeder Tropfen zählt.</h3>
-                <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                  Behalten Sie den Überblick über alle Zählerstände.
-                  Erfassen Sie Zählerwechsel, Eichfristen und unterjährige Ablesungen einfach digital.
-                  Das System unterstützt Sie bei der korrekten Zuordnung.
-                </p>
-                <ul className="space-y-4">
-                  {[
-                    "Einfache digitale Erfassung",
-                    "Unterstützung für Wärme, Wasser und Strom",
-                    "Plausibilitätsprüfung",
-                    "Übersicht aller Eichfristen"
-                  ].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm font-medium text-foreground/80">
-                      <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-[10px]">
-                        <CheckCircle2 size={12} />
+                        <span className="text-xs font-bold text-primary tracking-wider uppercase">0{index + 1} / {step.title}</span>
                       </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                      
+                      <h3 className="text-2xl font-extrabold text-foreground tracking-tight mb-4">
+                        {step.title}
+                      </h3>
+                      
+                      <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                        {step.description}
+                      </p>
+
+                    </div>
+ 
+                     {/* Spacer for center timeline alignment */}
+                     <div className={cn("lg:col-span-2 hidden lg:block", isEven ? "lg:order-2" : "lg:order-2")} />
+ 
+                     {/* Right side column: Mockup for even indices, text for odd indices */}
+                     <div className={cn(
+                       "lg:col-span-5 flex justify-center items-center",
+                       isEven ? "order-3 lg:order-3" : "order-2 lg:order-1"
+                     )}>
+                       <div className="relative bg-black/5 dark:bg-black/25 rounded-3xl border border-border/40 overflow-hidden shadow-inner p-8 hover:border-primary/20 transition-all duration-300 w-fit">
+                         <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent opacity-40 pointer-events-none" />
+                         <div className="relative z-10 transform scale-95 sm:scale-100 transition-transform duration-500">
+                           {step.mockup}
+                         </div>
+                       </div>
+                     </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Detail 2: Settlement Overview */}
-          <div className="py-24 border-t border-border/20">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-6">
-                  <Coins className="w-6 h-6" />
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold mb-4 text-balance">Klarheit statt Konflikt.</h3>
-                <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                  Erstellen Sie Abrechnungen, die Ihre Mieter auf den ersten Blick verstehen.
-                  Transparente Aufschlüsselung aller Kostenarten und Verteilerschlüssel schafft Vertrauen und reduziert Rückfragen.
-                </p>
-                <ul className="space-y-4">
-                  {[
-                    "Frei wählbare Umlageschlüssel",
-                    "Berücksichtigung von Vorwegabzug",
-                    "Automatische Berücksichtigung von Leerstand",
-                    "Export als PDF"
-                  ].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm font-medium text-foreground/80">
-                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-500 text-[10px]">
-                        <CheckCircle2 size={12} />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          {/* Section 2: Transparenz & Abrechnung - Bento Grid Style */}
+          <div className="py-20 border-t border-border/20">
+            <div className="text-center w-full max-w-3xl mx-auto mb-20">
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
+                Klarheit statt Konflikt.
+              </h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Erstellen Sie Abrechnungen, die Ihre Mieter auf den ersten Blick verstehen. Eine transparente, gesetzeskonforme Aufschlüsselung aller Kosten schafft Vertrauen und spart Zeit.
+              </p>
+            </div>
+
+            {/* Bento Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 max-w-7xl mx-auto">
+              
+              {/* Card 1: Variable Umlageschlüssel (lg:col-span-4) */}
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
+                className="lg:col-span-4 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
               >
-                <div className="relative rounded-3xl border border-border bg-background shadow-lg hover:shadow-xl dark:shadow-none overflow-hidden group/container transition-all duration-500 hover:border-primary/20">
-                  <div className="p-5 border-b border-border bg-muted/5 flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Abrechnungsstatus</span>
+                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
+                <div className="relative h-full flex flex-col">
+                  {/* Mock Area */}
+                  <div className="relative h-[240px] mt-6 mx-6 overflow-hidden bg-black/5 dark:bg-black/20 rounded-[2rem] border border-black/5 dark:border-white/5 flex items-center justify-center p-6">
+                    <div className="w-full max-w-md bg-background/50 border border-border/40 rounded-xl p-4 space-y-2.5 font-mono text-xs select-none">
+                      <div className="flex justify-between border-b border-border/20 pb-1.5 text-muted-foreground text-[10px] uppercase font-bold tracking-wide">
+                        <span>Umlageart</span>
+                        <span>Schlüsselwert</span>
+                        <span>Anteil</span>
+                      </div>
+                      <div className="flex justify-between text-foreground/80">
+                        <span>Wohnfläche</span>
+                        <span>450,00 qm</span>
+                        <span>65.5%</span>
+                      </div>
+                      <div className="flex justify-between text-foreground/80">
+                        <span>Personen</span>
+                        <span>12 Pers.</span>
+                        <span>22.0%</span>
+                      </div>
+                      <div className="flex justify-between text-foreground/80">
+                        <span>Einheiten</span>
+                        <span>6 WE</span>
+                        <span>12.5%</span>
+                      </div>
                     </div>
-                    <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-0.5 rounded-md border border-emerald-500/20">+12.450 €</span>
                   </div>
 
-                  <div className="divide-y divide-border/40 relative z-10">
-                    {mockSettlements.map((item) => {
-                      const isNachzahlung = item.result === 'Nachzahlung';
-                      const statusColor = isNachzahlung 
-                        ? 'text-amber-500 bg-amber-500/5' 
-                        : 'text-emerald-500 bg-emerald-500/5';
-                      
-                      return (
-                        <div 
-                          key={item.id} 
-                          className="p-4.5 flex items-center justify-between bg-background/50 hover:bg-muted/10 transition-all duration-300 group/row cursor-default"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-muted border border-border/40 flex items-center justify-center text-muted-foreground font-semibold text-xs group-hover/row:bg-primary group-hover/row:text-primary-foreground transition-all duration-300">
-                              {item.tenant.split(' ').map(n => n[0]).join('')}
-                            </div>
-                            <div className="group-hover/row:translate-x-0.5 transition-transform duration-200">
-                              <div className="font-bold text-sm group-hover/row:text-primary transition-colors duration-200">{item.tenant}</div>
-                              <div className="text-[10px] text-muted-foreground">{item.unit} • {item.period}</div>
-                            </div>
-                          </div>
-                          
-                          <div className="text-right flex flex-col items-end gap-0.5">
-                            <div className="font-mono text-sm font-bold group-hover/row:text-primary transition-colors duration-200">{item.amount}</div>
-                            <span className={cn(
-                              "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-sm border transition-all duration-300",
-                              isNachzahlung ? "border-amber-500/25" : "border-emerald-500/25",
-                              statusColor
-                            )}>
-                              {item.result}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {/* Content Area */}
+                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                        <Key size={20} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">PRÄZISE VERTEILUNG</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-foreground mb-1">Variable Umlageschlüssel</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Volle Flexibilität bei der Kostenverteilung. Verteilen Sie Betriebskosten präzise nach Wohnfläche, Personenanzahl, Wohneinheiten oder MEA.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Card 2: Automatischer Leerstand (lg:col-span-2) */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              >
+                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
+                <div className="relative h-full flex flex-col">
+                  {/* Mock Area */}
+                  <div className="relative h-[240px] mt-6 mx-6 overflow-hidden bg-black/5 dark:bg-black/20 rounded-[2rem] border border-black/5 dark:border-white/5 flex items-center justify-center p-4">
+                    <div className="w-full bg-background/50 border border-border/40 rounded-xl p-4 space-y-2 select-none text-xs">
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
+                        <span>Leerstand</span>
+                        <span className="text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded">45 Tage</span>
+                      </div>
+                      <div className="w-full h-2 bg-foreground/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-500 w-[12%]" />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-foreground/80 font-mono">
+                        <span>Anteil:</span>
+                        <span className="font-bold">12.33% / 154,20 €</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content Area */}
+                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                        <RefreshCw size={20} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">ZEITRÄUME</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-foreground mb-1">Automatischer Leerstand</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Leerstände tagesgenau erfassen und Kosten automatisch dem Eigentümer zuweisen.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Card 3: Rechtssichere Abrechnung (lg:col-span-2) */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              >
+                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
+                <div className="relative h-full flex flex-col">
+                  {/* Mock Area */}
+                  <div className="relative h-[240px] mt-6 mx-6 overflow-hidden bg-black/5 dark:bg-black/20 rounded-[2rem] border border-black/5 dark:border-white/5 flex items-center justify-center p-4">
+                    <div className="space-y-2 select-none text-[11px] text-foreground/80 w-full px-2">
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/20">
+                        <Check size={12} className="text-emerald-500 stroke-[3]" />
+                        <span>§ 556 BGB konform</span>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/20">
+                        <Check size={12} className="text-emerald-500 stroke-[3]" />
+                        <span>Formell ordnungsgemäß</span>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/20">
+                        <Check size={12} className="text-emerald-500 stroke-[3]" />
+                        <span>Belegprüfungs-ready</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content Area */}
+                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                        <CheckCircle2 size={20} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">GESETZKONFORM</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-foreground mb-1">Rechtssichere Abrechnung</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Schutz vor Widersprüchen durch BGB-konforme Form und Angaben.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Card 4: Action / CTA Button (lg:col-span-4) */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+                className="lg:col-span-4 group relative rounded-[2.5rem] overflow-hidden bg-linear-to-br from-primary/5 via-transparent to-transparent border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              >
+                <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
+                <div className="relative h-full flex flex-col justify-between">
+                  <div className="p-8 md:p-10 flex flex-col gap-2 relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                        <Coins size={20} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">JETZT STARTEN</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-foreground mb-1">Bereit für transparente Abrechnungen?</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Starten Sie in wenigen Minuten. Digitalisieren Sie Zählerstände, erfassen Sie Kostenbelege und generieren Sie rechtssichere Abrechnungen für all Ihre Mieter.
+                    </p>
+                  </div>
+                  
+                  <div className="p-8 md:p-10 pt-0 relative z-10">
+                    <CTAButton
+                      variant="primary"
+                      text="Jetzt kostenlos starten"
+                      href="/?getStarted=true"
+                      className="h-12 px-6 rounded-xl font-bold shadow-md shadow-primary/10 w-full sm:w-fit justify-center"
+                    />
                   </div>
                 </div>
               </motion.div>
