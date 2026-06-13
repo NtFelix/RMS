@@ -24,7 +24,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog"
-import type { Nebenkosten, Mieter, Wasserzaehler, Rechnung, Haus } from "@/lib/types";
+import type { Nebenkosten, Mieter, ZaehlerAblesung, Rechnung, Haus } from "@/lib/types";
 import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed WasserzaehlerModalData
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
@@ -40,7 +40,7 @@ import {
   deleteNebenkosten as deleteNebenkostenServerAction,
   bulkDeleteNebenkosten
 } from "@/app/betriebskosten-actions" // Removed old wasserzaehler imports
-import { toast } from "@/hooks/use-toast" // For notifications
+import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
@@ -72,7 +72,7 @@ export function OperatingCostsTable({
   const router = useRouter()
 
   // Old openWasserzaehlerModalOptimized removed - now using new ZaehlerAblesenModal
-  const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
+  const { openOperatingCostsOverviewModal } = useModalStore();
   // Old wasserzähler modal state removed - now using new ZaehlerAblesenModal
   const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
@@ -188,11 +188,7 @@ export function OperatingCostsTable({
   };
 
   const handleOpenOverview = (item: OptimizedNebenkosten) => {
-    setOverviewItem(item);
-  };
-
-  const handleCloseOverview = () => {
-    setOverviewItem(null);
+    openOperatingCostsOverviewModal(item);
   };
 
   // Old handleOpenWasserzaehlerModal function removed - now using new WasserZaehlerAblesenModal
@@ -422,7 +418,7 @@ export function OperatingCostsTable({
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                 <TableHead className="w-12 pl-0 pr-0 -ml-2">
                   <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox
@@ -621,14 +617,7 @@ export function OperatingCostsTable({
         </div>
       </div>
 
-      {/* Overview Modal */}
-      {overviewItem && (
-        <OperatingCostsOverviewModal
-          isOpen={!!overviewItem}
-          onClose={handleCloseOverview}
-          nebenkosten={overviewItem}
-        />
-      )}
+      {/* Overview Modal is now handled globally via ModalStore */}
 
       {/* Zaehler Modal is now handled by the modal store */}
 
@@ -637,11 +626,12 @@ export function OperatingCostsTable({
         <AbrechnungModal
           isOpen={isAbrechnungModalOpen}
           onClose={handleCloseAbrechnungModal}
-          nebenkostenItem={selectedNebenkostenForAbrechnung}
+          nebenkostenItem={abrechnungModalData?.nebenkosten_data || selectedNebenkostenForAbrechnung}
           tenants={abrechnungModalData.tenants ?? []}
           rechnungen={abrechnungModalData.rechnungen ?? []}
           meters={abrechnungModalData.meters ?? []}
           readings={abrechnungModalData.readings ?? []}
+          actualPayments={abrechnungModalData.actualPayments ?? []}
           ownerName={ownerName}
           ownerAddress={(() => {
             const selectedHaus = allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id);

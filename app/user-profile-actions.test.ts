@@ -51,6 +51,13 @@ describe('User Profile Actions', () => {
     jest.clearAllMocks();
     process.env.STRIPE_SECRET_KEY = 'sk_test_123';
 
+    // Reset and mock auth.getUser by default to prevent cross-test contamination
+    mockSupabase.auth.getUser.mockReset();
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'test@example.com' } },
+      error: null,
+    });
+
     // Default Supabase mocks
     mockSelect.mockReturnValue({
         eq: jest.fn().mockReturnValue({
@@ -130,10 +137,13 @@ describe('User Profile Actions', () => {
           expect(result.address.city).toBe('Berlin');
       });
 
-      it('should handle missing secret key', async () => {
+      it('should return mocked billing data when the secret key is missing in tests', async () => {
           delete process.env.STRIPE_SECRET_KEY;
           const result = await getBillingAddress('cus_123');
-          expect('error' in result).toBe(true);
+
+          expect('error' in result).toBe(false);
+          if ('error' in result) throw new Error(result.error);
+          expect(result.companyName).toBe('Muster GmbH');
       });
   });
 

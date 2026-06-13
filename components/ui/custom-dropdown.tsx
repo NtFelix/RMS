@@ -63,7 +63,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align={align}
-        className={cn("w-auto min-w-[200px] rounded-2xl border bg-popover p-2 shadow-xl backdrop-blur-sm", className)}
+        className={cn("w-auto min-w-[200px] rounded-2xl border bg-popover p-2 shadow-xl backdrop-blur-xs", className)}
         sideOffset={8}
       >
         {children}

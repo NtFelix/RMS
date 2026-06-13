@@ -32,7 +32,7 @@ export const ButtonWithHoverCard = React.forwardRef<
       </HoverCardTrigger>
       <HoverCardContent side="bottom" align="center" className="w-80">
         <div className="flex items-start gap-3">
-          <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+          <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <p className="text-sm">{tooltip}</p>
         </div>
       </HoverCardContent>

@@ -1,18 +1,7 @@
 name: Run Tests
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - '**/*.ts'
-      - '**/*.tsx'
-      - '**/*.js'
-      - '**/*.jsx'
-      - '**/package.json'
-      - '**/package-lock.json'
-  pull_request:
-    branches: [main, develop]
-  workflow_dispatch:
+  workflow_dispatch: # Disabled automatic runs. Logic moved to ci.yml
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PERMISSIONS (Principle of Least Privilege)
@@ -52,26 +41,26 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Generate cache keys
         id: cache-key
         run: |
           BUILD_HASH=$(find app components lib hooks types utils public -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" -o -name "*.json" \) -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1 || echo "no-files")
-          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json', 'tailwind.config.ts') }}"
+          PACKAGE_HASH="${{ hashFiles('**/package-lock.json', '**/package.json', 'next.config.js', 'tsconfig.json') }}"
           
           echo "build-key=build-${{ runner.os }}-${BUILD_HASH}-${PACKAGE_HASH}" >> $GITHUB_OUTPUT
           echo "node-key=${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
 
       - name: Restore build cache
         id: build-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next
           key: ${{ steps.cache-key.outputs.build-key }}
@@ -80,7 +69,7 @@ jobs:
 
       - name: Cache node_modules
         id: node-cache
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: node_modules
           key: ${{ steps.cache-key.outputs.node-key }}
@@ -97,10 +86,12 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
       - name: Save build cache
         if: steps.build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next
           key: ${{ steps.cache-key.outputs.build-key }}
@@ -114,17 +105,17 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Cache node_modules
         id: node-cache
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -149,14 +140,14 @@ jobs:
       is-full-run: ${{ steps.set-matrix.outputs.is-full-run }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0  # Need full history for changed file detection
 
       # Restore cache of previously passing tests
       - name: Restore passing tests cache
         id: cache-passing-tests
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .test-cache
           key: passing-tests-${{ runner.os }}-dummy-key-for-restore
@@ -428,12 +419,12 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Generate Playwright cache key
@@ -442,7 +433,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-key.outputs.key }}
@@ -451,7 +442,7 @@ jobs:
 
       - name: Cache node_modules
         id: node-cache
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -470,25 +461,29 @@ jobs:
   # 2. VERIFICATION PHASE (Sequential to Prep)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  # E2E TESTS - Cleanly aligned after build and setup
+  # E2E TESTS - Matrix strategy for parallel browser testing
   e2e-test:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     needs: [build, install-playwright, setup, type-check]
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Restore node_modules from the build job
       - name: Restore node_modules
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         id: cache-node-modules
         with:
           path: node_modules
@@ -497,7 +492,7 @@ jobs:
 
       # Restore build cache from the build job
       - name: Restore build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         id: restore-build-cache
         with:
           path: .next
@@ -506,7 +501,7 @@ jobs:
 
       # Restore Playwright browsers from install-playwright job
       - name: Restore Playwright browsers
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         id: cache-playwright
         with:
           path: ~/.cache/ms-playwright
@@ -517,29 +512,33 @@ jobs:
       - name: Install Playwright system dependencies
         run: npx playwright install-deps
 
-      - name: Run Playwright tests
+      - name: Run Playwright tests (${{ matrix.browser }})
         id: playwright
-        run: npx playwright test --reporter=list
+        run: npx playwright test --project=${{ matrix.browser }} --grep-invert @visual --reporter=list
         env:
           CI: true
           NODE_ENV: production
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key' }}
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+      - name: Upload Playwright report (${{ matrix.browser }})
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.browser }}
           path: playwright-report/
           retention-days: 30
           if-no-files-found: ignore
 
-      - name: Upload Playwright test results
-        uses: actions/upload-artifact@v4
+      - name: Upload Playwright test results (${{ matrix.browser }})
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
-          name: playwright-test-results
+          name: playwright-test-results-${{ matrix.browser }}
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
@@ -559,17 +558,17 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       # Setup Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Cache node_modules (shared with Lighthouse workflow)
       - name: Cache node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         id: cache-node-modules
         with:
           path: node_modules
@@ -579,7 +578,7 @@ jobs:
 
       # Cache Jest test results
       - name: Cache Jest
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         id: cache-jest
         with:
           path: .jest/cache
@@ -626,6 +625,9 @@ jobs:
       # Run tests for this group
       - name: Run test group ${{ matrix.test-group }}
         timeout-minutes: 5
+        env:
+          STRIPE_SECRET_KEY: mock-stripe-key
+          NEXT_PUBLIC_BASE_URL: http://localhost:3000
         run: |
           # Clean any previous coverage data
           rm -rf coverage/ .nyc_output/
@@ -693,7 +695,7 @@ jobs:
       # Upload test results as artifacts (only from first group)
       - name: Upload test results
         if: always() && matrix.is-first-group
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-results
           path: |
@@ -705,7 +707,7 @@ jobs:
       # Upload JUnit test results for better visualization
       - name: Upload JUnit test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-results-group-${{ matrix.test-group }}
           path: |
@@ -844,7 +846,7 @@ jobs:
       # Upload passing tests data for cache update
       - name: Upload passing tests data
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: passing-tests-group-${{ matrix.test-group }}
           path: .test-cache/passing-tests-group-${{ matrix.test-group }}.json
@@ -853,7 +855,7 @@ jobs:
       # Upload test summary
       - name: Upload test summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-summary-${{ matrix.test-group }}
           path: test-summaries/
@@ -868,28 +870,29 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       
       # Download all test summaries
       - name: Download test summaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: test-summary-*
           path: test-summaries
           merge-multiple: true
         continue-on-error: true
 
-      # Download Playwright report
-      - name: Download Playwright report
-        uses: actions/download-artifact@v4
+      # Download Playwright reports from all browser matrix jobs
+      - name: Download Playwright reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: playwright-report
-          path: playwright-report
+          pattern: playwright-report-*
+          path: playwright-reports
+          merge-multiple: true
         continue-on-error: true
 
       # Download passing tests data from all groups
       - name: Download passing tests data
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: passing-tests-group-*
           path: passing-tests-data
@@ -899,7 +902,7 @@ jobs:
       # Restore and update passing tests cache
       - name: Restore passing tests cache
         id: cache-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .test-cache
           key: passing-tests-${{ runner.os }}-dummy-key-for-restore
@@ -945,7 +948,7 @@ jobs:
       # Note: GitHub cache keys are immutable, so we use run_id + timestamp to ensure uniqueness
       - name: Save passing tests cache
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .test-cache
           key: passing-tests-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}

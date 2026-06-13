@@ -347,7 +347,7 @@ describe('MobileBottomNavigation - Accessibility Compliance', () => {
 
         focusableElements.forEach(element => {
           // Check that focus styles are applied via CSS classes
-          expect(element).toHaveClass('focus:outline-none')
+          expect(element).toHaveClass('focus:outline-hidden')
           expect(element).toHaveClass('focus:ring-2')
           expect(element).toHaveClass('focus:ring-primary/20')
         })

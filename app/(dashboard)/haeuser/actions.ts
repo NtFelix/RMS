@@ -1,5 +1,5 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
 
@@ -10,6 +10,7 @@ interface HouseData {
   ort: string;
   strasse?: string | null;
   groesse: number | null;
+  user_id?: string;
 }
 
 export async function handleSubmit(id: string | null, formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
@@ -18,7 +19,32 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
   logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
 
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (id) {
+    if (!(await hasPermission('haeuser', 'bearbeiten'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(id)) {
+      return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+    }
+  } else {
+    if (!(await hasPermission('haeuser', 'erstellen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+  }
 
   try {
     // Process groesse field
@@ -73,9 +99,10 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     revalidatePath("/haeuser");
     logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
     return { success: true };
-  } catch (e) {
-    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: (e as Error).message });
-    return { success: false, error: { message: (e as Error).message } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
@@ -84,7 +111,20 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   logAction(actionName, 'start', { house_id: houseId });
 
   try {
-    const supabase = await createClient();
+    const { user, supabase } = await ensureAuth();
+
+    // Permission & scope checks
+    const { hasPermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    if (!(await hasPermission('haeuser', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(houseId)) {
+      return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+    }
+
     const { error } = await supabase
       .from("Haeuser")
       .delete()
@@ -106,17 +146,5 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   }
 }
 
-// Added imports for the new action
-import { fetchWasserzaehlerModalData, Mieter, Wasserzaehler } from "@/lib/data-fetching";
 
-export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
-  try {
-    const data = await fetchWasserzaehlerModalData(nebenkostenId);
-    return data;
-  } catch (error) {
-    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error);
-    // Return empty data on error, consistent with fetchWasserzaehlerModalData's own error handling for some cases.
-    return { mieterList: [], existingReadings: [] };
-  }
-}
 

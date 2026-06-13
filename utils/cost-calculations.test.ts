@@ -24,7 +24,9 @@ describe('cost-calculations', () => {
     jest.clearAllMocks();
     (calculateTenantOccupancy as jest.Mock).mockReturnValue({
       occupancyRatio: 1,
-      occupancyDays: 365
+      occupancyDays: 365,
+      effectivePeriodStart: startdatum,
+      effectivePeriodEnd: enddatum
     });
   });
 
@@ -49,6 +51,53 @@ describe('cost-calculations', () => {
       const result = calculateProFlächeDistribution([zeroTenant], 1000, startdatum, enddatum);
       expect(result['t1'].amount).toBe(0);
     });
+
+    it('correctly handles shared apartments (WGs) by using union of occupancy', () => {
+      // 2 tenants in same apartment, same dates. Total house area = 50. Total cost = 1000.
+      // Apartment weight should be 50 * 1 = 50. Both tenants share 50. Cost is 1000. Each pays 500.
+      // With the old bug, weight was 100, cost 1000, each pays 500 but calculation was wrong mechanically in house context.
+
+      const wgTenant1 = { id: 'wg1', wohnung_id: 'w_shared', Wohnungen: { groesse: 80 } } as any;
+      const wgTenant2 = { id: 'wg2', wohnung_id: 'w_shared', Wohnungen: { groesse: 80 } } as any;
+      const singleTenant = { id: 's1', wohnung_id: 'w_single', Wohnungen: { groesse: 20 } } as any;
+
+      (calculateTenantOccupancy as jest.Mock)
+        .mockImplementation((t) => {
+          return {
+            occupancyRatio: 1,
+            occupancyDays: 365,
+            effectivePeriodStart: startdatum,
+            effectivePeriodEnd: enddatum
+          };
+        });
+
+      // Total house area = 80 (w_shared) + 20 (w_single) = 100. Total cost = 1000.
+      // w_shared portion = 800. w_single portion = 200.
+      // wg1 and wg2 should each pay 400. s1 pays 200.
+      const result = calculateProFlächeDistribution([wgTenant1, wgTenant2, singleTenant], 1000, startdatum, enddatum);
+
+      expect(result['s1'].amount).toBe(200);
+      expect(result['wg1'].amount).toBe(400);
+      expect(result['wg2'].amount).toBe(400);
+    });
+
+    it('handles sequential tenants in the same apartment without overbilling', () => {
+      const t1 = { id: 't1', wohnung_id: 'w1', Wohnungen: { groesse: 100 } } as any;
+      const t2 = { id: 't2', wohnung_id: 'w1', Wohnungen: { groesse: 100 } } as any;
+
+      (calculateTenantOccupancy as jest.Mock)
+        .mockImplementation((t) => {
+          if (t.id === 't1') return { occupancyRatio: 0.5, effectivePeriodStart: '2023-01-01', effectivePeriodEnd: '2023-06-30' };
+          if (t.id === 't2') return { occupancyRatio: 0.5, effectivePeriodStart: '2023-07-01', effectivePeriodEnd: '2023-12-31' };
+        });
+
+      const result = calculateProFlächeDistribution([t1, t2], 1000, startdatum, enddatum);
+
+      // Union occupancy is 100%. Apartment cost is 1000. 
+      // t1 and t2 each have 0.5 ratio, they should get proportional shares of the apartment's cost.
+      expect(result['t1'].amount).toBe(500);
+      expect(result['t2'].amount).toBe(500);
+    });
   });
 
   describe('calculateProMieterDistribution', () => {
@@ -60,8 +109,8 @@ describe('cost-calculations', () => {
 
     it('distributes based on occupancy days', () => {
       (calculateTenantOccupancy as jest.Mock)
-        .mockReturnValueOnce({ occupancyDays: 100, occupancyRatio: 100/365 })
-        .mockReturnValueOnce({ occupancyDays: 300, occupancyRatio: 300/365 });
+        .mockReturnValueOnce({ occupancyDays: 100, occupancyRatio: 100 / 365 })
+        .mockReturnValueOnce({ occupancyDays: 300, occupancyRatio: 300 / 365 });
 
       const result = calculateProMieterDistribution(mockTenants, 1000, startdatum, enddatum);
       expect(result['t1'].amount).toBeCloseTo(250);
@@ -100,7 +149,7 @@ describe('cost-calculations', () => {
     });
 
     it('reduces amount for partial occupancy', () => {
-       (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
         occupancyRatio: 0.5,
         occupancyDays: 180
       });
@@ -121,7 +170,7 @@ describe('cost-calculations', () => {
       expect(result['t2'].amount).toBeCloseTo(75);
     });
 
-     it('handles zero total consumption', () => {
+    it('handles zero total consumption', () => {
       const waterReadings = { 't1': 0, 't2': 0 };
       const result = calculateWaterCostDistribution(mockTenants, 100, waterReadings, startdatum, enddatum);
       expect(result['t1'].amount).toBe(0);

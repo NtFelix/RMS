@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { logRpcCall, type FolderContentsResult } from '@/app/(dashboard)/dateien/actions'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (!path) {
         return NextResponse.json(
             { error: 'Missing path parameter' },
-            { status: 400 }
+            { status: 400, headers: NO_CACHE_HEADERS }
         )
     }
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
         if (authError || !user) {
             return NextResponse.json(
                 { error: 'Nicht authentifiziert' },
-                { status: 401 }
+                { status: 401, headers: NO_CACHE_HEADERS }
             )
         }
 
@@ -42,13 +43,12 @@ export async function GET(request: NextRequest) {
         if (!path.startsWith(expectedPrefix)) {
             return NextResponse.json(
                 { error: 'Ungültiger Pfad' },
-                { status: 403 }
+                { status: 403, headers: NO_CACHE_HEADERS }
             )
         }
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
-            p_user_id: user.id,
             p_current_path: path
         })
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
                     totalSize: 0,
                     error: `Fehler beim Laden: ${error.message}`
                 },
-                { status: 500 }
+                { status: 500, headers: NO_CACHE_HEADERS }
             )
         }
 
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
                     totalSize: 0,
                     error: result.error
                 },
-                { status: 200 }
+                { status: 200, headers: NO_CACHE_HEADERS }
             )
         }
 
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
             folders: result.folders || [],
             breadcrumbs: result.breadcrumbs || [{ name: 'Cloud Storage', path: expectedPrefix, type: 'root' }],
             totalSize: result.totalSize || 0
-        })
+        }, { headers: NO_CACHE_HEADERS })
 
     } catch (error) {
         const duration = Math.round(performance.now() - startTime)
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
             {
                 error: error instanceof Error ? error.message : 'Unerwarteter Fehler'
             },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         )
     }
 }

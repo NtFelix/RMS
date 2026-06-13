@@ -1,7 +1,7 @@
 import { 
   groupMentionVariablesByCategory, 
   getOrderedCategories,
-  searchMentionVariables 
+  filterMentionVariables 
 } from '@/lib/mention-utils';
 import { MENTION_VARIABLES, CATEGORY_CONFIGS } from '@/lib/template-constants';
 
@@ -38,7 +38,7 @@ describe('Mention Utils - Categorized Display', () => {
         { id: 'mieter.name', label: 'Mieter.Name', description: 'Mieter desc', category: 'mieter' as const },
       ];
       
-      const grouped = groupMentionVariablesByCategory(testVariables);
+      const grouped = groupMentionVariablesByCategory(testVariables as any);
       
       expect(grouped).toHaveProperty('uncategorized');
       expect(grouped).toHaveProperty('mieter');
@@ -102,45 +102,12 @@ describe('Mention Utils - Categorized Display', () => {
     });
   });
 
-  describe('searchMentionVariables', () => {
-    it('should return properly ordered categories in search results', () => {
-      const result = searchMentionVariables(MENTION_VARIABLES, '');
-      
-      expect(result.categories[0]).toBe('mieter');
-      expect(result.categories[1]).toBe('wohnung');
-      expect(result.categories[2]).toBe('haus');
-      expect(result.categories[3]).toBe('datum');
-      expect(result.categories[4]).toBe('vermieter');
-    });
-
-    it('should maintain category order even with filtered results', () => {
-      // Search for something that appears in multiple categories
-      const result = searchMentionVariables(MENTION_VARIABLES, 'name');
-      
-      // Should still maintain proper category order
-      const mieterIndex = result.categories.indexOf('mieter');
-      const hausIndex = result.categories.indexOf('haus');
-      const vermieterIndex = result.categories.indexOf('vermieter');
-      
-      if (mieterIndex !== -1 && hausIndex !== -1) {
-        expect(mieterIndex).toBeLessThan(hausIndex);
-      }
-      if (hausIndex !== -1 && vermieterIndex !== -1) {
-        expect(hausIndex).toBeLessThan(vermieterIndex);
-      }
-    });
-
-    it('should include grouped variables in correct format', () => {
-      const result = searchMentionVariables(MENTION_VARIABLES.slice(0, 8), '');
-      
-      expect(result.grouped).toBeDefined();
-      expect(result.variables).toBeDefined();
-      expect(result.categories).toBeDefined();
-      expect(result.total).toBe(8);
-      
-      // Check that grouped structure is correct
-      Object.keys(result.grouped).forEach(category => {
-        expect(Array.isArray(result.grouped[category])).toBe(true);
+  describe('filterMentionVariables', () => {
+    it('should filter correctly based on query', () => {
+      const result = filterMentionVariables(MENTION_VARIABLES, 'name');
+      expect(result.length).toBeGreaterThan(0);
+      result.forEach(item => {
+        expect(item.label.toLowerCase().includes('name') || (item.description && item.description.toLowerCase().includes('name'))).toBeTruthy();
       });
     });
   });

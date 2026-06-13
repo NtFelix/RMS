@@ -7,6 +7,7 @@ import { useTemplates } from '@/hooks/use-templates';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { Template, TemplatePayload } from '@/types/template';
 import { toast } from '@/hooks/use-toast';
+import { useTemplateFilters } from '@/hooks/use-templates';
 
 // Mock all dependencies
 jest.mock('@/hooks/use-templates');
@@ -40,6 +41,9 @@ const mockUseTemplates = useTemplates as jest.MockedFunction<typeof useTemplates
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 const mockToast = toast as jest.MockedFunction<typeof toast>;
 
+// Mock useTemplateFilters as well
+const mockUseTemplateFilters = useTemplateFilters as jest.MockedFunction<typeof useTemplateFilters>;
+
 describe('Template Management E2E Workflow', () => {
   let mockTemplates: Template[];
   let mockCreateTemplate: jest.Mock;
@@ -69,7 +73,8 @@ describe('Template Management E2E Workflow', () => {
             },
           ],
         },
-        user_id: 'user1',
+        erstellt_von: 'user1',
+        organisation_id: 'org1',
         kategorie: 'Dokumente',
         kontext_anforderungen: ['mieter', 'wohnung'],
         erstellungsdatum: '2024-01-01T00:00:00Z',
@@ -91,7 +96,8 @@ describe('Template Management E2E Workflow', () => {
             },
           ],
         },
-        user_id: 'user1',
+        erstellt_von: 'user1',
+        organisation_id: 'org1',
         kategorie: 'Dokumente',
         kontext_anforderungen: ['mieter'],
         erstellungsdatum: '2024-01-02T00:00:00Z',
@@ -113,6 +119,15 @@ describe('Template Management E2E Workflow', () => {
       deleteTemplate: mockDeleteTemplate,
       getTemplate: jest.fn(),
       refreshTemplates: mockRefreshTemplates,
+    });
+
+    mockUseTemplateFilters.mockReturnValue({
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectedCategory: 'all',
+      setSelectedCategory: jest.fn(),
+      filteredTemplates: mockTemplates,
+      groupedTemplates: { 'Dokumente': mockTemplates },
     });
 
     mockUseModalStore.mockReturnValue({
@@ -145,7 +160,8 @@ describe('Template Management E2E Workflow', () => {
             },
           ],
         },
-        user_id: 'user1',
+        erstellt_von: 'user1',
+        organisation_id: 'org1',
         kategorie: 'Dokumente',
         kontext_anforderungen: [],
         erstellungsdatum: '2024-01-03T00:00:00Z',

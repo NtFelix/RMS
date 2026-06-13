@@ -42,14 +42,14 @@ export function useTenantPayments() {
             )
 
             const formattedData: TenantBentoItem[] = activeTenants.map((mieter: any) => {
-                const mieteRaw = Number(mieter.Wohnungen.miete) || 0
+                const mieteRaw = Number(mieter.Wohnungen?.miete) || 0
                 const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
 
                 return {
                     id: mieter.id,
                     tenant: mieter.name,
-                    apartment: mieter.Wohnungen.name,
-                    apartmentId: mieter.Wohnungen.id,
+                    apartment: mieter.Wohnungen?.name || 'Keine Wohnung',
+                    apartmentId: mieter.Wohnungen?.id || '',
                     mieteRaw,
                     nebenkostenRaw,
                     actualRent: mieter.actualRent || 0,
@@ -75,6 +75,15 @@ export function useTenantPayments() {
 
     const toggleRentPayment = async (tenant: TenantBentoItem) => {
         if (updatingStatus === tenant.id) return
+
+        if (!tenant.apartmentId) {
+            toast({
+                title: "Keine Wohnung zugeordnet",
+                description: `Für ${tenant.tenant} ist keine Wohnung hinterlegt. Mietzahlungen können nur für Mieter mit zugeordneter Wohnung verwaltet werden.`,
+                variant: "destructive",
+            })
+            return
+        }
 
         const originalData = [...data]
         setUpdatingStatus(tenant.id)

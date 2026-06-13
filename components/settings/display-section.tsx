@@ -2,37 +2,35 @@
 
 import { useState, useEffect } from "react"
 import { useFeatureFlagEnabled } from 'posthog-js/react'
-import { Info, Monitor } from "lucide-react";
+import { Info, Monitor, PanelLeft, Play } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
 import { ThemeSwitcherCards } from "@/components/common/theme-switcher-cards";
+import { SidebarSwitcherCards } from "@/components/common/sidebar-switcher-cards";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
 
 const DisplaySection = () => {
   const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
-  const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
-
-  useEffect(() => {
+  const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(() => {
     const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
-    setBetriebskostenGuideEnabled(hidden !== 'true');
-  }, []);
+    return hidden !== 'true';
+  });
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <SettingsSection
         title="Darstellung"
         description="Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an."
       >
         {darkModeEnabled && (
           <SettingsCard>
-            <div className="space-y-4">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <Monitor className="h-4 w-4 text-muted-foreground" />
+                  <Monitor className="size-4 text-muted-foreground" />
                   <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Design-Modus
                   </label>
@@ -47,10 +45,27 @@ const DisplaySection = () => {
         )}
 
         <SettingsCard>
-          <div className="flex items-start justify-between gap-6">
-            <div className="space-y-1 flex-1">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-muted-foreground" />
+                <PanelLeft className="size-4 text-muted-foreground" />
+                <label className="text-sm font-medium leading-none">
+                  Navigationsleiste
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Wählen Sie, ob die Seitenleiste standardmäßig ausgeklappt, eingeklappt bleibt oder sich automatisch beim Drüberfahren (Hover) erweitert.
+              </p>
+            </div>
+            <SidebarSwitcherCards />
+          </div>
+        </SettingsCard>
+
+        <SettingsCard>
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex flex-col gap-1 flex-1">
+              <div className="flex items-center gap-2">
+                <Info className="size-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Anleitung auf Betriebskosten-Seite
                 </label>
@@ -59,7 +74,7 @@ const DisplaySection = () => {
                 Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Switch
                 checked={betriebskostenGuideEnabled}
                 onCheckedChange={(checked) => {
@@ -77,9 +92,9 @@ const DisplaySection = () => {
 
         <SettingsCard>
           <div className="flex items-center justify-between gap-6">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <Play className="h-4 w-4 text-muted-foreground" />
+                <Play className="size-4 text-muted-foreground" />
                 <label className="text-sm font-medium leading-none">
                   Tutorial neu starten
                 </label>

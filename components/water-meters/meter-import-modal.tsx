@@ -11,6 +11,7 @@ import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calend
 import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { bulkCreateAblesungen } from "@/app/meter-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
+import { formatNumber, roundToDecimals } from "@/utils/format";
 import { StatCard } from "@/components/common/stat-card";
 
 interface MeterImportModalProps {
@@ -156,134 +157,230 @@ export function MeterImportModal({
     return null;
   };
 
+
   const parseGermanNumber = (value: string | number): number => {
-    if (typeof value === 'number') return value;
-    if (!value) return 0;
+    let parsed: number;
 
-    let strVal = String(value).trim();
+    if (typeof value === 'number') {
+      parsed = value;
+    } else if (!value) {
+      parsed = 0;
+    } else {
+      let strVal = String(value).trim();
 
-    if (strVal.includes(',')) {
-      strVal = strVal.replace(/\./g, '');
-      strVal = strVal.replace(',', '.');
+      if (strVal.includes(',')) {
+        strVal = strVal.replace(/\./g, '');
+        strVal = strVal.replace(',', '.');
+      }
+
+      parsed = parseFloat(strVal);
+      if (isNaN(parsed)) parsed = 0;
     }
 
-    const parsed = parseFloat(strVal);
-    return isNaN(parsed) ? 0 : parsed;
+    // Round to 3 decimal places
+    return roundToDecimals(parsed);
   };
 
-  const validateAndProcessData = () => {
+  const validateAndProcessData = async () => {
     if (!mapping.custom_id || !mapping.ablese_datum || !mapping.zaehlerstand) {
       toast({ title: "Fehler", description: "Bitte ordnen Sie alle Felder zu.", variant: "destructive" });
       return;
     }
 
-    const processed: ProcessedReading[] = parsedData.map((row) => {
-      const customIdRaw = row[mapping.custom_id];
-      const customId = customIdRaw ? String(customIdRaw).trim() : "";
-      const dateRaw = row[mapping.ablese_datum];
-      const valueRaw = row[mapping.zaehlerstand];
+    setIsSubmitting(true);
 
-      const ableseDatum = parseDateString(dateRaw as string | number | Date);
-      const zaehlerstand = parseGermanNumber(valueRaw as string | number);
+    try {
+      // Create efficient lookup map
+      const metersByCustomId = new Map(meters.map(m => [m.custom_id?.toLowerCase(), m]));
 
-      if (!customId) {
-        return {
-          zaehler_id: "",
-          custom_id: "",
-          ablese_datum: ableseDatum || "",
-          zaehlerstand: zaehlerstand,
-          verbrauch: 0,
-          original_row: row,
-          status: "missing_meter",
-          message: "Keine Zähler-ID",
-        };
+      // 1. Identify relevant meters from the parsed data
+      const meterIdsToFetch = new Set<string>();
+
+      parsedData.forEach(row => {
+        const customIdRaw = row[mapping.custom_id];
+        const customId = customIdRaw ? String(customIdRaw).trim() : "";
+        if (customId) {
+          const meter = metersByCustomId.get(customId.toLowerCase());
+          if (meter) {
+            meterIdsToFetch.add(meter.id);
+          }
+        }
+      });
+
+      // 2. Fetch LATEST readings for these meters from the server
+      // This ensures we don't think a deleted reading still exists
+      let freshReadings = [...readings]; // Start with props as fallback
+      if (meterIdsToFetch.size > 0) {
+        const { getReadingsForMetersAction } = await import("@/app/meter-actions");
+        const result = await getReadingsForMetersAction(Array.from(meterIdsToFetch));
+
+        if (result.success && result.data) {
+          freshReadings = result.data as ZaehlerAblesung[];
+        } else {
+          console.warn("Could not fetch fresh readings, falling back to props data. Error:", result.message);
+        }
       }
 
-      const meter = meters.find((m) => m.custom_id?.toLowerCase() === customId.toLowerCase());
+      // 3. Phase 1: Parse and perform basic validation (Pre-Check)
+      let processed: ProcessedReading[] = parsedData.map((row) => {
+        const customIdRaw = row[mapping.custom_id];
+        const customId = customIdRaw ? String(customIdRaw).trim() : "";
+        const dateRaw = row[mapping.ablese_datum];
+        const valueRaw = row[mapping.zaehlerstand];
 
-      if (!meter) {
-        return {
-          zaehler_id: "",
-          custom_id: customId,
-          ablese_datum: ableseDatum || "",
-          zaehlerstand: zaehlerstand,
-          verbrauch: 0,
-          original_row: row,
-          status: "missing_meter",
-          message: `Zähler '${customId}' nicht gefunden`
-        };
-      }
+        const ableseDatum = parseDateString(dateRaw as string | number | Date);
+        const zaehlerstand = parseGermanNumber(valueRaw as string | number);
 
-      if (!ableseDatum) {
-        return {
-          zaehler_id: meter.id,
-          custom_id: customId,
-          ablese_datum: "",
-          zaehlerstand: zaehlerstand,
-          verbrauch: 0,
-          original_row: row,
-          status: "invalid_date",
-          message: "Ungültiges Datum"
-        };
-      }
+        if (!customId) {
+          return {
+            zaehler_id: "",
+            custom_id: "",
+            ablese_datum: ableseDatum || "",
+            zaehlerstand: zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "missing_meter",
+            message: "Keine Zähler-ID",
+          };
+        }
 
-      if (isNaN(zaehlerstand)) {
-        return {
-          zaehler_id: meter.id,
-          custom_id: customId,
-          ablese_datum: ableseDatum,
-          zaehlerstand: 0,
-          verbrauch: 0,
-          original_row: row,
-          status: "invalid_value",
-          message: "Ungültiger Zählerstand"
-        };
-      }
+        const meter = metersByCustomId.get(customId.toLowerCase());
 
-      const isDuplicate = readings.some(
-        (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
-      );
+        if (!meter) {
+          return {
+            zaehler_id: "",
+            custom_id: customId,
+            ablese_datum: ableseDatum || "",
+            zaehlerstand: zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "missing_meter",
+            message: `Zähler '${customId}' nicht gefunden`
+          };
+        }
 
-      if (isDuplicate) {
+        if (!ableseDatum) {
+          return {
+            zaehler_id: meter.id,
+            custom_id: customId,
+            ablese_datum: "",
+            zaehlerstand: zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "invalid_date",
+            message: "Ungültiges Datum"
+          };
+        }
+
+        if (isNaN(zaehlerstand)) {
+          return {
+            zaehler_id: meter.id,
+            custom_id: customId,
+            ablese_datum: ableseDatum,
+            zaehlerstand: 0,
+            verbrauch: 0,
+            original_row: row,
+            status: "invalid_value",
+            message: "Ungültiger Zählerstand"
+          };
+        }
+
+        // Duplicate check (against DB only for now)
+        const isDuplicate = freshReadings.some(
+          (r) => r.zaehler_id === meter.id && r.ablese_datum === ableseDatum
+        );
+
+        if (isDuplicate) {
+          return {
+            zaehler_id: meter.id,
+            custom_id: customId,
+            ablese_datum: ableseDatum,
+            zaehlerstand,
+            verbrauch: 0,
+            original_row: row,
+            status: "duplicate",
+            message: "Ablesung existiert bereits"
+          };
+        }
+
+        // Init usage
+        let verbrauch = 0;
+        if (mapping.verbrauch && row[mapping.verbrauch]) {
+          verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
+        }
+
         return {
           zaehler_id: meter.id,
           custom_id: customId,
           ablese_datum: ableseDatum,
           zaehlerstand,
-          verbrauch: 0,
+          verbrauch,
           original_row: row,
-          status: "duplicate",
-          message: "Ablesung existiert bereits"
+          status: "valid",
         };
-      }
+      });
 
-      let verbrauch = 0;
-      if (mapping.verbrauch && row[mapping.verbrauch]) {
-        verbrauch = parseGermanNumber(row[mapping.verbrauch] as string | number);
-      } else {
-        const meterReadings = readings.filter(r => r.zaehler_id === meter.id);
-        const previousReadings = meterReadings.filter(r => r.ablese_datum < ableseDatum);
-        previousReadings.sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
+      // 4. Phase 2: Calculate Usage (Inter-row + DB)
+      processed = processed.map(item => {
+        if (item.status !== "valid") return item;
 
-        const previousReading = previousReadings[0];
-        verbrauch = previousReading && previousReading.zaehlerstand !== null
-          ? Math.max(0, zaehlerstand - previousReading.zaehlerstand)
-          : 0;
-      }
+        // If user explicitly mapped consumption and it has a value, we trust it or use it.
+        // But if they just mapped the column and it's empty, we might want to calculate?
+        // Current logic: if usage was found in the row (non-zero or zero but present), we keep it.
+        // Actually, previous logic set verbrauch=0 if not found.
+        // Let's refine: if the mapped value was present in the row, we use it.
+        if (mapping.verbrauch && item.original_row[mapping.verbrauch]) {
+          return item;
+        }
 
-      return {
-        zaehler_id: meter.id,
-        custom_id: customId,
-        ablese_datum: ableseDatum,
-        zaehlerstand,
-        verbrauch,
-        original_row: row,
-        status: "valid",
-      };
-    });
+        const currentMeterId = item.zaehler_id;
+        const currentJsDate = new Date(item.ablese_datum).getTime();
 
-    setProcessedData(processed);
-    setStep("preview");
+        // 1. DB candidates (normalized)
+        const dbCandidates = freshReadings
+          .filter(r => r.zaehler_id === currentMeterId)
+          .map(r => ({
+            date: new Date(r.ablese_datum).getTime(),
+            value: r.zaehlerstand
+          }));
+
+        // 2. File candidates (other valid rows in this batch) -- enable chaining!
+        const fileCandidates = processed
+          .filter(r => r.status === 'valid' && r.zaehler_id === currentMeterId && r !== item)
+          .map(r => ({
+            date: new Date(r.ablese_datum).getTime(),
+            value: r.zaehlerstand
+          }));
+
+        const allCandidates = [...dbCandidates, ...fileCandidates];
+
+        // Find predecessors (Strictly before current date)
+        const predecessors = allCandidates.filter(c => c.date < currentJsDate);
+
+        // Sort by date DESC (closest previous date first)
+        predecessors.sort((a, b) => b.date - a.date);
+
+        const prev = predecessors[0];
+
+        let calculatedUsage = 0;
+        if (prev) {
+          calculatedUsage = Math.max(0, item.zaehlerstand - prev.value);
+        }
+
+        // Round calculated usage to 3 decimal places
+        calculatedUsage = roundToDecimals(calculatedUsage);
+
+        return { ...item, verbrauch: calculatedUsage };
+      });
+
+      setProcessedData(processed);
+      setStep("preview");
+    } catch (error: unknown) {
+      console.error("Error validating data:", error);
+      toast({ title: "Fehler", description: error instanceof Error ? error.message : "Fehler bei der Validierung der Daten.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -464,10 +561,10 @@ export function MeterImportModal({
                 </Alert>
               )}
 
-              <div className="border border-gray-200 dark:border-[#3C4251] rounded-2xl overflow-hidden bg-white dark:bg-[#22272e] shadow-sm">
+              <div className="border border-gray-200 dark:border-[#3C4251] rounded-2xl overflow-hidden bg-white dark:bg-[#22272e] shadow-xs">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+                    <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                       <TableHead>Status</TableHead>
                       <TableHead>Zähler ID</TableHead>
                       <TableHead>Datum</TableHead>
@@ -491,8 +588,8 @@ export function MeterImportModal({
                         </TableCell>
                         <TableCell>{row.custom_id}</TableCell>
                         <TableCell>{row.ablese_datum ? isoToGermanDate(row.ablese_datum) : "-"}</TableCell>
-                        <TableCell>{row.zaehlerstand}</TableCell>
-                        <TableCell>{row.verbrauch}</TableCell>
+                        <TableCell>{formatNumber(row.zaehlerstand, 3)}</TableCell>
+                        <TableCell>{formatNumber(row.verbrauch, 3)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.message}</TableCell>
                       </TableRow>
                     ))}

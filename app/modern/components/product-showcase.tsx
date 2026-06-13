@@ -49,7 +49,7 @@ export default function ProductShowcase() {
 
     return (
         <section className="py-24 sm:py-32 px-4 bg-background overflow-visible relative">
-            <div className="max-w-[90rem] mx-auto relative">
+            <div className="max-w-360 mx-auto relative">
                 {/* Section Header */}
                 <div className="text-center w-full max-w-3xl mx-auto mb-16 sm:mb-20 relative z-10">
                     <motion.div
@@ -57,7 +57,7 @@ export default function ProductShowcase() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.5 }}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-sm mb-6"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-xs mb-6"
                     >
                         <Sparkles className="w-4 h-4 text-primary" />
                         <span className="text-sm font-medium text-primary">Plattform</span>
@@ -68,7 +68,7 @@ export default function ProductShowcase() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.5, delay: 0.1 }}
-                        className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
+                        className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-linear-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
                     >
                         Entdecken Sie die Funktionen
                     </motion.h2>
@@ -84,7 +84,7 @@ export default function ProductShowcase() {
                 >
                     {/* Background Grid Pattern */}
                     <div
-                        className="absolute -inset-[500px] pointer-events-none"
+                        className="absolute inset-[-500px] pointer-events-none"
                         style={{
                             backgroundImage: `linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)`,
                             backgroundSize: '80px 80px',
@@ -110,7 +110,7 @@ export default function ProductShowcase() {
                                             key={feature.id}
                                             onClick={() => setSelectedIndex(index)}
                                             className={cn(
-                                                "relative p-5 md:p-6 text-left transition-all duration-300 outline-none select-none",
+                                                "relative p-5 md:p-6 text-left transition-all duration-300 outline-hidden select-none",
                                                 // Separators
                                                 !isLast && "sm:border-r border-b sm:border-b-0 border-border/10",
                                                 isSelected

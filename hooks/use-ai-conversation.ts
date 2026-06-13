@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { useAIAssistantStore, type ChatMessage } from '@/hooks/use-ai-assistant-store';
+import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
+import { AIDocumentationContext, type ChatMessage } from '@/types/ai';
 import {
   startAIGeneration,
   completeAIGeneration,
@@ -11,8 +12,7 @@ import {
 } from '@/lib/posthog-llm-tracking';
 
 interface AIConversationOptions {
-  documentationContext?: any;
-  onFallbackToSearch?: () => void;
+  documentationContext?: AIDocumentationContext;
   interface?: 'modal' | 'simple';
 }
 
@@ -32,7 +32,7 @@ interface AIConversationReturn {
  * Used by both AIAssistantModal and AIAssistantInterfaceSimple
  */
 export function useAIConversation(options: AIConversationOptions = {}): AIConversationReturn {
-  const { documentationContext, onFallbackToSearch, interface: interfaceType = 'modal' } = options;
+  const { documentationContext, interface: interfaceType = 'modal' } = options;
 
   // Local state for the interface
   const [inputValue, setInputValue] = useState('');
@@ -128,7 +128,18 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
         traceId
       });
 
-      const response = await fetch('/api/ai-assistant', {
+      const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL;
+      if (!workerUrl) {
+        console.error("NEXT_PUBLIC_WORKER_URL environment variable is not defined");
+        throw new Error("AI Service configuration error: missing backend URL");
+      }
+
+      // Ensure we target the /ai endpoint
+      const targetUrl = workerUrl.endsWith('/ai')
+        ? workerUrl
+        : `${workerUrl.replace(/\/$/, '')}/ai`;
+
+      const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,12 +162,15 @@ export function useAIConversation(options: AIConversationOptions = {}): AIConver
       let chunkCount = 0;
 
       if (reader) {
+        let buffer = '';
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          // Keep the last line in the buffer as it might be incomplete
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {

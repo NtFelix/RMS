@@ -58,6 +58,7 @@ interface RawZaehlerFromApi {
         zaehlerstand: number
         verbrauch: number
     } | null
+    kommentar?: string | null
 }
 
 // Consolidated state for new meter form
@@ -204,6 +205,7 @@ export function ZaehlerModal() {
                     eichungsdatum: editingMeter.eichungsdatum ? format(editingMeter.eichungsdatum, "yyyy-MM-dd") : null,
                     zaehler_typ: editingMeter.zaehlerTyp,
                     einheit: config.einheit,
+                    kommentar: editingMeter.kommentar?.trim() || null,
                 }),
             })
 
@@ -280,6 +282,7 @@ export function ZaehlerModal() {
             customId: zaehler.custom_id || "",
             eichungsdatum: zaehler.eichungsdatum ? new Date(zaehler.eichungsdatum) : undefined,
             zaehlerTyp: zaehler.zaehler_typ || "kaltwasser",
+            kommentar: zaehler.kommentar || undefined,
         })
     }, [])
 
@@ -332,7 +335,8 @@ export function ZaehlerModal() {
                 const customIdChanged = editingMeter.customId !== (originalZaehler.custom_id || "")
                 const dateChanged = (editingMeter.eichungsdatum ? format(editingMeter.eichungsdatum, 'yyyy-MM-dd') : null) !== originalZaehler.eichungsdatum
                 const typeChanged = editingMeter.zaehlerTyp !== (originalZaehler.zaehler_typ || "kaltwasser")
-                return customIdChanged || dateChanged || typeChanged
+                const commentChanged = (editingMeter.kommentar?.trim() || "") !== (originalZaehler.kommentar || "")
+                return customIdChanged || dateChanged || typeChanged || commentChanged
             }
         }
 

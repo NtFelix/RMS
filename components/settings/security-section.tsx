@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import ConnectedAccountsSection from "./connected-accounts-section";
+import AuthorizedAppsSection from "./authorized-apps-section";
 
 const SecuritySection = () => {
   const supabase = createClient()
@@ -19,14 +21,16 @@ const SecuritySection = () => {
   const [emailError, setEmailError] = useState<boolean>(false)
   const [passwordError, setPasswordError] = useState<boolean>(false)
 
+  const fetchUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      setEmail(user.email || "")
+      setConfirmEmail(user.email || "")
+    }
+  }
+
   useEffect(() => {
-    supabase.auth.getUser().then(res => {
-      const user = res.data.user
-      if (user) {
-        setEmail(user.email || "")
-        setConfirmEmail(user.email || "")
-      }
-    });
+    fetchUser()
   }, [supabase]);
 
   const handleEmailSave = async () => {
@@ -203,6 +207,9 @@ const SecuritySection = () => {
           </div>
         </SettingsCard>
       </SettingsSection>
+
+      <ConnectedAccountsSection onUpdate={fetchUser} />
+      <AuthorizedAppsSection />
     </div>
   )
 };

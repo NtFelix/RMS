@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { createClient } from "@/utils/supabase/server";
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 export const runtime = 'edge';
 
 const MAX_RETRIES = 3;
@@ -38,17 +40,47 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
 }
 
 export async function POST(request: Request) {
-    const backendUrl = (process.env.MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
-
-    console.log('[WorkerProxy] Proxying request to:', backendUrl);
-
     try {
-        const body = await request.json();
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+            console.error('[WorkerProxy] Authentication failed:', authError?.message || 'No user');
+            return NextResponse.json({ error: 'Unauthorized' }, { 
+                status: 401,
+                headers: NO_CACHE_HEADERS
+            });
+        }
+
+        const url = new URL(request.url);
+        const subPath = url.pathname.replace('/api/worker', '');
+        const backendBaseUrl = (process.env.MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim().replace(/\/$/, '');
+        const backendUrl = backendBaseUrl + subPath + url.search;
+        const workerAuthKey = process.env.WORKER_AUTH_KEY;
+
+        console.log('[WorkerProxy] Proxying request to:', backendUrl, 'for user:', user.id);
+
+        let body;
+        try {
+            body = await request.json();
+            // Ensure the request is attributed to the authenticated user
+            // We check !Array.isArray because JSON.stringify ignores custom properties on arrays
+            if (body && typeof body === 'object' && !Array.isArray(body)) {
+                body.user_id = user.id;
+            }
+        } catch (e) {
+            console.warn('[WorkerProxy] Invalid JSON body:', (e as Error).message);
+            return NextResponse.json({ error: 'Invalid JSON body' }, { 
+                status: 400, 
+                headers: NO_CACHE_HEADERS 
+            });
+        }
 
         const response = await fetchWithRetry(backendUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(workerAuthKey ? { 'x-worker-auth': workerAuthKey } : {})
             },
             body: JSON.stringify(body),
         });
@@ -56,7 +88,10 @@ export async function POST(request: Request) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('[WorkerProxy] Backend error:', response.status, errorText);
-            return new NextResponse(errorText, { status: response.status });
+            return new NextResponse(errorText, { 
+                status: response.status,
+                headers: NO_CACHE_HEADERS
+            });
         }
 
         // Forward the binary response from the worker
@@ -74,6 +109,11 @@ export async function POST(request: Request) {
         // Expose headers for the frontend
         responseHeaders.set('Access-Control-Expose-Headers', 'X-PDF-Page-Count, X-PDF-Generation-Time');
 
+        // Apply NO_CACHE_HEADERS
+        Object.entries(NO_CACHE_HEADERS).forEach(([key, value]) => {
+            responseHeaders.set(key, value);
+        });
+
         return new NextResponse(response.body, {
             status: response.status,
             headers: responseHeaders,
@@ -81,13 +121,13 @@ export async function POST(request: Request) {
     } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
         console.error('[WorkerProxy] Proxy failed:', error);
-        return new NextResponse(JSON.stringify({
+        return NextResponse.json({
             error: 'Proxy failed',
             details: error.message,
             name: error.name
-        }), {
+        }, {
             status: 500,
-            headers: { 'Content-Type': 'application/json' },
+            headers: NO_CACHE_HEADERS,
         });
     }
 }

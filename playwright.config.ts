@@ -12,27 +12,39 @@ import { defineConfig, devices } from '@playwright/test';
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  testDir: './e2e',
+  testDir: '.',
+  testMatch: ['e2e/**/*.spec.ts', 'playwright/**/*.spec.ts'],
+  snapshotDir: './playwright/__snapshots__',
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Use 50% of available CPU cores in CI for parallel execution */
-  workers: process.env.CI ? '50%' : undefined,
+  /* Use 2 workers in CI to avoid overwhelming the server */
+  workers: process.env.CI ? 2 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
+  /* Global timeout for all tests */
+  timeout: 60000, // 60 seconds per test
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3000',
+    baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
+    /* Set larger viewport to "zoom out" and see more of the app */
+    viewport: { width: 1920, height: 1080 },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
 
     /* Capture screenshot on failure */
     screenshot: 'only-on-failure',
+
+    /* Navigation timeout */
+    navigationTimeout: 30000,
+
+    /* Action timeout */
+    actionTimeout: 10000,
   },
 
   /* Configure projects for major browsers */

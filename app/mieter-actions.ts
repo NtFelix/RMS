@@ -1,9 +1,10 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching";
-import { KautionData, KautionStatus } from "@/types/Tenant";
+import { KautionData, KautionStatus, TenantStatus } from "@/types/Tenant";
 import { logAction } from '@/lib/logging-middleware';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { logger } from '@/utils/logger';
@@ -13,9 +14,42 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   const id = formData.get('id');
   const actionName = id ? 'updateTenant' : 'createTenant';
   const tenantName = formData.get('name') as string;
-  logAction(actionName, 'start', { tenant_id: id as string | null, tenant_name: tenantName });
+  
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
 
-  const supabase = await createClient();
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', id ? 'bearbeiten' : 'erstellen'))) {
+    logAction(actionName, 'error', { tenant_name: tenantName, error_message: "Keine Berechtigung" });
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const targetWohnungId = formData.get('wohnung_id') as string | null;
+    if (!targetWohnungId || !wohnungIds.includes(targetWohnungId)) {
+      return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
+    }
+    
+    if (id) {
+      const { data: existingTenant, error: fetchError } = await supabase
+        .from("Mieter")
+        .select("wohnung_id")
+        .eq("id", id as string)
+        .single();
+      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+      }
+    }
+  }
 
   try {
     const payload: any = {
@@ -26,6 +60,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       email: formData.get('email') || null,
       telefonnummer: formData.get('telefonnummer') || null,
       notiz: formData.get('notiz') || null,
+      status: (formData.get('status') as TenantStatus) || 'mieter',
       nebenkosten: (() => {
         const nebenkostenRaw = formData.get('nebenkosten');
         if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
@@ -63,10 +98,9 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     try {
       const posthog = getPostHogServer();
       const eventName = id ? 'tenant_updated' : 'tenant_added';
-      const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        posthog.capture({
+        await posthog.capture({
           distinctId: user.id,
           event: eventName,
           properties: {
@@ -75,11 +109,14 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             has_property: !!payload.wohnung_id,
             property_id: payload.wohnung_id,
             has_email: !!payload.email,
+            status: payload.status,
             source: 'server_action'
           }
         });
-        await posthog.flush();
-        await posthogLogger.flush();
+        await Promise.all([
+          posthog.flush(),
+          posthogLogger.flush()
+        ]);
         logger.info(`[PostHog] Capturing tenant event: ${eventName} for user: ${user.id}`);
       }
     } catch (phError) {
@@ -87,15 +124,42 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     }
 
     return { success: true };
-  } catch (e) {
-    logAction(actionName, 'error', { tenant_name: tenantName, error_message: (e as Error).message });
-    return { success: false, error: { message: (e as Error).message } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Ein unbekannter Fehler ist aufgetreten.";
+    logAction(actionName, 'error', { tenant_name: tenantName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
 export async function deleteTenantAction(tenantId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
-    const supabase = await createClient();
+    let user, supabase;
+    try {
+      ({ user, supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
+    }
+
+    // Permission & scope checks
+    const { hasPermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    if (!(await hasPermission('mieter', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    if (wohnungIds !== null) {
+      const { data: existingTenant, error: fetchError } = await supabase
+        .from("Mieter")
+        .select("wohnung_id")
+        .eq("id", tenantId)
+        .single();
+      if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+        return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+      }
+    }
     const { error } = await supabase
       .from("Mieter")
       .delete()
@@ -134,7 +198,26 @@ export async function getMieterByHausIdAction(
     return { success: false, error: "Haus ID is required.", data: null };
   }
 
-  const supabase = await createClient();
+  let supabase;
+  try {
+    ({ supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: errorMessage, data: null };
+  }
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'ansehen'))) {
+    return { success: false, error: "Keine Berechtigung", data: null };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null && !haeuserIds.includes(hausId)) {
+    return { success: false, error: "Zugriff auf dieses Haus verweigert.", data: null };
+  }
 
   // Validate date parameters if provided
   if (startdatum && enddatum) {
@@ -166,7 +249,7 @@ export async function getMieterByHausIdAction(
       .eq("haus_id", hausId);
 
     if (wohnungenError) {
-      console.error(`Error fetching Wohnungen for Haus ${hausId}:`, wohnungenError.message);
+      console.error('Error fetching Wohnungen for Haus %s:', hausId, wohnungenError.message);
       return { success: false, error: wohnungenError.message, data: null };
     }
 
@@ -195,7 +278,7 @@ export async function getMieterByHausIdAction(
     const { data: mieterData, error: mieterError } = await query;
 
     if (mieterError) {
-      console.error(`Error fetching Mieter for Haus ${hausId} (Wohnung IDs: ${wohnungIds.join(', ')}):`, mieterError.message);
+      console.error('Error fetching Mieter for Haus %s (Wohnung IDs: %s):', hausId, wohnungIds.join(', '), mieterError.message);
       return { success: false, error: mieterError.message, data: null };
     }
 
@@ -203,14 +286,42 @@ export async function getMieterByHausIdAction(
     // This is also a successful query with no results.
     return { success: true, data: mieterData || [] };
 
-  } catch (e: any) {
-    console.error("Unexpected error in getMieterByHausIdAction:", e.message);
-    return { success: false, error: e.message || "An unexpected error occurred.", data: null };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+    console.error("Unexpected error in getMieterByHausIdAction:", errorMessage);
+    return { success: false, error: errorMessage, data: null };
   }
 }
 
 export async function updateKautionAction(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'bearbeiten'))) {
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const tenantId = formData.get('tenantId') as string;
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null && tenantId) {
+    const { data: existingTenant, error: fetchError } = await supabase
+      .from("Mieter")
+      .select("wohnung_id")
+      .eq("id", tenantId)
+      .single();
+    if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+    }
+  }
 
   try {
     // Extract form data
@@ -284,14 +395,45 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
 
     return { success: true };
 
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unexpected error in updateKautionAction";
     console.error("Unexpected error in updateKautionAction:", e);
-    return { success: false, error: { message: (e as Error).message } };
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
 export async function updateTenantApartment(tenantId: string, apartmentId: string): Promise<{ success: boolean; error?: { message: string } }> {
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'bearbeiten'))) {
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    if (apartmentId && !wohnungIds.includes(apartmentId)) {
+      return { success: false, error: { message: "Zugriff auf die angegebene Wohnung verweigert." } };
+    }
+    
+    const { data: existingTenant, error: fetchError } = await supabase
+      .from("Mieter")
+      .select("wohnung_id")
+      .eq("id", tenantId)
+      .single();
+    if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+    }
+  }
 
   try {
     const { error } = await supabase
@@ -306,7 +448,7 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 
     revalidatePath('/mieter');
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Unexpected error updating tenant apartment:', error);
     return {
       success: false,
@@ -318,7 +460,33 @@ export async function updateTenantApartment(tenantId: string, apartmentId: strin
 }
 
 export async function getSuggestedKautionAmount(tenantId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: { message: string } }> {
-  const supabase = await createClient();
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('mieter', 'ansehen'))) {
+    return { success: false, error: { message: "Keine Berechtigung" } };
+  }
+  
+  const wohnungIds = await getAccessibleWohnungIds();
+  if (wohnungIds !== null) {
+    const { data: existingTenant, error: fetchError } = await supabase
+      .from("Mieter")
+      .select("wohnung_id")
+      .eq("id", tenantId)
+      .single();
+    if (fetchError || !existingTenant || !existingTenant.wohnung_id || !wohnungIds.includes(existingTenant.wohnung_id)) {
+      return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
+    }
+  }
 
   try {
     // Fetch tenant with associated apartment data
@@ -346,9 +514,53 @@ export async function getSuggestedKautionAmount(tenantId: string): Promise<{ suc
     const suggestedAmount = wohnung.miete * 3;
 
     return { success: true, suggestedAmount };
-
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unexpected error in getSuggestedKautionAmount";
     console.error("Unexpected error in getSuggestedKautionAmount:", e);
-    return { success: false, error: { message: (e as Error).message } };
+    return { success: false, error: { message: errorMessage } };
+  }
+}
+
+export async function deleteAllApplicantsAction(): Promise<{ success: boolean; error?: { message: string } }> {
+  try {
+    let user, supabase;
+    try {
+      ({ user, supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
+    }
+
+    // Permission & scope checks
+    const { hasPermission } = await import("@/lib/permissions");
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    
+    if (!(await hasPermission('mieter', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    
+    const wohnungIds = await getAccessibleWohnungIds();
+    let query = supabase.from('Mieter').delete().eq('status', 'bewerber');
+    if (wohnungIds !== null) {
+      query = query.in('wohnung_id', wohnungIds);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+      console.error('Error deleting all applicants:', error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/mieter');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error('Unexpected error deleting all applicants:', error);
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      }
+    };
   }
 }

@@ -1,5 +1,8 @@
 import { categorizeAIError, trackAIRequestFailure, type AIErrorDetails } from '@/lib/ai-documentation-context';
 
+// Unmock to use the actual implementation for these tests
+jest.unmock('@/lib/ai-documentation-context');
+
 // Mock PostHog
 const mockPostHog = {
   has_opted_in_capturing: jest.fn(() => true),
@@ -12,6 +15,16 @@ describe('AI Error Tracking', () => {
   });
 
   describe('categorizeAIError', () => {
+    it('should categorize inference failed errors correctly', () => {
+      const inferenceError = new Error('Agent inference failed');
+      const result = categorizeAIError(inferenceError);
+      
+      expect(result.errorType).toBe('inference_error');
+      expect(result.errorCode).toBe('INFERENCE_ERROR');
+      expect(result.retryable).toBe(true);
+      expect(result.failureStage).toBe('inference');
+    });
+
     it('should categorize network errors correctly', () => {
       const networkError = new Error('Failed to fetch');
       const result = categorizeAIError(networkError);

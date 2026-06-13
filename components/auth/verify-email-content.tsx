@@ -179,7 +179,7 @@ export default function VerifyEmailContent() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden">
             {/* Animated grid background */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
 
             {/* Gradient orbs in background */}
             <motion.div
@@ -211,13 +211,13 @@ export default function VerifyEmailContent() {
                 transition={{ duration: 0.5 }}
                 className="relative z-10 w-full max-w-lg bg-card rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[500px] flex flex-col"
             >
-                <div className="relative flex-1 bg-gradient-to-br from-primary via-secondary to-primary p-8 md:p-12 flex flex-col items-center justify-center text-center overflow-hidden perspective-[1000px]">
+                <div className="relative flex-1 bg-linear-to-br from-primary via-secondary to-primary p-8 md:p-12 flex flex-col items-center justify-center text-center overflow-hidden perspective-[1000px]">
                     {/* Gradient mesh overlay */}
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,hsl(var(--accent)/0.3)_0%,transparent_50%)]" />
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(var(--primary)/0.4)_0%,transparent_50%)]" />
 
                     {/* Tilted Grid pattern */}
-                    <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:3rem_3rem] [transform:perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-size-[3rem_3rem] transform-[perspective(500px)_rotateX(20deg)_scale(1.2)] origin-top opacity-50" />
 
                     {/* 3D Decorative elements */}
                     <Auth3DDecorations />
@@ -274,7 +274,7 @@ export default function VerifyEmailContent() {
                                         className="flex items-center gap-2 text-white/70 text-sm mb-8"
                                     >
                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                        <span>Warte auf Bestätigung...</span>
+                                        <span>Warte auf Bestätigung…</span>
                                     </motion.div>
 
                                     <motion.div
@@ -309,7 +309,7 @@ export default function VerifyEmailContent() {
                                         {/* Celebration particles */}
                                         {[...Array(6)].map((_, i) => (
                                             <motion.div
-                                                key={i}
+                                                key={`particle-${i}`}
                                                 className="absolute w-2 h-2 bg-white/60 rounded-full"
                                                 initial={{
                                                     x: 0,
@@ -353,7 +353,7 @@ export default function VerifyEmailContent() {
                                         transition={{ delay: 0.3, duration: 0.5 }}
                                         className="text-white/80 text-base md:text-lg max-w-xs leading-relaxed mb-6"
                                     >
-                                        Sie werden zum Dashboard weitergeleitet...
+                                        Sie werden zum Dashboard weitergeleitet…
                                     </motion.p>
 
                                     {/* Countdown indicator */}
@@ -364,7 +364,7 @@ export default function VerifyEmailContent() {
                                         className="flex flex-col items-center gap-3 mb-6"
                                     >
                                         <div className="text-white/70 text-sm">
-                                            Weiterleitung in {countdown} Sekunden...
+                                            Weiterleitung in {countdown} Sekunden…
                                         </div>
                                         {/* Progress bar */}
                                         <div className="w-32 h-1 bg-white/20 rounded-full overflow-hidden">

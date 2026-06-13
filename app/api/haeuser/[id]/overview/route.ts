@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createRequestLogger } from "@/utils/logger";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 interface HausOverviewResponse {
   id: string;
@@ -60,7 +61,10 @@ export async function GET(
     if (!hausId) {
       return NextResponse.json(
         { error: "Haus-ID ist erforderlich." },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: NO_CACHE_HEADERS
+        }
       );
     }
 
@@ -69,7 +73,10 @@ export async function GET(
     if (!uuidRegex.test(hausId)) {
       return NextResponse.json(
         { error: "Ungültiges Haus-ID-Format." },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: NO_CACHE_HEADERS
+        }
       );
     }
 
@@ -103,12 +110,18 @@ export async function GET(
       if (combinedError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Haus nicht gefunden." },
-          { status: 404 }
+          { 
+            status: 404,
+            headers: NO_CACHE_HEADERS
+          }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Hausübersicht." },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: NO_CACHE_HEADERS
+        }
       );
     }
 
@@ -152,7 +165,7 @@ export async function GET(
     const apartmentCount = wohnungenData.length;
     const tenantCount = wohnungen.filter(w => w.currentTenant).length;
     const vacantCount = apartmentCount - tenantCount;
-    
+
     // Calculate averages and medians with better handling of edge cases
     const rentValues = wohnungenData
       .map(w => w.miete || 0)
@@ -163,7 +176,7 @@ export async function GET(
     const rentPerSqmValues = wohnungen
       .map(w => w.rentPerSqm || 0)
       .filter(rentPerSqm => rentPerSqm > 0);
-    
+
     const averageRent = rentValues.length > 0 
       ? Math.round((rentValues.reduce((sum, rent) => sum + rent, 0) / rentValues.length) * 100) / 100 
       : 0;
@@ -173,7 +186,7 @@ export async function GET(
     const averageRentPerSqm = rentPerSqmValues.length > 0 
       ? Math.round((rentPerSqmValues.reduce((sum, rentPerSqm) => sum + rentPerSqm, 0) / rentPerSqmValues.length) * 100) / 100 
       : 0;
-    
+
     // Calculate medians with proper sorting
     const calculateMedian = (values: number[]): number => {
       if (values.length === 0) return 0;
@@ -184,10 +197,10 @@ export async function GET(
         : sorted[mid];
       return Math.round(median * 100) / 100;
     };
-    
+
     const medianRent = calculateMedian(rentValues);
     const medianSize = calculateMedian(sizeValues);
-    
+
     // Calculate rates as percentages
     const occupancyRate = apartmentCount > 0 
       ? Math.round((tenantCount / apartmentCount) * 10000) / 100 
@@ -219,17 +232,23 @@ export async function GET(
       wohnungen
     };
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { 
+      status: 200,
+      headers: NO_CACHE_HEADERS
+    });
 
   } catch (error) {
     const logger = createRequestLogger(request);
     logger.error("Error in GET /api/haeuser/[id]/overview", error instanceof Error ? error : new Error(String(error)), {
       hausId: (await params).id
     });
-    
+
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Hausübersicht." },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: NO_CACHE_HEADERS
+      }
     );
   }
 }

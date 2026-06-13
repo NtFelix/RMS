@@ -1,7 +1,7 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
+import { ensureAuth } from '@/lib/auth-utils'
+import { redirect, unstable_rethrow } from 'next/navigation'
 
 /**
  * Unified Document Navigation Actions
@@ -112,18 +112,14 @@ export async function getFolderContents(userId: string, path?: string): Promise<
     const startTime = performance.now()
 
     try {
-        const supabase = await createClient()
+        const { user, supabase } = await ensureAuth()
 
-        // Verify user authentication
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user || user.id !== userId) {
+        if (user.id !== userId) {
             redirect('/auth/login')
         }
 
         // Call the unified RPC function
         const { data, error } = await supabase.rpc('get_folder_contents', {
-            p_user_id: userId,
             p_current_path: targetPath
         })
 
@@ -178,6 +174,8 @@ export async function getFolderContents(userId: string, path?: string): Promise<
         }
 
     } catch (error) {
+        unstable_rethrow(error)
+
         await logRpcCall('get_folder_contents', targetPath, startTime, false, {
             error: error instanceof Error ? error.message : 'Unknown error'
         })
@@ -242,12 +240,9 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
     error?: string
 }> {
     try {
-        const supabase = await createClient()
+        const { user, supabase } = await ensureAuth()
 
-        // Verify user authentication
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user || user.id !== userId) {
+        if (user.id !== userId) {
             return {
                 success: false,
                 error: 'Nicht authentifiziert'
@@ -299,7 +294,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 .from('Haeuser')
                 .select('id')
                 .eq('id', houseId)
-                .eq('user_id', userId)
                 .single()
 
             if (house) {
@@ -315,7 +309,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 .from('Wohnungen')
                 .select('id')
                 .eq('id', apartmentId)
-                .eq('user_id', userId)
                 .single()
 
             if (apartment) {
@@ -331,7 +324,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 .from('Mieter')
                 .select('id')
                 .eq('id', tenantId)
-                .eq('user_id', userId)
                 .single()
 
             if (tenant) {
@@ -347,7 +339,6 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             .from('Dokumente_Metadaten')
             .select('dateipfad, dateiname')
             .like('dateipfad', `${folderPath}%`)
-            .eq('user_id', userId)
 
         if (listError) {
             return {

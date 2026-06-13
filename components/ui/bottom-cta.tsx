@@ -74,7 +74,7 @@ export default function BottomCTA({
           }}
         />
         {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/80 to-background/90" />
+        <div className="absolute inset-0 bg-linear-to-r from-background/90 via-background/80 to-background/90" />
       </div>
 
       <div className="max-w-6xl mx-auto text-center relative z-10">
@@ -85,25 +85,25 @@ export default function BottomCTA({
           viewport={{ once: true }}
           className="mb-8"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-xs mb-8">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm text-muted-foreground">{badgeText}</span>
           </div>
         </motion.div>
 
         {/* Glassmorphism Container */}
-        <div className="bg-white/2 dark:bg-black/5 backdrop-blur-sm border border-white/5 dark:border-white/2 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-transparent before:opacity-20 before:rounded-[3rem] after:absolute after:inset-0 after:bg-gradient-to-tr after:from-transparent after:via-white/5 after:to-white/10 after:opacity-30 after:rounded-[3rem]">
+        <div className="bg-white/2 dark:bg-black/5 backdrop-blur-xs border border-white/5 dark:border-white/2 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden before:absolute before:inset-0 before:bg-linear-to-br before:from-white/10 before:to-transparent before:opacity-20 before:rounded-[3rem] after:absolute after:inset-0 after:bg-linear-to-tr after:from-transparent after:via-white/5 after:to-white/10 after:opacity-30 after:rounded-[3rem]">
           <div className="relative z-10">
             <motion.h2
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               viewport={{ once: true }}
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 pb-4 pt-4 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 pb-4 pt-4 bg-linear-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
             >
               {title}
               <br />
-              <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
                 {subtitle}
               </span>
             </motion.h2>

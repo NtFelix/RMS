@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
-import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 
@@ -11,17 +12,54 @@ import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
-  if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
+  const { supabase } = await requireAuthenticatedUser();
 
-  const { data: rawMieter, error: mieterError } = await supabase
-    .from('Mieter')
-    .select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution');
-  if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
+  // Load data in parallel to eliminate waterfalls
+  const [
+    rawWohnungen,
+    rawMieter
+  ] = await Promise.all([
+    fetchWithRpcFallback(
+      supabase,
+      'get_mieter_wohnungen_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+        if (error) {
+          console.error('Fehler beim Laden der Wohnungen:', error);
+          throw error;
+        }
+        return data;
+      },
+      'mieter_wohnungen_overview'
+    ),
+    fetchWithRpcFallback(
+      supabase,
+      'get_mieter_details_overview',
+      {},
+      async () => {
+        const { data, error } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        if (error) {
+          console.error('Fehler beim Laden der Mieter:', error);
+          throw error;
+        }
+        return data;
+      },
+      'mieter_details_overview'
+    )
+  ]);
 
   const today = new Date();
   const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
+    // If the data comes from our enriched RPC, it already has status and tenant
+    if (apt.status && apt.tenant != null) {
+      return {
+        ...apt,
+        Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
+      } as Wohnung;
+    }
+
+    // Fallback mapping logic
     const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
     if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
@@ -35,8 +73,8 @@ export default async function MieterPage() {
     } as Wohnung;
   }) : [];
 
-  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({...m})) : [];
-  
+  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({ ...m })) : [];
+
 
 
   return (

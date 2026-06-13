@@ -5,19 +5,60 @@ import { createClient } from '@/utils/supabase/server';
 
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+
 export async function GET() {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
+      return NextResponse.json({
+        customer: {
+          id: 'cus_mock_123',
+          name: 'Max Mustermann',
+          email: 'test@example.com',
+          phone: '+49 123 456789',
+          address: {
+            line1: 'Musterstraße 1',
+            line2: null,
+            city: 'Musterstadt',
+            state: null,
+            postal_code: '12345',
+            country: 'DE',
+          },
+        },
+        payment_method: {
+          id: 'pm_mock_123',
+          type: 'card',
+          card: {
+            brand: 'visa',
+            last4: '4242',
+            exp_month: 12,
+            exp_year: 2025,
+          },
+          billing_details: {
+            address: {
+              line1: 'Musterstraße 1',
+              line2: null,
+              city: 'Musterstadt',
+              state: null,
+              postal_code: '12345',
+              country: 'DE',
+            },
+          },
+        },
+      }, { headers: NO_CACHE_HEADERS });
+    }
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401, headers: NO_CACHE_HEADERS });
     }
 
     // Get user profile to find customer ID
@@ -28,7 +69,7 @@ export async function GET() {
       .single();
 
     if (profileError || !profile?.stripe_customer_id) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
 
     // Fetch customer details from Stripe
@@ -37,7 +78,7 @@ export async function GET() {
     });
 
     if (!customer || customer.deleted) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
 
     // Extract billing address information
@@ -79,7 +120,7 @@ export async function GET() {
           } : null,
         } : null,
       } : null,
-    });
+    }, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     console.error('Error fetching customer data:', error);
@@ -87,6 +128,6 @@ export async function GET() {
       ? error.message
       : 'Failed to fetch customer data';
 
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

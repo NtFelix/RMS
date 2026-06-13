@@ -10,21 +10,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useAIConversation } from "@/hooks/use-ai-conversation";
+import { AIDocumentationContext } from "@/types/ai";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
   onClose: () => void;
-  documentationContext?: any;
+  documentationContext?: AIDocumentationContext;
   className?: string;
-  onFallbackToSearch?: () => void;
 }
 
 export default function AIAssistantInterfaceSimple({
   isOpen,
   onClose,
   documentationContext,
-  className,
-  onFallbackToSearch
+  className
 }: AIAssistantInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,7 +41,6 @@ export default function AIAssistantInterfaceSimple({
     formatTime
   } = useAIConversation({
     documentationContext,
-    onFallbackToSearch,
     interface: 'simple'
   });
 
@@ -190,7 +188,7 @@ export default function AIAssistantInterfaceSimple({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
@@ -215,7 +213,7 @@ export default function AIAssistantInterfaceSimple({
                 </div>
 
                 {message.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1">
                     <User className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
@@ -229,7 +227,7 @@ export default function AIAssistantInterfaceSimple({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
                   <Bot className="w-4 h-4 text-primary" />
                 </div>
                 <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
@@ -252,16 +250,6 @@ export default function AIAssistantInterfaceSimple({
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
                 <span>{error}</span>
-                {onFallbackToSearch && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onFallbackToSearch}
-                    className="ml-2"
-                  >
-                    Zur Suche
-                  </Button>
-                )}
               </AlertDescription>
             </Alert>
           </div>

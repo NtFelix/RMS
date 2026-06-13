@@ -29,9 +29,6 @@ export type {
   Rechnung,
   RechnungSql,
   Finanzen as FinanzenData,
-  Wasserzaehler,
-  WasserzaehlerFormEntry,
-  WasserzaehlerFormData,
   MeterReadingFormEntry,
   MeterReadingFormData
 } from '../lib/data-fetching';
@@ -55,16 +52,6 @@ export type {
 // Explicit re-exports for aliasing
 export type { MeterModalData as WasserzaehlerModalData } from './optimized-betriebskosten';
 export type { GetMeterModalDataParams as GetWasserzaehlerModalDataParams } from './optimized-betriebskosten';
-
-// Re-export documentation types
-export type {
-  DokumentationRecord,
-  Category,
-  Article,
-  SearchResult,
-  DocumentationFilters,
-  SyncResult
-} from './documentation';
 
 // Re-export type guards
 export {

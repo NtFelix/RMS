@@ -272,7 +272,7 @@ export function MeterAblesungenModal({
                 />
                 <Button
                   variant="outline"
-                  className="gap-2 flex-shrink-0"
+                  className="gap-2 shrink-0"
                   onClick={() => setIsImportModalOpen(true)}
                 >
                   <Upload className="h-4 w-4" />
@@ -295,7 +295,7 @@ export function MeterAblesungenModal({
                 </div>
               ) : (
                 groupedEntries.map(([wohnungName, entries]) => (
-                  <Card key={wohnungName} className="border border-gray-100 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-[#22272e]">
+                  <Card key={wohnungName} className="border border-gray-100 dark:border-[#3C4251] shadow-xs rounded-3xl overflow-hidden bg-white dark:bg-[#22272e]">
                     <div className="p-5 bg-gray-50/50 dark:bg-zinc-800/30 border-b border-gray-100 dark:border-zinc-800/50">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
@@ -328,12 +328,12 @@ export function MeterAblesungenModal({
                         return (
                           <Card
                             key={entry.zaehler_id}
-                            className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[1.5rem] overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
+                            className="bg-linear-to-br from-gray-50 to-gray-100/50 dark:from-zinc-800/50 dark:to-zinc-900/50 border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[1.5rem] overflow-hidden hover:shadow-md hover:border-primary/50 transition-all duration-300"
                           >
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between gap-4">
                                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 border border-primary/10 ${getMeterBgColor(entry.zaehler_typ)}`}>
+                                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 border border-primary/10 ${getMeterBgColor(entry.zaehler_typ)}`}>
                                     {getMeterIcon(entry.zaehler_typ, "h-6 w-6")}
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -375,11 +375,11 @@ export function MeterAblesungenModal({
                                         </Badge>
                                         <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                           <Gauge className="h-3 w-3" />
-                                          {formatNumber(entry.latest_reading.zaehlerstand)} {entry.einheit}
+                                          {formatNumber(entry.latest_reading.zaehlerstand, 3)} {entry.einheit}
                                         </Badge>
                                         <Badge variant="outline" className="text-xs gap-1 bg-white dark:bg-zinc-900">
                                           {getMeterIcon(entry.zaehler_typ, "h-3 w-3")}
-                                          {formatNumber(entry.latest_reading.verbrauch)} {entry.einheit}
+                                          {formatNumber(entry.latest_reading.verbrauch, 3)} {entry.einheit}
                                         </Badge>
                                         {consumptionChange !== null && !isNaN(consumptionChange) && (
                                           <Badge
@@ -406,7 +406,7 @@ export function MeterAblesungenModal({
                                 <Button
                                   size="sm"
                                   onClick={() => handleOpenAblesenModal(entry)}
-                                  className="gap-2 flex-shrink-0"
+                                  className="gap-2 shrink-0"
                                 >
                                   {getMeterIcon(entry.zaehler_typ, "h-4 w-4")}
                                   <span className="hidden sm:inline">Verwalten</span>

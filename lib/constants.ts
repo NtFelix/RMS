@@ -51,6 +51,9 @@ export const POSTHOG_FEATURE_FLAGS = {
   CREATE_FILE_OPTION: 'create-file-option',
   DARK_MODE: 'dark-mode',
   AI_DOCUMENTATION_MODE: 'ai-documentation-mode',
+  // Sidebar features
+  SUPPORT_BUTTON: 'support-button',
+  NOTIFICATION_CENTER: 'notification-center',
   // Landing page
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
@@ -67,6 +70,7 @@ export const ROUTES = {
   API_OUTLOOK_CALLBACK: '/api/auth/outlook/callback',
   // Dashboard
   HOME: '/dashboard',
+  SEARCH: '/suche',
   PROPERTIES: '/objekte',
   TENANTS: '/mieter',
   FINANCES: '/finanzen',
@@ -84,6 +88,19 @@ export const ROUTES = {
   PRIVACY: '/datenschutz',
   TERMS: '/agb',
   IMPRESSUM: '/impressum',
+} as const;
+
+export const EXTERNAL_LINKS = {
+  DOCUMENTATION: 'https://docs.mietevo.de/',
+} as const;
+
+// MCP Worker URL
+export const MIETEVO_MCP_URL = process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || 'https://mcp.mietevo.de';
+
+// Known OAuth Client IDs for first-party clients (display branding overrides)
+export const OAUTH_CLIENT_IDS = {
+  MIETEVO: '4df23a6c-c2d9-43b8-aba8-a2a4f3681892',
+  MIETEVO_PUBLIC_MCP: 'b7fee65f-13af-4c19-b749-85fad88253fd',
 } as const;
 
 // Supabase API paths

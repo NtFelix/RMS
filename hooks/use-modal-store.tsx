@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import type { Nebenkosten, Mieter, Wasserzaehler, MeterReadingFormData } from "@/lib/types";
-import { MeterModalData } from '@/types/optimized-betriebskosten';
+import { MeterModalData, OptimizedNebenkosten } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
+import { AIDocumentationContext } from '@/types/ai';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -112,13 +113,12 @@ interface WasserZaehlerData {
 interface WasserZaehlerModalData {
   wohnungId: string;
   wohnungName: string;
-  existingZaehler?: WasserZaehlerData[];
+  existingZaehler?: Wasserzaehler[];
 }
 
 // AI Assistant Modal Types
 interface AIAssistantModalData {
-  documentationContext?: any;
-  onFallbackToSearch?: () => void;
+  documentationContext?: AIDocumentationContext;
 }
 
 interface CreateFolderModalData {
@@ -184,6 +184,17 @@ interface KautionModalData {
     updatedAt?: string;
   };
   suggestedAmount?: number;
+}
+
+interface ApplicantScoreModalData {
+  tenant: {
+    id: string;
+    name: string;
+    email?: string;
+    bewerbung_score?: number;
+    bewerbung_metadaten?: any;
+    bewerbung_mail_id?: string;
+  };
 }
 
 export interface ModalState {
@@ -274,6 +285,7 @@ export interface ModalState {
   betriebskostenInitialData?: {
     id?: string;
     useTemplate?: 'previous' | 'default';
+    haeuser_id?: string;
   } | null;
   betriebskostenModalHaeuser: any[]; // Replace 'any' with Haus[]
   betriebskostenModalOnSuccess?: () => void; // Adjust if it needs to pass data
@@ -470,6 +482,24 @@ export interface ModalState {
   openZaehlerModal: (wohnungId: string, wohnungName: string) => void;
   closeZaehlerModal: (options?: CloseModalOptions) => void;
   setZaehlerModalDirty: (isDirty: boolean) => void;
+
+  // Applicant Score Modal State
+  isApplicantScoreModalOpen: boolean;
+  applicantScoreModalData?: ApplicantScoreModalData;
+  openApplicantScoreModal: (data: ApplicantScoreModalData) => void;
+  closeApplicantScoreModal: () => void;
+
+  // Mail Preview Modal State
+  isMailPreviewModalOpen: boolean;
+  mailPreviewId?: string;
+  openMailPreviewModal: (mailId: string) => void;
+  closeMailPreviewModal: () => void;
+
+  // Operating Costs Overview Modal State
+  isOperatingCostsOverviewModalOpen: boolean;
+  operatingCostsOverviewData?: OptimizedNebenkosten | null;
+  openOperatingCostsOverviewModal: (nebenkosten: OptimizedNebenkosten) => void;
+  closeOperatingCostsOverviewModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -657,6 +687,21 @@ const initialZaehlerModalState = {
   isZaehlerModalDirty: false,
 };
 
+const initialApplicantScoreModalState = {
+  isApplicantScoreModalOpen: false,
+  applicantScoreModalData: undefined,
+};
+
+const initialMailPreviewModalState = {
+  isMailPreviewModalOpen: false,
+  mailPreviewId: undefined,
+};
+
+const initialOperatingCostsOverviewModalState = {
+  isOperatingCostsOverviewModalOpen: false,
+  operatingCostsOverviewData: null,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -685,6 +730,9 @@ const createInitialModalState = () => ({
   ...initialWasserZaehlerModalState,
   ...initialAblesungenModalState,
   ...initialZaehlerModalState,
+  ...initialApplicantScoreModalState,
+  ...initialMailPreviewModalState,
+  ...initialOperatingCostsOverviewModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -797,7 +845,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setTenantPaymentEditModalDirty: (isDirty) => set({ isTenantPaymentEditModalDirty: isDirty }),
 
     // Betriebskosten Modal
-    openBetriebskostenModal: (initialData: { id?: string; useTemplate?: 'previous' | 'default' } | null, haeuser, onSuccess) => set({
+    openBetriebskostenModal: (initialData: { id?: string; useTemplate?: 'previous' | 'default'; haeuser_id?: string } | null, haeuser, onSuccess) => set({
       isBetriebskostenModalOpen: true,
       betriebskostenInitialData: initialData,
       betriebskostenModalHaeuser: haeuser || [],
@@ -806,6 +854,30 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty', initialBetriebskostenModalState),
     setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
+
+    // Applicant Score Modal
+    openApplicantScoreModal: (data) => set({
+      isApplicantScoreModalOpen: true,
+      applicantScoreModalData: data,
+    }),
+    closeApplicantScoreModal: () => set(initialApplicantScoreModalState),
+
+    // Mail Preview Modal
+    openMailPreviewModal: (mailId: string) => set({
+      isMailPreviewModalOpen: true,
+      mailPreviewId: mailId,
+    }),
+    closeMailPreviewModal: () => set(initialMailPreviewModalState),
+
+    // Operating Costs Overview Modal
+    openOperatingCostsOverviewModal: (nebenkosten) => set({
+      isOperatingCostsOverviewModalOpen: true,
+      operatingCostsOverviewData: nebenkosten,
+    }),
+    closeOperatingCostsOverviewModal: () => set(initialOperatingCostsOverviewModalState),
+
+
+
 
     // Wasserzähler Modal
     openWasserzaehlerModal: (nebenkosten, mieterList, existingReadings, onSave) => set({

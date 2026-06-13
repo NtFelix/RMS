@@ -4,17 +4,58 @@ import Stripe from 'stripe';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { StripePlan } from '@/types/stripe';
 import { parseStorageString } from '@/lib/stripe-server';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
 export async function GET() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (isStripeMocked()) {
     // Only log in non-CI environments to avoid cluttering test output
-    if (process.env.CI !== 'true') {
-      console.error('Stripe secret key not configured');
+    if (process.env.CI !== 'true' && !process.env.STRIPE_SECRET_KEY?.startsWith('mock-')) {
+      console.error('Stripe secret key not configured or is a mock key');
     }
-    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
+
+    if (isTestEnv()) {
+      return NextResponse.json([{
+        id: 'price_mock_starter',
+        priceId: 'price_mock_starter',
+        name: 'Starter Plan (Mock)',
+        productName: 'Starter',
+        price: 990,
+        currency: 'eur',
+        interval: 'month',
+        interval_count: 1,
+        features: ['Up to 5 units', 'Basic support'],
+        limit_wohnungen: 5,
+        storage_limit: 1024 * 1024 * 1024,
+        position: 1,
+        description: 'Mock starter plan for testing',
+        metadata: { feat_units: '5', feat_storage: '1 GB' }
+      }, {
+        id: 'price_mock_pro',
+        priceId: 'price_mock_pro',
+        name: 'Pro Plan (Mock)',
+        productName: 'Pro',
+        price: 2990,
+        currency: 'eur',
+        interval: 'month',
+        interval_count: 1,
+        features: ['Up to 50 units', 'Priority support'],
+        limit_wohnungen: 50,
+        storage_limit: 10 * 1024 * 1024 * 1024,
+        position: 2,
+        description: 'Mock pro plan for testing',
+        metadata: { feat_units: '50', feat_storage: '10 GB' }
+      }]);
+    }
+
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
     const prices = await stripe.prices.list({
@@ -32,12 +73,12 @@ export async function GET() {
         featuresArray = featuresMetadata.split(',').map(f => f.trim());
       }
 
-      let limitWohnungen: number | undefined = undefined;
-      const limitWohnungenMetadata = price.metadata.limit_wohnungen || product.metadata.limit_wohnungen;
-      if (limitWohnungenMetadata) {
-        const parsedLimit = parseInt(limitWohnungenMetadata, 10);
+      let limit_wohnungen: number | undefined = undefined;
+      const limit_wohnungenMetadata = price.metadata.limit_wohnungen || product.metadata.limit_wohnungen;
+      if (limit_wohnungenMetadata) {
+        const parsedLimit = parseInt(limit_wohnungenMetadata, 10);
         if (!isNaN(parsedLimit)) {
-          limitWohnungen = parsedLimit;
+          limit_wohnungen = parsedLimit;
         }
       }
 
@@ -72,7 +113,7 @@ export async function GET() {
         interval: price.recurring?.interval || null,
         interval_count: price.recurring?.interval_count || null,
         features: featuresArray,
-        limit_wohnungen: limitWohnungen ?? null,
+        limit_wohnungen: limit_wohnungen ?? null,
         storage_limit: storageLimit, // Storage limit in bytes, 0 means no storage access
         position: position, // This position is used to sort products
         description: product.description || '',
@@ -94,7 +135,7 @@ export async function GET() {
       return 0;
     });
 
-    return NextResponse.json(plans);
+    return NextResponse.json(plans, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     let errorMessage = 'An unknown error occurred while fetching plans.';
@@ -115,6 +156,9 @@ export async function GET() {
     } else {
       console.error('Unknown error object when fetching plans:', error);
     }
-    return NextResponse.json({ error: 'Failed to fetch plans from Stripe.', details: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch plans from Stripe.', details: errorMessage }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS
+    });
   }
 }

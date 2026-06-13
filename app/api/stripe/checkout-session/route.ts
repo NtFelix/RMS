@@ -4,8 +4,25 @@ import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { logApiRoute } from '@/lib/logging-middleware';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+
+import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 
 export async function POST(req: Request) {
+  if (isStripeMocked()) {
+    if (isTestEnv()) {
+      const origin = req.headers.get('origin') || 'http://localhost:3000';
+      return NextResponse.json({
+        sessionId: 'cs_mock_123',
+        url: `${origin}/checkout/success?session_id=cs_mock_123`
+      }, { headers: NO_CACHE_HEADERS });
+    }
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS,
+    });
+  }
+
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   logApiRoute('/api/stripe/checkout-session', 'POST', 'request', {});
@@ -18,9 +35,9 @@ export async function POST(req: Request) {
       logApiRoute('/api/stripe/checkout-session', 'POST', 'error', {
         error_message: 'Unauthorized or email missing'
       });
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized or email missing' }), {
+      return NextResponse.json({ error: 'Unauthorized or email missing' }, {
         status: 401,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_CACHE_HEADERS,
       });
     }
 
@@ -31,9 +48,9 @@ export async function POST(req: Request) {
         error_message: 'Price ID is required',
         user_id: user.id
       });
-      return new NextResponse(JSON.stringify({ error: 'Price ID (requestedPriceId) is required' }), {
+      return NextResponse.json({ error: 'Price ID (requestedPriceId) is required' }, {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_CACHE_HEADERS,
       });
     }
 
@@ -49,9 +66,9 @@ export async function POST(req: Request) {
         error_message: 'Failed to fetch user profile',
         user_id: user.id
       });
-      return new NextResponse(JSON.stringify({ error: 'Failed to fetch user profile.' }), {
+      return NextResponse.json({ error: 'Failed to fetch user profile.' }, {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_CACHE_HEADERS,
       });
     }
 
@@ -75,13 +92,13 @@ export async function POST(req: Request) {
           formattedDate = typeof profile.stripe_current_period_end === 'string' ? profile.stripe_current_period_end : 'Invalid Date';
         }
       }
-      return new NextResponse(JSON.stringify({
+      return NextResponse.json({
         error: "Already subscribed to this plan",
         message: `Du bist bereits für diesen Plan angemeldet. Dein aktuelles Abonnement endet am ${formattedDate}.`,
         subscriptionEndDate: formattedDate,
-      }), {
+      }, {
         status: 409,
-        headers: { 'Content-Type': 'application/json' },
+        headers: NO_CACHE_HEADERS,
       });
     }
 
@@ -138,15 +155,15 @@ export async function POST(req: Request) {
       action: 'checkout_session_created'
     });
 
-    return NextResponse.json({ sessionId: session.id, url: session.url });
+    return NextResponse.json({ sessionId: session.id, url: session.url }, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     logApiRoute('/api/stripe/checkout-session', 'POST', 'error', {
       error_message: errorMessage
     });
-    return new NextResponse(JSON.stringify({ error: errorMessage }), {
+    return NextResponse.json({ error: errorMessage }, {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: NO_CACHE_HEADERS,
     });
   }
 }

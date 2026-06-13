@@ -5,13 +5,7 @@ import { Mail, User, Calendar, FileText, Paperclip, MoreVertical } from "lucide-
 
 export default function Loading() {
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
-      <div
-        className="absolute inset-0 z-[-1]"
-        style={{
-          backgroundImage: `radial-gradient(circle at top left, rgba(121, 68, 255, 0.05), transparent 20%), radial-gradient(circle at bottom right, rgba(255, 121, 68, 0.05), transparent 20%)`,
-        }}
-      />
+    <div className="flex flex-col gap-8 p-8">
 
       {/* Stat Cards Skeleton - Exact match */}
       <div className="flex flex-wrap gap-4">
@@ -22,7 +16,7 @@ export default function Loading() {
         ].map((stat, i) => (
           <Card
             key={i}
-            className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl flex-1 min-w-[200px]"
+            className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl flex-1 min-w-[200px]"
           >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -30,8 +24,8 @@ export default function Loading() {
                   <Skeleton className={`h-3.5 ${stat.width}`} />
                   <Skeleton className="h-7 w-12" />
                 </div>
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800">
-                  <Skeleton className="h-4 w-4" />
+                <div className="flex items-center justify-center size-10 rounded-full bg-gray-100 dark:bg-gray-800">
+                  <Skeleton className="size-4" />
                 </div>
               </div>
             </CardContent>
@@ -40,7 +34,7 @@ export default function Loading() {
       </div>
 
       {/* Main Card Skeleton */}
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>
@@ -96,53 +90,53 @@ export default function Loading() {
                   <TableHeader>
                     <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e]">
                       <TableHead className="w-12 pl-0 pr-0 -ml-2">
-                        <div className="flex items-center justify-start w-6 h-6">
-                          <Skeleton className="h-4 w-4 rounded" />
+                        <div className="flex items-center justify-start size-6">
+                          <Skeleton className="size-4 rounded" />
                         </div>
                       </TableHead>
                       <TableHead className="w-[50px]">
                         <div className="flex items-center gap-2 p-2 -ml-2">
-                          <Mail className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-                          <Skeleton className="h-4 w-4" />
+                          <Mail className="size-4 text-muted-foreground dark:text-[#BFC8D9]" />
+                          <Skeleton className="size-4" />
                         </div>
                       </TableHead>
                       <TableHead>
                         <div className="flex items-center gap-2 p-2 -ml-2">
-                          <User className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+                          <User className="size-4 text-muted-foreground dark:text-[#BFC8D9]" />
                           <Skeleton className="h-4 w-20" />
-                          <Skeleton className="h-4 w-4" />
+                          <Skeleton className="size-4" />
                         </div>
                       </TableHead>
                       <TableHead>
                         <div className="flex items-center gap-2 p-2 -ml-2">
-                          <FileText className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+                          <FileText className="size-4 text-muted-foreground dark:text-[#BFC8D9]" />
                           <Skeleton className="h-4 w-16" />
-                          <Skeleton className="h-4 w-4" />
+                          <Skeleton className="size-4" />
                         </div>
                       </TableHead>
                       <TableHead className="w-[150px]">
                         <div className="flex items-center gap-2 p-2 -ml-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+                          <Calendar className="size-4 text-muted-foreground dark:text-[#BFC8D9]" />
                           <Skeleton className="h-4 w-12" />
-                          <Skeleton className="h-4 w-4" />
+                          <Skeleton className="size-4" />
                         </div>
                       </TableHead>
                       <TableHead>
                         <div className="flex items-center gap-2 p-2 -ml-2">
-                          <Paperclip className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+                          <Paperclip className="size-4 text-muted-foreground dark:text-[#BFC8D9]" />
                           <Skeleton className="h-4 w-16" />
                         </div>
                       </TableHead>
                       <TableHead>
                         <div className="flex items-center gap-2 p-2 -ml-2">
-                          <Mail className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+                          <Mail className="size-4 text-muted-foreground dark:text-[#BFC8D9]" />
                           <Skeleton className="h-4 w-12" />
-                          <Skeleton className="h-4 w-4" />
+                          <Skeleton className="size-4" />
                         </div>
                       </TableHead>
                       <TableHead className="w-[80px] pr-2">
                         <div className="flex items-center gap-2 p-2 -ml-2">
-                          <MoreVertical className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+                          <MoreVertical className="size-4 text-muted-foreground dark:text-[#BFC8D9]" />
                           <Skeleton className="h-4 w-14" />
                         </div>
                       </TableHead>
@@ -155,10 +149,10 @@ export default function Loading() {
                         className="cursor-pointer transition-all duration-200 ease-out hover:bg-gray-50 dark:hover:bg-gray-800/50"
                       >
                         <TableCell className="py-4">
-                          <Skeleton className="h-4 w-4 rounded" />
+                          <Skeleton className="size-4 rounded" />
                         </TableCell>
                         <TableCell className="py-4">
-                          <Skeleton className="h-4 w-4 rounded-full" />
+                          <Skeleton className="size-4 rounded-full" />
                         </TableCell>
                         <TableCell className="py-4">
                           <Skeleton className="h-4 w-full max-w-[180px]" />
@@ -170,16 +164,16 @@ export default function Loading() {
                           <Skeleton className="h-4 w-32" />
                         </TableCell>
                         <TableCell className="py-4">
-                          {i % 3 === 0 && <Skeleton className="h-4 w-4" />}
+                          {i % 3 === 0 && <Skeleton className="size-4" />}
                         </TableCell>
                         <TableCell className="py-4">
                           <Skeleton className="h-4 w-20" />
                         </TableCell>
                         <TableCell className="py-2 pr-2 text-right w-[80px]">
                           <div className="flex items-center justify-end gap-2">
-                            {i % 4 === 0 && <Skeleton className="h-4 w-4 rounded-full" />}
-                            {i % 2 === 0 && <Skeleton className="h-4 w-4 rounded-full" />}
-                            <Skeleton className="h-7 w-7 rounded" />
+                            {i % 4 === 0 && <Skeleton className="size-4 rounded-full" />}
+                            {i % 2 === 0 && <Skeleton className="size-4 rounded-full" />}
+                            <Skeleton className="size-7 rounded" />
                           </div>
                         </TableCell>
                       </TableRow>

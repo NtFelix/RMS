@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 export const runtime = 'edge'
 
@@ -14,7 +15,7 @@ export async function PATCH(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const { id } = await params
@@ -26,11 +27,10 @@ export async function PATCH(
       .from('Zaehler_Ablesungen')
       .select('id, zaehler_id')
       .eq('id', id)
-      .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
     // Update Zaehler_Ablesung
@@ -43,13 +43,12 @@ export async function PATCH(
         kommentar: kommentar || null,
       })
       .eq('id', id)
-      .eq('user_id', user.id)
       .select('*')
       .single()
 
     if (error) {
       console.error('Error updating Zaehler_Ablesung:', error)
-      return NextResponse.json({ error: 'Failed to update Zaehler_Ablesung' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to update Zaehler_Ablesung' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
     // PostHog Event Tracking
@@ -61,10 +60,10 @@ export async function PATCH(
       source: 'api_route'
     })
 
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in PATCH /api/wasser-ablesungen/[id]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
   }
 }
 
@@ -78,7 +77,7 @@ export async function DELETE(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const { id } = await params
@@ -88,11 +87,10 @@ export async function DELETE(
       .from('Zaehler_Ablesungen')
       .select('id, zaehler_id')
       .eq('id', id)
-      .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
     // Delete Zaehler_Ablesung
@@ -100,11 +98,10 @@ export async function DELETE(
       .from('Zaehler_Ablesungen')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
 
     if (error) {
       console.error('Error deleting Zaehler_Ablesung:', error)
-      return NextResponse.json({ error: 'Failed to delete Zaehler_Ablesung' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to delete Zaehler_Ablesung' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
     // PostHog Event Tracking
@@ -114,10 +111,10 @@ export async function DELETE(
       source: 'api_route'
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in DELETE /api/wasser-ablesungen/[id]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
   }
 }
 

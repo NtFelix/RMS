@@ -20,7 +20,7 @@ const createMockNebenkosten = (overrides: Partial<OptimizedNebenkosten> = {}): O
     betrag: [200, 150],
     berechnungsart: ['qm', 'Einheit'],
     haeuser_id: 'haus-1',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     haus_name: 'Musterhaus',
     gesamt_flaeche: 100,
     anzahl_wohnungen: 5,
@@ -42,16 +42,16 @@ describe('OperatingCostsOverviewModal', () => {
     });
     render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
 
-    const zählerkostenSection = screen.getByText('Zählerkosten').closest('div');
+    const zählerkostenSection = screen.getByText('Zählerabhängige Kosten').closest('div');
     expect(zählerkostenSection).toBeInTheDocument();
     if (!zählerkostenSection) return;
 
     expect(within(zählerkostenSection).getByText('Kaltwasserzähler')).toBeInTheDocument();
-    expect(within(zählerkostenSection).getByText(/Verbrauch: 10 m³/)).toBeInTheDocument();
-    expect(within(zählerkostenSection).getByText(/Kosten: 100,00\s*€/)).toBeInTheDocument();
-    expect(within(zählerkostenSection).getByText(/pro m³: 10,00\s*€/)).toBeInTheDocument();
+    expect(within(zählerkostenSection).getByText('10 m³')).toBeInTheDocument();
+    expect(within(zählerkostenSection).getByText('100,00 €')).toBeInTheDocument();
+    expect(within(zählerkostenSection).getByText('10,00 €')).toBeInTheDocument();
 
-    expect(within(zählerkostenSection).queryByText('Keine Zählerdaten erfasst.')).not.toBeInTheDocument();
+    expect(within(zählerkostenSection).queryByText('Keine Zählerkosten erfasst.')).not.toBeInTheDocument();
   });
 
   test('does not display "Kosten pro m²" in the Zählerkosten section', () => {
@@ -61,7 +61,7 @@ describe('OperatingCostsOverviewModal', () => {
     });
     render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
 
-    const zählerkostenSection = screen.getByText('Zählerkosten').closest('div');
+    const zählerkostenSection = screen.getByText('Zählerabhängige Kosten').closest('div');
     expect(zählerkostenSection).toBeInTheDocument();
     if (!zählerkostenSection) return;
 
@@ -76,15 +76,15 @@ describe('OperatingCostsOverviewModal', () => {
     });
     render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
 
-    const zählerkostenSection = screen.getByText('Zählerkosten').closest('div');
+    const zählerkostenSection = screen.getByText('Zählerabhängige Kosten').closest('div');
     expect(zählerkostenSection).toBeInTheDocument();
     if (!zählerkostenSection) return;
 
-    expect(within(zählerkostenSection).getByText(/Verbrauch: 0 m³/)).toBeInTheDocument();
-    expect(within(zählerkostenSection).getByText(/Kosten: 50,00\s*€/)).toBeInTheDocument();
+    expect(within(zählerkostenSection).getByText('0 m³')).toBeInTheDocument();
+    expect(within(zählerkostenSection).getByText('50,00 €')).toBeInTheDocument();
     
-    // Should not show "pro m³" if consumption is 0
-    expect(within(zählerkostenSection).queryByText(/pro m³/)).not.toBeInTheDocument();
+    // Should not show "pro m³" if consumption is 0, price/m³ is '-'
+    expect(within(zählerkostenSection).getByText('-')).toBeInTheDocument();
   });
 
   test('handles completely missing Zählerdaten', () => {
@@ -94,10 +94,10 @@ describe('OperatingCostsOverviewModal', () => {
     });
     render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
 
-    const zählerkostenSection = screen.getByText('Zählerkosten').closest('div');
+    const zählerkostenSection = screen.getByText('Zählerabhängige Kosten').closest('div');
     expect(zählerkostenSection).toBeInTheDocument();
     if (!zählerkostenSection) return;
 
-    expect(within(zählerkostenSection).getByText('Keine Zählerdaten erfasst.')).toBeInTheDocument();
+    expect(within(zählerkostenSection).getByText('Keine Zählerkosten erfasst.')).toBeInTheDocument();
   });
 });

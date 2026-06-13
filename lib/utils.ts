@@ -81,3 +81,12 @@ export function naturalSort(a: string, b: string): number {
 export function roundToNearest5(value: number): number {
   return Math.round(value / 5) * 5;
 }
+
+/**
+ * Escapes special characters in a string for use in a regular expression.
+ * @param string - The string to escape
+ * @returns string - The escaped string
+ */
+export function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}

@@ -20,6 +20,17 @@ jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
 }));
 
+jest.mock('@/lib/permissions', () => ({
+  hasPermission: jest.fn().mockResolvedValue(true),
+  requirePermission: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/lib/object-scope', () => ({
+  getAccessibleHaeuserIds: jest.fn().mockResolvedValue(null),
+  getAccessibleWohnungIds: jest.fn().mockResolvedValue(null),
+  applyHaeuserScope: jest.fn((query, column, ids) => query),
+}));
+
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -113,7 +124,7 @@ describe('betriebskosten-actions', () => {
       });
       expect(mockSupabase.from).toHaveBeenCalledWith('Nebenkosten');
       expect(mockSupabase.insert).toHaveBeenCalledWith([
-        expect.objectContaining({ ...mockFormData, user_id: 'user123' })
+        mockFormData
       ]);
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
     });
@@ -128,7 +139,7 @@ describe('betriebskosten-actions', () => {
 
       expect(result).toEqual({
         success: false,
-        message: 'User not authenticated',
+        message: 'Nicht authentifiziert',
         data: null,
       });
     });
@@ -257,9 +268,7 @@ describe('betriebskosten-actions', () => {
       const result = await createRechnungenBatch(mockRechnungen);
 
       expect(result).toEqual({ success: true, data: [{}] });
-      expect(mockSupabase.insert).toHaveBeenCalledWith([
-        expect.objectContaining({ user_id: 'user123', nebenkosten_id: 'nb1' }),
-      ]);
+      expect(mockSupabase.insert).toHaveBeenCalledWith(mockRechnungen);
     });
 
     it('should handle error', async () => {

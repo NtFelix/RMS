@@ -46,7 +46,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
 
                 // Fetch storage usage via RPC
                 const { data: usageData, error: usageError } = await supabase
-                    .rpc('calculate_storage_usage', { target_user_id: user.id });
+                    .rpc('calculate_storage_usage');
 
                 if (usageError) throw usageError;
 

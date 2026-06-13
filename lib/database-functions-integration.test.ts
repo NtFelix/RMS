@@ -27,7 +27,7 @@ describe('Database Functions Type Definitions', () => {
         zaehlerkosten: { 'Wasser': 150 },
         zaehlerverbrauch: { 'Wasser': 1000 },
         haeuser_id: 'house-id',
-        user_id: 'user-id',
+        erstellt_von: 'user-id',
         haus_name: 'Test House',
         gesamt_flaeche: 100,
         anzahl_wohnungen: 5,
@@ -55,7 +55,7 @@ describe('Database Functions Type Definitions', () => {
         zaehlerkosten: { 'Wasser': 150 },
         zaehlerverbrauch: { 'Wasser': 1000 },
         haeuser_id: 'house-id',
-        user_id: 'user-id',
+        erstellt_von: 'user-id',
         haus_name: 'Test House',
         gesamt_flaeche: 100,
         anzahl_wohnungen: 5,
@@ -139,11 +139,11 @@ describe('Database Functions Type Definitions', () => {
   describe('AbrechnungModalData Type', () => {
     it('should have all required fields for abrechnung modal data', () => {
       const mockData: AbrechnungModalData = {
-        nebenkosten_data: { id: 'test', startdatum: '2023-01-01', enddatum: '2023-12-31', user_id: 'u1', haeuser_id: 'h1', nebenkostenart: [], betrag: [], berechnungsart: [], zaehlerkosten: {}, zaehlerverbrauch: {} },
-        tenants: [{ id: 'tenant1', user_id: 'u1', name: 'Tenant 1', wohnung_id: 'w1', email: 't@t.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, notiz: null, nebenkosten: [] }],
-        rechnungen: [{ id: 'rechnung1', betrag: 100, name: 'Bill 1', user_id: 'u1', nebenkosten_id: 'nk1', mieter_id: 't1' }],
+        nebenkosten_data: { id: 'test', startdatum: '2023-01-01', enddatum: '2023-12-31', erstellt_von: 'u1', haeuser_id: 'h1', nebenkostenart: [], betrag: [], berechnungsart: [], zaehlerkosten: {}, zaehlerverbrauch: {} },
+        tenants: [{ id: 'tenant1', erstellt_von: 'u1', name: 'Tenant 1', wohnung_id: 'w1', email: 't@t.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, notiz: null, nebenkosten: [] }],
+        rechnungen: [{ id: 'rechnung1', betrag: 100, name: 'Bill 1', erstellt_von: 'u1', organisation_id: 'org1', nebenkosten_id: 'nk1', mieter_id: 't1' }],
         meters: [],
-        readings: [{ id: 'reading1', verbrauch: 50, zaehler_id: 'm1', ablese_datum: '2023-01-01', zaehlerstand: 100, user_id: 'u1' }]
+        readings: [{ id: 'reading1', verbrauch: 50, zaehler_id: 'm1', ablese_datum: '2023-01-01', zaehlerstand: 100, erstellt_von: 'u1', organisation_id: 'org1' }]
       };
 
       expect(typeof mockData.nebenkosten_data).toBe('object');
@@ -169,26 +169,30 @@ describe('Database Functions Type Definitions', () => {
 
   describe('Database Function SQL Structure', () => {
     it('should have proper SQL function definitions', () => {
-      // Test that the migration file exists and contains the expected functions
+      // Test that the migration files exist and contain the expected functions
       const fs = require('fs');
       const path = require('path');
       
-      const migrationPath = path.join(process.cwd(), 'supabase/migrations/20250202000000_add_performance_optimization_functions.sql');
+      const phase1Path = path.join(process.cwd(), 'supabase/migrations/20260510000000_fix_rpc_security_phase1.sql');
+      const phase2Path = path.join(process.cwd(), 'supabase/migrations/20260511000000_fix_rpc_security_phase2.sql');
       
-      expect(fs.existsSync(migrationPath)).toBe(true);
+      expect(fs.existsSync(phase1Path)).toBe(true);
+      expect(fs.existsSync(phase2Path)).toBe(true);
       
-      const migrationContent = fs.readFileSync(migrationPath, 'utf8');
+      const phase1Content = fs.readFileSync(phase1Path, 'utf8');
+      const phase2Content = fs.readFileSync(phase2Path, 'utf8');
       
-      // Verify all three functions are defined
-      expect(migrationContent).toContain('CREATE OR REPLACE FUNCTION get_nebenkosten_with_metrics');
-      expect(migrationContent).toContain('CREATE OR REPLACE FUNCTION get_wasserzaehler_modal_data');
-      expect(migrationContent).toContain('CREATE OR REPLACE FUNCTION get_abrechnung_modal_data');
+      // Verify functions are defined
+      expect(phase1Content).toContain('CREATE OR REPLACE FUNCTION public.get_nebenkosten_with_metrics');
+      expect(phase2Content).toContain('CREATE OR REPLACE FUNCTION public.get_meter_modal_data');
+      expect(phase2Content).toContain('CREATE OR REPLACE FUNCTION public.get_abrechnung_modal_data');
       
       // Verify proper permissions are granted
-      expect(migrationContent).toContain('GRANT EXECUTE ON FUNCTION');
+      expect(phase2Content).toContain('GRANT EXECUTE ON FUNCTION');
       
       // Verify functions have proper security
-      expect(migrationContent).toContain('SECURITY DEFINER');
+      expect(phase1Content).toContain('SECURITY DEFINER');
+      expect(phase2Content).toContain('SECURITY DEFINER');
     });
   });
 });
@@ -202,8 +206,7 @@ export async function testWithRealData(
   
   console.log('Testing get_nebenkosten_with_metrics...');
   const { data: nebenkostenData, error: nebenkostenError } = await supabase.rpc(
-    'get_nebenkosten_with_metrics',
-    { user_id: userId }
+    'get_nebenkosten_with_metrics'
   );
   
   console.log('Nebenkosten result:', {
@@ -213,22 +216,22 @@ export async function testWithRealData(
   });
 
   if (nebenkostenId) {
-    console.log('Testing get_wasserzaehler_modal_data...');
-    const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase.rpc(
-      'get_wasserzaehler_modal_data',
-      { nebenkosten_id: nebenkostenId, user_id: userId }
+    console.log('Testing get_meter_modal_data...');
+    const { data: meterData, error: meterError } = await supabase.rpc(
+      'get_meter_modal_data',
+      { nebenkosten_id: nebenkostenId }
     );
     
-    console.log('Wasserzaehler result:', {
-      error: wasserzaehlerError,
-      dataCount: wasserzaehlerData?.length || 0,
-      sampleData: wasserzaehlerData?.[0]
+    console.log('Meter result:', {
+      error: meterError,
+      dataCount: meterData?.length || 0,
+      sampleData: meterData?.[0]
     });
 
     console.log('Testing get_abrechnung_modal_data...');
     const { data: abrechnungData, error: abrechnungError } = await supabase.rpc(
       'get_abrechnung_modal_data',
-      { nebenkosten_id: nebenkostenId, user_id: userId }
+      { nebenkosten_id: nebenkostenId }
     );
     
     console.log('Abrechnung result:', {

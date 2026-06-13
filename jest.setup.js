@@ -1,6 +1,7 @@
 // jest.setup.js
 import '@testing-library/jest-dom'
 import 'jest-axe/extend-expect'
+import 'jest-location-mock'
 
 // Add TextEncoder/TextDecoder polyfills for Node.js environment
 const { TextEncoder, TextDecoder } = require('util');
@@ -42,6 +43,10 @@ global.Response = class Response {
     this.statusText = init?.statusText || 'OK';
     this.headers = new Map(Object.entries(init?.headers || {}));
   }
+
+  get ok() {
+    return this.status >= 200 && this.status < 300;
+  }
   
   json() {
     return Promise.resolve(JSON.parse(this.body));
@@ -75,6 +80,12 @@ global.Headers = class Headers extends Map {
   }
 };
 
+global.fetch = jest.fn(() =>
+  Promise.resolve(
+    Response.json({ success: true })
+  )
+);
+
 jest.mock('@supabase/ssr', () => {
   return {
     createBrowserClient: jest.fn(() => ({
@@ -83,6 +94,16 @@ jest.mock('@supabase/ssr', () => {
         signUp: jest.fn(),
         resetPasswordForEmail: jest.fn(),
       },
+      from: jest.fn(() => ({
+        select: jest.fn(() => Promise.resolve({ data: [], error: null })),
+        insert: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        update: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        delete: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      })),
+      rpc: jest.fn(() => Promise.resolve({
+        data: [{ total_balance: 9600, total_income: 12000, total_expenses: 2400 }],
+        error: null
+      })),
     })),
   };
 });
@@ -92,6 +113,46 @@ jest.mock('next/navigation', () => ({
     push: jest.fn(),
     replace: jest.fn(),
     refresh: jest.fn(),
+  }),
+  redirect: jest.fn(),
+}));
+
+jest.mock('@/lib/permissions', () => ({
+  hasPermission: jest.fn().mockResolvedValue(true),
+  requirePermission: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('@/lib/object-scope', () => ({
+  getAccessibleHaeuserIds: jest.fn().mockResolvedValue(null),
+  getAccessibleWohnungIds: jest.fn().mockResolvedValue(null),
+  applyHaeuserScope: jest.fn((query, column, ids) => query),
+}));
+
+jest.mock('@/lib/auth-utils', () => ({
+  ensureAuth: jest.fn().mockImplementation(async () => {
+    const { createClient } = require('@/utils/supabase/server');
+    const supabase = await createClient();
+    if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
+      try {
+        const res = await supabase.auth.getUser();
+        if (res) {
+          if (res.error || (res.data && res.data.user === null)) {
+            throw new Error("Nicht authentifiziert");
+          }
+          if (res.data && res.data.user) {
+            return { user: res.data.user, supabase };
+          }
+        }
+      } catch (e) {
+        if (e.message === "Nicht authentifiziert") {
+          throw e;
+        }
+      }
+    }
+    return {
+      user: { id: 'test-user-id', email: 'test@example.com' },
+      supabase,
+    };
   }),
 }));
 
@@ -170,6 +231,7 @@ jest.mock('@/app/betriebskosten-actions', () => ({
   getNebenkostenDetailsAction: jest.fn(),
   createRechnungenBatch: jest.fn(),
   deleteRechnungenByNebenkostenId: jest.fn(),
+  getAbrechnungModalDataAction: jest.fn(() => Promise.resolve({ success: true, data: null })),
 }));
 
 // Mock hooks to prevent actual imports during testing
@@ -195,12 +257,8 @@ jest.mock('@/hooks/use-ai-cache-client', () => ({
   })
 }));
 
-jest.mock('@/lib/ai-input-validation', () => ({
-  validateAIInput: jest.fn(() => ({ isValid: true, error: null, warning: null })),
-  validateAIContext: jest.fn(() => ({ isValid: true, error: null, warning: null })),
-  sanitizeInput: jest.fn((input) => input),
-  getInputSuggestions: jest.fn(() => [])
-}));
+// AI input validation is used directly in tests to verify logic
+jest.unmock('@/lib/ai-input-validation');
 
 jest.mock('@/lib/ai-documentation-context', () => ({
   categorizeAIError: jest.fn(() => ({

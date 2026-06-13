@@ -216,7 +216,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                         <Loader2 className="h-12 w-12 animate-spin text-primary" />
                                         <div className="absolute inset-0 blur-xl bg-primary/20 animate-pulse" />
                                     </div>
-                                    <p className="text-muted-foreground font-medium animate-pulse">Initialisierung...</p>
+                                    <p className="text-muted-foreground font-medium animate-pulse">Initialisierung…</p>
                                 </motion.div>
                             ) : step === 'welcome' ? (
                                 <motion.div
@@ -401,7 +401,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                     <div>
                                         <h2 className="text-3xl font-bold mb-2">Großartig!</h2>
                                         <p className="text-muted-foreground text-lg">
-                                            Wir bereiten Ihr Dashboard vor...
+                                            Wir bereiten Ihr Dashboard vor…
                                         </p>
                                     </div>
                                 </motion.div>
@@ -435,7 +435,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
 
                                     <div className="pt-6 border-t border-border/50">
                                         <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Absender</div>
-                                        <div className="min-h-[1.5rem]">
+                                        <div className="min-h-6">
                                             <p className="text-sm font-bold text-foreground transition-all duration-300">
                                                 {firstName || lastName ? `${firstName} ${lastName}` : 'Ihr Name'}
                                             </p>

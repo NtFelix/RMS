@@ -1,7 +1,7 @@
 "use server";
 
 // const APARTMENT_LIMIT = 5; // Removed hardcoded limit
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails
@@ -20,7 +20,7 @@ interface WohnungData {
   name: string | null;
   miete: number;
   haus_id: string | null;
-  user_id: string;
+  erstellt_von?: string;
   groesse?: number;
 }
 
@@ -29,16 +29,32 @@ interface WohnungData {
  */
 export async function speichereWohnung(formData: WohnungFormData) {
   const actionName = 'createApartment';
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
+  }
   logAction(actionName, 'start', { apartment_name: formData.name });
 
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('User not authenticated:', userError);
-      return { error: 'Benutzer nicht authentifiziert.' };
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'erstellen'))) {
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const targetHausId = formData.haus_id;
+    if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+      return { error: "Zugriff auf das angegebene Haus verweigert." };
     }
+  }
+
+  try {
     const userId = user.id;
 
     // Fetch user profile - assuming it contains stripe_price_id and stripe_subscription_status
@@ -63,12 +79,12 @@ export async function speichereWohnung(formData: WohnungFormData) {
         try {
           const planDetails = await getPlanDetails(userProfile.stripe_price_id);
           if (planDetails) {
-            if (planDetails.limitWohnungen === null) {
+            if (planDetails.limit_wohnungen === null) {
               currentApartmentLimit = Infinity;
               limitReasonIsTrial = false;
-            } else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-              if (planDetails.limitWohnungen > currentApartmentLimit) {
-                currentApartmentLimit = planDetails.limitWohnungen;
+            } else if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
+              if (planDetails.limit_wohnungen > currentApartmentLimit) {
+                currentApartmentLimit = planDetails.limit_wohnungen;
                 limitReasonIsTrial = false;
               }
             }
@@ -88,12 +104,12 @@ export async function speichereWohnung(formData: WohnungFormData) {
         }
 
         // Updated logic to treat 0 or negative as Infinity (unlimited)
-        if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+        if (planDetails.limit_wohnungen === null || (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen <= 0)) {
           currentApartmentLimit = Infinity;
-        } else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-          currentApartmentLimit = planDetails.limitWohnungen;
+        } else if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
+          currentApartmentLimit = planDetails.limit_wohnungen;
         } else {
-          console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
+          console.error('Invalid limit_wohnungen configuration:', planDetails.limit_wohnungen);
           return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
         }
         limitReasonIsTrial = false; // If it's a paid active sub, limit reason is not trial
@@ -107,8 +123,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
 
     const { count, error: countError } = await supabase
       .from('Wohnungen')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .select('*', { count: 'exact', head: true });
 
     if (countError) {
       console.error('Error counting apartments:', countError);
@@ -137,7 +152,6 @@ export async function speichereWohnung(formData: WohnungFormData) {
       name: formData.name || null,
       miete: parseFloat(formData.miete),
       haus_id: formData.haus_id || null,
-      user_id: userId
     };
 
     // Only add groesse if it's provided and a valid number
@@ -167,16 +181,42 @@ export async function speichereWohnung(formData: WohnungFormData) {
  */
 export async function aktualisiereWohnung(id: string, formData: WohnungFormData) {
   const actionName = 'updateApartment';
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
+  }
   logAction(actionName, 'start', { apartment_id: id, apartment_name: formData.name });
 
-  try {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('User not authenticated for update:', userError);
-      return { error: 'Benutzer nicht authentifiziert.' };
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'bearbeiten'))) {
+    logAction(actionName, 'error', { apartment_id: id, apartment_name: formData.name, error_message: "Keine Berechtigung" });
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const targetHausId = formData.haus_id;
+    if (!targetHausId || !haeuserIds.includes(targetHausId)) {
+      return { error: "Zugriff auf das angegebene Haus verweigert." };
     }
+    
+    const { data: existingWohnung, error: fetchError } = await supabase
+      .from("Wohnungen")
+      .select("haus_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+      return { error: "Zugriff auf diese Wohnung verweigert." };
+    }
+  }
+
+  try {
     const userId = user.id;
 
     const userProfile = await fetchUserProfile(); // Fetches profile for the authenticated user
@@ -193,12 +233,12 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
           return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bearbeitung nicht möglich.' };
         }
 
-        if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-          currentApartmentLimit = planDetails.limitWohnungen;
-        } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+        if (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen > 0) {
+          currentApartmentLimit = planDetails.limit_wohnungen;
+        } else if (planDetails.limit_wohnungen === null || (typeof planDetails.limit_wohnungen === 'number' && planDetails.limit_wohnungen <= 0)) {
           currentApartmentLimit = Infinity;
         } else {
-          console.error('Invalid limitWohnungen configuration for update:', planDetails.limitWohnungen);
+          console.error('Invalid limit_wohnungen configuration for update:', planDetails.limit_wohnungen);
           return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bearbeitung nicht möglich.' };
         }
       } catch (planError) {
@@ -216,8 +256,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
     if (currentApartmentLimit !== Infinity && currentApartmentLimit !== null) {
       const { count, error: countError } = await supabase
         .from('Wohnungen')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .select('*', { count: 'exact', head: true });
 
       if (countError) {
         console.error('Error counting apartments for update:', countError);
@@ -271,11 +310,37 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
  */
 export async function loescheWohnung(id: string) {
   const actionName = 'deleteApartment';
+  let user, supabase;
+  try {
+    ({ user, supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    return { error: errorMessage };
+  }
   logAction(actionName, 'start', { apartment_id: id });
 
-  try {
-    const supabase = await createClient();
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (!(await hasPermission('wohnungen', 'loeschen'))) {
+    logAction(actionName, 'error', { apartment_id: id, error_message: "Keine Berechtigung" });
+    return { error: "Keine Berechtigung" };
+  }
+  
+  const haeuserIds = await getAccessibleHaeuserIds();
+  if (haeuserIds !== null) {
+    const { data: existingWohnung, error: fetchError } = await supabase
+      .from("Wohnungen")
+      .select("haus_id")
+      .eq("id", id)
+      .single();
+    if (fetchError || !existingWohnung || !existingWohnung.haus_id || !haeuserIds.includes(existingWohnung.haus_id)) {
+      return { error: "Zugriff auf diese Wohnung verweigert." };
+    }
+  }
 
+  try {
     const { error } = await supabase.from('Wohnungen')
       .delete()
       .eq('id', id);

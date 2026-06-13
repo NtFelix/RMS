@@ -138,7 +138,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
               "relative flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 overflow-hidden",
               "hover:scale-[1.02] active:scale-[0.98]",
               isActive
-                ? "border-primary bg-primary/5 shadow-sm"
+                ? "border-primary bg-primary/5 shadow-xs"
                 : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/20 hover:border-gray-300 dark:hover:border-gray-700"
             )}
             animate={{
@@ -154,7 +154,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
             <AnimatePresence>
               {isActive && (
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+                  className="absolute inset-0 bg-linear-to-br from-primary/10 via-primary/5 to-transparent"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.2 }}
@@ -188,7 +188,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
                   }}
                 >
                   <CheckCircle2 
-                    className="h-5 w-5 text-primary drop-shadow-sm" 
+                    className="h-5 w-5 text-primary drop-shadow-xs" 
                     aria-hidden="true"
                     strokeWidth={2.5}
                   />

@@ -1,12 +1,13 @@
 // Types for data fetching - can be imported by both client and server components
 import { NebenkostenEntry } from "../types/Tenant";
+import type { LucideIcon } from "lucide-react";
 
 export type Wohnung = {
     id: string;
     groesse: number;
     name: string;
     miete: number;
-    user_id: string;
+    erstellt_von: string;
     haus_id: string | null;
 };
 
@@ -14,7 +15,7 @@ export type Haus = {
     id: string;
     ort: string | null;
     name: string;
-    user_id: string;
+    erstellt_von: string;
     strasse: string | null;
     groesse?: number | null;
 };
@@ -29,7 +30,7 @@ export type Mieter = {
     telefonnummer: string | null;
     notiz: string | null;
     nebenkosten: NebenkostenEntry[] | null;
-    user_id: string;
+    erstellt_von: string;
     Wohnungen?: {
         name: string;
         groesse: number;
@@ -38,7 +39,7 @@ export type Mieter = {
 
 export type Aufgabe = {
     id: string;
-    user_id: string;
+    erstellt_von: string;
     ist_erledigt: boolean;
     name: string;
     beschreibung: string;
@@ -64,12 +65,13 @@ export type Nebenkosten = {
     zaehlerkosten: Record<string, number> | null;
     zaehlerverbrauch: Record<string, number> | null;
     haeuser_id: string;
-    user_id: string;
+    erstellt_von: string;
     Haeuser?: { name: string } | null;
     Rechnungen?: RechnungSql[] | null;
     gesamtFlaeche?: number;
     anzahlWohnungen?: number;
     anzahlMieter?: number;
+    vorauszahlungs_art?: 'soll' | 'ist'; // 'soll' (default) or 'ist' (actual payments)
 };
 
 export type NebenkostenChartData = {
@@ -87,11 +89,17 @@ export type NebenkostenChartDatum = {
 
 export interface Rechnung {
     id: string;
-    user_id: string;
+    erstellt_von: string;
+    organisation_id: string;
     nebenkosten_id: string | null;
     mieter_id: string | null;
     name: string;
     betrag: number | null;
+    erstellt_am?: string;
+    geaendert_am?: string | null;
+    geaendert_von?: string | null;
+    geloescht_am?: string | null;
+    geloescht_von?: string | null;
 }
 
 export type RechnungSql = {
@@ -100,7 +108,8 @@ export type RechnungSql = {
     mieter_id: string;
     betrag: number;
     name: string;
-    user_id: string;
+    erstellt_von: string;
+    organisation_id: string;
 };
 
 // Re-export zaehler types
@@ -118,7 +127,8 @@ export type Zaehler = {
     zaehler_typ: ZaehlerTyp;
     einheit: string;
     ist_aktiv?: boolean;
-    user_id: string;
+    erstellt_von: string;
+    kommentar?: string | null;
 };
 
 export type ZaehlerAblesung = {
@@ -128,28 +138,19 @@ export type ZaehlerAblesung = {
     zaehlerstand: number;
     verbrauch: number;
     kommentar?: string | null;
-    user_id: string;
+    erstellt_von: string;
+    organisation_id: string;
+    erstellt_am?: string;
+    geaendert_am?: string | null;
+    geaendert_von?: string | null;
+    geloescht_am?: string | null;
+    geloescht_von?: string | null;
 };
 
 // Legacy types for backward compatibility
 export type WasserZaehler = Zaehler;
 export type WasserAblesung = ZaehlerAblesung;
-
-// Legacy Wasserzaehler type (old structure with nebenkosten_id)
-// Named explicitly to avoid confusion with WasserZaehler alias
-export type LegacyWasserzaehler = {
-    id: string;
-    nebenkosten_id: string;
-    mieter_id: string;
-    ablese_datum: string;
-    zaehlerstand: number;
-    verbrauch: number;
-    user_id: string;
-    zaehler_id?: string;
-};
-
-// Backward compatibility alias
-export type Wasserzaehler = LegacyWasserzaehler;
+export type Wasserzaehler = ZaehlerAblesung & { mieter_id?: string; nebenkosten_id?: string | null };
 
 export type MeterReadingFormEntry = {
     id: string; // Used as key
@@ -167,10 +168,6 @@ export type MeterReadingFormData = {
     entries: MeterReadingFormEntry[];
 };
 
-// Deprecated aliases
-export type WasserzaehlerFormEntry = MeterReadingFormEntry;
-export type WasserzaehlerFormData = MeterReadingFormData;
-
 export type Finanzen = {
     id: string;
     wohnung_id: string | null;
@@ -179,6 +176,24 @@ export type Finanzen = {
     betrag: number;
     ist_einnahmen: boolean;
     notiz: string | null;
-    user_id: string;
+    erstellt_von: string;
     dokument_id: string | null;
+    tags?: string[] | null;
 };
+
+export interface ExternalLinkProps {
+    target?: "_blank" | "_self" | "_parent" | "_top";
+    rel?: string;
+}
+
+export interface NavItem extends ExternalLinkProps {
+    name: string;
+    href: string;
+    icon: LucideIcon;
+    description: string;
+}
+
+export interface FooterLink extends ExternalLinkProps {
+    href: string;
+    text: string;
+}

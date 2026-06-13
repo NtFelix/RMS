@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -11,11 +11,24 @@ import { revalidatePath } from "next/cache";
 export async function getFinanceDocumentPath(
     wohnungId?: string | null
 ): Promise<{ success: boolean; path?: string; error?: string }> {
-    const supabase = await createClient();
+    let user, supabase;
+    try {
+        ({ user, supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        return { success: false, error: "Nicht authentifiziert" };
+    if (wohnungId) {
+        try {
+            const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+            const accessibleWohnungIds = await getAccessibleWohnungIds();
+            if (accessibleWohnungIds !== null && !accessibleWohnungIds.includes(wohnungId)) {
+                return { success: false, error: "Zugriff verweigert" };
+            }
+        } catch (err) {
+            return { success: false, error: "Berechtigungsfehler" };
+        }
     }
 
     const basePath = `user_${user.id}/Rechnungen`;
@@ -75,13 +88,25 @@ export async function getFinanceDocumentPath(
  * Get a signed URL for viewing/downloading a document
  */
 export async function getFinanceDocumentUrl(
-    dokumentId: string
+    dokumentId: string,
+    download: boolean = false
 ): Promise<{ success: boolean; url?: string; filename?: string; error?: string }> {
     if (!dokumentId) {
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    const supabase = await createClient();
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('finanzen', 'ansehen'))) {
+        return { success: false, error: "Keine Berechtigung" };
+    }
+
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
 
     // Get document metadata
     const { data: dokument, error: docError } = await supabase
@@ -98,9 +123,13 @@ export async function getFinanceDocumentUrl(
     const fullPath = `${dokument.dateipfad}/${dokument.dateiname}`;
 
     // Get signed URL (valid for 1 hour)
+    const options: { download?: string | boolean } = {};
+    if (download) {
+        options.download = dokument.dateiname;
+    }
     const { data: signedUrl, error: urlError } = await supabase.storage
         .from("documents")
-        .createSignedUrl(fullPath, 3600);
+        .createSignedUrl(fullPath, 3600, options);
 
     if (urlError || !signedUrl) {
         console.error("Error creating signed URL:", urlError);
@@ -125,24 +154,29 @@ export async function deleteFinanceDocument(
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    const supabase = await createClient();
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('finanzen', 'loeschen'))) {
+        return { success: false, error: "Keine Berechtigung" };
+    }
+
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
 
     // Get document metadata first
     const { data: dokument, error: docError } = await supabase
         .from("Dokumente_Metadaten")
-        .select("dateipfad, dateiname, user_id")
+        .select("dateipfad, dateiname")
         .eq("id", dokumentId)
         .single();
 
     if (docError || !dokument) {
         console.error("Error fetching document metadata:", docError);
         return { success: false, error: "Dokument nicht gefunden" };
-    }
-
-    // Verify user owns this document
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || dokument.user_id !== user.id) {
-        return { success: false, error: "Keine Berechtigung" };
     }
 
     const fullPath = `${dokument.dateipfad}/${dokument.dateiname}`;
@@ -181,7 +215,18 @@ export async function getFinanceDocumentInfo(
         return { success: false, error: "Keine Dokument-ID angegeben" };
     }
 
-    const supabase = await createClient();
+    const { hasPermission } = await import("@/lib/permissions");
+    if (!(await hasPermission('finanzen', 'ansehen'))) {
+        return { success: false, error: "Keine Berechtigung" };
+    }
+
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
 
     const { data: dokument, error } = await supabase
         .from("Dokumente_Metadaten")
