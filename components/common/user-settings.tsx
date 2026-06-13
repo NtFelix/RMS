@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
 import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
+import { useToast } from "@/hooks/use-toast"
 
 
 import { useUserProfile } from "@/hooks/use-user-profile"
@@ -36,6 +37,7 @@ export function UserSettings({
   initialData: SidebarUserData;
 }) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
   const [openModal, setOpenModal] = useState(false)
@@ -52,6 +54,22 @@ export function UserSettings({
   const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const successOrgName = sessionStorage.getItem("org_switch_success")
+      if (successOrgName) {
+        sessionStorage.removeItem("org_switch_success")
+        toast({
+          variant: "success",
+          title: "Erfolgreich gewechselt",
+          description: successOrgName === "Privat" 
+            ? "Du bist jetzt in deiner privaten Ansicht." 
+            : `Du hast erfolgreich zur Organisation "${successOrgName}" gewechselt.`,
+        })
+      }
+    }
+  }, [toast])
 
   useEffect(() => {
     const loadOrganisations = async () => {
@@ -74,6 +92,10 @@ export function UserSettings({
     try {
       const res = await switchOrganisationAction(orgId);
       if (res.success) {
+        const targetOrgName = orgId 
+          ? organisations.find(o => o.organisation_id === orgId)?.name || "Organisation"
+          : "Privat";
+        sessionStorage.setItem("org_switch_success", targetOrgName);
         window.location.reload();
       } else {
         console.error("Failed to switch organisation:", res.error?.message);
@@ -152,10 +174,10 @@ export function UserSettings({
         trigger={
           <div
             className={cn(
-              "flex items-center cursor-pointer transition-all duration-300 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 w-full overflow-hidden",
+              "flex items-center cursor-pointer transition-all duration-300 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 overflow-hidden",
               collapsed 
-                ? "justify-center rounded-xl px-0 py-1 bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 h-12" 
-                : "px-3 py-2.5 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
+                ? "justify-center rounded-full bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 size-12 mx-auto" 
+                : "w-full px-3 py-2.5 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
             )}
             aria-label="User menu"
           >

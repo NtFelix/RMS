@@ -411,7 +411,7 @@ function SidebarContent({
   const hasUnreadNotifications = false
 
   return (
-    <div className="h-full w-full flex flex-col relative overflow-hidden">
+    <div className="h-full w-full flex flex-col relative overflow-visible">
       {/* Header section */}
       <div className="flex items-center h-14 justify-between w-full px-3 pb-4 relative overflow-hidden shrink-0">
         <div className="flex items-center overflow-hidden flex-1 min-w-0">
@@ -679,7 +679,7 @@ function SidebarContent({
       </div>
       
       {/* Profile section */}
-      <div className="pt-2 pb-4 flex flex-col gap-2 border-t border-border px-3 shrink-0">
+      <div className="pt-2 pb-4 md:pb-0 flex flex-col gap-2 border-t border-border px-3 shrink-0">
         <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
       </div>
     </div>
