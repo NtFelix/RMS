@@ -223,6 +223,88 @@ export default function UtilityCostPage() {
         </motion.div>
       </div>
 
+      {/* Timeline Section */}
+      <section className="py-24 relative overflow-hidden bg-background">
+        <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 max-w-7xl relative z-10">
+          <div className="py-20 first:pt-0 relative">
+            <div className="text-center w-full max-w-3xl mx-auto mb-24">
+              <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">In 4 Schritten <span className="text-primary italic">zur Abrechnung.</span></h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                Der einfache Leitfaden zur Erstellung Ihrer Betriebskostenabrechnung – Schritt für Schritt.
+              </p>
+            </div>
+
+            <div className="relative">
+              {meterSteps.map((step, index) => {
+                const isEven = index % 2 === 0;
+                return (
+                  <div 
+                    key={index}
+                    className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center relative py-10 lg:py-16"
+                  >
+                    {/* Segment of the timeline line */}
+                    {index === 0 && (
+                      <div className="absolute left-1/2 top-1/2 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                    )}
+                    {index > 0 && index < meterSteps.length - 1 && (
+                      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                    )}
+                    {index === meterSteps.length - 1 && (
+                      <div className="absolute left-1/2 top-0 bottom-1/2 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                    )}
+
+                    {/* Timeline Node in the center (visible only on lg screens) */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background border-4 border-primary flex items-center justify-center hidden lg:flex z-10 shadow-xs">
+                      <span className="text-[10px] font-bold text-primary font-mono">{index + 1}</span>
+                    </div>
+
+                    {/* Left side column: Text for even indices, mockup for odd indices */}
+                    <div className={cn(
+                      "lg:col-span-5 flex flex-col justify-center",
+                      isEven ? "order-1 lg:order-1 text-left" : "order-1 lg:order-3 text-left lg:text-left"
+                    )}>
+                      {/* Badge */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                          <step.icon size={12} className="stroke-[2.5]" />
+                        </div>
+                        <span className="text-xs font-bold text-primary tracking-wider uppercase">0{index + 1} / {step.title}</span>
+                      </div>
+                      
+                      <h3 className="text-2xl font-extrabold text-foreground tracking-tight mb-4">
+                        {step.title}
+                      </h3>
+                      
+                      <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                        {step.description}
+                      </p>
+
+                    </div>
+ 
+                     {/* Spacer for center timeline alignment */}
+                     <div className={cn("lg:col-span-2 hidden lg:block", isEven ? "lg:order-2" : "lg:order-2")} />
+ 
+                     {/* Right side column: Mockup for even indices, text for odd indices */}
+                     <div className={cn(
+                       "lg:col-span-5 flex justify-center items-center",
+                       isEven ? "order-3 lg:order-3" : "order-2 lg:order-1"
+                     )}>
+                       <div className="relative bg-black/5 dark:bg-black/25 rounded-3xl border border-border/40 overflow-hidden shadow-inner p-8 hover:border-primary/20 transition-all duration-300 w-fit">
+                         <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent opacity-40 pointer-events-none" />
+                         <div className="relative z-10 transform scale-95 sm:scale-100 transition-transform duration-500">
+                           {step.mockup}
+                         </div>
+                       </div>
+                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+                  </div>
+      </section>
+
       {/* Feature Section - Bento Grid Style */}
       <section className="py-24 relative overflow-hidden bg-muted/10">
         <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20">
@@ -447,89 +529,10 @@ export default function UtilityCostPage() {
         </div>
       </section>
 
-      {/* Deep Dive Details Section */}
+      {/* Transparenz & Abrechnung Section */}
       <section className="py-24 relative overflow-hidden bg-background">
         <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 max-w-7xl relative z-10">
-          
-          {/* Section 1: Zählererfassung & Tracking - Alternating Storytelling Timeline */}
-          <div className="py-20 first:pt-0 relative">
-            <div className="text-center w-full max-w-3xl mx-auto mb-24">
-              <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">In 4 Schritten <span className="text-primary italic">zur Abrechnung.</span></h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                Der einfache Leitfaden zur Erstellung Ihrer Betriebskostenabrechnung – Schritt für Schritt.
-              </p>
-            </div>
-
-            <div className="relative">
-              {meterSteps.map((step, index) => {
-                const isEven = index % 2 === 0;
-                return (
-                  <div 
-                    key={index}
-                    className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center relative py-10 lg:py-16"
-                  >
-                    {/* Segment of the timeline line */}
-                    {index === 0 && (
-                      <div className="absolute left-1/2 top-1/2 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
-                    )}
-                    {index > 0 && index < meterSteps.length - 1 && (
-                      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
-                    )}
-                    {index === meterSteps.length - 1 && (
-                      <div className="absolute left-1/2 top-0 bottom-1/2 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
-                    )}
-
-                    {/* Timeline Node in the center (visible only on lg screens) */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background border-4 border-primary flex items-center justify-center hidden lg:flex z-10 shadow-xs">
-                      <span className="text-[10px] font-bold text-primary font-mono">{index + 1}</span>
-                    </div>
-
-                    {/* Left side column: Text for even indices, mockup for odd indices */}
-                    <div className={cn(
-                      "lg:col-span-5 flex flex-col justify-center",
-                      isEven ? "order-1 lg:order-1 text-left" : "order-1 lg:order-3 text-left lg:text-left"
-                    )}>
-                      {/* Badge */}
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                          <step.icon size={12} className="stroke-[2.5]" />
-                        </div>
-                        <span className="text-xs font-bold text-primary tracking-wider uppercase">0{index + 1} / {step.title}</span>
-                      </div>
-                      
-                      <h3 className="text-2xl font-extrabold text-foreground tracking-tight mb-4">
-                        {step.title}
-                      </h3>
-                      
-                      <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
-                        {step.description}
-                      </p>
-
-                    </div>
- 
-                     {/* Spacer for center timeline alignment */}
-                     <div className={cn("lg:col-span-2 hidden lg:block", isEven ? "lg:order-2" : "lg:order-2")} />
- 
-                     {/* Right side column: Mockup for even indices, text for odd indices */}
-                     <div className={cn(
-                       "lg:col-span-5 flex justify-center items-center",
-                       isEven ? "order-3 lg:order-3" : "order-2 lg:order-1"
-                     )}>
-                       <div className="relative bg-black/5 dark:bg-black/25 rounded-3xl border border-border/40 overflow-hidden shadow-inner p-8 hover:border-primary/20 transition-all duration-300 w-fit">
-                         <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent opacity-40 pointer-events-none" />
-                         <div className="relative z-10 transform scale-95 sm:scale-100 transition-transform duration-500">
-                           {step.mockup}
-                         </div>
-                       </div>
-                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Section 2: Transparenz & Abrechnung - Bento Grid Style */}
-          <div className="py-20 border-t border-border/20">
+          <div className="py-20">
             <div className="text-center w-full max-w-3xl mx-auto mb-20">
               <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
                 Klarheit statt Konflikt.
@@ -717,8 +720,7 @@ export default function UtilityCostPage() {
           </div>
         </div>
       </section>
-
-      {/* Bottom CTA Section */}
+{/* Bottom CTA Section */}
       <BottomCTA
         onGetStarted={() => window.location.href = '/?getStarted=true'}
         title="Bereit für transparente"
