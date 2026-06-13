@@ -91,16 +91,25 @@ function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | n
                     )}
                 </motion.div>
 
-                <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.4, type: "spring" }}
-                    className="flex items-center justify-center text-muted-foreground/60"
-                >
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
-                    </svg>
-                </motion.div>
+                <div className="flex items-center gap-[2px]">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{
+                                scale: [0.3, 1.2, 0.3],
+                                opacity: [0.15, 0.9, 0.15],
+                            }}
+                            transition={{
+                                repeat: Infinity,
+                                duration: 1.6,
+                                delay: 0.5 + i * 0.12,
+                                ease: "easeInOut",
+                            }}
+                            className="w-1.5 h-1.5 rounded-full bg-primary/60"
+                        />
+                    ))}
+                </div>
 
                 <motion.div
                     initial={{ x: 20, opacity: 0 }}
@@ -120,11 +129,6 @@ function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | n
                 <div className="flex flex-col items-center">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ursprung</span>
                     <span className="text-sm font-semibold text-foreground">{clientName}</span>
-                </div>
-                <div className="flex flex-col items-center text-muted-foreground/60">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4-4 4m-6-8v12" />
-                    </svg>
                 </div>
                 <div className="flex flex-col items-center">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Produkt</span>
