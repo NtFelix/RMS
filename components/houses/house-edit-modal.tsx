@@ -264,7 +264,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
     <Sheet open={isHouseModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <SheetContent
         id="house-form-container"
-        className="sm:max-w-[600px] flex flex-col h-full p-0 gap-0"
+        className="sm:max-w-[50vw] flex flex-col h-full p-0 gap-0"
         isDirty={isHouseModalDirty}
         onAttemptClose={attemptClose}
       >
@@ -302,7 +302,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <ScrollArea className="flex-1">
-            <div className="max-w-[520px] mx-auto pt-14 sm:pt-20 pb-10 px-4 sm:px-8 space-y-6 sm:space-y-12">
+            <div className="max-w-[90%] mx-auto pt-14 sm:pt-20 pb-10 px-4 sm:px-8 space-y-6 sm:space-y-12">
               
               {/* Header Section */}
               <div className="space-y-3 sm:space-y-4">
@@ -460,7 +460,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
           </ScrollArea>
 
           <SheetFooter className="px-4 pb-6 pt-2 sm:p-8 sm:pt-4">
-            <div className="max-w-[520px] mx-auto w-full flex gap-3">
+            <div className="max-w-[90%] mx-auto w-full flex gap-3">
               <Button 
                 type="button" 
                 variant="ghost" 
