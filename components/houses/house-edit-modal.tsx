@@ -302,10 +302,10 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <ScrollArea className="flex-1">
-            <div className="max-w-[90%] mx-auto pt-14 sm:pt-20 pb-10 px-4 sm:px-8 space-y-6 sm:space-y-12">
+            <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
               
               {/* Header Section */}
-              <div className="space-y-3 sm:space-y-4">
+              <div className="space-y-2 sm:space-y-3">
                 <div className="text-primary/80">
                   <Building2 className="h-8 w-8 sm:h-10 sm:w-10" />
                 </div>
@@ -331,15 +331,15 @@ export function HouseEditModal(props: HouseEditModalProps) {
               </div>
 
               {/* Properties Section */}
-              <div className="space-y-4 sm:space-y-8">
+              <div className="space-y-3 sm:space-y-6">
 
                 {/* Address Section */}
-                <div className="sm:space-y-6 sm:pt-4 sm:border-t sm:border-border/40">
+                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
                   <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                     Standort
                   </div>
                   
-                  <div className="sm:grid sm:gap-6 space-y-3 sm:space-y-0">
+                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
                     <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
                       <PropertyHeader 
                         icon={MapPin}
@@ -379,12 +379,12 @@ export function HouseEditModal(props: HouseEditModalProps) {
                 </div>
 
                 {/* Calculation Section */}
-                <div className="sm:space-y-6 sm:pt-4 sm:border-t sm:border-border/40">
+                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
                   <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                     Kennzahlen
                   </div>
 
-                  <div className="sm:grid sm:gap-6 space-y-3 sm:space-y-0">
+                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
                     <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
                       <PropertyHeader 
                         icon={Ruler}
@@ -433,7 +433,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
                 </div>
 
                 {/* Additional Info / Description Style */}
-                <div className="hidden sm:block space-y-4 pt-4 border-t border-border/40">
+                <div className="hidden sm:block space-y-3 pt-3 border-t border-border/40">
                   <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
                     Beschreibung
                   </div>
