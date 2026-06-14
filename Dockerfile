@@ -54,7 +54,7 @@ RUN --mount=type=secret,id=POSTHOG_PERSONAL_API_KEY \
 
 # Stage 3: Production image
 FROM node:22.22-alpine AS runner
-RUN apk upgrade --no-cache && npm install -g npm@11.17.0
+RUN apk upgrade --no-cache && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 
 # Runtime environment variables
