@@ -424,22 +424,25 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const isPending = isSubmitting || isDeleting;
 
-  const [width, setWidth] = useState(() => {
-    if (typeof window !== "undefined") {
-      const savedWidth = localStorage.getItem("house-modal-width");
-      if (savedWidth) {
-        const parsed = parseInt(savedWidth, 10);
-        if (!isNaN(parsed)) return parsed;
-      }
-    }
-    return 600;
-  });
+  const [width, setWidth] = useState(600);
   const [isResizing, setIsResizing] = useState(false);
   const widthRef = useRef(width);
 
   useEffect(() => {
     widthRef.current = width;
   }, [width]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedWidth = localStorage.getItem("house-modal-width");
+      if (savedWidth) {
+        const parsed = parseInt(savedWidth, 10);
+        if (!isNaN(parsed)) {
+          setWidth(parsed);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {

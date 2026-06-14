@@ -122,6 +122,11 @@ export function FormModalShell({
 }: FormModalShellProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit?.(e);
+  };
+
   const dropdownItems: DropdownEntry[] = [...actions];
   if (deleteConfig) {
     if (actions.length > 0) {
@@ -152,7 +157,7 @@ export function FormModalShell({
     >
       {dropdownItems.map((item, i) => {
         if (item.kind === "separator") {
-          return <CustomDropdownSeparator key="action-separator" />;
+          return <CustomDropdownSeparator key={"action-separator-" + i} />;
         }
         return (
           <CustomDropdownItem
@@ -214,7 +219,7 @@ export function FormModalShell({
                 {actionsDropdown}
               </div>
             )}
-            <form onSubmit={(e) => { e.preventDefault(); onSubmit?.(e); }} className="flex flex-col">
+            <form onSubmit={handleFormSubmit} className="flex flex-col">
               <DialogHeader>
                 <div className="flex items-start justify-between gap-4 pr-10">
                   <div>
@@ -277,7 +282,7 @@ export function FormModalShell({
               <div className="pointer-events-auto">{actionsDropdown}</div>
             </div>
           )}
-          <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 min-h-0">
             <ScrollArea className="flex-1">
               <div className="max-w-[520px] mx-auto pt-20 pb-10 px-8 space-y-12">
                 {Icon && (

@@ -52,9 +52,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <span className="cursor-pointer" data-dropdown-trigger>
-          {trigger}
-        </span>
+        {trigger}
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align={align}
