@@ -37,7 +37,29 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
 
-// Helper component for Property Header with Hover Info
+interface House {
+  id: string;
+  name: string;
+  strasse?: string;
+  ort: string;
+  groesse?: number | null;
+}
+
+interface HouseFormData {
+  name: string;
+  strasse: string;
+  ort: string;
+  groesse: number | null;
+}
+
+interface HouseEditModalProps {
+  serverAction: (id: string | null, formData: FormData) => Promise<{
+    success: boolean;
+    error?: { message: string };
+    data?: any;
+  }>;
+}
+
 function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: LucideIcon, label: string, infoText: string, htmlFor: string }) {
   return (
     <>
@@ -74,21 +96,322 @@ function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: Lucide
   );
 }
 
-// Basic House interface
-interface House {
-  id: string;
-  name: string;
-  strasse?: string;
-  ort: string;
-  groesse?: number | null;
+function ResizeHandle({
+  isResizing,
+  setWidth,
+  onMouseDown,
+}: {
+  isResizing: boolean;
+  setWidth: React.Dispatch<React.SetStateAction<number>>;
+  onMouseDown: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Panelgröße anpassen"
+      onMouseDown={onMouseDown}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setWidth(prev => Math.max(360, prev - 20));
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          setWidth(prev => Math.min(window.innerWidth * 0.9, prev + 20));
+        }
+      }}
+      className={cn(
+        "absolute -left-1 top-0 bottom-0 w-2 cursor-ew-resize z-50 select-none group/resize-handle hidden sm:block appearance-none bg-transparent border-none p-0",
+        isResizing ? "cursor-ew-resize" : ""
+      )}
+    >
+      <div className={cn(
+        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-all duration-150 ease-in-out",
+        isResizing ? "bg-primary" : "bg-transparent group-hover/resize-handle:bg-primary/40"
+      )} />
+    </button>
+  );
 }
 
-interface HouseEditModalProps {
-  serverAction: (id: string | null, formData: FormData) => Promise<{
-    success: boolean;
-    error?: { message: string };
-    data?: any;
-  }>;
+function TopBar({
+  houseInitialData,
+  onOverviewClick,
+  onDeleteRequest,
+}: {
+  houseInitialData: House | null;
+  onOverviewClick: () => void;
+  onDeleteRequest: () => void;
+}) {
+  if (!houseInitialData) return null;
+
+  return (
+    <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
+      <CustomDropdown
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg pointer-events-auto cursor-pointer h-8 w-8"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span className="sr-only">Aktionen</span>
+          </Button>
+        }
+        align="end"
+      >
+        <CustomDropdownItem onClick={onOverviewClick}>
+          <Eye className="h-4 w-4 mr-2" />
+          <span>Übersicht</span>
+        </CustomDropdownItem>
+        <CustomDropdownSeparator />
+        <CustomDropdownItem onClick={onDeleteRequest} className="text-red-600 focus:text-red-600">
+          <Trash2 className="h-4 w-4 mr-2" />
+          <span>Löschen</span>
+        </CustomDropdownItem>
+      </CustomDropdown>
+    </div>
+  );
+}
+
+function FormFields({
+  formData,
+  onFieldChange,
+  automaticSize,
+  onAutomaticSizeChange,
+  manualGroesse,
+  onManualGroesseChange,
+  isSubmitting,
+  houseInitialData,
+  isHouseModalDirty,
+  setHouseModalDirty,
+}: {
+  formData: HouseFormData;
+  onFieldChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  automaticSize: boolean;
+  onAutomaticSizeChange: (checked: boolean) => void;
+  manualGroesse: string;
+  onManualGroesseChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isSubmitting: boolean;
+  houseInitialData: House | null;
+  isHouseModalDirty: boolean;
+  setHouseModalDirty: (dirty: boolean) => void;
+}) {
+  return (
+    <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
+      <div className="space-y-2 sm:space-y-3">
+        <div className="text-primary/80">
+          <Building2 className="h-8 w-8 sm:h-10 sm:w-10" />
+        </div>
+        <div className="space-y-1">
+          <SheetTitle className="sr-only">
+            {houseInitialData ? "Haus bearbeiten" : "Haus hinzufügen"}
+          </SheetTitle>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={onFieldChange}
+            placeholder={houseInitialData ? "Unbenanntes Haus" : "Haus hinzufügen"}
+            disabled={isSubmitting}
+            aria-label={houseInitialData ? "Name des Hauses" : "Name des neuen Hauses"}
+            className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+          />
+          <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
+            {houseInitialData
+              ? "Bearbeiten Sie die Informationen für dieses Objekt."
+              : "Legen Sie ein neues Haus in Ihrer Verwaltung an."}
+          </SheetDescription>
+        </div>
+      </div>
+
+      <div className="space-y-3 sm:space-y-6">
+        <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+          <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+            Standort
+          </div>
+
+          <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={MapPin}
+                label="Straße"
+                htmlFor="strasse"
+                infoText="Geben Sie die vollständige Adresse des Hauses ein. Dieses Feld wird für die Abrechnung und die generierte PDF benötigt."
+              />
+              <Input
+                id="strasse"
+                name="strasse"
+                value={formData.strasse}
+                onChange={onFieldChange}
+                placeholder="Straße und Hausnummer"
+                disabled={isSubmitting}
+                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+              />
+            </div>
+
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={MapPin}
+                label="Ort"
+                htmlFor="ort"
+                infoText="Geben Sie den Ort des Hauses ein. Die Ortsangabe erscheint in den offiziellen Dokumenten."
+              />
+              <Input
+                id="ort"
+                name="ort"
+                value={formData.ort}
+                onChange={onFieldChange}
+                placeholder="PLZ und Stadt"
+                disabled={isSubmitting}
+                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+          <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+            Kennzahlen
+          </div>
+
+          <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={Ruler}
+                label="Berechnung"
+                htmlFor="automaticSize"
+                infoText="Wenn aktiviert, wird die Gesamtgröße des Hauses automatisch aus der Summe der Wohnungsflächen berechnet."
+              />
+              <Label
+                htmlFor="automaticSize"
+                className={cn(
+                  "flex items-center justify-between h-10 px-3 rounded-xl cursor-pointer transition-colors border outline-hidden focus-within:ring-1 focus-within:ring-ring",
+                  automaticSize ? "bg-primary/5 text-primary border-primary/10" : "bg-muted/30 text-muted-foreground border-border/50"
+                )}
+              >
+                <span className="text-sm font-medium cursor-pointer">Automatisch</span>
+                <Checkbox
+                  id="automaticSize"
+                  checked={automaticSize}
+                  onCheckedChange={(checked) => {
+                    onAutomaticSizeChange(!!checked);
+                    if (!isHouseModalDirty) setHouseModalDirty(true);
+                  }}
+                  disabled={isSubmitting}
+                  className="h-4 w-4"
+                />
+              </Label>
+            </div>
+
+            {!automaticSize && (
+              <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0 animate-in fade-in slide-in-from-top-1">
+                <Label htmlFor="manualGroesse" className="text-sm text-muted-foreground/70">Fläche (m²)</Label>
+                <div className="relative">
+                  <NumberInput
+                    id="manualGroesse"
+                    name="manualGroesse"
+                    value={manualGroesse}
+                    onChange={onManualGroesseChange}
+                    disabled={isSubmitting}
+                    placeholder="Manuelle Größe..."
+                    className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="hidden sm:block space-y-3 pt-3 border-t border-border/40">
+          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+            Beschreibung
+          </div>
+          <div className="bg-muted/20 rounded-xl p-4 text-sm text-muted-foreground/80 leading-relaxed border border-border/50">
+            <div className="flex gap-2 items-start">
+              <Info className="h-4 w-4 mt-0.5 shrink-0 opacity-40" />
+              <p>
+                Diese Informationen werden für die automatische Erstellung von Nebenkostenabrechnungen und offiziellen Dokumenten verwendet. Bitte stellen Sie sicher, dass alle Standortdaten korrekt sind.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FormActions({
+  isSubmitting,
+  onCancel,
+  houseInitialData,
+}: {
+  isSubmitting: boolean;
+  onCancel: () => void;
+  houseInitialData: House | null;
+}) {
+  return (
+    <SheetFooter className="px-4 pb-6 pt-2 sm:p-8 sm:pt-4">
+      <div className="max-w-[90%] mx-auto w-full flex gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="flex-1 rounded-xl h-11 text-muted-foreground hover:text-foreground hover:scale-[1.005] active:scale-[0.995] hover:shadow-none"
+        >
+          Abbrechen
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex-1 rounded-xl h-11 shadow-sm font-semibold hover:scale-[1.005] active:scale-[0.995] hover:shadow-sm"
+        >
+          {isSubmitting ? (
+            <span className="flex items-center gap-2">
+              <svg className="animate-spin h-5 w-5" style={{ animationDuration: "600ms" }} viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Wird gespeichert...
+            </span>
+          ) : (houseInitialData ? "Änderungen speichern" : "Haus anlegen")}
+        </Button>
+      </div>
+    </SheetFooter>
+  );
+}
+
+function DeleteHouseDialog({
+  open,
+  onOpenChange,
+  houseName,
+  isDeleting,
+  onDelete,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  houseName: string;
+  isDeleting: boolean;
+  onDelete: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Haus löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Möchten Sie das Haus &ldquo;{houseName}&rdquo; wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); onDelete(); }} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            {isDeleting ? "Löschen..." : "Löschen"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 export function HouseEditModal(props: HouseEditModalProps) {
@@ -100,10 +423,17 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const isPending = isSubmitting || isDeleting;
-  const { openHausOverviewModal } = useModalStore();
 
-  // Resize State & Ref
-  const [width, setWidth] = useState(600); // default width in px
+  const [width, setWidth] = useState(() => {
+    if (typeof window !== "undefined") {
+      const savedWidth = localStorage.getItem("house-modal-width");
+      if (savedWidth) {
+        const parsed = parseInt(savedWidth, 10);
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+    return 600;
+  });
   const [isResizing, setIsResizing] = useState(false);
   const widthRef = useRef(width);
 
@@ -111,20 +441,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
     widthRef.current = width;
   }, [width]);
 
-  // Load saved width from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedWidth = localStorage.getItem("house-modal-width");
-      if (savedWidth) {
-        const parsed = parseInt(savedWidth, 10);
-        if (!isNaN(parsed)) {
-          setWidth(parsed);
-        }
-      }
-    }
-  }, []);
-
-  // Listen to reset event from settings
   useEffect(() => {
     if (typeof window !== "undefined") {
       const handleResetWidth = () => {
@@ -180,13 +496,14 @@ export function HouseEditModal(props: HouseEditModalProps) {
     houseModalOnSuccess,
     isHouseModalDirty,
     setHouseModalDirty,
+    openHausOverviewModal,
   } = useModalStore();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<HouseFormData>({
     name: "",
     strasse: "",
     ort: "",
-    groesse: null as number | null,
+    groesse: null,
   });
 
   useEffect(() => {
@@ -223,6 +540,10 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const handleManualGroesseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setManualGroesse(e.target.value);
     if (!isHouseModalDirty) setHouseModalDirty(true);
+  };
+
+  const handleAutomaticSizeChange = (checked: boolean) => {
+    setAutomaticSize(checked);
   };
 
   const attemptClose = () => {
@@ -343,249 +664,48 @@ export function HouseEditModal(props: HouseEditModalProps) {
         isDirty={isHouseModalDirty}
         onAttemptClose={attemptClose}
       >
-        {/* Resize Handle */}
-        <div
+        <ResizeHandle
+          isResizing={isResizing}
+          setWidth={setWidth}
           onMouseDown={startResizing}
-          className={cn(
-            "absolute -left-1 top-0 bottom-0 w-2 cursor-ew-resize z-50 select-none group/resize-handle hidden sm:block",
-            isResizing ? "cursor-ew-resize" : ""
-          )}
-        >
-          {/* Visual highlight line positioned exactly on the border (center of the handle) */}
-          <div className={cn(
-            "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-all duration-150 ease-in-out",
-            isResizing ? "bg-primary" : "bg-transparent group-hover/resize-handle:bg-primary/40"
-          )} />
-        </div>
-        {/* Top Navigation Bar */}
-        <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-4 z-10 pointer-events-none">
-          <div className="pointer-events-auto">
-            {/* The actual SheetClose button is in components/ui/sheet.tsx at left-4 top-4 */}
-          </div>
-          {houseInitialData && (
-            <CustomDropdown
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg pointer-events-auto cursor-pointer h-8 w-8"
-                >
-                  <MoreHorizontal className="h-5 w-5" />
-                  <span className="sr-only">Aktionen</span>
-                </Button>
-              }
-              align="end"
-            >
-              <CustomDropdownItem onClick={() => openHausOverviewModal(houseInitialData.id)}>
-                <Eye className="h-4 w-4 mr-2" />
-                <span>Übersicht</span>
-              </CustomDropdownItem>
-              <CustomDropdownSeparator />
-              <CustomDropdownItem onClick={() => setDeleteDialogOpen(true)} className="text-red-600 focus:text-red-600">
-                <Trash2 className="h-4 w-4 mr-2" />
-                <span>Löschen</span>
-              </CustomDropdownItem>
-            </CustomDropdown>
-          )}
-        </div>
+        />
+
+        <TopBar
+          houseInitialData={houseInitialData}
+          onOverviewClick={() => houseInitialData && openHausOverviewModal(houseInitialData.id)}
+          onDeleteRequest={() => setDeleteDialogOpen(true)}
+        />
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <ScrollArea className="flex-1">
-            <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
-              
-              {/* Header Section */}
-              <div className="space-y-2 sm:space-y-3">
-                <div className="text-primary/80">
-                  <Building2 className="h-8 w-8 sm:h-10 sm:w-10" />
-                </div>
-                <div className="space-y-1">
-                  <SheetTitle className="sr-only">
-                    {houseInitialData ? "Haus bearbeiten" : "Haus hinzufügen"}
-                  </SheetTitle>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder={houseInitialData ? "Unbenanntes Haus" : "Haus hinzufügen"}
-                    disabled={isSubmitting}
-                    className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
-                  />
-                  <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
-                    {houseInitialData 
-                      ? "Bearbeiten Sie die Informationen für dieses Objekt." 
-                      : "Legen Sie ein neues Haus in Ihrer Verwaltung an."}
-                  </SheetDescription>
-                </div>
-              </div>
-
-              {/* Properties Section */}
-              <div className="space-y-3 sm:space-y-6">
-
-                {/* Address Section */}
-                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
-                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
-                    Standort
-                  </div>
-                  
-                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader 
-                        icon={MapPin}
-                        label="Straße"
-                        htmlFor="strasse"
-                        infoText="Geben Sie die vollständige Adresse des Hauses ein. Dieses Feld wird für die Abrechnung und die generierte PDF benötigt."
-                      />
-                      <Input
-                        id="strasse"
-                        name="strasse"
-                        value={formData.strasse}
-                        onChange={handleInputChange}
-                        placeholder="Straße und Hausnummer"
-                        disabled={isSubmitting}
-                        className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
-                      />
-                    </div>
-
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader 
-                        icon={MapPin}
-                        label="Ort"
-                        htmlFor="ort"
-                        infoText="Geben Sie den Ort des Hauses ein. Die Ortsangabe erscheint in den offiziellen Dokumenten."
-                      />
-                      <Input
-                        id="ort"
-                        name="ort"
-                        value={formData.ort}
-                        onChange={handleInputChange}
-                        placeholder="PLZ und Stadt"
-                        disabled={isSubmitting}
-                        className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Calculation Section */}
-                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
-                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
-                    Kennzahlen
-                  </div>
-
-                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
-                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-                      <PropertyHeader 
-                        icon={Ruler}
-                        label="Berechnung"
-                        htmlFor="automaticSize"
-                        infoText="Wenn aktiviert, wird die Gesamtgröße des Hauses automatisch aus der Summe der Wohnungsflächen berechnet."
-                      />
-                      <Label 
-                        htmlFor="automaticSize"
-                        className={cn(
-                          "flex items-center justify-between h-10 px-3 rounded-xl cursor-pointer transition-colors border outline-hidden focus-within:ring-1 focus-within:ring-ring",
-                          automaticSize ? "bg-primary/5 text-primary border-primary/10" : "bg-muted/30 text-muted-foreground border-border/50"
-                        )}
-                      >
-                        <span className="text-sm font-medium cursor-pointer">Automatisch</span>
-                        <Checkbox
-                          id="automaticSize"
-                          checked={automaticSize}
-                          onCheckedChange={(checked) => {
-                            setAutomaticSize(!!checked);
-                            if (!isHouseModalDirty) setHouseModalDirty(true);
-                          }}
-                          disabled={isSubmitting}
-                          className="h-4 w-4"
-                        />
-                      </Label>
-                    </div>
-
-                    {!automaticSize && (
-                      <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0 animate-in fade-in slide-in-from-top-1">
-                        <Label htmlFor="manualGroesse" className="text-sm text-muted-foreground/70">Fläche (m²)</Label>
-                        <div className="relative">
-                          <NumberInput
-                            id="manualGroesse"
-                            name="manualGroesse"
-                            value={manualGroesse}
-                            onChange={handleManualGroesseChange}
-                            disabled={isSubmitting}
-                            placeholder="Manuelle Größe..."
-                            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Additional Info / Description Style */}
-                <div className="hidden sm:block space-y-3 pt-3 border-t border-border/40">
-                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
-                    Beschreibung
-                  </div>
-                  <div className="bg-muted/20 rounded-xl p-4 text-sm text-muted-foreground/80 leading-relaxed border border-border/50">
-                    <div className="flex gap-2 items-start">
-                      <Info className="h-4 w-4 mt-0.5 shrink-0 opacity-40" />
-                      <p>
-                        Diese Informationen werden für die automatische Erstellung von Nebenkostenabrechnungen und offiziellen Dokumenten verwendet. Bitte stellen Sie sicher, dass alle Standortdaten korrekt sind.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <FormFields
+              formData={formData}
+              onFieldChange={handleInputChange}
+              automaticSize={automaticSize}
+              onAutomaticSizeChange={handleAutomaticSizeChange}
+              manualGroesse={manualGroesse}
+              onManualGroesseChange={handleManualGroesseChange}
+              isSubmitting={isSubmitting}
+              houseInitialData={houseInitialData}
+              isHouseModalDirty={isHouseModalDirty}
+              setHouseModalDirty={setHouseModalDirty}
+            />
           </ScrollArea>
 
-          <SheetFooter className="px-4 pb-6 pt-2 sm:p-8 sm:pt-4">
-            <div className="max-w-[90%] mx-auto w-full flex gap-3">
-              <Button 
-                type="button" 
-                variant="ghost" 
-                onClick={handleCancelClick} 
-                disabled={isSubmitting}
-                className="flex-1 rounded-xl h-11 text-muted-foreground hover:text-foreground hover:scale-[1.005] active:scale-[0.995] hover:shadow-none"
-              >
-                Abbrechen
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="flex-1 rounded-xl h-11 shadow-sm font-semibold hover:scale-[1.005] active:scale-[0.995] hover:shadow-sm"
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-5 w-5" style={{ animationDuration: "600ms" }} viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Wird gespeichert...
-                  </span>
-                ) : (houseInitialData ? "Änderungen speichern" : "Haus anlegen")}
-              </Button>
-            </div>
-          </SheetFooter>
+          <FormActions
+            isSubmitting={isSubmitting}
+            onCancel={handleCancelClick}
+            houseInitialData={houseInitialData}
+          />
         </form>
 
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Haus löschen?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Möchten Sie das Haus "{houseInitialData?.name || formData.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDelete(); }} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
-                {isDeleting ? "Löschen..." : "Löschen"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DeleteHouseDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          houseName={houseInitialData?.name || formData.name}
+          isDeleting={isDeleting}
+          onDelete={handleDelete}
+        />
       </SheetContent>
     </Sheet>
   );

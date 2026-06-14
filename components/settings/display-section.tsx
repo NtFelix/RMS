@@ -32,9 +32,9 @@ const DisplaySection = () => {
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <Monitor className="size-4 text-muted-foreground" />
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Design-Modus
-                  </label>
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
@@ -50,9 +50,9 @@ const DisplaySection = () => {
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <PanelLeft className="size-4 text-muted-foreground" />
-                <label className="text-sm font-medium leading-none">
+                <span className="text-sm font-medium leading-none">
                   Navigationsleiste
-                </label>
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Wählen Sie, ob die Seitenleiste standardmäßig ausgeklappt, eingeklappt bleibt oder sich automatisch beim Drüberfahren (Hover) erweitert.
@@ -67,9 +67,9 @@ const DisplaySection = () => {
             <div className="flex flex-col gap-1 flex-1">
               <div className="flex items-center gap-2">
                 <Info className="size-4 text-muted-foreground" />
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Anleitung auf Betriebskosten-Seite
-                </label>
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
@@ -96,9 +96,9 @@ const DisplaySection = () => {
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <Play className="size-4 text-muted-foreground" />
-                <label className="text-sm font-medium leading-none">
+                <span className="text-sm font-medium leading-none">
                   Tutorial neu starten
-                </label>
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Startet die interaktive Einführungstour erneut.
@@ -115,9 +115,9 @@ const DisplaySection = () => {
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <Maximize2 className="size-4 text-muted-foreground" />
-                <label className="text-sm font-medium leading-none">
+                <span className="text-sm font-medium leading-none">
                   Größe der Seitenfenster zurücksetzen
-                </label>
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Setzt die manuell angepasste Breite des Haus-Bearbeitungsfensters auf die Standardgröße zurück.
