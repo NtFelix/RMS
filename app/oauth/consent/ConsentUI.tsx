@@ -68,6 +68,9 @@ import { isValidRedirect, isValidSupabaseRedirect } from '@/lib/oauth-utils';
 
 // Logo header — logos, arrow, and labels shared between manage and consent screens
 function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | null; clientName: string }) {
+    const [imageError, setImageError] = useState(false);
+    const showIcon = clientIcon && !imageError;
+
     return (
         <>
             <div className="flex items-center justify-center gap-24 relative mb-10 pt-6">
@@ -79,16 +82,16 @@ function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | n
                     transition={{ type: 'spring', stiffness: 100, delay: 0.2 }}
                     className={cn(
                         "w-16 h-16 rounded-4xl shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative z-10",
-                        clientIcon 
+                        showIcon
                             ? "bg-white border border-border/40 dark:border-border/50 overflow-hidden" 
                             : "bg-card border border-border/40 dark:border-border/70 overflow-hidden"
                     )}
                 >
-                    {clientIcon && <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />}
-                    {!clientIcon && <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />}
+                    {showIcon && <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />}
+                    {!showIcon && <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />}
                     
-                    {clientIcon ? (
-                        <img src={clientIcon} alt={clientName} className="w-10 h-10 object-contain drop-shadow-xs relative z-10" />
+                    {showIcon ? (
+                        <img src={clientIcon} alt={clientName} onError={() => setImageError(true)} className="w-10 h-10 object-contain drop-shadow-xs relative z-10" />
                     ) : (
                         <Terminal className="w-7 h-7 text-primary relative z-10" />
                     )}
