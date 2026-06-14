@@ -478,7 +478,10 @@ export function HouseEditModal(props: HouseEditModalProps) {
       setIsResizing(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
-      localStorage.setItem("house-modal-width", String(widthRef.current));
+      const finalWidth = widthRef.current;
+      if (typeof finalWidth === "number" && !isNaN(finalWidth) && finalWidth >= 360) {
+        localStorage.setItem("house-modal-width", String(finalWidth));
+      }
     };
 
     document.addEventListener("mousemove", handleMouseMove);
