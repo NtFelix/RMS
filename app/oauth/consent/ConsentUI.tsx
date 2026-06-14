@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getAuthorizationDetailsAction, submitDecisionAction, type AuthorizationDetails } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Check, Loader2, AlertTriangle, X } from 'lucide-react';
+import { ShieldAlert, Check, Loader2, AlertTriangle, X, Terminal } from 'lucide-react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -68,72 +68,61 @@ import { isValidRedirect, isValidSupabaseRedirect } from '@/lib/oauth-utils';
 
 // Logo header — logos, arrow, and labels shared between manage and consent screens
 function OriginProductLogos({ clientIcon, clientName }: { clientIcon: string | null; clientName: string }) {
+    const [imageError, setImageError] = useState(false);
+    const showIcon = clientIcon && !imageError;
+
     return (
         <>
-            <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="flex items-center justify-center gap-24 relative mb-10 pt-6">
+                {/* Left Card - Origin App */}
                 <motion.div
-                    initial={{ x: -20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.2, duration: 0.5 }}
-                    className="relative"
+                    initial={{ x: -20, opacity: 0, rotate: -15 }}
+                    animate={{ x: 0, opacity: 1, rotate: -8 }}
+                    whileHover={{ rotate: -3, scale: 1.05 }}
+                    transition={{ type: 'spring', stiffness: 100, delay: 0.2 }}
+                    className={cn(
+                        "w-16 h-16 rounded-4xl shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative z-10",
+                        showIcon
+                            ? "bg-white border border-border/40 dark:border-border/50 overflow-hidden" 
+                            : "bg-card border border-border/40 dark:border-border/70 overflow-hidden"
+                    )}
                 >
-                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                    {clientIcon ? (
-                        <div className="w-16 h-16 rounded-4xl bg-white border border-border/40 dark:border-border/50 shadow-md dark:shadow-xl flex items-center justify-center overflow-hidden shrink-0 relative z-10">
-                            <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />
-                            <img src={clientIcon} alt={clientName} className="w-10 h-10 object-contain drop-shadow-xs relative z-10" />
-                        </div>
+                    {showIcon && <div className="absolute inset-0 bg-linear-to-tr from-black/5 to-transparent mix-blend-multiply dark:mix-blend-normal dark:from-white/10 dark:to-transparent" />}
+                    {!showIcon && <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />}
+                    
+                    {showIcon ? (
+                        <img src={clientIcon} alt={clientName} onError={() => setImageError(true)} className="w-10 h-10 object-contain drop-shadow-xs relative z-10" />
                     ) : (
-                        <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                            <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10" />
-                            <ShieldAlert className="w-7 h-7 text-primary relative z-10" />
-                        </div>
+                        <Terminal className="w-7 h-7 text-primary relative z-10" />
                     )}
                 </motion.div>
 
-                <div className="flex items-center gap-[2px]">
-                    {[0, 1, 2, 3, 4].map((i) => (
-                        <motion.div
-                            key={i}
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{
-                                scale: [0.3, 1.2, 0.3],
-                                opacity: [0.15, 0.9, 0.15],
-                            }}
-                            transition={{
-                                repeat: Infinity,
-                                duration: 1.6,
-                                delay: 0.5 + i * 0.12,
-                                ease: "easeInOut",
-                            }}
-                            className="w-1.5 h-1.5 rounded-full bg-primary/60"
+                {/* SVG Connecting Path */}
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-12 flex items-center justify-center pointer-events-none z-0">
+                    <svg className="w-36 h-8 overflow-visible" viewBox="0 0 100 30" fill="none">
+                        {/* Static dashed path */}
+                        <path
+                            d="M 5,22 Q 50,5 95,22"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeDasharray="4 4"
+                            className="text-muted-foreground/30 dark:text-zinc-700/80"
                         />
-                    ))}
+                    </svg>
                 </div>
 
+                {/* Right Card - Mietevo Main Application */}
                 <motion.div
-                    initial={{ x: 20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
-                    className="relative"
+                    initial={{ x: 20, opacity: 0, rotate: 15 }}
+                    animate={{ x: 0, opacity: 1, rotate: 8 }}
+                    whileHover={{ rotate: 3, scale: 1.05 }}
+                    transition={{ type: 'spring', stiffness: 100, delay: 0.3 }}
+                    className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10"
                 >
-                    <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 blur-xl rounded-full" />
-                    <div className="w-16 h-16 rounded-4xl bg-card border border-border/40 dark:border-border/70 shadow-md dark:shadow-xl flex items-center justify-center shrink-0 relative overflow-hidden z-10">
-                        <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
-                        <img src={LOGO_URL} alt={BRAND_NAME} className="w-10 h-10 object-contain relative z-10 dark:brightness-110" />
-                    </div>
+                    <div className="absolute inset-0 bg-linear-to-tr from-black/5 dark:from-black/20 to-transparent" />
+                    <img src={LOGO_URL} alt={BRAND_NAME} className="w-10 h-10 object-contain relative z-10 dark:brightness-110" />
                 </motion.div>
-            </div>
-
-            <div className="flex justify-center gap-4 mb-6">
-                <div className="flex flex-col items-center">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ursprung</span>
-                    <span className="text-sm font-semibold text-foreground">{clientName}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Produkt</span>
-                    <span className="text-sm font-semibold text-primary">Mietevo MCP</span>
-                </div>
             </div>
         </>
     );
