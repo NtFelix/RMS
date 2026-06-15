@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import {
-  Sparkles, ListTodo, FileText, Download, ShieldCheck,
+  Sparkles, Hammer, ListTodo, FileText, Download, ShieldCheck,
   FolderOpen, FileSpreadsheet, History, CheckCircle2, Server
 } from "lucide-react"
 import Image from "next/image"
@@ -180,7 +180,7 @@ export default function FeatureSections() {
               transition={{ duration: 0.5 }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-xs mb-6"
             >
-              <Sparkles className="w-4 h-4 text-primary" />
+              <Hammer className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-primary">Mehr Features</span>
             </motion.div>
 

@@ -41,6 +41,11 @@ export function HausOverviewModal() {
   React.useEffect(() => {
     if (hausOverviewLoading) {
       setLoadingStartTime(Date.now())
+    }
+  }, [hausOverviewLoading])
+
+  React.useEffect(() => {
+    if (hausOverviewLoading) {
       setLoadingProgress(0)
       setIsSlowLoading(false)
 
@@ -63,16 +68,15 @@ export function HausOverviewModal() {
       }
     } else {
       // Complete progress when loading finishes
-      if (loadingStartTime) {
-        setLoadingProgress(100)
-        setTimeout(() => {
-          setLoadingProgress(0)
-          setIsSlowLoading(false)
-          setLoadingStartTime(null)
-        }, 300)
-      }
+      setLoadingProgress(100)
+      const cleanupTimeout = setTimeout(() => {
+        setLoadingProgress(0)
+        setIsSlowLoading(false)
+        setLoadingStartTime(null)
+      }, 300)
+      return () => clearTimeout(cleanupTimeout)
     }
-  }, [hausOverviewLoading, loadingStartTime])
+  }, [hausOverviewLoading])
 
   const handleRetry = async () => {
     if (hausOverviewData?.id) {
