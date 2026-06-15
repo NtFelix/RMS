@@ -40,10 +40,16 @@ test.describe('Organisation Switcher E2E', () => {
     console.log(`Clicking target item: "${targetName}"...`);
     
     // We expect a page reload, so let's wait for navigation/reload
-    await targetItem.click();
-    await page.waitForLoadState('load');
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'load' }),
+      targetItem.click(),
+    ]);
 
     console.log("Page reloaded. Verifying new context...");
+
+    // Wait for user menu trigger to be visible and add a small hydration delay
+    await expect(userMenuTrigger).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(1000);
 
     // Print the cookies to see if they were set correctly
     const cookies = await context.cookies();

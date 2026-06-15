@@ -246,6 +246,21 @@ export const getMyOrganisationsAction = withLogging(
       return { success: false, error: { message: errorMessage } };
     }
 
+    // Resolve user's personal organization ID as their oldest owned organization
+    let personalOrgId: string | null = null;
+    const { data: ownedMemberships, error: ownedError } = await supabase
+      .from('Organisation_Mitglieder')
+      .select('organisation_id')
+      .eq('user_id', user.id)
+      .eq('rolle', 'owner')
+      .order('erstellt_am', { ascending: true });
+
+    if (ownedError) {
+      logger.error('Failed to query owned memberships', ownedError, { userId: user.id });
+    } else if (ownedMemberships && ownedMemberships.length > 0) {
+      personalOrgId = ownedMemberships[0].organisation_id;
+    }
+
     let orgs: any[] = [];
     let currentOrgId: string | null = null;
 
@@ -253,7 +268,10 @@ export const getMyOrganisationsAction = withLogging(
     const orgsResult = await safeRpcCall<any[]>(supabase, 'get_my_organisations', undefined, { userId: user.id });
     if (orgsResult.success && orgsResult.data) {
       // Exclude personal organization from the shared list
-      orgs = orgsResult.data.filter((org: any) => !(org.ist_versteckt === true && org.owner_id === user.id));
+      orgs = orgsResult.data.filter((org: any) => {
+        const orgId = org.organisation_id || org.id;
+        return orgId !== personalOrgId && !(org.ist_versteckt === true && org.owner_id === user.id);
+      });
       posthogLogger.info('get_my_organisations RPC succeeded', {
         'rpc.function': 'get_my_organisations',
         'user_id': user.id,
@@ -301,7 +319,7 @@ export const getMyOrganisationsAction = withLogging(
         if (!org) continue;
 
         // Skip personal/private organization in the switcher dropdown list
-        if (org.ist_versteckt === true && org.owner_id === user.id) {
+        if (org.id === personalOrgId || (org.ist_versteckt === true && org.owner_id === user.id)) {
           continue;
         }
 
@@ -365,15 +383,19 @@ export const getMyOrganisationsAction = withLogging(
 
     // Represent the user's personal organization as null to the UI (so "Privat" gets the checkmark)
     if (currentOrgId) {
-      const { data: orgData, error } = await supabase
-        .from('Organisation')
-        .select('ist_versteckt, owner_id')
-        .eq('id', currentOrgId)
-        .maybeSingle();
-      if (error) {
-        logger.error('Failed to check personal organisation', error, { userId: user.id, currentOrgId });
-      } else if (orgData && orgData.ist_versteckt && orgData.owner_id === user.id) {
+      if (currentOrgId === personalOrgId) {
         currentOrgId = null;
+      } else {
+        const { data: orgData, error } = await supabase
+          .from('Organisation')
+          .select('ist_versteckt, owner_id')
+          .eq('id', currentOrgId)
+          .maybeSingle();
+        if (error) {
+          logger.error('Failed to check personal organisation', error, { userId: user.id, currentOrgId });
+        } else if (orgData && orgData.ist_versteckt && orgData.owner_id === user.id) {
+          currentOrgId = null;
+        }
       }
     }
 
