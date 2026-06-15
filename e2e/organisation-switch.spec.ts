@@ -40,9 +40,8 @@ test.describe('Organisation Switcher E2E', () => {
     console.log(`Clicking target item: "${targetName}"...`);
     
     // We expect a page reload, so let's wait for navigation/reload
-    const reloadPromise = page.waitForNavigation({ waitUntil: 'load', timeout: 30000 });
     await targetItem.click();
-    await reloadPromise;
+    await page.waitForLoadState('load');
 
     console.log("Page reloaded. Verifying new context...");
 

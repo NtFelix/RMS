@@ -365,12 +365,14 @@ export const getMyOrganisationsAction = withLogging(
 
     // Represent the user's personal organization as null to the UI (so "Privat" gets the checkmark)
     if (currentOrgId) {
-      const { data: orgData } = await supabase
+      const { data: orgData, error } = await supabase
         .from('Organisation')
         .select('ist_versteckt, owner_id')
         .eq('id', currentOrgId)
         .maybeSingle();
-      if (orgData && orgData.ist_versteckt && orgData.owner_id === user.id) {
+      if (error) {
+        logger.error('Failed to check personal organisation', error, { userId: user.id, currentOrgId });
+      } else if (orgData && orgData.ist_versteckt && orgData.owner_id === user.id) {
         currentOrgId = null;
       }
     }
