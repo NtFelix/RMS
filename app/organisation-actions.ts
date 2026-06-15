@@ -411,6 +411,30 @@ export const switchOrganisationAction = withLogging(
         'target.org_id': orgId
       });
     } else {
+      const errorMessageText = (dbResult.error?.message || dbResult.message || '').toLowerCase();
+      const isMissingFunction = dbResult.error?.code === '42883' || 
+                               dbResult.error?.code === 'PGRST202' || 
+                               dbResult.error?.code === 'PGRST200' ||
+                               errorMessageText.includes('does not exist') ||
+                               errorMessageText.includes('not found') ||
+                               errorMessageText.includes('unrecognized signature') ||
+                               errorMessageText.includes('existiert nicht');
+
+      if (isMissingFunction) {
+        logger.error('set_current_organisation RPC is missing in the database', undefined, {
+          userId: user.id,
+          orgId: orgId || undefined,
+          code: dbResult.error?.code,
+          message: dbResult.error?.message
+        });
+        return { 
+          success: false, 
+          error: { 
+            message: 'Die Datenbank-Funktion set_current_organisation existiert nicht. Bitte wenden Sie sich an den Administrator.' 
+          } 
+        };
+      }
+
       logger.warn('set_current_organisation RPC failed, falling back to manual validation', {
         userId: user.id,
         orgId,
