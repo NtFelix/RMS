@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM node:22.22-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -8,7 +8,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
 # Stage 2: Build the source code
-FROM node:22.22-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Required at build time: inlined into client bundles
@@ -53,7 +53,7 @@ RUN --mount=type=secret,id=POSTHOG_PERSONAL_API_KEY \
     npm run build
 
 # Stage 3: Production image
-FROM node:22.22-alpine AS runner
+FROM node:22-alpine AS runner
 RUN apk upgrade --no-cache && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 
