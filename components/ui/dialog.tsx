@@ -125,14 +125,19 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(dialogContentVariants({ size }), className)}
-        onInteractOutside={handleInteraction} // Assign the correctly typed handler
+        onInteractOutside={handleInteraction}
+        onEscapeKeyDown={(e) => {
+          if (isDirty && onAttemptClose) {
+            e.preventDefault();
+            onAttemptClose();
+          }
+        }}
         onOpenAutoFocus={(e) => {
           // Prevent auto focus to allow combobox inputs to work
           e.preventDefault();
         }}
         onCloseAutoFocus={(e) => {
-          // Prevent auto focus on close
-          e.preventDefault();
+          // Intentionally empty: let Radix restore focus to the trigger element.
         }}
         onFocusOutside={(e) => {
           // Don't prevent focus from moving to combobox elements or when combobox is actively being used
@@ -160,7 +165,7 @@ const DialogContent = React.forwardRef<
             className="absolute right-3 top-3 rounded-full p-2 opacity-70 ring-offset-background transition-all duration-300 hover:opacity-100 hover:bg-gray-100 hover:scale-110 active:scale-95 hover:shadow-lg hover:rotate-90 dark:modal-close-hover focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground sm:right-4 sm:top-4 sm:p-2.5 md:right-6 md:top-6"
           >
             <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Schließen</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
