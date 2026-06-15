@@ -253,7 +253,7 @@ export const getMyOrganisationsAction = withLogging(
     const orgsResult = await safeRpcCall<any[]>(supabase, 'get_my_organisations', undefined, { userId: user.id });
     if (orgsResult.success && orgsResult.data) {
       // Exclude personal organization from the shared list
-      orgs = orgsResult.data.filter((org: any) => org.owner_id !== user.id);
+      orgs = orgsResult.data.filter((org: any) => !(org.ist_versteckt === true && org.owner_id === user.id));
       posthogLogger.info('get_my_organisations RPC succeeded', {
         'rpc.function': 'get_my_organisations',
         'user_id': user.id,

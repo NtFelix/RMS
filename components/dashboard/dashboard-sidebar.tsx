@@ -411,7 +411,7 @@ function SidebarContent({
   const hasUnreadNotifications = false
 
   return (
-    <div className="h-full w-full flex flex-col relative overflow-visible">
+    <div className="h-full w-full flex flex-col relative overflow-hidden">
       {/* Header section */}
       <div className="flex items-center h-14 justify-between w-full px-3 pb-4 relative overflow-hidden shrink-0">
         <div className="flex items-center overflow-hidden flex-1 min-w-0">
