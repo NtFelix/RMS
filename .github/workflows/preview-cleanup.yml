@@ -30,16 +30,20 @@ jobs:
 
       - name: Remove Preview and Merged Branch Tags
         if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH_REF: ${{ github.event.pull_request.head.ref }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
         run: |
-          PR_TAG="pr-${{ github.event.pull_request.number }}"
-          BRANCH_TAG=$(printf '%s' "branch-${{ github.event.pull_request.head.ref }}" \
+          PR_TAG="pr-$PR_NUMBER"
+          BRANCH_TAG=$(printf '%s' "branch-$BRANCH_REF" \
             | tr '[:upper:]' '[:lower:]' \
             | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' \
             | cut -c1-63 \
             | sed -E 's/-+$//')
 
           TAGS=("$PR_TAG")
-          if [ "${{ github.event.pull_request.merged }}" = "true" ] && [ -n "$BRANCH_TAG" ]; then
+          if [ "$PR_MERGED" = "true" ] && [ -n "$BRANCH_TAG" ]; then
             TAGS+=("$BRANCH_TAG")
           fi
 

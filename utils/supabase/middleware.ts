@@ -15,7 +15,10 @@ export async function updateSession(request: NextRequest, response: NextResponse
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, {
+              ...options,
+              sameSite: "lax",
+            })
           })
           
           // Force update the Cookie header for downstream Server Actions/Components
