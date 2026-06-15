@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { LogOut, Settings, FileText, Check } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
@@ -36,7 +35,6 @@ export function UserSettings({
   collapsed?: boolean;
   initialData: SidebarUserData;
 }) {
-  const router = useRouter()
   const { toast } = useToast()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
@@ -56,33 +54,35 @@ export function UserSettings({
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const successOrgName = sessionStorage.getItem("org_switch_success")
-      if (successOrgName) {
-        sessionStorage.removeItem("org_switch_success")
-        toast({
-          variant: "success",
-          title: "Erfolgreich gewechselt",
-          description: successOrgName === "Privat" 
-            ? "Du bist jetzt in deiner privaten Ansicht." 
-            : `Du hast erfolgreich zur Organisation "${successOrgName}" gewechselt.`,
-        })
-      }
-    }
-  }, [toast])
-
-  useEffect(() => {
     const loadOrganisations = async () => {
       try {
         const res = await getMyOrganisationsAction()
         if (res.success && res.data) {
           setOrganisations(res.data)
           setCurrentOrgId(res.currentOrgId ?? null)
+          sessionStorage.setItem("cached_organisations", JSON.stringify({
+            orgs: res.data,
+            currentOrgId: res.currentOrgId
+          }))
         }
       } catch (e) {
         console.error("Failed to load organisations:", e)
       }
     }
+
+    const cached = sessionStorage.getItem("cached_organisations")
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        setOrganisations(parsed.orgs)
+        if (parsed.currentOrgId !== undefined) {
+          setCurrentOrgId(parsed.currentOrgId ?? null)
+        }
+      } catch {
+        sessionStorage.removeItem("cached_organisations")
+      }
+    }
+
     loadOrganisations()
   }, [])
 
@@ -92,10 +92,6 @@ export function UserSettings({
     try {
       const res = await switchOrganisationAction(orgId);
       if (res.success) {
-        const targetOrgName = orgId 
-          ? organisations.find(o => o.organisation_id === orgId)?.name || "Organisation"
-          : "Privat";
-        sessionStorage.setItem("org_switch_success", targetOrgName);
         window.location.reload();
       } else {
         console.error("Failed to switch organisation:", res.error?.message);
