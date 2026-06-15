@@ -80,6 +80,17 @@ function mapSupabaseError(error: any): StructuredError {
   const message = error.message || 'Unknown database error';
 
   switch (code) {
+    case '42883':
+    case 'PGRST202':
+    case 'PGRST200':
+      return {
+        category: ErrorCategory.DATABASE,
+        code,
+        message,
+        userMessage: 'Die angeforderte Funktion existiert nicht in der Datenbank.',
+        retryable: false
+      };
+
     case 'PGRST116':
       return {
         category: ErrorCategory.DATABASE,

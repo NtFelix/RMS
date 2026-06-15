@@ -99,9 +99,19 @@ export function UserSettings({
         window.location.reload();
       } else {
         console.error("Failed to switch organisation:", res.error?.message);
+        toast({
+          variant: "destructive",
+          title: "Fehler beim Wechseln",
+          description: res.error?.message || "Die Organisation konnte nicht gewechselt werden.",
+        });
       }
     } catch (e) {
       console.error("Exception switching organisation:", e);
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+      });
     } finally {
       setIsSwitchingOrg(false);
     }
