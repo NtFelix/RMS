@@ -157,15 +157,21 @@ jobs:
       # Get changed files for PR or push
       - name: Get changed files
         id: changed-files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           # Determine if this is a PR or a push
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_SHA="$PR_BASE_SHA"
+            HEAD_SHA="$PR_HEAD_SHA"
           else
             # For push events, compare with the previous commit
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.sha }}"
+            BASE_SHA="$EVENT_BEFORE"
+            HEAD_SHA="$GITHUB_SHA"
             
             # If before is empty (first push), use parent commit
             if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
@@ -206,6 +212,9 @@ jobs:
 
       - name: Find and filter test files
         id: set-matrix
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           # Find all test files
           ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
@@ -225,7 +234,7 @@ jobs:
           IS_MAIN_BRANCH=false
           IS_FULL_RUN=false
           
-          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/main" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             IS_MAIN_BRANCH=true
             IS_FULL_RUN=true
             echo "Main branch or manual trigger - running ALL tests"
