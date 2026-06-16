@@ -83,7 +83,6 @@ async function initializePostHog(nonce?: string) {
     },
     // Ensure feature flags are loaded
     loaded: function (posthog: any) {
-      posthog.capture('posthog_loaded_successfully');
       posthog.reloadFeatureFlags?.();
     }
   } as any);
