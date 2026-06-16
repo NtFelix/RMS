@@ -21,7 +21,7 @@
         "@typescript-eslint/parser": "^8.59.2",
         "eslint": "^8.0.0",
         "typescript": "^5.0.0",
-        "vite": "^8.0.11",
+        "vite": "^8.0.16",
         "vitest": "^4.1.5",
         "wrangler": "^4.90.0"
     },
