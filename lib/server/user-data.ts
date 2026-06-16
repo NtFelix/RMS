@@ -39,7 +39,7 @@ export async function getSidebarUserData(
   const displayData = getUserDisplayData(user);
 
   // Parallel fetch for apartment count, profile, organisation info if not provided
-  const [countResult, secondaryProfileResult, orgIdResult, personalOrgResult] = await Promise.all([
+  const [countResult, secondaryProfileResult, orgIdResult] = await Promise.all([
     supabase
       .from('Wohnungen')
       .select('id', { count: 'exact', head: true })
@@ -51,20 +51,20 @@ export async function getSidebarUserData(
       .eq('id', user.id)
       .single() : Promise.resolve({ data: profile }),
     supabase.rpc('current_organisation_id'),
-    supabase
-      .from('Organisation')
-      .select('id')
-      .eq('owner_id', user.id)
-      .eq('ist_versteckt', true)
-      .order('erstellt_am', { ascending: true })
-      .limit(1)
-      .maybeSingle()
   ]);
 
   const orgId = orgIdResult.data;
   const hasOrganisationPermission = orgId !== null;
-  const personalOrgId = personalOrgResult.data?.id ?? null;
-  const isOrganisationHidden = orgId ? (orgId === personalOrgId) : false;
+  let isOrganisationHidden = false;
+
+  if (orgId) {
+    const { data: orgData } = await supabase
+      .from('Organisation')
+      .select('ist_versteckt')
+      .eq('id', orgId)
+      .maybeSingle();
+    isOrganisationHidden = orgData?.ist_versteckt ?? false;
+  }
 
   let apartmentLimit: number | typeof Infinity | null = null;
   const activeProfile = profile || secondaryProfileResult.data;
@@ -89,13 +89,6 @@ export async function getSidebarUserData(
         apartmentLimit = isTrialing ? 5 : 0;
     }
   }
-
-  console.log("[getSidebarUserData]", {
-    userId: user.id,
-    orgId,
-    hasOrganisationPermission,
-    isOrganisationHidden,
-  });
 
   return {
     user,
