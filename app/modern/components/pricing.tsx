@@ -617,10 +617,10 @@ export default function Pricing({
               return (
                 <Card
                   key={group.productName}
-                  className={`relative flex flex-col rounded-[2.5rem] bg-[#141414] border-white/10 ${group.popular ? "border-white/30 shadow-lg scale-105" : "border-white/5"}`}
+                  className={`relative flex flex-col rounded-[2.5rem] bg-[#141414] ${group.popular ? "border-white/30 shadow-lg scale-105" : "border-white/5"}`}
                 >
                   {group.popular && (
-                    <Badge variant="secondary" className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#EAEAEA] text-black hover:bg-white border-0 font-medium">Am beliebtesten</Badge>
+                    <Badge variant="secondary" className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#EAEAEA] text-black hover:bg-white font-medium">Am beliebtesten</Badge>
                   )}
 
                   <CardHeader className="text-center pb-8">
@@ -633,7 +633,7 @@ export default function Pricing({
                         {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
                       </span>
                     </div>
-                    <CardDescription className="mt-4 min-h-[72px] text-sm text-[#A1A1AA] leading-relaxed px-4"> {/* Added fixed height and overflow for description consistency */}
+                    <CardDescription className="mt-4 min-h-[72px] text-sm text-[#A1A1AA] leading-relaxed px-4">
                       {group.description || `Unser ${group.productName} Plan.`} {/* Use group's description */}
                     </CardDescription>
                   </CardHeader>
@@ -651,15 +651,15 @@ export default function Pricing({
                         )
                         onSelectPlan(planToDisplay.priceId)
                       }}
-                      className={`w-full rounded-full border-0 font-medium ${group.popular ? "bg-[#EAEAEA] text-black hover:bg-white" : "bg-white/5 text-white hover:bg-white/10"}`}
-                      variant="outline"
+                      className={`w-full rounded-full font-medium ${group.popular ? "bg-[#EAEAEA] text-black hover:bg-white" : "bg-white/5 text-white hover:bg-white/10"}`}
+                      variant="ghost"
                       size="lg"
                       disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
                     >
                       {getButtonTextAndState(planToDisplay.priceId).text}
                     </Button>
                   </div>
-                  <CardContent className="grow pt-0">
+                  <CardContent className="grow">
                     <ul className="space-y-3">
                       {group.features.map((feature, featureIndex) => (
                         <li key={featureIndex} className="flex items-center gap-3">
