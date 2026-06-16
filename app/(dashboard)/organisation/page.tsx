@@ -22,14 +22,26 @@ export default async function OrganisationPage() {
     redirect("/unauthorized");
   }
 
-  // Fetch organisation details (to check ist_versteckt)
-  const { data: org, error: orgError } = await supabase
-    .from('Organisation')
-    .select('id, owner_id, ist_versteckt, einstellungen')
-    .eq('id', orgId)
-    .single();
+  // Fetch organisation details and personal organisation in parallel
+  const [{ data: org, error: orgError }, { data: personalOrg }] = await Promise.all([
+    supabase
+      .from('Organisation')
+      .select('id, owner_id, ist_versteckt, einstellungen')
+      .eq('id', orgId)
+      .single(),
+    supabase
+      .from('Organisation')
+      .select('id')
+      .eq('owner_id', user.id)
+      .eq('ist_versteckt', true)
+      .order('erstellt_am', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+  ]);
 
-  if (orgError || !org || org.ist_versteckt) {
+  const personalOrgId = personalOrg?.id ?? null;
+
+  if (orgError || !org || org.id === personalOrgId) {
     console.error("Organisation is hidden or does not exist:", orgError);
     redirect("/unauthorized");
   }
