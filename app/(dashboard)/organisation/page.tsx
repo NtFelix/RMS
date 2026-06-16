@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import OrganisationClientView from "./client-wrapper";
 import { safeRpcCall } from "@/lib/error-handling";
@@ -11,14 +11,10 @@ export default async function OrganisationPage() {
   // Get authenticated user first
   const { supabase, user } = await requireAuthenticatedUser();
 
-  // Enforce permission and get active organization in parallel
-  const [_, orgIdResult] = await Promise.all([
-    requirePermission('organisation', 'ansehen'),
-    safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id })
-  ]);
-  const orgId = orgIdResult.data;
-  if (!orgIdResult.success || !orgId) {
-    console.error("No organisation context found:", orgIdResult.message);
+  // Fetch active organization — any active member has read access
+  const { data: orgId, success } = await safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id });
+  if (!success || !orgId) {
+    console.error("No organisation context found");
     redirect("/unauthorized");
   }
 
