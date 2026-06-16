@@ -60,7 +60,7 @@ export function UserSettings({
         if (res.success && res.data) {
           setOrganisations(res.data)
           setCurrentOrgId(res.currentOrgId ?? null)
-          sessionStorage.setItem("cached_organisations", JSON.stringify({
+          sessionStorage.setItem("cached_organisations:v1", JSON.stringify({
             orgs: res.data,
             currentOrgId: res.currentOrgId
           }))
@@ -70,7 +70,7 @@ export function UserSettings({
       }
     }
 
-    const cached = sessionStorage.getItem("cached_organisations")
+    const cached = sessionStorage.getItem("cached_organisations:v1")
     if (cached) {
       try {
         const parsed = JSON.parse(cached)
@@ -79,7 +79,7 @@ export function UserSettings({
           setCurrentOrgId(parsed.currentOrgId ?? null)
         }
       } catch {
-        sessionStorage.removeItem("cached_organisations")
+        sessionStorage.removeItem("cached_organisations:v1")
       }
     }
 
