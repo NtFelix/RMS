@@ -104,10 +104,19 @@ export async function middleware(request: NextRequest) {
 
       if (matchedPrefix) {
         const modul = ROUTE_PERMISSIONS[matchedPrefix]
+        const currentOrgId = request.cookies.get('current_organisation_id')?.value
+        const globalHeaders: Record<string, string> = {}
+        if (currentOrgId) {
+          globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
+        }
+
         const supabase = createServerClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
           {
+            global: {
+              headers: globalHeaders
+            },
             cookies: {
               getAll() {
                 return request.cookies.getAll()

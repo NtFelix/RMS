@@ -679,7 +679,7 @@ function SidebarContent({
       </div>
       
       {/* Profile section */}
-      <div className="pt-2 pb-4 flex flex-col gap-2 border-t border-border px-3 shrink-0">
+      <div className="pt-2 pb-4 md:pb-0 flex flex-col gap-2 border-t border-border px-3 shrink-0">
         <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
       </div>
     </div>
