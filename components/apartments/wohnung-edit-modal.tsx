@@ -134,11 +134,11 @@ function ResizeHandle({
 
 function TopBar({
   wohnungInitialData,
-  onOverviewClick,
+  onMeterClick,
   onDeleteRequest,
 }: {
   wohnungInitialData: any;
-  onOverviewClick: () => void;
+  onMeterClick: () => void;
   onDeleteRequest: () => void;
 }) {
   if (!wohnungInitialData) return null;
@@ -158,9 +158,9 @@ function TopBar({
         }
         align="end"
       >
-        <CustomDropdownItem onClick={onOverviewClick}>
-          <Eye className="h-4 w-4 mr-2" />
-          <span>Übersicht</span>
+        <CustomDropdownItem onClick={onMeterClick}>
+          <Gauge className="h-4 w-4 mr-2" />
+          <span>Zähler verwalten</span>
         </CustomDropdownItem>
         <CustomDropdownSeparator />
         <CustomDropdownItem onClick={onDeleteRequest} className="text-red-600 focus:text-red-600">
@@ -188,7 +188,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     wohnungModalOnSuccess,
     isWohnungModalDirty,
     setWohnungModalDirty,
-    openWohnungOverviewModal,
+    openZaehlerModal,
   } = useModalStore();
 
   const router = useRouter();
@@ -489,7 +489,12 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
 
         <TopBar
           wohnungInitialData={wohnungInitialData}
-          onOverviewClick={() => wohnungInitialData && openWohnungOverviewModal(wohnungInitialData.id)}
+          onMeterClick={() => {
+            if (wohnungInitialData) {
+              useOnboardingStore.getState().completeStep('create-meter-select');
+              openZaehlerModal(wohnungInitialData.id, wohnungInitialData.name);
+            }
+          }}
           onDeleteRequest={() => setDeleteDialogOpen(true)}
         />
 
