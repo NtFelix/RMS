@@ -65,8 +65,6 @@ async function initializePostHog(nonce?: string) {
     return;
   }
 
-  console.log('Initializing PostHog with key:', config.key.substring(0, 10) + '...');
-
   // GDPR Compliance: Always require explicit consent before tracking
   // This applies to ALL pages including landing and documentation pages
   posthog.init(config.key, {
@@ -85,7 +83,6 @@ async function initializePostHog(nonce?: string) {
     },
     // Ensure feature flags are loaded
     loaded: function (posthog: any) {
-      console.log('PostHog loaded successfully, reloading feature flags...');
       posthog.reloadFeatureFlags?.();
     }
   } as any);
