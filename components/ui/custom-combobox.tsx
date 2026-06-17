@@ -46,6 +46,7 @@ export function CustomCombobox({
   const [inputValue, setInputValue] = React.useState("")
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
   const [isKeyboardNavigation, setIsKeyboardNavigation] = React.useState(false)
+  const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null)
 
   const closeCombobox = React.useCallback(() => {
     setOpen(false)
@@ -53,6 +54,20 @@ export function CustomCombobox({
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const optionRefs = React.useRef<(HTMLDivElement | null)[]>([])
+
+  React.useEffect(() => {
+    if (open && buttonRef.current) {
+      // Find the closest ancestor dialog or sheet
+      const dialogContent = buttonRef.current.closest('[role="dialog"], [data-sheet-content="true"], [data-dialog-content="true"]') as HTMLElement | null
+      if (dialogContent) {
+        setPortalContainer(dialogContent)
+      } else {
+        setPortalContainer(null)
+      }
+    } else {
+      setPortalContainer(null)
+    }
+  }, [open])
 
   const selectedOption = options.find((option) => option.value === value)
 
@@ -120,6 +135,49 @@ export function CustomCombobox({
     }
   }, [filteredOptions, highlightedIndex, value, onChange, closeCombobox])
 
+  // Global keydown listener to support keyboard navigation when open
+  React.useEffect(() => {
+    if (!open) return
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
+      if (navigationKeys.includes(e.key)) {
+        // Handle navigation if the focus is on the input or the trigger button
+        if (
+          document.activeElement === inputRef.current ||
+          document.activeElement === buttonRef.current ||
+          buttonRef.current?.contains(document.activeElement)
+        ) {
+          // Tab shouldn't prevent default browser behavior
+          if (e.key !== 'Tab') {
+            e.preventDefault()
+          }
+          handleNavigationKey(e.key, e)
+        }
+      } else if (
+        e.key.length === 1 &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        (document.activeElement === buttonRef.current || (document.activeElement === inputRef.current && inputRef.current.value === ""))
+      ) {
+        // Redirect printable character typing to search input when trigger button is focused
+        e.preventDefault()
+        if (inputRef.current) {
+          inputRef.current.focus()
+          setInputValue(e.key)
+          setIsKeyboardNavigation(true)
+          setHighlightedIndex(0)
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleGlobalKeyDown, true)
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown, true)
+    }
+  }, [open, handleNavigationKey])
+
   // Effect 1: Handle Open/Close state and input focus
   React.useEffect(() => {
     if (!open) {
@@ -131,13 +189,11 @@ export function CustomCombobox({
       // Start in mouse mode by default
       setIsKeyboardNavigation(false)
 
-      // Focus the input
-      // Use requestAnimationFrame to ensure the element is mounted and ready
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.focus({ preventScroll: true })
-        }
-      })
+      // Focus the input after the popover content has mounted
+      const timer = setTimeout(() => {
+        inputRef.current?.focus({ preventScroll: true })
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [open])
 
@@ -182,7 +238,7 @@ export function CustomCombobox({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <Button
           ref={buttonRef}
@@ -196,26 +252,47 @@ export function CustomCombobox({
           disabled={disabled}
           id={id}
           data-dropdown-trigger
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              if (!open) {
+                setOpen(true)
+              }
+            }
+          }}
         >
           <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
+       <PopoverContent
+        container={portalContainer}
         className={cn("p-2 border border-border rounded-2xl shadow-2xl backdrop-blur-xs bg-popover z-100", width)}
         align="start"
         sideOffset={8}
-        // Removed onOpenAutoFocus prevention to allow natural focus behavior
-        // Also added data attribute for dialog interaction handling
+        onOpenAutoFocus={(e) => {
+          // Prevent Radix from stealing focus — we focus the input ourselves in the effect
+          e.preventDefault()
+          // Focus input immediately
+          setTimeout(() => {
+            inputRef.current?.focus({ preventScroll: true })
+          }, 0)
+        }}
+        onCloseAutoFocus={(e) => {
+          // Prevent Radix from returning focus to trigger — we handle this ourselves
+          e.preventDefault()
+          buttonRef.current?.focus({ preventScroll: true })
+        }}
         data-combobox-dropdown=""
       >
         <div className="flex flex-col gap-2">
-          {/* Custom search input with aggressive focus management */}
+          {/* Custom search input */}
           <div className="flex items-center gap-2 rounded-lg border border-border bg-popover px-2 mx-1 mt-1">
             <input
               ref={inputRef}
               type="text"
               role="searchbox"
+              data-combobox-input=""
               aria-label="Search options"
               placeholder={searchPlaceholder}
               value={inputValue}
@@ -225,17 +302,6 @@ export function CustomCombobox({
                 // Reset highlighted index when searching and enable keyboard navigation
                 setIsKeyboardNavigation(true)
                 setHighlightedIndex(0)
-              }}
-              onKeyDown={(e) => {
-                // Handle navigation keys using shared helper
-                const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
-
-                if (navigationKeys.includes(e.key)) {
-                  // Stop propagation to prevent the global handler from also processing this event
-                  e.stopPropagation()
-                  handleNavigationKey(e.key, e)
-                }
-                // For all other keys, let the browser handle them naturally
               }}
               className="flex h-9 w-full rounded-md bg-transparent px-2 py-2 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
               autoComplete="off"
@@ -247,6 +313,7 @@ export function CustomCombobox({
 
           {/* Custom options list with proper scrolling */}
           <div
+            role="listbox"
             className="flex max-h-[300px] flex-col gap-1 overflow-y-auto p-1 custom-scrollbar"
             style={{ overscrollBehavior: 'contain' }}
           >
@@ -273,7 +340,7 @@ export function CustomCombobox({
                     option.disabled
                       ? "pointer-events-none opacity-50"
                       : [
-                        highlightedIndex === index ? "bg-hover-bg text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-hover-bg"
+                        highlightedIndex === index ? "bg-hover-bg text-foreground" : "text-foreground hover:bg-hover-bg"
                       ]
                   )}
                   onClick={() => {

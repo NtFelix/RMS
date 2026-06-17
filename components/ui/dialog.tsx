@@ -125,6 +125,7 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(dialogContentVariants({ size }), className)}
+        data-dialog-content="true"
         onInteractOutside={handleInteraction}
         onEscapeKeyDown={(e) => {
           if (isDirty && onAttemptClose) {
