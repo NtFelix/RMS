@@ -69,15 +69,15 @@ function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: Lucide
       <div className="hidden sm:block">
         <HoverCard openDelay={200} closeDelay={100}>
           <HoverCardTrigger asChild>
-            <button
-              type="button"
+            <Label
+              htmlFor={htmlFor}
               className="flex items-center gap-3 text-muted-foreground/70 cursor-help transition-colors hover:text-foreground/90 w-fit group/header focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-[4px]"
             >
               <Icon className="h-4 w-4 group-hover/header:text-primary transition-colors" />
-              <Label htmlFor={htmlFor} className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
+              <span className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
                 {label}
-              </Label>
-            </button>
+              </span>
+            </Label>
           </HoverCardTrigger>
           <HoverCardContent side="top" align="start" className="w-80 shadow-2xl border-border/40 bg-background/95 backdrop-blur-md rounded-[28px] p-5 overflow-hidden">
             <div className="flex gap-3 items-start">
