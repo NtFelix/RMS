@@ -151,13 +151,25 @@ export function useActiveStateManager() {
  * Hook specifically for sidebar navigation active states
  */
 export function useSidebarActiveState() {
-  const store = useSyncPathnameWithStore()
+  useSyncPathnameWithStore()
+  const pathname = usePathname()
+  
+  const isRouteActive = useCallback((route: string) => {
+    return pathname === route || pathname.startsWith(`${route}/`)
+  }, [pathname])
+
+  const getActiveStateClasses = useCallback((route: string) => {
+    const isActive = isRouteActive(route)
+    return isActive 
+      ? "bg-accent text-accent-foreground" 
+      : "text-muted-foreground"
+  }, [isRouteActive])
   
   return {
-    isRouteActive: store.isRouteActive,
-    getActiveStateClasses: store.getActiveStateClasses,
-    currentRoute: store.activeState.currentRoute,
-    isCloudStorageActive: store.activeState.isCloudStorageActive
+    isRouteActive,
+    getActiveStateClasses,
+    currentRoute: pathname,
+    isCloudStorageActive: pathname.startsWith('/dateien')
   }
 }
 
