@@ -205,33 +205,42 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const isPending = isSubmitting || isDeleting;
 
-  const [width, setWidth] = useState(600);
-  const [isResizing, setIsResizing] = useState(false);
-  const widthRef = useRef(width);
-
-  // New state variables for context fetching
-  const [isLoadingContext, setIsLoadingContext] = useState(false);
-  const [isSaveDisabledByLimitsOrSubscriptionState, setIsSaveDisabledByLimitsOrSubscriptionState] = useState(false);
-  const [contextualSaveMessage, setContextualSaveMessage] = useState("");
-
-  const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
-  const isAddNewMode = !wohnungInitialData;
-
-  useEffect(() => {
-    widthRef.current = width;
-  }, [width]);
-
-  useEffect(() => {
+  const [width, setWidth] = useState<number>(() => {
     if (typeof window !== "undefined") {
       const savedWidth = localStorage.getItem("apartment-modal-width");
       if (savedWidth) {
         const parsed = parseInt(savedWidth, 10);
-        if (!isNaN(parsed)) {
-          setWidth(parsed);
-        }
+        if (!isNaN(parsed)) return parsed;
       }
     }
-  }, []);
+    return 600;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const widthRef = useRef(width);
+
+  const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
+  const isAddNewMode = !wohnungInitialData;
+
+  const count = currentApartmentCountFromProps;
+  const limit = currentApartmentLimitFromProps;
+  const isActiveSub = isActiveSubscriptionFromProps;
+
+  let contextualSaveMessage = "";
+  let isSaveDisabledByLimitsOrSubscriptionState = false;
+
+  if (isWohnungModalOpen) {
+    if (isActiveSub === false) {
+      contextualSaveMessage = "Ein aktives Abonnement ist erforderlich.";
+      isSaveDisabledByLimitsOrSubscriptionState = true;
+    } else if (isAddNewMode && limit !== undefined && count !== undefined && limit !== Infinity && count >= limit) {
+      contextualSaveMessage = `Sie haben die maximale Anzahl an Wohnungen (${limit}) für Ihr Abonnement erreicht.`;
+      isSaveDisabledByLimitsOrSubscriptionState = true;
+    }
+  }
+
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -311,42 +320,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     }
   }, [isWohnungModalOpen, wohnungModalHaeuser]);
 
-  useEffect(() => {
-    if (isWohnungModalOpen) {
-      let determinedMessage = "";
-      let determinedDisabled = false;
-      setContextualSaveMessage("");
-      setIsSaveDisabledByLimitsOrSubscriptionState(false);
-      setIsLoadingContext(true);
-
-      const count = currentApartmentCountFromProps;
-      const limit = currentApartmentLimitFromProps;
-      const isActiveSub = isActiveSubscriptionFromProps;
-
-      if (isActiveSub === false) {
-        determinedMessage = "Ein aktives Abonnement ist erforderlich.";
-        determinedDisabled = true;
-      } else if (isAddNewMode && limit !== undefined && count !== undefined && limit !== Infinity && count >= limit) {
-        determinedMessage = `Sie haben die maximale Anzahl an Wohnungen (${limit}) für Ihr Abonnement erreicht.`;
-        determinedDisabled = true;
-      }
-
-      setContextualSaveMessage(determinedMessage);
-      setIsSaveDisabledByLimitsOrSubscriptionState(determinedDisabled);
-      setIsLoadingContext(false);
-    } else {
-      setContextualSaveMessage("");
-      setIsSaveDisabledByLimitsOrSubscriptionState(false);
-      setIsLoadingContext(false);
-    }
-  }, [
-    isWohnungModalOpen,
-    isAddNewMode,
-    isActiveSubscriptionFromProps,
-    currentApartmentLimitFromProps,
-    currentApartmentCountFromProps,
-    wohnungInitialData?.id
-  ]);
+  // Context settings (determined directly in render phase)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -516,7 +490,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder={wohnungInitialData ? "Unbenannte Wohnung" : "Wohnung hinzufügen"}
-                    disabled={isPending || isLoadingContext}
+                    disabled={isPending}
                     aria-label={wohnungInitialData ? "Name der Wohnung" : "Name der neuen Wohnung"}
                     className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
                   />
@@ -551,7 +525,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
                         required
                         min="0"
                         step="0.01"
-                        disabled={isPending || isLoadingContext}
+                        disabled={isPending}
                         className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
                       />
                     </div>
@@ -572,7 +546,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
                         required
                         min="0"
                         step="0.01"
-                        disabled={isPending || isLoadingContext}
+                        disabled={isPending}
                         className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
                       />
                     </div>
@@ -593,7 +567,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
                           placeholder="Haus auswählen"
                           searchPlaceholder="Haus suchen..."
                           emptyText="Kein Haus gefunden."
-                          disabled={isPending || isLoadingContext}
+                          disabled={isPending}
                           triggerClassName="hover:scale-100 active:scale-[0.995] shadow-none hover:shadow-none hover:bg-hover-bg hover:text-foreground"
                         />
                       </div>
@@ -637,7 +611,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               </Button>
               <Button
                 type="submit"
-                disabled={isPending || isLoadingContext || isSaveDisabledByLimitsOrSubscriptionState}
+                disabled={isPending || isSaveDisabledByLimitsOrSubscriptionState}
                 className="flex-1 rounded-xl h-11 shadow-sm font-semibold hover:scale-[1.005] active:scale-[0.995] hover:shadow-sm"
               >
                 {isSubmitting ? (
