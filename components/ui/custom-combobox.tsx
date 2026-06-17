@@ -27,6 +27,7 @@ interface CustomComboboxProps {
   width?: string; // e.g., "w-[200px]", "w-full"
   disabled?: boolean; // For disabling the entire combobox
   id?: string; // For accessibility - connects with Label htmlFor
+  triggerClassName?: string; // Custom styling for the trigger button
 }
 
 export function CustomCombobox({
@@ -39,6 +40,7 @@ export function CustomCombobox({
   width = "w-[200px]",
   disabled = false,
   id,
+  triggerClassName,
 }: CustomComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
@@ -190,7 +192,7 @@ export function CustomCombobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
-          className={cn("justify-between px-3 min-h-[40px] h-auto cursor-pointer", width, !value && "text-muted-foreground")}
+          className={cn("justify-between px-3 min-h-[40px] h-auto cursor-pointer", width, !value && "text-muted-foreground", triggerClassName)}
           disabled={disabled}
           id={id}
           data-dropdown-trigger

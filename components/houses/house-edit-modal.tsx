@@ -80,9 +80,9 @@ function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: Lucide
             </button>
           </HoverCardTrigger>
           <HoverCardContent side="top" align="start" className="w-80 shadow-2xl border-border/40 bg-background/95 backdrop-blur-md rounded-[28px] p-5 overflow-hidden">
-            <div className="flex gap-4 items-start">
-              <div className="flex-none h-12 w-12 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner border border-amber-500/20">
-                <Lightbulb className="h-6 w-6" />
+            <div className="flex gap-3 items-start">
+              <div className="flex-none h-8 w-8 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner border border-amber-500/20">
+                <Lightbulb className="h-4 w-4" />
               </div>
               <div className="space-y-1.5 pt-1">
                 <h4 className="font-bold text-foreground text-sm uppercase tracking-tight">Tipp</h4>
@@ -350,7 +350,7 @@ function FormActions({
   houseInitialData: House | null;
 }) {
   return (
-    <SheetFooter className="px-4 pb-6 pt-2 sm:p-8 sm:pt-4">
+    <SheetFooter className="px-4 pb-8 pt-2 sm:p-8 sm:pb-14 sm:pt-4">
       <div className="max-w-[90%] mx-auto w-full flex gap-3">
         <Button
           type="button"
