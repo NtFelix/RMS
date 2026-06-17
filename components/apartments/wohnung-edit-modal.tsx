@@ -23,7 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Home, Ruler, Coins, Building2, MoreHorizontal, Lightbulb, Eye, Trash2, Info, type LucideIcon } from "lucide-react";
+import { Home, Ruler, Coins, Building2, MoreHorizontal, Lightbulb, Eye, Trash2, Info, Gauge, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from "@/components/ui/custom-dropdown";
 import {
