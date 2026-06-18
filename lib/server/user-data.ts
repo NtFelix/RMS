@@ -39,7 +39,7 @@ export async function getSidebarUserData(
   const displayData = getUserDisplayData(user);
 
   // Parallel fetch for apartment count, profile, organisation info if not provided
-  const [countResult, secondaryProfileResult, hasOrgPermResult, orgIdResult] = await Promise.all([
+  const [countResult, secondaryProfileResult, orgIdResult] = await Promise.all([
     supabase
       .from('Wohnungen')
       .select('id', { count: 'exact', head: true })
@@ -50,15 +50,11 @@ export async function getSidebarUserData(
       .select('stripe_subscription_status, stripe_price_id')
       .eq('id', user.id)
       .single() : Promise.resolve({ data: profile }),
-    supabase.rpc('check_permission', {
-      p_modul: 'organisation',
-      p_aktion: 'ansehen',
-    }),
-    supabase.rpc('current_organisation_id')
+    supabase.rpc('current_organisation_id'),
   ]);
 
-  const hasOrganisationPermission = hasOrgPermResult.data === true;
   const orgId = orgIdResult.data;
+  const hasOrganisationPermission = orgId !== null;
   let isOrganisationHidden = false;
 
   if (orgId) {

@@ -21,6 +21,10 @@ jobs:
     steps:
       - name: Determine audit scope
         id: check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
           # Determine which jobs to run:
           # - Build: Always runs on valid events (validates code compiles)
@@ -30,22 +34,22 @@ jobs:
           FULL_MATRIX='["mobile", "desktop", "tablet"]'
           DESKTOP_ONLY='["desktop"]'
           
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should-run-build=true" >> $GITHUB_OUTPUT
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
             echo "Reason: Manual trigger - running build + all devices"
-          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          elif [[ "$EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo "should-run-build=true" >> $GITHUB_OUTPUT
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
             echo "Reason: Push to main - running build + all devices"
-          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
+          elif [[ "$EVENT_NAME" == "pull_request" && ("$EVENT_ACTION" == "opened" || "$EVENT_ACTION" == "reopened") ]]; then
             echo "should-run-build=true" >> $GITHUB_OUTPUT
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
             echo "Reason: PR opened/reopened - running build + all devices"
-          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "synchronize" ]]; then
+          elif [[ "$EVENT_NAME" == "pull_request" && "$EVENT_ACTION" == "synchronize" ]]; then
             echo "should-run-build=true" >> $GITHUB_OUTPUT
             echo "should-run-lighthouse=false" >> $GITHUB_OUTPUT
             echo "device-matrix=$DESKTOP_ONLY" >> $GITHUB_OUTPUT

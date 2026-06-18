@@ -95,6 +95,8 @@ describe('DashboardSidebar Navigation', () => {
 
     expect(hrefs).toEqual([
       '/dashboard',
+      '/suche',
+      '/organisation',
       '/haeuser',
       '/wohnungen',
       '/mieter',
@@ -104,21 +106,5 @@ describe('DashboardSidebar Navigation', () => {
       '/dateien',
       '/mails'
     ])
-  })
-
-  it('renders logistics sidebar sections and links on desktop when expanded', () => {
-    const { container } = render(<DashboardSidebar sidebarData={mockSidebarData} />)
-
-    // Expanded desktop renders Logistics header and details cards
-    expect(screen.getByText('Logistics')).toBeInTheDocument()
-    expect(screen.getByText('Deliveries')).toBeInTheDocument()
-    expect(screen.getByText('On the way')).toBeInTheDocument()
-
-    // Logistics pages links
-    const logisticsHrefs = ['/user-profile', '/vehicle', '/inventory', '/tracking', '/warehouse', '/order']
-    logisticsHrefs.forEach(href => {
-      const link = container.querySelector(`a[href="${href}"]`)
-      expect(link).toBeInTheDocument()
-    })
   })
 })

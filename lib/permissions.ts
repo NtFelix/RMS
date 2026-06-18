@@ -22,6 +22,17 @@ export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verw
 export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boolean> {
   try {
     const { supabase } = await ensureAuth();
+    
+    // Any active member of an organization has read access ('ansehen') to the organization page
+    if (modul === 'organisation' && aktion === 'ansehen') {
+      const { data: orgId, error: orgIdError } = await supabase.rpc('current_organisation_id');
+      if (orgIdError) {
+        console.error("Error fetching current_organisation_id in hasPermission:", orgIdError);
+        return false;
+      }
+      return orgId !== null;
+    }
+
     const { data, error } = await supabase.rpc('check_permission', {
       p_modul: modul,
       p_aktion: aktion,

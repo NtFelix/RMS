@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import OrganisationClientView from "./client-wrapper";
 import { safeRpcCall } from "@/lib/error-handling";
@@ -11,25 +11,33 @@ export default async function OrganisationPage() {
   // Get authenticated user first
   const { supabase, user } = await requireAuthenticatedUser();
 
-  // Enforce permission and get active organization in parallel
-  const [_, orgIdResult] = await Promise.all([
-    requirePermission('organisation', 'ansehen'),
-    safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id })
-  ]);
-  const orgId = orgIdResult.data;
-  if (!orgIdResult.success || !orgId) {
-    console.error("No organisation context found:", orgIdResult.message);
+  // Fetch active organization — any active member has read access
+  const { data: orgId, success } = await safeRpcCall<string>(supabase, 'current_organisation_id', undefined, { userId: user.id });
+  if (!success || !orgId) {
+    console.error("No organisation context found");
     redirect("/unauthorized");
   }
 
-  // Fetch organisation details (to check ist_versteckt)
-  const { data: org, error: orgError } = await supabase
-    .from('Organisation')
-    .select('id, owner_id, ist_versteckt, einstellungen')
-    .eq('id', orgId)
-    .single();
+  // Fetch organisation details and personal organisation in parallel
+  const [{ data: org, error: orgError }, { data: personalOrg }] = await Promise.all([
+    supabase
+      .from('Organisation')
+      .select('id, owner_id, ist_versteckt, einstellungen')
+      .eq('id', orgId)
+      .single(),
+    supabase
+      .from('Organisation')
+      .select('id')
+      .eq('owner_id', user.id)
+      .eq('ist_versteckt', true)
+      .order('erstellt_am', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+  ]);
 
-  if (orgError || !org || org.ist_versteckt) {
+  const personalOrgId = personalOrg?.id ?? null;
+
+  if (orgError || !org || org.id === personalOrgId) {
     console.error("Organisation is hidden or does not exist:", orgError);
     redirect("/unauthorized");
   }
