@@ -106,6 +106,7 @@ const SheetContent = React.forwardRef<
       <SheetPrimitive.Content
         ref={ref}
         className={cn(sheetVariants({ side }), className)}
+        data-sheet-content="true"
         onInteractOutside={handleInteraction}
         onEscapeKeyDown={(e) => {
           if (isDirty && onAttemptClose) {
@@ -121,25 +122,17 @@ const SheetContent = React.forwardRef<
           // Intentionally empty: let Radix restore focus to the trigger element.
         }}
         onFocusOutside={(e) => {
-          // Don't prevent focus from moving to combobox elements or when combobox is actively being used
-          const target = e.target as Element;
-          const activeComboboxInput = document.querySelector('[data-combobox-active="true"]')
-
-          if (target?.hasAttribute('data-combobox-input') ||
-            target?.hasAttribute('data-combobox-active') ||
-            target?.closest('[data-dialog-ignore-interaction]') ||
-            target?.closest('[data-combobox-dropdown]') ||
-            target?.closest('[role="listbox"]') ||
-            target?.closest('[role="option"]') ||
-            activeComboboxInput) {
-            e.preventDefault();
-          }
+          // Always prevent Radix Dialog from re-trapping focus.
+          // This allows focus to move to Popover portal content (e.g. combobox search input)
+          // which renders outside the Dialog's DOM tree.
+          // The sheet remains visually modal via the overlay; close button and Escape still work.
+          e.preventDefault()
         }}
         {...props}
       >
         {children}
         <SheetPrimitive.Close asChild onClick={handleCloseButtonClick}>
-          <Button variant="ghost" size="icon" className="absolute left-4 top-4 rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg cursor-pointer h-8 w-8">
+          <Button variant="ghost" size="icon" className="absolute left-4 top-4 rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg cursor-pointer h-8 w-8 active:scale-[0.995]">
             <ChevronsRight className="h-5 w-5" />
             <span className="sr-only">Schließen</span>
           </Button>

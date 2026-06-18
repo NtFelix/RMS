@@ -69,20 +69,20 @@ function PropertyHeader({ icon: Icon, label, infoText, htmlFor }: { icon: Lucide
       <div className="hidden sm:block">
         <HoverCard openDelay={200} closeDelay={100}>
           <HoverCardTrigger asChild>
-            <button
-              type="button"
+            <Label
+              htmlFor={htmlFor}
               className="flex items-center gap-3 text-muted-foreground/70 cursor-help transition-colors hover:text-foreground/90 w-fit group/header focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-[4px]"
             >
               <Icon className="h-4 w-4 group-hover/header:text-primary transition-colors" />
-              <Label htmlFor={htmlFor} className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
+              <span className="text-sm font-medium uppercase tracking-wider cursor-help group-hover/header:text-foreground transition-colors">
                 {label}
-              </Label>
-            </button>
+              </span>
+            </Label>
           </HoverCardTrigger>
           <HoverCardContent side="top" align="start" className="w-80 shadow-2xl border-border/40 bg-background/95 backdrop-blur-md rounded-[28px] p-5 overflow-hidden">
-            <div className="flex gap-4 items-start">
-              <div className="flex-none h-12 w-12 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner border border-amber-500/20">
-                <Lightbulb className="h-6 w-6" />
+            <div className="flex gap-3 items-start">
+              <div className="flex-none h-8 w-8 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner border border-amber-500/20">
+                <Lightbulb className="h-4 w-4" />
               </div>
               <div className="space-y-1.5 pt-1">
                 <h4 className="font-bold text-foreground text-sm uppercase tracking-tight">Tipp</h4>
@@ -150,7 +150,7 @@ function TopBar({
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg pointer-events-auto cursor-pointer h-8 w-8"
+            className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg pointer-events-auto cursor-pointer h-8 w-8 active:scale-[0.995]"
           >
             <MoreHorizontal className="h-5 w-5" />
             <span className="sr-only">Aktionen</span>
@@ -350,7 +350,7 @@ function FormActions({
   houseInitialData: House | null;
 }) {
   return (
-    <SheetFooter className="px-4 pb-6 pt-2 sm:p-8 sm:pt-4">
+    <SheetFooter className="px-4 pb-8 pt-2 sm:p-8 sm:pb-14 sm:pt-4">
       <div className="max-w-[90%] mx-auto w-full flex gap-3">
         <Button
           type="button"
@@ -424,25 +424,22 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const isPending = isSubmitting || isDeleting;
 
-  const [width, setWidth] = useState(600);
+  const [width, setWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const savedWidth = localStorage.getItem("house-modal-width");
+      if (savedWidth) {
+        const parsed = parseInt(savedWidth, 10);
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+    return 600;
+  });
   const [isResizing, setIsResizing] = useState(false);
   const widthRef = useRef(width);
 
   useEffect(() => {
     widthRef.current = width;
   }, [width]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedWidth = localStorage.getItem("house-modal-width");
-      if (savedWidth) {
-        const parsed = parseInt(savedWidth, 10);
-        if (!isNaN(parsed)) {
-          setWidth(parsed);
-        }
-      }
-    }
-  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
