@@ -11,10 +11,23 @@ import { getPlanDetails } from '@/lib/stripe-server';
 import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 // Server Component: Fetches data and passes it to the Client Component
 export default async function WohnungenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
+
+  // Permission check with object-scope exception (same as haeuser).
+  const [canView, accessibleIdsResult] = await Promise.all([
+    hasPermission('wohnungen', 'ansehen'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
+  const accessibleIds = accessibleIdsResult.data;
+  const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
+  if (!canView && !hasObjectScopeAccess) {
+    redirect('/unauthorized');
+  }
 
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;

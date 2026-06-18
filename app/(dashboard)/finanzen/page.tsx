@@ -6,6 +6,7 @@ import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { calculateFinancialSummary, processRpcFinancialSummary, fetchAvailableFinanceYears } from "@/utils/financeCalculations";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { requirePermission } from "@/lib/permissions";
 
 
 import { PAGINATION } from "@/constants";
@@ -81,6 +82,7 @@ function determineInitialYear(
 
 export default async function FinanzenPage() {
   const { supabase } = await requireAuthenticatedUser();
+  await requirePermission('finanzen', 'ansehen');
 
   const currentYear = new Date().getFullYear();
 

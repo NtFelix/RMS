@@ -7,12 +7,25 @@ import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
   const { supabase } = await requireAuthenticatedUser();
+
+  // Object-scope exception: if user can access specific houses, they can see their tenants.
+  const [canView, accessibleIdsResult] = await Promise.all([
+    hasPermission('mieter', 'ansehen'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
+  const accessibleIds = accessibleIdsResult.data;
+  const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
+  if (!canView && !hasObjectScopeAccess) {
+    redirect('/unauthorized');
+  }
 
   // Load data in parallel to eliminate waterfalls
   const [
