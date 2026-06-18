@@ -18,7 +18,7 @@ import resolvePostHogHost from './posthog-host';
  * Capture the active span context (trace_id / span_id) from the
  * currently executing OpenTelemetry span, if any.
  */
-function getSpanContext(): { traceId?: string; spanId?: string } {
+export function getSpanContext(): { traceId?: string; spanId?: string } {
     const currentSpan = trace.getActiveSpan();
     if (!currentSpan) return {};
     const ctx = currentSpan.spanContext();
@@ -156,6 +156,7 @@ export function buildOTLPPayloadBatch(logs: Array<{
     severityText: string;
     body: string;
     attributes: Record<string, unknown>;
+    traceContext?: { traceId?: string; spanId?: string };
 }>) {
     return {
         resourceLogs: [{
@@ -170,7 +171,7 @@ export function buildOTLPPayloadBatch(logs: Array<{
                     severityNumber: getSeverityNumber(log.severityText),
                     severityText: log.severityText.toUpperCase(),
                     body: { stringValue: log.body },
-                    ...getSpanContext(),
+                    ...(log.traceContext ?? getSpanContext()),
                     attributes: Object.entries(log.attributes)
                         .filter(([, v]) => v !== null && v !== undefined)
                         .map(([key, value]) => ({
