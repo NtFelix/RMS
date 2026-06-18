@@ -3,7 +3,7 @@
   "version": "2.6.3",
   "private": true,
   "engines": {
-    "node": "^22.0.0"
+    "node": "^22.22.0"
   },
   "scripts": {
     "dev": "next dev --turbo",
