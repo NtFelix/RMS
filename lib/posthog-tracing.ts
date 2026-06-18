@@ -44,6 +44,11 @@ const createPostHogDiagLogger = () => {
     const consoleMethod = severity === 'error' ? console.error : severity === 'warn' ? console.warn : console.log;
     consoleMethod(`[OTel ${severity.toUpperCase()}] ${formattedMessage}`);
 
+    // Skip sending the metrics-exporter informational message to PostHog.
+    // It fires during SDK init before any span exists, so trace/span IDs
+    // are always zero, creating noisy entries with no correlation value.
+    if (text.includes('OTEL_METRICS_EXPORTER')) return;
+
     posthogLogger[severity](`[OTel] ${text}`, {
       'otel.message': text,
       'otel.args': args.length > 0 ? safeStringify(args) : undefined,
