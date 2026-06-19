@@ -227,6 +227,8 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#039;");
 }
 
+import { posthogLogger } from "@/lib/posthog-logger";
+
 export async function sendEinladungEmail(
   options: SendEinladungEmailOptions
 ): Promise<SendEmailResult> {
@@ -235,7 +237,7 @@ export async function sendEinladungEmail(
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     const msg = "RESEND_API_KEY is not set";
-    console.warn(`[sendEinladungEmail] ${msg} – skipping email.`);
+    posthogLogger.warn(`[sendEinladungEmail] ${msg} – skipping email.`);
     return { sent: false, error: msg };
   }
 
@@ -266,7 +268,12 @@ export async function sendEinladungEmail(
   } catch (networkError) {
     const msg =
       networkError instanceof Error ? networkError.message : String(networkError);
-    console.error("[sendEinladungEmail] Network error calling Resend API:", msg);
+    posthogLogger.error("[sendEinladungEmail] Network error calling Resend API", {
+      error: msg,
+      toEmail,
+      organisationsName,
+      component: "sendEinladungEmail",
+    });
     return { sent: false, error: `Network error: ${msg}` };
   } finally {
     clearTimeout(timeoutId);
@@ -279,15 +286,24 @@ export async function sendEinladungEmail(
     } catch {
       // ignore
     }
-    console.error(
-      `[sendEinladungEmail] Resend API returned ${response.status}: ${body}`
-    );
+    posthogLogger.error("[sendEinladungEmail] Resend API returned non-OK status", {
+      status: response.status,
+      responseBody: body,
+      toEmail,
+      organisationsName,
+      from: process.env.RESEND_FROM_EMAIL ?? "Mietevo <service@mietevo.de>",
+      component: "sendEinladungEmail",
+    });
     return { sent: false, error: `Resend API returned ${response.status}` };
   }
 
   const responseBody = await response.json().catch(() => ({}));
-  console.log(
-    `[sendEinladungEmail] Sent to ${toEmail} (org: ${organisationsName}, token: ${token.slice(0, 8)}…)`
-  );
+  posthogLogger.info("[sendEinladungEmail] Sent successfully", {
+    toEmail,
+    organisationsName,
+    tokenPrefix: token.slice(0, 8),
+    resendId: responseBody.id,
+    component: "sendEinladungEmail",
+  });
   return { sent: true, id: responseBody.id };
 }
