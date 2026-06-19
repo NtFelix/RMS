@@ -14,8 +14,11 @@ import { requirePermission, hasPermission } from "@/lib/permissions";
 
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
-  await requirePermission('betriebskosten', 'ansehen');
-  const canCreate = await hasPermission('betriebskosten', 'erstellen');
+  
+  const [_, canCreate] = await Promise.all([
+    requirePermission('betriebskosten', 'ansehen'),
+    hasPermission('betriebskosten', 'erstellen')
+  ]);
   
   // Fetch all necessary data in parallel
   const [

@@ -34,7 +34,10 @@ export function ObjectScopeEditor({
     if (disabled) return;
 
     if (isUnrestricted) {
-      const nextHausIds = haeuser.map(h => h.id).filter(id => id !== hausId);
+      const nextHausIds = haeuser.reduce<string[]>((acc, h) => {
+        if (h.id !== hausId) acc.push(h.id);
+        return acc;
+      }, []);
       onChange(nextHausIds.length > 0 ? nextHausIds : null);
       return;
     }

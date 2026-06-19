@@ -27,33 +27,33 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
 
   const isLocked = rolle === "owner" || rolle === "admin";
 
-  const fetchPermissions = async () => {
-    if (isLocked) return;
-    setLoading(true);
-    try {
-      const [perms, houses] = await Promise.all([
-        getMitgliedPermissionsAction(mitgliedId),
-        getOrgHaeuserAction(),
-      ]);
-      setPermissions(perms);
-      // Deep clone to keep track of dirty states
-      setOriginalPermissions(JSON.parse(JSON.stringify(perms)));
-      setHaeuser(houses);
-    } catch (error) {
-      console.error("Failed to load permissions:", error);
-      toast({
-        title: "Fehler beim Laden",
-        description: "Die Berechtigungen konnten nicht geladen werden.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchPermissions = async () => {
+      if (isLocked) return;
+      setLoading(true);
+      try {
+        const [perms, houses] = await Promise.all([
+          getMitgliedPermissionsAction(mitgliedId),
+          getOrgHaeuserAction(),
+        ]);
+        setPermissions(perms);
+        // Deep clone to keep track of dirty states
+        setOriginalPermissions(structuredClone(perms));
+        setHaeuser(houses);
+      } catch (error) {
+        console.error("Failed to load permissions:", error);
+        toast({
+          title: "Fehler beim Laden",
+          description: "Die Berechtigungen konnten nicht geladen werden.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchPermissions();
-  }, [mitgliedId, rolle]);
+  }, [mitgliedId, isLocked]);
 
   // Compute stats for overview pane
   const statsSummary = React.useMemo(() => {
@@ -105,7 +105,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
           description: `Die Berechtigungen für ${memberName} wurden erfolgreich aktualisiert.`,
           variant: "success",
         });
-        setOriginalPermissions(JSON.parse(JSON.stringify(permissions)));
+        setOriginalPermissions(structuredClone(permissions));
       } else {
         toast({
           title: "Fehler beim Speichern",
@@ -118,7 +118,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
 
   const handleReset = () => {
     if (originalPermissions) {
-      setPermissions(JSON.parse(JSON.stringify(originalPermissions)));
+      setPermissions(structuredClone(originalPermissions));
     }
   };
 
@@ -188,7 +188,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
     <div className="flex flex-col gap-6">
       {/* Top Save / Discard bar if dirty */}
       {isDirty && (
-        <div className="flex items-center justify-between p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-250">
+        <div className="flex items-center justify-between p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
               Ungespeicherte Änderungen an den Berechtigungen von {memberName}

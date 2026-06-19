@@ -327,15 +327,20 @@ export default function WohnungenClientView({
     }
   }, [apartments, openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
+  const handleEditWohnungRef = useRef(handleEditWohnung);
+  handleEditWohnungRef.current = handleEditWohnung;
+  const apartmentsRef = useRef(apartments);
+  apartmentsRef.current = apartments;
+
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
       const customEvent = event as CustomEvent<{ id: string }>;
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
       try {
-        const existingApt = apartments.find(a => a.id === apartmentId);
+        const existingApt = apartmentsRef.current.find(a => a.id === apartmentId);
         if (existingApt) {
-          handleEditWohnung(existingApt);
+          handleEditWohnungRef.current(existingApt);
           return;
         }
 
@@ -343,12 +348,12 @@ export default function WohnungenClientView({
         const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartmentId).single();
         if (error || !aptToEdit) { console.error('Wohnung nicht gefunden oder Fehler:', error?.message); return; }
         const transformedApt = { ...aptToEdit, Haeuser: Array.isArray(aptToEdit.Haeuser) ? aptToEdit.Haeuser[0] : aptToEdit.Haeuser } as Wohnung;
-        handleEditWohnung(transformedApt);
+        handleEditWohnungRef.current(transformedApt);
       } catch (error) { console.error('Fehler beim Laden der Wohnung für Event-Edit:', error); }
     };
     window.addEventListener('edit-apartment', handleEditApartmentListener);
     return () => window.removeEventListener('edit-apartment', handleEditApartmentListener);
-  }, [apartments, handleEditWohnung]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">

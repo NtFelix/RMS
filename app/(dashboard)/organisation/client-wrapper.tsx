@@ -353,7 +353,7 @@ function OrganisationMembersTable({
                       className={cn(
                         "cursor-pointer transition-colors duration-150",
                         isSelected
-                          ? "bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-150 dark:hover:bg-zinc-800"
+                          ? "bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-800"
                           : "hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30"
                       )}
                     >
@@ -560,6 +560,7 @@ function OrganisationMembersTab({
   inviteEmail,
   inviteRole,
   filteredMembers,
+  members,
   invitations,
   expiredInvitationIds,
   hasVerwaltenPermission,
@@ -585,6 +586,7 @@ function OrganisationMembersTab({
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
   filteredMembers: Member[];
+  members: Member[];
   invitations: Invitation[];
   expiredInvitationIds: Set<string>;
   hasVerwaltenPermission: boolean;
@@ -604,7 +606,7 @@ function OrganisationMembersTab({
   onStatusChange: (memberId: string, name: string, newStatus: string) => void;
   onRemove: (memberId: string, name: string) => void;
 }) {
-  const selectedMember = filteredMembers.find(m => m.mitglied_id === selectedMemberId);
+  const selectedMember = members.find(m => m.mitglied_id === selectedMemberId);
 
   return (
     <div className="flex flex-col gap-8">
@@ -976,6 +978,7 @@ export default function OrganisationClientView({
           inviteEmail={uiState.inviteEmail}
           inviteRole={uiState.inviteRole}
           filteredMembers={filteredMembers}
+          members={members}
           invitations={invitations}
           expiredInvitationIds={expiredInvitationIds}
           hasVerwaltenPermission={hasVerwaltenPermission}
