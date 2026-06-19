@@ -65,10 +65,12 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
       ? haeuser.length
       : permissions.objekte?.haeuser?.length || 0;
 
-    // Count apartments
+    // Count apartments (derived from selected houses — no per-wohnung scope)
     const apartmentsCount = isUnrestricted
       ? haeuser.reduce((sum, h) => sum + h.wohnungen.length, 0)
-      : permissions.objekte?.wohnungen?.length || 0;
+      : haeuser
+          .filter(h => permissions.objekte?.haeuser?.includes(h.id))
+          .reduce((sum, h) => sum + h.wohnungen.length, 0);
 
     // Count modules that have at least one permission
     const activeModules = Object.values(permissions.module || {}).filter(arr => arr.length > 0).length;
@@ -93,7 +95,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
     startSavingTransition(async () => {
       const payload = {
         module: permissions.module || {},
-        objekte: permissions.objekte || { haeuser: null, wohnungen: null },
+        objekte: { haeuser: permissions.objekte?.haeuser ?? null },
       };
 
       const res = await setMitgliedOverridesAction(mitgliedId, payload);
@@ -120,13 +122,12 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
     }
   };
 
-  const handleObjectScopeChange = (hausIds: string[] | null, wohnungIds: string[] | null) => {
+  const handleObjectScopeChange = (hausIds: string[] | null) => {
     if (!permissions) return;
     setPermissions({
       ...permissions,
       objekte: {
         haeuser: hausIds,
-        wohnungen: wohnungIds,
       },
     });
   };
@@ -264,7 +265,6 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
           <ObjectScopeEditor
             haeuser={haeuser}
             selectedHausIds={permissions.objekte?.haeuser}
-            selectedWohnungIds={permissions.objekte?.wohnungen}
             onChange={handleObjectScopeChange}
             disabled={saving}
           />

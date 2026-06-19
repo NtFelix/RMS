@@ -14,7 +14,7 @@ import { MemberPermissions, HausWithWohnungen, MemberBerechtigungen } from "@/li
  * ModulePermissionEditor and ObjectScopeEditor consume.
  *
  * No conversion needed — the DB stores and returns the array format natively.
- * check_permission() (fixed in migration 20260619000020) correctly reads this format.
+ * check_permission() correctly reads this format (uses JSONB array containment).
  */
 export async function getMitgliedPermissionsAction(mitgliedId: string): Promise<MemberPermissions> {
   const supabase = await createClient();

@@ -103,13 +103,13 @@ export async function getSidebarUserData(
       );
 
       // Object-scope exception: if the user has specific house IDs in their object scope
-      // (non-empty array from get_accessible_haeuser_ids), grant access to haeuser and
-      // wohnungen pages even without the module permission. The data RPCs will filter by scope.
+      // (non-empty array from get_accessible_haeuser_ids), grant access to the haeuser
+      // page even without the module permission. The data RPCs will further filter by scope.
+      // wohnungen is NOT added here — it only appears if the user has explicit module permission.
       const accessibleIds = accessibleHaeuserResult.data;
       const hasObjectScopedHouses = Array.isArray(accessibleIds) && accessibleIds.length > 0;
       if (hasObjectScopedHouses) {
         modulePermissions.add('haeuser');
-        modulePermissions.add('wohnungen');
       }
     }
     // If allAllowed === true, modulePermissions stays null (= unrestricted).

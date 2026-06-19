@@ -2,7 +2,6 @@ export interface MemberBerechtigungen {
   module?: Record<string, string[]>;
   objekte?: {
     haeuser?: string[] | null;
-    wohnungen?: string[] | null;
   };
 }
 
@@ -12,7 +11,6 @@ export interface MemberPermissions {
   module: Record<string, string[]> | null;
   objekte: {
     haeuser: string[] | null;
-    wohnungen: string[] | null;
   };
   is_restricted: boolean;
 }

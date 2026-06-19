@@ -2,7 +2,6 @@
 
 export const runtime = 'edge';
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
-import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
 import { House } from "@/components/tables/house-table"; // Type for enrichedHaeuser
@@ -27,45 +26,56 @@ export default async function HaeuserPage() {
     redirect('/unauthorized');
   }
 
-  // Load data in parallel
+  // Load data in parallel with object-scope filtering.
+  // Direct queries are used instead of RPCs because the overview RPCs
+  // (get_haeuser_overview etc.) do not apply get_accessible_haeuser_ids().
+  // Using direct queries with scope filtering ensures restricted employees
+  // only see data they have object-level access to.
+  const fetchScopedHouses = async () => {
+    try {
+      let q = supabase.from('Haeuser').select('*');
+      if (accessibleIds !== null) q = q.in('id', accessibleIds);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('Error fetching Haeuser with scope:', e);
+      return null;
+    }
+  };
+
+  const fetchScopedApartments = async () => {
+    try {
+      let q = supabase.from('Wohnungen').select('*');
+      if (accessibleIds !== null) q = q.in('haus_id', accessibleIds);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('Error fetching Wohnungen with scope:', e);
+      return null;
+    }
+  };
+
+  const fetchScopedTenants = async () => {
+    try {
+      const { data, error } = await supabase.from('Mieter').select('wohnung_id,einzug,auszug');
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('Error fetching Mieter:', e);
+      return null;
+    }
+  };
+
   const [
     housesData,
     apartmentsData,
     tenantsData
   ] = await Promise.all([
-    fetchWithRpcFallback(
-      supabase,
-      'get_haeuser_overview',
-      {},
-      async () => {
-        const { data, error } = await supabase.from('Haeuser').select('*');
-        if (error) throw error;
-        return data;
-      },
-      'haeuser_overview_houses'
-    ),
-    fetchWithRpcFallback(
-      supabase,
-      'get_haeuser_wohnungen_overview',
-      {},
-      async () => {
-        const { data, error } = await supabase.from('Wohnungen').select('*');
-        if (error) throw error;
-        return data;
-      },
-      'haeuser_overview_apartments'
-    ),
-    fetchWithRpcFallback(
-      supabase,
-      'get_haeuser_mieter_overview',
-      {},
-      async () => {
-        const { data, error } = await supabase.from('Mieter').select('wohnung_id,einzug,auszug');
-        if (error) throw error;
-        return data;
-      },
-      'haeuser_overview_tenants'
-    )
+    fetchScopedHouses(),
+    fetchScopedApartments(),
+    fetchScopedTenants(),
   ]);
 
   if (housesData === null) {
