@@ -1,8 +1,7 @@
 /**
  * Sends an organisation invitation email via the Resend REST API.
  *
- * Uses native `fetch` instead of the Resend Node.js SDK so this module
- * is compatible with the Edge Runtime (where organisation-actions.ts runs).
+ * Uses native `fetch` instead of the Resend Node.js SDK to avoid SDK overhead.
  *
  * Design intent: fire-and-forget.  Errors are logged but NEVER propagate to
  * the caller – the invitation record in the DB is already the source of truth.
@@ -11,6 +10,16 @@
  * because Next.js 15's server actions bundle their own version of React, which
  * conflicts with react-dom/server internals (recentlyCreatedOwnerStacks).
  */
+
+import { posthogLogger } from "@/lib/posthog-logger";
+
+async function hashEmail(email: string): Promise<string> {
+  const data = new TextEncoder().encode(email.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export interface SendEinladungEmailOptions {
   /** Email address of the invitee */
@@ -231,11 +240,12 @@ export async function sendEinladungEmail(
   options: SendEinladungEmailOptions
 ): Promise<SendEmailResult> {
   const { toEmail, einladerName, organisationsName, rolle, token } = options;
+  const emailHash = await hashEmail(toEmail);
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     const msg = "RESEND_API_KEY is not set";
-    console.warn(`[sendEinladungEmail] ${msg} – skipping email.`);
+    posthogLogger.warn(`[sendEinladungEmail] ${msg} – skipping email.`);
     return { sent: false, error: msg };
   }
 
@@ -266,7 +276,12 @@ export async function sendEinladungEmail(
   } catch (networkError) {
     const msg =
       networkError instanceof Error ? networkError.message : String(networkError);
-    console.error("[sendEinladungEmail] Network error calling Resend API:", msg);
+    posthogLogger.error("[sendEinladungEmail] Network error calling Resend API", {
+      error: msg,
+      emailHash,
+      organisationsName,
+      component: "sendEinladungEmail",
+    });
     return { sent: false, error: `Network error: ${msg}` };
   } finally {
     clearTimeout(timeoutId);
@@ -279,15 +294,24 @@ export async function sendEinladungEmail(
     } catch {
       // ignore
     }
-    console.error(
-      `[sendEinladungEmail] Resend API returned ${response.status}: ${body}`
-    );
+    posthogLogger.error("[sendEinladungEmail] Resend API returned non-OK status", {
+      status: response.status,
+      responseBody: body,
+      emailHash,
+      organisationsName,
+      from,
+      component: "sendEinladungEmail",
+    });
     return { sent: false, error: `Resend API returned ${response.status}` };
   }
 
   const responseBody = await response.json().catch(() => ({}));
-  console.log(
-    `[sendEinladungEmail] Sent to ${toEmail} (org: ${organisationsName}, token: ${token.slice(0, 8)}…)`
-  );
+  posthogLogger.info("[sendEinladungEmail] Sent successfully", {
+    emailHash,
+    organisationsName,
+    tokenPrefix: token.slice(0, 8),
+    resendId: responseBody.id,
+    component: "sendEinladungEmail",
+  });
   return { sent: true, id: responseBody.id };
 }
