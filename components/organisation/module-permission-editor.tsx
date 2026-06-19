@@ -15,7 +15,6 @@ const MODULES = [
   { key: "betriebskosten", label: "Betriebskosten" },
   { key: "dokumente", label: "Dokumente" },
   { key: "aufgaben", label: "Aufgaben" },
-  { key: "vorlagen", label: "Vorlagen" },
   { key: "organisation", label: "Organisation" },
 ] as const;
 

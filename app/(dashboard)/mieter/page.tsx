@@ -73,8 +73,19 @@ export default async function MieterPage() {
     )
   ]);
 
+  // Post-fetch application-level filtering to guarantee scoping
+  let filteredMieter = rawMieter || [];
+  let filteredWohnungen = rawWohnungen || [];
+
+  if (accessibleIds !== null) {
+    const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
+    const ids = new Set(whgIds?.map(w => w.id) ?? []);
+    filteredMieter = (rawMieter || []).filter((m: any) => !m.wohnung_id || ids.has(m.wohnung_id));
+    filteredWohnungen = (rawWohnungen || []).filter((w: any) => ids.has(w.id));
+  }
+
   const today = new Date();
-  const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
+  const wohnungen: Wohnung[] = filteredWohnungen.map((apt: any) => {
     // If the data comes from our enriched RPC, it already has status and tenant
     if (apt.status && apt.tenant != null) {
       return {
@@ -84,7 +95,7 @@ export default async function MieterPage() {
     }
 
     // Fallback mapping logic
-    const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
+    const tenant = filteredMieter.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
     if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
       status = 'vermietet';
@@ -95,9 +106,9 @@ export default async function MieterPage() {
       status,
       tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
     } as Wohnung;
-  }) : [];
+  });
 
-  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({ ...m })) : [];
+  const mieter: Tenant[] = filteredMieter.map(m => ({ ...m }));
 
 
 
