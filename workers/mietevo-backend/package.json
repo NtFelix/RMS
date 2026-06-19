@@ -2,7 +2,7 @@
     "name": "mietevo-backend",
     "version": "1.0.0",
     "engines": {
-        "node": "^22.0.0"
+        "node": "^22.22.0"
     },
     "scripts": {
         "deploy": "wrangler deploy",
@@ -33,6 +33,6 @@
         "jszip": "^3.10.1",
         "pako": "^2.1.0",
         "papaparse": "^5.4.1",
-        "posthog-node": "^5.26.0"
+        "posthog-node": "^5.38.0"
     }
 }
