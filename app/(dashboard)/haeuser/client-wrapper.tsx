@@ -48,7 +48,8 @@ const numberFormatter = new Intl.NumberFormat("de-DE");
 
 // Props for the main client view component
 interface HaeuserClientViewProps {
-  enrichedHaeuser: House[]; // Assuming enrichedHaeuser is an array of House
+  enrichedHaeuser: House[];
+  canCreate?: boolean;
 }
 
 
@@ -56,7 +57,7 @@ interface HaeuserClientViewProps {
 
 
 // This is the new main client component, combining logic from old HaeuserPageClientComponent and HaeuserClientWrapper
-export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientViewProps) {
+export default function HaeuserClientView({ enrichedHaeuser, canCreate = true }: HaeuserClientViewProps) {
   const router = useRouter();
   const [currentTab, setCurrentTab] = useState<"houses" | "overview">("houses");
   const [filter, setFilter] = useState("all");
@@ -387,6 +388,9 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
                     }}
                     icon={<PlusCircle className="size-4" />}
                     shortText="Hinzufügen"
+                    disabled={!canCreate}
+                    tooltip="Keine Berechtigung zum Erstellen"
+                    showTooltip={!canCreate}
                   >
                     Haus hinzufügen
                   </ResponsiveButtonWithTooltip>

@@ -72,6 +72,7 @@ interface FinanzenClientWrapperProps {
   initialYear?: number;
   isUsingFallbackYear?: boolean;
   currentYear?: number;
+  canCreate?: boolean;
 }
 
 // Utility function to remove duplicates based on ID
@@ -106,7 +107,8 @@ export default function FinanzenClientWrapper({
   initialAvailableYears = [],
   initialYear,
   isUsingFallbackYear = false,
-  currentYear = new Date().getFullYear()
+  currentYear = new Date().getFullYear(),
+  canCreate = true,
 }: FinanzenClientWrapperProps) {
   const [currentTab, setCurrentTab] = useState<"finance" | "overview">("finance");
   const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
@@ -1046,7 +1048,7 @@ export default function FinanzenClientWrapper({
                   <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
                 </div>
                 <div className="mt-0 sm:mt-1">
-                  <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="size-4" />} shortText="Hinzufügen">
+                  <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="size-4" />} shortText="Hinzufügen" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
                     Transaktion hinzufügen
                   </ResponsiveButtonWithTooltip>
                 </div>

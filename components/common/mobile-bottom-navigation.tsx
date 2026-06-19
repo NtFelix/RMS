@@ -311,7 +311,7 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
     { id: 'houses', title: 'Häuser', href: '/haeuser', icon: Building2 },
     { id: 'apartments', title: 'Wohnungen', href: '/wohnungen', icon: Home },
     { id: 'operating-costs', title: 'Betriebskosten', href: '/betriebskosten', icon: FileSpreadsheet },
-    { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden },
+    { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden || (sidebarData?.modulePermissions !== null && !sidebarData?.modulePermissions.has('organisation')) },
     { id: 'tasks', title: 'Aufgaben', href: '/todos', icon: CheckSquare },
     { id: 'documents', title: 'Dokumente', href: '/dateien', icon: Folder, hidden: !documentsEnabled },
     { id: 'logout', title: 'Abmelden', icon: LogOut, onClick: handleLogout }

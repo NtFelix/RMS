@@ -37,7 +37,14 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const supabase = await createClient()
-  const { data: houses, error: housesError } = await supabase.from('Haeuser').select("*")
+
+  // Apply object scope filtering
+  const { data: accessibleIds } = await supabase.rpc('get_accessible_haeuser_ids')
+  let q = supabase.from('Haeuser').select("*")
+  if (accessibleIds !== null && accessibleIds.length > 0) {
+    q = q.in('id', accessibleIds)
+  }
+  const { data: houses, error: housesError } = await q
   
   if (housesError) {
     return NextResponse.json({ error: housesError.message }, { 

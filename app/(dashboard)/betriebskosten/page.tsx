@@ -10,18 +10,21 @@ import BetriebskostenClientView from "./client-wrapper"; // Import the default e
 // Types are still needed for data fetching
 import { Haus } from "../../../lib/data-fetching";
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
-// Server actions are fine to be imported by Server Components if needed, but not directly by client-wrapper
+import { requirePermission, hasPermission } from "@/lib/permissions";
 
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
   
-  // Fetch all necessary data in parallel
   const [
+    _,
+    canCreate,
     nebenkostenResult,
     haeuserData,
     tenantsData,
     financesData
   ] = await Promise.all([
+    requirePermission('betriebskosten', 'ansehen'),
+    hasPermission('betriebskosten', 'erstellen'),
     fetchNebenkostenListOptimized(),
     fetchHaeuserServer(supabase),
     fetchWithRpcFallback(
@@ -75,6 +78,7 @@ export default async function BetriebskostenPage() {
       initialTenants={tenants}
       initialFinances={finances}
       ownerName={ownerName}
+      canCreate={canCreate}
     />
   );
 }

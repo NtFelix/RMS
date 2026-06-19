@@ -40,6 +40,8 @@ import {
   removeMitgliedAction
 } from "@/app/organisation-actions";
 
+import { MitgliedPermissionDetail } from "@/components/organisation/mitglied-permission-detail";
+
 interface Member {
   mitglied_id: string;
   user_id: string;
@@ -83,6 +85,7 @@ type UiState = {
   statusFilter: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
+  selectedMemberId: string | null;
   pendingConfirm: {
     type: 'role' | 'status' | 'delete' | 'revoke';
     memberId?: string;
@@ -99,6 +102,7 @@ type UiAction =
   | { type: 'SET_STATUS_FILTER'; payload: string }
   | { type: 'SET_INVITE_EMAIL'; payload: string }
   | { type: 'SET_INVITE_ROLE'; payload: "admin" | "mitarbeiter" }
+  | { type: 'SET_SELECTED_MEMBER'; payload: string | null }
   | { type: 'SET_PENDING_CONFIRM'; payload: UiState['pendingConfirm'] }
   | { type: 'CLEAR_INVITE_EMAIL' }
   | { type: 'RESET_FILTERS' };
@@ -110,6 +114,7 @@ const initialUiState: UiState = {
   statusFilter: "all",
   inviteEmail: "",
   inviteRole: "mitarbeiter",
+  selectedMemberId: null,
   pendingConfirm: null,
 };
 
@@ -127,12 +132,14 @@ function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, inviteEmail: action.payload };
     case 'SET_INVITE_ROLE':
       return { ...state, inviteRole: action.payload };
+    case 'SET_SELECTED_MEMBER':
+      return { ...state, selectedMemberId: action.payload };
     case 'SET_PENDING_CONFIRM':
       return { ...state, pendingConfirm: action.payload };
     case 'CLEAR_INVITE_EMAIL':
       return { ...state, inviteEmail: "" };
     case 'RESET_FILTERS':
-      return { ...state, searchQuery: "", roleFilter: "all", statusFilter: "all" };
+      return { ...state, searchQuery: "", roleFilter: "all", statusFilter: "all", selectedMemberId: null };
     default:
       return state;
   }
@@ -280,11 +287,14 @@ function OrganisationConfirmDialog({
     </AlertDialog>
   );
 }
+
 function OrganisationMembersTable({
   filteredMembers,
   hasVerwaltenPermission,
   isPending,
   currentUserId,
+  selectedMemberId,
+  onSelectMember,
   onRoleChange,
   onStatusChange,
   onRemove
@@ -293,6 +303,8 @@ function OrganisationMembersTable({
   hasVerwaltenPermission: boolean;
   isPending: boolean;
   currentUserId?: string;
+  selectedMemberId: string | null;
+  onSelectMember: (id: string | null) => void;
   onRoleChange: (memberId: string, name: string, newRole: string) => void;
   onStatusChange: (memberId: string, name: string, newStatus: string) => void;
   onRemove: (memberId: string, name: string) => void;
@@ -301,7 +313,7 @@ function OrganisationMembersTable({
     <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-xl">Aktive &amp; Deaktivierte Mitglieder</CardTitle>
-        <CardDescription>Mitglieder, die Zugriff auf diese Organisation haben.</CardDescription>
+        <CardDescription>Mitglieder, die Zugriff auf diese Organisation haben. Klicken Sie auf ein Mitglied, um Berechtigungen zu bearbeiten.</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
@@ -332,9 +344,19 @@ function OrganisationMembersTable({
                     : member.email.charAt(0).toUpperCase();
                   const isCurrentUser = member.user_id === currentUserId;
                   const isOwnerRow = member.rolle === 'owner';
+                  const isSelected = selectedMemberId === member.mitglied_id;
 
                   return (
-                    <TableRow key={member.mitglied_id} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
+                    <TableRow
+                      key={member.mitglied_id}
+                      onClick={() => onSelectMember(isSelected ? null : member.mitglied_id)}
+                      className={cn(
+                        "cursor-pointer transition-colors duration-150",
+                        isSelected
+                          ? "bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                          : "hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30"
+                      )}
+                    >
                       <TableCell className="py-4 pl-6 flex items-center gap-3">
                         <Avatar className="h-9 w-9 border border-zinc-200/20">
                           <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">{initials}</AvatarFallback>
@@ -347,7 +369,7 @@ function OrganisationMembersTable({
                           <span className="text-xs text-muted-foreground">{member.email}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                         {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
                           <Select defaultValue={member.rolle} onValueChange={(val) => onRoleChange(member.mitglied_id, fullName || member.email, val)} disabled={isPending}>
                             <SelectTrigger className="w-[130px] h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
@@ -362,7 +384,7 @@ function OrganisationMembersTable({
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="py-4">
+                      <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                         {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
                           <Select defaultValue={member.status} onValueChange={(val) => onStatusChange(member.mitglied_id, fullName || member.email, val)} disabled={isPending}>
                             <SelectTrigger className="w-[120px] h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
@@ -381,7 +403,7 @@ function OrganisationMembersTable({
                         {new Date(member.erstellt_am).toLocaleDateString("de-DE")}
                       </TableCell>
                       {hasVerwaltenPermission && (
-                        <TableCell className="py-4 pr-6 text-right">
+                        <TableCell className="py-4 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
                           {!isOwnerRow && !isCurrentUser ? (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg" onClick={() => onRemove(member.mitglied_id, fullName || member.email)} disabled={isPending} title="Mitglied entfernen">
                               <Trash2 className="size-4" />
@@ -538,12 +560,15 @@ function OrganisationMembersTab({
   inviteEmail,
   inviteRole,
   filteredMembers,
+  members,
   invitations,
   expiredInvitationIds,
   hasVerwaltenPermission,
   isPending,
   isInviting,
   currentUserId,
+  selectedMemberId,
+  onSelectMember,
   onSearchChange,
   onRoleFilterChange,
   onStatusFilterChange,
@@ -561,12 +586,15 @@ function OrganisationMembersTab({
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
   filteredMembers: Member[];
+  members: Member[];
   invitations: Invitation[];
   expiredInvitationIds: Set<string>;
   hasVerwaltenPermission: boolean;
   isPending: boolean;
   isInviting: boolean;
   currentUserId?: string;
+  selectedMemberId: string | null;
+  onSelectMember: (id: string | null) => void;
   onSearchChange: (val: string) => void;
   onRoleFilterChange: (val: string) => void;
   onStatusFilterChange: (val: string) => void;
@@ -578,6 +606,8 @@ function OrganisationMembersTab({
   onStatusChange: (memberId: string, name: string, newStatus: string) => void;
   onRemove: (memberId: string, name: string) => void;
 }) {
+  const selectedMember = members.find(m => m.mitglied_id === selectedMemberId);
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
@@ -605,13 +635,16 @@ function OrganisationMembersTab({
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3 items-start">
-        <div className="lg:col-span-2 flex flex-col gap-6">
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        {/* Left/Middle Pane: Member tables & Invites */}
+        <div className={cn("flex flex-col gap-6", selectedMemberId ? "w-full md:w-1/2" : "w-full md:w-2/3")}>
           <OrganisationMembersTable
             filteredMembers={filteredMembers}
             hasVerwaltenPermission={hasVerwaltenPermission}
             isPending={isPending}
             currentUserId={currentUserId}
+            selectedMemberId={selectedMemberId}
+            onSelectMember={onSelectMember}
             onRoleChange={onRoleChange}
             onStatusChange={onStatusChange}
             onRemove={onRemove}
@@ -623,17 +656,37 @@ function OrganisationMembersTab({
             isPending={isPending}
             onRevoke={onRevoke}
           />
+          {hasVerwaltenPermission && (
+            <OrganisationInvitePanel
+              inviteEmail={inviteEmail}
+              inviteRole={inviteRole}
+              isInviting={isInviting}
+              onInviteEmailChange={onInviteEmailChange}
+              onInviteRoleChange={onInviteRoleChange}
+              onInvite={onInvite}
+            />
+          )}
         </div>
-        {hasVerwaltenPermission && (
-          <OrganisationInvitePanel
-            inviteEmail={inviteEmail}
-            inviteRole={inviteRole}
-            isInviting={isInviting}
-            onInviteEmailChange={onInviteEmailChange}
-            onInviteRoleChange={onInviteRoleChange}
-            onInvite={onInvite}
-          />
-        )}
+
+        {/* Right Pane: Permission Configuration */}
+        <div className={cn("w-full", selectedMemberId ? "md:w-1/2" : "md:w-1/3")}>
+          {selectedMember ? (
+            <MitgliedPermissionDetail
+              mitgliedId={selectedMember.mitglied_id}
+              rolle={selectedMember.rolle}
+              status={selectedMember.status}
+              memberName={
+                selectedMember.first_name || selectedMember.last_name
+                  ? `${selectedMember.first_name || ""} ${selectedMember.last_name || ""}`.trim()
+                  : selectedMember.email
+              }
+            />
+          ) : (
+            <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs p-6 text-center text-zinc-500">
+              <p className="text-sm">Klicken Sie auf ein Mitglied in der Tabelle, um dessen detaillierte Objekt- und Modulberechtigungen anzuzeigen und zu bearbeiten.</p>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -925,12 +978,15 @@ export default function OrganisationClientView({
           inviteEmail={uiState.inviteEmail}
           inviteRole={uiState.inviteRole}
           filteredMembers={filteredMembers}
+          members={members}
           invitations={invitations}
           expiredInvitationIds={expiredInvitationIds}
           hasVerwaltenPermission={hasVerwaltenPermission}
           isPending={isPending}
           isInviting={isInviting}
           currentUserId={currentUser?.id}
+          selectedMemberId={uiState.selectedMemberId}
+          onSelectMember={(id) => dispatch({ type: 'SET_SELECTED_MEMBER', payload: id })}
           onSearchChange={(val) => dispatch({ type: 'SET_SEARCH_QUERY', payload: val })}
           onRoleFilterChange={(val) => dispatch({ type: 'SET_ROLE_FILTER', payload: val })}
           onStatusFilterChange={(val) => dispatch({ type: 'SET_STATUS_FILTER', payload: val })}
@@ -959,3 +1015,4 @@ export default function OrganisationClientView({
     </LazyMotion>
   );
 }
+

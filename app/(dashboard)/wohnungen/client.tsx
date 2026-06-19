@@ -308,6 +308,12 @@ export default function WohnungenClientView({
 
   const handleEditWohnung = useCallback(async (apartment: ApartmentTableType) => {
     try {
+      const existingApt = apartments.find(a => a.id === apartment.id);
+      if (existingApt) {
+        openWohnungModal(existingApt, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+        return;
+      }
+
       const supabase = createBrowserClient();
       const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartment.id).single();
       if (error || !aptToEdit) {
@@ -319,7 +325,12 @@ export default function WohnungenClientView({
     } catch (error) {
       console.error('Fehler beim Laden der Wohnung für Bearbeitung:', error);
     }
-  }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
+  }, [apartments, openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
+
+  const handleEditWohnungRef = useRef(handleEditWohnung);
+  handleEditWohnungRef.current = handleEditWohnung;
+  const apartmentsRef = useRef(apartments);
+  apartmentsRef.current = apartments;
 
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
@@ -327,16 +338,22 @@ export default function WohnungenClientView({
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
       try {
+        const existingApt = apartmentsRef.current.find(a => a.id === apartmentId);
+        if (existingApt) {
+          handleEditWohnungRef.current(existingApt);
+          return;
+        }
+
         const supabase = createBrowserClient();
         const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartmentId).single();
         if (error || !aptToEdit) { console.error('Wohnung nicht gefunden oder Fehler:', error?.message); return; }
         const transformedApt = { ...aptToEdit, Haeuser: Array.isArray(aptToEdit.Haeuser) ? aptToEdit.Haeuser[0] : aptToEdit.Haeuser } as Wohnung;
-        handleEditWohnung(transformedApt);
+        handleEditWohnungRef.current(transformedApt);
       } catch (error) { console.error('Fehler beim Laden der Wohnung für Event-Edit:', error); }
     };
     window.addEventListener('edit-apartment', handleEditApartmentListener);
     return () => window.removeEventListener('edit-apartment', handleEditApartmentListener);
-  }, [handleEditWohnung]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">

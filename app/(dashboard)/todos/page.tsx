@@ -3,11 +3,18 @@ export const dynamic = 'force-dynamic';
 
 import TodosClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import { requirePermission, hasPermission } from "@/lib/permissions";
 
 export default async function TodosPage() {
   const { supabase } = await requireAuthenticatedUser();
-  const { data: tasksData } = await supabase.from('Aufgaben').select('*');
+  
+  const [_, canCreate, { data: tasksData }] = await Promise.all([
+    requirePermission('aufgaben', 'ansehen'),
+    hasPermission('aufgaben', 'erstellen'),
+    supabase.from('Aufgaben').select('*')
+  ]);
+  
   const tasks = tasksData ?? [];
 
-  return <TodosClientWrapper tasks={tasks} />;
+  return <TodosClientWrapper tasks={tasks} canCreate={canCreate} />;
 }

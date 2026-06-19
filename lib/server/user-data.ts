@@ -3,6 +3,13 @@ import { User, SupabaseClient } from "@supabase/supabase-js"
 import { getUserDisplayData } from "@/lib/utils/user"
 import { getEffectiveApartmentLimit } from "@/lib/utils/subscription"
 
+/**
+ * Modules that are gated by permissions in the sidebar.
+ * `null` = unrestricted (owner/admin or personal account).
+ * A Set means only the listed modules are visible to this user.
+ */
+export type SidebarModulePermissions = Set<string> | null;
+
 export interface SidebarUserData {
   user: User | null;
   userName: string;
@@ -12,6 +19,8 @@ export interface SidebarUserData {
   apartmentLimit: number | typeof Infinity | null;
   hasOrganisationPermission: boolean;
   isOrganisationHidden: boolean;
+  /** null = no restrictions (personal account or owner/admin). Set = allowed modules. */
+  modulePermissions: SidebarModulePermissions;
 }
 
 /**
@@ -32,6 +41,7 @@ export async function getSidebarUserData(
       apartmentLimit: Infinity, // Guest users = unlimited (consistent with normalizeApartmentLimit)
       hasOrganisationPermission: false,
       isOrganisationHidden: false,
+      modulePermissions: null,
     }
   }
 
@@ -56,15 +66,56 @@ export async function getSidebarUserData(
   const orgId = orgIdResult.data;
   const hasOrganisationPermission = orgId !== null;
   let isOrganisationHidden = false;
+  let modulePermissions: SidebarModulePermissions = null;
 
   if (orgId) {
-    const { data: orgData } = await supabase
-      .from('Organisation')
-      .select('ist_versteckt')
-      .eq('id', orgId)
-      .maybeSingle();
-    isOrganisationHidden = orgData?.ist_versteckt ?? false;
+    const [orgDataResult, accessibleHaeuserResult, ...permChecks] = await Promise.all([
+      supabase
+        .from('Organisation')
+        .select('ist_versteckt')
+        .eq('id', orgId)
+        .maybeSingle(),
+      // Fetch object-scope house IDs to handle the "object-scope exception":
+      // If a member has no module.haeuser permission but has specific house IDs
+      // in their object scope, they can still access /haeuser (with filtered data).
+      supabase.rpc('get_accessible_haeuser_ids'),
+      // Check 'ansehen' permission for each sidebar-gated module in parallel.
+      // Owners/admins → check_permission returns true for all.
+      // Restricted members → only returns true for explicitly granted modules.
+      supabase.rpc('check_permission', { p_modul: 'haeuser', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'wohnungen', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'mieter', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'finanzen', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'betriebskosten', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'aufgaben', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'dokumente', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'organisation', p_aktion: 'ansehen' }),
+    ]);
+
+    isOrganisationHidden = orgDataResult.data?.ist_versteckt ?? false;
+
+    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation'] as const;
+    const allAllowed = permChecks.every(r => r.data === true);
+
+    if (!allAllowed) {
+      // At least one module is restricted — build a specific allow-set.
+      modulePermissions = new Set(
+        GATED_MODULES.filter((_, i) => permChecks[i].data === true)
+      );
+
+      // Object-scope exception: if the user has specific house IDs in their object scope
+      // (non-empty array from get_accessible_haeuser_ids), grant access to the haeuser
+      // page even without the module permission. The data RPCs will further filter by scope.
+      // wohnungen is NOT added here — it only appears if the user has explicit module permission.
+      const accessibleIds = accessibleHaeuserResult.data;
+      const hasObjectScopedHouses = Array.isArray(accessibleIds) && accessibleIds.length > 0;
+      if (hasObjectScopedHouses) {
+        modulePermissions.add('haeuser');
+      }
+    }
+    // If allAllowed === true, modulePermissions stays null (= unrestricted).
   }
+
 
   let apartmentLimit: number | typeof Infinity | null = null;
   const activeProfile = profile || secondaryProfileResult.data;
@@ -97,5 +148,6 @@ export async function getSidebarUserData(
     apartmentLimit,
     hasOrganisationPermission,
     isOrganisationHidden,
+    modulePermissions,
   }
 }

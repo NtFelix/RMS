@@ -61,8 +61,6 @@ export async function getAccessibleWohnungIds(): Promise<string[] | null> {
  * Otherwise, filters the specified column to match only the provided ids.
  */
 export function applyHaeuserScope<T>(query: T, column: string, ids: string[] | null): T {
-  if (ids === null) {
-    return query;
-  }
+  if (ids === null || ids.length === 0) return query;
   return (query as any).in(column, ids);
 }

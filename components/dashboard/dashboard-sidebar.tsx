@@ -150,6 +150,21 @@ const sidebarNavGroups: SidebarNavGroupType[] = [
   }
 ];
 
+/**
+ * Maps sidebar item hrefs to the module key used in check_permission.
+ * Items without an entry are always visible (Dashboard, Suche, E-Mails, Organisation).
+ */
+const SIDEBAR_MODULE_MAP: Record<string, string> = {
+  '/haeuser': 'haeuser',
+  '/wohnungen': 'wohnungen',
+  '/mieter': 'mieter',
+  '/finanzen': 'finanzen',
+  '/betriebskosten': 'betriebskosten',
+  '/todos': 'aufgaben',
+  '/dateien': 'dokumente',
+  '/organisation': 'organisation',
+};
+
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
@@ -509,8 +524,10 @@ function SidebarContent({
                 if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
                   return false;
                 }
-                if (item.href === "/organisation") {
-                  return sidebarData.hasOrganisationPermission && !sidebarData.isOrganisationHidden;
+                // Check module permissions if they are restricted (non-null Set).
+                const requiredModule = SIDEBAR_MODULE_MAP[item.href];
+                if (requiredModule && sidebarData.modulePermissions !== null) {
+                  return sidebarData.modulePermissions.has(requiredModule);
                 }
                 return true;
               }

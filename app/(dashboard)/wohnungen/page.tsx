@@ -11,17 +11,48 @@ import { getPlanDetails } from '@/lib/stripe-server';
 import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 // Server Component: Fetches data and passes it to the Client Component
 export default async function WohnungenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
+
+  // Permission check with object-scope exception (same as haeuser).
+  const [canView, accessibleIdsResult] = await Promise.all([
+    hasPermission('wohnungen', 'ansehen'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
+  const accessibleIds = accessibleIdsResult.data;
+  const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
+  if (!canView && !hasObjectScopeAccess) {
+    redirect('/unauthorized');
+  }
 
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;
   let effectiveApartmentLimit: number | typeof Infinity = 0;
   let limitReason: 'trial' | 'subscription' | 'none' = 'none';
 
-  // Load profile and main data in parallel to eliminate waterfalls
+  // Load profile and main data in parallel with object-scope filtering.
+  // The accessibleIds check restricts all queries to only houses/apartments
+  // the restricted employee has object-level access to.
+  const fetchScopedApartmentsCount = async () => {
+    let q = supabase.from('Wohnungen').select('*', { count: 'exact', head: true });
+    if (accessibleIds !== null) q = q.in('haus_id', accessibleIds);
+    return q;
+  };
+  const fetchScopedApartments = async () => {
+    let q = supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+    if (accessibleIds !== null) q = q.in('haus_id', accessibleIds);
+    return q;
+  };
+  const fetchScopedHaeuser = async () => {
+    let q = supabase.from('Haeuser').select('id,name');
+    if (accessibleIds !== null) q = q.in('id', accessibleIds);
+    return q;
+  };
+
   const [
     userProfile,
     countResult,
@@ -30,10 +61,12 @@ export default async function WohnungenPage() {
     housesResult
   ] = await Promise.all([
     fetchUserProfile(),
-    supabase.from('Wohnungen').select('*', { count: 'exact', head: true }),
-    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
+    fetchScopedApartmentsCount(),
+    fetchScopedApartments(),
+    // Tenants query is unscoped — tenantMap is only accessed by scoped apartment IDs,
+    // so extra tenant data is harmless.
     supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
-    supabase.from('Haeuser').select('id,name')
+    fetchScopedHaeuser(),
   ]);
 
   if (userProfile) {
