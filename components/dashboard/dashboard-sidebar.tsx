@@ -162,6 +162,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   '/betriebskosten': 'betriebskosten',
   '/todos': 'aufgaben',
   '/dateien': 'dokumente',
+  '/organisation': 'organisation',
 };
 
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
@@ -522,9 +523,6 @@ function SidebarContent({
               item => {
                 if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
                   return false;
-                }
-                if (item.href === "/organisation") {
-                  return sidebarData.hasOrganisationPermission && !sidebarData.isOrganisationHidden;
                 }
                 // Check module permissions if they are restricted (non-null Set).
                 const requiredModule = SIDEBAR_MODULE_MAP[item.href];

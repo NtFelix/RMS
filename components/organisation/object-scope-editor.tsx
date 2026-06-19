@@ -3,7 +3,6 @@
 import React from "react";
 import { HausWithWohnungen } from "@/lib/organisation-types";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 
 interface ObjectScopeEditorProps {
   haeuser: HausWithWohnungen[];
@@ -29,38 +28,32 @@ export function ObjectScopeEditor({
     ? totalHousesCount
     : haeuser.filter(h => activeHausIds.has(h.id)).length;
 
-  const handleSelectAll = () => {
-    if (disabled) return;
-    onChange(null); // null = unrestricted
-  };
-
-  const handleDeselectAll = () => {
-    if (disabled) return;
-    onChange([]);
-  };
+  const isLastHouse = !isUnrestricted && selectedHousesCount === 1;
 
   const toggleHaus = (hausId: string) => {
     if (disabled) return;
 
-    let nextHausIds = isUnrestricted ? haeuser.map(h => h.id) : [...(selectedHausIds || [])];
+    if (isUnrestricted) {
+      const nextHausIds = haeuser.map(h => h.id).filter(id => id !== hausId);
+      onChange(nextHausIds.length > 0 ? nextHausIds : null);
+      return;
+    }
 
-    if (isUnrestricted || activeHausIds.has(hausId)) {
+    let nextHausIds = [...(selectedHausIds || [])];
+
+    if (activeHausIds.has(hausId)) {
+      if (isLastHouse) return;
       nextHausIds = nextHausIds.filter(id => id !== hausId);
     } else {
       nextHausIds.push(hausId);
     }
 
-    if (nextHausIds.length === totalHousesCount) {
-      onChange(null);
-    } else {
-      onChange(nextHausIds);
-    }
+    onChange(nextHausIds.length === totalHousesCount ? null : nextHausIds);
   };
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Overview stats bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
         <div>
           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
             Zusammenfassung:
@@ -71,31 +64,18 @@ export function ObjectScopeEditor({
               : `${selectedHousesCount} von ${totalHousesCount} Häusern`}
           </span>
           <span className="text-xs text-muted-foreground ml-2">
-            ({totalWohnungenCount} Wohnungen aus Haus-Scope abgeleitet)
+            ({totalWohnungenCount} Wohnungen)
           </span>
         </div>
 
-        {!disabled && (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={handleSelectAll}
-              className="text-xs rounded-lg h-7"
-            >
-              Alle auswählen
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={handleDeselectAll}
-              className="text-xs rounded-lg h-7 text-red-500 hover:text-red-600"
-            >
-              Alle abwählen
-            </Button>
-          </div>
+        {!isUnrestricted && !disabled && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+          >
+            Alle auswählen
+          </button>
         )}
       </div>
 
@@ -105,30 +85,39 @@ export function ObjectScopeEditor({
         </div>
       )}
 
-      {/* House checkbox list */}
       <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
         {haeuser.map(haus => {
-          const isHausChecked = isUnrestricted || activeHausIds.has(haus.id);
+          const isSelected = isUnrestricted || activeHausIds.has(haus.id);
+          const isLocked = isLastHouse && activeHausIds.has(haus.id);
           return (
             <div
               key={haus.id}
-              className={`p-3 border rounded-2xl transition-colors duration-200 flex items-center gap-3 ${
-                isHausChecked
+              className={`p-3 border rounded-2xl flex items-center gap-3 ${
+                isSelected
                   ? "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800"
                   : "bg-zinc-100/10 dark:bg-zinc-950/10 border-zinc-100 dark:border-zinc-900 opacity-60"
               }`}
             >
               <Checkbox
                 id={`haus-${haus.id}`}
-                checked={isHausChecked}
+                checked={isSelected}
                 onCheckedChange={() => toggleHaus(haus.id)}
-                disabled={disabled}
+                disabled={disabled || isLocked}
               />
               <label
                 htmlFor={`haus-${haus.id}`}
-                className="text-sm font-semibold cursor-pointer select-none text-zinc-800 dark:text-zinc-200 flex-1"
+                className={`text-sm font-semibold select-none flex-1 ${
+                  isLocked
+                    ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                    : "text-zinc-800 dark:text-zinc-200 cursor-pointer"
+                }`}
               >
                 {haus.name}
+                {isLocked && (
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-2 font-normal">
+                    (mindestens eines erforderlich)
+                  </span>
+                )}
               </label>
               <span className="text-[10px] text-muted-foreground bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
                 {haus.wohnungen.length} Wohn.

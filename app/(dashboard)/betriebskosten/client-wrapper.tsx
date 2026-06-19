@@ -167,6 +167,7 @@ interface BetriebskostenClientViewProps {
   initialTenants?: any[];
   initialFinances?: any[];
   ownerName: string;
+  canCreate?: boolean;
 }
 
 export default function BetriebskostenClientView({
@@ -175,6 +176,7 @@ export default function BetriebskostenClientView({
   initialTenants = [],
   initialFinances = [],
   ownerName,
+  canCreate = true,
 }: BetriebskostenClientViewProps) {
   const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
@@ -1037,6 +1039,7 @@ export default function BetriebskostenClientView({
                     onTemplateClick={handleOpenDefaultTemplateModal}
                     className="flex-1"
                     buttonText="Neue Abrechnung erstellen"
+                    canCreate={canCreate}
                   />
                   <Button
                     variant="outline"
@@ -1065,6 +1068,7 @@ export default function BetriebskostenClientView({
                     onTemplateClick={handleOpenDefaultTemplateModal}
                     buttonText="Betriebskostenabrechnung erstellen"
                     className="sm:w-auto"
+                    canCreate={canCreate}
                   />
                 </div>
               </div>

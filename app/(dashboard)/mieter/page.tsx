@@ -17,8 +17,9 @@ export default async function MieterPage() {
   const { supabase } = await requireAuthenticatedUser();
 
   // Object-scope exception: if user can access specific houses, they can see their tenants.
-  const [canView, accessibleIdsResult] = await Promise.all([
+  const [canView, canCreate, accessibleIdsResult] = await Promise.all([
     hasPermission('mieter', 'ansehen'),
+    hasPermission('mieter', 'erstellen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
@@ -37,7 +38,11 @@ export default async function MieterPage() {
       'get_mieter_wohnungen_overview',
       {},
       async () => {
-        const { data, error } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+        let q = supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+        if (accessibleIds !== null && accessibleIds.length > 0) {
+          q = q.in('haus_id', accessibleIds);
+        }
+        const { data, error } = await q;
         if (error) {
           console.error('Fehler beim Laden der Wohnungen:', error);
           throw error;
@@ -51,7 +56,13 @@ export default async function MieterPage() {
       'get_mieter_details_overview',
       {},
       async () => {
-        const { data, error } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        let q = supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        if (accessibleIds !== null && accessibleIds.length > 0) {
+          const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
+          const ids = whgIds?.map(w => w.id) ?? [];
+          q = ids.length > 0 ? q.in('wohnung_id', ids) : q;
+        }
+        const { data, error } = await q;
         if (error) {
           console.error('Fehler beim Laden der Mieter:', error);
           throw error;
@@ -95,6 +106,7 @@ export default async function MieterPage() {
       initialTenants={mieter}
       initialWohnungen={wohnungen}
       serverAction={mieterServerAction}
+      canCreate={canCreate}
     />
   );
 }

@@ -11,16 +11,12 @@ import { redirect } from "next/navigation";
 export default async function HaeuserPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
-  // Permission check with object-scope exception.
-  // get_accessible_haeuser_ids() returns:
-  //   null  = unrestricted (owner/admin) — always allow
-  //   []    = no object scope — deny if also no module permission
-  //   [ids] = scoped to specific houses — allow (data layer will filter)
-  const [canView, accessibleIdsResult] = await Promise.all([
+  const [canView, canCreate, accessibleIdsResult] = await Promise.all([
     hasPermission('haeuser', 'ansehen'),
+    hasPermission('haeuser', 'erstellen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
-  const accessibleIds = accessibleIdsResult.data; // null | uuid[]
+  const accessibleIds = accessibleIdsResult.data;
   const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
   if (!canView && !hasObjectScopeAccess) {
     redirect('/unauthorized');
@@ -120,5 +116,5 @@ export default async function HaeuserPage() {
     };
   });
 
-  return <HaeuserClientView enrichedHaeuser={enrichedHaeuser} />;
+  return <HaeuserClientView enrichedHaeuser={enrichedHaeuser} canCreate={canCreate} />;
 }

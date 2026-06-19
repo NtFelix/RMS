@@ -306,9 +306,10 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
 
 interface TodosClientWrapperProps {
   tasks: TaskBoardTask[];
+  canCreate?: boolean;
 }
 
-export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientWrapperProps) {
+export default function TodosClientWrapper({ tasks: initialTasks, canCreate = true }: TodosClientWrapperProps) {
   const [tasks, setTasks] = useState<TaskBoardTask[]>(initialTasks);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -554,6 +555,9 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
                   onClick={() => handleAddTask()}
                   icon={<PlusCircle className="size-4" />}
                   shortText="Hinzufügen"
+                  disabled={!canCreate}
+                  tooltip="Keine Berechtigung zum Erstellen"
+                  showTooltip={!canCreate}
                 >
                   Aufgabe hinzufügen
                 </ResponsiveButtonWithTooltip>

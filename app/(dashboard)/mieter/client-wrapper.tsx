@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle, Users, BadgeCheck, Euro, Search, Building2, BarChart3 } from "lucide-react";
@@ -77,11 +78,11 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-// Props for the main client view component
 interface MieterClientViewProps {
   initialTenants: Tenant[];
   initialWohnungen: Wohnung[];
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
+  canCreate?: boolean;
 }
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
@@ -94,6 +95,7 @@ export default function MieterClientView({
   initialTenants,
   initialWohnungen,
   serverAction,
+  canCreate = true,
 }: MieterClientViewProps) {
   const router = useRouter()
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
@@ -864,11 +866,11 @@ export default function MieterClientView({
                     {showApplicantsTab ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button className="w-full sm:w-auto gap-2">
+                          <ButtonWithTooltip className="w-full sm:w-auto gap-2" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
                             <PlusCircle className="size-4" />
                             Hinzufügen
                             <ChevronDown className="size-4 opacity-50" />
-                          </Button>
+                          </ButtonWithTooltip>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64">
                           <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
@@ -892,10 +894,10 @@ export default function MieterClientView({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <Button onClick={handleAddTenant} className="w-full sm:w-auto gap-2">
+                      <ButtonWithTooltip onClick={handleAddTenant} className="w-full sm:w-auto gap-2" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
                         <PlusCircle className="size-4" />
                         Mieter hinzufügen
-                      </Button>
+                      </ButtonWithTooltip>
                     )}
                   </div>
                 </div>

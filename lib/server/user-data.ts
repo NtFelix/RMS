@@ -89,11 +89,12 @@ export async function getSidebarUserData(
       supabase.rpc('check_permission', { p_modul: 'betriebskosten', p_aktion: 'ansehen' }),
       supabase.rpc('check_permission', { p_modul: 'aufgaben', p_aktion: 'ansehen' }),
       supabase.rpc('check_permission', { p_modul: 'dokumente', p_aktion: 'ansehen' }),
+      supabase.rpc('check_permission', { p_modul: 'organisation', p_aktion: 'ansehen' }),
     ]);
 
     isOrganisationHidden = orgDataResult.data?.ist_versteckt ?? false;
 
-    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente'] as const;
+    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation'] as const;
     const allAllowed = permChecks.every(r => r.data === true);
 
     if (!allAllowed) {
