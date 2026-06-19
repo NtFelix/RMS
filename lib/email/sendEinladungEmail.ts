@@ -1,8 +1,7 @@
 /**
  * Sends an organisation invitation email via the Resend REST API.
  *
- * Uses native `fetch` instead of the Resend Node.js SDK so this module
- * is compatible with the Edge Runtime (where organisation-actions.ts runs).
+ * Uses native `fetch` instead of the Resend Node.js SDK to avoid SDK overhead.
  *
  * Design intent: fire-and-forget.  Errors are logged but NEVER propagate to
  * the caller – the invitation record in the DB is already the source of truth.
@@ -13,10 +12,13 @@
  */
 
 import { posthogLogger } from "@/lib/posthog-logger";
-import crypto from "node:crypto";
 
-function hashEmail(email: string): string {
-  return crypto.createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
+async function hashEmail(email: string): Promise<string> {
+  const data = new TextEncoder().encode(email.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export interface SendEinladungEmailOptions {
@@ -238,7 +240,7 @@ export async function sendEinladungEmail(
   options: SendEinladungEmailOptions
 ): Promise<SendEmailResult> {
   const { toEmail, einladerName, organisationsName, rolle, token } = options;
-  const emailHash = hashEmail(toEmail);
+  const emailHash = await hashEmail(toEmail);
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
