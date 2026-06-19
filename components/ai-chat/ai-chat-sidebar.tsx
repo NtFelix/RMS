@@ -91,13 +91,9 @@ function IntelligenceInsight({
   isLoading: boolean;
   toolCalls?: ToolCallRecord[];
 }) {
-  const [isExpanded, setIsExpanded] = useState(isLoading);
   const [expandedToolId, setExpandedToolId] = useState<string | null>(null);
-
-  // Auto-expand when loading starts
-  useEffect(() => {
-    if (isLoading) setIsExpanded(true);
-  }, [isLoading]);
+  const [userExpanded, setUserExpanded] = useState(false);
+  const isExpanded = isLoading || userExpanded;
 
   const hasToolData = toolCalls && toolCalls.length > 0;
   const hasSteps = steps && steps.length > 0;
@@ -114,7 +110,8 @@ function IntelligenceInsight({
     <div className="mb-6 group/insight">
       {/* Top-level collapsible trigger */}
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        type="button"
+        onClick={() => setUserExpanded(prev => !prev)}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground/65 hover:text-muted-foreground transition-all duration-200 outline-none"
       >
         <span>Thought</span>
@@ -172,6 +169,7 @@ function IntelligenceInsight({
                     <div className="min-w-0 pr-4">
                       {step.toolResult ? (
                         <button
+                          type="button"
                           onClick={() => setExpandedToolId(expandedToolId === step.id ? null : step.id)}
                           className="flex flex-col items-start text-left w-full group/toolstep outline-none"
                         >
@@ -415,6 +413,109 @@ function PostHogFeedback({
   )
 }
 
+function SidebarHeader({
+  isDark,
+  onClearChat,
+  onToggleDisplayMode,
+  onToggleSidebar,
+  displayMode,
+}: {
+  isDark: boolean;
+  onClearChat: () => void;
+  onToggleDisplayMode: () => void;
+  onToggleSidebar: () => void;
+  displayMode: "push" | "overlay";
+}) {
+  return (
+    <div className="flex items-center justify-between px-6 py-6 bg-transparent z-20">
+      <div className="flex items-center gap-3">
+        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 shadow-inner overflow-hidden">
+          <Image src={LOGO_URL} alt="Mietevo Mascot" width={24} height={24} className="object-contain" />
+        </div>
+        <div>
+          <h2 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 dark:to-white/70">
+            Mietevo AI
+          </h2>
+        </div>
+      </div>
+      <div className={`flex items-center gap-1 rounded-full p-1 border transition-all duration-300 ${isDark ? 'bg-muted/40 border-white/10 shadow-none' : 'bg-white border-black/[0.08] shadow-sm'}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClearChat}
+          title="Chat leeren"
+          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5 hover:text-destructive' : 'hover:bg-black/5 hover:text-red-500 text-muted-foreground'}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleDisplayMode}
+          title={displayMode === 'push' ? "Zu Overlay wechseln" : "Zu Push wechseln"}
+          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
+        >
+          {displayMode === 'push' ? <Square className="w-4 h-4" /> : <Columns className="w-4 h-4" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
+        >
+          <ChevronsRight className="w-5 h-5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SidebarFloatingButton({ isOpen, isDark, onToggle }: { isOpen: boolean; isDark: boolean; onToggle: () => void }) {
+  return (
+    <AnimatePresence>
+      {!isOpen && (
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="fixed bottom-6 right-6 z-40 group"
+        >
+          <div className="absolute -inset-1 bg-primary rounded-full blur opacity-10 group-hover:opacity-30 transition duration-500"></div>
+          <Button
+            size="icon"
+            className="relative h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white text-primary border border-border overflow-hidden p-0"
+            onClick={onToggle}
+          >
+            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <Image 
+              src={LOGO_URL} 
+              alt="Mietevo AI" 
+              width={32} 
+              height={32} 
+              className="object-contain relative z-10" 
+            />
+          </Button>
+          <div className="absolute bottom-full right-0 mb-4 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex flex-col items-start whitespace-nowrap">
+            <div className={`px-4 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md flex flex-col items-start gap-1 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`}>
+              <span className="text-[13px] font-bold tracking-tight">Mietevo AI</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-30">Hotkey</span>
+                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[11px] font-bold ${isDark ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/5'}`}>
+                  <span>⌘</span>
+                  <span>J</span>
+                </div>
+              </div>
+            </div>
+            <div className={`mr-6 ml-auto w-3 h-3 rotate-45 border-r border-b translate-y-[-6px] ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`} />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
   
@@ -424,7 +525,8 @@ export function AIChatSidebar() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
-  const [sessionId, setSessionId] = useState<string>("");
+  const sessionIdRef = useRef<string | null>(null);
+  if (sessionIdRef.current === null) sessionIdRef.current = uuidv4();
   const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite-preview");
   const [activeId, setActiveId] = useState<string | null>(null);
   const { theme, resolvedTheme } = useTheme();
@@ -437,6 +539,7 @@ export function AIChatSidebar() {
 
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
+  const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -462,11 +565,6 @@ export function AIChatSidebar() {
 
 
 
-  // Initialize session ID on mount
-  useEffect(() => {
-    setSessionId(uuidv4());
-  }, []);
-
   // Hotkey listener for Cmd/Ctrl + J
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -477,7 +575,7 @@ export function AIChatSidebar() {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [toggleOpen]);
 
   // Focus textarea when sidebar opens
   useEffect(() => {
@@ -516,7 +614,7 @@ export function AIChatSidebar() {
 
   const clearChat = () => {
     setMessages([]);
-    setSessionId(uuidv4()); // Start a new session
+    sessionIdRef.current = uuidv4(); // Start a new session
   };
 
   const switchVersion = (messageId: string, versionIndex: number) => {
@@ -599,7 +697,7 @@ export function AIChatSidebar() {
           attachment: messageAttachment,
           history,
           pathname,
-          sessionId,
+          sessionId: sessionIdRef.current!,
           model: selectedModel,
           enabledToolIds,
         }),
@@ -782,47 +880,13 @@ export function AIChatSidebar() {
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
             className="fixed top-0 right-0 h-full w-full sm:w-[450px] bg-background/90 dark:bg-background/90 backdrop-blur-2xl border-l border-border/50 dark:border-white/10 shadow-2xl z-50 flex flex-col pt-safe"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-6 bg-transparent z-20">
-              <div className="flex items-center gap-3">
-                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 shadow-inner overflow-hidden">
-                  <Image src={LOGO_URL} alt="Mietevo Mascot" width={24} height={24} className="object-contain" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 dark:to-white/70">
-                    Mietevo AI
-                  </h2>
-                </div>
-              </div>
-              <div className={`flex items-center gap-1 rounded-full p-1 border transition-all duration-300 ${isDark ? 'bg-muted/40 border-white/10 shadow-none' : 'bg-white border-black/[0.08] shadow-sm'}`}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearChat}
-                  title="Chat leeren"
-                  className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5 hover:text-destructive' : 'hover:bg-black/5 hover:text-red-500 text-muted-foreground'}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleDisplayMode}
-                  title={displayMode === 'push' ? "Zu Overlay wechseln" : "Zu Push wechseln"}
-                  className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
-                >
-                  {displayMode === 'push' ? <Square className="w-4 h-4" /> : <Columns className="w-4 h-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
-                >
-                  <ChevronsRight className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
+            <SidebarHeader
+              isDark={isDark}
+              onClearChat={clearChat}
+              onToggleDisplayMode={toggleDisplayMode}
+              onToggleSidebar={toggleSidebar}
+              displayMode={displayMode}
+            />
 
             {/* Messages Area */}
             <div
@@ -864,7 +928,7 @@ export function AIChatSidebar() {
                                 <div className="flex flex-col gap-2 mb-3 p-0 rounded-lg overflow-hidden bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 group/attachment relative z-10">
                                   {m.attachment.type.startsWith('image/') ? (
                                     <div className="relative aspect-auto max-h-[220px] w-full overflow-hidden bg-black/40">
-                                      <img src={`data:${m.attachment.type};base64,${m.attachment.data}`} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-700 group-hover/attachment:scale-105" />
+                                      <img src={ALLOWED_IMAGE_MIME_TYPES.has(m.attachment.type) ? `data:${m.attachment.type};base64,${m.attachment.data}` : ""} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-700 group-hover/attachment:scale-105" />
                                       <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-bold text-white/90 border border-white/10 uppercase tracking-widest shadow-lg">
                                         Bild
                                       </div>
@@ -967,7 +1031,7 @@ export function AIChatSidebar() {
                       <div className="flex items-center gap-2 overflow-hidden">
                         {attachment.type.startsWith('image/') ? (
                           <div className="relative shrink-0 w-8 h-8 overflow-hidden rounded bg-background shadow-sm">
-                            <img src={`data:${attachment.type};base64,${attachment.data}`} alt="Preview" className="w-full h-full object-cover" />
+                            <img src={ALLOWED_IMAGE_MIME_TYPES.has(attachment.type) ? `data:${attachment.type};base64,${attachment.data}` : ""} alt="Preview" className="w-full h-full object-cover" />
                           </div>
                         ) : (
                           <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded bg-background shadow-sm">
@@ -999,6 +1063,7 @@ export function AIChatSidebar() {
                     placeholder={attachment ? "Frage zum Anhang hinzufügen..." : "Alles mit KI erledigen..."}
                     disabled={isLoading}
                     rows={1}
+                    aria-label="Chat-Nachricht eingeben"
                     className="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[150px] text-[15px] placeholder:text-muted-foreground disabled:opacity-50 min-h-[48px] outline-none"
                     style={{ overflowY: inputValue.length > 50 ? 'auto' : 'hidden' }}
                   />
@@ -1013,6 +1078,7 @@ export function AIChatSidebar() {
                       ref={fileInputRef} 
                       onChange={handleFileSelect} 
                       accept="image/*,.pdf,.doc,.docx,.csv,.txt"
+                      aria-label="Datei hochladen"
                     />
                     <Button
                       type="button"
@@ -1114,53 +1180,7 @@ export function AIChatSidebar() {
         )}
       </AnimatePresence>
 
-      {/* Floating Button */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0, opacity: 0, y: 20 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="fixed bottom-6 right-6 z-40 group"
-          >
-            {/* Subtle glow effect */}
-            <div className="absolute -inset-1 bg-primary rounded-full blur opacity-10 group-hover:opacity-30 transition duration-500"></div>
-            
-            <Button
-              size="icon"
-              className="relative h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white text-primary border border-border overflow-hidden p-0"
-              onClick={toggleSidebar}
-            >
-              <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <Image 
-                src={LOGO_URL} 
-                alt="Mietevo AI" 
-                width={32} 
-                height={32} 
-                className="object-contain relative z-10" 
-              />
-            </Button>
-
-            {/* Hover Tooltip */}
-            <div className="absolute bottom-full right-0 mb-4 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex flex-col items-start whitespace-nowrap">
-              <div className={`px-4 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md flex flex-col items-start gap-1 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`}>
-                <span className="text-[13px] font-bold tracking-tight">Mietevo AI</span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-30">Hotkey</span>
-                  <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[11px] font-bold ${isDark ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/5'}`}>
-                    <span>⌘</span>
-                    <span>J</span>
-                  </div>
-                </div>
-              </div>
-              {/* Tooltip triangle - centered relative to button by using ml-auto or similar if needed, but anchored to right-0 so mr-6 is correct if button is 56px */}
-              <div className={`mr-6 ml-auto w-3 h-3 rotate-45 border-r border-b translate-y-[-6px] ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <SidebarFloatingButton isOpen={isOpen} isDark={isDark} onToggle={toggleSidebar} />
     </>
   );
 }
