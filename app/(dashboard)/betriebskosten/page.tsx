@@ -15,18 +15,16 @@ import { requirePermission, hasPermission } from "@/lib/permissions";
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
   
-  const [_, canCreate] = await Promise.all([
-    requirePermission('betriebskosten', 'ansehen'),
-    hasPermission('betriebskosten', 'erstellen')
-  ]);
-  
-  // Fetch all necessary data in parallel
   const [
+    _,
+    canCreate,
     nebenkostenResult,
     haeuserData,
     tenantsData,
     financesData
   ] = await Promise.all([
+    requirePermission('betriebskosten', 'ansehen'),
+    hasPermission('betriebskosten', 'erstellen'),
     fetchNebenkostenListOptimized(),
     fetchHaeuserServer(supabase),
     fetchWithRpcFallback(
