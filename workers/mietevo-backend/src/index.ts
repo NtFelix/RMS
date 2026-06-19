@@ -1383,7 +1383,15 @@ export default {
         try {
             // Route based on URL path first (more robust)
             let response: Response;
-            if (url.pathname === '/ai') {
+
+            // Handle simple GET/HEAD requests (health checks, root)
+            if (request.method === 'GET' || request.method === 'HEAD') {
+                if (url.pathname === '/' || url.pathname === '/health') {
+                    response = new Response('OK', { status: 200 });
+                } else {
+                    response = new Response('Not Found', { status: 404 });
+                }
+            } else if (url.pathname === '/ai') {
                 response = await handleAIRequest(request, env, ctx);
             } else if (url.pathname === '/process-queue') {
                 response = await processQueue(request, env, ctx);
