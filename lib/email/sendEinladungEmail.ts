@@ -12,6 +12,13 @@
  * conflicts with react-dom/server internals (recentlyCreatedOwnerStacks).
  */
 
+import { posthogLogger } from "@/lib/posthog-logger";
+import crypto from "node:crypto";
+
+function hashEmail(email: string): string {
+  return crypto.createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
+}
+
 export interface SendEinladungEmailOptions {
   /** Email address of the invitee */
   toEmail: string;
@@ -227,12 +234,11 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#039;");
 }
 
-import { posthogLogger } from "@/lib/posthog-logger";
-
 export async function sendEinladungEmail(
   options: SendEinladungEmailOptions
 ): Promise<SendEmailResult> {
   const { toEmail, einladerName, organisationsName, rolle, token } = options;
+  const emailHash = hashEmail(toEmail);
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -270,7 +276,7 @@ export async function sendEinladungEmail(
       networkError instanceof Error ? networkError.message : String(networkError);
     posthogLogger.error("[sendEinladungEmail] Network error calling Resend API", {
       error: msg,
-      toEmail,
+      emailHash,
       organisationsName,
       component: "sendEinladungEmail",
     });
@@ -289,9 +295,9 @@ export async function sendEinladungEmail(
     posthogLogger.error("[sendEinladungEmail] Resend API returned non-OK status", {
       status: response.status,
       responseBody: body,
-      toEmail,
+      emailHash,
       organisationsName,
-      from: process.env.RESEND_FROM_EMAIL ?? "Mietevo <service@mietevo.de>",
+      from,
       component: "sendEinladungEmail",
     });
     return { sent: false, error: `Resend API returned ${response.status}` };
@@ -299,7 +305,7 @@ export async function sendEinladungEmail(
 
   const responseBody = await response.json().catch(() => ({}));
   posthogLogger.info("[sendEinladungEmail] Sent successfully", {
-    toEmail,
+    emailHash,
     organisationsName,
     tokenPrefix: token.slice(0, 8),
     resendId: responseBody.id,
