@@ -180,8 +180,30 @@ function BulkActionBar({
   );
 }
 
-function TableHeaderCell({ sortKey, children, className = '', icon: Icon, sortable = true, onSort }: {
+function escapeCsvValue(value: string | null | undefined): string {
+  if (!value) return ''
+  const stringValue = String(value)
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+    return `"${stringValue.replace(/"/g, '""')}"`
+  }
+  return stringValue
+}
+
+function SortIcon({ currentSortKey, sortKey, sortDirection }: { currentSortKey: SortKey; sortKey: SortKey; sortDirection: SortDirection }) {
+  if (currentSortKey !== sortKey) {
+    return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+  }
+  return sortDirection === "asc" ? (
+    <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+  ) : (
+    <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
+  )
+}
+
+function TableHeaderCell({ sortKey, currentSortKey, sortDirection, children, className = '', icon: Icon, sortable = true, onSort }: {
   sortKey: SortKey;
+  currentSortKey: SortKey;
+  sortDirection: SortDirection;
   children: React.ReactNode;
   className?: string;
   icon: React.ElementType;
@@ -192,10 +214,14 @@ function TableHeaderCell({ sortKey, children, className = '', icon: Icon, sortab
     <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
       <div
         onClick={() => sortable && onSort(sortKey)}
+        onKeyUp={(e) => { if (sortable && (e.key === 'Enter' || e.key === ' ')) onSort(sortKey) }}
+        role={sortable ? 'button' : undefined}
+        tabIndex={sortable ? 0 : undefined}
         className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
       >
         <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
         {children}
+        {sortable && <SortIcon currentSortKey={currentSortKey} sortKey={sortKey} sortDirection={sortDirection} />}
       </div>
     </TableHead>
   );
@@ -267,19 +293,18 @@ function BulkDeleteConfirmDialog({
   );
 }
 
-function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectHouse, onEdit, canEdit, canDelete, sortKey, sortDirection, onSort, contextMenuRefs }: {
+function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectHouse, onEdit, sortKey, sortDirection, onSort, contextMenuRefs, flags }: {
   house: House;
   isLastRow: boolean;
   isSelected: boolean;
   selectedHouses: Set<string>;
   onSelectHouse: (id: string, checked: CheckedState) => void;
   onEdit: (house: House) => void;
-  canEdit: boolean;
-  canDelete: boolean;
   sortKey: SortKey;
   sortDirection: SortDirection;
   onSort: (key: SortKey) => void;
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  flags: { canEdit: boolean; canDelete: boolean };
 }) {
   const renderSortIcon = (key: SortKey) => {
     if (sortKey !== key) {
@@ -297,8 +322,8 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
       house={house}
       onEdit={() => onEdit(house)}
       onRefresh={() => {}}
-      canEdit={canEdit}
-      canDelete={canDelete}
+      canEdit={flags.canEdit}
+      canDelete={flags.canDelete}
     >
       <TableRow
         ref={(el) => {
@@ -312,7 +337,7 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
         }`}
-        onClick={() => canEdit ? onEdit(house) : useModalStore.getState().openHausOverviewModal(house.id)}
+        onClick={() => flags.canEdit ? onEdit(house) : useModalStore.getState().openHausOverviewModal(house.id)}
       >
         <TableCell
           className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -359,8 +384,8 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
                 label: "Bearbeiten",
                 onClick: () => onEdit(house),
                 variant: 'primary',
-                disabled: !canEdit,
-                tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
+                disabled: !flags.canEdit,
+                tooltip: !flags.canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
               },
               {
                 id: `overview-${house.id}`,
@@ -400,13 +425,113 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
   );
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
+function HouseTableContent({
+  allSelected,
+  partiallySelected,
+  handleSelectAll,
+  sortKey,
+  sortDirection,
+  handleSort,
+  sortedAndFilteredData,
+  selectedHouses,
+  handleSelectHouse,
+  onEdit,
+  canEdit,
+  canDelete,
+  contextMenuRefs,
+}: {
+  allSelected: boolean;
+  partiallySelected: boolean;
+  handleSelectAll: (checked: CheckedState) => void;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  handleSort: (key: SortKey) => void;
+  sortedAndFilteredData: House[];
+  selectedHouses: Set<string>;
+  handleSelectHouse: (id: string, checked: CheckedState) => void;
+  onEdit: (house: House) => void;
+  canEdit: boolean;
+  canDelete: boolean;
+  contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+}) {
+  return (
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <div className="inline-block min-w-full align-middle">
+        <Table className="min-w-full">
+          <TableHeader>
+            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
+              <TableHead className="w-12 pl-0 pr-0 -ml-2">
+                <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
+                  <Checkbox
+                    aria-label="Alle Häuser auswählen"
+                    checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                    onCheckedChange={handleSelectAll}
+                    className="transition-transform duration-100 hover:scale-105"
+                  />
+                </div>
+              </TableHead>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px] dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Häuser</TableHeaderCell>
+              <TableHeaderCell sortKey="ort" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={MapPin} onSort={handleSort}>Ort</TableHeaderCell>
+              <TableHeaderCell sortKey="size" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Ruler} onSort={handleSort}>Größe</TableHeaderCell>
+              <TableHeaderCell sortKey="rent" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Euro} onSort={handleSort}>Miete</TableHeaderCell>
+              <TableHeaderCell sortKey="pricePerSqm" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={TrendingUp} onSort={handleSort}>Miete pro m²</TableHeaderCell>
+              <TableHeaderCell sortKey="status" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={CheckCircle2} onSort={handleSort}>Status</TableHeaderCell>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedAndFilteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  Keine Häuser gefunden.
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedAndFilteredData.map((house, index) => {
+                const isLastRow = index === sortedAndFilteredData.length - 1
+                const isSelected = selectedHouses.has(house.id)
+                return (
+                  <HouseTableRow
+                    key={house.id}
+                    house={house}
+                    isLastRow={isLastRow}
+                    isSelected={isSelected}
+                    selectedHouses={selectedHouses}
+                    onSelectHouse={handleSelectHouse}
+                    onEdit={onEdit}
+                    sortKey={sortKey}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                    contextMenuRefs={contextMenuRefs}
+                    flags={{ canEdit, canDelete }}
+                  />
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange }: {
+  filter?: string;
+  searchQuery?: string;
+  reloadRef?: React.MutableRefObject<(() => void) | null>;
+  initialHouses?: House[];
+  selectedHouses?: Set<string>;
+  onSelectionChange?: (houses: Set<string>) => void;
+}) {
   const router = useRouter()
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
   const [{ sortKey, sortDirection }, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as SortKey, sortDirection: "asc" as SortDirection })
   const [internalSelectedHouses, setInternalSelectedHouses] = useState<Set<string>>(new Set())
   const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
-  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
+  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(null as never)
+  if (!contextMenuRefs.current) {
+    contextMenuRefs.current = new Map()
+  }
 
   const selectedHouses = externalSelectedHouses ?? internalSelectedHouses
   const setSelectedHouses = onSelectionChange ?? setInternalSelectedHouses
@@ -439,12 +564,6 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
       }
     }
   }, [fetchHouses, initialHouses, reloadRef])
-
-  useEffect(() => {
-    if (initialHouses && initialHouses.length > 0) {
-      setHouses(initialHouses)
-    }
-  }, [initialHouses])
 
   const sortedAndFilteredData = useMemo(() => {
     let result = [...houses]
@@ -583,15 +702,6 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
     }
   }
 
-  const escapeCsvValue = (value: string | null | undefined): string => {
-    if (!value) return ''
-    const stringValue = String(value)
-    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
-      return `"${stringValue.replace(/"/g, '""')}"`
-    }
-    return stringValue
-  }
-
   const handleBulkExport = () => {
     const selectedHousesData = houses.filter(h => selectedHouses.has(h.id))
 
@@ -657,16 +767,48 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
     }
   }
 
-  const renderSortIcon = (key: SortKey) => {
-    if (sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
-    ) : (
-      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
-    )
+  return {
+    router,
+    selectedHouses,
+    setSelectedHouses,
+    allSelected,
+    partiallySelected,
+    handleSelectAll,
+    handleSelectHouse,
+    handleSort,
+    handleBulkDelete,
+    handleBulkExport,
+    handleDeleteConfirm,
+    sortedAndFilteredData,
+    sortKey,
+    sortDirection,
+    dialogState,
+    dispatchDialog,
+    contextMenuRefs,
+    fetchHouses,
   }
+}
+
+export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
+  const {
+    router,
+    selectedHouses,
+    setSelectedHouses,
+    allSelected,
+    partiallySelected,
+    handleSelectAll,
+    handleSelectHouse,
+    handleSort,
+    handleBulkDelete,
+    handleBulkExport,
+    handleDeleteConfirm,
+    sortedAndFilteredData,
+    sortKey,
+    sortDirection,
+    dialogState,
+    dispatchDialog,
+    contextMenuRefs,
+  } = useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange })
 
   return (
     <div className="rounded-lg">
@@ -679,65 +821,21 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
           canDelete={canDelete}
         />
       )}
-      <div className="overflow-x-auto -mx-4 sm:mx-0">
-        <div className="inline-block min-w-full align-middle">
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
-                <TableHead className="w-12 pl-0 pr-0 -ml-2">
-                  <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
-                    <Checkbox
-                      aria-label="Alle Häuser auswählen"
-                      checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
-                      onCheckedChange={handleSelectAll}
-                      className="transition-transform duration-100 hover:scale-105"
-                    />
-                  </div>
-                </TableHead>
-                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Häuser{renderSortIcon("name")}</TableHeaderCell>
-                <TableHeaderCell sortKey="ort" className="dark:text-[#f3f4f6]" icon={MapPin} onSort={handleSort}>Ort{renderSortIcon("ort")}</TableHeaderCell>
-                <TableHeaderCell sortKey="size" className="dark:text-[#f3f4f6]" icon={Ruler} onSort={handleSort}>Größe{renderSortIcon("size")}</TableHeaderCell>
-                <TableHeaderCell sortKey="rent" className="dark:text-[#f3f4f6]" icon={Euro} onSort={handleSort}>Miete{renderSortIcon("rent")}</TableHeaderCell>
-                <TableHeaderCell sortKey="pricePerSqm" className="dark:text-[#f3f4f6]" icon={TrendingUp} onSort={handleSort}>Miete pro m²{renderSortIcon("pricePerSqm")}</TableHeaderCell>
-                <TableHeaderCell sortKey="status" className="dark:text-[#f3f4f6]" icon={CheckCircle2} onSort={handleSort}>Status{renderSortIcon("status")}</TableHeaderCell>
-                <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedAndFilteredData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
-                    Keine Häuser gefunden.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sortedAndFilteredData.map((house, index) => {
-                  const isLastRow = index === sortedAndFilteredData.length - 1
-                  const isSelected = selectedHouses.has(house.id)
-
-                  return (
-                    <HouseTableRow
-                      key={house.id}
-                      house={house}
-                      isLastRow={isLastRow}
-                      isSelected={isSelected}
-                      selectedHouses={selectedHouses}
-                      onSelectHouse={handleSelectHouse}
-                      onEdit={onEdit}
-                      canEdit={canEdit}
-                      canDelete={canDelete}
-                      sortKey={sortKey}
-                      sortDirection={sortDirection}
-                      onSort={handleSort}
-                      contextMenuRefs={contextMenuRefs}
-                    />
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <HouseTableContent
+        allSelected={allSelected}
+        partiallySelected={partiallySelected}
+        handleSelectAll={handleSelectAll}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        handleSort={handleSort}
+        sortedAndFilteredData={sortedAndFilteredData}
+        selectedHouses={selectedHouses}
+        handleSelectHouse={handleSelectHouse}
+        onEdit={onEdit}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        contextMenuRefs={contextMenuRefs}
+      />
 
       <DeleteConfirmDialog
         open={dialogState.showDeleteConfirm}

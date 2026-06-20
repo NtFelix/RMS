@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useReducer } from "react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
@@ -77,6 +77,9 @@ function DraggableTaskRow({
       <div
         className="flex-1 min-w-0"
         onClick={(e) => { e.stopPropagation(); if (canEdit) onTaskClick(task); }}
+        onKeyUp={(e) => { if (canEdit && (e.key === 'Enter' || e.key === ' ')) { e.stopPropagation(); onTaskClick(task); } }}
+        role={canEdit ? 'button' : undefined}
+        tabIndex={canEdit ? 0 : undefined}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <p draggable={false} className={cn("text-xs font-medium truncate pointer-events-none", task.ist_erledigt && "line-through text-muted-foreground")}>
@@ -98,10 +101,10 @@ function DraggableTaskRow({
 }
 
 function DroppableNoDateTrigger({
-  isNoDateOpen,
+  noDateOpen,
   noDateCount,
 }: {
-  isNoDateOpen: boolean;
+  noDateOpen: boolean;
   noDateCount: number;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "sidebar-remove-date-zone" });
@@ -116,7 +119,7 @@ function DroppableNoDateTrigger({
       )}
     >
       <div className="flex items-center gap-1.5">
-        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isNoDateOpen && "rotate-90")} />
+        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", noDateOpen && "rotate-90")} />
         <CalendarOff className={cn("h-3.5 w-3.5 transition-colors", isOver ? "text-primary" : "text-muted-foreground")} />
         <span className={cn("text-xs font-semibold transition-colors", isOver && "text-primary")}>Ohne Datum</span>
         {isOver && <span className="text-[9px] font-bold text-primary animate-pulse">– Datum entfernen</span>}
@@ -124,6 +127,17 @@ function DroppableNoDateTrigger({
       <Badge variant="outline" className="h-4.5 px-1.5 text-[10px]">{noDateCount}</Badge>
     </CollapsibleTrigger>
   );
+}
+
+const dueDateFormatter = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' });
+
+function formatDueDate(dateStr: string) {
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    return dueDateFormatter.format(date);
+  } catch {
+    return dateStr;
+  }
 }
 
 interface SidebarTaskListProps {
@@ -134,12 +148,20 @@ interface SidebarTaskListProps {
   canEdit?: boolean;
 }
 
+type CollapsibleKey = 'upcoming' | 'noDate' | 'overdue' | 'later' | 'done';
+
+function collapsibleReducer(state: Record<CollapsibleKey, boolean>, action: { key: CollapsibleKey; open: boolean }) {
+  return { ...state, [action.key]: action.open };
+}
+
 function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit = true }: SidebarTaskListProps) {
-  const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
-  const [isNoDateOpen, setIsNoDateOpen] = useState(true);
-  const [isOverdueOpen, setIsOverdueOpen] = useState(true);
-  const [isLaterOpen, setIsLaterOpen] = useState(false);
-  const [isDoneOpen, setIsDoneOpen] = useState(false);
+  const [collapsibleState, dispatchCollapsible] = useReducer(collapsibleReducer, {
+    upcoming: true,
+    noDate: true,
+    overdue: true,
+    later: false,
+    done: false,
+  });
 
   const { addDateChangeListener, removeDateChangeListener } = useTaskDnd();
   useEffect(() => {
@@ -196,17 +218,6 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
     return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later, doneTasks: done };
   }, [tasks, todayStr, nextWeekStr]);
 
-  const dueDateFormatter = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' });
-
-  const formatDueDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr + 'T00:00:00');
-      return dueDateFormatter.format(date);
-    } catch {
-      return dateStr;
-    }
-  };
-
   const totalOpen = overdueTasks.length + upcomingTasks.length + laterTasks.length + noDateTasks.length;
 
   return (
@@ -221,10 +232,10 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
       )}
 
       {overdueTasks.length > 0 && (
-        <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
+        <Collapsible open={collapsibleState.overdue} onOpenChange={(open) => dispatchCollapsible({ key: 'overdue', open })}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent group/trigger">
             <div className="flex items-center gap-1.5">
-              <ChevronRight className={cn("size-3.5 text-red-500 transition-transform duration-200", isOverdueOpen && "rotate-90")} />
+              <ChevronRight className={cn("size-3.5 text-red-500 transition-transform duration-200", collapsibleState.overdue && "rotate-90")} />
               <Clock className="size-3.5 text-red-500" />
               <span className="text-xs font-semibold text-red-600 dark:text-red-400">Überfällig</span>
             </div>
@@ -238,10 +249,10 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </Collapsible>
       )}
 
-      <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
+      <Collapsible open={collapsibleState.upcoming} onOpenChange={(open) => dispatchCollapsible({ key: 'upcoming', open })}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
-            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isUpcomingOpen && "rotate-90")} />
+            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", collapsibleState.upcoming && "rotate-90")} />
             <Clock className="size-3.5 text-yellow-600" />
             <span className="text-xs font-semibold">Anstehend</span>
           </div>
@@ -254,10 +265,10 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </CollapsibleContent>
       </Collapsible>
 
-      <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
+      <Collapsible open={collapsibleState.later} onOpenChange={(open) => dispatchCollapsible({ key: 'later', open })}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
-            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isLaterOpen && "rotate-90")} />
+            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", collapsibleState.later && "rotate-90")} />
             <Clock className="size-3.5 text-blue-500" />
             <span className="text-xs font-semibold">Später</span>
           </div>
@@ -270,8 +281,8 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </CollapsibleContent>
       </Collapsible>
 
-      <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
-        <DroppableNoDateTrigger isNoDateOpen={isNoDateOpen} noDateCount={noDateTasks.length} />
+      <Collapsible open={collapsibleState.noDate} onOpenChange={(open) => dispatchCollapsible({ key: 'noDate', open })}>
+        <DroppableNoDateTrigger noDateOpen={collapsibleState.noDate} noDateCount={noDateTasks.length} />
         <CollapsibleContent className="mt-0.5 flex flex-col gap-0.5 pl-1">
           {noDateTasks.map(task => (
             <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} canEdit={canEdit} />
@@ -280,10 +291,10 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
       </Collapsible>
 
       {doneTasks.length > 0 && (
-        <Collapsible open={isDoneOpen} onOpenChange={setIsDoneOpen}>
+        <Collapsible open={collapsibleState.done} onOpenChange={(open) => dispatchCollapsible({ key: 'done', open })}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent group/trigger">
             <div className="flex items-center gap-1.5">
-              <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isDoneOpen && "rotate-90")} />
+              <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", collapsibleState.done && "rotate-90")} />
               <CheckCircle2 className="size-3.5 text-emerald-500" />
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Erledigt</span>
             </div>

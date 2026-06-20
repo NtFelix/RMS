@@ -80,30 +80,36 @@ function bulkReducer(state: BulkState, action: BulkAction): BulkState {
   }
 }
 
-function TabToggle({ currentTab, onTabChange }: { currentTab: Tab; onTabChange: (tab: Tab) => void }) {
-  const TabButton = ({ tab, icon: Icon, label }: { tab: Tab; icon: typeof BarChart3; label: string }) => (
+function TabButton({ tab, icon: Icon, label, isActive, onTabChange }: {
+  tab: Tab;
+  icon: typeof BarChart3;
+  label: string;
+  isActive: boolean;
+  onTabChange: (tab: Tab) => void;
+}) {
+  return (
     <button
       type="button"
       onClick={() => onTabChange(tab)}
       className={cn(
         "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-        currentTab === tab ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
+        isActive ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
       )}
     >
-      {currentTab === tab && (
-        <div
-          className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-        />
+      {isActive && (
+        <div className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10" />
       )}
       <Icon className="size-4 shrink-0 transition-transform duration-300" />
       <span>{label}</span>
     </button>
   );
+}
 
+function TabToggle({ currentTab, onTabChange }: { currentTab: Tab; onTabChange: (tab: Tab) => void }) {
   return (
     <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-      <TabButton tab="houses" icon={Building2} label="Häuser" />
-      <TabButton tab="overview" icon={BarChart3} label="Übersicht" />
+      <TabButton tab="houses" icon={Building2} label="Häuser" isActive={currentTab === "houses"} onTabChange={onTabChange} />
+      <TabButton tab="overview" icon={BarChart3} label="Übersicht" isActive={currentTab === "overview"} onTabChange={onTabChange} />
     </div>
   );
 }
@@ -268,10 +274,7 @@ function HousesTab({
   onClearSelection,
   onBulkExport,
   onBulkDeleteClick,
-  isBulkDeleting,
-  canCreate,
-  canEdit,
-  canDelete,
+  flags,
   onAdd,
   onEdit,
   enrichedHaeuser,
@@ -288,10 +291,7 @@ function HousesTab({
   onClearSelection: () => void;
   onBulkExport: () => void;
   onBulkDeleteClick: () => void;
-  isBulkDeleting: boolean;
-  canCreate: boolean;
-  canEdit: boolean;
-  canDelete: boolean;
+  flags: { isBulkDeleting: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean };
   onAdd: () => void;
   onEdit: (house: House) => void;
   enrichedHaeuser: House[];
@@ -317,9 +317,9 @@ function HousesTab({
                 }}
                 icon={<PlusCircle className="size-4" />}
                 shortText="Hinzufügen"
-                disabled={!canCreate}
+                disabled={!flags.canCreate}
                 tooltip="Keine Berechtigung zum Erstellen"
-                showTooltip={!canCreate}
+                showTooltip={!flags.canCreate}
               >
                 Haus hinzufügen
               </ResponsiveButtonWithTooltip>
@@ -343,8 +343,8 @@ function HousesTab({
               onClearSelection={onClearSelection}
               onExport={onBulkExport}
               onDelete={onBulkDeleteClick}
-              isDeleting={isBulkDeleting}
-              canDelete={canDelete}
+              isDeleting={flags.isBulkDeleting}
+              canDelete={flags.canDelete}
             />
           )}
           <HouseTable
@@ -355,8 +355,8 @@ function HousesTab({
             initialHouses={enrichedHaeuser}
             selectedHouses={selectedHouses}
             onSelectionChange={onSelectionChange}
-            canEdit={canEdit}
-            canDelete={canDelete}
+            canEdit={flags.canEdit}
+            canDelete={flags.canDelete}
           />
         </CardContent>
       </Card>
@@ -936,10 +936,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           onClearSelection={() => dispatchBulk({ type: "SET_SELECTED", payload: new Set() })}
           onBulkExport={handleBulkExport}
           onBulkDeleteClick={() => dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: true })}
-          isBulkDeleting={isBulkDeleting}
-          canCreate={canCreate}
-          canEdit={canEdit}
-          canDelete={canDelete}
+          flags={{ isBulkDeleting, canCreate, canEdit, canDelete }}
           onAdd={handleAdd}
           onEdit={handleEdit}
           enrichedHaeuser={enrichedHaeuser}

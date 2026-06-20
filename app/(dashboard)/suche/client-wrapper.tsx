@@ -56,6 +56,7 @@ function SearchHeader({
           </div>
           <input
             type="text"
+            aria-label="Sucheingabe"
             placeholder="Eintrag, Betrag, Name oder Stichwort suchen..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -171,11 +172,44 @@ const fadeVariants = {
   exit: { opacity: 0 },
 };
 
+const getIcon = (type: string) => {
+  switch (type) {
+    case "tenant": return Users
+    case "house": return Building2
+    case "apartment": return Home
+    case "finance": return Wallet
+    case "task": return CheckSquare
+    default: return Search
+  }
+}
+
+const getTypeLabel = (type: string) => {
+  switch (type) {
+    case "tenant": return "Mieter"
+    case "house": return "Haus"
+    case "apartment": return "Wohnung"
+    case "finance": return "Finanzen"
+    case "task": return "Aufgabe"
+    default: return "Eintrag"
+  }
+}
+
+const getLink = (item: any) => {
+  switch (item.type) {
+    case "tenant": return "/mieter"
+    case "house": return "/haeuser"
+    case "apartment": return "/wohnungen"
+    case "finance": return "/finanzen"
+    case "task": return "/todos"
+    default: return "/dashboard"
+  }
+}
+
 function OfflineState({ retry }: { retry: () => void }) {
   return (
     <m.div {...fadeVariants} className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-md mx-auto">
       <div className="p-4 bg-red-500/10 text-red-500 rounded-full border border-red-500/20">
-        <AlertCircle className="size-10 animate-bounce" />
+        <AlertCircle className="size-10 animate-pulse" />
       </div>
       <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Offline</h3>
       <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
@@ -417,6 +451,33 @@ function ResultsList({
   );
 }
 
+function ResultsStream({
+  isOffline,
+  error,
+  isLoading,
+  query,
+  filteredResults,
+  recentSearches,
+  retry,
+  onSelectRecent,
+}: {
+  isOffline: boolean;
+  error: string | null;
+  isLoading: boolean;
+  query: string;
+  filteredResults: any[];
+  recentSearches: string[];
+  retry: () => void;
+  onSelectRecent: (q: string) => void;
+}) {
+  if (isOffline) return <OfflineState retry={retry} />
+  if (error) return <ErrorState error={error} retry={retry} />
+  if (isLoading) return <LoadingState />
+  if (query === "") return <EmptyQueryState recentSearches={recentSearches} onSelectRecent={onSelectRecent} />
+  if (filteredResults.length === 0) return <NoResultsState query={query} />
+  return <ResultsList items={filteredResults} getIcon={getIcon} getTypeLabel={getTypeLabel} getLink={getLink} />
+}
+
 export default function SuchePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const {
@@ -445,39 +506,6 @@ export default function SuchePage() {
     return true
   })
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "tenant": return Users
-      case "house": return Building2
-      case "apartment": return Home
-      case "finance": return Wallet
-      case "task": return CheckSquare
-      default: return Search
-    }
-  }
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "tenant": return "Mieter"
-      case "house": return "Haus"
-      case "apartment": return "Wohnung"
-      case "finance": return "Finanzen"
-      case "task": return "Aufgabe"
-      default: return "Eintrag"
-    }
-  }
-
-  const getLink = (item: any) => {
-    switch (item.type) {
-      case "tenant": return "/mieter"
-      case "house": return "/haeuser"
-      case "apartment": return "/wohnungen"
-      case "finance": return "/finanzen"
-      case "task": return "/todos"
-      default: return "/dashboard"
-    }
-  }
-
   const categories = useMemo(() => {
     const counts = results.reduce((acc, r) => {
       const type = r.type as string;
@@ -494,15 +522,6 @@ export default function SuchePage() {
       { id: "tasks", label: "Aufgaben", count: counts["task"] || 0 },
     ];
   }, [results]);
-
-  const renderResults = () => {
-    if (isOffline) return <OfflineState retry={retry} />
-    if (error) return <ErrorState error={error} retry={retry} />
-    if (isLoading) return <LoadingState />
-    if (query === "") return <EmptyQueryState recentSearches={recentSearches} onSelectRecent={setQuery} />
-    if (filteredResults.length === 0) return <NoResultsState query={query} />
-    return <ResultsList items={filteredResults} getIcon={getIcon} getTypeLabel={getTypeLabel} getLink={getLink} />
-  }
 
   return (
     <LazyMotion features={domAnimation}>
@@ -525,7 +544,16 @@ export default function SuchePage() {
 
           <div className="flex-1 overflow-y-auto px-6 py-8 md:px-12 md:py-8 min-h-0">
             <AnimatePresence mode="wait">
-              {renderResults()}
+              <ResultsStream
+                isOffline={isOffline}
+                error={error}
+                isLoading={isLoading}
+                query={query}
+                filteredResults={filteredResults}
+                recentSearches={recentSearches}
+                retry={retry}
+                onSelectRecent={setQuery}
+              />
             </AnimatePresence>
           </div>
         </div>

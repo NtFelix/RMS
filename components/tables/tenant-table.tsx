@@ -162,8 +162,21 @@ function BulkActionBar({
   );
 }
 
-function TableHeaderCell({ sortKey, children, className = '', icon: Icon, sortable = true, onSort }: {
+function SortIcon({ currentSortKey, sortKey, sortDirection }: { currentSortKey: TenantSortKey; sortKey: TenantSortKey; sortDirection: SortDirection }) {
+  if (currentSortKey !== sortKey) {
+    return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+  }
+  return sortDirection === "asc" ? (
+    <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+  ) : (
+    <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
+  )
+}
+
+function TableHeaderCell({ sortKey, currentSortKey, sortDirection, children, className = '', icon: Icon, sortable = true, onSort }: {
   sortKey: TenantSortKey;
+  currentSortKey: TenantSortKey;
+  sortDirection: SortDirection;
   children: React.ReactNode;
   className?: string;
   icon: React.ElementType;
@@ -174,10 +187,14 @@ function TableHeaderCell({ sortKey, children, className = '', icon: Icon, sortab
     <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
       <div
         onClick={() => sortable && onSort(sortKey)}
+        onKeyUp={(e) => { if (sortable && (e.key === 'Enter' || e.key === ' ')) onSort(sortKey) }}
+        role={sortable ? 'button' : undefined}
+        tabIndex={sortable ? 0 : undefined}
         className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
       >
         <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
         {children}
+        {sortable && <SortIcon currentSortKey={currentSortKey} sortKey={sortKey} sortDirection={sortDirection} />}
       </div>
     </TableHead>
   );
@@ -245,13 +262,250 @@ function BulkDeleteConfirmDialog({
   );
 }
 
+function escapeCsvValue(value: string | null | undefined): string {
+  if (!value) return ''
+  const stringValue = String(value)
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+    return `"${stringValue.replace(/"/g, '""')}"`
+  }
+  return stringValue
+}
+
 function getInitials(name: string) {
   return name
     .split(' ')
-    .map(part => part[0])
+    .map(word => word[0])
     .join('')
     .toUpperCase()
-    .substring(0, 2);
+    .slice(0, 2)
+}
+
+function TenantTableContent({
+  allSelected,
+  partiallySelected,
+  handleSelectAll,
+  sortKey,
+  sortDirection,
+  handleSort,
+  sortedAndFilteredData,
+  selectedTenants,
+  handleSelectTenant,
+  onEdit,
+  canEdit,
+  canDelete,
+  contextMenuRefs,
+  wohnungsMap,
+  mode,
+  router,
+  handleOpenKaution,
+}: {
+  allSelected: boolean;
+  partiallySelected: boolean;
+  handleSelectAll: (checked: CheckedState) => void;
+  sortKey: TenantSortKey;
+  sortDirection: SortDirection;
+  handleSort: (key: TenantSortKey) => void;
+  sortedAndFilteredData: Tenant[];
+  selectedTenants: Set<string>;
+  handleSelectTenant: (id: string, checked: CheckedState) => void;
+  onEdit?: (t: Tenant) => void;
+  canEdit: boolean;
+  canDelete: boolean;
+  contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  wohnungsMap: Record<string, string>;
+  mode: "tenants" | "applicants";
+  router: ReturnType<typeof import("next/navigation").useRouter>;
+  handleOpenKaution: (tenant: Tenant) => void;
+}) {
+  const { openApplicantScoreModal, openMailPreviewModal } = useModalStore()
+  return (
+    <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
+      <div className="inline-block min-w-full align-middle">
+        <Table className="min-w-full">
+          <TableHeader>
+            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
+              <TableHead className="w-12 pl-0 pr-0 -ml-2">
+                <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
+                  <Checkbox
+                    aria-label="Alle Mieter auswählen"
+                    checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
+                    onCheckedChange={handleSelectAll}
+                    className="transition-transform duration-100 hover:scale-105"
+                  />
+                </div>
+              </TableHead>
+              <TableHeaderCell sortKey="name" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[250px] dark:text-[#f3f4f6]" icon={User} onSort={handleSort}>Name</TableHeaderCell>
+              <TableHeaderCell sortKey="email" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Mail} onSort={handleSort}>E-Mail</TableHeaderCell>
+              <TableHeaderCell sortKey="telefonnummer" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Phone} onSort={handleSort}>Telefon</TableHeaderCell>
+              <TableHeaderCell sortKey="wohnung" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Wohnung</TableHeaderCell>
+              <TableHeaderCell sortKey="nebenkosten" currentSortKey={sortKey} sortDirection={sortDirection} className="dark:text-[#f3f4f6]" icon={FileText} onSort={handleSort}>{mode === 'applicants' ? 'Score' : 'Nebenkosten'}</TableHeaderCell>
+              <TableHeaderCell sortKey="" currentSortKey={sortKey} sortDirection={sortDirection} className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedAndFilteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-[400px] text-center">
+                  Keine Mieter gefunden.
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedAndFilteredData.map((tenant, index) => {
+                const isLastRow = index === sortedAndFilteredData.length - 1
+                const isSelected = selectedTenants.has(tenant.id)
+
+                return (
+                  <TenantContextMenu
+                    key={tenant.id}
+                    tenant={tenant}
+                    onEdit={() => onEdit?.(tenant)}
+                    onRefresh={() => router.refresh()}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                  >
+                    <TableRow
+                      ref={(el) => {
+                        if (el) {
+                          contextMenuRefs.current.set(tenant.id, el)
+                        } else {
+                          contextMenuRefs.current.delete(tenant.id)
+                        }
+                      }}
+                      className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+                        ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                      }`}
+                      onClick={() => canEdit ? onEdit?.(tenant) : undefined}
+                    >
+                      <TableCell
+                        className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Checkbox
+                          aria-label={`Mieter ${tenant.name} auswählen`}
+                          checked={selectedTenants.has(tenant.id)}
+                          onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
+                        />
+                      </TableCell>
+                      <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
+                        <Avatar className="h-9 w-9 shrink-0 bg-primary text-primary-foreground">
+                          <AvatarImage src="" alt={tenant.name} />
+                          <AvatarFallback className="bg-primary text-primary-foreground">
+                            {getInitials(tenant.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{tenant.name}</span>
+                      </TableCell>
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.email}</TableCell>
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
+                      <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                      <TableCell className={`py-4`}>
+                        {mode === 'applicants' ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-500"
+                                style={{ width: `${Math.min(tenant.bewerbung_score || 0, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium">
+                              {tenant.bewerbung_score !== undefined
+                                ? (tenant.bewerbung_score / 10).toFixed(1)
+                                : '-'}
+                            </span>
+                          </div>
+                        ) : (
+                          tenant.nebenkosten && tenant.nebenkosten.length > 0
+                            ? tenant.nebenkosten
+                              .slice(0, 3)
+                              .map((n: NebenkostenEntry) => `${n.amount} €`)
+                              .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
+                            : '-'
+                        )}
+                      </TableCell>
+                      <TableCell
+                        className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <ActionMenu
+                          actions={[
+                            {
+                              id: `edit-${tenant.id}`,
+                              icon: Pencil,
+                              label: "Bearbeiten",
+                              onClick: () => onEdit?.(tenant),
+                              variant: 'primary',
+                              disabled: !canEdit,
+                              tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
+                            },
+                            ...(tenant.bewerbung_metadaten ? [{
+                              id: `ai-score-${tenant.id}`,
+                              icon: Sparkles,
+                              label: "Datenblatt (AI)",
+                              onClick: () => openApplicantScoreModal({
+                                tenant: {
+                                  id: tenant.id,
+                                  name: tenant.name,
+                                  email: tenant.email || undefined,
+                                  bewerbung_score: tenant.bewerbung_score,
+                                  bewerbung_metadaten: tenant.bewerbung_metadaten,
+                                  bewerbung_mail_id: tenant.bewerbung_mail_id
+                                }
+                              }),
+                              variant: 'default' as const,
+                            }] : []),
+                            ...(tenant.bewerbung_mail_id ? [{
+                              id: `mail-link-${tenant.id}`,
+                              icon: ExternalLink,
+                              label: "Zur E-Mail",
+                              onClick: () => openMailPreviewModal(tenant.bewerbung_mail_id!),
+                              variant: 'default' as const,
+                            }] : []),
+                            {
+                              id: `kaution-${tenant.id}`,
+                              icon: Euro,
+                              label: "Kaution",
+                              onClick: () => handleOpenKaution(tenant),
+                              variant: 'default',
+                              disabled: !canEdit,
+                              tooltip: !canEdit ? "Keine Berechtigung" : undefined,
+                            },
+                            {
+                              id: `more-${tenant.id}`,
+                              icon: MoreVertical,
+                              label: "Mehr Optionen",
+                              onClick: (e) => {
+                                if (!e) return;
+                                const rowElement = contextMenuRefs.current.get(tenant.id)
+                                if (rowElement) {
+                                  const contextMenuEvent = new MouseEvent('contextmenu', {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    view: window,
+                                    clientX: e.clientX,
+                                    clientY: e.clientY,
+                                  })
+                                  rowElement.dispatchEvent(contextMenuEvent)
+                                }
+                              },
+                              variant: 'default',
+                            }
+                          ]}
+                          shape="pill"
+                          visibility="always"
+                          className="inline-flex"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  </TenantContextMenu>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
 }
 
 export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants", canEdit = true, canDelete = true }: TenantTableProps) {
@@ -259,7 +513,10 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [{ sortKey, sortDirection }, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as TenantSortKey, sortDirection: "asc" as SortDirection })
   const [internalSelectedTenants, setInternalSelectedTenants] = useState<Set<string>>(new Set())
   const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
-  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
+  const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(null as never)
+  if (!contextMenuRefs.current) {
+    contextMenuRefs.current = new Map()
+  }
   const { openApplicantScoreModal, openMailPreviewModal } = useModalStore()
 
   const selectedTenants = externalSelectedTenants ?? internalSelectedTenants
@@ -387,32 +644,19 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     dispatchSort({ type: "TOGGLE", payload: key })
   }
 
-  const renderSortIcon = (key: TenantSortKey) => {
-    if (sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
-    ) : (
-      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
-    )
-  }
-
   const handleBulkDelete = async () => {
     dispatchDialog({ type: "SET_BULK_DELETING", payload: true })
     const selectedIds = Array.from(selectedTenants)
     let successCount = 0
     let errorCount = 0
 
-    for (const tenantId of selectedIds) {
-      try {
-        const result = await deleteTenantAction(tenantId)
-        if (result.success) {
-          successCount++
-        } else {
-          errorCount++
-        }
-      } catch (error) {
+    const results = await Promise.allSettled(
+      selectedIds.map((id) => deleteTenantAction(id))
+    )
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.success) {
+        successCount++
+      } else {
         errorCount++
       }
     }
@@ -435,15 +679,6 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
         variant: "destructive",
       })
     }
-  }
-
-  const escapeCsvValue = (value: string | null | undefined): string => {
-    if (!value) return ''
-    const stringValue = String(value)
-    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
-      return `"${stringValue.replace(/"/g, '""')}"`
-    }
-    return stringValue
   }
 
   const handleBulkExport = () => {
@@ -498,192 +733,25 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
           canDelete={canDelete}
         />
       )}
-      <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
-        <div className="inline-block min-w-full align-middle">
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
-                <TableHead className="w-12 pl-0 pr-0 -ml-2">
-                  <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
-                    <Checkbox
-                      aria-label="Alle Mieter auswählen"
-                      checked={allSelected ? true : partiallySelected ? "indeterminate" : false}
-                      onCheckedChange={handleSelectAll}
-                      className="transition-transform duration-100 hover:scale-105"
-                    />
-                  </div>
-                </TableHead>
-                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={User} onSort={handleSort}>Name{renderSortIcon("name")}</TableHeaderCell>
-                <TableHeaderCell sortKey="email" className="dark:text-[#f3f4f6]" icon={Mail} onSort={handleSort}>E-Mail{renderSortIcon("email")}</TableHeaderCell>
-                <TableHeaderCell sortKey="telefonnummer" className="dark:text-[#f3f4f6]" icon={Phone} onSort={handleSort}>Telefon{renderSortIcon("telefonnummer")}</TableHeaderCell>
-                <TableHeaderCell sortKey="wohnung" className="dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Wohnung{renderSortIcon("wohnung")}</TableHeaderCell>
-                <TableHeaderCell sortKey="nebenkosten" className="dark:text-[#f3f4f6]" icon={FileText} onSort={handleSort}>{mode === 'applicants' ? 'Score' : 'Nebenkosten'}{renderSortIcon("nebenkosten")}</TableHeaderCell>
-                <TableHeaderCell sortKey="" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedAndFilteredData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-[400px] text-center">
-                    Keine Mieter gefunden.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sortedAndFilteredData.map((tenant, index) => {
-                  const isLastRow = index === sortedAndFilteredData.length - 1
-                  const isSelected = selectedTenants.has(tenant.id)
-
-                  return (
-                    <TenantContextMenu
-                      key={tenant.id}
-                      tenant={tenant}
-                      onEdit={() => onEdit?.(tenant)}
-                      onRefresh={() => router.refresh()}
-                      canEdit={canEdit}
-                      canDelete={canDelete}
-                    >
-                      <TableRow
-                        ref={(el) => {
-                          if (el) {
-                            contextMenuRefs.current.set(tenant.id, el)
-                          } else {
-                            contextMenuRefs.current.delete(tenant.id)
-                          }
-                        }}
-                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
-                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                        }`}
-                        onClick={() => canEdit ? onEdit?.(tenant) : undefined}
-                      >
-                        <TableCell
-                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <Checkbox
-                            aria-label={`Mieter ${tenant.name} auswählen`}
-                            checked={selectedTenants.has(tenant.id)}
-                            onCheckedChange={(checked) => handleSelectTenant(tenant.id, checked)}
-                          />
-                        </TableCell>
-                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
-                          <Avatar className="h-9 w-9 shrink-0 bg-primary text-primary-foreground">
-                            <AvatarImage src="" alt={tenant.name} />
-                            <AvatarFallback className="bg-primary text-primary-foreground">
-                              {getInitials(tenant.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span>{tenant.name}</span>
-                        </TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.email}</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.telefonnummer}</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                        <TableCell className={`py-4`}>
-                          {mode === 'applicants' ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-blue-500"
-                                  style={{ width: `${Math.min(tenant.bewerbung_score || 0, 100)}%` }}
-                                />
-                              </div>
-                              <span className="text-sm font-medium">
-                                {tenant.bewerbung_score !== undefined
-                                  ? (tenant.bewerbung_score / 10).toFixed(1)
-                                  : '-'}
-                              </span>
-                            </div>
-                          ) : (
-                            tenant.nebenkosten && tenant.nebenkosten.length > 0
-                              ? tenant.nebenkosten
-                                .slice(0, 3)
-                                .map((n: NebenkostenEntry) => `${n.amount} €`)
-                                .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
-                              : '-'
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <ActionMenu
-                            actions={[
-                              {
-                                id: `edit-${tenant.id}`,
-                                icon: Pencil,
-                                label: "Bearbeiten",
-                                onClick: () => onEdit?.(tenant),
-                                variant: 'primary',
-                                disabled: !canEdit,
-                                tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
-                              },
-                              ...(tenant.bewerbung_metadaten ? [{
-                                id: `ai-score-${tenant.id}`,
-                                icon: Sparkles,
-                                label: "Datenblatt (AI)",
-                                onClick: () => openApplicantScoreModal({
-                                  tenant: {
-                                    id: tenant.id,
-                                    name: tenant.name,
-                                    email: tenant.email || undefined,
-                                    bewerbung_score: tenant.bewerbung_score,
-                                    bewerbung_metadaten: tenant.bewerbung_metadaten,
-                                    bewerbung_mail_id: tenant.bewerbung_mail_id
-                                  }
-                                }),
-                                variant: 'default' as const,
-                              }] : []),
-                              ...(tenant.bewerbung_mail_id ? [{
-                                id: `mail-link-${tenant.id}`,
-                                icon: ExternalLink,
-                                label: "Zur E-Mail",
-                                onClick: () => openMailPreviewModal(tenant.bewerbung_mail_id!),
-                                variant: 'default' as const,
-                              }] : []),
-                              {
-                                id: `kaution-${tenant.id}`,
-                                icon: Euro,
-                                label: "Kaution",
-                                onClick: () => handleOpenKaution(tenant),
-                                variant: 'default',
-                                disabled: !canEdit,
-                                tooltip: !canEdit ? "Keine Berechtigung" : undefined,
-                              },
-                              {
-                                id: `more-${tenant.id}`,
-                                icon: MoreVertical,
-                                label: "Mehr Optionen",
-                                onClick: (e) => {
-                                  if (!e) return;
-                                  const rowElement = contextMenuRefs.current.get(tenant.id)
-                                  if (rowElement) {
-                                    const contextMenuEvent = new MouseEvent('contextmenu', {
-                                      bubbles: true,
-                                      cancelable: true,
-                                      view: window,
-                                      clientX: e.clientX,
-                                      clientY: e.clientY,
-                                    })
-                                    rowElement.dispatchEvent(contextMenuEvent)
-                                  }
-                                },
-                                variant: 'default',
-                              }
-                            ]}
-                            shape="pill"
-                            visibility="always"
-                            className="inline-flex"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    </TenantContextMenu>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <TenantTableContent
+        allSelected={allSelected}
+        partiallySelected={partiallySelected}
+        handleSelectAll={handleSelectAll}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        handleSort={handleSort}
+        sortedAndFilteredData={sortedAndFilteredData}
+        selectedTenants={selectedTenants}
+        handleSelectTenant={handleSelectTenant}
+        onEdit={onEdit}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        contextMenuRefs={contextMenuRefs}
+        wohnungsMap={wohnungsMap}
+        mode={mode}
+        router={router}
+        handleOpenKaution={handleOpenKaution}
+      />
 
       <DeleteConfirmDialog
         open={dialogState.showDeleteConfirm}
