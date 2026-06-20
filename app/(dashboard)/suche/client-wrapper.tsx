@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useSearch } from "@/hooks/use-search"
+import type { SearchResult } from "@/types/search"
 import { 
   Search, 
   Users, 
@@ -160,12 +161,6 @@ function CategorySidebar({
   );
 }
 
-const resultVariants = {
-  initial: { opacity: 0, scale: 0.95 },
-  animate: { opacity: 1, scale: 1 },
-  exit: { opacity: 0, scale: 0.95 },
-};
-
 const fadeVariants = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
@@ -194,7 +189,7 @@ const getTypeLabel = (type: string) => {
   }
 }
 
-const getLink = (item: any) => {
+const getLink = (item: SearchResult) => {
   switch (item.type) {
     case "tenant": return "/mieter"
     case "house": return "/haeuser"
@@ -322,10 +317,10 @@ function NoResultsState({ query }: { query: string }) {
 }
 
 function ResultItem({ item, getIcon, getTypeLabel, getLink }: {
-  item: any;
-  getIcon: (type: string) => any;
+  item: SearchResult;
+  getIcon: (type: string) => React.ElementType;
   getTypeLabel: (type: string) => string;
-  getLink: (item: any) => string;
+  getLink: (item: SearchResult) => string;
 }) {
   const ItemIcon = getIcon(item.type);
   return (
@@ -431,10 +426,10 @@ function ResultsList({
   getTypeLabel,
   getLink,
 }: {
-  items: any[];
-  getIcon: (type: string) => any;
+  items: SearchResult[];
+  getIcon: (type: string) => React.ElementType;
   getTypeLabel: (type: string) => string;
-  getLink: (item: any) => string;
+  getLink: (item: SearchResult) => string;
 }) {
   return (
     <m.div {...fadeVariants} className="flex flex-col gap-3">
@@ -465,7 +460,7 @@ function ResultsStream({
   error: string | null;
   isLoading: boolean;
   query: string;
-  filteredResults: any[];
+  filteredResults: SearchResult[];
   recentSearches: string[];
   retry: () => void;
   onSelectRecent: (q: string) => void;

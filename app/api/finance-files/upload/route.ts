@@ -42,12 +42,18 @@ export async function POST(request: NextRequest) {
         }
 
         if (financeId) {
-            const { data: finData } = await supabase
-                .from("Finanzen")
-                .select("wohnung_id")
-                .eq("id", financeId)
-                .single();
-            if (finData?.wohnung_id && !(await verifyWohnungInScope(finData.wohnung_id))) {
+    const { data: finData, error: finError } = await supabase
+        .from("Finanzen")
+        .select("wohnung_id")
+        .eq("id", financeId)
+        .maybeSingle();
+    if (finError || !finData) {
+        return NextResponse.json(
+            { error: "Finanzbuchung nicht gefunden" },
+            { status: 404, headers: NO_CACHE_HEADERS }
+        );
+    }
+    if (finData.wohnung_id && !(await verifyWohnungInScope(finData.wohnung_id))) {
                 return NextResponse.json(
                     { error: "Zugriff verweigert (Finanzbuchung nicht im Scope)" },
                     { status: 403, headers: NO_CACHE_HEADERS }

@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useMemo, useReducer } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
-import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2, FileSpreadsheet, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
+import { PlusCircle, Building, Home, Key, X, Download, Trash2, Loader2, Building2, BarChart3, Wallet, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/ui/search-input";
@@ -19,7 +19,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
 
-const safeParseFloat = (val: any): number => {
+const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
   const str = String(val || "0").trim();
   if (str.includes(",")) {

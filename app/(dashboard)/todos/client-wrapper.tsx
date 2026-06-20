@@ -15,7 +15,6 @@ import {
   CalendarOff,
   CheckCircle,
   TrendingUp,
-  Loader2
 } from "lucide-react";
 import { TaskCalendar } from "@/components/tasks/task-calendar";
 import { TaskDayModal } from "@/components/tasks/task-day-modal";

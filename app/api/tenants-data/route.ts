@@ -139,8 +139,6 @@ export async function GET(request: Request) {
 
       if (wohnungIds !== null) {
         tenantsQuery = tenantsQuery.in('wohnung_id', wohnungIds);
-      } else {
-        tenantsQuery = tenantsQuery.eq("user_id", user.id);
       }
 
       const { data: tenants, error: tenantsError } = await tenantsQuery.order("name");
@@ -167,8 +165,6 @@ export async function GET(request: Request) {
 
       if (wohnungIds !== null) {
         financesQuery = financesQuery.in('wohnung_id', wohnungIds);
-      } else {
-        financesQuery = financesQuery.eq("user_id", user.id);
       }
 
       const { data: finances, error: financesError } = await financesQuery.order("datum", { ascending: false });

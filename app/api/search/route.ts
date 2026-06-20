@@ -173,6 +173,11 @@ export async function GET(request: Request) {
     }
     
     const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401, headers: NO_CACHE_HEADERS });
+    }
+
     const accessibleHaeuserIds = await getAccessibleHaeuserIds();
     const accessibleWohnungIds = await getAccessibleWohnungIds();
     

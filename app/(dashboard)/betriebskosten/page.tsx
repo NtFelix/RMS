@@ -10,25 +10,32 @@ import BetriebskostenClientView from "./client-wrapper"; // Import the default e
 // Types are still needed for data fetching
 import { Haus } from "../../../lib/data-fetching";
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
-  
+
+  // Permission check with object-scope exception (same as haeuser).
+  const [canView, canCreate, canEdit, canDelete, accessibleHaeuserResult] = await Promise.all([
+    hasPermission('betriebskosten', 'ansehen'),
+    hasPermission('betriebskosten', 'erstellen'),
+    hasPermission('betriebskosten', 'bearbeiten'),
+    hasPermission('betriebskosten', 'loeschen'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
+  const accessibleIds = accessibleHaeuserResult.data;
+  const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
+  if (!canView && !hasObjectScopeAccess) {
+    redirect('/unauthorized');
+  }
+
   const [
-    _,
-    canCreate,
-    canEdit,
-    canDelete,
     nebenkostenResult,
     haeuserData,
     tenantsData,
     financesData
   ] = await Promise.all([
-    requirePermission('betriebskosten', 'ansehen'),
-    hasPermission('betriebskosten', 'erstellen'),
-    hasPermission('betriebskosten', 'bearbeiten'),
-    hasPermission('betriebskosten', 'loeschen'),
     fetchNebenkostenListOptimized(),
     fetchHaeuserServer(supabase),
     fetchWithRpcFallback(

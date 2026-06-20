@@ -41,7 +41,6 @@ export async function GET(request: Request) {
         }
       } catch (rpcError) {
         console.log('Summary API: RPC function not available, using fallback query with pagination');
-        wohnungIds; // reference it
       }
     }
 

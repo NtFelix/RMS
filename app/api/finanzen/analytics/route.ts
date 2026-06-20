@@ -66,17 +66,17 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
   console.log(`📊 [Finance Analytics] Summary: Fetching data for year ${year}`);
   const queryStartTime = Date.now();
 
-  try {
-    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-    const wohnungIds = await getAccessibleWohnungIds();
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  const wohnungIds = await getAccessibleWohnungIds();
 
-    if (wohnungIds !== null && wohnungIds.length === 0) {
-      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
-      const summary = calculateFinancialSummary([], year, new Date());
-      return NextResponse.json(summary, { status: 200, headers: NO_CACHE_HEADERS });
-    }
+  if (wohnungIds !== null && wohnungIds.length === 0) {
+    const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+    const summary = calculateFinancialSummary([], year, new Date());
+    return NextResponse.json(summary, { status: 200, headers: NO_CACHE_HEADERS });
+  }
 
-    if (wohnungIds === null) {
+  if (wohnungIds === null) {
+    try {
       // Try to use the optimized Supabase function first
       const { data: summaryData, error: rpcError } = await supabase.rpc('get_financial_year_summary', {
         target_year: year
@@ -95,17 +95,14 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
       } else {
         console.log(`⚠️ [Finance Analytics] Summary: RPC function failed or returned no data, using fallback`);
       }
+    } catch (error) {
+      console.log(`🔄 [Finance Analytics] Summary: RPC function not available or error occurred, using fallback method`);
     }
-  } catch (error) {
-    console.log(`🔄 [Finance Analytics] Summary: RPC function not available or error occurred, using fallback method`);
   }
 
   // Fallback to the function that returns all transactions for the year
   console.log(`🔄 [Finance Analytics] Summary: Using fallback with pagination-safe function`);
   const fallbackStartTime = Date.now();
-  
-  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
-  const wohnungIds = await getAccessibleWohnungIds();
 
   let data;
   let error;

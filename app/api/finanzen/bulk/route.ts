@@ -44,9 +44,13 @@ export async function PATCH(request: Request) {
     }
 
     const existingRecordsList = existingRecords || [];
-    for (const record of existingRecordsList) {
-      if (record.wohnung_id && !(await verifyWohnungInScope(record.wohnung_id))) {
-        return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const accessibleWohnungIds = await getAccessibleWohnungIds();
+    if (accessibleWohnungIds !== null) {
+      for (const record of existingRecordsList) {
+        if (record.wohnung_id && !accessibleWohnungIds.includes(record.wohnung_id)) {
+          return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
       }
     }
 

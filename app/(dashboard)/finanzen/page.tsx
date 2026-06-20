@@ -6,7 +6,8 @@ import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { calculateFinancialSummary, processRpcFinancialSummary, fetchAvailableFinanceYears } from "@/utils/financeCalculations";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 
 import { PAGINATION } from "@/constants";
@@ -102,17 +103,21 @@ function determineInitialYear(
 
 export default async function FinanzenPage() {
   const { supabase } = await requireAuthenticatedUser();
-  await requirePermission('finanzen', 'ansehen');
 
   const currentYear = new Date().getFullYear();
 
-  // Load permission flags and object scope
-  const [canCreate, canEdit, canDelete, accessibleWohnungIds] = await Promise.all([
+  // Permission check with object-scope exception (same as haeuser).
+  const [canView, canCreate, canEdit, canDelete, accessibleWohnungIds] = await Promise.all([
+    hasPermission('finanzen', 'ansehen'),
     hasPermission('finanzen', 'erstellen'),
     hasPermission('finanzen', 'bearbeiten'),
     hasPermission('finanzen', 'loeschen'),
     getAccessibleWohnungIds(),
   ]);
+  const hasObjectScopeAccess = accessibleWohnungIds === null || (Array.isArray(accessibleWohnungIds) && accessibleWohnungIds.length > 0);
+  if (!canView && !hasObjectScopeAccess) {
+    redirect('/unauthorized');
+  }
 
   // Load all initial data in parallel
   const fetchWohnungen = () => {

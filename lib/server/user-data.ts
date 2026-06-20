@@ -104,13 +104,18 @@ export async function getSidebarUserData(
       );
 
       // Object-scope exception: if the user has specific house IDs in their object scope
-      // (non-empty array from get_accessible_haeuser_ids), grant access to the haeuser
-      // page even without the module permission. The data RPCs will further filter by scope.
-      // wohnungen is NOT added here — it only appears if the user has explicit module permission.
+      // (non-empty array from get_accessible_haeuser_ids), grant access to the haeuser,
+      // wohnungen, and mieter pages even without the module permission. The data RPCs
+      // will further filter by scope. All three page-level guards have this same fallback
+      // (see haeuser/page.tsx, wohnungen/page.tsx, mieter/page.tsx).
       const accessibleIds = accessibleHaeuserResult.data;
       const hasObjectScopedHouses = Array.isArray(accessibleIds) && accessibleIds.length > 0;
       if (hasObjectScopedHouses) {
         modulePermissions.add('haeuser');
+        modulePermissions.add('wohnungen');
+        modulePermissions.add('mieter');
+        modulePermissions.add('finanzen');
+        modulePermissions.add('betriebskosten');
       }
     }
     // If allAllowed === true, modulePermissions stays null (= unrestricted).

@@ -29,9 +29,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Fehler bei der Berechtigungsprüfung" }, { status: 500, headers: NO_CACHE_HEADERS });
     }
     
-    for (const apt of aptsToCheck) {
-      if (apt.haus_id && !(await verifyEntityInScope(apt.haus_id))) {
-        return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    const accessibleHaeuserIds = await getAccessibleHaeuserIds();
+    if (accessibleHaeuserIds !== null) {
+      for (const apt of aptsToCheck) {
+        if (apt.haus_id && !accessibleHaeuserIds.includes(apt.haus_id)) {
+          return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
       }
     }
 

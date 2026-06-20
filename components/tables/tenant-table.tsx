@@ -517,7 +517,6 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   if (!contextMenuRefs.current) {
     contextMenuRefs.current = new Map()
   }
-  const { openApplicantScoreModal, openMailPreviewModal } = useModalStore()
 
   const selectedTenants = externalSelectedTenants ?? internalSelectedTenants
   const setSelectedTenants = onSelectionChange ?? setInternalSelectedTenants

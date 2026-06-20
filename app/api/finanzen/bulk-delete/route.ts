@@ -32,9 +32,13 @@ export async function POST(
       return NextResponse.json({ error: "Fehler bei der Berechtigungsprüfung" }, { status: 500, headers: NO_CACHE_HEADERS });
     }
     
-    for (const record of recordsToCheck) {
-      if (record.wohnung_id && !(await verifyWohnungInScope(record.wohnung_id))) {
-        return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const accessibleWohnungIds = await getAccessibleWohnungIds();
+    if (accessibleWohnungIds !== null) {
+      for (const record of recordsToCheck) {
+        if (record.wohnung_id && !accessibleWohnungIds.includes(record.wohnung_id)) {
+          return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
       }
     }
     

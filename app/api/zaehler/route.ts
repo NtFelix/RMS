@@ -14,12 +14,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
+    }
+
     const { verifyWohnungInScope } = await import("@/lib/api-permissions");
     if (!(await verifyWohnungInScope(wohnungId))) {
       return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
-
-    const supabase = await createClient()
 
     // Verify the Wohnung belongs to the user
     const { data: wohnung, error: wohnungError } = await supabase

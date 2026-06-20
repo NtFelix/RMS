@@ -5,7 +5,7 @@ import type { Modul, Aktion } from '@/lib/permissions';
 /**
  * Applies the house_id scope filter to a query if access is restricted.
  */
-export async function applyScopeFilter<T extends any>(
+export async function applyScopeFilter<T>(
   query: T,
   column: string = 'haus_id'
 ): Promise<T> {
@@ -19,7 +19,7 @@ export async function applyScopeFilter<T extends any>(
 /**
  * Applies the wohnung_id scope filter to a query if access is restricted.
  */
-export async function applyWohnungScopeFilter<T extends any>(
+export async function applyWohnungScopeFilter<T>(
   query: T,
   column: string = 'wohnung_id'
 ): Promise<T> {

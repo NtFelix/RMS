@@ -29,9 +29,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Fehler bei der Berechtigungsprüfung" }, { status: 500, headers: NO_CACHE_HEADERS });
     }
     
-    for (const t of tenantsToCheck) {
-      if (t.wohnung_id && !(await verifyWohnungInScope(t.wohnung_id))) {
-        return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const accessibleWohnungIds = await getAccessibleWohnungIds();
+    if (accessibleWohnungIds !== null) {
+      for (const t of tenantsToCheck) {
+        if (t.wohnung_id && !accessibleWohnungIds.includes(t.wohnung_id)) {
+          return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
       }
     }
 

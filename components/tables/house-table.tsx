@@ -293,30 +293,16 @@ function BulkDeleteConfirmDialog({
   );
 }
 
-function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectHouse, onEdit, sortKey, sortDirection, onSort, contextMenuRefs, flags }: {
+function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectHouse, onEdit, contextMenuRefs, flags }: {
   house: House;
   isLastRow: boolean;
   isSelected: boolean;
   selectedHouses: Set<string>;
   onSelectHouse: (id: string, checked: CheckedState) => void;
   onEdit: (house: House) => void;
-  sortKey: SortKey;
-  sortDirection: SortDirection;
-  onSort: (key: SortKey) => void;
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   flags: { canEdit: boolean; canDelete: boolean };
 }) {
-  const renderSortIcon = (key: SortKey) => {
-    if (sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
-    ) : (
-      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
-    )
-  };
-
   return (
     <HouseContextMenu
       house={house}
@@ -499,9 +485,6 @@ function HouseTableContent({
                     selectedHouses={selectedHouses}
                     onSelectHouse={handleSelectHouse}
                     onEdit={onEdit}
-                    sortKey={sortKey}
-                    sortDirection={sortDirection}
-                    onSort={handleSort}
                     contextMenuRefs={contextMenuRefs}
                     flags={{ canEdit, canDelete }}
                   />
@@ -768,7 +751,6 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
   }
 
   return {
-    router,
     selectedHouses,
     setSelectedHouses,
     allSelected,
@@ -791,7 +773,6 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
 
 export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
   const {
-    router,
     selectedHouses,
     setSelectedHouses,
     allSelected,

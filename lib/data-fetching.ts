@@ -190,9 +190,9 @@ export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): 
 
       const { data: latestYearData } = await latestYearQuery
         .limit(1)
-        .single();
+    .maybeSingle();
 
-      if (!latestYearData?.startdatum) {
+if (!latestYearData?.startdatum) {
         console.log("No Nebenkosten data found");
         return { year: new Date().getFullYear(), data: [] };
       }

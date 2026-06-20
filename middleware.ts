@@ -23,12 +23,6 @@ const MANAGED_ROUTE_PREFIXES = [
 ]
 
 const ROUTE_PERMISSIONS: Record<string, string> = {
-  "/betriebskosten": "betriebskosten",
-  "/finanzen": "finanzen",
-  "/haeuser": "haeuser",
-  "/wohnungen": "wohnungen",
-  "/mieter": "mieter",
-  "/zaehler": "zaehler",
   "/todos": "aufgaben",
   "/dateien": "dokumente",
   "/vorlagen": "vorlagen",
