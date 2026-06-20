@@ -17,9 +17,11 @@ export default async function MieterPage() {
   const { supabase } = await requireAuthenticatedUser();
 
   // Object-scope exception: if user can access specific houses, they can see their tenants.
-  const [canView, canCreate, accessibleIdsResult] = await Promise.all([
+  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
     hasPermission('mieter', 'ansehen'),
     hasPermission('mieter', 'erstellen'),
+    hasPermission('mieter', 'bearbeiten'),
+    hasPermission('mieter', 'loeschen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
@@ -118,6 +120,8 @@ export default async function MieterPage() {
       initialWohnungen={wohnungen}
       serverAction={mieterServerAction}
       canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
     />
   );
 }

@@ -249,6 +249,14 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             }
         }
 
+        const { hasPermission } = await import('@/lib/permissions')
+        if (!(await hasPermission('dokumente', 'loeschen'))) {
+            return {
+                success: false,
+                error: 'Keine Berechtigung'
+            }
+        }
+
         // Validate that the path belongs to the user
         if (!folderPath.startsWith(`user_${userId}`)) {
             return {

@@ -50,6 +50,14 @@ export async function GET(
       );
     }
 
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (apartment.haus_id && !(await verifyEntityInScope(apartment.haus_id))) {
+      return NextResponse.json(
+        { error: "Permission denied" }, 
+        { status: 403, headers: NO_CACHE_HEADERS }
+      );
+    }
+
     // Fetch current tenant (if any)
     const today = new Date().toISOString();
     const { data: tenant, error: tenantError } = await supabase

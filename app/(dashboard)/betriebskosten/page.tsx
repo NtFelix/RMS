@@ -18,6 +18,8 @@ export default async function BetriebskostenPage() {
   const [
     _,
     canCreate,
+    canEdit,
+    canDelete,
     nebenkostenResult,
     haeuserData,
     tenantsData,
@@ -25,6 +27,8 @@ export default async function BetriebskostenPage() {
   ] = await Promise.all([
     requirePermission('betriebskosten', 'ansehen'),
     hasPermission('betriebskosten', 'erstellen'),
+    hasPermission('betriebskosten', 'bearbeiten'),
+    hasPermission('betriebskosten', 'loeschen'),
     fetchNebenkostenListOptimized(),
     fetchHaeuserServer(supabase),
     fetchWithRpcFallback(
@@ -79,6 +83,8 @@ export default async function BetriebskostenPage() {
       initialFinances={finances}
       ownerName={ownerName}
       canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
     />
   );
 }

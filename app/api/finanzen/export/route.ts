@@ -12,6 +12,20 @@ export async function GET(request: Request) {
     const selectedType = searchParams.get('selectedType');
 
     const supabase = await createClient();
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return new NextResponse('', {
+        status: 200,
+        headers: {
+          ...NO_CACHE_HEADERS,
+          'Content-Disposition': 'attachment; filename="finanzen-export.csv"',
+          'Content-Type': 'text/csv;charset=utf-8;',
+        },
+      });
+    }
+
     const BATCH_SIZE = 5000; // Increased batch size for better performance
     let allData: any[] = [];
     let offset = 0;
@@ -24,6 +38,10 @@ export async function GET(request: Request) {
     let countQuery = supabase
       .from('Finanzen')
       .select('*', { count: 'exact', head: true });
+
+    if (wohnungIds !== null) {
+      countQuery = countQuery.in('wohnung_id', wohnungIds);
+    }
 
     // If apartment filter is selected, we need to join with Wohnungen
     if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
@@ -82,6 +100,10 @@ export async function GET(request: Request) {
         .select('name, datum, betrag, ist_einnahmen, notiz, Wohnungen!left(name)')
         .order('datum', { ascending: false })
         .range(offset, offset + BATCH_SIZE - 1);
+
+      if (wohnungIds !== null) {
+        query = query.in('wohnung_id', wohnungIds);
+      }
 
       // Apply filters
       if (selectedApartment && selectedApartment !== 'Alle Wohnungen' && apartmentData) {

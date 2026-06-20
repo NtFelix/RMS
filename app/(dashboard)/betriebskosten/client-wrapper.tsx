@@ -168,6 +168,8 @@ interface BetriebskostenClientViewProps {
   initialFinances?: any[];
   ownerName: string;
   canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export default function BetriebskostenClientView({
@@ -177,6 +179,8 @@ export default function BetriebskostenClientView({
   initialFinances = [],
   ownerName,
   canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: BetriebskostenClientViewProps) {
   const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
@@ -1094,6 +1098,8 @@ export default function BetriebskostenClientView({
                   onDeleteItem={openDeleteAlert}
                   ownerName={ownerName}
                   allHaeuser={initialHaeuser}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               </div>
             </CardContent>

@@ -11,9 +11,11 @@ import { redirect } from "next/navigation";
 export default async function HaeuserPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
-  const [canView, canCreate, accessibleIdsResult] = await Promise.all([
+  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
     hasPermission('haeuser', 'ansehen'),
     hasPermission('haeuser', 'erstellen'),
+    hasPermission('haeuser', 'bearbeiten'),
+    hasPermission('haeuser', 'loeschen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
@@ -116,5 +118,5 @@ export default async function HaeuserPage() {
     };
   });
 
-  return <HaeuserClientView enrichedHaeuser={enrichedHaeuser} canCreate={canCreate} />;
+  return <HaeuserClientView enrichedHaeuser={enrichedHaeuser} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} />;
 }

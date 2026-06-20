@@ -19,8 +19,11 @@ export default async function WohnungenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
   // Permission check with object-scope exception (same as haeuser).
-  const [canView, accessibleIdsResult] = await Promise.all([
+  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
     hasPermission('wohnungen', 'ansehen'),
+    hasPermission('wohnungen', 'erstellen'),
+    hasPermission('wohnungen', 'bearbeiten'),
+    hasPermission('wohnungen', 'loeschen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
@@ -151,6 +154,9 @@ export default async function WohnungenPage() {
       serverApartmentLimit={effectiveApartmentLimit}
       serverUserIsEligibleToAdd={userIsEligibleToAdd}
       serverLimitReason={limitReason}
+      canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
     />
   );
 }

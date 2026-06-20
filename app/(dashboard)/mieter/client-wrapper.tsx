@@ -83,6 +83,8 @@ interface MieterClientViewProps {
   initialWohnungen: Wohnung[];
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
   canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
@@ -96,6 +98,8 @@ export default function MieterClientView({
   initialWohnungen,
   serverAction,
   canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: MieterClientViewProps) {
   const router = useRouter()
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
@@ -954,6 +958,8 @@ export default function MieterClientView({
                     onClearSelection={() => setSelectedTenants(new Set())}
                     onExport={handleBulkExport}
                     onDelete={() => setShowBulkDeleteConfirm(true)}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                   />
                 </div>
                 <TenantTable
@@ -966,6 +972,8 @@ export default function MieterClientView({
                   selectedTenants={selectedTenants}
                   onSelectionChange={setSelectedTenants}
                   mode={currentTab === "mieter" ? "tenants" : "applicants"}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               </CardContent>
             </Card>

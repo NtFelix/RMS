@@ -21,7 +21,7 @@ export async function GET(
     
     const { data: apartment, error } = await supabase
       .from('Wohnungen')
-      .select('miete')
+      .select('miete, haus_id')
       .eq('id', wohnungId)
       .single();
 
@@ -32,6 +32,11 @@ export async function GET(
 
     if (!apartment) {
       return NextResponse.json({ error: "Wohnung nicht gefunden." }, { status: 404, headers: NO_CACHE_HEADERS });
+    }
+
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (apartment.haus_id && !(await verifyEntityInScope(apartment.haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
     }
 
     return NextResponse.json({ miete: apartment.miete }, { status: 200, headers: NO_CACHE_HEADERS });

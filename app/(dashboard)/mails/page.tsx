@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
+import { requirePermission } from "@/lib/permissions";
 import MailsClientView from "./client-wrapper";
 import type { LegacyMail } from "@/types/Mail";
 import { convertToLegacyMail } from "@/types/Mail";
@@ -10,6 +11,7 @@ import type { Mail } from "@/types/Mail";
 
 export default async function MailsPage() {
   const { supabase, user } = await requireAuthenticatedUser();
+  await requirePermission('organisation', 'ansehen');
 
   // Fetch initial page of emails from database
   const { data: emails, error: emailsError, count } = await supabase

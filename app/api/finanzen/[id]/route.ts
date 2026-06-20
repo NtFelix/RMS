@@ -26,6 +26,11 @@ export async function GET(
     if (!data) {
       return NextResponse.json({ error: 'Transaktion nicht gefunden.' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
+
+    const { verifyWohnungInScope } = await import("@/lib/api-permissions");
+    if (data.wohnung_id && !(await verifyWohnungInScope(data.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
     
     return NextResponse.json(data, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
@@ -41,9 +46,27 @@ export async function PATCH(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'bearbeiten');
+
     const body = await request.json();
-    
     const supabase = await createClient();
+
+    // Check scope of existing transaction
+    const { data: existing, error: checkError } = await supabase
+      .from('Finanzen')
+      .select('wohnung_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existing || (existing.wohnung_id && !(await verifyWohnungInScope(existing.wohnung_id)))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
+
+    // Check scope of new apartment if changing
+    if (body.wohnung_id && !(await verifyWohnungInScope(body.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
     
     if (body.hasOwnProperty('ist_einnahmen')) {
       const { data, error } = await supabase
@@ -82,7 +105,8 @@ export async function PATCH(
     }
   } catch (e) {
     console.error('Server error PATCH /api/finanzen/[id]:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Aktualisieren der Transaktion.' }, { status: 500, headers: NO_CACHE_HEADERS });
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || 'Serverfehler beim Aktualisieren der Transaktion.' }, { status, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -93,9 +117,28 @@ export async function PUT(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'bearbeiten');
+
     const body = await request.json();
-    
     const supabase = await createClient();
+
+    // Check scope of existing transaction
+    const { data: existing, error: checkError } = await supabase
+      .from('Finanzen')
+      .select('wohnung_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existing || (existing.wohnung_id && !(await verifyWohnungInScope(existing.wohnung_id)))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
+
+    // Check scope of new apartment if changing
+    if (body.wohnung_id && !(await verifyWohnungInScope(body.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
+
     const { data, error } = await supabase
       .from('Finanzen')
       .update(body)
@@ -114,7 +157,8 @@ export async function PUT(
     return NextResponse.json(data[0], { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
     console.error('Server error PUT /api/finanzen/[id]:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Aktualisieren der Transaktion.' }, { status: 500, headers: NO_CACHE_HEADERS });
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || 'Serverfehler beim Aktualisieren der Transaktion.' }, { status, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -125,8 +169,22 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'loeschen');
+
     const supabase = await createClient();
+
+    // Check scope of existing transaction
+    const { data: existing, error: checkError } = await supabase
+      .from('Finanzen')
+      .select('wohnung_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existing || (existing.wohnung_id && !(await verifyWohnungInScope(existing.wohnung_id)))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
+
     const { error } = await supabase
       .from('Finanzen')
       .delete()
@@ -140,6 +198,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'Transaktion gelöscht' }, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
     console.error('Server error DELETE /api/finanzen/[id]:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Löschen der Transaktion.' }, { status: 500, headers: NO_CACHE_HEADERS });
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || 'Serverfehler beim Löschen der Transaktion.' }, { status, headers: NO_CACHE_HEADERS });
   }
 }

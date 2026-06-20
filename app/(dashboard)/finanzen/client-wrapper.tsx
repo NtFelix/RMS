@@ -73,6 +73,8 @@ interface FinanzenClientWrapperProps {
   isUsingFallbackYear?: boolean;
   currentYear?: number;
   canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 // Utility function to remove duplicates based on ID
@@ -109,6 +111,8 @@ export default function FinanzenClientWrapper({
   isUsingFallbackYear = false,
   currentYear = new Date().getFullYear(),
   canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: FinanzenClientWrapperProps) {
   const [currentTab, setCurrentTab] = useState<"finance" | "overview">("finance");
   const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
@@ -1117,6 +1121,8 @@ export default function FinanzenClientWrapper({
                   onExport={handleBulkExport}
                   onDelete={handleBulkDelete}
                   onUpdate={handleBulkUpdateSuccess}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               </div>
               <FinanceTable
@@ -1133,6 +1139,8 @@ export default function FinanzenClientWrapper({
                 isLoading={isLoading}
                 error={error}
                 loadFinances={() => loadMoreTransactions(false)}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             </CardContent>
           </Card>

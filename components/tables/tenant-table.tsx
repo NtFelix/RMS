@@ -32,11 +32,13 @@ interface TenantTableProps {
   selectedTenants?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
   mode?: "tenants" | "applicants";
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 
 
-export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants" }: TenantTableProps) {
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants", canEdit = true, canDelete = true }: TenantTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
@@ -348,6 +350,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
               variant="outline"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
+              disabled={!canDelete}
               className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
               <Trash2 className="h-4 w-4" />
@@ -397,6 +400,8 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                       tenant={tenant}
                       onEdit={() => onEdit?.(tenant)}
                       onRefresh={() => router.refresh()}
+                      canEdit={canEdit}
+                      canDelete={canDelete}
                     >
                       <TableRow
                         ref={(el) => {
@@ -410,7 +415,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                           }`}
-                        onClick={() => onEdit?.(tenant)}
+                        onClick={() => canEdit ? onEdit?.(tenant) : undefined}
                       >
                         <TableCell
                           className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -470,6 +475,8 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                                 label: "Bearbeiten",
                                 onClick: () => onEdit?.(tenant),
                                 variant: 'primary',
+                                disabled: !canEdit,
+                                tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
                               },
                               ...(tenant.bewerbung_metadaten ? [{
                                 id: `ai-score-${tenant.id}`,
@@ -500,6 +507,8 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                                 label: "Kaution",
                                 onClick: () => handleOpenKaution(tenant),
                                 variant: 'default',
+                                disabled: !canEdit,
+                                tooltip: !canEdit ? "Keine Berechtigung" : undefined,
                               },
                               {
                                 id: `more-${tenant.id}`,

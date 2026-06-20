@@ -31,6 +31,8 @@ interface ApartmentContextMenuProps {
   apartment: Apartment // Now uses the imported Apartment type
   onEdit: () => void
   onRefresh: () => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function ApartmentContextMenu({
@@ -38,6 +40,8 @@ export function ApartmentContextMenu({
   apartment,
   onEdit,
   onRefresh,
+  canEdit = true,
+  canDelete = true,
 }: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -82,7 +86,7 @@ export function ApartmentContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem onClick={onEdit} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
@@ -100,6 +104,7 @@ export function ApartmentContextMenu({
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />

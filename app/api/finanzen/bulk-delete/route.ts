@@ -8,6 +8,9 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse> {
   try {
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'loeschen');
+
     const { ids } = await request.json();
     
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -18,6 +21,22 @@ export async function POST(
     }
 
     const supabase = await createClient();
+
+    // Fetch wohnung_ids of the records to check
+    const { data: recordsToCheck, error: fetchError } = await supabase
+      .from('Finanzen')
+      .select('wohnung_id')
+      .in('id', ids);
+      
+    if (fetchError || !recordsToCheck) {
+      return NextResponse.json({ error: "Fehler bei der Berechtigungsprüfung" }, { status: 500, headers: NO_CACHE_HEADERS });
+    }
+    
+    for (const record of recordsToCheck) {
+      if (record.wohnung_id && !(await verifyWohnungInScope(record.wohnung_id))) {
+        return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+      }
+    }
     
     // Delete all selected finance records in a single transaction
     const { data, error } = await supabase
@@ -40,9 +59,10 @@ export async function POST(
     
   } catch (e) {
     console.error('Server error during bulk delete:', e);
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
     return NextResponse.json(
-      { error: 'Serverfehler beim Massenlöschen von Transaktionen' }, 
-      { status: 500, headers: NO_CACHE_HEADERS }
+      { error: (e as Error).message || 'Serverfehler beim Massenlöschen von Transaktionen' }, 
+      { status, headers: NO_CACHE_HEADERS }
     );
   }
 }

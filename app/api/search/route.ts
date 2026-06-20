@@ -2,6 +2,7 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
 import type {
   SearchResponse,
   SearchResult as FrontendSearchResult
@@ -172,6 +173,8 @@ export async function GET(request: Request) {
     }
     
     const supabase = await createClient();
+    const accessibleHaeuserIds = await getAccessibleHaeuserIds();
+    const accessibleWohnungIds = await getAccessibleWohnungIds();
     
     // Handle special "*" query for showing all results
     const isShowAllQuery = query.trim() === '*';
@@ -192,41 +195,48 @@ export async function GET(request: Request) {
     
     // Search tenants (Mieter) - Enhanced with fuzzy matching and multi-word search
     if (categories.includes('tenant')) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Adding tenant search promise');
-      }
-      searchPromises.push(
-        (async () => {
-          try {
-            let queryBuilder = supabase
-              .from('Mieter')
-              .select(`
-                id, name, email, telefonnummer, einzug, auszug,
-                Wohnungen!left(name, Haeuser!left(name))
-              `);
+      if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
+        results.tenant = [];
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Adding tenant search promise');
+        }
+        searchPromises.push(
+          (async () => {
+            try {
+              let queryBuilder = supabase
+                .from('Mieter')
+                .select(`
+                  id, name, email, telefonnummer, einzug, auszug,
+                  Wohnungen!left(name, Haeuser!left(name))
+                `);
 
-            // Build search conditions for better matching
-            let queryBuilderWithConditions;
-            let searchConditions: string[] = [];
-            
-            if (isShowAllQuery) {
-              // Show all tenants when using "*" query
-              queryBuilderWithConditions = queryBuilder;
-            } else {
-              searchConditions = [
-                `name.ilike.${searchPattern}`
-              ];
-
-              // Add email search (always)
-              searchConditions.push(`email.ilike.${searchPattern}`);
-              
-              // Add phone number search only for non-email patterns
-              if (!searchPattern.includes('@')) {
-                searchConditions.push(`telefonnummer.ilike.${searchPattern}`);
+              if (accessibleWohnungIds !== null) {
+                queryBuilder = queryBuilder.in('wohnung_id', accessibleWohnungIds);
               }
+
+              // Build search conditions for better matching
+              let queryBuilderWithConditions;
+              let searchConditions: string[] = [];
               
-              queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
-            }
+              if (isShowAllQuery) {
+                // Show all tenants when using "*" query
+                queryBuilderWithConditions = queryBuilder;
+              } else {
+                searchConditions = [
+                  `name.ilike.${searchPattern}`
+                ];
+
+                // Add email search (always)
+                searchConditions.push(`email.ilike.${searchPattern}`);
+                
+                // Add phone number search only for non-email patterns
+                if (!searchPattern.includes('@')) {
+                  searchConditions.push(`telefonnummer.ilike.${searchPattern}`);
+                }
+                
+                queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
+              }
 
             // Debug logging in development only
             if (process.env.NODE_ENV === 'development') {
@@ -301,18 +311,26 @@ export async function GET(request: Request) {
         })()
       );
     }
+  }
     
     // Search houses (Haeuser) - Enhanced with better address matching
     if (categories.includes('house')) {
-      searchPromises.push(
-        (async () => {
-          try {
-            let queryBuilder = supabase
-              .from('Haeuser')
-              .select(`
-                id, name, strasse, ort,
-                Wohnungen!left(id, miete, Mieter!left(id, auszug))
-              `);
+      if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
+        results.house = [];
+      } else {
+        searchPromises.push(
+          (async () => {
+            try {
+              let queryBuilder = supabase
+                .from('Haeuser')
+                .select(`
+                  id, name, strasse, ort,
+                  Wohnungen!left(id, miete, Mieter!left(id, auszug))
+                `);
+
+              if (accessibleHaeuserIds !== null) {
+                queryBuilder = queryBuilder.in('id', accessibleHaeuserIds);
+              }
 
             // Enhanced search conditions for houses
             let queryBuilderWithConditions;
@@ -403,139 +421,163 @@ export async function GET(request: Request) {
         })()
       );
     }
+  }
     
     // Search apartments (Wohnungen) - Enhanced with house name search
     if (categories.includes('apartment')) {
-      searchPromises.push(
-        (async () => {
-          try {
-            let queryBuilder = supabase
-              .from('Wohnungen')
-              .select(`
-                id, name, groesse, miete,
-                Haeuser!left(name),
-                Mieter!left(name, einzug, auszug)
-              `);
+      if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
+        results.apartment = [];
+      } else {
+        searchPromises.push(
+          (async () => {
+            try {
+              let queryBuilder = supabase
+                .from('Wohnungen')
+                .select(`
+                  id, name, groesse, miete,
+                  Haeuser!left(name),
+                  Mieter!left(name, einzug, auszug)
+                `);
 
-            // Enhanced search for apartments including house names
-            let queryBuilderWithConditions;
-            
-            if (isShowAllQuery) {
-              // Show all apartments when using "*" query
-              queryBuilderWithConditions = queryBuilder;
-            } else {
-              const searchConditions = [
-                `name.ilike.${searchPattern}`
-              ];
-
-              // Add fuzzy matching
-              if (query.length > 2) {
-                searchConditions.push(`name.ilike.${fuzzyPattern}`);
+              if (accessibleHaeuserIds !== null) {
+                queryBuilder = queryBuilder.in('haus_id', accessibleHaeuserIds);
               }
 
-              // Multi-word search
-              if (words.length > 1) {
-                words.forEach(word => {
-                  if (word.length > 1) {
-                    searchConditions.push(`name.ilike.%${word}%`);
-                  }
-                });
+              // Enhanced search for apartments including house names
+              let queryBuilderWithConditions;
+              
+              if (isShowAllQuery) {
+                // Show all apartments when using "*" query
+                queryBuilderWithConditions = queryBuilder;
+              } else {
+                const searchConditions = [
+                  `name.ilike.${searchPattern}`
+                ];
+
+                // Add fuzzy matching
+                if (query.length > 2) {
+                  searchConditions.push(`name.ilike.${fuzzyPattern}`);
+                }
+
+                // Multi-word search
+                if (words.length > 1) {
+                  words.forEach(word => {
+                    if (word.length > 1) {
+                      searchConditions.push(`name.ilike.%${word}%`);
+                    }
+                  });
+                }
+                
+                queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
+              }
+
+              const { data, error } = await queryBuilderWithConditions
+                .order('name')
+                .limit(limit);
+
+              if (error) {
+                console.error('Apartment search error:', error);
+                return { type: 'apartment', data: [] };
               }
               
-              queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
-            }
+              if (!data) return { type: 'apartment', data: [] };
+              
+              // Also search by house name if no direct apartment matches (skip for show-all query)
+              let houseSearchResults: any[] = [];
+              if (!isShowAllQuery && data.length < limit) {
+                try {
+                  let houseQueryBuilder = supabase
+                    .from('Wohnungen')
+                    .select(`
+                      id, name, groesse, miete,
+                      Haeuser!left(name),
+                      Mieter!left(name, einzug, auszug)
+                    `)
+                    .not('id', 'in', `(${data.map(d => d.id).join(',') || 'null'})`)
+                    .or(`Haeuser.name.ilike.${searchPattern}`);
 
-            const { data, error } = await queryBuilderWithConditions
-              .order('name')
-              .limit(limit);
+                  if (accessibleHaeuserIds !== null) {
+                    houseQueryBuilder = houseQueryBuilder.in('haus_id', accessibleHaeuserIds);
+                  }
 
-            if (error) {
-              console.error('Apartment search error:', error);
+                  const { data: houseData, error: houseError } = await houseQueryBuilder
+                    .order('name')
+                    .limit(limit - data.length);
+
+                  if (!houseError && houseData) {
+                    houseSearchResults = houseData;
+                  }
+                } catch (houseSearchError) {
+                  console.warn('House name search for apartments failed:', houseSearchError);
+                }
+              }
+
+              const allResults = [...data, ...houseSearchResults];
+              const sortedApartments = sortByRelevance(allResults, query);
+              
+              const apartmentResults = sortedApartments.map((apartment: any) => {
+                const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : (apartment.Mieter ? [apartment.Mieter] : []);
+                const currentTenant = mieterArray.find((m: any) => !m.auszug);
+                
+                return {
+                  id: apartment.id,
+                  name: apartment.name,
+                  house_name: apartment.Haeuser && typeof apartment.Haeuser === 'object' && !Array.isArray(apartment.Haeuser) ? apartment.Haeuser.name : '',
+                  size: apartment.groesse,
+                  rent: apartment.miete,
+                  status: currentTenant ? 'rented' : 'free',
+                  current_tenant: currentTenant ? {
+                    name: currentTenant.name,
+                    move_in_date: currentTenant.einzug || ''
+                  } : undefined
+                };
+              });
+              
+              return { type: 'apartment', data: apartmentResults };
+            } catch (error) {
+              console.error('Error searching apartments:', error);
               return { type: 'apartment', data: [] };
             }
-            
-            if (!data) return { type: 'apartment', data: [] };
-            
-            // Also search by house name if no direct apartment matches (skip for show-all query)
-            let houseSearchResults: any[] = [];
-            if (!isShowAllQuery && data.length < limit) {
-              try {
-                const { data: houseData, error: houseError } = await supabase
-                  .from('Wohnungen')
-                  .select(`
-                    id, name, groesse, miete,
-                    Haeuser!left(name),
-                    Mieter!left(name, einzug, auszug)
-                  `)
-                  .not('id', 'in', `(${data.map(d => d.id).join(',') || 'null'})`)
-                  .or(`Haeuser.name.ilike.${searchPattern}`)
-                  .order('name')
-                  .limit(limit - data.length);
-
-                if (!houseError && houseData) {
-                  houseSearchResults = houseData;
-                }
-              } catch (houseSearchError) {
-                console.warn('House name search for apartments failed:', houseSearchError);
-              }
-            }
-
-            const allResults = [...data, ...houseSearchResults];
-            const sortedApartments = sortByRelevance(allResults, query);
-            
-            const apartmentResults = sortedApartments.map((apartment: any) => {
-              const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : (apartment.Mieter ? [apartment.Mieter] : []);
-              const currentTenant = mieterArray.find((m: any) => !m.auszug);
-              
-              return {
-                id: apartment.id,
-                name: apartment.name,
-                house_name: apartment.Haeuser && typeof apartment.Haeuser === 'object' && !Array.isArray(apartment.Haeuser) ? apartment.Haeuser.name : '',
-                size: apartment.groesse,
-                rent: apartment.miete,
-                status: currentTenant ? 'rented' : 'free',
-                current_tenant: currentTenant ? {
-                  name: currentTenant.name,
-                  move_in_date: currentTenant.einzug || ''
-                } : undefined
-              };
-            });
-            
-            return { type: 'apartment', data: apartmentResults };
-          } catch (error) {
-            console.error('Error searching apartments:', error);
-            return { type: 'apartment', data: [] };
-          }
-        })()
-      );
+          })()
+        );
+      }
     }
     
     // Search finances (Finanzen) - Optimized with conditional numeric search
     if (categories.includes('finance')) {
-      const isNumericQuery = !isShowAllQuery && !isNaN(parseFloat(query));
-      
-      let financeQueryBuilder = supabase
-        .from('Finanzen')
-        .select(`
-          id, name, betrag, datum, ist_einnahmen, notiz,
-          Wohnungen!left(name, Haeuser!left(name))
-        `)
-        .order('datum', { ascending: false })
-        .limit(limit);
+      if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
+        results.finance = [];
+      } else {
+        const isNumericQuery = !isShowAllQuery && !isNaN(parseFloat(query));
         
-      if (!isShowAllQuery) {
-        if (isNumericQuery) {
-          const amount = parseFloat(query);
-          financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
-        } else {
-          financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
+        let financeQueryBuilder = supabase
+          .from('Finanzen')
+          .select(`
+            id, name, betrag, datum, ist_einnahmen, notiz,
+            Wohnungen!left(name, Haeuser!left(name))
+          `);
+          
+        if (accessibleWohnungIds !== null) {
+          financeQueryBuilder = financeQueryBuilder.in('wohnung_id', accessibleWohnungIds);
         }
-      }
-      
-      searchPromises.push(
-        (async () => {
-          try {
-            const { data, error } = await financeQueryBuilder;
+        
+        if (!isShowAllQuery) {
+          if (isNumericQuery) {
+            const amount = parseFloat(query);
+            financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
+          } else {
+            financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
+          }
+        }
+        
+        financeQueryBuilder = financeQueryBuilder
+          .order('datum', { ascending: false })
+          .limit(limit);
+        
+        searchPromises.push(
+          (async () => {
+            try {
+              const { data, error } = await financeQueryBuilder;
 
             if (error) {
               console.error('Finance search error:', error);
@@ -575,6 +617,7 @@ export async function GET(request: Request) {
         })()
       );
     }
+  }
     
     // Search tasks (Aufgaben) - Optimized with completion status ordering
     if (categories.includes('task')) {

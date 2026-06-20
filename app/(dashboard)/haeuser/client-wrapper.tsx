@@ -50,6 +50,8 @@ const numberFormatter = new Intl.NumberFormat("de-DE");
 interface HaeuserClientViewProps {
   enrichedHaeuser: House[];
   canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 
@@ -57,7 +59,7 @@ interface HaeuserClientViewProps {
 
 
 // This is the new main client component, combining logic from old HaeuserPageClientComponent and HaeuserClientWrapper
-export default function HaeuserClientView({ enrichedHaeuser, canCreate = true }: HaeuserClientViewProps) {
+export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, canEdit = true, canDelete = true }: HaeuserClientViewProps) {
   const router = useRouter();
   const [currentTab, setCurrentTab] = useState<"houses" | "overview">("houses");
   const [filter, setFilter] = useState("all");
@@ -466,7 +468,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true }:
                         variant="outline"
                         size="sm"
                         onClick={() => setShowBulkDeleteConfirm(true)}
-                        disabled={isBulkDeleting}
+                        disabled={isBulkDeleting || !canDelete}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                       >
                         {isBulkDeleting ? (
@@ -495,6 +497,8 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true }:
                 initialHouses={enrichedHaeuser}
                 selectedHouses={selectedHouses}
                 onSelectionChange={setSelectedHouses}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             </CardContent>
           </Card>

@@ -46,6 +46,7 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>
   onClick?: () => void
   badge?: number
+  hidden?: boolean
 }
 
 interface DropdownItem {
@@ -273,12 +274,23 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
     })
   }
 
+  const hasModulePermission = (moduleKey: string) => {
+    if (!sidebarData || sidebarData.modulePermissions === null) return true;
+    if (typeof sidebarData.modulePermissions.has === 'function') {
+      return sidebarData.modulePermissions.has(moduleKey);
+    }
+    if (Array.isArray(sidebarData.modulePermissions)) {
+      return (sidebarData.modulePermissions as any).includes(moduleKey);
+    }
+    return true;
+  };
+
   // Primary navigation items
   const primaryNavItems: NavigationItem[] = [
     { id: 'home', title: 'Home', href: ROUTES.HOME, icon: BarChart3 },
-    { id: 'tenants', title: 'Mieter', href: '/mieter', icon: Users },
+    { id: 'tenants', title: 'Mieter', href: '/mieter', icon: Users, hidden: !hasModulePermission('mieter') },
     { id: 'search', title: 'Suchen', icon: SearchIcon, onClick: handleSearchClick },
-    { id: 'finance', title: 'Finanzen', href: '/finanzen', icon: Wallet },
+    { id: 'finance', title: 'Finanzen', href: '/finanzen', icon: Wallet, hidden: !hasModulePermission('finanzen') },
     { id: 'more', title: 'Mehr', icon: Menu, onClick: handleMoreClick }
   ]
 
@@ -308,12 +320,12 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
   const dropdownItems: DropdownItem[] = [
     { id: 'profile', title: 'Profil', icon: User, onClick: handleProfileClick },
     { id: 'homepage', title: 'Homepage', href: '/', icon: Globe },
-    { id: 'houses', title: 'Häuser', href: '/haeuser', icon: Building2 },
-    { id: 'apartments', title: 'Wohnungen', href: '/wohnungen', icon: Home },
-    { id: 'operating-costs', title: 'Betriebskosten', href: '/betriebskosten', icon: FileSpreadsheet },
-    { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden || (sidebarData?.modulePermissions !== null && !sidebarData?.modulePermissions.has('organisation')) },
-    { id: 'tasks', title: 'Aufgaben', href: '/todos', icon: CheckSquare },
-    { id: 'documents', title: 'Dokumente', href: '/dateien', icon: Folder, hidden: !documentsEnabled },
+    { id: 'houses', title: 'Häuser', href: '/haeuser', icon: Building2, hidden: !hasModulePermission('haeuser') },
+    { id: 'apartments', title: 'Wohnungen', href: '/wohnungen', icon: Home, hidden: !hasModulePermission('wohnungen') },
+    { id: 'operating-costs', title: 'Betriebskosten', href: '/betriebskosten', icon: FileSpreadsheet, hidden: !hasModulePermission('betriebskosten') },
+    { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden || !hasModulePermission('organisation') },
+    { id: 'tasks', title: 'Aufgaben', href: '/todos', icon: CheckSquare, hidden: !hasModulePermission('aufgaben') },
+    { id: 'documents', title: 'Dokumente', href: '/dateien', icon: Folder, hidden: !documentsEnabled || !hasModulePermission('dokumente') },
     { id: 'logout', title: 'Abmelden', icon: LogOut, onClick: handleLogout }
   ]
 
@@ -443,7 +455,7 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
     dropdownRef,
     moreButtonRef,
     dropdownItemRefs,
-    primaryNavItems,
+    primaryNavItems: primaryNavItems.filter(item => !item.hidden),
     dropdownItems,
     isMoreActive,
     visibleDropdownItems,

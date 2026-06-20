@@ -29,6 +29,8 @@ interface TaskContextMenuProps {
   onEdit: () => void
   onStatusToggle: () => void
   onTaskDeleted: (taskId: string) => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function TaskContextMenu({
@@ -37,6 +39,8 @@ export function TaskContextMenu({
   onEdit,
   onStatusToggle,
   onTaskDeleted,
+  canEdit = true,
+  canDelete = true,
 }: TaskContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   // No isDeleting state here as per revised instructions, assuming button state not directly affected in this component.
@@ -76,11 +80,11 @@ export function TaskContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem onClick={onEdit} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={onStatusToggle} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem onClick={onStatusToggle} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
             <Check className="h-4 w-4" />
             <span>
               {task.ist_erledigt ? "Als unerledigt markieren" : "Als erledigt markieren"}
@@ -89,6 +93,7 @@ export function TaskContextMenu({
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />

@@ -15,6 +15,7 @@ const MANAGED_ROUTE_PREFIXES = [
   "/mieter",
   "/todos",
   "/mails",
+  "/suche",
   "/dateien",
   "/oauth",
   "/checkout/success",
@@ -33,6 +34,8 @@ const ROUTE_PERMISSIONS: Record<string, string> = {
   "/vorlagen": "vorlagen",
   "/einstellungen": "organisation",
   "/organisation": "organisation",
+  "/mails": "organisation",
+  "/suche": "organisation",
 }
 
 function matchesRoutePrefix(pathname: string, prefix: string) {
@@ -248,6 +251,8 @@ export const config = {
     "/todos/:path*",
     "/mails",
     "/mails/:path*",
+    "/suche",
+    "/suche/:path*",
     "/dateien",
     "/dateien/:path*",
     "/checkout/success",

@@ -56,6 +56,8 @@ interface FinanceTableProps {
   isLoading?: boolean;
   error?: string | null;
   loadFinances?: () => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -82,7 +84,9 @@ export function FinanceTable({
   hasMore = false,
   isLoading = false,
   error = null,
-  loadFinances
+  loadFinances,
+  canEdit = true,
+  canDelete = true,
 }: FinanceTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -486,6 +490,8 @@ export function FinanceTable({
                       finance={finance}
                       onEdit={() => onEdit?.(finance)}
                       onRefresh={onRefresh} // Pass the onRefresh prop here
+                      canEdit={canEdit}
+                      canDelete={canDelete}
                     >
                       <TableRow
                         ref={isLastElement ? lastTransactionElementRef : (el) => {
@@ -499,7 +505,7 @@ export function FinanceTable({
                           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                           }`}
-                        onClick={() => onEdit?.(finance)}
+                        onClick={() => canEdit ? onEdit?.(finance) : undefined}
                       >
                         <TableCell
                           className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -555,6 +561,8 @@ export function FinanceTable({
                                 label: "Bearbeiten",
                                 onClick: () => onEdit?.(finance),
                                 variant: 'primary',
+                                disabled: !canEdit,
+                                tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
                               },
                               {
                                 id: `toggle-status-${finance.id}`,
@@ -562,6 +570,8 @@ export function FinanceTable({
                                 label: finance.ist_einnahmen ? "Als Ausgabe markieren" : "Als Einnahme markieren",
                                 onClick: () => handleToggleStatus(finance),
                                 variant: 'default',
+                                disabled: !canEdit,
+                                tooltip: !canEdit ? "Keine Berechtigung" : undefined,
                               },
                               {
                                 id: `more-${finance.id}`,

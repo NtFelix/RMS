@@ -14,24 +14,39 @@ export async function GET(request: Request) {
     const endDate = `${year}-12-31`;
 
     const supabase = await createClient();
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      const summary = calculateFinancialSummary([], year, new Date());
+      const { monthlyData, ...restSummary } = summary;
+      return NextResponse.json({ ...restSummary, monthlyData }, { status: 200, headers: NO_CACHE_HEADERS });
+    }
     
     // Try to use the optimized Supabase function first
     let data: any[] = [];
     let error: any = null;
     
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_summary_data', {
-        target_year: year
-      });
-      
-      if (!rpcError && rpcData) {
-        data = rpcData;
-      } else {
-        throw new Error('RPC function failed or returned no data');
+    // Only use RPC if user is unrestricted
+    if (wohnungIds === null) {
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_summary_data', {
+          target_year: year
+        });
+        
+        if (!rpcError && rpcData) {
+          data = rpcData;
+        } else {
+          throw new Error('RPC function failed or returned no data');
+        }
+      } catch (rpcError) {
+        console.log('Summary API: RPC function not available, using fallback query with pagination');
+        wohnungIds; // reference it
       }
-    } catch (rpcError) {
-      console.log('Summary API: RPC function not available, using fallback query with pagination');
-      
+    }
+
+    // Fallback path or if scoped
+    if (data.length === 0) {
       // Fallback to direct query with pagination
       const allData: any[] = [];
       const pageSize = 1000;
@@ -39,11 +54,17 @@ export async function GET(request: Request) {
       let hasMore = true;
       
       while (hasMore) {
-        const { data: pageData, error: pageError } = await supabase
+        let query = supabase
           .from('Finanzen')
-          .select('id, betrag, ist_einnahmen, datum')
+          .select('id, betrag, ist_einnahmen, datum, wohnung_id')
           .gte('datum', startDate)
-          .lte('datum', endDate)
+          .lte('datum', endDate);
+
+        if (wohnungIds !== null) {
+          query = query.in('wohnung_id', wohnungIds);
+        }
+
+        const { data: pageData, error: pageError } = await query
           .order('datum', { ascending: false })
           .range(page * pageSize, (page + 1) * pageSize - 1);
           
