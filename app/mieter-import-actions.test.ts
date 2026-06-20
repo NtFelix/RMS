@@ -68,6 +68,7 @@ describe('mieter-import-actions', () => {
       const result = await searchMailSenders('sender');
       expect(result).toEqual(['sender1@example.com', 'sender2@example.com']);
       expect(mockSupabase.from).toHaveBeenCalledWith('Mail_Metadaten');
+      expect(mockSupabase.eq).toHaveBeenCalledWith('user_id', 'test-user-id');
       expect(mockSupabase.ilike).toHaveBeenCalledWith('absender', '%sender%');
     });
 
@@ -85,11 +86,26 @@ describe('mieter-import-actions', () => {
       const result = await getMailsBySender('sender1@example.com');
       expect(result).toEqual(mockData);
       expect(mockSupabase.from).toHaveBeenCalledWith('Mail_Metadaten');
+      expect(mockSupabase.eq).toHaveBeenCalledWith('user_id', 'test-user-id');
       expect(mockSupabase.eq).toHaveBeenCalledWith('absender', 'sender1@example.com');
+      expect(mockSupabase.not).toHaveBeenCalledWith('dateipfad', 'is', null);
+      expect(mockSupabase.order).toHaveBeenCalledWith('datum_erhalten', { ascending: false });
     });
   });
 
   describe('createApplicantsFromMails', () => {
+    it('should return unauthorized if not authenticated', async () => {
+      (ensureAuth as jest.Mock).mockRejectedValue(new Error('Nicht authentifiziert'));
+      const result = await createApplicantsFromMails([{ id: '1', absender: 'test@example.com', dateipfad: '/path/1' }]);
+      expect(result).toEqual({ success: false, error: 'Nicht authentifiziert' });
+    });
+
+    it('should return forbidden if missing permission', async () => {
+      (hasPermission as jest.Mock).mockResolvedValue(false);
+      const result = await createApplicantsFromMails([{ id: '1', absender: 'test@example.com', dateipfad: '/path/1' }]);
+      expect(result).toEqual({ success: false, error: 'Keine Berechtigung' });
+    });
+
     it('should successfully create applicants and trigger worker', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
       process.env.WORKER_AUTH_KEY = 'test-key';

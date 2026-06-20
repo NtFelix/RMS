@@ -148,7 +148,7 @@ describe('lib/supabase-server', () => {
       expect(result).toEqual(cookieData);
 
       // Test setAll function
-      expect(() => setAll(cookieData)).not.toThrow();
+      await expect(setAll(cookieData)).resolves.not.toThrow();
     });
   });
 });

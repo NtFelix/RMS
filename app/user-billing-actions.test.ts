@@ -102,6 +102,12 @@ describe('user-billing-actions', () => {
       const result = await getBillingAddress('cus_123');
       expect(result).toEqual({ error: 'Nicht autorisiert' });
     });
+
+    it('should fail if not authenticated', async () => {
+      (ensureAuth as jest.Mock).mockRejectedValue(new Error('Nicht authentifiziert'));
+      const result = await getBillingAddress('cus_123');
+      expect(result).toEqual({ error: 'Nicht authentifiziert' });
+    });
   });
 
   describe('updateBillingAddress', () => {
@@ -130,6 +136,12 @@ describe('user-billing-actions', () => {
         })
       }));
     });
+
+    it('should fail if unauthorized', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { stripe_customer_id: 'cus_other' }, error: null });
+      const result = await updateBillingAddress('cus_123', { name: 'Jane Doe', address: { line1: '123 St', city: 'Berlin', postal_code: '10115', country: 'DE' } });
+      expect(result).toEqual({ success: false, error: 'Nicht autorisiert' });
+    });
   });
 
   describe('createSetupIntent', () => {
@@ -145,6 +157,12 @@ describe('user-billing-actions', () => {
         payment_method_types: ['card'],
         usage: 'on_session'
       });
+    });
+
+    it('should fail if unauthorized', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { stripe_customer_id: 'cus_other' }, error: null });
+      const result = await createSetupIntent('cus_123');
+      expect(result).toEqual({ error: 'Nicht autorisiert' });
     });
   });
 });
