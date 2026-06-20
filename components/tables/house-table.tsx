@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useMemo, MutableRefObject } from "react"
+import React, { useState, useEffect, useCallback, useMemo, useReducer, MutableRefObject } from "react"
 import { CheckedState } from "@radix-ui/react-checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -36,7 +36,6 @@ export interface House {
   freeApartments?: number
 }
 
-// Define sortable fields explicitly, excluding internal calculation properties
 type SortKey = keyof Omit<House, 'totalApartments' | 'freeApartments'> | 'status'
 type SortDirection = "asc" | "desc"
 
@@ -52,20 +51,363 @@ interface HouseTableProps {
   canDelete?: boolean
 }
 
+interface SortState {
+  sortKey: SortKey
+  sortDirection: SortDirection
+}
+
+type SortAction =
+  | { type: "TOGGLE"; payload: SortKey }
+  | { type: "SET"; payload: SortState }
+
+function sortReducer(state: SortState, action: SortAction): SortState {
+  switch (action.type) {
+    case "TOGGLE":
+      if (state.sortKey === action.payload) {
+        return { ...state, sortDirection: state.sortDirection === "asc" ? "desc" : "asc" }
+      }
+      return { sortKey: action.payload, sortDirection: "asc" }
+    case "SET":
+      return action.payload
+    default:
+      return state
+  }
+}
+
+interface DialogState {
+  showDeleteConfirm: boolean
+  houseToDelete: House | null
+  isDeleting: boolean
+  showBulkDeleteConfirm: boolean
+  isBulkDeleting: boolean
+}
+
+type DialogAction =
+  | { type: "OPEN_DELETE"; payload: House }
+  | { type: "CLOSE_DELETE" }
+  | { type: "SET_DELETING"; payload: boolean }
+  | { type: "OPEN_BULK_DELETE" }
+  | { type: "CLOSE_BULK_DELETE" }
+  | { type: "SET_BULK_DELETING"; payload: boolean }
+  | { type: "RESET_ALL" }
+
+const initialDialogState: DialogState = {
+  showDeleteConfirm: false,
+  houseToDelete: null,
+  isDeleting: false,
+  showBulkDeleteConfirm: false,
+  isBulkDeleting: false,
+}
+
+function dialogReducer(state: DialogState, action: DialogAction): DialogState {
+  switch (action.type) {
+    case "OPEN_DELETE":
+      return { ...state, showDeleteConfirm: true, houseToDelete: action.payload }
+    case "CLOSE_DELETE":
+      return { ...state, showDeleteConfirm: false, houseToDelete: null }
+    case "SET_DELETING":
+      return { ...state, isDeleting: action.payload }
+    case "OPEN_BULK_DELETE":
+      return { ...state, showBulkDeleteConfirm: true }
+    case "CLOSE_BULK_DELETE":
+      return { ...state, showBulkDeleteConfirm: false }
+    case "SET_BULK_DELETING":
+      return { ...state, isBulkDeleting: action.payload }
+    case "RESET_ALL":
+      return initialDialogState
+    default:
+      return state
+  }
+}
+
+function BulkActionBar({
+  selectedCount,
+  onClearSelection,
+  onExport,
+  onDelete,
+  canDelete,
+}: {
+  selectedCount: number;
+  onClearSelection: () => void;
+  onExport: () => void;
+  onDelete: () => void;
+  canDelete: boolean;
+}) {
+  return (
+    <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={true}
+            onCheckedChange={onClearSelection}
+            className="data-[state=checked]:bg-primary"
+          />
+          <span className="font-medium text-sm">
+            {selectedCount} {selectedCount === 1 ? 'Haus' : 'Häuser'} ausgewählt
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClearSelection}
+          className="h-8 px-2 hover:bg-primary/20"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onExport}
+          className="h-8 gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Exportieren
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onDelete}
+          disabled={!canDelete}
+          className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+        >
+          <Trash2 className="h-4 w-4" />
+          Löschen
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TableHeaderCell({ sortKey, children, className = '', icon: Icon, sortable = true, onSort }: {
+  sortKey: SortKey;
+  children: React.ReactNode;
+  className?: string;
+  icon: React.ElementType;
+  sortable?: boolean;
+  onSort: (key: SortKey) => void;
+}) {
+  return (
+    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
+      <div
+        onClick={() => sortable && onSort(sortKey)}
+        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
+      >
+        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+        {children}
+      </div>
+    </TableHead>
+  );
+}
+
+function DeleteConfirmDialog({
+  open,
+  onOpenChange,
+  houseName,
+  isDeleting,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  houseName: string;
+  isDeleting: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Möchten Sie das Haus &quot;{houseName}&quot; wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            {isDeleting ? "Löschen..." : "Löschen"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function BulkDeleteConfirmDialog({
+  open,
+  onOpenChange,
+  selectedCount,
+  isBulkDeleting,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedCount: number;
+  isBulkDeleting: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Mehrere Häuser löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Möchten Sie wirklich {selectedCount} Häuser löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+            {isBulkDeleting ? "Lösche..." : `${selectedCount} Häuser löschen`}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectHouse, onEdit, canEdit, canDelete, sortKey, sortDirection, onSort, contextMenuRefs }: {
+  house: House;
+  isLastRow: boolean;
+  isSelected: boolean;
+  selectedHouses: Set<string>;
+  onSelectHouse: (id: string, checked: CheckedState) => void;
+  onEdit: (house: House) => void;
+  canEdit: boolean;
+  canDelete: boolean;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  onSort: (key: SortKey) => void;
+  contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+}) {
+  const renderSortIcon = (key: SortKey) => {
+    if (sortKey !== key) {
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+    ) : (
+      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
+    )
+  };
+
+  return (
+    <HouseContextMenu
+      house={house}
+      onEdit={() => onEdit(house)}
+      onRefresh={() => {}}
+      canEdit={canEdit}
+      canDelete={canDelete}
+    >
+      <TableRow
+        ref={(el) => {
+          if (el) {
+            contextMenuRefs.current.set(house.id, el)
+          } else {
+            contextMenuRefs.current.delete(house.id)
+          }
+        }}
+        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
+          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+        }`}
+        onClick={() => canEdit ? onEdit(house) : useModalStore.getState().openHausOverviewModal(house.id)}
+      >
+        <TableCell
+          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Checkbox
+            aria-label={`Haus ${house.name} auswählen`}
+            checked={selectedHouses.has(house.id)}
+            onCheckedChange={(checked) => onSelectHouse(house.id, checked)}
+          />
+        </TableCell>
+        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{house.name}</TableCell>
+        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.ort}</TableCell>
+        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.size ? `${house.size} m²` : "-"}</TableCell>
+        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.rent ? `${house.rent} €` : "-"}</TableCell>
+        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
+        <TableCell className={`py-4`}>
+          {(house.totalApartments ?? 0) === 0 ? (
+            <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50 dark:bg-gray-800/50 dark:text-gray-300">
+              Keine Wohnungen
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className={
+                (house.freeApartments ?? 0) > 0
+                  ? "bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400"
+                  : "bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400"
+              }
+            >
+              {(house.totalApartments ?? 0) - (house.freeApartments ?? 0)}/{house.totalApartments ?? 0} belegt
+            </Badge>
+          )}
+        </TableCell>
+        <TableCell
+          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <ActionMenu
+            actions={[
+              {
+                id: `edit-${house.id}`,
+                icon: Pencil,
+                label: "Bearbeiten",
+                onClick: () => onEdit(house),
+                variant: 'primary',
+                disabled: !canEdit,
+                tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
+              },
+              {
+                id: `overview-${house.id}`,
+                icon: Eye,
+                label: "Übersicht",
+                onClick: () => useModalStore.getState().openHausOverviewModal(house.id),
+                variant: 'default',
+              },
+              {
+                id: `more-${house.id}`,
+                icon: MoreVertical,
+                label: "Mehr Optionen",
+                onClick: (e) => {
+                  if (!e) return;
+                  const rowElement = contextMenuRefs.current.get(house.id)
+                  if (rowElement) {
+                    const contextMenuEvent = new MouseEvent('contextmenu', {
+                      bubbles: true,
+                      cancelable: true,
+                      view: window,
+                      clientX: e.clientX,
+                      clientY: e.clientY,
+                    })
+                    rowElement.dispatchEvent(contextMenuEvent)
+                  }
+                },
+                variant: 'default',
+              }
+            ]}
+            shape="pill"
+            visibility="always"
+            className="inline-flex"
+          />
+        </TableCell>
+      </TableRow>
+    </HouseContextMenu>
+  );
+}
+
 export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses, selectedHouses: externalSelectedHouses, onSelectionChange, canEdit = true, canDelete = true }: HouseTableProps) {
   const router = useRouter()
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [houseToDelete, setHouseToDelete] = useState<House | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [sortKey, setSortKey] = useState<SortKey>("name")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [{ sortKey, sortDirection }, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as SortKey, sortDirection: "asc" as SortDirection })
   const [internalSelectedHouses, setInternalSelectedHouses] = useState<Set<string>>(new Set())
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [dialogState, dispatchDialog] = useReducer(dialogReducer, initialDialogState)
   const contextMenuRefs = React.useRef<Map<string, HTMLElement>>(new Map())
 
-  // Use external selection state if provided, otherwise use internal
   const selectedHouses = externalSelectedHouses ?? internalSelectedHouses
   const setSelectedHouses = onSelectionChange ?? setInternalSelectedHouses
 
@@ -140,7 +482,6 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         if (valA === undefined || valA === null) valA = ''
         if (valB === undefined || valB === null) valB = ''
 
-        // Convert to number if it's a numeric string for proper sorting
         const numA = parseFloat(String(valA));
         const numB = parseFloat(String(valB));
 
@@ -187,29 +528,13 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   }
 
   const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-    } else {
-      setSortKey(key)
-      setSortDirection("asc")
-    }
-  }
-
-  const renderSortIcon = (key: SortKey) => {
-    if (sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
-    ) : (
-      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
-    )
+    dispatchSort({ type: "TOGGLE", payload: key })
   }
 
   const handleBulkDelete = async () => {
     if (selectedHouses.size === 0) return;
 
-    setIsBulkDeleting(true);
+    dispatchDialog({ type: "SET_BULK_DELETING", payload: true });
     const selectedIds = Array.from(selectedHouses);
 
     try {
@@ -227,7 +552,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
       const { successCount } = await response.json();
       const failedCount = selectedIds.length - successCount;
 
-      setShowBulkDeleteConfirm(false);
+      dispatchDialog({ type: "CLOSE_BULK_DELETE" });
       setSelectedHouses(new Set());
 
       if (successCount > 0) {
@@ -254,7 +579,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         variant: "destructive",
       });
     } finally {
-      setIsBulkDeleting(false);
+      dispatchDialog({ type: "SET_BULK_DELETING", payload: false });
     }
   }
 
@@ -301,18 +626,18 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   }
 
   const handleDeleteConfirm = async () => {
-    if (!houseToDelete) return
-    setIsDeleting(true)
+    if (!dialogState.houseToDelete) return
+    dispatchDialog({ type: "SET_DELETING", payload: true })
 
     try {
-      const response = await fetch(`/api/haeuser/${houseToDelete.id}`, {
+      const response = await fetch(`/api/haeuser/${dialogState.houseToDelete.id}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
         toast({
           title: 'Haus gelöscht',
-          description: `Das Haus "${houseToDelete.name}" wurde erfolgreich gelöscht.`,
+          description: `Das Haus "${dialogState.houseToDelete.name}" wurde erfolgreich gelöscht.`,
           variant: 'success',
         })
         await fetchHouses()
@@ -327,72 +652,32 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         variant: 'destructive',
       })
     } finally {
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
-      setHouseToDelete(null)
+      dispatchDialog({ type: "CLOSE_DELETE" })
+      dispatchDialog({ type: "SET_DELETING", payload: false })
     }
   }
 
-  const TableHeaderCell = ({ sortKey, children, className = '', icon: Icon, sortable = true }: { sortKey: SortKey, children: React.ReactNode, className?: string, icon: React.ElementType, sortable?: boolean }) => (
-    <TableHead className={`${className} dark:text-[#f3f4f6] group/header`}>
-      <div
-        onClick={() => sortable && handleSort(sortKey)}
-        className={`flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] ${sortable ? 'cursor-pointer' : ''}`}
-      >
-        <Icon className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
-        {children}
-        {sortable && renderSortIcon(sortKey)}
-      </div>
-    </TableHead>
-  )
+  const renderSortIcon = (key: SortKey) => {
+    if (sortKey !== key) {
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground dark:text-[#BFC8D9]" />
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4 dark:text-[#f3f4f6]" />
+    ) : (
+      <ArrowDown className="h-4 w-4 dark:text-[#f3f4f6]" />
+    )
+  }
 
   return (
     <div className="rounded-lg">
-      {/* Bulk Action Bar - only show if using internal state */}
       {!externalSelectedHouses && selectedHouses.size > 0 && (
-        <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={true}
-                onCheckedChange={() => setSelectedHouses(new Set())}
-                className="data-[state=checked]:bg-primary"
-              />
-              <span className="font-medium text-sm">
-                {selectedHouses.size} {selectedHouses.size === 1 ? 'Haus' : 'Häuser'} ausgewählt
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedHouses(new Set())}
-              className="h-8 px-2 hover:bg-primary/20"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBulkExport}
-              className="h-8 gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Exportieren
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBulkDeleteConfirm(true)}
-              disabled={!canDelete}
-              className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-            >
-              <Trash2 className="h-4 w-4" />
-              Löschen
-            </Button>
-          </div>
-        </div>
+        <BulkActionBar
+          selectedCount={selectedHouses.size}
+          onClearSelection={() => setSelectedHouses(new Set())}
+          onExport={handleBulkExport}
+          onDelete={() => dispatchDialog({ type: "OPEN_BULK_DELETE" })}
+          canDelete={canDelete}
+        />
       )}
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="inline-block min-w-full align-middle">
@@ -409,13 +694,13 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                     />
                   </div>
                 </TableHead>
-                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={Home}>Häuser</TableHeaderCell>
-                <TableHeaderCell sortKey="ort" className="dark:text-[#f3f4f6]" icon={MapPin}>Ort</TableHeaderCell>
-                <TableHeaderCell sortKey="size" className="dark:text-[#f3f4f6]" icon={Ruler}>Größe</TableHeaderCell>
-                <TableHeaderCell sortKey="rent" className="dark:text-[#f3f4f6]" icon={Euro}>Miete</TableHeaderCell>
-                <TableHeaderCell sortKey="pricePerSqm" className="dark:text-[#f3f4f6]" icon={TrendingUp}>Miete pro m²</TableHeaderCell>
-                <TableHeaderCell sortKey="status" className="dark:text-[#f3f4f6]" icon={CheckCircle2}>Status</TableHeaderCell>
-                <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false}>Aktionen</TableHeaderCell>
+                <TableHeaderCell sortKey="name" className="w-[250px] dark:text-[#f3f4f6]" icon={Home} onSort={handleSort}>Häuser{renderSortIcon("name")}</TableHeaderCell>
+                <TableHeaderCell sortKey="ort" className="dark:text-[#f3f4f6]" icon={MapPin} onSort={handleSort}>Ort{renderSortIcon("ort")}</TableHeaderCell>
+                <TableHeaderCell sortKey="size" className="dark:text-[#f3f4f6]" icon={Ruler} onSort={handleSort}>Größe{renderSortIcon("size")}</TableHeaderCell>
+                <TableHeaderCell sortKey="rent" className="dark:text-[#f3f4f6]" icon={Euro} onSort={handleSort}>Miete{renderSortIcon("rent")}</TableHeaderCell>
+                <TableHeaderCell sortKey="pricePerSqm" className="dark:text-[#f3f4f6]" icon={TrendingUp} onSort={handleSort}>Miete pro m²{renderSortIcon("pricePerSqm")}</TableHeaderCell>
+                <TableHeaderCell sortKey="status" className="dark:text-[#f3f4f6]" icon={CheckCircle2} onSort={handleSort}>Status{renderSortIcon("status")}</TableHeaderCell>
+                <TableHeaderCell sortKey="name" className="w-[80px] dark:text-[#f3f4f6] pr-2" icon={Pencil} sortable={false} onSort={handleSort}>Aktionen</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -431,111 +716,21 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                   const isSelected = selectedHouses.has(house.id)
 
                   return (
-                    <HouseContextMenu
+                    <HouseTableRow
                       key={house.id}
                       house={house}
-                      onEdit={() => onEdit(house)}
-                      onRefresh={fetchHouses}
+                      isLastRow={isLastRow}
+                      isSelected={isSelected}
+                      selectedHouses={selectedHouses}
+                      onSelectHouse={handleSelectHouse}
+                      onEdit={onEdit}
                       canEdit={canEdit}
                       canDelete={canDelete}
-                    >
-                      <TableRow
-                        ref={(el) => {
-                          if (el) {
-                            contextMenuRefs.current.set(house.id, el)
-                          } else {
-                            contextMenuRefs.current.delete(house.id)
-                          }
-                        }}
-                        className={`relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
-                          ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
-                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                          }`}
-                        onClick={() => canEdit ? onEdit(house) : useModalStore.getState().openHausOverviewModal(house.id)}
-                      >
-                        <TableCell
-                          className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <Checkbox
-                            aria-label={`Haus ${house.name} auswählen`}
-                            checked={selectedHouses.has(house.id)}
-                            onCheckedChange={(checked) => handleSelectHouse(house.id, checked)}
-                          />
-                        </TableCell>
-                        <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{house.name}</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.ort}</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.size ? `${house.size} m²` : "-"}</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.rent ? `${house.rent} €` : "-"}</TableCell>
-                        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
-                        <TableCell className={`py-4`}>
-                          {(house.totalApartments ?? 0) === 0 ? (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50 dark:bg-gray-800/50 dark:text-gray-300">
-                              Keine Wohnungen
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className={
-                                (house.freeApartments ?? 0) > 0
-                                  ? "bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400"
-                                  : "bg-green-50 text-green-700 hover:bg-green-50 dark:bg-green-900/30 dark:text-green-400"
-                              }
-                            >
-                              {(house.totalApartments ?? 0) - (house.freeApartments ?? 0)}/{house.totalApartments ?? 0} belegt
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={`py-2 pr-2 text-right w-[130px] ${isSelected && isLastRow ? 'rounded-br-lg' : ''}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <ActionMenu
-                            actions={[
-                              {
-                                id: `edit-${house.id}`,
-                                icon: Pencil,
-                                label: "Bearbeiten",
-                                onClick: () => onEdit(house),
-                                variant: 'primary',
-                                disabled: !canEdit,
-                                tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
-                              },
-                              {
-                                id: `overview-${house.id}`,
-                                icon: Eye,
-                                label: "Übersicht",
-                                onClick: () => useModalStore.getState().openHausOverviewModal(house.id),
-                                variant: 'default',
-                              },
-                              {
-                                id: `more-${house.id}`,
-                                icon: MoreVertical,
-                                label: "Mehr Optionen",
-                                onClick: (e) => {
-                                  if (!e) return;
-                                  const rowElement = contextMenuRefs.current.get(house.id)
-                                  if (rowElement) {
-                                    const contextMenuEvent = new MouseEvent('contextmenu', {
-                                      bubbles: true,
-                                      cancelable: true,
-                                      view: window,
-                                      clientX: e.clientX,
-                                      clientY: e.clientY,
-                                    })
-                                    rowElement.dispatchEvent(contextMenuEvent)
-                                  }
-                                },
-                                variant: 'default',
-                              }
-                            ]}
-                            shape="pill"
-                            visibility="always"
-                            className="inline-flex"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    </HouseContextMenu>
+                      sortKey={sortKey}
+                      sortDirection={sortDirection}
+                      onSort={handleSort}
+                      contextMenuRefs={contextMenuRefs}
+                    />
                   )
                 })
               )}
@@ -543,39 +738,22 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
           </Table>
         </div>
       </div>
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie das Haus "{houseToDelete?.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
-              {isDeleting ? "Löschen..." : "Löschen"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
-      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Mehrere Häuser löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie wirklich {selectedHouses.size} Häuser löschen? Diese Aktion kann nicht rückgängig gemacht werden.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
-              {isBulkDeleting ? "Lösche..." : `${selectedHouses.size} Häuser löschen`}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={dialogState.showDeleteConfirm}
+        onOpenChange={(open) => !open && dispatchDialog({ type: "CLOSE_DELETE" })}
+        houseName={dialogState.houseToDelete?.name ?? ""}
+        isDeleting={dialogState.isDeleting}
+        onConfirm={handleDeleteConfirm}
+      />
+
+      <BulkDeleteConfirmDialog
+        open={dialogState.showBulkDeleteConfirm}
+        onOpenChange={(open) => !open && dispatchDialog({ type: "CLOSE_BULK_DELETE" })}
+        selectedCount={selectedHouses.size}
+        isBulkDeleting={dialogState.isBulkDeleting}
+        onConfirm={handleBulkDelete}
+      />
     </div>
   )
 }

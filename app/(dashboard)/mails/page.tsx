@@ -10,8 +10,10 @@ import { convertToLegacyMail } from "@/types/Mail";
 import type { Mail } from "@/types/Mail";
 
 export default async function MailsPage() {
-  const { supabase, user } = await requireAuthenticatedUser();
-  await requirePermission('organisation', 'ansehen');
+  const [{ supabase, user }] = await Promise.all([
+    requireAuthenticatedUser(),
+    requirePermission('organisation', 'ansehen'),
+  ]);
 
   // Fetch initial page of emails from database
   const { data: emails, error: emailsError, count } = await supabase

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { 
@@ -30,8 +30,6 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
-// ─── Local Helper Components for SidebarTaskList ─────────────────────────────
 
 interface DraggableTaskRowProps {
   task: TaskBoardTask;
@@ -222,7 +220,6 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </div>
       )}
 
-      {/* Overdue */}
       {overdueTasks.length > 0 && (
         <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent group/trigger">
@@ -241,7 +238,6 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </Collapsible>
       )}
 
-      {/* Upcoming */}
       <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
@@ -258,7 +254,6 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Later */}
       <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
@@ -275,7 +270,6 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </CollapsibleContent>
       </Collapsible>
 
-      {/* No Date */}
       <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
         <DroppableNoDateTrigger isNoDateOpen={isNoDateOpen} noDateCount={noDateTasks.length} />
         <CollapsibleContent className="mt-0.5 flex flex-col gap-0.5 pl-1">
@@ -285,7 +279,6 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Done */}
       {doneTasks.length > 0 && (
         <Collapsible open={isDoneOpen} onOpenChange={setIsDoneOpen}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent group/trigger">
@@ -307,7 +300,81 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit =
   );
 }
 
-// ─── Main Client Wrapper component ───────────────────────────────────────────
+function TaskOverviewStats({ tasks }: { tasks: TaskBoardTask[] }) {
+  const taskStats = useMemo(() => {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.ist_erledigt).length;
+    const open = total - completed;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const overdue = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum < todayStr).length;
+    const dueToday = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum === todayStr).length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, open, overdue, dueToday, completionRate };
+  }, [tasks]);
+
+  return (
+    <>
+      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4 shrink-0">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <div className="text-[10px] font-semibold text-amber-500 dark:text-amber-400 mb-1">Offen</div>
+            <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              {taskStats.open}
+            </div>
+          </div>
+          <div className="text-center border-x border-zinc-100 dark:border-zinc-800/60 px-1">
+            <div className="text-[10px] font-semibold text-red-500 dark:text-red-400 mb-1">Überfällig</div>
+            <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              {taskStats.overdue}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-400 mb-1">Erledigt</div>
+            <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              {taskStats.completed}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3 shrink-0">
+        <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+          <span className="flex items-center gap-1.5">
+            <TrendingUp className="size-3.5" />
+            Erfüllungsquote
+          </span>
+          <span className="text-accent">{taskStats.completionRate}%</span>
+        </div>
+        <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+          <div 
+            className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+            style={{ width: `${Math.min(100, Math.max(0, taskStats.completionRate))}%` }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TaskCreateButton({ onClick, canCreate }: { onClick: () => void; canCreate: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!canCreate}
+      className={cn(
+        "w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20 text-xs font-bold transition-all duration-300 shrink-0",
+        canCreate 
+          ? "hover:border-accent/60 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent active:scale-98 cursor-pointer" 
+          : "opacity-50 cursor-not-allowed text-zinc-400 dark:text-zinc-600"
+      )}
+      title={!canCreate ? "Keine Berechtigung zum Erstellen" : undefined}
+    >
+      <PlusCircle className="size-4" />
+      Neue Aufgabe erstellen
+    </button>
+  );
+}
 
 interface TodosClientWrapperProps {
   tasks: TaskBoardTask[];
@@ -323,32 +390,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const { openAufgabeModal } = useModalStore();
 
-  // Compute stats for tasks overview panel
-  const taskStats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.ist_erledigt).length;
-    const open = total - completed;
-    
-    // Overdue tasks: open tasks where due date is in the past
-    const todayStr = new Date().toISOString().split('T')[0];
-    const overdue = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum < todayStr).length;
-
-    // Today's tasks: open tasks due today
-    const dueToday = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum === todayStr).length;
-
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    return {
-      total,
-      completed,
-      open,
-      overdue,
-      dueToday,
-      completionRate
-    };
-  }, [tasks]);
-
-  // Subscribe to date changes from the shared DnD provider (handles sidebar→calendar and calendar→calendar drops)
   const { addDateChangeListener, removeDateChangeListener } = useTaskDnd();
   useEffect(() => {
     const handler = (taskId: string, date: string | null) => {
@@ -358,7 +399,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
     return () => removeDateChangeListener(handler);
   }, [addDateChangeListener, removeDateChangeListener]);
 
-  // Sync task toggle changes from sidebar (in case they still come from outside)
   useEffect(() => {
     const handleSidebarToggle = (e: Event) => {
       const { taskId, completed } = (e as CustomEvent).detail;
@@ -501,7 +541,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
   return (
     <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch h-full min-h-0">
-        {/* Left Column: 1/4 (lg:col-span-3) for Sidebar/Overview */}
         <Card className="lg:col-span-3 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] overflow-hidden flex flex-col h-full min-h-0">
           <CardHeader className="pb-3 shrink-0">
             <CardTitle className="text-lg">Aufgaben Übersicht</CardTitle>
@@ -515,68 +554,8 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
           </div>
 
           <CardContent className="flex-1 flex flex-col gap-4 pt-2 overflow-y-auto custom-scrollbar min-h-0">
-            {/* Unified Stats Grid */}
-            <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4 shrink-0">
-              <div className="grid grid-cols-3 gap-2">
-                {/* Open Tasks */}
-                <div className="text-center">
-                  <div className="text-[10px] font-semibold text-amber-500 dark:text-amber-400 mb-1">Offen</div>
-                  <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                    {taskStats.open}
-                  </div>
-                </div>
-                {/* Overdue Tasks */}
-                <div className="text-center border-x border-zinc-100 dark:border-zinc-800/60 px-1">
-                  <div className="text-[10px] font-semibold text-red-500 dark:text-red-400 mb-1">Überfällig</div>
-                  <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                    {taskStats.overdue}
-                  </div>
-                </div>
-                {/* Completed Tasks */}
-                <div className="text-center">
-                  <div className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-400 mb-1">Erledigt</div>
-                  <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                    {taskStats.completed}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Progress (Fortschritt) */}
-            <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3 shrink-0">
-              <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                <span className="flex items-center gap-1.5">
-                  <TrendingUp className="size-3.5" />
-                  Erfüllungsquote
-                </span>
-                <span className="text-accent">{taskStats.completionRate}%</span>
-              </div>
-              <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
-                <div 
-                  className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                  style={{ width: `${Math.min(100, Math.max(0, taskStats.completionRate))}%` }}
-                />
-              </div>
-            </div>
-
-            {/* New Task Button */}
-            <button
-              type="button"
-              onClick={() => handleAddTask()}
-              disabled={!canCreate}
-              className={cn(
-                "w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20 text-xs font-bold transition-all duration-300 shrink-0",
-                canCreate 
-                  ? "hover:border-accent/60 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent active:scale-98 cursor-pointer" 
-                  : "opacity-50 cursor-not-allowed text-zinc-400 dark:text-zinc-600"
-              )}
-              title={!canCreate ? "Keine Berechtigung zum Erstellen" : undefined}
-            >
-              <PlusCircle className="size-4" />
-              Neue Aufgabe erstellen
-            </button>
-
-            {/* Task List */}
+            <TaskOverviewStats tasks={tasks} />
+            <TaskCreateButton onClick={() => handleAddTask()} canCreate={canCreate} />
             <SidebarTaskList
               tasks={tasks}
               setTasks={setTasks}
@@ -587,7 +566,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
           </CardContent>
         </Card>
 
-        {/* Right Column: 3/4 (lg:col-span-9) for Task Board */}
         <Card className="lg:col-span-9 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] flex flex-col h-full min-h-0">
           <CardHeader className="shrink-0">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -617,7 +595,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
           </div>
 
           <CardContent className="flex-1 flex flex-col gap-6 pt-6 min-h-0 overflow-hidden">
-            {/* Calendar */}
             <div className="bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 flex flex-col h-full min-h-0 overflow-hidden">
               <div className="flex items-center gap-2 mb-4 shrink-0">
                 <CalendarIcon className="size-5 text-muted-foreground" />
@@ -638,7 +615,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
         </Card>
       </div>
 
-      {/* Day Modal */}
       {selectedDate && (
         <TaskDayModal
           open={isDayModalOpen}
