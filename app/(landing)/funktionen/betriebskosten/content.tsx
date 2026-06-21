@@ -240,31 +240,65 @@ export default function UtilityCostPage() {
               {meterSteps.map((step, index) => {
                 const isEven = index % 2 === 0;
                 return (
-                  <div 
+                  <motion.div 
                     key={index}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ delay: index * 0.15, duration: 0.3 }}
                     className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center relative py-10 lg:py-16"
                   >
                     {/* Segment of the timeline line */}
                     {index === 0 && (
-                      <div className="absolute left-1/2 top-1/2 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                      <motion.div
+                        initial={{ clipPath: "inset(0% 0% 100% 0%)" }}
+                        whileInView={{ clipPath: "inset(0% 0% 0% 0%)" }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+                        className="absolute left-1/2 top-1/2 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block"
+                      />
                     )}
                     {index > 0 && index < meterSteps.length - 1 && (
-                      <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                      <motion.div
+                        initial={{ clipPath: "inset(0% 0% 100% 0%)" }}
+                        whileInView={{ clipPath: "inset(0% 0% 0% 0%)" }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+                        className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block"
+                      />
                     )}
                     {index === meterSteps.length - 1 && (
-                      <div className="absolute left-1/2 top-0 bottom-1/2 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block" />
+                      <motion.div
+                        initial={{ clipPath: "inset(0% 0% 100% 0%)" }}
+                        whileInView={{ clipPath: "inset(0% 0% 0% 0%)" }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+                        className="absolute left-1/2 top-0 bottom-1/2 -translate-x-1/2 w-0.5 border-l-2 border-dashed border-primary/20 hidden lg:block"
+                      />
                     )}
 
                     {/* Timeline Node in the center (visible only on lg screens) */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background border-4 border-primary flex items-center justify-center hidden lg:flex z-10 shadow-xs">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      whileInView={{ scale: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background border-4 border-primary flex items-center justify-center hidden lg:flex z-10 shadow-xs"
+                    >
                       <span className="text-[10px] font-bold text-primary font-mono">{index + 1}</span>
-                    </div>
+                    </motion.div>
 
                     {/* Left side column: Text for even indices, mockup for odd indices */}
-                    <div className={cn(
-                      "lg:col-span-5 flex flex-col justify-center",
-                      isEven ? "order-1 lg:order-1 text-left" : "order-1 lg:order-3 text-left lg:text-left"
-                    )}>
+                    <motion.div
+                      initial={{ opacity: 0, x: isEven ? -20 : 20, y: 10 }}
+                      whileInView={{ opacity: 1, x: 0, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
+                      className={cn(
+                        "lg:col-span-5 flex flex-col justify-center",
+                        isEven ? "order-1 lg:order-1 text-left" : "order-1 lg:order-3 text-left lg:text-left"
+                      )}
+                    >
                       {/* Badge */}
                       <div className="flex items-center gap-2 mb-4">
                         <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
@@ -281,24 +315,30 @@ export default function UtilityCostPage() {
                         {step.description}
                       </p>
 
-                    </div>
+                     </motion.div>
  
-                     {/* Spacer for center timeline alignment */}
-                     <div className={cn("lg:col-span-2 hidden lg:block", isEven ? "lg:order-2" : "lg:order-2")} />
+                      {/* Spacer for center timeline alignment */}
+                      <div className={cn("lg:col-span-2 hidden lg:block", isEven ? "lg:order-2" : "lg:order-2")} />
  
                      {/* Right side column: Mockup for even indices, text for odd indices */}
-                     <div className={cn(
-                       "lg:col-span-5 flex justify-center items-center",
-                       isEven ? "order-3 lg:order-3" : "order-2 lg:order-1"
-                     )}>
+                     <motion.div
+                       initial={{ opacity: 0, x: isEven ? 20 : -20, y: 10 }}
+                       whileInView={{ opacity: 1, x: 0, y: 0 }}
+                       viewport={{ once: true }}
+                       transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+                       className={cn(
+                         "lg:col-span-5 flex justify-center items-center",
+                         isEven ? "order-3 lg:order-3" : "order-2 lg:order-1"
+                       )}
+                     >
                        <div className="relative bg-black/5 dark:bg-black/25 rounded-3xl border border-border/40 overflow-hidden shadow-inner p-8 hover:border-primary/20 transition-all duration-300 w-fit">
                          <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent opacity-40 pointer-events-none" />
                          <div className="relative z-10 transform scale-95 sm:scale-100 transition-transform duration-500">
                            {step.mockup}
                          </div>
                        </div>
-                     </div>
-                  </div>
+                     </motion.div>
+                  </motion.div>
                 );
               })}
             </div>
