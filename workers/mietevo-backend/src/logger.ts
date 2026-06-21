@@ -5,6 +5,8 @@
  * and we need to use ctx.waitUntil for async operations.
  */
 
+import { getTraceContext } from './tracing';
+
 export interface Env {
     POSTHOG_API_KEY?: string;
     NEXT_PUBLIC_POSTHOG_KEY?: string;
@@ -60,6 +62,8 @@ interface LogRecord {
     severityNumber: number;
     severityText: string;
     body: { stringValue: string };
+    traceId?: string;
+    spanId?: string;
     attributes: { key: string; value: Record<string, unknown> }[];
 }
 
@@ -67,7 +71,6 @@ export class WorkerLogger {
     private logs: LogRecord[] = [];
     private env: Env;
     private ctx: ExecutionContext;
-
     constructor(env: Env, ctx: ExecutionContext) {
         this.env = env;
         this.ctx = ctx;
@@ -93,14 +96,21 @@ export class WorkerLogger {
 
         const timestamp = new Date().toISOString();
 
+        // Get trace context from the live async context
+        const trace = getTraceContext() ?? undefined;
+
         // Enrich attributes
-        const enrichedAttributes = {
+        const enrichedAttributes: LogAttributes = {
             ...attributes,
             'log.timestamp': timestamp,
             'service.name': SERVICE_NAME,
         };
+        if (trace) {
+            enrichedAttributes['trace.trace_id'] = trace.traceId;
+            enrichedAttributes['trace.span_id'] = trace.spanId;
+        }
 
-        this.logs.push({
+        const record: LogRecord = {
             timeUnixNano: String(Date.now() * 1000000),
             severityNumber: getSeverityNumber(severity),
             severityText: severity.toUpperCase(),
@@ -111,7 +121,12 @@ export class WorkerLogger {
                     key,
                     value: formatAttributeValue(value)
                 }))
-        });
+        };
+        if (trace) {
+            record.traceId = trace.traceId;
+            record.spanId = trace.spanId;
+        }
+        this.logs.push(record);
     }
 
     debug(message: string, attributes?: LogAttributes) { this.log('debug', message, attributes); }
