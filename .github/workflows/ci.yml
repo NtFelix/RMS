@@ -9,13 +9,7 @@ on:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
   pull_request:
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
   workflow_dispatch:
 
 env:
