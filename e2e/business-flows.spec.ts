@@ -290,10 +290,8 @@ test.describe('Business Logic Flows', () => {
   });
 
   test.afterAll(async ({ browser }) => {
-    // Only cleanup if we have credentials
     if (!hasTestCredentials()) return;
 
-    // Fresh browser context for cleanup
     const context = await browser.newContext();
     const page = await context.newPage();
 
@@ -301,97 +299,17 @@ test.describe('Business Logic Flows', () => {
       await login(page);
       await acceptCookieConsent(page);
 
-      const entities = [
-        { name: tenantName, path: '/mieter', label: 'Tenant' },
-        { name: aptName, path: '/wohnungen', label: 'Apartment' },
-        { name: houseName, path: '/haeuser', label: 'House' }
-      ];
+      console.log('[Cleanup] Calling E2E cleanup API...');
+      const response = await page.request.post('/api/e2e/cleanup');
+      const result = await response.json();
 
-      for (const entity of entities) {
-        try {
-          console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await safeNavigate(page, entity.path, 'domcontentloaded');
-
-          // Strategy 1: Search for the specific entity name
-          let foundAndDeleted = false;
-          const searchInput = page.locator('input[placeholder*="suchen" i]').first();
-
-          if (await searchInput.isVisible({ timeout: 10000 }).catch(() => false)) {
-            await searchInput.clear();
-            await searchInput.fill(entity.name);
-            await page.waitForTimeout(2000);
-
-            foundAndDeleted = await attemptDelete(page, entity);
-          }
-
-          // Strategy 2: If specific name didn't work, search for "E2E" prefix to catch all test data
-          if (!foundAndDeleted && await searchInput.isVisible().catch(() => false)) {
-            console.log(`[Cleanup] Trying broader E2E search for ${entity.label}...`);
-            await searchInput.clear();
-            await searchInput.fill('E2E');
-            await page.waitForTimeout(2000);
-
-            foundAndDeleted = await attemptDelete(page, entity);
-          }
-
-          if (!foundAndDeleted) {
-            console.log(`[Cleanup] Could not delete ${entity.label}: ${entity.name}`);
-          }
-        } catch (entityError) {
-          console.error(`[Cleanup] Error during ${entity.label} cleanup:`, entityError);
-        }
+      if (response.ok()) {
+        console.log(`[Cleanup] Deleted: ${result.houses} houses, ${result.apartments} apartments, ${result.tenants} tenants`);
+      } else {
+        console.error(`[Cleanup] API error:`, result.error);
       }
-
-      async function attemptDelete(page: any, entity: any): Promise<boolean> {
-        // Look for any checkbox in the table header or the first checkbox overall
-        const selectAll = page.locator('thead input[type="checkbox"], thead [role="checkbox"], table [role="checkbox"]').first();
-
-        if (!(await selectAll.isVisible({ timeout: 3000 }).catch(() => false))) {
-          console.log(`[Cleanup] No checkboxes found for ${entity.label}`);
-          return false;
-        }
-
-        console.log(`[Cleanup] Selecting entries for ${entity.label}...`);
-        await selectAll.click({ force: true });
-        await page.waitForTimeout(1500); // Increased wait for bulk action bar
-
-        // Find the delete button - try multiple strategies
-        let deleteBtn = page.getByRole('button')
-          .filter({ hasText: /Löschen/i })
-          .filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash') })
-          .first();
-
-        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-          // Try without the icon filter
-          deleteBtn = page.getByRole('button').filter({ hasText: /^Löschen \(\d+\)$/i }).first();
-        }
-
-        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-          console.log(`[Cleanup] Delete button not visible for ${entity.label}`);
-          return false;
-        }
-
-        console.log(`[Cleanup] Clicking delete for ${entity.label}...`);
-        await deleteBtn.click({ force: true });
-
-        // Handle confirmation Dialog/AlertDialog
-        const confirmBtn = page.getByRole('button')
-          .filter({ hasText: /Löschen bestätigen|Löschen|Bestätigen/i })
-          .filter({ hasNotText: /Abbrechen/i })
-          .last();
-
-        if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await confirmBtn.click({ force: true });
-          console.log(`[Cleanup] Successfully deleted ${entity.label}`);
-          await page.waitForTimeout(2000);
-          return true;
-        } else {
-          console.log(`[Cleanup] Confirmation button not found for ${entity.label}`);
-          return false;
-        }
-      }
-    } catch (globalError) {
-      console.error('[Cleanup] Global error:', globalError);
+    } catch (error) {
+      console.error('[Cleanup] Error:', error);
     } finally {
       await page.close();
       await context.close();
