@@ -156,11 +156,10 @@ test.describe('Business Logic Flows', () => {
 
     // Type to search
     const houseSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
-    await expect(houseSearchbox).toBeVisible({ timeout: 5000 }).catch(async () => {
-      // Re-try opening the combobox if searchbox is not visible (Firefox/WebKit shift safeguard)
+    if (!(await houseSearchbox.isVisible({ timeout: 5000 }).catch(() => false))) {
       await combobox.click({ force: true });
-      await expect(houseSearchbox).toBeVisible({ timeout: 5000 });
-    });
+    }
+    await expect(houseSearchbox).toBeVisible({ timeout: 5000 });
 
     await houseSearchbox.fill(houseName);
     await page.waitForTimeout(500);
@@ -170,6 +169,8 @@ test.describe('Business Logic Flows', () => {
     await expect(option).toBeVisible({ timeout: 10000 });
     await option.scrollIntoViewIfNeeded().catch(() => {});
     await option.click({ force: true });
+    // Close combobox dropdown after selection
+    await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
 
     // Submit
@@ -242,17 +243,16 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(500);
 
     const option = page.getByRole('option', { name: aptName }).first();
-    // Re-try opening the combobox if option is not visible
-    try {
-      await expect(option).toBeVisible({ timeout: 5000 });
-    } catch (e) {
-      await modal.locator('#wohnung_id').first().click({ force: true });
-      await expect(aptSearchbox).toBeVisible({ timeout: 5000 });
+    if (!(await option.isVisible({ timeout: 5000 }).catch(() => false))) {
+      // Try re-searching (don't re-click trigger — that would close an already-open dropdown)
       await aptSearchbox.fill(aptName);
-      await expect(option).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500);
     }
+    await expect(option).toBeVisible({ timeout: 10000 });
     await option.scrollIntoViewIfNeeded().catch(() => {});
     await option.click({ force: true });
+    // Close combobox dropdown after selection
+    await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
 
     // Date - try to fill the date input
@@ -271,7 +271,9 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(300);
 
     // Submit
-    await page.getByRole('button', { name: /Speichern/i }).click();
+    const submitBtn = page.getByRole('button', { name: /Speichern/i });
+    await expect(submitBtn).toBeEnabled({ timeout: 10000 });
+    await submitBtn.click();
 
     // Wait for modal to close
     try {
