@@ -57,6 +57,7 @@ interface ApartmentTableProps {
   onSelectionChange?: (selected: Set<string>) => void
   canEdit?: boolean
   canDelete?: boolean
+  canViewMeters?: boolean
 }
 
 // --- Sub-components ---
@@ -170,9 +171,10 @@ interface ApartmentTableRowProps {
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   canEdit?: boolean;
   canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
-const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, onSelect, onEdit, onRefresh, contextMenuRefs, canEdit = true, canDelete = true }: ApartmentTableRowProps) => (
+const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, onSelect, onEdit, onRefresh, contextMenuRefs, canEdit = true, canDelete = true, canViewMeters = true }: ApartmentTableRowProps) => (
   <ApartmentContextMenu
     key={apt.id}
     apartment={apt}
@@ -182,6 +184,7 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
     }}
     canEdit={canEdit}
     canDelete={canDelete}
+    canViewMeters={canViewMeters}
   >
     <TableRow
       ref={(el) => {
@@ -231,11 +234,11 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
               icon: Pencil,
               label: "Bearbeiten",
               onClick: () => onEdit?.(apt),
-              variant: 'primary',
+              variant: 'primary' as const,
               disabled: !canEdit,
               tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
             },
-            {
+            ...(canViewMeters ? [{
               id: `meter-${apt.id}`,
               icon: Gauge,
               label: "Zähler verwalten",
@@ -243,8 +246,8 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
                 useOnboardingStore.getState().completeStep('create-meter-select');
                 useModalStore.getState().openZaehlerModal(apt.id, apt.name);
               },
-              variant: 'default',
-            },
+              variant: 'default' as const,
+            }] : []),
             {
               id: index === 0 ? "apartment-menu-trigger-0" : `more-${apt.id}`,
               icon: MoreVertical,
@@ -266,7 +269,7 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
                   rowElement.dispatchEvent(contextMenuEvent)
                 }
               },
-              variant: 'default',
+              variant: 'default' as const,
             }
           ]}
           shape="pill"
@@ -306,7 +309,20 @@ function apartmentReducer(state: ApartmentState, action: ApartmentAction): Apart
   }
 }
 
-export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, onDelete, initialApartments, selectedApartments: externalSelectedApartments, onSelectionChange, canEdit = true, canDelete = true }: ApartmentTableProps) {
+export function ApartmentTable({
+  filter,
+  searchQuery,
+  reloadRef,
+  onEdit,
+  onTableRefresh,
+  onDelete,
+  initialApartments,
+  selectedApartments: externalSelectedApartments,
+  onSelectionChange,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
+}: ApartmentTableProps) {
   const router = useRouter()
   const [state, dispatch] = React.useReducer(apartmentReducer, {
     sortKey: "name",
@@ -514,6 +530,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                     contextMenuRefs={contextMenuRefs}
                     canEdit={canEdit}
                     canDelete={canDelete}
+                    canViewMeters={canViewMeters}
                   />
                 ))
               )}

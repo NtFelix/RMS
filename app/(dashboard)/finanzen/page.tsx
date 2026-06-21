@@ -106,7 +106,7 @@ export default async function FinanzenPage() {
 
   const currentYear = new Date().getFullYear();
 
-  // Permission check with object-scope exception (same as haeuser).
+  // Permission check.
   const [canView, canCreate, canEdit, canDelete, accessibleWohnungIds] = await Promise.all([
     hasPermission('finanzen', 'ansehen'),
     hasPermission('finanzen', 'erstellen'),
@@ -114,8 +114,7 @@ export default async function FinanzenPage() {
     hasPermission('finanzen', 'loeschen'),
     getAccessibleWohnungIds(),
   ]);
-  const hasObjectScopeAccess = accessibleWohnungIds === null || (Array.isArray(accessibleWohnungIds) && accessibleWohnungIds.length > 0);
-  if (!canView && !hasObjectScopeAccess) {
+  if (!canView) {
     redirect('/unauthorized');
   }
 

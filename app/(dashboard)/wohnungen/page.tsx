@@ -18,17 +18,17 @@ import { redirect } from "next/navigation";
 export default async function WohnungenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
-  // Permission check with object-scope exception (same as haeuser).
-  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
+  // Permission check.
+  const [canView, canCreate, canEdit, canDelete, canViewMeters, accessibleIdsResult] = await Promise.all([
     hasPermission('wohnungen', 'ansehen'),
     hasPermission('wohnungen', 'erstellen'),
     hasPermission('wohnungen', 'bearbeiten'),
     hasPermission('wohnungen', 'loeschen'),
+    hasPermission('zaehler', 'ansehen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
-  const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
-  if (!canView && !hasObjectScopeAccess) {
+  if (!canView) {
     redirect('/unauthorized');
   }
 
@@ -157,6 +157,7 @@ export default async function WohnungenPage() {
       canCreate={canCreate}
       canEdit={canEdit}
       canDelete={canDelete}
+      canViewMeters={canViewMeters}
     />
   );
 }

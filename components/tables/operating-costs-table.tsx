@@ -60,6 +60,7 @@ interface OperatingCostsTableProps {
   onSelectionChange?: (selected: Set<string>) => void;
   canEdit?: boolean;
   canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 export function OperatingCostsTable({
@@ -72,6 +73,7 @@ export function OperatingCostsTable({
   onSelectionChange,
   canEdit = true,
   canDelete = true,
+  canViewMeters = true,
 }: OperatingCostsTableProps) {
   const router = useRouter()
 
@@ -584,18 +586,20 @@ export function OperatingCostsTable({
                           <span>Bearbeiten</span>
                         </ContextMenuItem>
                         {/* Old Wasserzähler modal button removed - now using new ZaehlerAblesenModal */}
-                        <ContextMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedNebenkostenForAblesen(item);
-                            setIsZaehlerAblesenOpen(true);
-                          }}
-                          disabled={!canEdit}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Droplets className="h-4 w-4" />
-                          <span>Zähler</span>
-                        </ContextMenuItem>
+                        {canViewMeters && (
+                          <ContextMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedNebenkostenForAblesen(item);
+                              setIsZaehlerAblesenOpen(true);
+                            }}
+                            disabled={!canEdit}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Droplets className="h-4 w-4" />
+                            <span>Zähler</span>
+                          </ContextMenuItem>
+                        )}
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();

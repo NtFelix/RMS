@@ -524,6 +524,9 @@ function SidebarContent({
                 if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
                   return false;
                 }
+                if (item.href === '/organisation' && sidebarData.isOrganisationHidden) {
+                  return false;
+                }
                 // Check module permissions if they are restricted (non-null Set).
                 const requiredModule = SIDEBAR_MODULE_MAP[item.href];
                 if (requiredModule && sidebarData.modulePermissions !== null) {

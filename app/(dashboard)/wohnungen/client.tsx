@@ -36,6 +36,7 @@ interface WohnungenClientViewProps {
   canCreate?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat("de-DE", {
@@ -54,6 +55,7 @@ export default function WohnungenClientView({
   canCreate = true,
   canEdit = true,
   canDelete = true,
+  canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
   const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
@@ -575,6 +577,7 @@ export default function WohnungenClientView({
                 onSelectionChange={setSelectedApartments}
                 canEdit={canEdit}
                 canDelete={canDelete}
+                canViewMeters={canViewMeters}
               />
             </CardContent>
           </Card>
