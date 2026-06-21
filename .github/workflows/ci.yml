@@ -1961,13 +1961,14 @@ jobs:
         env:
           BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.ref_name }}
           PR_ARGS: ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
             --type playwright \
             --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
             --branch "$BRANCH_NAME" \
-            --commit $(git rev-parse HEAD) \
+            --commit "$COMMIT_SHA" \
             $PR_ARGS)
           echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Created PostHog VR run: $RUN_ID"
