@@ -82,14 +82,14 @@ describe('error-handling utilities', () => {
         .mockResolvedValueOnce({ success: false, performanceMetrics: { errorMessage: 'network error' } })
         .mockResolvedValueOnce({ success: true, data: 'ok' });
 
-      const result = await withRetry(mockOp, { baseDelayMs: 1, retryCondition: (r) => !r.success && !!r.performanceMetrics?.errorMessage?.includes('network') });
+      const result = await withRetry(mockOp, { baseDelayMs: 1, retryCondition: (r) => !r.success && (r.performanceMetrics?.errorMessage?.includes('network') ?? false) });
       expect(result.success).toBe(true);
       expect(mockOp).toHaveBeenCalledTimes(2);
     });
 
     it('should exhaust retries', async () => {
       const mockOp = jest.fn().mockResolvedValue({ success: false, performanceMetrics: { errorMessage: 'network error' } });
-      const result = await withRetry(mockOp, { maxRetries: 2, baseDelayMs: 1, retryCondition: (r) => !r.success && !!r.performanceMetrics?.errorMessage?.includes('network') });
+      const result = await withRetry(mockOp, { maxRetries: 2, baseDelayMs: 1, retryCondition: (r) => !r.success && (r.performanceMetrics?.errorMessage?.includes('network') ?? false) });
       expect(result.success).toBe(false);
       expect(mockOp).toHaveBeenCalledTimes(3); // Initial + 2 retries
     });
