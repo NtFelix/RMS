@@ -2,6 +2,7 @@ import { getPlanDetails } from "@/lib/stripe-server"
 import { User, SupabaseClient } from "@supabase/supabase-js"
 import { getUserDisplayData } from "@/lib/utils/user"
 import { getEffectiveApartmentLimit } from "@/lib/utils/subscription"
+import { evaluatePermission } from "@/lib/permissions-core"
 
 /**
  * Modules that are gated by permissions in the sidebar.
@@ -69,56 +70,36 @@ export async function getSidebarUserData(
   let modulePermissions: SidebarModulePermissions = null;
 
   if (orgId) {
-    const [orgDataResult, accessibleHaeuserResult, ...permChecks] = await Promise.all([
+    const [orgDataResult, ...permChecks] = await Promise.all([
       supabase
         .from('Organisation')
         .select('ist_versteckt')
         .eq('id', orgId)
         .maybeSingle(),
-      // Fetch object-scope house IDs to handle the "object-scope exception":
-      // If a member has no module.haeuser permission but has specific house IDs
-      // in their object scope, they can still access /haeuser (with filtered data).
-      supabase.rpc('get_accessible_haeuser_ids'),
       // Check 'ansehen' permission for each sidebar-gated module in parallel.
-      // Owners/admins → check_permission returns true for all.
+      // Owners/admins → evaluatePermission returns true for all.
       // Restricted members → only returns true for explicitly granted modules.
-      supabase.rpc('check_permission', { p_modul: 'haeuser', p_aktion: 'ansehen' }),
-      supabase.rpc('check_permission', { p_modul: 'wohnungen', p_aktion: 'ansehen' }),
-      supabase.rpc('check_permission', { p_modul: 'mieter', p_aktion: 'ansehen' }),
-      supabase.rpc('check_permission', { p_modul: 'finanzen', p_aktion: 'ansehen' }),
-      supabase.rpc('check_permission', { p_modul: 'betriebskosten', p_aktion: 'ansehen' }),
-      supabase.rpc('check_permission', { p_modul: 'aufgaben', p_aktion: 'ansehen' }),
-      supabase.rpc('check_permission', { p_modul: 'dokumente', p_aktion: 'ansehen' }),
-      supabase.rpc('check_permission', { p_modul: 'organisation', p_aktion: 'ansehen' }),
+      evaluatePermission(supabase, user.id, orgId, 'haeuser', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'wohnungen', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'mieter', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'finanzen', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'betriebskosten', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'aufgaben', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'dokumente', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'organisation', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'zaehler', 'ansehen'),
     ]);
 
     isOrganisationHidden = orgDataResult.data?.ist_versteckt ?? false;
 
-    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation'] as const;
-    const allAllowed = permChecks.every(r => r.data === true);
+    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation', 'zaehler'] as const;
+    const allAllowed = permChecks.every(r => r === true);
 
     if (!allAllowed) {
-      // At least one module is restricted — build a specific allow-set.
       modulePermissions = new Set(
-        GATED_MODULES.filter((_, i) => permChecks[i].data === true)
+        GATED_MODULES.filter((_, i) => permChecks[i] === true)
       );
-
-      // Object-scope exception: if the user has specific house IDs in their object scope
-      // (non-empty array from get_accessible_haeuser_ids), grant access to the haeuser,
-      // wohnungen, and mieter pages even without the module permission. The data RPCs
-      // will further filter by scope. All three page-level guards have this same fallback
-      // (see haeuser/page.tsx, wohnungen/page.tsx, mieter/page.tsx).
-      const accessibleIds = accessibleHaeuserResult.data;
-      const hasObjectScopedHouses = Array.isArray(accessibleIds) && accessibleIds.length > 0;
-      if (hasObjectScopedHouses) {
-        modulePermissions.add('haeuser');
-        modulePermissions.add('wohnungen');
-        modulePermissions.add('mieter');
-        modulePermissions.add('finanzen');
-        modulePermissions.add('betriebskosten');
-      }
     }
-    // If allAllowed === true, modulePermissions stays null (= unrestricted).
   }
 
 

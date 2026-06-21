@@ -1,19 +1,8 @@
 import { ensureAuth } from "@/lib/auth-utils";
 import { redirect } from "next/navigation";
 
-export type Modul =
-  | 'haeuser'
-  | 'wohnungen'
-  | 'mieter'
-  | 'zaehler'
-  | 'finanzen'
-  | 'betriebskosten'
-  | 'dokumente'
-  | 'aufgaben'
-  | 'vorlagen'
-  | 'organisation';
-
-export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verwalten';
+import { evaluatePermission, type Modul, type Aktion } from "./permissions-core";
+export { evaluatePermission, type Modul, type Aktion };
 
 /**
  * Checks if the current authenticated user has permission for a specific module and action.
@@ -21,19 +10,16 @@ export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verw
  */
 export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boolean> {
   try {
-    const { supabase } = await ensureAuth();
+    const { supabase, user } = await ensureAuth();
     
-    const { data, error } = await supabase.rpc('check_permission', {
-      p_modul: modul,
-      p_aktion: aktion,
-    });
-    
-    if (error) {
-      console.error(`Error in check_permission RPC for ${modul}:${aktion}:`, error);
+    // Resolve current organisation ID
+    const { data: orgId, error: orgError } = await supabase.rpc('current_organisation_id');
+    if (orgError) {
+      console.error(`Error fetching current_organisation_id for hasPermission:`, orgError);
       return false;
     }
-    
-    return data === true;
+
+    return await evaluatePermission(supabase, user.id, orgId, modul, aktion);
   } catch (error) {
     console.error(`Exception checking permission for ${modul}:${aktion}:`, error);
     return false;

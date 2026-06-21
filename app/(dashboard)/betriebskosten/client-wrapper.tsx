@@ -170,6 +170,7 @@ interface BetriebskostenClientViewProps {
   canCreate?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 export default function BetriebskostenClientView({
@@ -181,6 +182,7 @@ export default function BetriebskostenClientView({
   canCreate = true,
   canEdit = true,
   canDelete = true,
+  canViewMeters = true,
 }: BetriebskostenClientViewProps) {
   const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
@@ -1100,6 +1102,7 @@ export default function BetriebskostenClientView({
                   allHaeuser={initialHaeuser}
                   canEdit={canEdit}
                   canDelete={canDelete}
+                  canViewMeters={canViewMeters}
                 />
               </div>
             </CardContent>

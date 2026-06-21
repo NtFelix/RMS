@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
 import posthogProxyConfig from "@/lib/posthog-proxy"
 import { createServerClient } from "@supabase/ssr"
+import { evaluatePermission, type Modul } from "@/lib/permissions-core"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
@@ -23,6 +24,11 @@ const MANAGED_ROUTE_PREFIXES = [
 ]
 
 const ROUTE_PERMISSIONS: Record<string, string> = {
+  "/haeuser": "haeuser",
+  "/wohnungen": "wohnungen",
+  "/mieter": "mieter",
+  "/finanzen": "finanzen",
+  "/betriebskosten": "betriebskosten",
   "/todos": "aufgaben",
   "/dateien": "dokumente",
   "/vorlagen": "vorlagen",
@@ -129,15 +135,18 @@ export async function middleware(request: NextRequest) {
         )
 
         try {
-          const { data: hasPerm, error: permError } = await supabase.rpc('check_permission', {
-            p_modul: modul,
-            p_aktion: 'ansehen',
-          })
+          let orgId = currentOrgId
+          if (!orgId) {
+            const { data: resolvedOrgId } = await supabase.rpc('current_organisation_id')
+            orgId = resolvedOrgId
+          }
 
-          if (permError || hasPerm !== true) {
-            if (permError) {
-              console.error(`[Middleware] Error checking permission for ${modul}:`, permError.message)
-            }
+          let hasPerm = true
+          if (orgId) {
+            hasPerm = await evaluatePermission(supabase, user.id, orgId, modul as Modul, 'ansehen')
+          }
+
+          if (!hasPerm) {
             const redirectUrl = request.nextUrl.clone()
             redirectUrl.pathname = '/unauthorized'
             const redirectResponse = NextResponse.redirect(redirectUrl)

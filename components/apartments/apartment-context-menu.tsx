@@ -33,6 +33,7 @@ interface ApartmentContextMenuProps {
   onRefresh: () => void
   canEdit?: boolean
   canDelete?: boolean
+  canViewMeters?: boolean
 }
 
 export function ApartmentContextMenu({
@@ -42,6 +43,7 @@ export function ApartmentContextMenu({
   onRefresh,
   canEdit = true,
   canDelete = true,
+  canViewMeters = true,
 }: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -90,17 +92,19 @@ export function ApartmentContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem
-            id="context-menu-meter-item"
-            onClick={() => {
-              useOnboardingStore.getState().completeStep('create-meter-select');
-              openZaehlerModal(apartment.id, apartment.name);
-            }}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Gauge className="h-4 w-4" />
-            <span>Zähler verwalten</span>
-          </ContextMenuItem>
+          {canViewMeters && (
+            <ContextMenuItem
+              id="context-menu-meter-item"
+              onClick={() => {
+                useOnboardingStore.getState().completeStep('create-meter-select');
+                openZaehlerModal(apartment.id, apartment.name);
+              }}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <Gauge className="h-4 w-4" />
+              <span>Zähler verwalten</span>
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}

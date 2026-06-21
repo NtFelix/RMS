@@ -16,17 +16,17 @@ import { redirect } from "next/navigation";
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
-  // Permission check with object-scope exception (same as haeuser).
-  const [canView, canCreate, canEdit, canDelete, accessibleHaeuserResult] = await Promise.all([
+  // Permission check.
+  const [canView, canCreate, canEdit, canDelete, canViewMeters, accessibleHaeuserResult] = await Promise.all([
     hasPermission('betriebskosten', 'ansehen'),
     hasPermission('betriebskosten', 'erstellen'),
     hasPermission('betriebskosten', 'bearbeiten'),
     hasPermission('betriebskosten', 'loeschen'),
+    hasPermission('zaehler', 'ansehen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleHaeuserResult.data;
-  const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
-  if (!canView && !hasObjectScopeAccess) {
+  if (!canView) {
     redirect('/unauthorized');
   }
 
@@ -92,6 +92,7 @@ export default async function BetriebskostenPage() {
       canCreate={canCreate}
       canEdit={canEdit}
       canDelete={canDelete}
+      canViewMeters={canViewMeters}
     />
   );
 }
