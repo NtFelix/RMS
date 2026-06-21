@@ -1,7 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { useSearch } from "@/hooks/use-search"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { useSearchModalIntegration } from "@/hooks/use-search-modal-integration"
+import { toast } from "@/hooks/use-toast"
+import { SearchResult } from "@/types/search"
 import { 
   Search, 
   Users, 
@@ -9,27 +14,28 @@ import {
   Home, 
   Wallet, 
   CheckSquare, 
-  Clock, 
-  ArrowRight, 
   X, 
   Loader2, 
   AlertCircle,
-  HelpCircle,
-  TrendingUp
+  TrendingUp,
+  ChevronRight,
+  History,
+  WifiOff
 } from "lucide-react"
-import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
 
 export default function SuchePage() {
+  const router = useRouter()
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  
   const {
     query,
     setQuery,
     results,
     isLoading,
     error,
+    executionTime,
     clearSearch,
     retry,
     isOffline,
@@ -39,6 +45,475 @@ export default function SuchePage() {
   } = useSearch({
     limit: 20
   })
+
+
+
+  // Centralized entity data fetching & caching logic
+  const entityCache = useRef<Record<string, { data: any[], timestamp: number }>>({})
+  const ENTITY_CACHE_DURATION = 2 * 60 * 1000 // 2 minutes
+
+  const fetchEntityData = useCallback(async (entityType: 'wohnungen' | 'haeuser' | 'finanzen' | 'todos', forceRefresh = false) => {
+    const cacheKey = entityType
+    const cached = entityCache.current[cacheKey]
+
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < ENTITY_CACHE_DURATION) {
+      return cached.data
+    }
+
+    try {
+      const response = await fetch(`/api/${entityType}`)
+      if (!response.ok) throw new Error(`Failed to fetch ${entityType}`)
+      const data = await response.json()
+      entityCache.current[cacheKey] = {
+        data,
+        timestamp: Date.now()
+      }
+      return data
+    } catch (error) {
+      console.error(`Error fetching ${entityType}:`, error)
+      throw error
+    }
+  }, [])
+
+  const invalidateEntityCache = useCallback((entityType?: string) => {
+    if (entityType) {
+      delete entityCache.current[entityType]
+    } else {
+      entityCache.current = {}
+    }
+  }, [])
+
+  const refreshSearchResults = useCallback(() => {
+    retry()
+  }, [retry])
+
+  useSearchModalIntegration({
+    onEntityUpdated: (entityType, entityName) => {
+      refreshSearchResults()
+      if (query.trim()) {
+        toast({
+          title: 'Suche aktualisiert',
+          description: `${entityName} wurde aktualisiert. Suchergebnisse wurden aktualisiert.`,
+        })
+      }
+    },
+    onCacheInvalidate: (entityType) => {
+      invalidateEntityCache(entityType)
+      switch (entityType) {
+        case 'mieter':
+          invalidateEntityCache('wohnungen')
+          break
+        case 'wohnungen':
+          invalidateEntityCache('mieter')
+          invalidateEntityCache('haeuser')
+          break
+        case 'haeuser':
+          invalidateEntityCache('wohnungen')
+          break
+        case 'finanzen':
+          invalidateEntityCache('wohnungen')
+          break
+      }
+    }
+  })
+
+  // Edit/Delete handlers matching CommandMenu
+  const handleEditTenant = async (tenantId: string, searchResult?: SearchResult) => {
+    try {
+      const tenantResponse = await fetch(`/api/mieter/${tenantId}`)
+      if (!tenantResponse.ok) throw new Error('Tenant not found')
+      const tenant = await tenantResponse.json()
+      const wohnungen = await fetchEntityData('wohnungen')
+
+      const tenantWithContext = searchResult ? {
+        ...tenant,
+        _searchContext: {
+          query,
+          resultType: searchResult.type,
+          resultTitle: searchResult.title
+        }
+      } : tenant
+
+      useModalStore.getState().openTenantModal(tenantWithContext, wohnungen)
+    } catch (error) {
+      console.error('Error loading tenant for edit:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Mieter konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditHouse = async (houseId: string, searchResult?: SearchResult) => {
+    try {
+      const response = await fetch(`/api/haeuser/${houseId}`)
+      if (!response.ok) throw new Error('House not found')
+      const house = await response.json()
+      const houseWithContext = searchResult ? {
+        ...house,
+        _searchContext: {
+          query,
+          resultType: searchResult.type,
+          resultTitle: searchResult.title
+        }
+      } : house
+
+      useModalStore.getState().openHouseModal(houseWithContext)
+    } catch (error) {
+      console.error('Error loading house for edit:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Haus konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditApartment = async (apartmentId: string, searchResult?: SearchResult) => {
+    try {
+      const [apartments, houses] = await Promise.all([
+        fetchEntityData('wohnungen'),
+        fetchEntityData('haeuser')
+      ])
+      const apartment = apartments.find((a: any) => a.id === apartmentId)
+
+      if (apartment) {
+        const apartmentWithContext = searchResult ? {
+          ...apartment,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : apartment
+
+        useModalStore.getState().openWohnungModal(
+          apartmentWithContext,
+          houses
+        )
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Wohnung nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Error loading apartment for edit:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Wohnung konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditFinance = async (financeId: string, searchResult?: SearchResult) => {
+    try {
+      const [finances, wohnungen] = await Promise.all([
+        fetchEntityData('finanzen'),
+        fetchEntityData('wohnungen')
+      ])
+      const finance = finances.find((f: any) => f.id === financeId)
+
+      if (finance) {
+        const financeWithContext = searchResult ? {
+          ...finance,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : finance
+
+        useModalStore.getState().openFinanceModal(financeWithContext, wohnungen)
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Finanzeintrag nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Error loading finance record for edit:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Finanzeintrag konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditTask = async (taskId: string, searchResult?: SearchResult) => {
+    try {
+      const tasks = await fetchEntityData('todos')
+      const task = tasks.find((t: any) => t.id === taskId)
+
+      if (task) {
+        const taskWithContext = searchResult ? {
+          ...task,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : task
+
+        useModalStore.getState().openAufgabeModal(taskWithContext)
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Aufgabe nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Error loading task for edit:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Aufgabe konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleDeleteFinanceRecord = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Finanzeintrag löschen',
+      description: `Möchten Sie den Finanzeintrag "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/finanzen/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('finanzen')
+            invalidateEntityCache('wohnungen')
+            toast({
+              title: 'Erfolg',
+              description: 'Finanzeintrag wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting finance record:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Finanzeintrag konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  const handleToggleTaskCompletion = async (result: SearchResult) => {
+    const isCompleted = result.metadata?.completed
+    try {
+      const response = await fetch(`/api/todos/${result.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ist_erledigt: !isCompleted
+        })
+      })
+
+      if (response.ok) {
+        invalidateEntityCache('todos')
+        toast({
+          title: 'Erfolg',
+          description: `Aufgabe wurde als ${!isCompleted ? 'erledigt' : 'offen'} markiert.`,
+        })
+        refreshSearchResults()
+      } else {
+        throw new Error('Fehler beim Aktualisieren')
+      }
+    } catch (error) {
+      console.error('Error toggling task completion:', error)
+      toast({
+        title: 'Fehler',
+        description: 'Aufgabe konnte nicht aktualisiert werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleDeleteTask = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Aufgabe löschen',
+      description: `Möchten Sie die Aufgabe "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/todos/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('todos')
+            toast({
+              title: 'Erfolg',
+              description: 'Aufgabe wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting task:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Aufgabe konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  const handleDeleteTenant = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Mieter löschen',
+      description: `Möchten Sie den Mieter "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/mieter/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('mieter')
+            toast({
+              title: 'Erfolg',
+              description: 'Mieter wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting tenant:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Mieter konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  const handleDeleteHouse = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Haus löschen',
+      description: `Möchten Sie das Haus "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/haeuser/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('haeuser')
+            toast({
+              title: 'Erfolg',
+              description: 'Haus wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting house:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Haus konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  const handleDeleteApartment = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Wohnung löschen',
+      description: `Möchten Sie die Wohnung "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/wohnungen/${result.id}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            invalidateEntityCache('wohnungen')
+            toast({
+              title: 'Erfolg',
+              description: 'Wohnung wurde gelöscht.',
+            })
+            refreshSearchResults()
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          console.error('Error deleting apartment:', error)
+          toast({
+            title: 'Fehler',
+            description: 'Wohnung konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  const handleSearchResultAction = (result: SearchResult, actionIndex: number) => {
+    const action = result.actions?.[actionIndex]
+    if (!action) return
+
+    switch (result.type) {
+      case 'tenant':
+        if (action.label === 'Bearbeiten') handleEditTenant(result.id, result)
+        else if (action.label === 'Löschen') handleDeleteTenant(result)
+        break
+      case 'house':
+        if (action.label === 'Bearbeiten') handleEditHouse(result.id, result)
+        else if (action.label === 'Löschen') handleDeleteHouse(result)
+        break
+      case 'apartment':
+        if (action.label === 'Bearbeiten') handleEditApartment(result.id, result)
+        else if (action.label === 'Löschen') handleDeleteApartment(result)
+        break
+      case 'finance':
+        if (action.label === 'Bearbeiten') {
+          handleEditFinance(result.id, result)
+        } else if (action.label === 'Löschen') {
+          handleDeleteFinanceRecord(result)
+        }
+        break
+      case 'task':
+        if (action.label === 'Bearbeiten') {
+          handleEditTask(result.id, result)
+        } else if (action.label.includes('markieren')) {
+          handleToggleTaskCompletion(result)
+        } else if (action.label === 'Löschen') {
+          handleDeleteTask(result)
+        }
+        break
+      default:
+        break
+    }
+  }
 
   // Filter results client-side based on the selectedCategory button
   const filteredResults = results.filter(item => {
@@ -73,7 +548,7 @@ export default function SuchePage() {
     }
   }
 
-  const getLink = (item: any) => {
+  const getLink = (item: { type: string }) => {
     switch (item.type) {
       case "tenant": return "/mieter"
       case "house": return "/haeuser"
@@ -101,353 +576,330 @@ export default function SuchePage() {
     ];
   }, [results]);
 
+  const hasQuery = query.trim().length > 0;
+
   return (
-    <div className="flex flex-col min-h-full w-full bg-zinc-50/40 dark:bg-zinc-950/20 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden">
-      {/* Header section with gradient and Search Input */}
-      <div className="relative overflow-hidden px-6 py-10 md:px-12 md:py-16 border-b border-zinc-200/50 dark:border-zinc-800/40 bg-white dark:bg-[#181818]">
-        <div className="absolute top-0 right-0 size-96 bg-accent/5 dark:bg-accent/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 size-80 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
-        
-        <div className="relative max-w-3xl mx-auto flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">
-              Echtzeit-Suche
-            </h1>
-            <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 max-w-xl font-medium">
-              Durchsuche Deine Mieter, Häuser, Wohnungen, Finanzeinträge und Aufgaben an einem zentralen Ort.
-            </p>
-          </div>
-
-          {/* Search Box */}
-          <div className="relative flex items-center group">
-            <div className="absolute left-5 text-zinc-400 group-focus-within:text-accent transition-colors duration-300">
-              <Search className="size-6 group-focus-within:scale-110 transition-transform duration-300" />
-            </div>
-            <input
-              type="text"
-              placeholder="Eintrag, Betrag, Name oder Stichwort suchen..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className={cn(
-                "w-full h-16 pl-14 pr-14 text-base md:text-lg font-medium rounded-2xl bg-zinc-50 dark:bg-zinc-900/60",
-                "border border-zinc-200 dark:border-zinc-800",
-                "shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none",
-                "focus:bg-white dark:focus:bg-[#181818] focus:ring-2 focus:ring-accent/20 focus:border-accent/50 focus:outline-none",
-                "transition-all duration-300"
-              )}
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="absolute right-5 p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-all duration-200"
-              >
-                <X className="size-5" />
-              </button>
-            )}
-          </div>
-
-          {/* Dynamic search suggestion helper tags */}
-          <AnimatePresence>
-            {suggestions.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 font-medium"
-              >
-                <span className="flex items-center gap-1 font-semibold text-zinc-400 dark:text-zinc-500">
-                  <TrendingUp className="size-3.5" /> Vorschläge:
-                </span>
-                {suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => {
-                      setQuery(suggestion)
-                      addToRecentSearches(suggestion)
-                    }}
-                    className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-300 hover:border-accent/40 hover:text-accent dark:hover:text-accent transition-all duration-200"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Categories Tabs & Search Results Area */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 bg-zinc-50/10 dark:bg-transparent">
-        {/* Categories Bar / Panel */}
-        <div className="px-6 py-6 md:px-12 md:py-8 border-b md:border-b-0 md:border-r border-zinc-200/50 dark:border-zinc-800/40 w-full md:w-64 shrink-0 bg-white/40 dark:bg-transparent backdrop-blur-xs">
-          <div className="flex flex-col gap-4">
-            <h3 className="hidden md:block text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3">
-              Kategorien
-            </h3>
-            <div className="flex flex-wrap md:flex-col gap-1.5">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={cn(
-                    "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer active:scale-97",
-                    selectedCategory === cat.id
-                      ? "bg-accent text-white shadow-md shadow-accent/15"
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/30 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  )}
-                >
-                  <span>{cat.label}</span>
-                  {query && cat.count > 0 && (
-                    <span className={cn(
-                      "px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide",
-                      selectedCategory === cat.id 
-                        ? "bg-white/20 text-white" 
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
-                    )}>
-                      {cat.count}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Results Stream */}
-        <div className="flex-1 overflow-y-auto px-6 py-8 md:px-12 md:py-8 min-h-0">
-          <AnimatePresence mode="wait">
-            {isOffline ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-md mx-auto"
-              >
-                <div className="p-4 bg-red-500/10 text-red-500 rounded-full border border-red-500/20">
-                  <AlertCircle className="size-10 animate-bounce" />
-                </div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Offline</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
-                  Keine Internetverbindung verfügbar. Bitte überprüfe Deine Verbindung und versuche es erneut.
-                </p>
-                <button
-                  type="button"
-                  onClick={retry}
-                  className="px-5 py-2.5 bg-accent text-white font-bold rounded-xl shadow-md hover:bg-accent/90 transition-all active:scale-95 cursor-pointer"
-                >
-                  Erneut versuchen
-                </button>
-              </motion.div>
-            ) : error ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-md mx-auto"
-              >
-                <div className="p-4 bg-amber-500/10 text-amber-500 rounded-full border border-amber-500/20">
-                  <AlertCircle className="size-10" />
-                </div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Fehler</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">{error}</p>
-                <button
-                  type="button"
-                  onClick={retry}
-                  className="px-5 py-2.5 bg-accent text-white font-bold rounded-xl shadow-md hover:bg-accent/90 transition-all active:scale-95 cursor-pointer"
-                >
-                  Wiederholen
-                </button>
-              </motion.div>
-            ) : isLoading ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col gap-4"
-              >
-                <div className="flex items-center gap-3 text-sm text-zinc-400 dark:text-zinc-500 font-semibold px-2">
-                  <Loader2 className="size-4 animate-spin text-accent" />
-                  <span>Durchsuche Datenbank...</span>
-                </div>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-24 bg-white dark:bg-[#181818] border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl animate-pulse" />
-                ))}
-              </motion.div>
-            ) : query === "" ? (
-              // Empty search state (suggestions or recent searches)
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col gap-8"
-              >
-                {recentSearches.length > 0 ? (
-                  <div className="flex flex-col gap-4 max-w-xl">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 flex items-center gap-2">
-                      <Clock className="size-4" /> Letzte Suchanfragen
-                    </h3>
-                    <div className="flex flex-col border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden bg-white dark:bg-[#181818] shadow-sm">
-                      {recentSearches.map((search, index) => (
-                        <button
-                          key={search}
-                          type="button"
-                          onClick={() => setQuery(search)}
-                          className={cn(
-                            "flex items-center justify-between px-5 py-4 text-left font-medium text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors cursor-pointer group",
-                            index !== recentSearches.length - 1 && "border-b border-zinc-100 dark:border-zinc-800/50"
-                          )}
-                        >
-                          <span className="truncate group-hover:text-zinc-950 dark:group-hover:text-zinc-50 transition-colors">{search}</span>
-                          <ArrowRight className="size-4 text-zinc-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center gap-4 max-w-md mx-auto">
-                    <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
-                      <HelpCircle className="size-10" />
-                    </div>
-                    <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Bereit für Deine Suche</h3>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
-                      Gib oben ein Stichwort oder einen Namen ein, um Deine Verwaltungsdaten in Echtzeit zu durchsuchen.
-                    </p>
-                  </div>
+    <div className="flex flex-col min-h-[calc(100vh-6rem)] w-full rounded-[2rem] md:rounded-[2.5rem] overflow-hidden select-none relative">
+      
+      <div className="flex-1 flex flex-col w-full relative z-10">
+        {/* Main section that animates padding/layout to shift position */}
+        <motion.div 
+          layout
+          transition={{ type: "spring", stiffness: 350, damping: 35 }}
+          className={cn(
+            "w-full flex flex-col items-center px-6 md:px-12 transition-all duration-300",
+            hasQuery ? "pt-8 md:pt-12 pb-4" : "pt-[25vh] pb-10"
+          )}
+        >
+          <motion.div 
+            layout="position"
+            className="w-full max-w-2xl flex flex-col gap-4"
+          >
+            {/* Search Box */}
+            <div className="relative flex items-center group w-full">
+              <div className="absolute left-5 text-zinc-400 group-focus-within:text-accent transition-colors duration-300">
+                <Search className="size-5.5 group-focus-within:scale-105 transition-transform duration-300" />
+              </div>
+              <input
+                id="global-search-input"
+                type="text"
+                autoFocus
+                placeholder="Mieter, Haus, Betrag, Wohnung oder Stichwort suchen..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className={cn(
+                  "w-full h-15 pl-13 pr-24 text-sm sm:text-base font-semibold rounded-full bg-white dark:bg-zinc-900/60",
+                  "border border-zinc-200 dark:border-zinc-800/80 shadow-md",
+                  "focus:shadow-lg focus:shadow-accent/5 dark:focus:shadow-none focus:ring-4 focus:ring-accent/10 focus:border-accent/40 focus:outline-none",
+                  "transition-all duration-300"
                 )}
-              </motion.div>
-            ) : filteredResults.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-20 text-center gap-4 max-w-md mx-auto"
-              >
-                <div className="p-4 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-full border border-zinc-200/50 dark:border-zinc-800/40">
-                  <Search className="size-10" />
-                </div>
-                <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Keine Ergebnisse gefunden</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
-                  Wir konnten für &quot;{query}&quot; in dieser Kategorie keine passenden Einträge finden. Überprüfe die Schreibweise.
-                </p>
-              </motion.div>
-            ) : (
-              // Results Display Stream
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col gap-3"
-              >
-                {filteredResults.map((item) => {
-                  const ItemIcon = getIcon(item.type)
-                  return (
-                    <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="group"
+              />
+              
+              <div className="absolute right-4 flex items-center gap-2">
+                {query && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    aria-label="Suche löschen"
+                    className="p-1 rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 transition-all duration-200 cursor-pointer"
+                  >
+                    <X className="size-4.5" />
+                  </button>
+                )}
+                {query && !isLoading && (
+                  <span className="hidden sm:inline-block text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800/80 text-zinc-550 dark:text-zinc-400 px-2 py-1 rounded-full shrink-0 select-none">
+                    {filteredResults.length} {filteredResults.length === 1 ? "Treffer" : "Treffer"}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Inline Category Pills when query exists */}
+            <AnimatePresence>
+              {hasQuery && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1"
+                >
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-97 select-none border",
+                        selectedCategory === cat.id
+                          ? "bg-accent text-white shadow-xs border-accent"
+                          : "bg-white/40 dark:bg-zinc-900/40 text-zinc-650 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100 border-zinc-250/60 dark:border-zinc-800/80"
+                      )}
                     >
-                      <Link href={getLink(item)}>
-                        <Card className={cn(
-                          "bg-white dark:bg-[#181818] border border-zinc-200/70 dark:border-zinc-800/60 shadow-xs rounded-2xl",
-                          "hover:shadow-md hover:border-accent/40 dark:hover:border-accent/40 transition-all duration-300 cursor-pointer overflow-hidden"
+                      <span>{cat.label}</span>
+                      {cat.count > 0 && (
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded-full text-[9px] font-extrabold",
+                          selectedCategory === cat.id 
+                            ? "bg-white/20 text-white" 
+                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
                         )}>
-                          <CardContent className="p-5 flex items-center gap-4">
-                            {/* Icon Indicator */}
-                            <div className="p-3 bg-zinc-100 dark:bg-zinc-900/60 rounded-xl text-zinc-500 group-hover:text-accent group-hover:bg-accent/5 transition-all duration-300 shrink-0">
-                              <ItemIcon className="size-5 transition-transform duration-300 group-hover:scale-110" />
-                            </div>
+                          {cat.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-                            {/* Main Information */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                <span className="font-bold text-zinc-900 dark:text-zinc-50 text-base truncate">
-                                  {item.title}
-                                </span>
-                                {item.subtitle && (
-                                  <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 truncate">
-                                    {item.subtitle}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1 text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
-                                <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800/80 text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-bold">
-                                  {getTypeLabel(item.type)}
-                                </span>
-                                {item.context && (
-                                  <span className="truncate max-w-[15rem] md:max-w-sm">
-                                    {item.context}
-                                  </span>
-                                )}
-                                {item.type === "house" && item.metadata?.address && (
-                                  <span className="truncate max-w-[15rem] md:max-w-sm">
-                                    {item.metadata.address}
-                                  </span>
-                                )}
-                                {item.type === "apartment" && item.metadata?.house_name && (
-                                  <span className="truncate max-w-[15rem] md:max-w-sm">
-                                    {item.metadata.house_name}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+            {/* Suggestions helper tags */}
+            <AnimatePresence>
+              {hasQuery && suggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 font-semibold"
+                >
+                  <span className="flex items-center gap-1 font-bold text-zinc-400 dark:text-zinc-500">
+                    <TrendingUp className="size-3.5 text-accent" /> Vorschläge:
+                  </span>
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => {
+                        setQuery(suggestion)
+                        addToRecentSearches(suggestion)
+                      }}
+                      className="px-3 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-300 hover:border-accent/40 hover:text-accent dark:hover:text-accent transition-all duration-200 cursor-pointer"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-                            {/* Specific metadata / pricing tag displayed on right */}
-                            <div className="text-right shrink-0">
-                              {item.type === "finance" && item.metadata?.amount && (
-                                <span className={cn(
-                                  "px-3 py-1.5 rounded-xl text-sm font-bold tracking-tight shadow-2xs",
-                                  item.metadata.type === "income"
-                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                                    : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
-                                )}>
-                                  {item.metadata.type === "income" ? "+" : "-"}{item.metadata.amount} €
-                                </span>
-                              )}
-                              {item.type === "apartment" && item.metadata?.rent && (
-                                <span className="text-sm font-extrabold text-zinc-800 dark:text-zinc-200">
-                                  {item.metadata.rent} €
-                                </span>
-                              )}
-                              {item.type === "house" && item.metadata?.apartment_count && (
-                                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 rounded-lg">
-                                  {item.metadata.apartment_count} Einheiten
-                                </span>
-                              )}
-                              {item.type === "tenant" && item.metadata?.status && (
-                                <span className={cn(
-                                  "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md",
-                                  item.metadata.status === "active" 
-                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-400"
-                                )}>
-                                  {item.metadata.status === "active" ? "Aktiv" : "Inaktiv"}
-                                </span>
-                              )}
-                              {item.type === "task" && item.metadata?.due_date && (
-                                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
-                                  Bis {new Date(item.metadata.due_date).toLocaleDateString('de-DE')}
-                                </span>
-                              )}
-                            </div>
-                            
-                            {/* Hover Arrow */}
-                            <div className="hidden sm:block text-zinc-300 dark:text-zinc-700 group-hover:text-accent group-hover:translate-x-1.5 transition-all duration-300 pl-2 shrink-0">
-                              <ArrowRight className="size-5" />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    </motion.div>
-                  )
-                })}
-              </motion.div>
+            {/* Recent Searches */}
+            {!hasQuery && recentSearches.length > 0 && (
+              <div className="flex flex-col gap-1 mt-2">
+                <div className="flex items-center gap-2 px-2.5 py-2">
+                  <History className="size-4 text-zinc-400" />
+                  <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Letzte Suchanfragen
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  {recentSearches.slice(0, 5).map((search) => (
+                    <button
+                      key={search}
+                      type="button"
+                      onClick={() => setQuery(search)}
+                      className="flex items-center gap-3 px-2.5 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer text-left"
+                    >
+                      <div className="p-1.5 bg-zinc-50 dark:bg-zinc-850/80 rounded-full text-zinc-400 shrink-0">
+                        <History className="size-4.5" />
+                      </div>
+                      <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                        {search}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
-          </AnimatePresence>
-        </div>
+          </motion.div>
+        </motion.div>
+
+        {/* Results Container (Only rendered when query exists) */}
+        <AnimatePresence mode="wait">
+          {hasQuery && (
+            <motion.main
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ delay: 0.1 }}
+              className="flex-1 w-full max-w-2xl mx-auto overflow-y-auto px-6 md:px-12 pb-10 min-h-0 custom-scrollbar"
+            >
+              <AnimatePresence mode="wait">
+                {/* Offline Panel */}
+                {isOffline ? (
+                  <motion.div
+                    key="offline"
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-sm mx-auto"
+                  >
+                    <div className="p-4.5 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 shadow-inner">
+                      <WifiOff className="size-8" />
+                    </div>
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Offline</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
+                      Keine aktive Internetverbindung. Bitte überprüfe Deine Netzwerk-Einstellungen und versuche es erneut.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retry}
+                      className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-98 cursor-pointer"
+                    >
+                      Erneut verbinden
+                    </button>
+                  </motion.div>
+                  
+                ) : error ? (
+                  
+                  /* Error Panel */
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center justify-center py-16 text-center gap-4 max-w-sm mx-auto"
+                  >
+                    <div className="p-4.5 bg-amber-500/10 text-amber-500 rounded-2xl border border-amber-500/20">
+                      <AlertCircle className="size-8" />
+                    </div>
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Fehler aufgetreten</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">{error}</p>
+                    <button
+                      type="button"
+                      onClick={retry}
+                      className="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-98 cursor-pointer"
+                    >
+                      Suche wiederholen
+                    </button>
+                  </motion.div>
+                  
+                ) : isLoading ? (
+                  
+                  /* Loading Skeletons */
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col gap-3"
+                  >
+                    <div className="flex items-center gap-2.5 text-xs text-zinc-400 dark:text-zinc-500 font-semibold px-2 mb-1">
+                      <Loader2 className="size-4 animate-spin text-accent" />
+                      <span>Mietevo-Datenbank wird durchsucht...</span>
+                    </div>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-20 w-full bg-white dark:bg-[#181818]/60 border border-zinc-200/50 dark:border-zinc-800/40 rounded-full animate-pulse" />
+                    ))}
+                  </motion.div>
+                  
+                ) : filteredResults.length === 0 ? (
+                  
+                  /* No Results Panel */
+                  <motion.div
+                    key="no-results"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center justify-center py-20 text-center gap-4 max-w-sm mx-auto"
+                  >
+                    <div className="p-4.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/40">
+                      <Search className="size-8 text-zinc-400/80" />
+                    </div>
+                    <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Keine Ergebnisse gefunden</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed font-medium">
+                      Für &quot;{query}&quot; konnte kein passender Eintrag in dieser Kategorie gefunden werden. Überprüfe Deine Filter.
+                    </p>
+                  </motion.div>
+                  
+                ) : (
+
+                  /* Results Display Stream */
+                  <motion.div
+                    key="results"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col gap-6"
+                  >
+                    {/* Search Performance Indicators */}
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 dark:text-zinc-500 px-2.5 mb-1 select-none">
+                      <span>ERGEBNISSE ({filteredResults.length})</span>
+                      {executionTime > 0 && (
+                        <span className="bg-zinc-150/40 dark:bg-zinc-900 px-2 py-0.5 rounded-full font-mono text-[10px]">
+                          Gefunden in {(executionTime * 1000).toFixed(0)} ms
+                        </span>
+                      )}
+                    </div>
+
+                    {([
+                      { key: 'tenant', label: 'Mieter', icon: Users, color: 'text-indigo-500' },
+                      { key: 'house', label: 'Häuser', icon: Building2, color: 'text-amber-500' },
+                      { key: 'apartment', label: 'Wohnungen', icon: Home, color: 'text-sky-500' },
+                      { key: 'finance', label: 'Finanzen', icon: Wallet, color: 'text-emerald-500' },
+                      { key: 'task', label: 'Aufgaben', icon: CheckSquare, color: 'text-rose-500' },
+                    ] as const).map(group => {
+                      const groupItems = filteredResults.filter(item => item.type === group.key)
+                      if (groupItems.length === 0) return null
+                      const GroupIcon = group.icon
+
+                      return (
+                        <div key={group.key} className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 px-2.5 py-2">
+                            <GroupIcon className={cn("size-4", group.color)} />
+                            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                              {group.label}
+                            </span>
+                            <span className="text-[10px] font-bold text-zinc-300 dark:text-zinc-600">
+                              {groupItems.length}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            {groupItems.map(item => {
+                              const ItemIcon = getIcon(item.type)
+                              return (
+                                <div
+                                  key={item.id}
+                                  onClick={() => router.push(getLink(item))}
+                                  className="flex items-center gap-3 px-2.5 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer"
+                                >
+                                  <div className="p-1.5 bg-zinc-50 dark:bg-zinc-850/80 rounded-full text-zinc-400 shrink-0">
+                                    <ItemIcon className="size-4.5" />
+                                  </div>
+                                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                                    {item.title}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.main>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

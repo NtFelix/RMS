@@ -475,8 +475,14 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => { }, // Will be handled by command menu
+            action: () => { },
             variant: 'default'
+          },
+          {
+            label: 'Löschen',
+            icon: Trash2,
+            action: () => { },
+            variant: 'destructive'
           }
         ];
 
@@ -507,8 +513,14 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => { }, // Will be handled by command menu
+            action: () => { },
             variant: 'default'
+          },
+          {
+            label: 'Löschen',
+            icon: Trash2,
+            action: () => { },
+            variant: 'destructive'
           }
         ];
 
@@ -532,8 +544,14 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           {
             label: 'Bearbeiten',
             icon: Edit,
-            action: () => { }, // Will be handled by command menu
+            action: () => { },
             variant: 'default'
+          },
+          {
+            label: 'Löschen',
+            icon: Trash2,
+            action: () => { },
+            variant: 'destructive'
           }
         ];
 
