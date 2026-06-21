@@ -2,7 +2,61 @@ import { test, expect } from '@playwright/test';
 import { login, hasTestCredentials, generateRandomString, acceptCookieConsent, getUiErrorMessage } from './utils';
 
 
-import { Page } from '@playwright/test';
+import { Page, Locator } from '@playwright/test';
+
+async function selectComboboxOption(page: Page, modal: Locator, optionName: string, comboboxLocator: string = '[role="combobox"]') {
+  const maxRetries = 3
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const cmb = modal.locator(comboboxLocator).first()
+    // Use evaluate click to bypass overlay interception (WebKit) and viewport checks (Chromium)
+    await cmb.evaluate(el => (el as HTMLElement).click())
+    await page.waitForTimeout(300)
+
+    const searchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first()
+    if (!(await searchbox.isVisible({ timeout: 5000 }).catch(() => false))) {
+      continue
+    }
+
+    await searchbox.fill(optionName)
+    await page.waitForTimeout(500)
+
+    const option = page.getByRole('option', { name: optionName }).first()
+    if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await option.evaluate(el => (el as HTMLElement).click())
+      // Wait for combobox to close — confirms the value was committed
+      await page.waitForTimeout(500)
+      const dropdown = page.locator('[data-combobox-dropdown]')
+      if (!(await dropdown.isVisible({ timeout: 2000 }).catch(() => false))) {
+        return
+      }
+    }
+
+    // Close combobox if still open before retry (only press Escape when
+    // dropdown is visible — pressing it when already closed would close the parent Dialog)
+    const dropdown = page.locator('[data-combobox-dropdown]')
+    if (await dropdown.isVisible({ timeout: 500 }).catch(() => false)) {
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(200)
+    }
+  }
+  throw new Error(`Option "${optionName}" not found after ${maxRetries} attempts`)
+}
+
+async function verifyEntityInTable(page: Page, name: string, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await expect(page.getByText(name).first()).toBeVisible({ timeout: 10000 })
+      return
+    } catch {
+      if (attempt < maxRetries - 1) {
+        // Page might have stale data — reload and wait for hydration
+        await page.reload({ waitUntil: 'domcontentloaded' })
+        await page.waitForTimeout(1000)
+      }
+    }
+  }
+  throw new Error(`Entity "${name}" not found in table after ${maxRetries} attempts`)
+}
 
 async function safeNavigate(page: Page, url: string, waitUntil: 'load' | 'domcontentloaded' | 'networkidle' | 'commit' = 'domcontentloaded') {
   let retries = 3;
@@ -148,33 +202,12 @@ test.describe('Business Logic Flows', () => {
     await page.fill('#miete', '1200');
 
     // Select House (Combobox)
-    // Click the combobox trigger. It usually has aria-expanded or role combobox.
-    const combobox = modal.getByRole('combobox').first();
-    await expect(combobox).toBeVisible({ timeout: 10000 });
-    await combobox.click();
-    await page.waitForTimeout(300);
-
-    // Type to search
-    const houseSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
-    if (!(await houseSearchbox.isVisible({ timeout: 5000 }).catch(() => false))) {
-      await combobox.click({ force: true });
-    }
-    await expect(houseSearchbox).toBeVisible({ timeout: 5000 });
-
-    await houseSearchbox.fill(houseName);
-    await page.waitForTimeout(500);
-
-    // Select option
-    const option = page.getByRole('option', { name: houseName }).first();
-    await expect(option).toBeVisible({ timeout: 10000 });
-    await option.scrollIntoViewIfNeeded().catch(() => {});
-    await option.click({ force: true });
-    // Close combobox dropdown after selection
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    await selectComboboxOption(page, modal, houseName);
 
     // Submit
-    await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
+    const submitBtn = page.getByRole('button', { name: /Wohnung erstellen|Speichern/i });
+    await expect(submitBtn).toBeEnabled({ timeout: 10000 });
+    await submitBtn.click();
 
     // Wait for modal to close with better error reporting
     try {
@@ -190,7 +223,7 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(500);
 
     // Verify
-    await expect(page.getByText(aptName).first()).toBeVisible({ timeout: 10000 });
+    await verifyEntityInTable(page, aptName);
   });
 
   test('Create a Tenant linked to the Apartment', async ({ page }) => {
@@ -231,29 +264,8 @@ test.describe('Business Logic Flows', () => {
     await page.fill('#name', tenantName);
     await page.waitForTimeout(300);
 
-    // Select Apartment
-    // It's a CustomCombobox with id="wohnung_id" on the button trigger.
-    const combobox = modal.locator('#wohnung_id').first();
-    await expect(combobox).toBeVisible({ timeout: 10000 });
-    await combobox.click();
-    await page.waitForTimeout(300);
-
-    const aptSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
-    await aptSearchbox.fill(aptName);
-    await page.waitForTimeout(500);
-
-    const option = page.getByRole('option', { name: aptName }).first();
-    if (!(await option.isVisible({ timeout: 5000 }).catch(() => false))) {
-      // Try re-searching (don't re-click trigger — that would close an already-open dropdown)
-      await aptSearchbox.fill(aptName);
-      await page.waitForTimeout(500);
-    }
-    await expect(option).toBeVisible({ timeout: 10000 });
-    await option.scrollIntoViewIfNeeded().catch(() => {});
-    await option.click({ force: true });
-    // Close combobox dropdown after selection
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    // Select Apartment (CustomCombobox with id="wohnung_id")
+    await selectComboboxOption(page, modal, aptName, '#wohnung_id');
 
     // Date - try to fill the date input
     const dateInput = page.getByPlaceholder('TT.MM.JJJJ').first();
@@ -288,7 +300,7 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(500);
 
     // Verify
-    await expect(page.getByText(tenantName).first()).toBeVisible({ timeout: 10000 });
+    await verifyEntityInTable(page, tenantName);
   });
 
   test.afterAll(async ({ browser }) => {
