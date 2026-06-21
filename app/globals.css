@@ -736,6 +736,14 @@
     --hover-bg: 220 13% 91%;
     --radius: 1rem;
 
+    --digit-dur: 500ms;
+    --digit-distance: 8px;
+    --digit-stagger: 70ms;
+    --digit-blur: 2px;
+    --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+    --digit-dir-x: 0;
+    --digit-dir-y: 1;
+
     /* Chart Farben */
     --chart-1: 210 29% 24%;
     --chart-2: 0 84.2% 60.2%;
@@ -928,4 +936,41 @@
       transform: translateY(10px) scale(0.95);
     }
   }
+}
+
+@keyframes price-pop-in {
+  0% {
+    transform: translate(
+      calc(var(--digit-distance) * var(--digit-dir-x)),
+      calc(var(--digit-distance) * var(--digit-dir-y))
+    );
+    opacity: 0;
+    filter: blur(var(--digit-blur));
+  }
+  100% { transform: translate(0, 0); opacity: 1; filter: blur(0); }
+}
+
+.price-digit-group {
+  display: inline-flex;
+  align-items: baseline;
+}
+.price-digit {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+.price-digit-group.is-animating .price-digit {
+  animation: price-pop-in var(--digit-dur) var(--digit-ease) both;
+}
+.price-digit-group.is-animating .price-digit[data-stagger="1"] { animation-delay: var(--digit-stagger); }
+.price-digit-group.is-animating .price-digit[data-stagger="2"] { animation-delay: calc(var(--digit-stagger) * 2); }
+.price-digit-group.is-animating .price-digit[data-stagger="3"] { animation-delay: calc(var(--digit-stagger) * 3); }
+.price-digit-group.is-animating .price-digit[data-stagger="4"] { animation-delay: calc(var(--digit-stagger) * 4); }
+.price-digit-group.is-animating .price-digit[data-stagger="5"] { animation-delay: calc(var(--digit-stagger) * 5); }
+.price-digit-group.is-animating .price-digit[data-stagger="6"] { animation-delay: calc(var(--digit-stagger) * 6); }
+.price-digit-group.is-animating .price-digit[data-stagger="7"] { animation-delay: calc(var(--digit-stagger) * 7); }
+.price-digit-group.is-animating .price-digit[data-stagger="8"] { animation-delay: calc(var(--digit-stagger) * 8); }
+.price-digit-group.is-animating .price-digit[data-stagger="9"] { animation-delay: calc(var(--digit-stagger) * 9); }
+
+@media (prefers-reduced-motion: reduce) {
+  .price-digit-group .price-digit { animation: none !important; }
 }

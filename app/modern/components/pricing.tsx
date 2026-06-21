@@ -183,7 +183,10 @@ function ComparisonTable({ plans, billingCycle, onSelectPlan, getButtonTextAndSt
               <div key={`${plan.productName}-price`} className="p-4 flex justify-center items-center min-h-[60px]">
                 {planVariant ? (
                   <span className="text-xl font-semibold text-muted-foreground">
-                    {formatDisplayPrice(planVariant.price, planVariant.currency, planVariant.interval)}
+                    <AnimatedPrice
+                      key={billingCycle}
+                      value={formatDisplayPrice(planVariant.price, planVariant.currency, planVariant.interval)}
+                    />
                     <span className="text-sm font-normal ml-1">
                       {billingCycle === "monthly" ? " € /Monat" : " € /Jahr"}
                     </span>
@@ -290,6 +293,23 @@ function renderFeatureValue(value: boolean | string) {
     );
   }
   return <span className="text-sm font-medium">{value}</span>;
+}
+
+function AnimatedPrice({ value, className }: { value: string; className?: string }) {
+  const chars = value.split('');
+  return (
+    <span className={`price-digit-group is-animating ${className || ''}`}>
+      {chars.map((char, i) => (
+        <span
+          key={`${i}`}
+          className="price-digit"
+          data-stagger={i > 0 ? String(i) : undefined}
+        >
+          {char === ' ' ? '\u00A0' : char}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export default function Pricing({
@@ -635,9 +655,11 @@ export default function Pricing({
                     <CardTitle className="text-xl font-semibold">{group.productName}</CardTitle>
                     <div className="mt-4 flex flex-col items-center">
                       <div className="flex items-end justify-center gap-1">
-                        <span className="text-4xl font-bold">
-                          {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)} €
-                        </span>
+                        <AnimatedPrice
+                          key={billingCycle}
+                          value={`${formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)} €`}
+                          className="text-4xl font-bold"
+                        />
                         <span className="mb-1 text-sm text-muted-foreground">
                           /{billingCycle === "monthly" ? "Monat" : "Jahr"}
                         </span>
