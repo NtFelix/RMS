@@ -19,6 +19,10 @@ export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boole
       return false;
     }
 
+    if (!orgId) {
+      return true; // Personal accounts have full access
+    }
+
     return await evaluatePermission(supabase, user.id, orgId, modul, aktion);
   } catch (error) {
     console.error(`Exception checking permission for ${modul}:${aktion}:`, error);

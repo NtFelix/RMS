@@ -46,12 +46,21 @@ export async function evaluatePermission(
 
     const mitgliedId = membership.id;
 
-    // 2. Fetch overrides (overrides take precedence if defined)
-    const { data: override, error: overrideError } = await supabase
-      .from('Organisation_Mitglieder_Overrides')
-      .select('berechtigungen')
-      .eq('mitglied_id', mitgliedId)
-      .maybeSingle();
+    // 2. Fetch overrides and policies in parallel to minimize round-trips
+    const [overrideResult, memberPoliciesResult] = await Promise.all([
+      supabase
+        .from('Organisation_Mitglieder_Overrides')
+        .select('berechtigungen')
+        .eq('mitglied_id', mitgliedId)
+        .maybeSingle(),
+      supabase
+        .from('Organisation_Mitglieder_Policies')
+        .select('policy_id')
+        .eq('mitglied_id', mitgliedId)
+    ]);
+
+    const { data: override, error: overrideError } = overrideResult;
+    const { data: memberPolicies, error: policiesError } = memberPoliciesResult;
 
     if (!overrideError && override && override.berechtigungen) {
       const overrideB = override.berechtigungen as any;
@@ -64,12 +73,6 @@ export async function evaluatePermission(
         }
       }
     }
-
-    // 3. Fetch and evaluate policies
-    const { data: memberPolicies, error: policiesError } = await supabase
-      .from('Organisation_Mitglieder_Policies')
-      .select('policy_id')
-      .eq('mitglied_id', mitgliedId);
 
     if (policiesError || !memberPolicies || memberPolicies.length === 0) {
       return false;
