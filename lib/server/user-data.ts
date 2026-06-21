@@ -95,7 +95,7 @@ export async function getSidebarUserData(
     const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation', 'zaehler'] as const;
     const allAllowed = permChecks.every(r => r === true);
 
-    if (!allAllowed) {
+    if (!allAllowed && !isOrganisationHidden) {
       modulePermissions = new Set(
         GATED_MODULES.filter((_, i) => permChecks[i] === true)
       );

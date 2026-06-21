@@ -30,13 +30,19 @@ export async function evaluatePermission(
     // 1. Fetch membership details
     const { data: membership, error: memError } = await supabase
       .from('Organisation_Mitglieder')
-      .select('id, rolle, status')
+      .select('id, rolle, status, Organisation(ist_versteckt, owner_id)')
       .eq('organisation_id', orgId)
       .eq('user_id', userId)
       .maybeSingle();
 
     if (memError || !membership || membership.status !== 'aktiv') {
       return false;
+    }
+
+    // Bypass check if it is a personal/hidden organization owned by the user
+    const org = membership.Organisation as any;
+    if (org && org.ist_versteckt === true && org.owner_id === userId) {
+      return true;
     }
 
     // Owners and Admins have implicit full access to all modules and actions
