@@ -46,33 +46,60 @@ export async function GET(request: Request) {
     const endDate = `${year}-12-31`;
 
     const supabase = await createClient();
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+      const monthlyIncome = monthNames.map((month) => ({ month, einnahmen: 0 }));
+      const incomeExpenseRatio = monthNames.map((month) => ({ month, einnahmen: 0, ausgaben: 0 }));
+      const summary = calculateFinancialSummary([], year, new Date());
+      const response = {
+        year,
+        summary,
+        charts: {
+          monthlyIncome,
+          incomeExpenseRatio,
+          incomeByApartment: [],
+          expenseCategories: []
+        },
+        monthlyData: monthNames.map((_, i) => ({ [i]: { income: 0, expenses: 0 } }))
+      };
+      return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
+    }
     
     // Try to use the optimized Supabase function first
     let data: FinancialItem[] = [];
     let error: any = null;
     
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_chart_data', {
-        target_year: year
-      });
-      
-      if (!rpcError && rpcData) {
-        // Convert the RPC result to match our expected format
-        data = rpcData.map((item: any) => ({
-          id: item.id,
-          betrag: item.betrag,
-          ist_einnahmen: item.ist_einnahmen,
-          datum: item.datum,
-          name: item.name || '',
-          wohnung_id: item.wohnung_id || '',
-          Wohnungen: item.apartment_name ? { name: item.apartment_name } : null
-        }));
-      } else {
-        throw new Error('RPC function failed or returned no data');
+    // Only use RPC if user is unrestricted
+    if (wohnungIds === null) {
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_chart_data', {
+          target_year: year
+        });
+        
+        if (!rpcError && rpcData) {
+          // Convert the RPC result to match our expected format
+          data = rpcData.map((item: any) => ({
+            id: item.id,
+            betrag: item.betrag,
+            ist_einnahmen: item.ist_einnahmen,
+            datum: item.datum,
+            name: item.name || '',
+            wohnung_id: item.wohnung_id || '',
+            Wohnungen: item.apartment_name ? { name: item.apartment_name } : null
+          }));
+        } else {
+          throw new Error('RPC function failed or returned no data');
+        }
+      } catch (rpcError) {
+        console.log('Charts API: RPC function not available, using fallback query with pagination');
       }
-    } catch (rpcError) {
-      console.log('Charts API: RPC function not available, using fallback query with pagination');
-      
+    }
+
+    // Fallback path or if scoped
+    if (data.length === 0) {
       // Fallback to direct query with pagination
       const allData: any[] = [];
       const pageSize = 1000;
@@ -80,11 +107,17 @@ export async function GET(request: Request) {
       let hasMore = true;
       
       while (hasMore) {
-        const { data: pageData, error: pageError } = await supabase
+        let query = supabase
           .from('Finanzen')
           .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
           .gte('datum', startDate)
-          .lte('datum', endDate)
+          .lte('datum', endDate);
+
+        if (wohnungIds !== null) {
+          query = query.in('wohnung_id', wohnungIds);
+        }
+
+        const { data: pageData, error: pageError } = await query
           .order('datum', { ascending: false })
           .range(page * pageSize, (page + 1) * pageSize - 1);
           

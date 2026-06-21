@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { useState, useCallback, useEffect, useMemo, useReducer } from "react";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { 
@@ -15,7 +15,6 @@ import {
   CalendarOff,
   CheckCircle,
   TrendingUp,
-  Loader2
 } from "lucide-react";
 import { TaskCalendar } from "@/components/tasks/task-calendar";
 import { TaskDayModal } from "@/components/tasks/task-day-modal";
@@ -31,13 +30,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-// ─── Local Helper Components for SidebarTaskList ─────────────────────────────
-
 interface DraggableTaskRowProps {
   task: TaskBoardTask;
   onTaskClick: (task: TaskBoardTask) => void;
   onTaskToggle: (taskId: string, completed: boolean) => void;
   formatDueDate: (dateStr: string) => string;
+  canEdit?: boolean;
 }
 
 function DraggableTaskRow({
@@ -45,10 +43,12 @@ function DraggableTaskRow({
   onTaskClick,
   onTaskToggle,
   formatDueDate,
+  canEdit = true,
 }: DraggableTaskRowProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `sidebar-task-${task.id}`,
     data: { task },
+    disabled: !canEdit,
   });
 
   return (
@@ -59,7 +59,7 @@ function DraggableTaskRow({
       className={cn(
         "flex items-center gap-2 p-2 rounded-xl transition-all duration-200 group border border-transparent",
         "hover:bg-primary/5 hover:border-primary/10 dark:hover:bg-primary/10",
-        "cursor-grab active:cursor-grabbing select-none",
+        canEdit ? "cursor-grab active:cursor-grabbing select-none" : "cursor-default select-none",
         isDragging && "opacity-40 scale-95 cursor-grabbing bg-primary/5",
         task.ist_erledigt && "opacity-60"
       )}
@@ -71,10 +71,14 @@ function DraggableTaskRow({
         onClick={(e) => { e.stopPropagation(); }}
         onPointerDown={(e) => e.stopPropagation()}
         className="shrink-0"
+        disabled={!canEdit}
       />
       <div
         className="flex-1 min-w-0"
-        onClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
+        onClick={(e) => { e.stopPropagation(); if (canEdit) onTaskClick(task); }}
+        onKeyUp={(e) => { if (canEdit && (e.key === 'Enter' || e.key === ' ')) { e.stopPropagation(); onTaskClick(task); } }}
+        role={canEdit ? 'button' : undefined}
+        tabIndex={canEdit ? 0 : undefined}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <p draggable={false} className={cn("text-xs font-medium truncate pointer-events-none", task.ist_erledigt && "line-through text-muted-foreground")}>
@@ -96,10 +100,10 @@ function DraggableTaskRow({
 }
 
 function DroppableNoDateTrigger({
-  isNoDateOpen,
+  noDateOpen,
   noDateCount,
 }: {
-  isNoDateOpen: boolean;
+  noDateOpen: boolean;
   noDateCount: number;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "sidebar-remove-date-zone" });
@@ -114,7 +118,7 @@ function DroppableNoDateTrigger({
       )}
     >
       <div className="flex items-center gap-1.5">
-        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", isNoDateOpen && "rotate-90")} />
+        <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", noDateOpen && "rotate-90")} />
         <CalendarOff className={cn("h-3.5 w-3.5 transition-colors", isOver ? "text-primary" : "text-muted-foreground")} />
         <span className={cn("text-xs font-semibold transition-colors", isOver && "text-primary")}>Ohne Datum</span>
         {isOver && <span className="text-[9px] font-bold text-primary animate-pulse">– Datum entfernen</span>}
@@ -124,19 +128,39 @@ function DroppableNoDateTrigger({
   );
 }
 
+const dueDateFormatter = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' });
+
+function formatDueDate(dateStr: string) {
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    return dueDateFormatter.format(date);
+  } catch {
+    return dateStr;
+  }
+}
+
 interface SidebarTaskListProps {
   tasks: TaskBoardTask[];
   setTasks: React.Dispatch<React.SetStateAction<TaskBoardTask[]>>;
   onTaskClick: (task: TaskBoardTask) => void;
   onTaskToggle: (taskId: string, completed: boolean) => void;
+  canEdit?: boolean;
 }
 
-function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: SidebarTaskListProps) {
-  const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
-  const [isNoDateOpen, setIsNoDateOpen] = useState(true);
-  const [isOverdueOpen, setIsOverdueOpen] = useState(true);
-  const [isLaterOpen, setIsLaterOpen] = useState(false);
-  const [isDoneOpen, setIsDoneOpen] = useState(false);
+type CollapsibleKey = 'upcoming' | 'noDate' | 'overdue' | 'later' | 'done';
+
+function collapsibleReducer(state: Record<CollapsibleKey, boolean>, action: { key: CollapsibleKey; open: boolean }) {
+  return { ...state, [action.key]: action.open };
+}
+
+function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle, canEdit = true }: SidebarTaskListProps) {
+  const [collapsibleState, dispatchCollapsible] = useReducer(collapsibleReducer, {
+    upcoming: true,
+    noDate: true,
+    overdue: true,
+    later: false,
+    done: false,
+  });
 
   const { addDateChangeListener, removeDateChangeListener } = useTaskDnd();
   useEffect(() => {
@@ -193,17 +217,6 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
     return { upcomingTasks: upcoming, noDateTasks: noDate, overdueTasks: overdue, laterTasks: later, doneTasks: done };
   }, [tasks, todayStr, nextWeekStr]);
 
-  const dueDateFormatter = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short' });
-
-  const formatDueDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr + 'T00:00:00');
-      return dueDateFormatter.format(date);
-    } catch {
-      return dateStr;
-    }
-  };
-
   const totalOpen = overdueTasks.length + upcomingTasks.length + laterTasks.length + noDateTasks.length;
 
   return (
@@ -217,12 +230,11 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
         </div>
       )}
 
-      {/* Overdue */}
       {overdueTasks.length > 0 && (
-        <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen}>
+        <Collapsible open={collapsibleState.overdue} onOpenChange={(open) => dispatchCollapsible({ key: 'overdue', open })}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent group/trigger">
             <div className="flex items-center gap-1.5">
-              <ChevronRight className={cn("size-3.5 text-red-500 transition-transform duration-200", isOverdueOpen && "rotate-90")} />
+              <ChevronRight className={cn("size-3.5 text-red-500 transition-transform duration-200", collapsibleState.overdue && "rotate-90")} />
               <Clock className="size-3.5 text-red-500" />
               <span className="text-xs font-semibold text-red-600 dark:text-red-400">Überfällig</span>
             </div>
@@ -230,17 +242,16 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
             {overdueTasks.map(task => (
-              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} canEdit={canEdit} />
             ))}
           </CollapsibleContent>
         </Collapsible>
       )}
 
-      {/* Upcoming */}
-      <Collapsible open={isUpcomingOpen} onOpenChange={setIsUpcomingOpen}>
+      <Collapsible open={collapsibleState.upcoming} onOpenChange={(open) => dispatchCollapsible({ key: 'upcoming', open })}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
-            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isUpcomingOpen && "rotate-90")} />
+            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", collapsibleState.upcoming && "rotate-90")} />
             <Clock className="size-3.5 text-yellow-600" />
             <span className="text-xs font-semibold">Anstehend</span>
           </div>
@@ -248,16 +259,15 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
           {upcomingTasks.map(task => (
-            <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} canEdit={canEdit} />
           ))}
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Later */}
-      <Collapsible open={isLaterOpen} onOpenChange={setIsLaterOpen}>
+      <Collapsible open={collapsibleState.later} onOpenChange={(open) => dispatchCollapsible({ key: 'later', open })}>
         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-transparent group/trigger">
           <div className="flex items-center gap-1.5">
-            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isLaterOpen && "rotate-90")} />
+            <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", collapsibleState.later && "rotate-90")} />
             <Clock className="size-3.5 text-blue-500" />
             <span className="text-xs font-semibold">Später</span>
           </div>
@@ -265,27 +275,25 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
           {laterTasks.map(task => (
-            <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} canEdit={canEdit} />
           ))}
         </CollapsibleContent>
       </Collapsible>
 
-      {/* No Date */}
-      <Collapsible open={isNoDateOpen} onOpenChange={setIsNoDateOpen}>
-        <DroppableNoDateTrigger isNoDateOpen={isNoDateOpen} noDateCount={noDateTasks.length} />
+      <Collapsible open={collapsibleState.noDate} onOpenChange={(open) => dispatchCollapsible({ key: 'noDate', open })}>
+        <DroppableNoDateTrigger noDateOpen={collapsibleState.noDate} noDateCount={noDateTasks.length} />
         <CollapsibleContent className="mt-0.5 flex flex-col gap-0.5 pl-1">
           {noDateTasks.map(task => (
-            <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+            <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} canEdit={canEdit} />
           ))}
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Done */}
       {doneTasks.length > 0 && (
-        <Collapsible open={isDoneOpen} onOpenChange={setIsDoneOpen}>
+        <Collapsible open={collapsibleState.done} onOpenChange={(open) => dispatchCollapsible({ key: 'done', open })}>
           <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-xl transition-all duration-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent group/trigger">
             <div className="flex items-center gap-1.5">
-              <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", isDoneOpen && "rotate-90")} />
+              <ChevronRight className={cn("size-3.5 text-muted-foreground transition-transform duration-200", collapsibleState.done && "rotate-90")} />
               <CheckCircle2 className="size-3.5 text-emerald-500" />
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Erledigt</span>
             </div>
@@ -293,7 +301,7 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-0.5 space-y-0.5 pl-1">
             {doneTasks.map(task => (
-              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} />
+              <DraggableTaskRow key={task.id} task={task} onTaskClick={onTaskClick} onTaskToggle={onTaskToggle} formatDueDate={formatDueDate} canEdit={canEdit} />
             ))}
           </CollapsibleContent>
         </Collapsible>
@@ -302,46 +310,96 @@ function SidebarTaskList({ tasks, setTasks, onTaskClick, onTaskToggle }: Sidebar
   );
 }
 
-// ─── Main Client Wrapper component ───────────────────────────────────────────
+function TaskOverviewStats({ tasks }: { tasks: TaskBoardTask[] }) {
+  const taskStats = useMemo(() => {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.ist_erledigt).length;
+    const open = total - completed;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const overdue = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum < todayStr).length;
+    const dueToday = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum === todayStr).length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, open, overdue, dueToday, completionRate };
+  }, [tasks]);
+
+  return (
+    <>
+      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4 shrink-0">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <div className="text-[10px] font-semibold text-amber-500 dark:text-amber-400 mb-1">Offen</div>
+            <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              {taskStats.open}
+            </div>
+          </div>
+          <div className="text-center border-x border-zinc-100 dark:border-zinc-800/60 px-1">
+            <div className="text-[10px] font-semibold text-red-500 dark:text-red-400 mb-1">Überfällig</div>
+            <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              {taskStats.overdue}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-400 mb-1">Erledigt</div>
+            <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              {taskStats.completed}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3 shrink-0">
+        <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
+          <span className="flex items-center gap-1.5">
+            <TrendingUp className="size-3.5" />
+            Erfüllungsquote
+          </span>
+          <span className="text-accent">{taskStats.completionRate}%</span>
+        </div>
+        <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
+          <div 
+            className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+            style={{ width: `${Math.min(100, Math.max(0, taskStats.completionRate))}%` }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TaskCreateButton({ onClick, canCreate }: { onClick: () => void; canCreate: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!canCreate}
+      className={cn(
+        "w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20 text-xs font-bold transition-all duration-300 shrink-0",
+        canCreate 
+          ? "hover:border-accent/60 hover:bg-zinc-50 dark:hover:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent active:scale-98 cursor-pointer" 
+          : "opacity-50 cursor-not-allowed text-zinc-400 dark:text-zinc-600"
+      )}
+      title={!canCreate ? "Keine Berechtigung zum Erstellen" : undefined}
+    >
+      <PlusCircle className="size-4" />
+      Neue Aufgabe erstellen
+    </button>
+  );
+}
 
 interface TodosClientWrapperProps {
   tasks: TaskBoardTask[];
   canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export default function TodosClientWrapper({ tasks: initialTasks, canCreate = true }: TodosClientWrapperProps) {
+export default function TodosClientWrapper({ tasks: initialTasks, canCreate = true, canEdit = true, canDelete = true }: TodosClientWrapperProps) {
   const [tasks, setTasks] = useState<TaskBoardTask[]>(initialTasks);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const { openAufgabeModal } = useModalStore();
 
-  // Compute stats for tasks overview panel
-  const taskStats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.ist_erledigt).length;
-    const open = total - completed;
-    
-    // Overdue tasks: open tasks where due date is in the past
-    const todayStr = new Date().toISOString().split('T')[0];
-    const overdue = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum < todayStr).length;
-
-    // Today's tasks: open tasks due today
-    const dueToday = tasks.filter(t => !t.ist_erledigt && t.faelligkeitsdatum && t.faelligkeitsdatum === todayStr).length;
-
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    return {
-      total,
-      completed,
-      open,
-      overdue,
-      dueToday,
-      completionRate
-    };
-  }, [tasks]);
-
-  // Subscribe to date changes from the shared DnD provider (handles sidebar→calendar and calendar→calendar drops)
   const { addDateChangeListener, removeDateChangeListener } = useTaskDnd();
   useEffect(() => {
     const handler = (taskId: string, date: string | null) => {
@@ -351,7 +409,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
     return () => removeDateChangeListener(handler);
   }, [addDateChangeListener, removeDateChangeListener]);
 
-  // Sync task toggle changes from sidebar (in case they still come from outside)
   useEffect(() => {
     const handleSidebarToggle = (e: Event) => {
       const { taskId, completed } = (e as CustomEvent).detail;
@@ -396,17 +453,41 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
   }, []);
 
   const handleAddTask = useCallback((defaultDate?: Date) => {
+    if (!canCreate) {
+      toast({
+        title: "Fehler",
+        description: "Sie haben keine Berechtigung, Aufgaben zu erstellen.",
+        variant: "destructive",
+      });
+      return;
+    }
     const initialData = defaultDate
       ? { faelligkeitsdatum: format(defaultDate, "yyyy-MM-dd") }
       : undefined;
     openAufgabeModal(initialData, handleTaskUpdated);
-  }, [openAufgabeModal, handleTaskUpdated]);
+  }, [openAufgabeModal, handleTaskUpdated, canCreate]);
 
   const handleTaskClick = useCallback((task: TaskBoardTask) => {
+    if (!canEdit) {
+      toast({
+        title: "Fehler",
+        description: "Sie haben keine Berechtigung, Aufgaben zu bearbeiten.",
+        variant: "destructive",
+      });
+      return;
+    }
     openAufgabeModal(task, handleTaskUpdated);
-  }, [openAufgabeModal, handleTaskUpdated]);
+  }, [openAufgabeModal, handleTaskUpdated, canEdit]);
 
   const handleTaskToggle = useCallback(async (taskId: string, completed: boolean) => {
+    if (!canEdit) {
+      toast({
+        title: "Fehler",
+        description: "Sie haben keine Berechtigung, Aufgaben zu bearbeiten.",
+        variant: "destructive",
+      });
+      return;
+    }
     const previousTasks = tasks;
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
@@ -431,9 +512,17 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
     } catch {
       handleActionError(previousTasks, "Status konnte nicht aktualisiert werden.");
     }
-  }, [tasks, handleActionError]);
+  }, [tasks, handleActionError, canEdit]);
 
   const handleTaskDelete = useCallback(async (taskId: string) => {
+    if (!canDelete) {
+      toast({
+        title: "Fehler",
+        description: "Sie haben keine Berechtigung, Aufgaben zu löschen.",
+        variant: "destructive",
+      });
+      return;
+    }
     const previousTasks = tasks;
     const taskToDelete = tasks.find((t) => t.id === taskId);
     setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
@@ -448,7 +537,7 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
     } catch {
       handleActionError(previousTasks, "Aufgabe konnte nicht gelöscht werden.");
     }
-  }, [tasks, handleActionError]);
+  }, [tasks, handleActionError, canDelete]);
 
   const handleDayClick = useCallback((date: Date) => {
     setSelectedDate(date);
@@ -462,7 +551,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
   return (
     <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch h-full min-h-0">
-        {/* Left Column: 1/4 (lg:col-span-3) for Sidebar/Overview */}
         <Card className="lg:col-span-3 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] overflow-hidden flex flex-col h-full min-h-0">
           <CardHeader className="pb-3 shrink-0">
             <CardTitle className="text-lg">Aufgaben Übersicht</CardTitle>
@@ -476,71 +564,18 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
           </div>
 
           <CardContent className="flex-1 flex flex-col gap-4 pt-2 overflow-y-auto custom-scrollbar min-h-0">
-            {/* Unified Stats Grid */}
-            <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-4 shrink-0">
-              <div className="grid grid-cols-3 gap-2">
-                {/* Open Tasks */}
-                <div className="text-center">
-                  <div className="text-[10px] font-semibold text-amber-500 dark:text-amber-400 mb-1">Offen</div>
-                  <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                    {taskStats.open}
-                  </div>
-                </div>
-                {/* Overdue Tasks */}
-                <div className="text-center border-x border-zinc-100 dark:border-zinc-800/60 px-1">
-                  <div className="text-[10px] font-semibold text-red-500 dark:text-red-400 mb-1">Überfällig</div>
-                  <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                    {taskStats.overdue}
-                  </div>
-                </div>
-                {/* Completed Tasks */}
-                <div className="text-center">
-                  <div className="text-[10px] font-semibold text-emerald-500 dark:text-emerald-400 mb-1">Erledigt</div>
-                  <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                    {taskStats.completed}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Progress (Fortschritt) */}
-            <div className="p-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] shadow-xs hover:shadow-sm transition-all duration-300 space-y-3 shrink-0">
-              <div className="flex justify-between items-center text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                <span className="flex items-center gap-1.5">
-                  <TrendingUp className="size-3.5" />
-                  Erfüllungsquote
-                </span>
-                <span className="text-accent">{taskStats.completionRate}%</span>
-              </div>
-              <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/80 rounded-full overflow-hidden shadow-inner">
-                <div 
-                  className="h-full bg-accent dark:bg-accent rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                  style={{ width: `${Math.min(100, Math.max(0, taskStats.completionRate))}%` }}
-                />
-              </div>
-            </div>
-
-            {/* New Task Button */}
-            <button
-              type="button"
-              onClick={() => handleAddTask()}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border-2 border-dashed border-zinc-200 hover:border-accent/60 dark:border-zinc-800 dark:hover:border-accent/40 bg-zinc-50/50 hover:bg-zinc-50 dark:bg-zinc-900/20 dark:hover:bg-zinc-900/60 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:text-accent dark:hover:text-accent transition-all duration-300 active:scale-98 cursor-pointer shrink-0"
-            >
-              <PlusCircle className="size-4" />
-              Neue Aufgabe erstellen
-            </button>
-
-            {/* Task List */}
+            <TaskOverviewStats tasks={tasks} />
+            <TaskCreateButton onClick={() => handleAddTask()} canCreate={canCreate} />
             <SidebarTaskList
               tasks={tasks}
               setTasks={setTasks}
               onTaskClick={handleTaskClick}
               onTaskToggle={handleTaskToggle}
+              canEdit={canEdit}
             />
           </CardContent>
         </Card>
 
-        {/* Right Column: 3/4 (lg:col-span-9) for Task Board */}
         <Card className="lg:col-span-9 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] flex flex-col h-full min-h-0">
           <CardHeader className="shrink-0">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -570,7 +605,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
           </div>
 
           <CardContent className="flex-1 flex flex-col gap-6 pt-6 min-h-0 overflow-hidden">
-            {/* Calendar */}
             <div className="bg-white dark:bg-[#181818] rounded-2xl border border-gray-200 dark:border-[#3C4251] p-4 flex flex-col h-full min-h-0 overflow-hidden">
               <div className="flex items-center gap-2 mb-4 shrink-0">
                 <CalendarIcon className="size-5 text-muted-foreground" />
@@ -591,7 +625,6 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
         </Card>
       </div>
 
-      {/* Day Modal */}
       {selectedDate && (
         <TaskDayModal
           open={isDayModalOpen}
@@ -602,6 +635,9 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
           onTaskToggle={handleTaskToggle}
           onTaskDelete={handleTaskDelete}
           onAddTask={handleAddTask}
+          canCreate={canCreate}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
       )}
     </div>

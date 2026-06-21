@@ -39,6 +39,8 @@ interface HouseContextMenuProps {
   house: House
   onEdit: () => void
   onRefresh: () => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function HouseContextMenu({
@@ -46,6 +48,8 @@ export function HouseContextMenu({
   house,
   onEdit,
   onRefresh,
+  canEdit = true,
+  canDelete = true,
 }: HouseContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -98,13 +102,14 @@ export function HouseContextMenu({
             <Eye className="h-4 w-4" />
             <span>Übersicht</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem onClick={onEdit} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
             onClick={() => setDeleteDialogOpen(true)}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />

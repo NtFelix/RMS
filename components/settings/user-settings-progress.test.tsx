@@ -27,6 +27,11 @@ jest.mock('@/hooks/use-modal-store', () => ({
     openTemplatesModal: jest.fn(),
   })),
 }))
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+  }),
+}))
 jest.mock('posthog-js/react', () => ({
   useFeatureFlagEnabled: () => false,
 }))

@@ -58,6 +58,9 @@ interface OperatingCostsTableProps {
   allHaeuser: Haus[];
   selectedItems?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 export function OperatingCostsTable({
@@ -67,7 +70,10 @@ export function OperatingCostsTable({
   ownerName,
   allHaeuser,
   selectedItems: externalSelectedItems,
-  onSelectionChange
+  onSelectionChange,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: OperatingCostsTableProps) {
   const router = useRouter()
 
@@ -396,7 +402,7 @@ export function OperatingCostsTable({
               variant="outline"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
-              disabled={isBulkDeleting}
+              disabled={isBulkDeleting || !canDelete}
               className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
               {isBulkDeleting ? (
@@ -465,7 +471,7 @@ export function OperatingCostsTable({
                             ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                             }`}
-                          onClick={() => onEdit?.(item)}
+                          onClick={() => canEdit ? onEdit?.(item) : handleOpenOverview(item)}
                         >
                           <TableCell
                             className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -525,6 +531,8 @@ export function OperatingCostsTable({
                                   label: "Bearbeiten",
                                   onClick: () => onEdit?.(item),
                                   variant: 'primary',
+                                  disabled: !canEdit,
+                                  tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
                                 },
                                 {
                                   id: `overview-${item.id}`,
@@ -571,23 +579,27 @@ export function OperatingCostsTable({
                         </ContextMenuItem>
                         <ContextMenuItem
                           onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                          disabled={!canEdit}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <Edit className="h-4 w-4" />
                           <span>Bearbeiten</span>
                         </ContextMenuItem>
                         {/* Old Wasserzähler modal button removed - now using new ZaehlerAblesenModal */}
-                        <ContextMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedNebenkostenForAblesen(item);
-                            setIsZaehlerAblesenOpen(true);
-                          }}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Droplets className="h-4 w-4" />
-                          <span>Zähler</span>
-                        </ContextMenuItem>
+                        {canViewMeters && (
+                          <ContextMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedNebenkostenForAblesen(item);
+                              setIsZaehlerAblesenOpen(true);
+                            }}
+                            disabled={!canEdit}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Droplets className="h-4 w-4" />
+                            <span>Zähler</span>
+                          </ContextMenuItem>
+                        )}
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
@@ -602,6 +614,7 @@ export function OperatingCostsTable({
                         <ContextMenuSeparator />
                         <ContextMenuItem
                           onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+                          disabled={!canDelete}
                           className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-500 dark:focus:text-red-500 dark:focus:bg-red-900/50"
                         >
                           <Trash2 className="h-4 w-4" />

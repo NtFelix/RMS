@@ -60,48 +60,59 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return NextResponse.json({
+        tenants: []
+      }, { headers: NO_CACHE_HEADERS });
+    }
+
     let tenantsData: any[] = []
     let financesData: any[] = []
     let usedRpc = false
 
     // Try optimized RPC first
-    const rpcStartTime = Date.now()
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "fetch_tenant_payment_dashboard_data"
-      )
+    if (wohnungIds === null) {
+      const rpcStartTime = Date.now()
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          "fetch_tenant_payment_dashboard_data"
+        )
 
-      const rpcDuration = Date.now() - rpcStartTime
+        const rpcDuration = Date.now() - rpcStartTime
 
-      if (!rpcError && rpcData) {
-        logger.info("✅ [Tenant Data API] Used optimized RPC function", {
+        if (!rpcError && rpcData) {
+          logger.info("✅ [Tenant Data API] Used optimized RPC function", {
+            path: request.url,
+            userId: user.id,
+            rpcDuration,
+            tenantCount: rpcData.tenants?.length || 0,
+            financeCount: rpcData.finances?.length || 0
+          })
+          tenantsData = rpcData.tenants || []
+          financesData = rpcData.finances || []
+          usedRpc = true
+        } else {
+          logger.warn("⚠️ [Tenant Data API] RPC function failed or returned no data, using fallback", {
+            path: request.url,
+            userId: user.id,
+            rpcDuration,
+            rpcError: rpcError?.message
+          })
+        }
+      } catch (rpcException) {
+        const rpcDuration = Date.now() - rpcStartTime
+        logger.error("❌ [Tenant Data API] RPC call threw exception", rpcException as Error, {
           path: request.url,
           userId: user.id,
-          rpcDuration,
-          tenantCount: rpcData.tenants?.length || 0,
-          financeCount: rpcData.finances?.length || 0
-        })
-        tenantsData = rpcData.tenants || []
-        financesData = rpcData.finances || []
-        usedRpc = true
-      } else {
-        logger.warn("⚠️ [Tenant Data API] RPC function failed or returned no data, using fallback", {
-          path: request.url,
-          userId: user.id,
-          rpcDuration,
-          rpcError: rpcError?.message
+          rpcDuration
         })
       }
-    } catch (rpcException) {
-      const rpcDuration = Date.now() - rpcStartTime
-      logger.error("❌ [Tenant Data API] RPC call threw exception", rpcException as Error, {
-        path: request.url,
-        userId: user.id,
-        rpcDuration
-      })
     }
 
-    // Fallback to legacy queries if RPC failed
+    // Fallback to legacy queries if RPC failed or scoped
     if (!usedRpc) {
       logger.info("🔄 [Tenant Data API] Using fallback method", {
         path: request.url,
@@ -109,7 +120,7 @@ export async function GET(request: Request) {
       })
 
       const fallbackStartTime = Date.now()
-      const { data: tenants, error: tenantsError } = await supabase
+      let tenantsQuery = supabase
         .from("Mieter")
         .select(`
           *,
@@ -124,9 +135,13 @@ export async function GET(request: Request) {
               name
             )
           )
-        `)
-        .eq("user_id", user.id)
-        .order("name")
+        `);
+
+      if (wohnungIds !== null) {
+        tenantsQuery = tenantsQuery.in('wohnung_id', wohnungIds);
+      }
+
+      const { data: tenants, error: tenantsError } = await tenantsQuery.order("name");
 
       const tenantsDuration = Date.now() - fallbackStartTime
 
@@ -143,12 +158,16 @@ export async function GET(request: Request) {
       }
 
       const financesStartTime = Date.now()
-      const { data: finances, error: financesError } = await supabase
+      let financesQuery = supabase
         .from("Finanzen")
         .select("*")
-        .eq("user_id", user.id)
-        .eq("ist_einnahmen", true)
-        .order("datum", { ascending: false })
+        .eq("ist_einnahmen", true);
+
+      if (wohnungIds !== null) {
+        financesQuery = financesQuery.in('wohnung_id', wohnungIds);
+      }
+
+      const { data: finances, error: financesError } = await financesQuery.order("datum", { ascending: false });
 
       const financesDuration = Date.now() - financesStartTime
 

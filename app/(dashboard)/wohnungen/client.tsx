@@ -33,6 +33,10 @@ interface WohnungenClientViewProps {
   serverApartmentLimit: number;
   serverUserIsEligibleToAdd: boolean;
   serverLimitReason: 'trial' | 'subscription' | 'none';
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat("de-DE", {
@@ -48,6 +52,10 @@ export default function WohnungenClientView({
   serverApartmentLimit,
   serverUserIsEligibleToAdd,
   serverLimitReason,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
   const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
@@ -109,10 +117,12 @@ export default function WohnungenClientView({
   }, [apartments]);
 
   const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
-  const isAddButtonDisabled = !serverUserIsEligibleToAdd || limitReached;
+  const isAddButtonDisabled = !canCreate || !serverUserIsEligibleToAdd || limitReached;
 
   let buttonTooltipMessage = "";
-  if (!serverUserIsEligibleToAdd) {
+  if (!canCreate) {
+    buttonTooltipMessage = "Keine Berechtigung zum Erstellen";
+  } else if (!serverUserIsEligibleToAdd) {
     buttonTooltipMessage = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
   } else if (limitReached) {
     if (serverLimitReason === 'trial') {
@@ -535,7 +545,7 @@ export default function WohnungenClientView({
                         variant="outline"
                         size="sm"
                         onClick={() => setShowBulkDeleteConfirm(true)}
-                        disabled={isBulkDeleting}
+                        disabled={isBulkDeleting || !canDelete}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                       >
                         {isBulkDeleting ? (
@@ -565,6 +575,9 @@ export default function WohnungenClientView({
                 reloadRef={reloadRef}
                 selectedApartments={selectedApartments}
                 onSelectionChange={setSelectedApartments}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                canViewMeters={canViewMeters}
               />
             </CardContent>
           </Card>

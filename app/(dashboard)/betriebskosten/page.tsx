@@ -10,21 +10,32 @@ import BetriebskostenClientView from "./client-wrapper"; // Import the default e
 // Types are still needed for data fetching
 import { Haus } from "../../../lib/data-fetching";
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
-import { requirePermission, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
-  
+
+  // Permission check.
+  const [canView, canCreate, canEdit, canDelete, canViewMeters, accessibleHaeuserResult] = await Promise.all([
+    hasPermission('betriebskosten', 'ansehen'),
+    hasPermission('betriebskosten', 'erstellen'),
+    hasPermission('betriebskosten', 'bearbeiten'),
+    hasPermission('betriebskosten', 'loeschen'),
+    hasPermission('zaehler', 'ansehen'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
+  const accessibleIds = accessibleHaeuserResult.data;
+  if (!canView) {
+    redirect('/unauthorized');
+  }
+
   const [
-    _,
-    canCreate,
     nebenkostenResult,
     haeuserData,
     tenantsData,
     financesData
   ] = await Promise.all([
-    requirePermission('betriebskosten', 'ansehen'),
-    hasPermission('betriebskosten', 'erstellen'),
     fetchNebenkostenListOptimized(),
     fetchHaeuserServer(supabase),
     fetchWithRpcFallback(
@@ -79,6 +90,9 @@ export default async function BetriebskostenPage() {
       initialFinances={finances}
       ownerName={ownerName}
       canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
+      canViewMeters={canViewMeters}
     />
   );
 }

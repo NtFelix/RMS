@@ -249,6 +249,14 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             }
         }
 
+        const { hasPermission } = await import('@/lib/permissions')
+        if (!(await hasPermission('dokumente', 'loeschen'))) {
+            return {
+                success: false,
+                error: 'Keine Berechtigung'
+            }
+        }
+
         // Validate that the path belongs to the user
         if (!folderPath.startsWith(`user_${userId}`)) {
             return {
@@ -294,9 +302,16 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
                 .from('Haeuser')
                 .select('id')
                 .eq('id', houseId)
-                .single()
+                .maybeSingle()
 
             if (house) {
+                const { verifyEntityInScope } = await import('@/lib/api-permissions')
+                if (!(await verifyEntityInScope(houseId))) {
+                    return {
+                        success: false,
+                        error: 'Zugriff verweigert (Haus nicht im Scope)'
+                    }
+                }
                 return {
                     success: false,
                     error: 'Hausordner können nicht gelöscht werden, solange das Haus existiert.'
@@ -307,11 +322,18 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             const apartmentId = pathSegments[2]
             const { data: apartment } = await supabase
                 .from('Wohnungen')
-                .select('id')
+                .select('id, haus_id')
                 .eq('id', apartmentId)
-                .single()
+                .maybeSingle()
 
             if (apartment) {
+                const { verifyWohnungInScope } = await import('@/lib/api-permissions')
+                if (!(await verifyWohnungInScope(apartmentId))) {
+                    return {
+                        success: false,
+                        error: 'Zugriff verweigert (Wohnung nicht im Scope)'
+                    }
+                }
                 return {
                     success: false,
                     error: 'Wohnungsordner können nicht gelöscht werden, solange die Wohnung existiert.'
@@ -322,11 +344,18 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
             const tenantId = pathSegments[3]
             const { data: tenant } = await supabase
                 .from('Mieter')
-                .select('id')
+                .select('id, wohnung_id')
                 .eq('id', tenantId)
-                .single()
+                .maybeSingle()
 
             if (tenant) {
+                const { verifyWohnungInScope } = await import('@/lib/api-permissions')
+                if (tenant.wohnung_id && !(await verifyWohnungInScope(tenant.wohnung_id))) {
+                    return {
+                        success: false,
+                        error: 'Zugriff verweigert (Mieter nicht im Scope)'
+                    }
+                }
                 return {
                     success: false,
                     error: 'Mieterordner können nicht gelöscht werden, solange der Mieter existiert.'

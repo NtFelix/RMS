@@ -38,6 +38,8 @@ interface FinanceContextMenuProps {
   finance: Finance
   onEdit: () => void
   onRefresh?: () => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function FinanceContextMenu({
@@ -45,6 +47,8 @@ export function FinanceContextMenu({
   finance,
   onEdit,
   onRefresh,
+  canEdit = true,
+  canDelete = true,
 }: FinanceContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -123,13 +127,13 @@ export function FinanceContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem onClick={onEdit} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
           <ContextMenuItem 
             onClick={handleStatusToggle} 
-            disabled={isUpdatingStatus}
+            disabled={isUpdatingStatus || !canEdit}
             className="flex items-center gap-2 cursor-pointer"
           >
             <ArrowUpDown className="h-4 w-4" />
@@ -142,6 +146,7 @@ export function FinanceContextMenu({
           <ContextMenuSeparator />
           <ContextMenuItem 
             onClick={() => setDeleteDialogOpen(true)}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />

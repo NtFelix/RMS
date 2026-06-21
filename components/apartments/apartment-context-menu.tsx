@@ -31,6 +31,9 @@ interface ApartmentContextMenuProps {
   apartment: Apartment // Now uses the imported Apartment type
   onEdit: () => void
   onRefresh: () => void
+  canEdit?: boolean
+  canDelete?: boolean
+  canViewMeters?: boolean
 }
 
 export function ApartmentContextMenu({
@@ -38,6 +41,9 @@ export function ApartmentContextMenu({
   apartment,
   onEdit,
   onRefresh,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -82,24 +88,27 @@ export function ApartmentContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem onClick={onEdit} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem
-            id="context-menu-meter-item"
-            onClick={() => {
-              useOnboardingStore.getState().completeStep('create-meter-select');
-              openZaehlerModal(apartment.id, apartment.name);
-            }}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Gauge className="h-4 w-4" />
-            <span>Zähler verwalten</span>
-          </ContextMenuItem>
+          {canViewMeters && (
+            <ContextMenuItem
+              id="context-menu-meter-item"
+              onClick={() => {
+                useOnboardingStore.getState().completeStep('create-meter-select');
+                openZaehlerModal(apartment.id, apartment.name);
+              }}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <Gauge className="h-4 w-4" />
+              <span>Zähler verwalten</span>
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />

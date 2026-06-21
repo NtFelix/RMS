@@ -16,15 +16,16 @@ import type { Wohnung } from "@/types/Wohnung";
 export default async function MieterPage() {
   const { supabase } = await requireAuthenticatedUser();
 
-  // Object-scope exception: if user can access specific houses, they can see their tenants.
-  const [canView, canCreate, accessibleIdsResult] = await Promise.all([
+  // Permission check.
+  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
     hasPermission('mieter', 'ansehen'),
     hasPermission('mieter', 'erstellen'),
+    hasPermission('mieter', 'bearbeiten'),
+    hasPermission('mieter', 'loeschen'),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
-  const hasObjectScopeAccess = accessibleIds === null || (Array.isArray(accessibleIds) && accessibleIds.length > 0);
-  if (!canView && !hasObjectScopeAccess) {
+  if (!canView) {
     redirect('/unauthorized');
   }
 
@@ -118,6 +119,8 @@ export default async function MieterPage() {
       initialWohnungen={wohnungen}
       serverAction={mieterServerAction}
       canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
     />
   );
 }

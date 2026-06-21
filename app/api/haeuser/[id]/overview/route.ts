@@ -80,6 +80,17 @@ export async function GET(
       );
     }
 
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (!(await verifyEntityInScope(hausId))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { 
+          status: 403,
+          headers: NO_CACHE_HEADERS
+        }
+      );
+    }
+
     // Optimized single query to fetch all data at once
     const { data: combinedData, error: combinedError } = await supabase
       .from('Haeuser')
