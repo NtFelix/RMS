@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LazyMotion, m, domAnimation } from 'framer-motion';
 import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 import BottomCTA from '@/components/ui/bottom-cta';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,7 @@ export default function UtilityCostPage() {
                 <span className="font-mono text-xs font-bold px-2 py-0.5 bg-foreground/5 rounded border border-border/40">345,20 m³</span>
               </div>
             </div>
-            <button className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/10 hover:bg-primary/90 transition-colors">
+            <button type="button" className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/10 hover:bg-primary/90 transition-colors">
               Speichern
             </button>
           </div>
@@ -98,8 +98,8 @@ export default function UtilityCostPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <button className="flex-1 py-1.5 rounded-lg bg-foreground/5 border border-border text-foreground font-bold text-[10px] hover:bg-foreground/10">Abbrechen</button>
-              <button className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground font-bold text-[10px] hover:bg-destructive/90 shadow-xs">Ignorieren</button>
+              <button type="button" className="flex-1 py-1.5 rounded-lg bg-foreground/5 border border-border text-foreground font-bold text-[10px] hover:bg-foreground/10">Abbrechen</button>
+              <button type="button" className="flex-1 py-1.5 rounded-lg bg-destructive text-destructive-foreground font-bold text-[10px] hover:bg-destructive/90 shadow-xs">Ignorieren</button>
             </div>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function UtilityCostPage() {
                 <span className="text-muted-foreground">Bereit</span>
               </div>
             </div>
-            <button className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/10 hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5">
+            <button type="button" className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/10 hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5">
               <FileDown size={13} /> Export starten
             </button>
           </div>
@@ -147,7 +147,8 @@ export default function UtilityCostPage() {
 
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <LazyMotion features={domAnimation}>
+      <div className="min-h-screen bg-background text-foreground">
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-linear-to-b from-primary/10 via-primary/5 to-transparent opacity-50" />
@@ -157,7 +158,7 @@ export default function UtilityCostPage() {
       {/* Hero Section */}
       <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pt-44 pb-20 text-center max-w-7xl">
 
-        <motion.h1
+        <m.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -165,9 +166,9 @@ export default function UtilityCostPage() {
         >
           Abrechnungen erstellen, <br />
           <span className="text-primary">nicht mehr ausrechnen.</span>
-        </motion.h1>
+        </m.h1>
 
-        <motion.p
+        <m.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -175,9 +176,9 @@ export default function UtilityCostPage() {
         >
           Automatisieren Sie den Prozess von der Belegerfassung bis zum fertigen PDF.
           Präzise, professionell und intuitiv.
-        </motion.p>
+        </m.p>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -197,12 +198,12 @@ export default function UtilityCostPage() {
             rel="noopener noreferrer"
             className="h-14 px-8 rounded-xl font-bold border-2"
           />
-        </motion.div>
+        </m.div>
       </div>
 
       {/* Main Showcase */}
       <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
@@ -222,7 +223,7 @@ export default function UtilityCostPage() {
               className="hidden dark:block"
             />
           </MacWindow>
-        </motion.div>
+        </m.div>
       </div>
 
       {/* Timeline Section */}
@@ -240,7 +241,7 @@ export default function UtilityCostPage() {
               {meterSteps.map((step, index) => {
                 const isEven = index % 2 === 0;
                 return (
-                  <motion.div 
+                  <m.div 
                     key={index}
                     initial={{ opacity: 0 }}
                     whileInView={{ opacity: 1 }}
@@ -250,7 +251,7 @@ export default function UtilityCostPage() {
                   >
                     {/* Segment of the timeline line */}
                     {index === 0 && (
-                      <motion.div
+                      <m.div
                         initial={{ clipPath: "inset(0% 0% 100% 0%)" }}
                         whileInView={{ clipPath: "inset(0% 0% 0% 0%)" }}
                         viewport={{ once: true }}
@@ -259,7 +260,7 @@ export default function UtilityCostPage() {
                       />
                     )}
                     {index > 0 && index < meterSteps.length - 1 && (
-                      <motion.div
+                      <m.div
                         initial={{ clipPath: "inset(0% 0% 100% 0%)" }}
                         whileInView={{ clipPath: "inset(0% 0% 0% 0%)" }}
                         viewport={{ once: true }}
@@ -268,7 +269,7 @@ export default function UtilityCostPage() {
                       />
                     )}
                     {index === meterSteps.length - 1 && (
-                      <motion.div
+                      <m.div
                         initial={{ clipPath: "inset(0% 0% 100% 0%)" }}
                         whileInView={{ clipPath: "inset(0% 0% 0% 0%)" }}
                         viewport={{ once: true }}
@@ -278,7 +279,7 @@ export default function UtilityCostPage() {
                     )}
 
                     {/* Timeline Node in the center (visible only on lg screens) */}
-                    <motion.div
+                    <m.div
                       initial={{ scale: 0 }}
                       whileInView={{ scale: 1 }}
                       viewport={{ once: true }}
@@ -286,10 +287,10 @@ export default function UtilityCostPage() {
                       className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background border-4 border-primary flex items-center justify-center hidden lg:flex z-10 shadow-xs"
                     >
                       <span className="text-[10px] font-bold text-primary font-mono">{index + 1}</span>
-                    </motion.div>
+                    </m.div>
 
                     {/* Left side column: Text for even indices, mockup for odd indices */}
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0, x: isEven ? -20 : 20, y: 10 }}
                       whileInView={{ opacity: 1, x: 0, y: 0 }}
                       viewport={{ once: true }}
@@ -315,13 +316,13 @@ export default function UtilityCostPage() {
                         {step.description}
                       </p>
 
-                     </motion.div>
+                     </m.div>
  
                       {/* Spacer for center timeline alignment */}
                       <div className={cn("lg:col-span-2 hidden lg:block", isEven ? "lg:order-2" : "lg:order-2")} />
  
                      {/* Right side column: Mockup for even indices, text for odd indices */}
-                     <motion.div
+                     <m.div
                        initial={{ opacity: 0, x: isEven ? 20 : -20, y: 10 }}
                        whileInView={{ opacity: 1, x: 0, y: 0 }}
                        viewport={{ once: true }}
@@ -337,8 +338,8 @@ export default function UtilityCostPage() {
                            {step.mockup}
                          </div>
                        </div>
-                     </motion.div>
-                  </motion.div>
+                     </m.div>
+                  </m.div>
                 );
               })}
             </div>
@@ -350,7 +351,7 @@ export default function UtilityCostPage() {
       {/* Feature Section - Bento Grid Style */}
       <section className="py-24 relative overflow-hidden bg-muted/10">
         <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -358,11 +359,11 @@ export default function UtilityCostPage() {
           >
             <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Alle Funktionen <span className="text-primary italic">im Gesamtüberblick.</span></h2>
             <p className="text-lg text-muted-foreground">Ein nahtloser Workflow, der Zeit spart und Fehler eliminiert.</p>
-          </motion.div>
+          </m.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 max-w-7xl mx-auto">
             {/* Feature 1: Structured Cost Capture (Large) — mock top, content bottom */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -416,10 +417,10 @@ export default function UtilityCostPage() {
                   <p className="text-muted-foreground text-sm leading-relaxed">Erfassen Sie alle Ausgaben zentral. Weisen Sie Kostenarten und Umlageschlüssel direkt bei der Eingabe zu.</p>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Feature 2: Meter Management — mock top, content bottom */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -473,10 +474,10 @@ export default function UtilityCostPage() {
                   <p className="text-muted-foreground text-sm leading-relaxed">Lückenlose Protokollierung aller Verbräuche mit Plausibilitäts-Check.</p>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Feature 3: Smarte Umlage — mock top, content bottom */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -490,7 +491,7 @@ export default function UtilityCostPage() {
                   <div className="w-full h-full transform transition-transform duration-700 group-hover:scale-[1.02]">
                     <div className="w-full h-full flex items-end justify-between gap-1 p-5 pb-4 select-none">
                       {[45, 75, 50, 95, 65, 80].map((h, i) => (
-                        <motion.div
+                        <m.div
                           key={i}
                           initial={{ height: 0 }}
                           whileInView={{ height: `${h}%` }}
@@ -514,10 +515,10 @@ export default function UtilityCostPage() {
                   <p className="text-muted-foreground text-sm leading-relaxed">Variable Schlüssel nach Fläche, Personen oder Verbrauch.</p>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Feature 5: Automatischer Leerstand (lg:col-span-2) */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -557,10 +558,10 @@ export default function UtilityCostPage() {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
 
             {/* Feature 4: Professionelle Dokumente — mock top, content bottom */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -611,7 +612,7 @@ export default function UtilityCostPage() {
                   </Button>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
 
 
           </div>
@@ -630,5 +631,6 @@ export default function UtilityCostPage() {
         theme="houses"
       />
     </div>
+    </LazyMotion>
   );
 }
