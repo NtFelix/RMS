@@ -36,6 +36,7 @@ export function SettingsSidebar({ tabs }: SettingsSidebarProps) {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
             type="text"
+            aria-label="Einstellungen durchsuchen"
             placeholder="Suchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

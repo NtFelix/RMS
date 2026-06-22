@@ -58,6 +58,7 @@ export function ThemeSwitcherCards({ className }: ThemeSwitcherCardsProps) {
         return (
           <button
             key={option.value}
+            type="button"
             onClick={() => handleThemeChange(option.value)}
             className={cn(
               "relative flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
