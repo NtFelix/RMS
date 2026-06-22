@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,18 +56,40 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     const [postalCode, setPostalCode] = useState('');
     const [city, setCity] = useState('');
 
+    const initialLoadDone = useRef(false);
+    const mountedRef = useRef(false);
+    const onCompleteRef = useRef(onComplete);
+    const completeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
-        if (!isOpen) return;
+        onCompleteRef.current = onComplete;
+    }, [onComplete]);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            if (completeTimeoutRef.current) {
+                clearTimeout(completeTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isOpen || initialLoadDone.current) return;
 
         const loadSetupData = async () => {
             setIsLoading(true);
             try {
                 const response = await fetch('/api/user/setup');
+                if (!mountedRef.current) return;
+
                 if (response.ok) {
                     const data: SetupData = await response.json();
+                    if (!mountedRef.current) return;
 
                     if (data.setupCompleted) {
-                        onComplete();
+                        onCompleteRef.current();
                         return;
                     }
 
@@ -89,18 +111,23 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                 }
             } catch (error) {
                 console.error('Failed to load setup data:', error);
-                toast({
-                    title: 'Fehler',
-                    description: 'Die Einrichtungsdaten konnten nicht geladen werden.',
-                    variant: 'destructive',
-                });
+                if (mountedRef.current) {
+                    toast({
+                        title: 'Fehler',
+                        description: 'Die Einrichtungsdaten konnten nicht geladen werden.',
+                        variant: 'destructive',
+                    });
+                }
             } finally {
-                setIsLoading(false);
+                if (mountedRef.current) {
+                    setIsLoading(false);
+                    initialLoadDone.current = true;
+                }
             }
         };
 
         loadSetupData();
-    }, [isOpen, onComplete, toast]);
+    }, [isOpen, toast]);
 
     const handleSave = useCallback(async () => {
         setIsSaving(true);
@@ -122,8 +149,8 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
 
             if (response.ok) {
                 setStep('finalizing');
-                setTimeout(() => {
-                    onComplete();
+                completeTimeoutRef.current = setTimeout(() => {
+                    onCompleteRef.current();
                 }, 2000);
             } else {
                 throw new Error('Failed to save setup data');
@@ -136,7 +163,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
             });
             setIsSaving(false);
         }
-    }, [firstName, lastName, street, postalCode, city, hasStripeCustomer, onComplete, toast]);
+    }, [firstName, lastName, street, postalCode, city, hasStripeCustomer, toast]);
 
     const handleSkip = useCallback(async () => {
         setIsSaving(true);
@@ -148,7 +175,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
             });
 
             if (response.ok) {
-                onComplete();
+                onCompleteRef.current();
             } else {
                 throw new Error('Failed to skip setup');
             }
@@ -162,7 +189,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
         } finally {
             setIsSaving(false);
         }
-    }, [onComplete, toast]);
+    }, [toast]);
 
     const stepOrder = useMemo(() =>
         hasStripeCustomer
