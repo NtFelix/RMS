@@ -8,7 +8,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, User, Trash2, Euro, FileText, Sparkles } from "lucide-react"
+import { Edit, User, Trash2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,9 +21,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
-import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
-import { useModalStore } from "@/hooks/use-modal-store";
+import { deleteTenantAction } from "@/app/mieter-actions"
+import { useModalStore } from "@/hooks/use-modal-store"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { tenantActions, getVisibleActions, type TenantActionDef } from "@/components/tenants/tenant-menu-actions"
 
 import { Tenant } from "@/types/Tenant";
 
@@ -145,6 +147,12 @@ export function TenantContextMenu({
     });
   };
 
+  const actionHandlers: Record<string, () => void> = {
+    kaution: handleKaution,
+    datenblatt: handleScoreDetails,
+    vorlagen: handleTemplates,
+  }
+
   return (
     <>
       <ContextMenu>
@@ -154,22 +162,16 @@ export function TenantContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={handleKaution} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
-            <Euro className="h-4 w-4" />
-            <span>Kaution</span>
-          </ContextMenuItem>
-          {tenant.bewerbung_metadaten && (
-            <ContextMenuItem onClick={handleScoreDetails} className="flex items-center gap-2 cursor-pointer text-indigo-600 dark:text-indigo-400 focus:text-indigo-600 focus:bg-indigo-50 dark:focus:bg-indigo-950">
-              <Sparkles className="h-4 w-4" />
-              <span>Datenblatt (AI)</span>
-            </ContextMenuItem>
-          )}
-          {templatesEnabled && (
-            <ContextMenuItem onClick={handleTemplates} className="flex items-center gap-2 cursor-pointer">
-              <FileText className="h-4 w-4" />
-              <span>Vorlagen</span>
-            </ContextMenuItem>
-          )}
+          {getVisibleActions(tenant, { templatesEnabled: !!templatesEnabled }).map((action) => {
+            const handler = actionHandlers[action.key]
+            if (!handler) return null
+            return (
+              <ContextMenuItem key={action.key} onClick={handler} className={cn("flex items-center gap-2 cursor-pointer", action.className)}>
+                <action.icon className="h-4 w-4" />
+                <span>{action.label}</span>
+              </ContextMenuItem>
+            )
+          })}
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
