@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const dateFrom = searchParams.get('date_from') || '2024-01-01'
     const dateTo = searchParams.get('date_to') || new Date().toISOString().split('T')[0]
+    const granularity = searchParams.get('granularity') || 'day'
 
     const { data: orgId } = await supabase.rpc('current_organisation_id')
 
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
           date_from: dateFrom,
           date_to: dateTo,
           org_id: orgId,
+          granularity,
         },
       }),
     })

@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Brain, DollarSign, MessageSquare, Users, Calendar, BarChart3 } from "lucide-react"
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -67,6 +74,21 @@ function getFeatureLabel(feature: string | null): string {
   }
 }
 
+function format8hLabel(raw: string): string {
+  const d = new Date(raw)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const hour = String(d.getHours()).padStart(2, '0')
+  return `${day}.${month}. ${hour}:00`
+}
+
+function formatDayLabel(raw: string): string {
+  const d = new Date(raw)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return `${day}.${month}.`
+}
+
 function getFeatureColor(feature: string | null): string {
   switch (feature) {
     case 'mail': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
@@ -86,13 +108,17 @@ const AISection = () => {
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const [activeUsers, setActiveUsers] = useState<number | undefined>(undefined)
 
+  const getGranularity = (preset: DatePreset): string =>
+    preset === '7d' ? '8h' : 'day'
+
   const fetchData = async (preset: DatePreset) => {
     setLoading(true)
     setError(null)
 
     try {
       const { date_from, date_to } = getDateRange(preset)
-      const params = new URLSearchParams({ date_from, date_to })
+      const granularity = getGranularity(preset)
+      const params = new URLSearchParams({ date_from, date_to, granularity })
 
       const response = await fetch(`/api/ai-analytics?${params.toString()}`)
       if (!response.ok) {
@@ -173,6 +199,31 @@ const AISection = () => {
     }
     return Array.from(map.values()).sort((a, b) => b.total_tokens - a.total_tokens)
   }, [data])
+
+  const granularity = getGranularity(datePreset)
+  const is8h = granularity === '8h'
+
+  const timeSeriesData = useMemo(() => {
+    const map = new Map<string, { tokens: number; messages: number }>()
+    for (const row of data) {
+      const raw = row.date
+      const label = is8h
+        ? format8hLabel(raw)
+        : formatDayLabel(raw)
+      const existing = map.get(label) || { tokens: 0, messages: 0 }
+      existing.tokens += row.total_tokens || 0
+      existing.messages += row.messages || 0
+      map.set(label, existing)
+    }
+    return Array.from(map.entries())
+      .map(([date, v]) => ({ date, tokens: v.tokens, messages: v.messages }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [data, is8h])
+
+  const chartConfig = {
+    tokens: { label: 'Tokens', color: 'var(--color-chart-1, #2563eb)' },
+    messages: { label: 'Anfragen', color: 'var(--color-chart-2, #16a34a)' },
+  } satisfies ChartConfig
 
   const datePresets: { value: DatePreset; label: string }[] = [
     { value: '7d', label: '7 Tage' },
@@ -283,6 +334,46 @@ const AISection = () => {
                 </SettingsCard>
               )}
             </div>
+
+            <SettingsCard>
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="size-4 text-muted-foreground" />
+                <h4 className="text-sm font-medium">
+                  Tokens im Zeitverlauf {is8h ? '(8h Intervalle)' : '(täglich)'}
+                </h4>
+              </div>
+              {timeSeriesData.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Keine Daten</p>
+              ) : (
+                <ChartContainer config={chartConfig} className="aspect-[3/1] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={timeSeriesData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11 }}
+                        tickLine={false}
+                        axisLine={false}
+                        interval={is8h ? 2 : 3}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11 }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={formatNumber}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="tokens"
+                        fill="var(--color-tokens)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={is8h ? 24 : 40}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
+            </SettingsCard>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               <SettingsCard>
