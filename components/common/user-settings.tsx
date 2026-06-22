@@ -254,7 +254,7 @@ export function UserSettings({
             <span>Vorlagen</span>
           </CustomDropdownItem>
         )}
-        <CustomDropdownItem onClick={() => router.push('/einstellungen')}>
+        <CustomDropdownItem onClick={() => router.push('/einstellungen/profil')}>
           <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>

@@ -292,7 +292,7 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
 
   // Profile click
   const handleProfileClick = () => {
-    router.push('/einstellungen')
+    router.push('/einstellungen/profil')
     dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
     dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Settings opened.' })
   }

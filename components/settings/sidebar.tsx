@@ -13,7 +13,11 @@ interface SettingsSidebarProps {
 
 export function SettingsSidebar({ tabs }: SettingsSidebarProps) {
   const pathname = usePathname()
-  const activeTab = pathname.split("/").pop() || ""
+  const activeTab = useMemo(() => {
+    const segments = pathname.split("/")
+    const index = segments.indexOf("einstellungen")
+    return index !== -1 && segments[index + 1] ? segments[index + 1] : ""
+  }, [pathname])
   const [searchQuery, setSearchQuery] = useState("")
 
   const filteredTabs = useMemo(

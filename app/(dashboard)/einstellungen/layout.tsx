@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { SettingsSidebar } from "@/components/settings/sidebar"
 import type { Tab } from "@/types/settings"
 import {
@@ -18,16 +19,19 @@ import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 export default function EinstellungenLayout({ children }: { children: React.ReactNode }) {
   const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
 
-  const tabs: Omit<Tab, "content">[] = [
-    { value: "profil", label: "Profil", icon: UserIcon },
-    { value: "sicherheit", label: "Sicherheit", icon: Lock },
-    { value: "abo", label: "Abo", icon: CreditCard },
-    ...(mailsEnabled ? [{ value: "mail", label: "E-Mail", icon: Mail }] : []),
-    { value: "darstellung", label: "Darstellung", icon: Monitor },
-    { value: "datenexport", label: "Datenexport", icon: DownloadCloud },
-    { value: "vorschau", label: "Vorschau", icon: FlaskConical },
-    { value: "mietevo", label: "Mietevo", icon: Info },
-  ]
+  const tabs = useMemo<Omit<Tab, "content">[]>(
+    () => [
+      { value: "profil", label: "Profil", icon: UserIcon },
+      { value: "sicherheit", label: "Sicherheit", icon: Lock },
+      { value: "abo", label: "Abo", icon: CreditCard },
+      ...(mailsEnabled ? [{ value: "mail", label: "E-Mail", icon: Mail }] : []),
+      { value: "darstellung", label: "Darstellung", icon: Monitor },
+      { value: "datenexport", label: "Datenexport", icon: DownloadCloud },
+      { value: "vorschau", label: "Vorschau", icon: FlaskConical },
+      { value: "mietevo", label: "Mietevo", icon: Info },
+    ],
+    [mailsEnabled],
+  )
 
   return (
     <div className="flex h-full gap-3 p-4">
