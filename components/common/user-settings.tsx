@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { LogOut, Settings, FileText, Check } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 // react-doctor-disable-next-line react-doctor/use-lazy-motion
 import { motion } from "framer-motion"
@@ -19,7 +20,6 @@ import { ARIA_LABELS } from "@/lib/accessibility-constants"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { SettingsModal } from "@/components/modals/settings-modal"
 import { SidebarUserData } from "@/lib/server/user-data"
 import {
   CustomDropdown,
@@ -36,9 +36,9 @@ export function UserSettings({
   initialData: SidebarUserData;
 }) {
   const { toast } = useToast()
+  const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
-  const [openModal, setOpenModal] = useState(false)
   const { openTemplatesModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
@@ -254,7 +254,7 @@ export function UserSettings({
             <span>Vorlagen</span>
           </CustomDropdownItem>
         )}
-        <CustomDropdownItem onClick={() => setOpenModal(true)}>
+        <CustomDropdownItem onClick={() => router.push('/einstellungen/profil')}>
           <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>
@@ -313,8 +313,6 @@ export function UserSettings({
           <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
         </CustomDropdownItem>
       </CustomDropdown>
-      <SettingsModal open={openModal} onOpenChange={setOpenModal} />
-
     </>
   )
 }
