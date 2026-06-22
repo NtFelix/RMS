@@ -268,10 +268,6 @@ export function KautionModal({ serverAction }: KautionModalProps) {
     closeKautionModal({ force: true });
   }
 
-  if (!isKautionModalOpen || !kautionInitialData) return null
-
-  const { tenant, existingKaution } = kautionInitialData
-
   return (
     <Dialog open={isKautionModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent
@@ -279,98 +275,100 @@ export function KautionModal({ serverAction }: KautionModalProps) {
         isDirty={isKautionModalDirty}
         onAttemptClose={attemptClose}
       >
-        <DialogHeader>
-          <DialogTitle>
-            {existingKaution ? "Kaution bearbeiten" : "Kaution hinzufügen"}
-          </DialogTitle>
-          <DialogDescription>
-            Kaution für {tenant.name} verwalten
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2" role="form">
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount">
-                Betrag (€)
-                {suggestedAmount && !existingKaution && (
-                  <span className="text-sm text-muted-foreground ml-2">
-                    (Vorschlag: {suggestedAmount.toLocaleString("de-DE", { 
-                      style: "currency", 
-                      currency: "EUR" 
-                    })})
-                  </span>
+        {isKautionModalOpen && kautionInitialData && <>
+          <DialogHeader>
+            <DialogTitle>
+              {kautionInitialData.existingKaution ? "Kaution bearbeiten" : "Kaution hinzufügen"}
+            </DialogTitle>
+            <DialogDescription>
+              Kaution für {kautionInitialData.tenant.name} verwalten
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2" role="form">
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount">
+                  Betrag (€)
+                  {suggestedAmount && !kautionInitialData.existingKaution && (
+                    <span className="text-sm text-muted-foreground ml-2">
+                      (Vorschlag: {suggestedAmount.toLocaleString("de-DE", { 
+                        style: "currency", 
+                        currency: "EUR" 
+                      })})
+                    </span>
+                  )}
+                </Label>
+                <NumberInput
+                  id="amount"
+                  step="0.01"
+                  min="0"
+                  placeholder="0,00"
+                  value={formData.amount}
+                  onChange={(e) => handleInputChange("amount", e.target.value)}
+                  disabled={isSubmitting || isLoadingSuggestion}
+                  className={validationErrors.amount ? "border-red-500" : ""}
+                  required
+                />
+                {validationErrors.amount && (
+                  <p className="text-xs text-red-500">{validationErrors.amount}</p>
                 )}
-              </Label>
-              <NumberInput
-                id="amount"
-                step="0.01"
-                min="0"
-                placeholder="0,00"
-                value={formData.amount}
-                onChange={(e) => handleInputChange("amount", e.target.value)}
-                disabled={isSubmitting || isLoadingSuggestion}
-                className={validationErrors.amount ? "border-red-500" : ""}
-                required
-              />
-              {validationErrors.amount && (
-                <p className="text-xs text-red-500">{validationErrors.amount}</p>
-              )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="paymentDate">Zahlungsdatum</Label>
+                <DatePicker
+                  id="paymentDate"
+                  value={formData.paymentDate}
+                  onChange={handleDateChange}
+                  placeholder="TT.MM.JJJJ"
+                  disabled={isSubmitting}
+                />
+                {validationErrors.paymentDate && (
+                  <p className="text-xs text-red-500">{validationErrors.paymentDate}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: KautionStatus) => handleInputChange("status", value)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className={validationErrors.status ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Status auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ausstehend">Ausstehend</SelectItem>
+                    <SelectItem value="Erhalten">Erhalten</SelectItem>
+                    <SelectItem value="Zurückgezahlt">Zurückgezahlt</SelectItem>
+                  </SelectContent>
+                </Select>
+                {validationErrors.status && (
+                  <p className="text-xs text-red-500">{validationErrors.status}</p>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="paymentDate">Zahlungsdatum</Label>
-              <DatePicker
-                id="paymentDate"
-                value={formData.paymentDate}
-                onChange={handleDateChange}
-                placeholder="TT.MM.JJJJ"
-                disabled={isSubmitting}
-              />
-              {validationErrors.paymentDate && (
-                <p className="text-xs text-red-500">{validationErrors.paymentDate}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: KautionStatus) => handleInputChange("status", value)}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelClick}
                 disabled={isSubmitting}
               >
-                <SelectTrigger className={validationErrors.status ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Status auswählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ausstehend">Ausstehend</SelectItem>
-                  <SelectItem value="Erhalten">Erhalten</SelectItem>
-                  <SelectItem value="Zurückgezahlt">Zurückgezahlt</SelectItem>
-                </SelectContent>
-              </Select>
-              {validationErrors.status && (
-                <p className="text-xs text-red-500">{validationErrors.status}</p>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancelClick}
-              disabled={isSubmitting}
-            >
-              Abbrechen
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isLoadingSuggestion}
-            >
-              {isSubmitting ? "Wird gespeichert..." : "Speichern"}
-            </Button>
-          </DialogFooter>
-        </form>
+                Abbrechen
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || isLoadingSuggestion}
+              >
+                {isSubmitting ? "Wird gespeichert..." : "Speichern"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </>}
       </DialogContent>
     </Dialog>
   )

@@ -127,7 +127,15 @@ export function FinanceContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem 
+            onClick={() => {
+              setTimeout(() => {
+                onEdit();
+              }, 0);
+            }} 
+            disabled={!canEdit} 
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>

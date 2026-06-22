@@ -83,8 +83,11 @@ export function TenantContextMenu({
         };
       }
 
-      // Open the modal with the prepared data
-      openKautionModal(cleanTenant, kautionData);
+      // Open the modal with the prepared data in the next event loop tick
+      // to allow the context menu to close properly first.
+      setTimeout(() => {
+        openKautionModal(cleanTenant, kautionData);
+      }, 0);
 
     } catch (error) {
       toast({
@@ -130,21 +133,26 @@ export function TenantContextMenu({
   };
 
   const handleTemplates = () => {
-    // Open tenant mail templates modal with tenant name and email
-    openTenantMailTemplatesModal(tenant.name, tenant.email);
+    // Open tenant mail templates modal with tenant name and email in the next tick
+    setTimeout(() => {
+      openTenantMailTemplatesModal(tenant.name, tenant.email);
+    }, 0);
   };
 
   const handleScoreDetails = () => {
-    openApplicantScoreModal({
-      tenant: {
-        id: tenant.id,
-        name: tenant.name,
-        email: tenant.email || undefined,
-        bewerbung_score: tenant.bewerbung_score,
-        bewerbung_metadaten: tenant.bewerbung_metadaten,
-        bewerbung_mail_id: tenant.bewerbung_mail_id
-      }
-    });
+    // Open applicant score details modal in the next tick
+    setTimeout(() => {
+      openApplicantScoreModal({
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          email: tenant.email || undefined,
+          bewerbung_score: tenant.bewerbung_score,
+          bewerbung_metadaten: tenant.bewerbung_metadaten,
+          bewerbung_mail_id: tenant.bewerbung_mail_id
+        }
+      });
+    }, 0);
   };
 
   const actionHandlers: Record<string, () => void> = {
@@ -158,7 +166,15 @@ export function TenantContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} disabled={!canEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem 
+            onClick={() => {
+              setTimeout(() => {
+                onEdit();
+              }, 0);
+            }} 
+            disabled={!canEdit} 
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
