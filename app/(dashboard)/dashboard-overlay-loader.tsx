@@ -58,8 +58,7 @@ export default function DashboardOverlayLoader() {
       state.isFolderDeleteConfirmationModalOpen ||
       state.isFileMoveModalOpen ||
       state.isShareDocumentModalOpen ||
-      state.isMarkdownEditorModalOpen ||
-      state.isAIAssistantModalOpen
+      state.isMarkdownEditorModalOpen
 
     const isMeterModalOpen =
       state.isAblesungenModalOpen ||
