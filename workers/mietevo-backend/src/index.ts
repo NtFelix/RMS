@@ -1036,6 +1036,20 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
                     const traceId = crypto.randomUUID();
+                    // Resolve org_id from the mail's user context
+                    let orgId = 'unknown';
+                    try {
+                        const { data: userOrgs } = await supabase
+                            .from('Organisation_Mitglieder')
+                            .select('organisation_id')
+                            .eq('user_id', userIdForTracking)
+                            .limit(1);
+                        if (userOrgs && userOrgs.length > 0) {
+                            orgId = userOrgs[0].organisation_id;
+                        }
+                    } catch {
+                        // Best-effort, default to unknown
+                    }
                     await posthog.capture({
                         distinctId: userIdForTracking, // Use the actual user if provided
                         event: '$ai_generation',
@@ -1053,6 +1067,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                             user_id: userIdForTracking,
                             mail_id: mail_id,
                             completeness_score: aiScore || 0,
+                            // Org analytics
+                            org_id: orgId,
+                            feature: 'agent',
                         }
                     });
                     // Shutdown is handled at the end of function
