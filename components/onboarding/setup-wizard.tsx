@@ -264,7 +264,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                     <div className="flex-1 flex items-end">
                                         <Button
                                             size="lg"
-                                            className="w-full gap-2"
+                                            className="w-full gap-2 cursor-pointer"
                                             onClick={() => setStep('name')}
                                         >
                                             Jetzt starten
@@ -279,7 +279,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                     <div>
                                         <button
                                             onClick={() => setStep('welcome')}
-                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5"
+                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer"
                                         >
                                             <ChevronLeft className="h-3 w-3" />
                                             Zurück
@@ -316,7 +316,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                     <div className="flex-1 flex items-end">
                                         <Button
                                             size="lg"
-                                            className="w-full"
+                                            className="w-full cursor-pointer"
                                             disabled={isSaving}
                                             onClick={() => hasStripeCustomer ? setStep('address') : handleSave()}
                                         >
@@ -339,7 +339,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                     <div>
                                         <button
                                             onClick={() => setStep('name')}
-                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5"
+                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5 cursor-pointer"
                                         >
                                             <ChevronLeft className="h-3 w-3" />
                                             Zurück
@@ -386,7 +386,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                     <div className="flex-1 flex flex-col justify-end">
                                         <Button
                                             size="lg"
-                                            className="w-full"
+                                            className="w-full cursor-pointer"
                                             onClick={handleSave}
                                             disabled={isSaving}
                                         >
