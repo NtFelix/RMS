@@ -40,7 +40,6 @@ const ShareDocumentModal = dynamic(() => import('@/components/cloud-storage/shar
 const MarkdownEditorModal = dynamic(() => import('@/components/cloud-storage/markdown-editor-modal').then(mod => mod.MarkdownEditorModal), { ssr: false })
 const TemplatesModal = dynamic(() => import('@/components/templates/templates-modal').then(mod => mod.TemplatesModal), { ssr: false })
 const TenantMailTemplatesModal = dynamic(() => import('@/components/tenants/tenant-mail-templates-modal').then(mod => mod.TenantMailTemplatesModal), { ssr: false })
-const AIAssistantModal = dynamic(() => import('@/components/ai/ai-assistant-modal').then(mod => mod.AIAssistantModal), { ssr: false })
 const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
 const TrashBinModal = dynamic(() => import('@/components/trash-bin/trash-bin-modal').then(mod => mod.TrashBinModal), { ssr: false })
 // Default exports
@@ -140,9 +139,6 @@ export default function DashboardInnerLayout({
     isTenantMailTemplatesModalOpen,
     tenantMailTemplatesModalData,
     closeTenantMailTemplatesModal,
-    // AI Assistant Modal state
-    isAIAssistantModalOpen,
-
     // Operating Costs Overview Modal state
     isOperatingCostsOverviewModalOpen,
     operatingCostsOverviewData,
@@ -278,8 +274,6 @@ export default function DashboardInnerLayout({
           tenantName={tenantMailTemplatesModalData?.tenantName}
           tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
         />
-        {/* AI Assistant Modal - Global AI assistant modal */}
-        <AIAssistantModal />
         {/* Tenant Payment Edit Modal */}
         <TenantPaymentEditModal />
         {/* Tenant Payment Overview Modal */}
