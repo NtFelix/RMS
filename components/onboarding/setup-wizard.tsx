@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useId } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +60,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     const mountedRef = useRef(false);
     const onCompleteRef = useRef(onComplete);
     const completeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const formId = useId();
 
     useEffect(() => {
         onCompleteRef.current = onComplete;
@@ -81,12 +82,15 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
         const loadSetupData = async () => {
             setIsLoading(true);
             try {
+                if (!mountedRef.current) return;
+
                 const response = await fetch('/api/user/setup');
                 if (!mountedRef.current) return;
 
                 if (response.ok) {
-                    const data: SetupData = await response.json();
                     if (!mountedRef.current) return;
+
+                    const data: SetupData = await response.json();
 
                     if (data.setupCompleted) {
                         onCompleteRef.current();
@@ -132,19 +136,31 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     const handleSave = useCallback(async () => {
         setIsSaving(true);
         try {
+            const hasName = firstName.trim() || lastName.trim();
+            const body: Record<string, unknown> = {};
+
+            if (hasName) {
+                body.firstName = firstName.trim();
+                body.lastName = lastName.trim();
+            }
+
+            if (hasStripeCustomer && (street.trim() || city.trim() || postalCode.trim())) {
+                body.address = {
+                    line1: street.trim(),
+                    city: city.trim(),
+                    postalCode: postalCode.trim(),
+                    country: 'DE',
+                };
+            }
+
+            if (!hasName && !body.address) {
+                body.skipSetup = true;
+            }
+
             const response = await fetch('/api/user/setup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    firstName: firstName.trim(),
-                    lastName: lastName.trim(),
-                    address: hasStripeCustomer ? {
-                        line1: street.trim(),
-                        city: city.trim(),
-                        postalCode: postalCode.trim(),
-                        country: 'DE',
-                    } : null,
-                }),
+                body: JSON.stringify(body),
             });
 
             if (response.ok) {
@@ -202,7 +218,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     if (isLoading) {
         return (
             <Dialog open={isOpen} onOpenChange={() => { }}>
-                <DialogContent size="md" hideCloseButton>
+                <DialogContent hideCloseButton className="sm:max-w-[780px]">
                     <div className="flex flex-col items-center justify-center py-16 gap-4">
                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">Initialisierung…</p>
@@ -295,18 +311,20 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
 
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">Vorname</label>
-                                            <Input
-                                                autoFocus
-                                                placeholder="z.B. Maria"
+                                        <label className="text-sm font-medium" htmlFor={`${formId}-firstName`}>Vorname</label>
+                                        <Input
+                                            autoFocus
+                                            id={`${formId}-firstName`}
+                                            placeholder="z.B. Maria"
                                                 value={firstName}
                                                 onChange={e => setFirstName(e.target.value)}
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">Nachname</label>
-                                            <Input
-                                                placeholder="z.B. Mustermann"
+                                        <label className="text-sm font-medium" htmlFor={`${formId}-lastName`}>Nachname</label>
+                                        <Input
+                                            id={`${formId}-lastName`}
+                                            placeholder="z.B. Mustermann"
                                                 value={lastName}
                                                 onChange={e => setLastName(e.target.value)}
                                             />
@@ -355,27 +373,30 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
 
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium">Straße & Hausnummer</label>
-                                            <Input
-                                                autoFocus
-                                                placeholder="Musterweg 1"
+                                        <label className="text-sm font-medium" htmlFor={`${formId}-street`}>Straße & Hausnummer</label>
+                                        <Input
+                                            autoFocus
+                                            id={`${formId}-street`}
+                                            placeholder="Musterweg 1"
                                                 value={street}
                                                 onChange={e => setStreet(e.target.value)}
                                             />
                                         </div>
                                         <div className="grid grid-cols-5 gap-3">
                                             <div className="col-span-2 space-y-2">
-                                                <label className="text-sm font-medium">PLZ</label>
-                                                <Input
-                                                    placeholder="12345"
+                                        <label className="text-sm font-medium" htmlFor={`${formId}-postalCode`}>PLZ</label>
+                                        <Input
+                                            id={`${formId}-postalCode`}
+                                            placeholder="12345"
                                                     value={postalCode}
                                                     onChange={e => setPostalCode(e.target.value)}
                                                 />
                                             </div>
                                             <div className="col-span-3 space-y-2">
-                                                <label className="text-sm font-medium">Ort</label>
-                                                <Input
-                                                    placeholder="Berlin"
+                                        <label className="text-sm font-medium" htmlFor={`${formId}-city`}>Ort</label>
+                                        <Input
+                                            id={`${formId}-city`}
+                                            placeholder="Berlin"
                                                     value={city}
                                                     onChange={e => setCity(e.target.value)}
                                                 />
@@ -445,13 +466,13 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                         Absender
                                     </div>
                                     <div className="text-sm font-bold text-foreground leading-tight transition-all duration-300">
-                                        {firstName || lastName ? `${firstName} ${lastName}` : 'Ihr Name'}
+                                        {firstName.trim() || lastName.trim() ? `${firstName.trim()} ${lastName.trim()}`.trim() : 'Ihr Name'}
                                     </div>
                                     <p className="text-xs text-muted-foreground leading-tight mt-0.5 transition-all duration-300">
-                                        {street || 'Musterstraße 123'}
+                                        {street.trim() || 'Musterstraße 123'}
                                     </p>
                                     <p className="text-xs text-muted-foreground font-medium leading-tight transition-all duration-300">
-                                        {(postalCode || city) ? `${postalCode} ${city}` : '12345 Berlin'}
+                                        {(postalCode.trim() || city.trim()) ? `${postalCode.trim()} ${city.trim()}`.trim() : '12345 Berlin'}
                                     </p>
                                 </div>
 
