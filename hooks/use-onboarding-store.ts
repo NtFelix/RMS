@@ -17,6 +17,23 @@ interface OnboardingState {
     skipTour: () => void;
 }
 
+function captureGuideEvent(mode: string, progress: number) {
+    try {
+        // Dynamic import to avoid bundling posthog-js in server components
+        const posthog = require('posthog-js');
+        if (typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.()) {
+            posthog.capture('mietevo_web_product_guide', {
+                mode,
+                progress,
+                total_steps: TOUR_STEPS.length,
+                source: 'onboarding_tour',
+            });
+        }
+    } catch {
+        // PostHog not available
+    }
+}
+
 export const useOnboardingStore = create<OnboardingState>()(
     persist(
         (set, get) => ({
@@ -29,7 +46,9 @@ export const useOnboardingStore = create<OnboardingState>()(
             },
 
             stopTour: () => {
+                const { currentStepIndex } = get();
                 set({ isActive: false });
+                captureGuideEvent('partial', currentStepIndex);
             },
 
             resetTour: () => {
@@ -38,6 +57,7 @@ export const useOnboardingStore = create<OnboardingState>()(
 
             skipTour: () => {
                 set({ isActive: false, hasSeenTour: true });
+                captureGuideEvent('partial', 0);
             },
 
             completeStep: (stepId: string) => {
@@ -53,6 +73,7 @@ export const useOnboardingStore = create<OnboardingState>()(
                         // Tour finished
                         set({ isActive: false, currentStepIndex: 0 });
                         fetch('/api/user/onboarding', { method: 'POST' }).catch(console.error);
+                        captureGuideEvent('completed', TOUR_STEPS.length);
                     } else {
                         set({ currentStepIndex: nextIndex });
                     }
@@ -74,6 +95,7 @@ export const useOnboardingStore = create<OnboardingState>()(
                     // Tour finished
                     set({ isActive: false, currentStepIndex: 0 });
                     fetch('/api/user/onboarding', { method: 'POST' }).catch(console.error);
+                    captureGuideEvent('completed', TOUR_STEPS.length);
                 } else {
                     set({ currentStepIndex: nextIndex });
                 }
@@ -81,7 +103,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         }),
         {
             name: 'onboarding-storage',
-            partialize: (state: OnboardingState) => ({ hasSeenTour: state.hasSeenTour }), // Only persist hasSeenTour
+            partialize: (state: OnboardingState) => ({ hasSeenTour: state.hasSeenTour }),
         }
     )
 );

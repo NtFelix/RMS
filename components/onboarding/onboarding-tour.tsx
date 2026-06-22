@@ -273,8 +273,7 @@ export function OnboardingTour() {
     // Handler for when setup wizard completes
     const handleSetupWizardComplete = () => {
         setShowSetupWizard(false);
-        // After setup wizard completes, start the guided tour
-        useOnboardingStore.getState().startTour();
+        // The wizard handles starting the tour based on user choice
     };
 
     return (

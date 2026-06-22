@@ -12,11 +12,14 @@ import {
     ArrowRight,
     ChevronLeft,
     FileText,
+    Compass,
     type LucideIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BRAND_NAME, LOGO_URL } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { usePostHog } from 'posthog-js/react';
+import { useOnboardingStore } from '@/hooks/use-onboarding-store';
 
 interface SetupWizardProps {
     isOpen: boolean;
@@ -41,10 +44,11 @@ interface SetupData {
     } | null;
 }
 
-type Step = 'welcome' | 'name' | 'address' | 'finalizing';
+type Step = 'welcome' | 'name' | 'address' | 'tour_prompt' | 'finalizing';
 
 export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     const { toast } = useToast();
+    const posthog = usePostHog();
     const [step, setStep] = useState<Step>('welcome');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -164,10 +168,7 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
             });
 
             if (response.ok) {
-                setStep('finalizing');
-                completeTimeoutRef.current = setTimeout(() => {
-                    onCompleteRef.current();
-                }, 2000);
+                setStep('tour_prompt');
             } else {
                 throw new Error('Failed to save setup data');
             }
@@ -209,11 +210,38 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
 
     const stepOrder = useMemo(() =>
         hasStripeCustomer
-            ? ['welcome', 'name', 'address', 'finalizing'] as Step[]
-            : ['welcome', 'name', 'finalizing'] as Step[]
+            ? ['welcome', 'name', 'address', 'tour_prompt', 'finalizing'] as Step[]
+            : ['welcome', 'name', 'tour_prompt', 'finalizing'] as Step[]
     , [hasStripeCustomer]);
 
     const currentStepIndex = stepOrder.indexOf(step);
+
+    const handleStartTour = useCallback(() => {
+        posthog?.capture('mietevo_web_product_guide', {
+            mode: 'started',
+            progress: 0,
+            total_steps: 13,
+            source: 'setup_wizard',
+        });
+        useOnboardingStore.getState().startTour();
+        setStep('finalizing');
+        completeTimeoutRef.current = setTimeout(() => {
+            onCompleteRef.current();
+        }, 2000);
+    }, [posthog]);
+
+    const handleSkipTour = useCallback(() => {
+        posthog?.capture('mietevo_web_product_guide', {
+            mode: 'declined',
+            progress: 0,
+            total_steps: 13,
+            source: 'setup_wizard',
+        });
+        setStep('finalizing');
+        completeTimeoutRef.current = setTimeout(() => {
+            onCompleteRef.current();
+        }, 2000);
+    }, [posthog]);
 
     if (isLoading) {
         return (
@@ -423,6 +451,38 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                         </Button>
                                     </div>
                                 </>
+                            )}
+
+                            {step === 'tour_prompt' && (
+                                <div className="flex-1 flex flex-col justify-center gap-6">
+                                    <div className="space-y-2 text-center">
+                                        <h2 className="text-xl font-bold tracking-tight">
+                                            Möchten Sie eine kurze Einführung?
+                                        </h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Lernen Sie die wichtigsten Funktionen in einer geführten Tour kennen oder entdecken Sie alles in Ihrem eigenen Tempo.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <Button
+                                            size="lg"
+                                            className="w-full cursor-pointer gap-2"
+                                            onClick={handleStartTour}
+                                        >
+                                            <Compass className="h-4 w-4" />
+                                            Geführte Tour starten
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="lg"
+                                            className="w-full cursor-pointer"
+                                            onClick={handleSkipTour}
+                                        >
+                                            Selbst entdecken
+                                        </Button>
+                                    </div>
+                                </div>
                             )}
 
                             {step === 'finalizing' && (
