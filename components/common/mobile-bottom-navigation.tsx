@@ -2,6 +2,7 @@
 
 import React, { useEffect, useReducer, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   BarChart3,
   Users,
@@ -22,7 +23,6 @@ import { SidebarUserData } from '@/lib/server/user-data'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
-import { SettingsModal } from '@/components/modals/settings-modal'
 import { createClient } from '@/utils/supabase/client'
 import { ROUTES } from '@/lib/constants'
 
@@ -68,7 +68,6 @@ type NavUiState = {
   isMobile: boolean
   isDropdownOpen: boolean
   focusedItemIndex: number
-  isSettingsModalOpen: boolean
   announcement: string
   touchedItem: string | null
   isNavigating: boolean
@@ -81,7 +80,6 @@ type NavAction =
   | { type: 'SET_MOBILE'; payload: boolean }
   | { type: 'SET_DROPDOWN_OPEN'; payload: boolean }
   | { type: 'SET_FOCUSED_ITEM_INDEX'; payload: number }
-  | { type: 'SET_SETTINGS_MODAL_OPEN'; payload: boolean }
   | { type: 'SET_ANNOUNCEMENT'; payload: string }
   | { type: 'SET_TOUCHED_ITEM'; payload: string | null }
   | { type: 'SET_NAVIGATING'; payload: boolean }
@@ -94,7 +92,6 @@ const initialNavState: NavUiState = {
   isMobile: false,
   isDropdownOpen: false,
   focusedItemIndex: -1,
-  isSettingsModalOpen: false,
   announcement: '',
   touchedItem: null,
   isNavigating: false,
@@ -112,8 +109,6 @@ function navReducer(state: NavUiState, action: NavAction): NavUiState {
       return { ...state, isDropdownOpen: action.payload, focusedItemIndex: action.payload ? -1 : state.focusedItemIndex }
     case 'SET_FOCUSED_ITEM_INDEX':
       return { ...state, focusedItemIndex: action.payload }
-    case 'SET_SETTINGS_MODAL_OPEN':
-      return { ...state, isSettingsModalOpen: action.payload }
     case 'SET_ANNOUNCEMENT':
       return { ...state, announcement: action.payload }
     case 'SET_TOUCHED_ITEM':
@@ -132,6 +127,7 @@ function navReducer(state: NavUiState, action: NavAction): NavUiState {
 }
 
 function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteActive: (route: string) => boolean) {
+  const router = useRouter()
   const { setOpen: setCommandMenuOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
@@ -296,7 +292,7 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
 
   // Profile click
   const handleProfileClick = () => {
-    dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: true })
+    router.push('/einstellungen')
     dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
     dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Settings opened.' })
   }
@@ -900,7 +896,6 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
         onTouchCancel={handleTouchCancel}
         className={className}
       />
-      <SettingsModal open={navState.isSettingsModalOpen} onOpenChange={(open) => dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: open })} />
     </>
   )
 }
