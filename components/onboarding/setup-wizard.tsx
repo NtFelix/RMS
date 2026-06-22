@@ -7,17 +7,15 @@ import { Input } from '@/components/ui/input';
 import {
     Loader2,
     User,
-    MapPin,
+    Building2,
+    CheckCircle2,
     ArrowRight,
     ChevronLeft,
-    CheckCircle2,
-    Building2,
     FileText,
-    LucideIcon
+    type LucideIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BRAND_NAME, LOGO_URL } from '@/lib/constants';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface SetupWizardProps {
@@ -52,14 +50,12 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
 
-    // Form state
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [street, setStreet] = useState('');
     const [postalCode, setPostalCode] = useState('');
     const [city, setCity] = useState('');
 
-    // Load existing data
     useEffect(() => {
         if (!isOpen) return;
 
@@ -90,7 +86,6 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                         description: 'Die Einrichtungsdaten konnten nicht geladen werden.',
                         variant: 'destructive',
                     });
-                    console.error('Failed to load setup data:', response.statusText);
                 }
             } catch (error) {
                 console.error('Failed to load setup data:', error);
@@ -169,199 +164,191 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
         }
     }, [onComplete, toast]);
 
-    const progress = useMemo(() => {
-        switch (step) {
-            case 'welcome': return 25;
-            case 'name': return 50;
-            case 'address': return 75;
-            case 'finalizing': return 100;
-            default: return 0;
-        }
-    }, [step]);
+    const stepOrder = useMemo(() =>
+        hasStripeCustomer
+            ? ['welcome', 'name', 'address', 'finalizing'] as Step[]
+            : ['welcome', 'name', 'finalizing'] as Step[]
+    , [hasStripeCustomer]);
 
-    const stepVariants = {
-        initial: { opacity: 0, x: 20 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -20 }
-    };
+    const currentStepIndex = stepOrder.indexOf(step);
+
+    if (isLoading) {
+        return (
+            <Dialog open={isOpen} onOpenChange={() => { }}>
+                <DialogContent size="md" hideCloseButton>
+                    <div className="flex flex-col items-center justify-center py-16 gap-4">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Initialisierung…</p>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={() => { }}>
             <DialogContent
-                className="max-w-[850px] p-0 overflow-hidden border-none shadow-2xl rounded-[2rem] bg-background/95 backdrop-blur-xl"
                 hideCloseButton
+                className="sm:max-w-[780px] p-0 overflow-hidden gap-0"
             >
-                <div className="flex flex-col md:flex-row h-full min-h-[500px]">
-                    {/* LEFT SIDE: Content */}
-                    <div className="flex-1 p-8 sm:p-12 flex flex-col relative overflow-hidden">
-                        {/* Progress Indicator */}
-                        <div className="absolute top-0 left-0 w-full h-1.5 bg-muted/30 rounded-full">
-                            <motion.div
-                                className="h-full bg-primary rounded-full"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progress}%` }}
-                                transition={{ type: "spring", stiffness: 50, damping: 20 }}
-                            />
+                <div className="flex min-h-[520px]">
+                    {/* Left Panel - Steps */}
+                    <div className="flex-1 min-w-0 p-6 md:p-8 relative flex flex-col">
+                        {/* Segmented Progress Bar */}
+                        <div className="absolute top-0 left-0 right-0 flex gap-1 px-4 py-0">
+                            {stepOrder.map((_, i) => (
+                                <div
+                                    key={i}
+                                    className={cn(
+                                        "h-1 flex-1 rounded-full transition-all duration-500",
+                                        i <= currentStepIndex
+                                            ? "bg-primary shadow-[0_0_4px] shadow-primary/30"
+                                            : "bg-muted"
+                                    )}
+                                    style={{ transitionDelay: `${i * 120}ms` }}
+                                />
+                            ))}
                         </div>
 
-                        <AnimatePresence mode="wait">
-                            {isLoading ? (
-                                <motion.div
-                                    key="loader"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="flex-1 flex flex-col items-center justify-center space-y-4"
-                                >
-                                    <div className="relative">
-                                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                                        <div className="absolute inset-0 blur-xl bg-primary/20 animate-pulse" />
-                                    </div>
-                                    <p className="text-muted-foreground font-medium animate-pulse">Initialisierung…</p>
-                                </motion.div>
-                            ) : step === 'welcome' ? (
-                                <motion.div
-                                    key="welcome"
-                                    variants={stepVariants}
-                                    initial="initial"
-                                    animate="animate"
-                                    exit="exit"
-                                    className="flex-1 flex flex-col"
-                                >
-                                    <div className="mb-8">
-                                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 ring-1 ring-primary/20 p-2 overflow-hidden">
+                        <div key={step} className="animate-fade-in flex-1 flex flex-col space-y-6 pt-5">
+                            {step === 'welcome' && (
+                                <>
+                                    <div>
+                                        <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5 p-2.5">
                                             <img
                                                 src={LOGO_URL}
                                                 alt={BRAND_NAME}
                                                 className="w-full h-full object-contain"
                                             />
                                         </div>
-                                        <h2 className="text-4xl font-bold tracking-tight mb-4 leading-tight">
+                                        <h2 className="text-2xl font-bold tracking-tight mb-2">
                                             Willkommen bei <span className="text-primary">{BRAND_NAME}</span>
                                         </h2>
-                                        <p className="text-xl text-muted-foreground leading-relaxed">
-                                            Legen wir den Grundstein für Ihre professionelle Immobilienverwaltung. In nur zwei Schritten ist alles bereit.
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            Legen wir den Grundstein für Ihre professionelle Immobilienverwaltung.
                                         </p>
                                     </div>
 
-                                    <div className="space-y-4 mb-12">
+                                    <div className="space-y-3">
                                         <FeatureItem icon={User} title="Persönliches Profil" description="Ihr Name für offizielle Dokumente" />
                                         <FeatureItem icon={Building2} title="Unternehmenssitz" description="Ihre Adresse für Abrechnungen" />
                                     </div>
 
-                                    <div className="mt-auto flex items-center gap-4">
+                                    <div className="flex-1 flex items-end">
                                         <Button
                                             size="lg"
-                                            className="rounded-full px-8 h-14 text-lg shadow-lg hover:shadow-primary/20 transition-all gap-2 group"
+                                            className="w-full gap-2"
                                             onClick={() => setStep('name')}
                                         >
                                             Jetzt starten
-                                            <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                                            <ArrowRight className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                </motion.div>
-                            ) : step === 'name' ? (
-                                <motion.div
-                                    key="name"
-                                    variants={stepVariants}
-                                    initial="initial"
-                                    animate="animate"
-                                    exit="exit"
-                                    className="flex-1 flex flex-col"
-                                >
-                                    <button
-                                        onClick={() => setStep('welcome')}
-                                        className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors group"
-                                    >
-                                        <ChevronLeft className="h-4 w-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-                                        Zurück
-                                    </button>
+                                </>
+                            )}
 
-                                    <h2 className="text-3xl font-bold mb-2">Wie dürfen wir Sie nennen?</h2>
-                                    <p className="text-muted-foreground mb-10">
-                                        Dieser Name erscheint als Absender auf Ihren Abrechnungen.
-                                    </p>
+                            {step === 'name' && (
+                                <>
+                                    <div>
+                                        <button
+                                            onClick={() => setStep('welcome')}
+                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5"
+                                        >
+                                            <ChevronLeft className="h-3 w-3" />
+                                            Zurück
+                                        </button>
 
-                                    <div className="space-y-6">
+                                        <h2 className="text-xl font-bold tracking-tight mb-1">
+                                            Wie dürfen wir Sie nennen?
+                                        </h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Dieser Name erscheint als Absender auf Ihren Abrechnungen.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium ml-1">Vorname</label>
+                                            <label className="text-sm font-medium">Vorname</label>
                                             <Input
                                                 autoFocus
                                                 placeholder="z.B. Maria"
-                                                className="h-14 rounded-2xl text-lg px-6 focus-visible:ring-primary/30"
                                                 value={firstName}
                                                 onChange={e => setFirstName(e.target.value)}
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium ml-1">Nachname</label>
+                                            <label className="text-sm font-medium">Nachname</label>
                                             <Input
                                                 placeholder="z.B. Mustermann"
-                                                className="h-14 rounded-2xl text-lg px-6 focus-visible:ring-primary/30"
                                                 value={lastName}
                                                 onChange={e => setLastName(e.target.value)}
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="mt-auto pt-10">
+                                    <div className="flex-1 flex items-end">
                                         <Button
                                             size="lg"
-                                            className="w-full rounded-full h-14 text-lg shadow-xl disabled:opacity-50"
-                                            disabled={!firstName || !lastName}
+                                            className="w-full"
+                                            disabled={isSaving}
                                             onClick={() => hasStripeCustomer ? setStep('address') : handleSave()}
                                         >
-                                            {hasStripeCustomer ? 'Weiter zum Standort' : 'Einrichtung abschließen'}
+                                            {isSaving ? (
+                                                <span className="flex items-center gap-2">
+                                                    <svg className="animate-spin h-5 w-5" style={{ animationDuration: "600ms" }} viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                    </svg>
+                                                    Wird gespeichert...
+                                                </span>
+                                            ) : hasStripeCustomer ? 'Weiter' : 'Einrichtung abschließen'}
                                         </Button>
                                     </div>
-                                </motion.div>
-                            ) : step === 'address' ? (
-                                <motion.div
-                                    key="address"
-                                    variants={stepVariants}
-                                    initial="initial"
-                                    animate="animate"
-                                    exit="exit"
-                                    className="flex-1 flex flex-col"
-                                >
-                                    <button
-                                        onClick={() => setStep('name')}
-                                        className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors group"
-                                    >
-                                        <ChevronLeft className="h-4 w-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-                                        Zurück
-                                    </button>
+                                </>
+                            )}
 
-                                    <h2 className="text-3xl font-bold mb-2">Ihr Standort</h2>
-                                    <p className="text-muted-foreground mb-10">
-                                        Die offizielle Anschrift für Ihre Dokumente.
-                                    </p>
+                            {step === 'address' && (
+                                <>
+                                    <div>
+                                        <button
+                                            onClick={() => setStep('name')}
+                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-5"
+                                        >
+                                            <ChevronLeft className="h-3 w-3" />
+                                            Zurück
+                                        </button>
 
-                                    <div className="space-y-5">
+                                        <h2 className="text-xl font-bold tracking-tight mb-1">
+                                            Ihr Standort
+                                        </h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Die offizielle Anschrift für Ihre Dokumente.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium ml-1">Straße & Hausnummer</label>
+                                            <label className="text-sm font-medium">Straße & Hausnummer</label>
                                             <Input
                                                 autoFocus
                                                 placeholder="Musterweg 1"
-                                                className="h-14 rounded-2xl px-6 focus-visible:ring-primary/30"
                                                 value={street}
                                                 onChange={e => setStreet(e.target.value)}
                                             />
                                         </div>
                                         <div className="grid grid-cols-5 gap-3">
                                             <div className="col-span-2 space-y-2">
-                                                <label className="text-sm font-medium ml-1">PLZ</label>
+                                                <label className="text-sm font-medium">PLZ</label>
                                                 <Input
                                                     placeholder="12345"
-                                                    className="h-14 rounded-2xl px-6 focus-visible:ring-primary/30"
                                                     value={postalCode}
                                                     onChange={e => setPostalCode(e.target.value)}
                                                 />
                                             </div>
                                             <div className="col-span-3 space-y-2">
-                                                <label className="text-sm font-medium ml-1">Ort</label>
+                                                <label className="text-sm font-medium">Ort</label>
                                                 <Input
                                                     placeholder="Berlin"
-                                                    className="h-14 rounded-2xl px-6 focus-visible:ring-primary/30"
                                                     value={city}
                                                     onChange={e => setCity(e.target.value)}
                                                 />
@@ -369,93 +356,86 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
                                         </div>
                                     </div>
 
-                                    <div className="mt-auto pt-10 flex flex-col gap-3">
+                                    <div className="flex-1 flex flex-col justify-end">
                                         <Button
                                             size="lg"
-                                            className="w-full rounded-full h-14 text-lg shadow-xl"
+                                            className="w-full"
                                             onClick={handleSave}
                                             disabled={isSaving}
                                         >
-                                            {isSaving ? <Loader2 className="animate-spin" /> : 'Alles bereit!'}
+                                            {isSaving ? (
+                                                <span className="flex items-center gap-2">
+                                                    <svg className="animate-spin h-5 w-5" style={{ animationDuration: "600ms" }} viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                    </svg>
+                                                    Wird gespeichert...
+                                                </span>
+                                            ) : 'Alles bereit!'}
                                         </Button>
-                                        <Button
-                                            variant="ghost"
-                                            className="text-muted-foreground"
-                                            onClick={handleSkip}
-                                        >
-                                            Diesen Schritt überspringen
-                                        </Button>
                                     </div>
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    key="finalizing"
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="flex-1 flex flex-col items-center justify-center text-center space-y-6"
-                                >
-                                    <div className="relative">
-                                        <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
-                                        <CheckCircle2 className="h-20 w-20 text-primary relative z-10" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-3xl font-bold mb-2">Großartig!</h2>
-                                        <p className="text-muted-foreground text-lg">
-                                            Wir bereiten Ihr Dashboard vor…
-                                        </p>
-                                    </div>
-                                </motion.div>
+                                </>
                             )}
-                        </AnimatePresence>
+
+                            {step === 'finalizing' && (
+                                <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+                                    <div className="rounded-full bg-primary/10 p-3">
+                                        <CheckCircle2 className="h-10 w-10 text-primary" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h2 className="text-xl font-bold tracking-tight">Großartig!</h2>
+                                        <p className="text-sm text-muted-foreground">Wir bereiten Ihr Dashboard vor…</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* RIGHT SIDE: Preview / Visual */}
-                    <div className="hidden md:flex w-[320px] bg-muted/40 border-l border-border p-8 flex-col text-center justify-center space-y-12 rounded-r-[2rem] overflow-hidden">
-                        <div className="relative">
-                            {/* Abstract Graphic or Preview */}
-                            <div className="absolute -top-12 -left-12 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
-                            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl opacity-50" />
+                    {/* Right Panel - Preview */}
+                    <div className="hidden md:flex w-72 shrink-0 bg-muted/30 border-l border-border flex-col p-6 md:p-8">
+                        <div className="relative flex-1 flex flex-col items-center justify-center">
+                            <div className="absolute -top-12 -left-12 w-64 h-64 bg-primary/[0.03] rounded-full blur-3xl pointer-events-none" />
+                            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-primary/[0.03] rounded-full blur-3xl pointer-events-none" />
 
-                            <motion.div
-                                className="relative z-10 p-6 rounded-3xl bg-background border shadow-xl text-left transform-gpu rotate-2"
-                                animate={{
-                                    rotate: step === 'name' || step === 'address' ? 0 : 2,
-                                    scale: step === 'name' || step === 'address' ? 1.05 : 1
-                                }}
-                            >
-                                <div className="flex items-center gap-2 mb-6 opacity-40">
-                                    <FileText className="h-5 w-5" />
-                                    <div className="h-2 w-24 bg-muted rounded-full" />
+                            <div className="mb-4 text-center">
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-semibold mb-1">
+                                    Vorschau
+                                </p>
+                                <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                                    Ihre Daten für die Abrechnungen
+                                </p>
+                            </div>
+
+                            <div className="relative w-full max-w-[220px] aspect-[210/297] rounded-3xl border shadow-sm bg-card flex flex-col">
+                                {/* Paper header */}
+                                <div className="shrink-0 px-5 pt-5 pb-3">
+                                    <div className="h-1.5 w-16 bg-muted rounded-full" />
                                 </div>
 
-                                <div className="space-y-4">
-                                    <div className="h-2 w-full bg-muted/50 rounded-full" />
-                                    <div className="h-2 w-4/5 bg-muted/50 rounded-full" />
-                                    <div className="h-2 w-1/2 bg-muted/50 rounded-full mb-8" />
-
-                                    <div className="pt-6 border-t border-border/50">
-                                        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Absender</div>
-                                        <div className="min-h-6">
-                                            <p className="text-sm font-bold text-foreground transition-all duration-300">
-                                                {firstName || lastName ? `${firstName} ${lastName}` : 'Ihr Name'}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground transition-all duration-300">
-                                                {street ? street : 'Musterstraße 123'}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground transition-all duration-300 font-medium">
-                                                {(postalCode || city) ? `${postalCode} ${city}` : '12345 Berlin'}
-                                            </p>
-                                        </div>
+                                {/* Sender section */}
+                                <div className="shrink-0 px-5 pb-4">
+                                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-2">
+                                        Absender
                                     </div>
+                                    <div className="text-sm font-bold text-foreground leading-tight transition-all duration-300">
+                                        {firstName || lastName ? `${firstName} ${lastName}` : 'Ihr Name'}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-tight mt-0.5 transition-all duration-300">
+                                        {street || 'Musterstraße 123'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground font-medium leading-tight transition-all duration-300">
+                                        {(postalCode || city) ? `${postalCode} ${city}` : '12345 Berlin'}
+                                    </p>
                                 </div>
-                            </motion.div>
-                        </div>
 
-                        <div className="text-center px-4">
-                            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mb-2">Vorschau</h3>
-                            <p className="text-xs text-muted-foreground/80 leading-relaxed">
-                                So werden Ihre Angaben auf den offiziellen <span className="text-foreground font-medium">PDF-Abrechnungen</span> dargestellt.
-                            </p>
+                                {/* Content lines */}
+                                <div className="flex-1 space-y-2.5 px-5 pb-5">
+                                    <div className="h-1.5 w-full bg-muted/50 rounded-full" />
+                                    <div className="h-1.5 w-3/4 bg-muted/50 rounded-full" />
+                                    <div className="h-1.5 w-1/2 bg-muted/50 rounded-full" />
+                                    <div className="h-1.5 w-5/6 bg-muted/50 rounded-full" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -464,17 +444,16 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
     );
 }
 
-function FeatureItem({ icon: Icon, title, description }: { icon: LucideIcon, title: string, description: string }) {
+function FeatureItem({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
     return (
         <div className="flex items-start gap-4">
-            <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 transition-colors">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted transition-colors">
                 <Icon className="h-5 w-5 text-primary" />
             </div>
-            <div className="space-y-1">
-                <h4 className="font-semibold leading-none">{title}</h4>
+            <div className="space-y-1 min-w-0">
+                <p className="font-semibold leading-none text-sm">{title}</p>
                 <p className="text-sm text-muted-foreground">{description}</p>
             </div>
         </div>
     );
 }
-
