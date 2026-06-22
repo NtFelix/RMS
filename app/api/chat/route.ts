@@ -30,7 +30,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // 3. Setup PostHog Node Client
+    // 3. Resolve org_id — try cookie first, then fall back to current_organisation_id RPC
+    let orgId = req.cookies.get('current_organisation_id')?.value;
+    if (!orgId || orgId === 'unknown') {
+      try {
+        const { data: rpcOrgId } = await supabase.rpc('current_organisation_id');
+        orgId = rpcOrgId ?? 'unknown';
+      } catch {
+        orgId = 'unknown';
+      }
+    }
+
+    // 4. Setup PostHog Node Client
     const posthogKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY;
     const posthogHost = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST;
     if (posthogKey && posthogHost) {
@@ -39,7 +50,7 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    // 4. Fetch Dynamic Context based on URL
+    // 5. Fetch Dynamic Context based on URL
     const pageContext = await getAIContextForPathname(pathname);
 
     // 5. Initialize Gemini
@@ -391,6 +402,9 @@ ${pageContext}`;
                 $ai_tools_called: executedTools.map(t => t.name),
                 $ai_tool_call_count: executedTools.length,
                 $ai_http_status: 200,
+
+                org_id: orgId,
+                feature: 'chat',
               },
             });
             await posthog.shutdown();

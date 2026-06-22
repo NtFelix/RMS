@@ -1036,30 +1036,23 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
                     const traceId = crypto.randomUUID();
-
-                    // Resolve org_id for PostHog group analytics
+                    // Resolve org_id from the mail's user context
                     let orgId = 'unknown';
-                    if (userIdForTracking && userIdForTracking !== 'system') {
-                        try {
-                            const { data: orgMembership } = await supabase
-                                .from('Organisation_Mitglieder')
-                                .select('organisation_id')
-                                .eq('user_id', userIdForTracking)
-                                .eq('status', 'aktiv')
-                                .limit(1)
-                                .maybeSingle();
-                            if (orgMembership?.organisation_id) {
-                                orgId = orgMembership.organisation_id;
-                            }
-                        } catch {
-                            // Fallback to 'unknown' if query fails
+                    try {
+                        const { data: userOrgs } = await supabase
+                            .from('Organisation_Mitglieder')
+                            .select('organisation_id')
+                            .eq('user_id', userIdForTracking)
+                            .limit(1);
+                        if (userOrgs && userOrgs.length > 0) {
+                            orgId = userOrgs[0].organisation_id;
                         }
+                    } catch {
+                        // Best-effort, default to unknown
                     }
-
                     await posthog.capture({
                         distinctId: userIdForTracking, // Use the actual user if provided
                         event: '$ai_generation',
-                        groups: { organization: orgId },
                         properties: {
                             $ai_trace_id: traceId,
                             $ai_span_name: 'applicant_analysis',
@@ -1074,9 +1067,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                             user_id: userIdForTracking,
                             mail_id: mail_id,
                             completeness_score: aiScore || 0,
-                            // Mietevo custom properties for org-level analytics
-                            feature: 'mail',
+                            // Org analytics
                             org_id: orgId,
+                            feature: 'agent',
                         }
                     });
                     // Shutdown is handled at the end of function
