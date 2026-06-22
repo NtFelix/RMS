@@ -1036,9 +1036,28 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
                     const traceId = crypto.randomUUID();
+
+                    // Resolve org_id for PostHog group analytics
+                    let orgId = 'unknown';
+                    try {
+                        const { data: orgMembership } = await supabase
+                            .from('Organisation_Mitglieder')
+                            .select('organisation_id')
+                            .eq('user_id', userIdForTracking)
+                            .eq('status', 'aktiv')
+                            .limit(1)
+                            .maybeSingle();
+                        if (orgMembership?.organisation_id) {
+                            orgId = orgMembership.organisation_id;
+                        }
+                    } catch {
+                        // Fallback to 'unknown' if query fails
+                    }
+
                     await posthog.capture({
                         distinctId: userIdForTracking, // Use the actual user if provided
                         event: '$ai_generation',
+                        groups: { organization: orgId },
                         properties: {
                             $ai_trace_id: traceId,
                             $ai_span_name: 'applicant_analysis',
@@ -1053,6 +1072,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                             user_id: userIdForTracking,
                             mail_id: mail_id,
                             completeness_score: aiScore || 0,
+                            // Mietevo custom properties for org-level analytics
+                            feature: 'mail',
+                            org_id: orgId,
                         }
                     });
                     // Shutdown is handled at the end of function
