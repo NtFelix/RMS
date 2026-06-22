@@ -237,6 +237,10 @@ export function SetupWizard({ isOpen, onComplete }: SetupWizardProps) {
             total_steps: 13,
             source: 'setup_wizard',
         });
+
+        // Mark the onboarding tour as completed so it doesn't automatically start next time
+        fetch('/api/user/onboarding', { method: 'POST' }).catch(console.error);
+
         setStep('finalizing');
         completeTimeoutRef.current = setTimeout(() => {
             onCompleteRef.current();
