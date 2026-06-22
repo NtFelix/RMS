@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { SetupWizard } from './setup-wizard';
 
 // Mock hooks
@@ -26,6 +26,7 @@ describe('SetupWizard', () => {
     let mockFetch: jest.Mock;
 
     beforeEach(() => {
+        jest.useFakeTimers();
         mockFetch = jest.fn();
         global.fetch = mockFetch;
 
@@ -43,6 +44,7 @@ describe('SetupWizard', () => {
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         jest.clearAllMocks();
     });
 
@@ -51,9 +53,18 @@ describe('SetupWizard', () => {
 
         render(<SetupWizard isOpen={true} onComplete={onCompleteMock} />);
 
+        // Advance timers if there are any immediate microtasks/useEffect timers
+        act(() => {
+            jest.advanceTimersByTime(100);
+        });
+
         // Wait for loading to finish and "Jetzt starten" button to appear
         const startButton = await screen.findByRole('button', { name: /Jetzt starten/i });
         fireEvent.click(startButton);
+
+        act(() => {
+            jest.advanceTimersByTime(100);
+        });
 
         // Wait for the 'name' step and fill inputs
         const nameInput = await screen.findByLabelText(/Vorname/i);
@@ -69,6 +80,10 @@ describe('SetupWizard', () => {
 
         const saveNameButton = await screen.findByRole('button', { name: /Einrichtung abschließen/i });
         fireEvent.click(saveNameButton);
+
+        act(() => {
+            jest.advanceTimersByTime(100);
+        });
 
         // Wait for the 'tour_prompt' step which says "Selbst entdecken"
         const skipTourButton = await screen.findByRole('button', { name: /Selbst entdecken/i });
@@ -86,13 +101,15 @@ describe('SetupWizard', () => {
         // Verify the API was called to mark onboarding as completed
         expect(mockFetch).toHaveBeenCalledWith('/api/user/onboarding', { method: 'POST' });
 
-        // Verify that it transitions to finalizing and calls onComplete
+        // Verify that it transitions to finalizing
         const finalizingText = await screen.findByText(/Wir bereiten Ihr Dashboard vor/i);
         expect(finalizingText).toBeInTheDocument();
 
-        // Wait for the timeout
-        await waitFor(() => {
-            expect(onCompleteMock).toHaveBeenCalled();
-        }, { timeout: 3000 });
+        // Fast-forward the completeTimeout (2000ms)
+        act(() => {
+            jest.advanceTimersByTime(2000);
+        });
+
+        expect(onCompleteMock).toHaveBeenCalled();
     });
 });
