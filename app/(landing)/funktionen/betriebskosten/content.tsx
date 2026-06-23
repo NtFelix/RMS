@@ -1,6 +1,6 @@
 'use client';
 
-import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Smartphone, AlertTriangle, Key, RefreshCw, Layers, Calendar, Check } from 'lucide-react';
+import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown, ChevronDown, ChevronUp, FileUp, AlertTriangle, Key, RefreshCw, Layers, Calendar, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
@@ -47,17 +47,17 @@ export default function UtilityCostPage() {
     },
     {
       title: "Zählerstände importieren",
-      icon: Smartphone,
+      icon: FileUp,
       description: "Geben Sie die Zählerstände Ihrer Mieter für Heizung, Wasser oder Strom ein oder importieren Sie diese gesammelt für das gesamte Objekt.",
       mockup: (
         <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-all duration-300">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Smartphone size={15} />
+              <FileUp size={15} />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-foreground/90">Zähler ablesen</div>
-              <div className="text-[9px] text-muted-foreground">Eingabe Mobil</div>
+              <div className="text-[11px] font-bold text-foreground/90">Zähler importieren</div>
+              <div className="text-[9px] text-muted-foreground">Datei Upload</div>
             </div>
           </div>
           <div className="space-y-3">
@@ -76,7 +76,7 @@ export default function UtilityCostPage() {
       )
     },
     {
-      title: "Plausibilität & Double Check",
+      title: "Plausibilitätscheck",
       icon: AlertTriangle,
       description: "Lassen Sie das System die Berechnungen automatisch prüfen. Eventuelle Eingabefehler oder extreme Abweichungen werden sofort signalisiert.",
       mockup: (
@@ -299,16 +299,11 @@ export default function UtilityCostPage() {
                         "lg:col-span-5 flex flex-col justify-center",
                         isEven ? "order-1 lg:order-1 text-left" : "order-1 lg:order-3 text-left lg:text-left"
                       )}
-                    >
-                      {/* Badge */}
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                          <step.icon size={12} className="stroke-[2.5]" />
-                        </div>
-                        <span className="text-xs font-bold text-primary tracking-wider uppercase">0{index + 1} / {step.title}</span>
-                      </div>
-                      
-                      <h3 className="text-2xl font-extrabold text-foreground tracking-tight mb-4">
+                      >
+                      <h3 className="text-2xl font-extrabold text-foreground tracking-tight mb-4 flex items-center gap-3">
+                        <span className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <step.icon size={16} className="stroke-[2.5]" />
+                        </span>
                         {step.title}
                       </h3>
                       
