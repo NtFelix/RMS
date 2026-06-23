@@ -153,7 +153,7 @@ export default function DashboardOverlayHost() {
     if (confirmationModalConfig?.onConfirm) {
       confirmationModalConfig.onConfirm()
     }
-  }, [confirmationModalConfig?.onConfirm])
+  }, [confirmationModalConfig])
 
   return (
     <>

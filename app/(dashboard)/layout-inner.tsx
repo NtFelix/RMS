@@ -46,7 +46,6 @@ const TenantPaymentEditModal = dynamic(() => import('@/components/tenants/tenant
 const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenants/tenant-payment-overview-modal'), { ssr: false })
 
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
-import { GlobalDragDropProvider } from "@/components/cloud-storage/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 const OnboardingTour = dynamic(() => import('@/components/onboarding/onboarding-tour').then(mod => mod.OnboardingTour), { ssr: false })
 const AIChatSidebar = dynamic(() => import('@/components/ai-chat/ai-chat-sidebar').then(mod => mod.AIChatSidebar), { ssr: false })
@@ -61,43 +60,10 @@ export default function DashboardInnerLayout({
 }>) {
   
   const {
-    // Tenant modal state and actions
-    isTenantModalOpen,
-    closeTenantModal,
-    tenantInitialData,
-    tenantModalWohnungen,
-    openTenantModal,
-    // House modal state and actions
-    isHouseModalOpen,
-    houseInitialData,
-    houseModalOnSuccess,
-    openHouseModal,
-    closeHouseModal,
-    // Finance modal state and actions
-    isFinanceModalOpen,
-    financeInitialData,
-    financeModalWohnungen,
-    financeModalOnSuccess,
-    openFinanceModal,
-    closeFinanceModal,
-    // Wohnung modal state and actions
-    isWohnungModalOpen,
-    wohnungInitialData,
-    wohnungModalHaeuser,
-    wohnungModalOnSuccess,
-    openWohnungModal,
-    closeWohnungModal,
     // Additions for Wohnung modal props
     wohnungApartmentLimit,
     wohnungIsActiveSubscription,
-    wohnungApartmentCount, // Added
-    // Aufgabe modal state and actions
-    isAufgabeModalOpen,
-    // ... (aufgabeInitialData, aufgabeModalOnSuccess are used internally by AufgabeEditModal)
-    // closeAufgabeModal, // Also internal
-    // openAufgabeModal, // Used by other components to open
-    // Betriebskosten modal state (only need isBetriebskostenModalOpen for conditional rendering if any)
-    isBetriebskostenModalOpen,
+    wohnungApartmentCount,
     // Confirmation Modal state
     isConfirmationModalOpen,
     confirmationModalConfig,
