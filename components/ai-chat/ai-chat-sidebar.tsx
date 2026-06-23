@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Trash2, Sparkles, Plus, File as FileIcon, ThumbsUp, ThumbsDown, Database, Search, CheckCircle, XCircle, Loader2, Brain, Wrench, ChevronDown, Terminal, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight, Square, Columns, Home, LayoutGrid, Users, Wallet, Receipt, Building2, CheckSquare, FileSpreadsheet } from "lucide-react";
+import { X, Trash2, Plus, File as FileIcon, ThumbsUp, ThumbsDown, ChevronDown, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight, Square, Columns, Home, Users, Wallet, Building2, CheckSquare, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -22,18 +22,15 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useAIChatStore } from "@/hooks/use-ai-chat-store";
-// @ts-ignore - useThumbSurvey is available in recent posthog-js/react but types might be lagging
+import { useAIChatStore, type AIToolId } from "@/hooks/use-ai-chat-store";
 import { useThumbSurvey } from 'posthog-js/react/surveys'
-import type { LLMStep, StepType, ToolCallRecord } from '@/types/llm-steps';
+import type { LLMStep, ToolCallRecord } from '@/types/llm-steps';
 import { useGeminiSteps } from '@/hooks/useGeminiSteps';
 
 // Define message type
@@ -279,7 +276,6 @@ function IntelligenceInsight({
 function PostHogFeedback({ 
   traceId, 
   content, 
-  isDark, 
   onRegenerate,
   currentVersionIndex,
   totalVersions,
@@ -287,7 +283,6 @@ function PostHogFeedback({
 }: { 
   traceId?: string; 
   content?: string; 
-  isDark: boolean; 
   onRegenerate?: () => void;
   currentVersionIndex?: number;
   totalVersions?: number;
@@ -519,7 +514,7 @@ function SidebarFloatingButton({ isOpen, isDark, onToggle }: { isOpen: boolean; 
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
   
-  const { isOpen, setIsOpen, displayMode, toggleDisplayMode, toggleOpen, enabledToolIds, toggleTool } = useAIChatStore();
+  const { isOpen, displayMode, toggleDisplayMode, toggleOpen, enabledToolIds, toggleTool } = useAIChatStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -531,7 +526,7 @@ export function AIChatSidebar() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const { theme, resolvedTheme } = useTheme();
   
-  const { steps: llmSteps, stepsRef, isVisible: stepsVisible, start: startSteps, finish: finishSteps, addStep, updateStep, setAllDone } = useGeminiSteps();
+  const { steps: llmSteps, stepsRef, start: startSteps, finish: finishSteps, addStep, updateStep, setAllDone } = useGeminiSteps();
   const pathname = usePathname();
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -637,7 +632,7 @@ export function AIChatSidebar() {
 
   const performAIExchange = async (
     messageContent: string, 
-    messageAttachment: any, 
+    messageAttachment: { name: string; type: string; data: string } | null | undefined, 
     historyOverride?: Message[],
     regenerateId?: string,
     existingVersions?: MessageVersion[]
@@ -675,7 +670,7 @@ export function AIChatSidebar() {
     try {
       const currentHistory = historyOverride || messages;
       const history = currentHistory.map((m) => {
-        const parts: any[] = [];
+        const parts: ({ text: string } | { inlineData: { data: string; mimeType: string } })[] = [];
         if (m.content) parts.push({ text: m.content });
         if (m.attachment) {
           parts.push({
@@ -928,7 +923,8 @@ export function AIChatSidebar() {
                                 <div className="flex flex-col gap-2 mb-3 p-0 rounded-lg overflow-hidden bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 group/attachment relative z-10">
                                   {m.attachment.type.startsWith('image/') ? (
                                     <div className="relative aspect-auto max-h-[220px] w-full overflow-hidden bg-black/40">
-                                      <img src={ALLOWED_IMAGE_MIME_TYPES.has(m.attachment.type) ? `data:${m.attachment.type};base64,${m.attachment.data}` : ""} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-700 group-hover/attachment:scale-105" />
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+<img src={ALLOWED_IMAGE_MIME_TYPES.has(m.attachment.type) ? `data:${m.attachment.type};base64,${m.attachment.data}` : ""} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-700 group-hover/attachment:scale-105" />
                                       <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-bold text-white/90 border border-white/10 uppercase tracking-widest shadow-lg">
                                         Bild
                                       </div>
@@ -972,15 +968,15 @@ export function AIChatSidebar() {
                               <ReactMarkdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={{
-                                  table: ({ node, ...props }) => (
+                                  table: (props) => (
                                     <div className="overflow-x-auto my-4 rounded-xl border border-border/50 bg-background/50 shadow-sm">
                                       <table className="min-w-full text-sm border-collapse" {...props} />
                                     </div>
                                   ),
-                                  thead: ({ node, ...props }) => <thead className="bg-muted/50 text-left" {...props} />,
-                                  th: ({ node, ...props }) => <th className="px-4 py-2.5 font-semibold text-foreground/80 border-b border-border/60" {...props} />,
-                                  td: ({ node, ...props }) => <td className="px-4 py-2.5 border-b border-border/40 whitespace-nowrap text-foreground/70" {...props} />,
-                                  tr: ({ node, ...props }) => <tr className="hover:bg-muted/5 transition-colors" {...props} />,
+                                  thead: (props) => <thead className="bg-muted/50 text-left" {...props} />,
+                                  th: (props) => <th className="px-4 py-2.5 font-semibold text-foreground/80 border-b border-border/60" {...props} />,
+                                  td: (props) => <td className="px-4 py-2.5 border-b border-border/40 whitespace-nowrap text-foreground/70" {...props} />,
+                                  tr: (props) => <tr className="hover:bg-muted/5 transition-colors" {...props} />,
                                 }}
                               >
                                 {m.content}
@@ -989,9 +985,8 @@ export function AIChatSidebar() {
                            
                            {/* PostHog Survey Feedback Component */}
                            <PostHogFeedback 
-                             traceId={m.traceId} 
-                             isDark={isDark} 
-                             content={m.content} 
+                              traceId={m.traceId} 
+                              content={m.content} 
                              onRegenerate={() => regenerateMessage(m.id)}
                              currentVersionIndex={m.currentVersionIndex}
                              totalVersions={m.versions?.length}
@@ -1031,7 +1026,8 @@ export function AIChatSidebar() {
                       <div className="flex items-center gap-2 overflow-hidden">
                         {attachment.type.startsWith('image/') ? (
                           <div className="relative shrink-0 w-8 h-8 overflow-hidden rounded bg-background shadow-sm">
-                            <img src={ALLOWED_IMAGE_MIME_TYPES.has(attachment.type) ? `data:${attachment.type};base64,${attachment.data}` : ""} alt="Preview" className="w-full h-full object-cover" />
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+<img src={ALLOWED_IMAGE_MIME_TYPES.has(attachment.type) ? `data:${attachment.type};base64,${attachment.data}` : ""} alt="Preview" className="w-full h-full object-cover" />
                           </div>
                         ) : (
                           <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded bg-background shadow-sm">
@@ -1126,8 +1122,8 @@ export function AIChatSidebar() {
                                 <span className="text-[13px] font-medium">{tool.label}</span>
                               </div>
                               <Switch 
-                                checked={enabledToolIds.includes(tool.id as any)}
-                                onCheckedChange={() => toggleTool(tool.id as any)}
+                                 checked={enabledToolIds.includes(tool.id as AIToolId)}
+                                 onCheckedChange={() => toggleTool(tool.id as AIToolId)}
                                 className="scale-75"
                               />
                             </div>

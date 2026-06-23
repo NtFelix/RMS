@@ -10,7 +10,6 @@ export async function POST(req: NextRequest) {
   const traceId = uuidv4();
   const startTime = Date.now();
   let userId = "anonymous";
-  let userRole = "landlord";
 
   try {
     // 1. Authenticate Request
@@ -150,7 +149,7 @@ ${pageContext}`;
       !enabledToolIds || (Array.isArray(enabledToolIds) && enabledToolIds.includes(f.name))
     );
 
-    const tools: any[] = filteredFunctions.length > 0 
+    const tools: object[] = filteredFunctions.length > 0 
       ? [{ functionDeclarations: filteredFunctions }] 
       : [];
 
@@ -167,11 +166,11 @@ ${pageContext}`;
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (data: any) => controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+        const send = (data: Record<string, unknown>) => controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
 
         try {
           // Send Message & Handle Function Calls
-          let messageParts: any[] = [{ text: message }];
+          const messageParts: ({ text: string } | { inlineData: { data: string; mimeType: string } })[] = [{ text: message }];
           if (attachment) {
             messageParts.push({
               inlineData: {
@@ -184,18 +183,18 @@ ${pageContext}`;
           let totalInputTokens = 0;
           let totalOutputTokens = 0;
 
-          const addUsage = (res: any) => {
+          const addUsage = (res: { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }) => {
             if (res.usageMetadata) {
               totalInputTokens += res.usageMetadata.promptTokenCount || 0;
               totalOutputTokens += res.usageMetadata.candidatesTokenCount || 0;
             }
           };
 
-          const executeTurn = async (parts: any[]) => {
+          const executeTurn = async (parts: ({ text: string } | { inlineData: { data: string; mimeType: string } } | { functionResponse: { name: string; id?: string; response: Record<string, unknown> } })[]) => {
             const result = await chat.sendMessageStream({ message: parts });
             let fullText = "";
-            let functionCalls: any[] = [];
-            let finalUsage: any = null;
+            let functionCalls: { name: string; args?: Record<string, unknown>; id?: string }[] = [];
+            let finalUsage: { promptTokenCount?: number; candidatesTokenCount?: number } | undefined;
             
             for await (const chunk of result) {
               const text = chunk.text;
@@ -204,10 +203,10 @@ ${pageContext}`;
                 send({ type: "content", content: text });
               }
               if (chunk.functionCalls) {
-                functionCalls = chunk.functionCalls;
+                functionCalls = chunk.functionCalls.filter((fc): fc is { name: string; args?: Record<string, unknown>; id?: string } => !!fc.name);
               }
               if (chunk.usageMetadata) {
-                finalUsage = chunk.usageMetadata;
+                finalUsage = chunk.usageMetadata as { promptTokenCount?: number; candidatesTokenCount?: number };
               }
             }
             
@@ -224,11 +223,11 @@ ${pageContext}`;
           send({ type: "step_done" });
           
           let maxToolLoops = 5;
-          const executedTools: any[] = [];
+          const executedTools: { name: string; args: unknown; result: Record<string, unknown>; error: string | null }[] = [];
           
           while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && maxToolLoops > 0) {
             maxToolLoops--;
-            const responses: any[] = [];
+            const responses: { functionResponse: { name: string; id?: string; response: Record<string, unknown> } }[] = [];
 
             for (const call of aiResponse.functionCalls) {
               const label = call.name === "get_houses" ? "Häuser abrufen..." :
@@ -246,7 +245,7 @@ ${pageContext}`;
                 detail: `${call.name}(${JSON.stringify(call.args)})` 
               });
 
-              let result: any = {};
+              let result: Record<string, unknown> = {};
               let toolError: string | null = null;
               try {
                 if (call.name === "get_houses") {
@@ -257,13 +256,13 @@ ${pageContext}`;
                   
                   if (error) toolError = error.message;
                   
-                  const processedData = data?.map((h: any) => {
+                  const processedData = data?.map((h: { Wohnungen?: { groesse?: number | null }[]; groesse?: number | null; [key: string]: unknown }) => {
                     const { Wohnungen, ...house } = h;
                     let finalGroesse = house.groesse;
                     
                     // If groesse is null (automatic), sum up the apartment sizes
                     if (finalGroesse === null && Array.isArray(Wohnungen)) {
-                      finalGroesse = Wohnungen.reduce((acc: number, w: any) => acc + (Number(w.groesse) || 0), 0);
+                      finalGroesse = Wohnungen.reduce((acc: number, w: { groesse?: number | null }) => acc + (Number(w.groesse) || 0), 0);
                     }
                     
                     return { ...house, groesse: finalGroesse };
@@ -346,8 +345,8 @@ ${pageContext}`;
                   toolError = "Unknown tool call: " + call.name;
                   result = { error: toolError };
                 }
-              } catch (e: any) {
-                toolError = e.message || String(e);
+              } catch (e: unknown) {
+                toolError = e instanceof Error ? e.message : String(e);
                 result = { error: toolError };
               }
               
@@ -379,7 +378,7 @@ ${pageContext}`;
 
           send({ type: "step_start", stepType: "generating", label: "Antwort formulieren..." });
           
-          let replyText = aiResponse.text();
+          const replyText = aiResponse.text();
           const latency = (Date.now() - startTime) / 1000;
           send({ type: "step_done" });
 
@@ -419,9 +418,9 @@ ${pageContext}`;
           });
           controller.close();
 
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Stream Error:", error);
-          send({ type: "error", message: error?.message || "Internal Server Error" });
+          send({ type: "error", message: error instanceof Error ? error.message : "Internal Server Error" });
           controller.close();
         }
       }
@@ -431,10 +430,10 @@ ${pageContext}`;
       headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive" }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Chat API Root Error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error", details: error?.message },
+      { error: "Internal Server Error", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

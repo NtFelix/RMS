@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
@@ -18,7 +17,6 @@ export function DashboardLayout({
   children: React.ReactNode
   sidebarData: SidebarUserData
 }) {
-  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const { preference } = useSidebarStore()
@@ -155,8 +153,9 @@ export function DashboardLayout({
             )}>
               {children}
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
+      </div>
 
         {mounted && isMobile && <MobileBottomNavigation sidebarData={sidebarData} />}
       </div>
