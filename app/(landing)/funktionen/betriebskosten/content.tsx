@@ -211,14 +211,14 @@ export default function UtilityCostPage() {
         >
           <MacWindow className="shadow-2xl border-border/50 bg-background/50 backdrop-blur-xl">
             <MediaContent
-              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-table.avif"
-              alt="Plattform Ansicht"
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/betriebskosten-page.avif"
+              alt="Betriebskostenübersicht"
               type="image"
               className="dark:hidden"
             />
             <MediaContent
-              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/features-section/finance-table-darkmode.avif"
-              alt="Plattform Ansicht Dark"
+              src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/landing-page/betriebskosten-page-darkmode.avif"
+              alt="Betriebskostenübersicht Dark"
               type="image"
               className="hidden dark:block"
             />
