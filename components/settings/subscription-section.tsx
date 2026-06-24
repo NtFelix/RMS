@@ -24,51 +24,50 @@ const SubscriptionSection = ({ initialProfile }: SubscriptionSectionProps) => {
     }
     return null
   });
-  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !initialProfile);
+  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !initialProfile || ('error' in (initialProfile ?? {})));
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  const refreshUserProfile = async () => {
-    setIsFetchingStatus(true);
-    try {
-      const userProfileData = await getUserProfileForSettings();
-      if ('error' in userProfileData && userProfileData.error) {
+  useEffect(() => {
+    if (initialProfile && !('error' in initialProfile)) return
+
+    const refreshUserProfile = async () => {
+      setIsFetchingStatus(true);
+      try {
+        const userProfileData = await getUserProfileForSettings();
+        if ('error' in userProfileData && userProfileData.error) {
+          toast({
+            title: "Fehler",
+            description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
+            variant: "destructive",
+          });
+          setProfile(prev => ({
+            id: prev?.id || '',
+            email: prev?.email || '',
+            stripe_subscription_status: 'error',
+            currentWohnungenCount: 0,
+            activePlan: null,
+          } as UserProfileWithSubscription));
+        } else {
+          setProfile(userProfileData as UserProfileWithSubscription);
+        }
+      } catch (error) {
         toast({
           title: "Fehler",
-          description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
+          description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
           variant: "destructive",
         });
-        const currentEmail = profile?.email || '';
-        setProfile({
-          id: profile?.id || '',
-          email: currentEmail,
+        setProfile(prev => ({
+          id: prev?.id || '',
+          email: prev?.email || '',
           stripe_subscription_status: 'error',
           currentWohnungenCount: 0,
           activePlan: null,
-        } as UserProfileWithSubscription);
-      } else {
-        setProfile(userProfileData as UserProfileWithSubscription);
+        } as UserProfileWithSubscription));
+      } finally {
+        setIsFetchingStatus(false);
       }
-    } catch (error) {
-      toast({
-        title: "Fehler",
-        description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
-        variant: "destructive",
-      });
-      const currentEmail = profile?.email || '';
-      setProfile({
-        id: profile?.id || '',
-        email: currentEmail,
-        stripe_subscription_status: 'error',
-        currentWohnungenCount: 0,
-        activePlan: null,
-      } as UserProfileWithSubscription);
-    } finally {
-      setIsFetchingStatus(false);
-    }
-  };
+    };
 
-  useEffect(() => {
-    if (initialProfile) return
     refreshUserProfile();
   }, [initialProfile]);
 

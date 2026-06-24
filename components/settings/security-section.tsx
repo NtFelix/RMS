@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Mail, Lock, AlertCircle, CheckCircle, Circle } from "lucide-react";
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,7 @@ interface SecuritySectionProps {
 }
 
 const SecuritySection = ({ initialEmail }: SecuritySectionProps) => {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const { toast } = useToast()
   const [email, setEmail] = useState<string>(initialEmail ?? "")
   const [confirmEmail, setConfirmEmail] = useState<string>(initialEmail ?? "")
@@ -25,18 +25,18 @@ const SecuritySection = ({ initialEmail }: SecuritySectionProps) => {
   const [emailError, setEmailError] = useState<boolean>(false)
   const [passwordError, setPasswordError] = useState<boolean>(false)
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       setEmail(user.email || "")
       setConfirmEmail(user.email || "")
     }
-  }
+  }, [supabase])
 
   useEffect(() => {
     if (initialEmail) return
     fetchUser()
-  }, [supabase, initialEmail]);
+  }, [fetchUser, initialEmail]);
 
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {
