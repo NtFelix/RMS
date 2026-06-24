@@ -67,6 +67,9 @@ ARG POSTHOG_HOST
 ENV POSTHOG_HOST=$POSTHOG_HOST
 ARG ROBOTS_INDEXING=true
 ENV ROBOTS_INDEXING=$ROBOTS_INDEXING
+# Gemini AI API key — injected at Cloud Run runtime; included here for documentation
+ARG GEMINI_API_KEY
+ENV GEMINI_API_KEY=$GEMINI_API_KEY
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
