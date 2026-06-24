@@ -469,7 +469,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           className="px-3 py-2 rounded-xl group hover:bg-primary hover:text-primary-foreground dark:hover:bg-primary/90 cursor-pointer"
                           onClick={() => {
                             // Navigate to settings
-                            window.location.href = ROUTES.SETTINGS;
+                            router.push(ROUTES.SETTINGS);
                           }}
                         >
                           <Settings className="size-4 mr-3 text-muted-foreground group-hover:text-white" />
