@@ -2,514 +2,22 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, Plus, File as FileIcon, ThumbsUp, ThumbsDown, ChevronDown, ChevronsRight, Copy, Check, RotateCcw, ChevronLeft, ChevronRight, Square, Columns, Home, Users, Wallet, Building2, CheckSquare, FileSpreadsheet } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
 import { useFeatureFlagEnabled } from "@posthog/react";
-import { LOGO_URL } from "@/lib/constants";
-import { GoogleIcon } from "@/components/icons/google-icon";
 import { useTheme } from "next-themes";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { useAIChatStore, type AIToolId } from "@/hooks/use-ai-chat-store";
-import { useThumbSurvey } from 'posthog-js/react/surveys'
-import type { LLMStep, ToolCallRecord } from '@/types/llm-steps';
+import { useAIChatStore } from "@/hooks/use-ai-chat-store";
+import type { ToolCallRecord } from '@/types/llm-steps';
 import { useGeminiSteps } from '@/hooks/useGeminiSteps';
-
-// Define message type
-type MessageVersion = {
-  content: string;
-  traceId?: string;
-  feedback?: 'up' | 'down' | null;
-  toolCalls?: ToolCallRecord[];
-  steps?: LLMStep[];
-};
-
-type Message = {
-  id: string;
-  role: "user" | "model";
-  content: string;
-  attachment?: {
-    name: string;
-    type: string;
-    data: string;
-  };
-  traceId?: string;
-  feedback?: 'up' | 'down' | null;
-  toolCalls?: ToolCallRecord[];
-  steps?: LLMStep[];
-  versions?: MessageVersion[];
-  currentVersionIndex?: number;
-};
-
-// ─── ShimmerText: smooth left-to-right shimmer for the active step ──────────
-function ShimmerText({ text }: { text: string }) {
-  return (
-    <motion.span
-      className="text-[13px] font-medium text-muted-foreground/40 bg-clip-text"
-      style={{
-        backgroundImage: "linear-gradient(90deg, currentColor 0%, rgba(255,255,255,0.6) 50%, currentColor 100%)",
-        backgroundSize: "200% 100%",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-      } as React.CSSProperties}
-      animate={{ backgroundPosition: ["100% 0", "-100% 0"] }}
-      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-    >
-      {text}
-    </motion.span>
-  );
-}
-
-// ─── IntelligenceInsight: no-container, inline step list ────────────────────
-function IntelligenceInsight({
-  steps,
-  isLoading,
-  toolCalls,
-}: {
-  steps: LLMStep[];
-  isLoading: boolean;
-  toolCalls?: ToolCallRecord[];
-}) {
-  const [expandedToolId, setExpandedToolId] = useState<string | null>(null);
-  const [userExpanded, setUserExpanded] = useState(false);
-  const isExpanded = isLoading || userExpanded;
-
-  const hasToolData = toolCalls && toolCalls.length > 0;
-  const hasSteps = steps && steps.length > 0;
-  
-  // Don't render if nothing to show
-  if (!isLoading && !hasToolData && !hasSteps) return null;
-
-  // Visible steps: during loading show all, after loading only done/error ones
-  const visibleSteps = isLoading
-    ? steps.filter(s => s.status !== "pending" || steps.find(x => x.status === "loading") === undefined)
-    : steps.filter(s => s.status === "done" || s.status === "error");
-
-  return (
-    <div className="mb-6 group/insight">
-      {/* Top-level collapsible trigger */}
-      <button
-        type="button"
-        onClick={() => setUserExpanded(prev => !prev)}
-        className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground/65 hover:text-muted-foreground transition-all duration-200 outline-none"
-      >
-        <span>Thought</span>
-        <motion.span
-          animate={{ rotate: isExpanded ? 0 : -90 }}
-          transition={{ duration: 0.2, ease: "easeInOut" }}
-        >
-          <ChevronDown className="w-3.5 h-3.5" />
-        </motion.span>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden relative mt-3 ml-1"
-          >
-            {/* Thread line connecting all steps */}
-            <div className="absolute left-[3px] top-1 bottom-1 w-[1px] bg-foreground/10" />
-
-            <div className="space-y-4 pt-1 ml-5">
-              {/* Step rows */}
-              {visibleSteps.map((step, i) => {
-                const isActive = step.status === "loading";
-                const isDone   = step.status === "done";
-                const isError  = step.status === "error";
-
-                return (
-                  <motion.div
-                    key={step.id}
-                    initial={{ opacity: 0, x: -4 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: i * 0.04 }}
-                    className="relative flex flex-col"
-                  >
-                    {/* Timeline Bullet */}
-                    <div className="absolute -left-[20px] top-[7px]">
-                      {isActive ? (
-                        <motion.div
-                          className="w-1.5 h-1.5 rounded-full bg-foreground/40 ring-4 ring-background"
-                          animate={{ opacity: [0.3, 1, 0.3], scale: [0.9, 1.1, 0.9] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                        />
-                      ) : (
-                        <div className={`w-1.5 h-1.5 rounded-full ring-4 ring-background ${
-                          isDone ? "bg-foreground/20" : isError ? "bg-red-400/60" : "bg-foreground/10"
-                        }`} />
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="min-w-0 pr-4">
-                      {step.toolResult ? (
-                        <button
-                          type="button"
-                          onClick={() => setExpandedToolId(expandedToolId === step.id ? null : step.id)}
-                          className="flex flex-col items-start text-left w-full group/toolstep outline-none"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[13px] font-medium leading-snug transition-colors ${
-                              isDone   ? "text-muted-foreground/60 group-hover/toolstep:text-muted-foreground" :
-                              isError  ? "text-red-400/70" :
-                              "text-muted-foreground/40"
-                            }`}>
-                              {step.label}
-                            </span>
-                            <motion.span
-                              animate={{ rotate: expandedToolId === step.id ? 0 : -90 }}
-                              transition={{ duration: 0.15 }}
-                            >
-                              <ChevronDown className="w-3 h-3 text-muted-foreground/30" />
-                            </motion.span>
-                          </div>
-
-                          {step.detail && (
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className="text-[11px] font-medium text-muted-foreground/40 truncate max-w-full italic">
-                                {step.detail}
-                              </span>
-                              {isDone && step.duration && (
-                                <span className="text-[10px] font-mono text-muted-foreground/25 shrink-0">
-                                  {step.duration}ms
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </button>
-                      ) : (
-                        <>
-                          {isActive ? (
-                            <ShimmerText text={step.label} />
-                          ) : (
-                            <span className={`text-[13px] font-medium block leading-snug ${
-                              isDone   ? "text-muted-foreground/60" :
-                              isError  ? "text-red-400/70" :
-                              "text-muted-foreground/40"
-                            }`}>
-                              {step.label}
-                            </span>
-                          )}
-
-                          {step.detail && step.status !== "pending" && (
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className="text-[11px] font-medium text-muted-foreground/40 truncate max-w-full italic">
-                                {step.detail}
-                              </span>
-                              {isDone && step.duration && (
-                                <span className="text-[10px] font-mono text-muted-foreground/25 shrink-0">
-                                  {step.duration}ms
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {/* Tool data content */}
-                      {step.toolResult && (
-                        <AnimatePresence>
-                          {expandedToolId === step.id && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="mt-2.5 pb-2 space-y-3 pl-3 border-l border-border/20">
-                                <div className="space-y-1">
-                                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/35">Input</span>
-                                  <pre className="p-2.5 rounded-lg text-[11px] font-mono bg-muted/20 text-muted-foreground/75 overflow-x-auto overflow-y-auto max-h-[160px] border border-border/5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/50 [&::-webkit-scrollbar-track]:bg-transparent">
-                                    {JSON.stringify(step.toolResult.args, null, 2)}
-                                  </pre>
-                                </div>
-
-                                {step.toolResult.result && (
-                                  <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-primary/40">Output</span>
-                                    <pre className="p-2.5 rounded-lg text-[11px] font-mono bg-primary/[0.04] text-foreground/70 overflow-x-auto overflow-y-auto max-h-[220px] border border-primary/10 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/25 [&::-webkit-scrollbar-track]:bg-transparent">
-                                      {JSON.stringify(step.toolResult.result, null, 2)}
-                                    </pre>
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-
-
-function PostHogFeedback({ 
-  traceId, 
-  content, 
-  onRegenerate,
-  currentVersionIndex,
-  totalVersions,
-  onVersionChange
-}: { 
-  traceId?: string; 
-  content?: string; 
-  onRegenerate?: () => void;
-  currentVersionIndex?: number;
-  totalVersions?: number;
-  onVersionChange?: (index: number) => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  
-  const { respond, response, triggerRef } = useThumbSurvey({
-    surveyId: '019ce11d-f79c-0000-4959-8e5eb60be080',
-    properties: {
-      $ai_trace_id: traceId || '',
-    },
-  })
-
-  if (!traceId) return null;
-
-  const handleCopy = () => {
-    if (!content) return;
-    navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    
-    // Optional: Track copy event
-    posthog.capture('ai_response_copied', {
-      $ai_trace_id: traceId,
-    });
-  }
-
-  return (
-    <div ref={triggerRef} className="flex flex-col gap-2 mt-4 pt-4 border-t border-border/10">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-          War diese Antwort hilfreich?
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        {content && (
-          <div className="flex items-center gap-2">
-            
-            {/* Version Pagination */}
-            {totalVersions !== undefined && totalVersions > 1 && (
-              <div className="flex items-center gap-1.5 mr-2 pr-2 border-r border-border/20">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={currentVersionIndex === 0}
-                  onClick={() => onVersionChange?.(currentVersionIndex! - 1)}
-                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-all"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                </Button>
-                <div className="min-w-[32px] text-center">
-                  <span className="text-[11px] font-bold tabular-nums text-muted-foreground">
-                    {currentVersionIndex! + 1} / {totalVersions}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={currentVersionIndex === totalVersions - 1}
-                  onClick={() => onVersionChange?.(currentVersionIndex! + 1)}
-                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-all"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            )}
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleCopy}
-              title={copied ? 'Kopiert' : 'Kopieren'}
-              className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border bg-transparent border-border/30 text-muted-foreground hover:bg-primary/5 hover:border-primary/20 hover:text-primary ${copied ? 'text-primary border-primary/40 bg-primary/5' : ''}`}
-            >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            </Button>
-            
-            {onRegenerate && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={onRegenerate}
-                title="Erneut generieren"
-                className="h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border bg-transparent border-border/30 text-muted-foreground hover:bg-primary/5 hover:border-primary/20 hover:text-primary"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </Button>
-            )}
-            
-            <div className="h-4 w-px bg-border/40 mx-1" />
-          </div>
-        )}
-
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => respond('up')}
-          title="Hilfreich"
-          className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border ${
-            response === 'up' 
-              ? 'bg-green-500/10 border-green-500/30 text-green-600' 
-              : 'bg-transparent border-border/30 text-muted-foreground hover:bg-green-500/5 hover:border-green-500/20 hover:text-green-500'
-          }`}
-        >
-          <ThumbsUp className={`w-3.5 h-3.5 ${response === 'up' ? 'fill-current' : ''}`} />
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => respond('down')}
-          title="Nicht hilfreich"
-          className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border ${
-            response === 'down' 
-              ? 'bg-red-500/10 border-red-500/30 text-red-600' 
-              : 'bg-transparent border-border/30 text-muted-foreground hover:bg-red-500/5 hover:border-red-500/20 hover:text-red-500'
-          }`}
-        >
-          <ThumbsDown className={`w-3.5 h-3.5 ${response === 'down' ? 'fill-current' : ''}`} />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function SidebarHeader({
-  isDark,
-  onClearChat,
-  onToggleDisplayMode,
-  onToggleSidebar,
-  displayMode,
-}: {
-  isDark: boolean;
-  onClearChat: () => void;
-  onToggleDisplayMode: () => void;
-  onToggleSidebar: () => void;
-  displayMode: "push" | "overlay";
-}) {
-  return (
-    <div className="flex items-center justify-between px-6 py-6 bg-transparent z-20">
-      <div className="flex items-center gap-3">
-        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 shadow-inner overflow-hidden">
-          <Image src={LOGO_URL} alt="Mietevo Mascot" width={24} height={24} className="object-contain" />
-        </div>
-        <div>
-          <h2 className="font-bold text-lg leading-none bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 dark:to-white/70">
-            Mietevo AI
-          </h2>
-        </div>
-      </div>
-      <div className={`flex items-center gap-1 rounded-full p-1 border transition-all duration-300 ${isDark ? 'bg-muted/40 border-white/10 shadow-none' : 'bg-white border-black/[0.08] shadow-sm'}`}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClearChat}
-          title="Chat leeren"
-          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5 hover:text-destructive' : 'hover:bg-black/5 hover:text-red-500 text-muted-foreground'}`}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggleDisplayMode}
-          title={displayMode === 'push' ? "Zu Overlay wechseln" : "Zu Push wechseln"}
-          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
-        >
-          {displayMode === 'push' ? <Square className="w-4 h-4" /> : <Columns className="w-4 h-4" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggleSidebar}
-          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground'}`}
-        >
-          <ChevronsRight className="w-5 h-5" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function SidebarFloatingButton({ isOpen, isDark, onToggle }: { isOpen: boolean; isDark: boolean; onToggle: () => void }) {
-  return (
-    <AnimatePresence>
-      {!isOpen && (
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="fixed bottom-6 right-6 z-40 group"
-        >
-          <div className="absolute -inset-1 bg-primary rounded-full blur opacity-10 group-hover:opacity-30 transition duration-500"></div>
-          <Button
-            size="icon"
-            className="relative h-14 w-14 rounded-full shadow-2xl bg-white hover:bg-white text-primary border border-border overflow-hidden p-0"
-            onClick={onToggle}
-          >
-            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <Image 
-              src={LOGO_URL} 
-              alt="Mietevo AI" 
-              width={32} 
-              height={32} 
-              className="object-contain relative z-10" 
-            />
-          </Button>
-          <div className="absolute bottom-full right-0 mb-4 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex flex-col items-start whitespace-nowrap">
-            <div className={`px-4 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md flex flex-col items-start gap-1 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`}>
-              <span className="text-[13px] font-bold tracking-tight">Mietevo AI</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-30">Hotkey</span>
-                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[11px] font-bold ${isDark ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/5'}`}>
-                  <span>⌘</span>
-                  <span>J</span>
-                </div>
-              </div>
-            </div>
-            <div className={`mr-6 ml-auto w-3 h-3 rotate-45 border-r border-b translate-y-[-6px] ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`} />
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
+import type { Message, MessageVersion } from "./ai-chat-types";
+import { EmptyState } from "./ai-chat-empty-state";
+import { UserMessageBubble } from "./ai-chat-user-message";
+import { AIMessageCard } from "./ai-chat-ai-message";
+import { ChatInput } from "./ai-chat-input";
+import { SidebarHeader } from "./ai-chat-header";
+import { SidebarFloatingButton } from "./ai-chat-floating-button";
+import { IntelligenceInsight } from "./ai-chat-intelligence-insight";
 
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
@@ -534,7 +42,6 @@ export function AIChatSidebar() {
 
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
-  const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -889,22 +396,7 @@ export function AIChatSidebar() {
               ref={scrollRef}
             >
               {messages.length === 0 ? (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.4 }}
-                  className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-[85%] mx-auto pb-10"
-                >
-                  <div className="relative w-20 h-20 rounded-full bg-muted flex items-center justify-center border border-border shadow-sm overflow-hidden">
-                    <Image src={LOGO_URL} alt="Mietevo Mascot" width={50} height={50} className="object-contain" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold tracking-tight">Wie kann ich helfen?</h3>
-                    <p className="text-[14px] text-muted-foreground leading-relaxed">
-                      Schneller Datenabruf. Frage mich nach deinen Objekten, Mietern, Aufgaben oder Transaktionen.
-                    </p>
-                  </div>
-                </motion.div>
+                <EmptyState />
               ) : (
                 <AnimatePresence initial={false}>
                    {messages.map((m) => (
@@ -917,90 +409,27 @@ export function AIChatSidebar() {
                        }`}
                      >
                        {m.role === "user" ? (
-                         <div className="flex flex-col items-end max-w-[85%]">
-                            <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-[20px] rounded-tr-[4px] shadow-sm border border-primary/10 relative overflow-hidden group/message">
-                              {m.attachment && (
-                                <div className="flex flex-col gap-2 mb-3 p-0 rounded-lg overflow-hidden bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/10 group/attachment relative z-10">
-                                  {m.attachment.type.startsWith('image/') ? (
-                                    <div className="relative aspect-auto max-h-[220px] w-full overflow-hidden bg-black/40">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-<img src={ALLOWED_IMAGE_MIME_TYPES.has(m.attachment.type) ? `data:${m.attachment.type};base64,${m.attachment.data}` : ""} alt={m.attachment.name} className="object-contain w-full h-full transform transition-transform duration-700 group-hover/attachment:scale-105" />
-                                      <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-bold text-white/90 border border-white/10 uppercase tracking-widest shadow-lg">
-                                        Bild
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-4 p-4 bg-white/5">
-                                      <div className="w-11 h-11 flex items-center justify-center rounded-lg bg-white/10 border border-white/10 group-hover/attachment:bg-white/20 transition-colors duration-300">
-                                        <FileIcon className="w-6 h-6 text-white" />
-                                      </div>
-                                      <div className="flex flex-col min-w-0">
-                                        <span className="text-[13px] truncate font-bold text-white leading-tight">{m.attachment.name}</span>
-                                        <span className="text-[10px] opacity-70 uppercase tracking-widest mt-0.5 font-medium">Dokument</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              <p className="whitespace-pre-wrap relative z-10 font-medium">{m.content}</p>
-                            </div>
-                         </div>
+                         <UserMessageBubble message={m} />
                        ) : (
-                         <div className="w-full space-y-4 group">
-                           <div className="flex items-center justify-between px-1">
-                             <div className="flex items-center gap-2.5">
-                               <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center border border-primary/20 shadow-sm overflow-hidden p-[2px] transition-transform group-hover:scale-105 duration-300">
-                                 <Image src={LOGO_URL} alt="AI" width={20} height={20} className="object-contain" />
-                               </div>
-                               <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-70">Mietevo AI</span>
-                             </div>
-                           </div>
-                            
-                             {( (m.id === activeId && isLoading) || (m.toolCalls && m.toolCalls.length > 0) || (m.steps && m.steps.length > 0) ) && (
-                               <IntelligenceInsight 
-                                 steps={m.id === activeId && isLoading ? llmSteps : (m.steps || [])} 
-                                 isLoading={m.id === activeId && isLoading} 
-                                 toolCalls={m.id === activeId && isLoading ? undefined : m.toolCalls} 
-                               />
-                             )}
-
-                           <div className="prose prose-sm dark:prose-invert w-full max-w-full overflow-hidden px-1 text-[15px] leading-relaxed text-foreground/90 font-medium">
-                              <ReactMarkdown 
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  table: (props) => (
-                                    <div className="overflow-x-auto my-4 rounded-xl border border-border/50 bg-background/50 shadow-sm">
-                                      <table className="min-w-full text-sm border-collapse" {...props} />
-                                    </div>
-                                  ),
-                                  thead: (props) => <thead className="bg-muted/50 text-left" {...props} />,
-                                  th: (props) => <th className="px-4 py-2.5 font-semibold text-foreground/80 border-b border-border/60" {...props} />,
-                                  td: (props) => <td className="px-4 py-2.5 border-b border-border/40 whitespace-nowrap text-foreground/70" {...props} />,
-                                  tr: (props) => <tr className="hover:bg-muted/5 transition-colors" {...props} />,
-                                }}
-                              >
-                                {m.content}
-                              </ReactMarkdown>
-                           </div>
-                           
-                           {/* PostHog Survey Feedback Component */}
-                           <PostHogFeedback 
-                              traceId={m.traceId} 
-                              content={m.content} 
-                             onRegenerate={() => regenerateMessage(m.id)}
-                             currentVersionIndex={m.currentVersionIndex}
-                             totalVersions={m.versions?.length}
-                             onVersionChange={(idx) => switchVersion(m.id, idx)}
-                           />
-                           
-                           <div className="h-px w-full bg-gradient-to-r from-border/50 via-border/10 to-transparent my-6 opacity-30" />
-                         </div>
+                         <AIMessageCard
+                           content={m.content}
+                           traceId={m.traceId}
+                           currentVersionIndex={m.currentVersionIndex}
+                           totalVersions={m.versions?.length}
+                           steps={m.steps}
+                           toolCalls={m.toolCalls}
+                           isActive={m.id === activeId}
+                           isLoading={isLoading}
+                           liveSteps={llmSteps}
+                           onRegenerate={() => regenerateMessage(m.id)}
+                           onVersionChange={(idx) => switchVersion(m.id, idx)}
+                         />
                        )}
                      </motion.div>
                    ))}
                  </AnimatePresence>
               )}
-                {isLoading && activeId === null && ( // Only show global thinking if no specific message is active
+                {isLoading && activeId === null && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1011,167 +440,23 @@ export function AIChatSidebar() {
                 )}
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-background border-t border-border/50 shadow-sm z-20">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendMessage();
-                }}
-                className={`relative border border-border/10 rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-primary/20 transition-all duration-300 ${isDark ? 'bg-[#1A1A1A] text-white' : 'bg-white text-foreground border-border/80'}`}
-              >
-                <div className="px-4 pt-3">
-                  {attachment && (
-                    <div className="flex items-center justify-between p-2 mb-2 rounded-lg bg-muted border border-border/40 animate-in zoom-in-95 duration-200">
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        {attachment.type.startsWith('image/') ? (
-                          <div className="relative shrink-0 w-8 h-8 overflow-hidden rounded bg-background shadow-sm">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-<img src={ALLOWED_IMAGE_MIME_TYPES.has(attachment.type) ? `data:${attachment.type};base64,${attachment.data}` : ""} alt="Preview" className="w-full h-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded bg-background shadow-sm">
-                            <FileIcon className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                        )}
-                        <span className="text-sm truncate text-foreground font-medium">{attachment.name}</span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setAttachment(null)}
-                        className="w-7 h-7 rounded-full hover:bg-destructive/10 hover:text-destructive shrink-0"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                   <textarea
-                    ref={textareaRef}
-                    value={inputValue}
-                    onChange={(e) => {
-                      setInputValue(e.target.value);
-                      e.target.style.height = 'auto'; // Reset to auto to shrink if needed
-                      e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
-                    }}
-                    onKeyDown={handleKeyDown}
-                    placeholder={attachment ? "Frage zum Anhang hinzufügen..." : "Alles mit KI erledigen..."}
-                    disabled={isLoading}
-                    rows={1}
-                    aria-label="Chat-Nachricht eingeben"
-                    className="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[150px] text-[15px] placeholder:text-muted-foreground disabled:opacity-50 min-h-[48px] outline-none"
-                    style={{ overflowY: inputValue.length > 50 ? 'auto' : 'hidden' }}
-                  />
-                </div>
-                
-                {/* Bottom row: tools left, send right */}
-                <div className="flex items-center justify-between px-3 pb-3">
-                  <div className="flex items-center gap-1">
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      ref={fileInputRef} 
-                      onChange={handleFileSelect} 
-                      accept="image/*,.pdf,.doc,.docx,.csv,.txt"
-                      aria-label="Datei hochladen"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
-                      title="Datei hochladen"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={`rounded-lg w-9 h-9 text-muted-foreground hover:text-foreground ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
-                          title="KI-Werkzeuge konfigurieren"
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="14" y2="14"/><line x1="4" x2="20" y1="7" y2="7"/><circle cx="8" cy="21" r="1"/><circle cx="16" cy="14" r="1"/><circle cx="8" cy="7" r="1"/></svg>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className={`w-[200px] p-1.5 border-border/10 shadow-xl rounded-xl ${isDark ? 'bg-[#1A1A1A] text-white' : 'bg-white'}`}>
-                        <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-2">
-                          KI-Werkzeuge
-                        </DropdownMenuLabel>
-                        <div className="space-y-0.5">
-                          {[
-                            { id: 'get_houses', label: 'Häuser', icon: <Building2 className="w-4 h-4" /> },
-                            { id: 'get_apartments', label: 'Wohnungen', icon: <Home className="w-4 h-4" /> },
-                            { id: 'get_tenants', label: 'Mieter', icon: <Users className="w-4 h-4" /> },
-                            { id: 'get_finances', label: 'Finanzen', icon: <Wallet className="w-4 h-4" /> },
-                            { id: 'get_tasks', label: 'Aufgaben', icon: <CheckSquare className="w-4 h-4" /> },
-                            { id: 'get_nebenkosten', label: 'Betriebskosten', icon: <FileSpreadsheet className="w-4 h-4" /> },
-                          ].map((tool) => (
-                            <div 
-                              key={tool.id} 
-                              className={`flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <div className="text-muted-foreground">
-                                  {tool.icon}
-                                </div>
-                                <span className="text-[13px] font-medium">{tool.label}</span>
-                              </div>
-                              <Switch 
-                                 checked={enabledToolIds.includes(tool.id as AIToolId)}
-                                 onCheckedChange={() => toggleTool(tool.id as AIToolId)}
-                                className="scale-75"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={selectedModel}
-                      onValueChange={setSelectedModel}
-                    >
-                      <SelectTrigger className={`h-9 border-none bg-transparent hover:scale-100 active:scale-100 hover:shadow-none px-3 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg transition-colors gap-1.5 focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${isDark ? 'hover:bg-white/5 data-[state=open]:bg-white/5' : 'hover:bg-black/5 data-[state=open]:bg-black/5'}`}>
-                        <div className="flex items-center gap-1.5 min-w-[85px]">
-                          <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
-                          <SelectValue placeholder="Modell wählen" />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent align="end" className={`w-[160px] border-border/10 shadow-xl rounded-xl p-1 ${isDark ? 'bg-[#1A1A1A]/95 text-white' : 'bg-white text-foreground'}`}>
-                        <SelectItem 
-                          value="gemini-3.1-flash-lite-preview"
-                          className={`font-medium cursor-pointer ${selectedModel === "gemini-3.1-flash-lite-preview" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
-                        >
-                          Flash Lite 3.1
-                        </SelectItem>
-                        <SelectItem 
-                          value="gemini-3-flash-preview"
-                          className={`font-medium cursor-pointer ${selectedModel === "gemini-3-flash-preview" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
-                        >
-                          Flash 3.0
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      type="submit"
-                      size="icon"
-                      disabled={isLoading || (!inputValue.trim() && !attachment)}
-                      className={`rounded-full w-9 h-9 shrink-0 shadow-none transition-all active:scale-95 disabled:opacity-30 ${isDark ? 'bg-white/10 hover:bg-white/20 text-white disabled:hover:bg-white/10' : 'bg-black/10 hover:bg-black/20 text-foreground disabled:hover:bg-black/10'}`}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
-                    </Button>
-                  </div>
-                </div>
-              </form>
-            </div>
+            <ChatInput
+              inputValue={inputValue}
+              setInputValue={setInputValue}
+              attachment={attachment}
+              setAttachment={setAttachment}
+              isLoading={isLoading}
+              isDark={isDark}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
+              enabledToolIds={enabledToolIds}
+              toggleTool={toggleTool}
+              handleFileSelect={handleFileSelect}
+              fileInputRef={fileInputRef}
+              textareaRef={textareaRef}
+              handleKeyDown={handleKeyDown}
+              sendMessage={sendMessage}
+            />
           </motion.div>
         )}
       </AnimatePresence>
