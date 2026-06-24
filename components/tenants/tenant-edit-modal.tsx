@@ -1005,25 +1005,26 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         <TopBar
           tenantInitialData={tenantInitialData}
           onDeleteRequest={() => setDeleteDialogOpen(true)}
-          actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled }).map((action) => {
-            const handlerMap: Record<string, () => void> = {
+          actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled }).flatMap((action) => {
+            const handlerMap: Record<string, (() => void) | undefined> = {
               kaution: () => openKautionModal(
                 { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id },
                 tenantInitialData.kaution
               ),
-              vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email),
+              vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email || undefined),
               datenblatt: () => openApplicantScoreModal({
                 tenant: {
                   id: tenantInitialData.id,
                   name: tenantInitialData.name,
-                  email: tenantInitialData.email,
+                  email: tenantInitialData.email || undefined,
                   bewerbung_score: tenantInitialData.bewerbung_score,
                   bewerbung_metadaten: tenantInitialData.bewerbung_metadaten,
                   bewerbung_mail_id: tenantInitialData.bewerbung_mail_id,
                 }
               }),
             }
-            return { key: action.key, onClick: handlerMap[action.key] }
+            const onClick = handlerMap[action.key]
+            return onClick ? [{ key: action.key, onClick }] : []
           }) : []}
         />
 
