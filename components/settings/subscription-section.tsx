@@ -11,11 +11,20 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 
-const SubscriptionSection = () => {
+interface SubscriptionSectionProps {
+  initialProfile?: Awaited<ReturnType<typeof getUserProfileForSettings>> | null
+}
+
+const SubscriptionSection = ({ initialProfile }: SubscriptionSectionProps) => {
   const { toast } = useToast()
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
-  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null);
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(() => {
+    if (initialProfile && !('error' in initialProfile)) {
+      return initialProfile as unknown as UserProfileWithSubscription
+    }
+    return null
+  });
+  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !initialProfile);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const refreshUserProfile = async () => {
@@ -59,8 +68,9 @@ const SubscriptionSection = () => {
   };
 
   useEffect(() => {
+    if (initialProfile) return
     refreshUserProfile();
-  }, []);
+  }, [initialProfile]);
 
   useEffect(() => {
     if (profile?.stripe_customer_id) {

@@ -10,11 +10,15 @@ import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import ConnectedAccountsSection from "./connected-accounts-section";
 import AuthorizedAppsSection from "./authorized-apps-section";
 
-const SecuritySection = () => {
+interface SecuritySectionProps {
+  initialEmail?: string
+}
+
+const SecuritySection = ({ initialEmail }: SecuritySectionProps) => {
   const supabase = createClient()
   const { toast } = useToast()
-  const [email, setEmail] = useState<string>("")
-  const [confirmEmail, setConfirmEmail] = useState<string>("")
+  const [email, setEmail] = useState<string>(initialEmail ?? "")
+  const [confirmEmail, setConfirmEmail] = useState<string>(initialEmail ?? "")
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
@@ -30,8 +34,9 @@ const SecuritySection = () => {
   }
 
   useEffect(() => {
+    if (initialEmail) return
     fetchUser()
-  }, [supabase]);
+  }, [supabase, initialEmail]);
 
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {
