@@ -219,6 +219,198 @@ function DeleteTenantDialog({
   )
 }
 
+function NebenkostenSection({
+  isApplicant,
+  nebenkostenEntries,
+  handleNebenkostenChange,
+  addNebenkostenEntry,
+  removeNebenkostenEntry,
+  nebenkostenValidationErrors,
+  isSubmitting,
+}: {
+  isApplicant: boolean
+  nebenkostenEntries: NebenkostenEntry[]
+  handleNebenkostenChange: (id: string, field: 'amount' | 'date', value: string) => void
+  addNebenkostenEntry: () => void
+  removeNebenkostenEntry: (id: string) => void
+  nebenkostenValidationErrors: Record<string, { amount?: string; date?: string }>
+  isSubmitting: boolean
+}) {
+  if (isApplicant) return null
+
+  return (
+    <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+      <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+        Nebenkosten
+      </div>
+
+      <div className="space-y-3">
+        <div className="bg-muted/20 rounded-xl border border-border/50">
+          <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
+            <div className="p-3 flex flex-col gap-3 sm:p-4 sm:flex flex-col gap-4">
+              {nebenkostenEntries.length === 0 ? (
+                <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
+                  Keine Nebenkosten-Vorauszahlungen vorhanden
+                </div>
+              ) : nebenkostenEntries.map((entry) => (
+                <div key={entry.id} className="grid gap-2 grid-cols-[1fr_auto] sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
+                  <div className="flex flex-col gap-1">
+                    <NumberInput
+                      step="0.01"
+                      placeholder="Betrag (€)"
+                      value={entry.amount}
+                      onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
+                      className={`bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent ${nebenkostenValidationErrors[entry.id]?.amount ? 'text-red-500' : ''}`}
+                      disabled={isSubmitting}
+                    />
+                    {nebenkostenValidationErrors[entry.id]?.amount && (
+                      <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <DatePicker
+                      value={entry.date}
+                      onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
+                      placeholder="Datum (TT.MM.JJJJ)"
+                      className={`bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 ${nebenkostenValidationErrors[entry.id]?.date ? 'text-red-500' : ''}`}
+                      disabled={isSubmitting}
+                    />
+                    {nebenkostenValidationErrors[entry.id]?.date && (
+                      <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeNebenkostenEntry(entry.id)}
+                    disabled={isSubmitting}
+                    className="justify-self-end"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-border/40 p-3 sm:p-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addNebenkostenEntry}
+              disabled={isSubmitting}
+              className="w-full hover:scale-[1.005] active:scale-[0.995]"
+            >
+              Eintrag hinzufügen
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ContactFields({
+  formData,
+  handleDateChange,
+  onFieldChange,
+  isSubmitting,
+  isApplicant,
+}: {
+  formData: { einzug: string; auszug: string; email: string; telefonnummer: string }
+  handleDateChange: (name: 'einzug' | 'auszug', date: Date | undefined) => void
+  onFieldChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
+  isSubmitting: boolean
+  isApplicant: boolean
+}) {
+  return (
+    <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+      <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+        Kontaktdaten
+      </div>
+
+      <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+          <PropertyHeader
+            icon={Calendar}
+            label={isApplicant ? "Geplanter Einzug" : "Einzug"}
+            htmlFor="einzug"
+            infoText="Datum im Format TT.MM.JJJJ."
+          />
+          <DatePicker
+            id="einzug"
+            value={formData.einzug}
+            onChange={(date) => handleDateChange('einzug', date)}
+            placeholder="TT.MM.JJJJ"
+            disabled={isSubmitting}
+            className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
+          />
+          <input type="hidden" name="einzug" value={formData.einzug} />
+        </div>
+
+        {!isApplicant && (
+          <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0 animate-in fade-in slide-in-from-top-1">
+            <PropertyHeader
+              icon={Calendar}
+              label="Auszug"
+              htmlFor="auszug"
+              infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist."
+            />
+            <DatePicker
+              id="auszug"
+              value={formData.auszug}
+              onChange={(date) => handleDateChange('auszug', date)}
+              placeholder="TT.MM.JJJJ"
+              disabled={isSubmitting}
+              className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
+            />
+            <input type="hidden" name="auszug" value={formData.auszug} />
+          </div>
+        )}
+
+        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+          <PropertyHeader
+            icon={Mail}
+            label="E-Mail"
+            htmlFor="email"
+            infoText="Kontakt-E-Mail (empfohlen für bessere Organisation und schnelle Erreichbarkeit)."
+          />
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={onFieldChange}
+            placeholder="max@mustermann.de"
+            disabled={isSubmitting}
+            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+          />
+        </div>
+
+        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+          <PropertyHeader
+            icon={Phone}
+            label="Telefon"
+            htmlFor="telefonnummer"
+            infoText="Telefonnummer (hilft bei der Organisation und schnellen Kontaktaufnahme)."
+          />
+          <Input
+            id="telefonnummer"
+            name="telefonnummer"
+            type="tel"
+            value={formData.telefonnummer}
+            onChange={onFieldChange}
+            placeholder="+49 123 456789"
+            disabled={isSubmitting}
+            className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FormFields({
   formData,
   onFieldChange,
@@ -319,89 +511,13 @@ function FormFields({
           </div>
         </div>
 
-        <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
-          <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
-            Kontaktdaten
-          </div>
-
-          <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
-            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-              <PropertyHeader
-                icon={Calendar}
-                label={isApplicant ? "Geplanter Einzug" : "Einzug"}
-                htmlFor="einzug"
-                infoText="Datum im Format TT.MM.JJJJ."
-              />
-              <DatePicker
-                id="einzug"
-                value={formData.einzug}
-                onChange={(date) => handleDateChange('einzug', date)}
-                placeholder="TT.MM.JJJJ"
-                disabled={isSubmitting}
-                className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
-              />
-              <input type="hidden" name="einzug" value={formData.einzug} />
-            </div>
-
-            {!isApplicant && (
-              <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0 animate-in fade-in slide-in-from-top-1">
-                <PropertyHeader
-                  icon={Calendar}
-                  label="Auszug"
-                  htmlFor="auszug"
-                  infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist."
-                />
-                <DatePicker
-                  id="auszug"
-                  value={formData.auszug}
-                  onChange={(date) => handleDateChange('auszug', date)}
-                  placeholder="TT.MM.JJJJ"
-                  disabled={isSubmitting}
-                  className="bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100"
-                />
-                <input type="hidden" name="auszug" value={formData.auszug} />
-              </div>
-            )}
-
-            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-              <PropertyHeader
-                icon={Mail}
-                label="E-Mail"
-                htmlFor="email"
-                infoText="Kontakt-E-Mail (empfohlen für bessere Organisation und schnelle Erreichbarkeit)."
-              />
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={onFieldChange}
-                placeholder="max@mustermann.de"
-                disabled={isSubmitting}
-                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
-              />
-            </div>
-
-            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
-              <PropertyHeader
-                icon={Phone}
-                label="Telefon"
-                htmlFor="telefonnummer"
-                infoText="Telefonnummer (hilft bei der Organisation und schnellen Kontaktaufnahme)."
-              />
-              <Input
-                id="telefonnummer"
-                name="telefonnummer"
-                type="tel"
-                value={formData.telefonnummer}
-                onChange={onFieldChange}
-                placeholder="+49 123 456789"
-                disabled={isSubmitting}
-                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
-              />
-            </div>
-          </div>
-        </div>
+        <ContactFields
+          formData={formData}
+          handleDateChange={handleDateChange}
+          onFieldChange={onFieldChange}
+          isSubmitting={isSubmitting}
+          isApplicant={isApplicant}
+        />
 
         <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
           <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
@@ -438,77 +554,15 @@ function FormFields({
           </div>
         </div>
 
-        {!isApplicant && (
-          <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
-            <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
-              Nebenkosten
-            </div>
-
-            <div className="space-y-3">
-              <div className="bg-muted/20 rounded-xl border border-border/50">
-                <div className={cn('flex flex-col', nebenkostenEntries.length > 1 ? 'max-h-48 overflow-y-auto' : 'min-h-[96px]')}>
-                  <div className="p-3 flex flex-col gap-3 sm:p-4 sm:flex flex-col gap-4">
-                    {nebenkostenEntries.length === 0 ? (
-                      <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
-                        Keine Nebenkosten-Vorauszahlungen vorhanden
-                      </div>
-                    ) : nebenkostenEntries.map((entry) => (
-                      <div key={entry.id} className="grid gap-2 grid-cols-[1fr_auto] sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
-                        <div className="flex flex-col gap-1">
-                          <NumberInput
-                            step="0.01"
-                            placeholder="Betrag (€)"
-                            value={entry.amount}
-                            onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
-                            className={`bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent ${nebenkostenValidationErrors[entry.id]?.amount ? 'text-red-500' : ''}`}
-                            disabled={isSubmitting}
-                          />
-                          {nebenkostenValidationErrors[entry.id]?.amount && (
-                            <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <DatePicker
-                            value={entry.date}
-                            onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
-                            placeholder="Datum (TT.MM.JJJJ)"
-                            className={`bg-transparent border-none shadow-none hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 ${nebenkostenValidationErrors[entry.id]?.date ? 'text-red-500' : ''}`}
-                            disabled={isSubmitting}
-                          />
-                          {nebenkostenValidationErrors[entry.id]?.date && (
-                            <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeNebenkostenEntry(entry.id)}
-                          disabled={isSubmitting}
-                          className="justify-self-end"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="border-t border-border/40 p-3 sm:p-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addNebenkostenEntry}
-                    disabled={isSubmitting}
-                    className="w-full hover:scale-[1.005] active:scale-[0.995]"
-                  >
-                    Eintrag hinzufügen
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <NebenkostenSection
+          isApplicant={isApplicant}
+          nebenkostenEntries={nebenkostenEntries}
+          handleNebenkostenChange={handleNebenkostenChange}
+          addNebenkostenEntry={addNebenkostenEntry}
+          removeNebenkostenEntry={removeNebenkostenEntry}
+          nebenkostenValidationErrors={nebenkostenValidationErrors}
+          isSubmitting={isSubmitting}
+        />
 
         <div className="hidden sm:block space-y-3 pt-3 border-t border-border/40">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
@@ -569,15 +623,14 @@ function FormActions({
   )
 }
 
+const generateId = () => crypto.randomUUID()
+
 export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const router = useRouter()
-
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Textarea resize
-  const [isResizing, setIsResizing] = useState(false)
   const dragInfoRef = useRef({ startY: 0, startHeight: 0 })
 
   const MIN_HEIGHT_PX = 80
@@ -592,42 +645,27 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       startY: e.clientY,
       startHeight: textarea.offsetHeight,
     }
-    setIsResizing(true)
-  }
-
-  useEffect(() => {
-    if (!isResizing) return
-
-    const textarea = textareaRef.current
-    if (!textarea) {
-      setIsResizing(false)
-      return
-    }
 
     const { startY, startHeight } = dragInfoRef.current
+    const textareaEl = textarea
 
     const doDrag = (e: MouseEvent) => {
       let newHeight = startHeight + e.clientY - startY
       newHeight = Math.max(MIN_HEIGHT_PX, newHeight)
       newHeight = Math.min(MAX_HEIGHT_PX, newHeight)
-      textarea.style.height = `${newHeight}px`
+      textareaEl.style.height = `${newHeight}px`
     }
 
     const stopDrag = () => {
-      setIsResizing(false)
+      document.removeEventListener('mousemove', doDrag)
+      document.removeEventListener('mouseup', stopDrag)
     }
 
     document.addEventListener('mousemove', doDrag)
     document.addEventListener('mouseup', stopDrag)
-
-    return () => {
-      document.removeEventListener('mousemove', doDrag)
-      document.removeEventListener('mouseup', stopDrag)
-    }
-  }, [isResizing])
+  }
 
   const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([])
-  const generateId = () => crypto.randomUUID()
   const [nebenkostenValidationErrors, setNebenkostenValidationErrors] = useState<Record<string, { amount?: string; date?: string }>>({})
 
   const [formData, setFormData] = useState({
