@@ -70,7 +70,6 @@ const nextConfig = {
     ],
   },
   experimental: {
-    instrumentationHook: true,
     scrollRestoration: true,
     optimizePackageImports: [
       'recharts',
