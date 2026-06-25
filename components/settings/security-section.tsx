@@ -9,16 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import ConnectedAccountsSection from "./connected-accounts-section";
 import AuthorizedAppsSection from "./authorized-apps-section";
+import { useSettingsData } from "@/app/(dashboard)/einstellungen/settings-context"
 
-interface SecuritySectionProps {
-  initialEmail?: string
-}
-
-const SecuritySection = ({ initialEmail }: SecuritySectionProps) => {
+const SecuritySection = () => {
+  const settingsData = useSettingsData()
   const supabase = useMemo(() => createClient(), [])
   const { toast } = useToast()
-  const [email, setEmail] = useState<string>(initialEmail ?? "")
-  const [confirmEmail, setConfirmEmail] = useState<string>(initialEmail ?? "")
+  const [email, setEmail] = useState<string>(settingsData.email ?? "")
+  const [confirmEmail, setConfirmEmail] = useState<string>(settingsData.email ?? "")
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
@@ -34,9 +32,9 @@ const SecuritySection = ({ initialEmail }: SecuritySectionProps) => {
   }, [supabase])
 
   useEffect(() => {
-    if (initialEmail) return
+    if (settingsData.email) return
     fetchUser()
-  }, [fetchUser, initialEmail]);
+  }, [fetchUser, settingsData.email]);
 
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {

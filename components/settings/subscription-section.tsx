@@ -10,25 +10,23 @@ import SubscriptionPaymentHistory from '@/components/common/subscription-payment
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { useSettingsData } from "@/app/(dashboard)/einstellungen/settings-context"
 
-interface SubscriptionSectionProps {
-  initialProfile?: Awaited<ReturnType<typeof getUserProfileForSettings>> | null
-}
-
-const SubscriptionSection = ({ initialProfile }: SubscriptionSectionProps) => {
+const SubscriptionSection = () => {
+  const settingsData = useSettingsData()
   const { toast } = useToast()
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(() => {
-    if (initialProfile && !('error' in initialProfile)) {
-      return initialProfile as unknown as UserProfileWithSubscription
+    if (settingsData.profile && !settingsData.profileError) {
+      return settingsData.profile as unknown as UserProfileWithSubscription
     }
     return null
   });
-  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !initialProfile || ('error' in (initialProfile ?? {})));
+  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !settingsData.profile || settingsData.profileError);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialProfile && !('error' in initialProfile)) return
+    if (settingsData.profile && !settingsData.profileError) return
 
     const refreshUserProfile = async () => {
       setIsFetchingStatus(true);
@@ -69,7 +67,7 @@ const SubscriptionSection = ({ initialProfile }: SubscriptionSectionProps) => {
     };
 
     refreshUserProfile();
-  }, [initialProfile]);
+  }, [settingsData.profile, settingsData.profileError]);
 
   useEffect(() => {
     if (profile?.stripe_customer_id) {

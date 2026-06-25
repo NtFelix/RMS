@@ -15,21 +15,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { BILLING_COUNTRIES } from "@/lib/constants";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { useSettingsData } from "@/app/(dashboard)/einstellungen/settings-context"
 
-interface ProfileSectionProps {
-  initialUser?: {
-    email: string
-    firstName: string
-    lastName: string
-  }
-}
-
-const ProfileSection = ({ initialUser }: ProfileSectionProps) => {
+const ProfileSection = () => {
+  const settingsData = useSettingsData()
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast()
   const router = useRouter()
-  const [firstName, setFirstName] = useState<string>(initialUser?.firstName ?? "")
-  const [lastName, setLastName] = useState<string>(initialUser?.lastName ?? "")
+  const [firstName, setFirstName] = useState<string>(settingsData.user?.firstName ?? "")
+  const [lastName, setLastName] = useState<string>(settingsData.user?.lastName ?? "")
   const [loading, setLoading] = useState<boolean>(false)
   const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
   const [isBillingAddressLoading, setIsBillingAddressLoading] = useState<boolean>(false);
@@ -56,8 +50,13 @@ const ProfileSection = ({ initialUser }: ProfileSectionProps) => {
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null);
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(() => {
+    if (settingsData.profile && !settingsData.profileError) {
+      return settingsData.profile as unknown as UserProfileWithSubscription
+    }
+    return null
+  });
+  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !settingsData.profile || settingsData.profileError);
 
   useEffect(() => {
     const loadBillingAddress = async () => {
@@ -98,7 +97,7 @@ const ProfileSection = ({ initialUser }: ProfileSectionProps) => {
   }, [profile?.stripe_customer_id]);
 
   useEffect(() => {
-    if (initialUser) return
+    if (settingsData.user) return
     supabase.auth.getUser().then(res => {
       const user = res.data.user
       if (user) {
@@ -106,7 +105,7 @@ const ProfileSection = ({ initialUser }: ProfileSectionProps) => {
         setLastName(user.user_metadata?.last_name || "")
       }
     });
-  }, [supabase, initialUser]);
+  }, [supabase, settingsData.user]);
 
   const refreshUserProfile = async () => {
     setIsFetchingStatus(true);
@@ -261,8 +260,9 @@ const ProfileSection = ({ initialUser }: ProfileSectionProps) => {
   };
 
   useEffect(() => {
+    if (settingsData.profile && !settingsData.profileError) return
     refreshUserProfile();
-  }, []);
+  }, [settingsData.profile, settingsData.profileError]);
 
   const handleProfileSave = async () => {
     setLoading(true)

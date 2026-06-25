@@ -31,6 +31,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useSettingsData } from "@/app/(dashboard)/einstellungen/settings-context"
 
 interface Identity {
     id: string
@@ -55,16 +56,21 @@ interface ConnectedAccountsSectionProps {
 }
 
 const ConnectedAccountsSection = ({ onUpdate }: ConnectedAccountsSectionProps) => {
+    const settingsData = useSettingsData()
     const supabase = createClient()
     const { toast } = useToast()
-    const [identities, setIdentities] = useState<Identity[]>([])
-    const [loading, setLoading] = useState(true)
+    const [identities, setIdentities] = useState<Identity[]>(() => settingsData.authUser?.identities ?? [])
+    const [loading, setLoading] = useState(() => !settingsData.authUser)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
-    const [userEmail, setUserEmail] = useState<string>("")
-    const [appMetadata, setAppMetadata] = useState<UserAppMetadata>({})
-    const [userMetadata, setUserMetadata] = useState<any>({})
+    const [userEmail, setUserEmail] = useState<string>(() => settingsData.authUser?.email ?? "")
+    const [appMetadata, setAppMetadata] = useState<UserAppMetadata>(() => (settingsData.authUser?.app_metadata ?? {}) as UserAppMetadata)
+    const [userMetadata, setUserMetadata] = useState<any>(() => settingsData.authUser?.user_metadata ?? {})
     const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
-    const [emailForm, setEmailForm] = useState({ email: "", password: "", confirmPassword: "" })
+    const [emailForm, setEmailForm] = useState(() => ({
+        email: settingsData.authUser?.email ?? "",
+        password: "",
+        confirmPassword: ""
+    }))
 
     const fetchIdentities = async () => {
         try {
@@ -92,8 +98,9 @@ const ConnectedAccountsSection = ({ onUpdate }: ConnectedAccountsSectionProps) =
     }
 
     useEffect(() => {
+        if (settingsData.authUser) return
         fetchIdentities()
-    }, [])
+    }, [settingsData.authUser])
 
     const handleUnlink = async (identity?: Identity, providerId?: string) => {
         const idToLoading = identity?.id || providerId || 'unknown'
