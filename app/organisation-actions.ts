@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { hasPermission } from "@/lib/permissions";
 import { withLogging } from "@/lib/logging-middleware";
 import { sendEinladungEmail } from "@/lib/email/sendEinladungEmail";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { safeRpcCall } from "@/lib/error-handling";
 import { logger } from "@/utils/logger";
 import { posthogLogger } from "@/lib/posthog-logger";
@@ -68,12 +68,24 @@ export const createEinladungAction = withLogging(
 
         const einladerName = user.email ?? 'Ein Administrator';
 
+        const headerStore = await headers();
+        const origin =
+          headerStore.get('Origin') ??
+          (() => {
+            const host = headerStore.get('X-Forwarded-Host') ?? headerStore.get('Host');
+            if (!host) return undefined;
+            const proto =
+              headerStore.get('X-Forwarded-Proto') ??
+              (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
+            return `${proto}://${host}`;
+          })() ?? undefined;
         emailResult = await sendEinladungEmail({
           toEmail: email,
           einladerName,
           organisationsName: orgName,
           rolle: rolle as 'admin' | 'mitarbeiter',
           token: data.token,
+          appUrl: origin,
         });
       } catch (emailError: unknown) {
         const msg = emailError instanceof Error ? emailError.message : String(emailError);

@@ -32,6 +32,9 @@ export interface SendEinladungEmailOptions {
   rolle: "admin" | "mitarbeiter";
   /** The invitation token from the DB */
   token: string;
+  /** Base URL for the acceptance link (e.g. "https://app.mietevo.de").
+   *  When provided, NEXT_PUBLIC_APP_URL is not used. */
+  appUrl?: string;
 }
 
 export type SendEmailResult =
@@ -239,7 +242,7 @@ function escapeHtml(text: string): string {
 export async function sendEinladungEmail(
   options: SendEinladungEmailOptions
 ): Promise<SendEmailResult> {
-  const { toEmail, einladerName, organisationsName, rolle, token } = options;
+  const { toEmail, einladerName, organisationsName, rolle, token, appUrl: explicitAppUrl } = options;
   const emailHash = await hashEmail(toEmail);
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -250,7 +253,12 @@ export async function sendEinladungEmail(
   }
 
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    explicitAppUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? undefined;
+  if (!appUrl) {
+    const msg = "No app URL available to build the acceptance link";
+    posthogLogger.warn(`[sendEinladungEmail] ${msg} – skipping email.`);
+    return { sent: false, error: msg };
+  }
   const akzeptierenUrl = `${appUrl}/einladung/annehmen?token=${encodeURIComponent(token)}`;
 
   const html = buildHtml({ einladerName, organisationsName, rolle, akzeptierenUrl });
