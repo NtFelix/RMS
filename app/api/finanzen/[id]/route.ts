@@ -185,10 +185,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
     }
 
-    const { error } = await supabase
-      .from('Finanzen')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Finanzen',
+      p_record_id: id,
+    });
     
     if (error) {
       console.error(`DELETE /api/finanzen/${id} error:`, error);

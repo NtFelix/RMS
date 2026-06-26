@@ -297,7 +297,10 @@ export async function DELETE(request: Request) {
       }
     }
 
-    const { error } = await supabase.from('Finanzen').delete().match({ id });
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Finanzen',
+      p_record_id: id,
+    });
 
     if (error) {
       console.error('DELETE /api/finanzen error:', error);

@@ -139,14 +139,12 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
       return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
     }
 
-    const { error } = await supabase
-      .from("Haeuser")
-      .delete()
-      .eq("id", houseId);
-
-    if (error) {
-      logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
-      return { success: false, error: { message: error.message } };
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    try {
+      await softDeleteEntryAction("Haeuser", houseId);
+    } catch (err: any) {
+      logAction(actionName, 'error', { house_id: houseId, error_message: err.message });
+      return { success: false, error: { message: err.message } };
     }
 
     revalidatePath('/haeuser');

@@ -206,15 +206,12 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
       }
     }
 
-    const { error } = await supabase
-      .from("Finanzen")
-      .delete()
-      .eq("id", financeId);
-
-    if (error) {
-      // Log the error for server-side visibility
-      console.error("Error deleting finance entry from Supabase:", error);
-      return { success: false, error: { message: error.message } };
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    try {
+      await softDeleteEntryAction("Finanzen", financeId);
+    } catch (err: any) {
+      console.error("Error soft deleting finance entry:", err);
+      return { success: false, error: { message: err.message } };
     }
 
     revalidatePath('/finanzen'); // Revalidate the main finance page

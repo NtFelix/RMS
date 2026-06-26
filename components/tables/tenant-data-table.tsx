@@ -136,16 +136,26 @@ export function TenantDataTable() {
         const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
         const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
 
-        const { error } = await supabase
+        const { data: financeEntries, error: selectError } = await supabase
           .from('Finanzen')
-          .delete()
+          .select('id')
           .eq('wohnung_id', tenant.apartmentId)
           .eq('ist_einnahmen', true)
           .ilike('name', '%Mietzahlung%')
           .gte('datum', startOfMonth)
-          .lte('datum', endOfMonth)
+          .lte('datum', endOfMonth);
 
-        if (error) throw error
+        if (selectError) throw selectError;
+
+        if (financeEntries && financeEntries.length > 0) {
+          for (const entry of financeEntries) {
+            const { error: deleteError } = await supabase.rpc('soft_delete_record', {
+              p_table_name: 'Finanzen',
+              p_record_id: entry.id,
+            });
+            if (deleteError) throw deleteError;
+          }
+        }
 
         toast({
           title: "Mietstatus aktualisiert",

@@ -129,10 +129,10 @@ export async function DELETE(
         }
 
         const supabase = await createClient();
-        const { error } = await supabase
-            .from('Haeuser')
-            .delete()
-            .eq('id', id);
+        const { error } = await supabase.rpc('soft_delete_record', {
+            p_table_name: 'Haeuser',
+            p_record_id: id,
+        });
 
         if (error) {
             console.error(`DELETE /api/haeuser/${id} error:`, error);

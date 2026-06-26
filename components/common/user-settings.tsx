@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LogOut, Settings, FileText, Check } from "lucide-react"
+import { LogOut, Settings, FileText, Check, Trash2 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useRouter } from "next/navigation"
@@ -17,7 +17,6 @@ import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ARIA_LABELS } from "@/lib/accessibility-constants"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { SidebarUserData } from "@/lib/server/user-data"
@@ -118,10 +117,12 @@ export function UserSettings({
   const {
     user,
     userName,
-    userEmail,
     userInitials,
     isLoading: isLoadingUser
   } = useUserProfile(initialData)
+
+  const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
+  const isOrgAdminOrOwner = currentOrgId === null || (activeOrg && (activeOrg.rolle === 'owner' || activeOrg.rolle === 'admin'));
 
   const {
     count: apartmentCount,
@@ -258,6 +259,12 @@ export function UserSettings({
           <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>
+        {isOrgAdminOrOwner && (
+          <CustomDropdownItem onClick={() => router.push('/papierkorb')}>
+            <Trash2 className="mr-2 size-4" />
+            <span>Papierkorb</span>
+          </CustomDropdownItem>
+        )}
         <CustomDropdownSeparator />
         <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
           Organisationen:

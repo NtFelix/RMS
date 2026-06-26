@@ -236,20 +236,15 @@ export async function bulkDeleteTasksAction(
   }
 
   try {
-    const { count, error } = await supabase
-      .from("Aufgaben")
-      .delete()
-      .in("id", taskIds);
-
-    if (error) {
-      logAction(actionName, 'error', { task_count: taskIds.length, error_message: error.message });
-      return { success: false, error: { message: error.message } };
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    for (const taskId of taskIds) {
+      await softDeleteEntryAction("Aufgaben", taskId);
     }
 
     revalidatePath("/todos");
     revalidatePath("/dashboard");
-    logAction(actionName, 'success', { task_count: taskIds.length, deleted_count: count || 0 });
-    return { success: true, deletedCount: count || 0 };
+    logAction(actionName, 'success', { task_count: taskIds.length, deleted_count: taskIds.length });
+    return { success: true, deletedCount: taskIds.length };
 
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : (e as any)?.message || "Ein unbekannter Fehler ist aufgetreten.";
@@ -279,15 +274,8 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   }
 
   try {
-    const { error } = await supabase
-      .from("Aufgaben")
-      .delete()
-      .eq("id", taskId);
-
-    if (error) {
-      logAction(actionName, 'error', { task_id: taskId, error_message: error.message });
-      return { success: false, error: { message: error.message } };
-    }
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    await softDeleteEntryAction("Aufgaben", taskId);
 
     revalidatePath('/todos');
     revalidatePath('/dashboard');
