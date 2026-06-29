@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { createClient } from "@/utils/supabase/client"
-import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, X, Maximize2, Search, Filter } from "lucide-react"
+import { Home, User, Tag, Edit, Check, Wrench, AlertCircle, X, Maximize2, Filter } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,7 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
 import { AnimatePresence, motion } from "framer-motion"
 import { useTenantPayments } from "@/hooks/use-tenant-payments"
 import { TenantBentoItem } from "@/types/tenant-payment"
@@ -96,13 +96,14 @@ export default function TenantPaymentOverviewModal() {
         {/* Search and Filter Row */}
         <div className="flex gap-2 mb-4">
           {/* Search Bar */}
-          <motion.div layout className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
+          <motion.div layout className="flex-1">
+            <SearchInput
               placeholder="Mieter oder Wohnung suchen..."
-              className="pl-9 pr-3 py-2 rounded-xl"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onClear={() => setSearchTerm("")}
+              mode="modal"
+              className="rounded-xl"
             />
           </motion.div>
 
