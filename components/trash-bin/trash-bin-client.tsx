@@ -62,6 +62,8 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
   // Dialog State
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; tableName: string } | null>(null);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [itemToRestore, setItemToRestore] = useState<PapierkorbEntry | null>(null);
 
   // Filter entries
   const filteredEntries = entries.filter((entry) => {
@@ -78,15 +80,24 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
     .filter((entry) => entry.table_name === 'Dokumente_Metadaten' && entry.dateigroesse)
     .reduce((sum, entry) => sum + Number(entry.dateigroesse || 0), 0);
 
+  // Trigger restore dialog
+  const triggerRestore = (entry: PapierkorbEntry) => {
+    setItemToRestore(entry);
+    setRestoreConfirmOpen(true);
+  };
+
   // Handle Restore
-  const handleRestore = async (entry: PapierkorbEntry) => {
+  const handleConfirmRestore = async () => {
+    if (!itemToRestore) return;
     startTransition(async () => {
       try {
-        await restoreEntryAction(entry.table_name, entry.id);
-        setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+        await restoreEntryAction(itemToRestore.table_name, itemToRestore.id);
+        setEntries((prev) => prev.filter((e) => e.id !== itemToRestore.id));
+        setRestoreConfirmOpen(false);
+        setItemToRestore(null);
         toast({
           title: 'Wiederhergestellt',
-          description: `"${entry.name}" wurde erfolgreich wiederhergestellt.`,
+          description: `"${itemToRestore.name}" wurde erfolgreich wiederhergestellt.`,
         });
       } catch (error: any) {
         toast({
@@ -237,7 +248,7 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleRestore(entry)}
+                          onClick={() => triggerRestore(entry)}
                           disabled={isPending}
                           title="Wiederherstellen"
                           className="h-8 w-8 text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
@@ -293,6 +304,32 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
         confirmButtonText="Endgültig löschen"
         cancelButtonText="Abbrechen"
         confirmButtonVariant="destructive"
+        isDeleting={isPending}
+      />
+
+      {/* Confirmation Dialog for Restoration */}
+      <ConfirmationAlertDialog
+        isOpen={restoreConfirmOpen}
+        onOpenChange={setRestoreConfirmOpen}
+        onConfirm={handleConfirmRestore}
+        title="Element wiederherstellen?"
+        description={
+          <div className="space-y-3">
+            <p>
+              Möchten Sie{' '}
+              <strong className="font-semibold text-zinc-900 dark:text-zinc-100">
+                "{itemToRestore?.name}"
+              </strong>{' '}
+              wirklich wiederherstellen?
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Das Element wird aus dem Papierkorb entfernt und wieder in der Übersicht des jeweiligen Bereichs ({itemToRestore?.table_name ? (TYPE_LABELS[itemToRestore.table_name] || itemToRestore.table_name) : ''}) angezeigt.
+            </p>
+          </div>
+        }
+        confirmButtonText="Wiederherstellen"
+        cancelButtonText="Abbrechen"
+        confirmButtonVariant="default"
         isDeleting={isPending}
       />
     </div>
