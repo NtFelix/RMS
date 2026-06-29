@@ -60,8 +60,8 @@ function formatNumber(n: number): string {
   return n.toLocaleString('de-DE')
 }
 
-function formatUSD(cents: number): string {
-  return `$${cents.toFixed(4)}`
+function formatUSD(amount: number): string {
+  return `$${amount.toFixed(4)}`
 }
 
 function getFeatureLabel(feature: string | null): string {
@@ -99,6 +99,21 @@ function getFeatureColor(feature: string | null): string {
   }
 }
 
+function getGranularity(preset: DatePreset): string {
+  return preset === '7d' ? '8h' : 'day'
+}
+
+const chartConfig = {
+  tokens: { label: 'Tokens', color: 'var(--color-chart-1, #2563eb)' },
+  messages: { label: 'Anfragen', color: 'var(--color-chart-2, #16a34a)' },
+} satisfies ChartConfig
+
+const datePresets: { value: DatePreset; label: string }[] = [
+  { value: '7d', label: '7 Tage' },
+  { value: '30d', label: '30 Tage' },
+  { value: '90d', label: '90 Tage' },
+]
+
 const AISection = () => {
   const [data, setData] = useState<AIAnalyticsRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -108,38 +123,41 @@ const AISection = () => {
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const [activeUsers, setActiveUsers] = useState<number | undefined>(undefined)
 
-  const getGranularity = (preset: DatePreset): string =>
-    preset === '7d' ? '8h' : 'day'
-
-  const fetchData = async (preset: DatePreset) => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const { date_from, date_to } = getDateRange(preset)
-      const granularity = getGranularity(preset)
-      const params = new URLSearchParams({ date_from, date_to, granularity })
-
-      const response = await fetch(`/api/ai-analytics?${params.toString()}`)
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.error || 'Failed to fetch analytics')
-      }
-
-      const result: APIResponse = await response.json()
-      setData(result.rows)
-      setRole(result.role)
-      setCurrentUserId(result.user_id)
-      setActiveUsers(result.active_users)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
+    let active = true
+
+    const fetchData = async (preset: DatePreset) => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const { date_from, date_to } = getDateRange(preset)
+        const params = new URLSearchParams({ date_from, date_to, granularity: getGranularity(preset) })
+
+        const response = await fetch(`/api/ai-analytics?${params.toString()}`)
+        if (!response.ok) {
+          const err = await response.json()
+          throw new Error(err.error || 'Failed to fetch analytics')
+        }
+
+        const result: APIResponse = await response.json()
+        if (!active) return
+        setData(result.rows)
+        setRole(result.role)
+        setCurrentUserId(result.user_id)
+        setActiveUsers(result.active_users)
+      } catch (err) {
+        if (!active) return
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
     fetchData(datePreset)
+    return () => {
+      active = false
+    }
   }, [datePreset])
 
   const isAdmin = role === 'admin'
@@ -220,17 +238,6 @@ const AISection = () => {
       .sort((a, b) => a.date.localeCompare(b.date))
   }, [data, is8h])
 
-  const chartConfig = {
-    tokens: { label: 'Tokens', color: 'var(--color-chart-1, #2563eb)' },
-    messages: { label: 'Anfragen', color: 'var(--color-chart-2, #16a34a)' },
-  } satisfies ChartConfig
-
-  const datePresets: { value: DatePreset; label: string }[] = [
-    { value: '7d', label: '7 Tage' },
-    { value: '30d', label: '30 Tage' },
-    { value: '90d', label: '90 Tage' },
-  ]
-
   return (
     <div className="flex flex-col gap-6">
       <SettingsSection
@@ -246,6 +253,7 @@ const AISection = () => {
           {datePresets.map(({ value, label }) => (
             <button
               key={value}
+              type="button"
               onClick={() => setDatePreset(value)}
               className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all duration-150 ${
                 datePreset === value

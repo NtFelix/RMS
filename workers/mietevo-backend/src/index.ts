@@ -1039,19 +1039,21 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
 
                     // Resolve org_id for PostHog group analytics
                     let orgId = 'unknown';
-                    try {
-                        const { data: orgMembership } = await supabase
-                            .from('Organisation_Mitglieder')
-                            .select('organisation_id')
-                            .eq('user_id', userIdForTracking)
-                            .eq('status', 'aktiv')
-                            .limit(1)
-                            .maybeSingle();
-                        if (orgMembership?.organisation_id) {
-                            orgId = orgMembership.organisation_id;
+                    if (userIdForTracking && userIdForTracking !== 'system') {
+                        try {
+                            const { data: orgMembership } = await supabase
+                                .from('Organisation_Mitglieder')
+                                .select('organisation_id')
+                                .eq('user_id', userIdForTracking)
+                                .eq('status', 'aktiv')
+                                .limit(1)
+                                .maybeSingle();
+                            if (orgMembership?.organisation_id) {
+                                orgId = orgMembership.organisation_id;
+                            }
+                        } catch {
+                            // Fallback to 'unknown' if query fails
                         }
-                    } catch {
-                        // Fallback to 'unknown' if query fails
                     }
 
                     await posthog.capture({
