@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useState, useTransition } from 'react';
-import { RotateCcw, Trash2, Search, Database, AlertTriangle } from 'lucide-react';
+import { RotateCcw, Trash2, Database, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { SearchInput } from '@/components/ui/search-input';
 import {
   Select,
   SelectContent,
@@ -159,15 +159,14 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
       {/* Filters & Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Nach Namen filtern..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-white dark:bg-zinc-900"
-            />
-          </div>
+          <SearchInput
+            placeholder="Nach Namen filtern..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onClear={() => setSearchQuery("")}
+            className="bg-white dark:bg-zinc-900"
+            mode="table"
+          />
           <Select value={selectedType} onValueChange={setSelectedType}>
             <SelectTrigger className="w-full sm:w-[200px] bg-white dark:bg-zinc-900">
               <SelectValue placeholder="Alle Typen" />
@@ -188,18 +187,18 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
       <div className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/40 overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[30%]">Name</TableHead>
-              <TableHead className="w-[12%]">Typ</TableHead>
-              <TableHead className="w-[18%]">Gelöscht von</TableHead>
-              <TableHead className="w-[18%]">Gelöscht am</TableHead>
-              <TableHead className="w-[12%]">Restzeit</TableHead>
-              <TableHead className="w-[10%] text-right">Aktionen</TableHead>
+            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
+              <TableHead className="w-[30%] font-semibold">Name</TableHead>
+              <TableHead className="w-[12%] font-semibold">Typ</TableHead>
+              <TableHead className="w-[18%] font-semibold">Gelöscht von</TableHead>
+              <TableHead className="w-[18%] font-semibold">Gelöscht am</TableHead>
+              <TableHead className="w-[12%] font-semibold">Restzeit</TableHead>
+              <TableHead className="w-[10%] text-right font-semibold">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedEntries.length === 0 ? (
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
                   Papierkorb ist leer — keine gelöschten Elemente gefunden.
                 </TableCell>
@@ -215,7 +214,10 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
                 });
 
                 return (
-                  <TableRow key={entry.id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
+                  <TableRow
+                    key={entry.id}
+                    className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-zinc-900/30"
+                  >
                     <TableCell className="font-medium text-gray-900 dark:text-zinc-100 truncate max-w-[300px]">
                       {entry.name}
                     </TableCell>
