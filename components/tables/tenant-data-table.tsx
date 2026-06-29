@@ -148,13 +148,15 @@ export function TenantDataTable() {
         if (selectError) throw selectError;
 
         if (financeEntries && financeEntries.length > 0) {
-          for (const entry of financeEntries) {
-            const { error: deleteError } = await supabase.rpc('soft_delete_record', {
-              p_table_name: 'Finanzen',
-              p_record_id: entry.id,
-            });
-            if (deleteError) throw deleteError;
-          }
+          await Promise.all(
+            financeEntries.map(async (entry) => {
+              const { error: deleteError } = await supabase.rpc('soft_delete_record', {
+                p_table_name: 'Finanzen',
+                p_record_id: entry.id,
+              });
+              if (deleteError) throw deleteError;
+            })
+          );
         }
 
         toast({

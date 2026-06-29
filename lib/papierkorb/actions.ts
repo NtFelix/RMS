@@ -30,7 +30,7 @@ export async function restoreEntryAction(tableName: string, recordId: string): P
     p_record_id: recordId,
   });
   if (error) {
-    console.error(`Error restoring record ${recordId} from ${tableName}:`, error);
+    console.error('Error restoring record %s from %s:', recordId, tableName, error);
     throw new Error(error.message);
   }
   revalidatePath('/papierkorb');
@@ -43,7 +43,7 @@ export async function permanentlyDeleteEntryAction(tableName: string, recordId: 
     p_record_id: recordId,
   });
   if (error) {
-    console.error(`Error permanently deleting record ${recordId} from ${tableName}:`, error);
+    console.error('Error permanently deleting record %s from %s:', recordId, tableName, error);
     throw new Error(error.message);
   }
   revalidatePath('/papierkorb');
@@ -58,7 +58,7 @@ export async function softDeleteEntryAction(tableName: string, recordId: string)
     p_record_id: recordId,
   });
   if (error) {
-    console.error(`Error soft deleting record ${recordId} from ${tableName}:`, error);
+    console.error('Error soft deleting record %s from %s:', recordId, tableName, error);
     throw new Error(error.message);
   }
 
@@ -75,7 +75,7 @@ export async function softDeleteEntryAction(tableName: string, recordId: string)
         p_record_id: w.id,
       });
       if (wError) {
-        console.warn(`Failed to cascade soft-delete apartment ${w.id}:`, wError.message);
+        console.warn('Failed to cascade soft-delete apartment %s:', w.id, wError.message);
       }
 
       const { data: mieter } = await supabase
@@ -89,7 +89,7 @@ export async function softDeleteEntryAction(tableName: string, recordId: string)
           p_record_id: m.id,
         });
         if (mError) {
-          console.warn(`Failed to cascade soft-delete tenant ${m.id}:`, mError.message);
+          console.warn('Failed to cascade soft-delete tenant %s:', m.id, mError.message);
         }
       }
     }
