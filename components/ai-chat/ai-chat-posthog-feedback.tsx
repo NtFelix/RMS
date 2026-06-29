@@ -2,9 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Copy, Check, RotateCcw, ThumbsUp, ThumbsDown } from "lucide-react";
-import { useThumbSurvey } from 'posthog-js/react/surveys';
-import posthog from "posthog-js";
+import { ChevronLeft, ChevronRight, Copy, Check, RotateCcw, ThumbsUp, ThumbsDown, Send } from "lucide-react";
 
 export function PostHogFeedback({
   traceId,
@@ -22,29 +20,55 @@ export function PostHogFeedback({
   onVersionChange?: (index: number) => void;
 }) {
   const [copied, setCopied] = useState(false);
-  
-  const { respond, response, triggerRef } = useThumbSurvey({
-    surveyId: '019ce11d-f79c-0000-4959-8e5eb60be080',
-    properties: {
-      $ai_trace_id: traceId || '',
-    },
-  })
+  const [response, setResponse] = useState<'up' | 'down' | null>(null);
+  const [submissionId] = useState(() => crypto.randomUUID());
+  const [feedbackText, setFeedbackText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [showTextInput, setShowTextInput] = useState(false);
 
   if (!traceId) return null;
+
+  const sendFeedback = async (rating: 'up' | 'down', text?: string) => {
+    if (sending || response) return;
+    setSending(true);
+
+    try {
+      const res = await fetch('/api/chat/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ traceId, rating, text, submissionId }),
+      });
+
+      if (res.ok) {
+        setResponse(rating);
+        if (rating === 'down' && !text) {
+          setShowTextInput(true);
+        } else {
+          setShowTextInput(false);
+        }
+      }
+    } catch (e) {
+      console.error("[Feedback] Failed to send:", e);
+    } finally {
+      setSending(false);
+    }
+  };
 
   const handleCopy = () => {
     if (!content) return;
     navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    
-    posthog.capture('ai_response_copied', {
-      $ai_trace_id: traceId,
-    });
+  }
+
+  const handleTextSubmit = () => {
+    if (!feedbackText.trim()) return;
+    sendFeedback('down', feedbackText.trim());
+    setShowTextInput(false);
   }
 
   return (
-    <div ref={triggerRef} className="flex flex-col gap-2 mt-4 pt-4 border-t border-border/10">
+    <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border/10">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
           War diese Antwort hilfreich?
@@ -112,7 +136,8 @@ export function PostHogFeedback({
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => respond('up')}
+          onClick={() => sendFeedback('up')}
+          disabled={!!response || sending}
           title="Hilfreich"
           className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border ${
             response === 'up' 
@@ -125,7 +150,8 @@ export function PostHogFeedback({
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => respond('down')}
+          onClick={() => sendFeedback('down')}
+          disabled={!!response || sending}
           title="Nicht hilfreich"
           className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all duration-300 border ${
             response === 'down' 
@@ -136,6 +162,29 @@ export function PostHogFeedback({
           <ThumbsDown className={`w-3.5 h-3.5 ${response === 'down' ? 'fill-current' : ''}`} />
         </Button>
       </div>
+
+      {showTextInput && (
+        <div className="flex items-center gap-2 mt-1">
+          <input
+            type="text"
+            value={feedbackText}
+            onChange={(e) => setFeedbackText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
+            placeholder="Was ging besser? (optional)"
+            className="flex-1 h-8 px-3 text-xs rounded-lg border border-border/30 bg-transparent text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/40 transition-colors"
+            autoFocus
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleTextSubmit}
+            disabled={!feedbackText.trim()}
+            className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border bg-transparent border-border/30 text-muted-foreground hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
