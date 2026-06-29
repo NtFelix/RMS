@@ -178,17 +178,18 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[40%]">Name</TableHead>
-              <TableHead className="w-[15%]">Typ</TableHead>
-              <TableHead className="w-[20%]">Gelöscht am</TableHead>
-              <TableHead className="w-[15%]">Restzeit</TableHead>
+              <TableHead className="w-[30%]">Name</TableHead>
+              <TableHead className="w-[12%]">Typ</TableHead>
+              <TableHead className="w-[18%]">Gelöscht von</TableHead>
+              <TableHead className="w-[18%]">Gelöscht am</TableHead>
+              <TableHead className="w-[12%]">Restzeit</TableHead>
               <TableHead className="w-[10%] text-right">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedEntries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-48 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
                   Papierkorb ist leer — keine gelöschten Elemente gefunden.
                 </TableCell>
               </TableRow>
@@ -209,6 +210,9 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
                     </TableCell>
                     <TableCell className="text-zinc-600 dark:text-zinc-400">
                       {TYPE_LABELS[entry.table_name] || entry.table_name}
+                    </TableCell>
+                    <TableCell className="text-zinc-600 dark:text-zinc-400 truncate max-w-[150px]" title={entry.geloescht_von || 'Unbekannt'}>
+                      {entry.geloescht_von || 'Unbekannt'}
                     </TableCell>
                     <TableCell className="text-zinc-500 dark:text-zinc-500">
                       {formattedDate} Uhr
