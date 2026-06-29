@@ -571,14 +571,14 @@ export function OperatingCostsTable({
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-56">
                         <ContextMenuItem
-                          onClick={(e) => { e.stopPropagation(); handleOpenOverview(item); }}
+                          onClick={(e) => { e.stopPropagation(); setTimeout(() => handleOpenOverview(item), 0); }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <FileText className="h-4 w-4" />
                           <span>Übersicht</span>
                         </ContextMenuItem>
                         <ContextMenuItem
-                          onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                          onClick={(e) => { e.stopPropagation(); setTimeout(() => onEdit?.(item), 0); }}
                           disabled={!canEdit}
                           className="flex items-center gap-2 cursor-pointer"
                         >
@@ -591,7 +591,9 @@ export function OperatingCostsTable({
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedNebenkostenForAblesen(item);
-                              setIsZaehlerAblesenOpen(true);
+                              setTimeout(() => {
+                                setIsZaehlerAblesenOpen(true);
+                              }, 0);
                             }}
                             disabled={!canEdit}
                             className="flex items-center gap-2 cursor-pointer"
@@ -603,7 +605,9 @@ export function OperatingCostsTable({
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenAbrechnungModal(item);
+                            setTimeout(() => {
+                              handleOpenAbrechnungModal(item);
+                            }, 0);
                           }}
                           className="flex items-center gap-2 cursor-pointer"
                           disabled={isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id}
