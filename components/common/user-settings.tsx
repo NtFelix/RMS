@@ -38,7 +38,7 @@ export function UserSettings({
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
-  const { openTemplatesModal } = useModalStore()
+  const { openTemplatesModal, openTrashBinModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   interface OrganisationItem {
@@ -260,7 +260,7 @@ export function UserSettings({
           <span>Einstellungen</span>
         </CustomDropdownItem>
         {isOrgAdminOrOwner && (
-          <CustomDropdownItem onClick={() => router.push('/papierkorb')}>
+          <CustomDropdownItem onClick={() => openTrashBinModal()}>
             <Trash2 className="mr-2 size-4" />
             <span>Papierkorb</span>
           </CustomDropdownItem>
