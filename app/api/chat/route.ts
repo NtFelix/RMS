@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@/utils/supabase/server";
 import { getAIContextForPathname } from "@/utils/ai-context";
-import { PostHog } from 'posthog-node';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
-  let posthog: PostHog | null = null;
   const traceId = uuidv4();
   const startTime = Date.now();
   let userId = "anonymous";
@@ -40,14 +39,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Setup PostHog Node Client
-    const posthogKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    const posthogHost = process.env.POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST;
-    if (posthogKey && posthogHost) {
-        posthog = new PostHog(posthogKey, {
-            host: posthogHost,
-        });
-    }
+    // 4. Get PostHog server instance (handles key resolution, host fallback, flushAt: 1)
+    const posthog = getPostHogServer();
 
     // 5. Fetch Dynamic Context based on URL
     const pageContext = await getAIContextForPathname(pathname);
@@ -383,10 +376,11 @@ ${pageContext}`;
           send({ type: "step_done" });
 
           // 8. Track Generation in PostHog
-          if (posthog) {
-            posthog.capture({
+          try {
+            await posthog.capture({
               distinctId: userId,
               event: '$ai_generation',
+              groups: { organization: orgId },
               properties: {
                 $ai_trace_id: traceId,
                 $ai_session_id: sessionId,
@@ -401,12 +395,13 @@ ${pageContext}`;
                 $ai_tools_called: executedTools.map(t => t.name),
                 $ai_tool_call_count: executedTools.length,
                 $ai_http_status: 200,
-
                 org_id: orgId,
                 feature: 'chat',
               },
             });
-            await posthog.shutdown();
+            await posthog.flush();
+          } catch (e) {
+            console.error("[PostHog] Failed to track $ai_generation:", e);
           }
 
           // Final payload
