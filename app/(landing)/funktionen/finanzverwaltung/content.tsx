@@ -217,7 +217,7 @@ export default function FinanceManagementPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
@@ -297,7 +297,7 @@ export default function FinanceManagementPage() {
                             stroke="hsl(var(--muted-foreground))"
                           />
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
@@ -381,7 +381,7 @@ export default function FinanceManagementPage() {
                             stroke="hsl(var(--muted-foreground))"
                           />
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
@@ -463,7 +463,7 @@ export default function FinanceManagementPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
