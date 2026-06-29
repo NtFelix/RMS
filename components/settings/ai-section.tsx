@@ -74,18 +74,27 @@ function getFeatureLabel(feature: string | null): string {
   }
 }
 
+function parseUTCDate(raw: string): Date {
+  if (!raw) return new Date()
+  if (!raw.includes('Z') && !raw.includes('+') && !/-\d{2}:\d{2}$/.test(raw)) {
+    const formatted = raw.includes(' ') ? raw.replace(' ', 'T') : raw
+    return new Date(`${formatted}Z`)
+  }
+  return new Date(raw)
+}
+
 function format8hLabel(raw: string): string {
-  const d = new Date(raw)
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const hour = String(d.getHours()).padStart(2, '0')
+  const d = parseUTCDate(raw)
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const hour = String(d.getUTCHours()).padStart(2, '0')
   return `${day}.${month}. ${hour}:00`
 }
 
 function formatDayLabel(raw: string): string {
-  const d = new Date(raw)
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const d = parseUTCDate(raw)
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
   return `${day}.${month}.`
 }
 
@@ -222,21 +231,63 @@ const AISection = () => {
   const is8h = granularity === '8h'
 
   const timeSeriesData = useMemo(() => {
-    const map = new Map<string, { tokens: number; messages: number }>()
-    for (const row of data) {
-      const raw = row.date
-      const label = is8h
-        ? format8hLabel(raw)
-        : formatDayLabel(raw)
-      const existing = map.get(label) || { tokens: 0, messages: 0 }
-      existing.tokens += row.total_tokens || 0
-      existing.messages += row.messages || 0
-      map.set(label, existing)
+    const { date_from, date_to } = getDateRange(datePreset)
+    const start = parseUTCDate(date_from)
+    const end = parseUTCDate(date_to)
+
+    // Normalize to midnight UTC to cover full days
+    start.setUTCHours(0, 0, 0, 0)
+    end.setUTCHours(23, 59, 59, 999)
+
+    const buckets: { date: string; tokens: number; messages: number }[] = []
+    const bucketIndices = new Map<string, number>()
+
+    const current = new Date(start)
+    if (is8h) {
+      // Step by 8 hours
+      while (current <= end) {
+        const label = format8hLabel(current.toISOString())
+        bucketIndices.set(label, buckets.length)
+        buckets.push({ date: label, tokens: 0, messages: 0 })
+        current.setUTCHours(current.getUTCHours() + 8)
+      }
+    } else {
+      // Step by 1 day
+      while (current <= end) {
+        const label = formatDayLabel(current.toISOString())
+        bucketIndices.set(label, buckets.length)
+        buckets.push({ date: label, tokens: 0, messages: 0 })
+        current.setUTCDate(current.getUTCDate() + 1)
+      }
     }
-    return Array.from(map.entries())
-      .map(([date, v]) => ({ date, tokens: v.tokens, messages: v.messages }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-  }, [data, is8h])
+
+    // Populate the buckets with fetched data
+    for (const row of data) {
+      if (!row.date) continue
+      const label = is8h
+        ? format8hLabel(row.date)
+        : formatDayLabel(row.date)
+      
+      const idx = bucketIndices.get(label)
+      if (idx !== undefined) {
+        buckets[idx].tokens += row.total_tokens || 0
+        buckets[idx].messages += row.messages || 0
+      }
+    }
+
+    return buckets
+  }, [data, is8h, datePreset])
+
+  const startLabel = timeSeriesData[0]?.date
+  const middleLabel = timeSeriesData[Math.floor(timeSeriesData.length / 2)]?.date
+  const endLabel = timeSeriesData[timeSeriesData.length - 1]?.date
+
+  const formatXAxisTick = (value: string) => {
+    if (value === startLabel || value === middleLabel || value === endLabel) {
+      return value
+    }
+    return ""
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -362,7 +413,8 @@ const AISection = () => {
                         tick={{ fontSize: 11 }}
                         tickLine={false}
                         axisLine={false}
-                        interval={is8h ? 2 : 3}
+                        interval={0}
+                        tickFormatter={formatXAxisTick}
                       />
                       <YAxis
                         tick={{ fontSize: 11 }}
