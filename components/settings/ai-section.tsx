@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Brain, DollarSign, MessageSquare, Users, Calendar, BarChart3 } from "lucide-react"
+import { Brain, ArrowDownToLine, ArrowUpFromLine, MessageSquare, DollarSign, Users, Calendar, BarChart3 } from "lucide-react"
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import {
   ChartContainer,
@@ -113,8 +113,8 @@ function getGranularity(preset: DatePreset): string {
 }
 
 const chartConfig = {
-  tokens: { label: 'Tokens', color: 'var(--color-chart-1, #2563eb)' },
-  messages: { label: 'Anfragen', color: 'var(--color-chart-2, #16a34a)' },
+  input: { label: 'Input', color: 'var(--color-chart-1, #2563eb)' },
+  output: { label: 'Output', color: 'var(--color-chart-2, #16a34a)' },
 } satisfies ChartConfig
 
 const datePresets: { value: DatePreset; label: string }[] = [
@@ -239,29 +239,26 @@ const AISection = () => {
     start.setUTCHours(0, 0, 0, 0)
     end.setUTCHours(23, 59, 59, 999)
 
-    const buckets: { date: string; tokens: number; messages: number }[] = []
+    const buckets: { date: string; input: number; output: number }[] = []
     const bucketIndices = new Map<string, number>()
 
     const current = new Date(start)
     if (is8h) {
-      // Step by 8 hours
       while (current <= end) {
         const label = format8hLabel(current.toISOString())
         bucketIndices.set(label, buckets.length)
-        buckets.push({ date: label, tokens: 0, messages: 0 })
+        buckets.push({ date: label, input: 0, output: 0 })
         current.setUTCHours(current.getUTCHours() + 8)
       }
     } else {
-      // Step by 1 day
       while (current <= end) {
         const label = formatDayLabel(current.toISOString())
         bucketIndices.set(label, buckets.length)
-        buckets.push({ date: label, tokens: 0, messages: 0 })
+        buckets.push({ date: label, input: 0, output: 0 })
         current.setUTCDate(current.getUTCDate() + 1)
       }
     }
 
-    // Populate the buckets with fetched data
     for (const row of data) {
       if (!row.date) continue
       const label = is8h
@@ -270,8 +267,8 @@ const AISection = () => {
       
       const idx = bucketIndices.get(label)
       if (idx !== undefined) {
-        buckets[idx].tokens += row.total_tokens || 0
-        buckets[idx].messages += row.messages || 0
+        buckets[idx].input += row.input_tokens || 0
+        buckets[idx].output += row.output_tokens || 0
       }
     }
 
@@ -339,27 +336,30 @@ const AISection = () => {
           </SettingsCard>
         ) : (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <SettingsCard>
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <Brain className="size-4 text-blue-600 dark:text-blue-400" />
-                  </div>
+                  <ArrowDownToLine className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">Total Tokens</p>
-                    <p className="text-lg font-semibold">{formatNumber(totals.total_tokens)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatNumber(totals.input_tokens)} Input / {formatNumber(totals.output_tokens)} Output
-                    </p>
+                    <p className="text-xs text-muted-foreground">Input Tokens</p>
+                    <p className="text-lg font-semibold">{formatNumber(totals.input_tokens)}</p>
                   </div>
                 </div>
               </SettingsCard>
 
               <SettingsCard>
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <MessageSquare className="size-4 text-green-600 dark:text-green-400" />
+                  <ArrowUpFromLine className="size-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Output Tokens</p>
+                    <p className="text-lg font-semibold">{formatNumber(totals.output_tokens)}</p>
                   </div>
+                </div>
+              </SettingsCard>
+
+              <SettingsCard>
+                <div className="flex items-start gap-3">
+                  <MessageSquare className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">AI Anfragen</p>
                     <p className="text-lg font-semibold">{formatNumber(totals.messages)}</p>
@@ -369,9 +369,7 @@ const AISection = () => {
 
               <SettingsCard>
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
-                    <DollarSign className="size-4 text-yellow-600 dark:text-yellow-400" />
-                  </div>
+                  <DollarSign className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Kosten (USD)</p>
                     <p className="text-lg font-semibold">{formatUSD(totals.total_cost)}</p>
@@ -382,9 +380,7 @@ const AISection = () => {
               {isAdmin && (
                 <SettingsCard>
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                      <Users className="size-4 text-purple-600 dark:text-purple-400" />
-                    </div>
+                    <Users className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground">Aktive User</p>
                       <p className="text-lg font-semibold">{activeUsers ?? usersStats.length}</p>
@@ -398,7 +394,7 @@ const AISection = () => {
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="size-4 text-muted-foreground" />
                 <h4 className="text-sm font-medium">
-                  Tokens im Zeitverlauf {is8h ? '(8h Intervalle)' : '(täglich)'}
+                  Input / Output Tokens im Zeitverlauf {is8h ? '(8h Intervalle)' : '(täglich)'}
                 </h4>
               </div>
               {timeSeriesData.length === 0 ? (
@@ -424,8 +420,16 @@ const AISection = () => {
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Bar
-                        dataKey="tokens"
-                        fill="var(--color-tokens)"
+                        dataKey="input"
+                        stackId="tokens"
+                        fill="var(--color-input)"
+                        radius={[0, 0, 0, 0]}
+                        maxBarSize={is8h ? 24 : 40}
+                      />
+                      <Bar
+                        dataKey="output"
+                        stackId="tokens"
+                        fill="var(--color-output)"
                         radius={[4, 4, 0, 0]}
                         maxBarSize={is8h ? 24 : 40}
                       />
