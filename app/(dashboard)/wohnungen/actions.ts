@@ -341,7 +341,7 @@ export async function loescheWohnung(id: string) {
   }
 
   try {
-    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
       await softDeleteEntryAction("Wohnungen", id);
     } catch (err: any) {

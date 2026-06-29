@@ -115,12 +115,15 @@ export function useTenantPayments() {
                 if (selectError) throw selectError
 
                 if (financeEntries && financeEntries.length > 0) {
-                    for (const entry of financeEntries) {
-                        const { error: deleteError } = await supabase.rpc('soft_delete_record', {
+                    const deletePromises = financeEntries.map(entry =>
+                        supabase.rpc('soft_delete_record', {
                             p_table_name: 'Finanzen',
                             p_record_id: entry.id,
                         })
-                        if (deleteError) throw deleteError
+                    )
+                    const results = await Promise.all(deletePromises)
+                    for (const { error } of results) {
+                        if (error) throw error
                     }
                 }
 

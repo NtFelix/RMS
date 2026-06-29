@@ -2,6 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { ensureAuth } from '@/lib/auth-utils';
+import { isOrgAdminOrOwner } from '@/lib/permissions';
 
 export interface PapierkorbEntry {
   id: string;
@@ -14,6 +16,10 @@ export interface PapierkorbEntry {
 }
 
 export async function getPapierkorbEntriesAction(): Promise<PapierkorbEntry[]> {
+  await ensureAuth();
+  if (!(await isOrgAdminOrOwner())) {
+    throw new Error('Zugriff verweigert.');
+  }
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('get_paperkorb_entries');
   if (error) {
@@ -24,6 +30,10 @@ export async function getPapierkorbEntriesAction(): Promise<PapierkorbEntry[]> {
 }
 
 export async function restoreEntryAction(tableName: string, recordId: string): Promise<void> {
+  await ensureAuth();
+  if (!(await isOrgAdminOrOwner())) {
+    throw new Error('Zugriff verweigert.');
+  }
   const supabase = await createClient();
   const { error } = await supabase.rpc('restore_record', {
     p_table_name: tableName,
@@ -37,6 +47,10 @@ export async function restoreEntryAction(tableName: string, recordId: string): P
 }
 
 export async function permanentlyDeleteEntryAction(tableName: string, recordId: string): Promise<void> {
+  await ensureAuth();
+  if (!(await isOrgAdminOrOwner())) {
+    throw new Error('Zugriff verweigert.');
+  }
   const supabase = await createClient();
   const { error } = await supabase.rpc('permanently_delete_record', {
     p_table_name: tableName,
@@ -47,53 +61,4 @@ export async function permanentlyDeleteEntryAction(tableName: string, recordId: 
     throw new Error(error.message);
   }
   revalidatePath('/papierkorb');
-}
-
-export async function softDeleteEntryAction(tableName: string, recordId: string): Promise<void> {
-  const supabase = await createClient();
-
-  // 1. Main record soft-delete
-  const { error } = await supabase.rpc('soft_delete_record', {
-    p_table_name: tableName,
-    p_record_id: recordId,
-  });
-  if (error) {
-    console.error('Error soft deleting record %s from %s:', recordId, tableName, error);
-    throw new Error(error.message);
-  }
-
-  // 2. Cascade: Haeuser -> Wohnungen -> Mieter
-  if (tableName === 'Haeuser') {
-    const { data: wohnungen } = await supabase
-      .from('Wohnungen')
-      .select('id')
-      .eq('haus_id', recordId);
-    
-    for (const w of wohnungen ?? []) {
-      const { error: wError } = await supabase.rpc('soft_delete_record', {
-        p_table_name: 'Wohnungen',
-        p_record_id: w.id,
-      });
-      if (wError) {
-        console.warn('Failed to cascade soft-delete apartment %s:', w.id, wError.message);
-      }
-
-      const { data: mieter } = await supabase
-        .from('Mieter')
-        .select('id')
-        .eq('wohnung_id', w.id);
-      
-      for (const m of mieter ?? []) {
-        const { error: mError } = await supabase.rpc('soft_delete_record', {
-          p_table_name: 'Mieter',
-          p_record_id: m.id,
-        });
-        if (mError) {
-          console.warn('Failed to cascade soft-delete tenant %s:', m.id, mError.message);
-        }
-      }
-    }
-  }
-
-  revalidatePath('/');
 }

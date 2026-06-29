@@ -160,7 +160,7 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
         return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
       }
     }
-    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
       await softDeleteEntryAction("Mieter", tenantId);
     } catch (err: any) {

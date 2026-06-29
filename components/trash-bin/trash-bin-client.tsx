@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useTransition } from 'react';
+import { useReducer, useTransition } from 'react';
 import { RotateCcw, Trash2, Database, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SearchInput } from '@/components/ui/search-input';
@@ -24,7 +24,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ConfirmationAlertDialog } from '@/components/ui/confirmation-alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { restoreEntryAction, permanentlyDeleteEntryAction, PapierkorbEntry } from '@/lib/papierkorb/actions';
-import { cn } from '@/lib/utils';
 
 const TYPE_LABELS: Record<string, string> = {
   Haeuser: 'Haus',
@@ -48,56 +47,93 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+type DialogState = {
+  confirmOpen: boolean;
+  itemToDelete: { id: string; name: string; tableName: string } | null;
+  restoreConfirmOpen: boolean;
+  itemToRestore: PapierkorbEntry | null;
+};
+
+type FilterState = {
+  searchQuery: string;
+  selectedType: string;
+};
+
+type UIState = DialogState & FilterState;
+
+type UIAction =
+  | { type: 'SET_SEARCH_QUERY'; payload: string }
+  | { type: 'SET_SELECTED_TYPE'; payload: string }
+  | { type: 'OPEN_DELETE_DIALOG'; payload: { id: string; name: string; tableName: string } }
+  | { type: 'CLOSE_DELETE_DIALOG' }
+  | { type: 'OPEN_RESTORE_DIALOG'; payload: PapierkorbEntry }
+  | { type: 'CLOSE_RESTORE_DIALOG' };
+
+function uiReducer(state: UIState, action: UIAction): UIState {
+  switch (action.type) {
+    case 'SET_SEARCH_QUERY':
+      return { ...state, searchQuery: action.payload };
+    case 'SET_SELECTED_TYPE':
+      return { ...state, selectedType: action.payload };
+    case 'OPEN_DELETE_DIALOG':
+      return { ...state, confirmOpen: true, itemToDelete: action.payload };
+    case 'CLOSE_DELETE_DIALOG':
+      return { ...state, confirmOpen: false, itemToDelete: null };
+    case 'OPEN_RESTORE_DIALOG':
+      return { ...state, restoreConfirmOpen: true, itemToRestore: action.payload };
+    case 'CLOSE_RESTORE_DIALOG':
+      return { ...state, restoreConfirmOpen: false, itemToRestore: null };
+    default:
+      return state;
+  }
+}
+
+const initialUIState: UIState = {
+  searchQuery: '',
+  selectedType: 'all',
+  confirmOpen: false,
+  itemToDelete: null,
+  restoreConfirmOpen: false,
+  itemToRestore: null,
+};
+
 interface TrashBinClientProps {
   initialEntries: PapierkorbEntry[];
 }
 
 export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
   const { toast } = useToast();
-  const [entries, setEntries] = useState<PapierkorbEntry[]>(initialEntries);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
+  const [entries, setEntries] = React.useState<PapierkorbEntry[]>(initialEntries);
+  const [ui, dispatch] = useReducer(uiReducer, initialUIState);
   const [isPending, startTransition] = useTransition();
 
-  // Dialog State
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; tableName: string } | null>(null);
-  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
-  const [itemToRestore, setItemToRestore] = useState<PapierkorbEntry | null>(null);
-
-  // Filter entries
   const filteredEntries = entries.filter((entry) => {
-    const matchesSearch = entry.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = selectedType === 'all' || entry.table_name === selectedType;
+    const matchesSearch = entry.name.toLowerCase().includes(ui.searchQuery.toLowerCase());
+    const matchesType = ui.selectedType === 'all' || entry.table_name === ui.selectedType;
     return matchesSearch && matchesType;
   });
 
-  // Sort by restzeit_tage (lowest first / closest to deletion date)
-  const sortedEntries = [...filteredEntries].sort((a, b) => a.restzeit_tage - b.restzeit_tage);
+  const sortedEntries = filteredEntries.toSorted((a, b) => a.restzeit_tage - b.restzeit_tage);
 
-  // Calculate storage space of documents
   const deletedDocsStorage = entries
     .filter((entry) => entry.table_name === 'Dokumente_Metadaten' && entry.dateigroesse)
     .reduce((sum, entry) => sum + Number(entry.dateigroesse || 0), 0);
 
-  // Trigger restore dialog
   const triggerRestore = (entry: PapierkorbEntry) => {
-    setItemToRestore(entry);
-    setRestoreConfirmOpen(true);
+    dispatch({ type: 'OPEN_RESTORE_DIALOG', payload: entry });
   };
 
-  // Handle Restore
   const handleConfirmRestore = async () => {
-    if (!itemToRestore) return;
+    const item = ui.itemToRestore;
+    if (!item) return;
     startTransition(async () => {
       try {
-        await restoreEntryAction(itemToRestore.table_name, itemToRestore.id);
-        setEntries((prev) => prev.filter((e) => e.id !== itemToRestore.id));
-        setRestoreConfirmOpen(false);
-        setItemToRestore(null);
+        await restoreEntryAction(item.table_name, item.id);
+        setEntries((prev) => prev.filter((e) => e.id !== item.id));
+        dispatch({ type: 'CLOSE_RESTORE_DIALOG' });
         toast({
           title: 'Wiederhergestellt',
-          description: `"${itemToRestore.name}" wurde erfolgreich wiederhergestellt.`,
+          description: `"${item.name}" wurde erfolgreich wiederhergestellt.`,
         });
       } catch (error: any) {
         toast({
@@ -109,24 +145,21 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
     });
   };
 
-  // Trigger permanent delete dialog
   const triggerPermanentDelete = (entry: PapierkorbEntry) => {
-    setItemToDelete({ id: entry.id, name: entry.name, tableName: entry.table_name });
-    setConfirmOpen(true);
+    dispatch({ type: 'OPEN_DELETE_DIALOG', payload: { id: entry.id, name: entry.name, tableName: entry.table_name } });
   };
 
-  // Handle Permanent Delete
   const handleConfirmPermanentDelete = async () => {
-    if (!itemToDelete) return;
+    const item = ui.itemToDelete;
+    if (!item) return;
     startTransition(async () => {
       try {
-        await permanentlyDeleteEntryAction(itemToDelete.tableName, itemToDelete.id);
-        setEntries((prev) => prev.filter((e) => e.id !== itemToDelete.id));
-        setConfirmOpen(false);
-        setItemToDelete(null);
+        await permanentlyDeleteEntryAction(item.tableName, item.id);
+        setEntries((prev) => prev.filter((e) => e.id !== item.id));
+        dispatch({ type: 'CLOSE_DELETE_DIALOG' });
         toast({
           title: 'Endgültig gelöscht',
-          description: `"${itemToDelete.name}" wurde dauerhaft gelöscht.`,
+          description: `"${item.name}" wurde dauerhaft gelöscht.`,
         });
       } catch (error: any) {
         toast({
@@ -161,13 +194,13 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
         <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
           <SearchInput
             placeholder="Nach Namen filtern..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onClear={() => setSearchQuery("")}
+            value={ui.searchQuery}
+            onChange={(e) => dispatch({ type: 'SET_SEARCH_QUERY', payload: e.target.value })}
+            onClear={() => dispatch({ type: 'SET_SEARCH_QUERY', payload: '' })}
             className="bg-white dark:bg-zinc-900"
             mode="table"
           />
-          <Select value={selectedType} onValueChange={setSelectedType}>
+          <Select value={ui.selectedType} onValueChange={(v) => dispatch({ type: 'SET_SELECTED_TYPE', payload: v })}>
             <SelectTrigger className="w-full sm:w-[200px] bg-white dark:bg-zinc-900">
               <SelectValue placeholder="Alle Typen" />
             </SelectTrigger>
@@ -279,8 +312,8 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
 
       {/* Confirmation Dialog for Permanent Deletion */}
       <ConfirmationAlertDialog
-        isOpen={confirmOpen}
-        onOpenChange={setConfirmOpen}
+        isOpen={ui.confirmOpen}
+        onOpenChange={(open) => open ? null : dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
         onConfirm={handleConfirmPermanentDelete}
         title="Element endgültig löschen?"
         description={
@@ -288,7 +321,7 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
             <p>
               Möchten Sie{' '}
               <strong className="font-semibold text-zinc-900 dark:text-zinc-100">
-                "{itemToDelete?.name}"
+                "{ui.itemToDelete?.name}"
               </strong>{' '}
               wirklich endgültig löschen?
             </p>
@@ -296,7 +329,7 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
               <AlertTriangle className="h-4 w-4 shrink-0" />
               Diese Aktion kann nicht rückgängig gemacht werden!
             </p>
-            {itemToDelete?.tableName === 'Dokumente_Metadaten' && (
+            {ui.itemToDelete?.tableName === 'Dokumente_Metadaten' && (
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Hinweis: Erst mit der endgültigen Löschung dieses Dokuments wird der Speicherplatz in Ihrem Abonnement-Limit freigegeben.
               </p>
@@ -311,8 +344,8 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
 
       {/* Confirmation Dialog for Restoration */}
       <ConfirmationAlertDialog
-        isOpen={restoreConfirmOpen}
-        onOpenChange={setRestoreConfirmOpen}
+        isOpen={ui.restoreConfirmOpen}
+        onOpenChange={(open) => open ? null : dispatch({ type: 'CLOSE_RESTORE_DIALOG' })}
         onConfirm={handleConfirmRestore}
         title="Element wiederherstellen?"
         description={
@@ -320,12 +353,12 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
             <p>
               Möchten Sie{' '}
               <strong className="font-semibold text-zinc-900 dark:text-zinc-100">
-                "{itemToRestore?.name}"
+                "{ui.itemToRestore?.name}"
               </strong>{' '}
               wirklich wiederherstellen?
             </p>
             <p className="text-sm text-muted-foreground">
-              Das Element wird aus dem Papierkorb entfernt und wieder in der Übersicht des jeweiligen Bereichs ({itemToRestore?.table_name ? (TYPE_LABELS[itemToRestore.table_name] || itemToRestore.table_name) : ''}) angezeigt.
+              Das Element wird aus dem Papierkorb entfernt und wieder in der Übersicht des jeweiligen Bereichs ({ui.itemToRestore?.table_name ? (TYPE_LABELS[ui.itemToRestore.table_name] || ui.itemToRestore.table_name) : ''}) angezeigt.
             </p>
           </div>
         }

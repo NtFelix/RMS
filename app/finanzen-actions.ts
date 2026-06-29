@@ -206,7 +206,7 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
       }
     }
 
-    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
       await softDeleteEntryAction("Finanzen", financeId);
     } catch (err: any) {

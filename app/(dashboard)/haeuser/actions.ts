@@ -139,7 +139,7 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
       return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
     }
 
-    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
       await softDeleteEntryAction("Haeuser", houseId);
     } catch (err: any) {

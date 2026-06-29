@@ -236,10 +236,8 @@ export async function bulkDeleteTasksAction(
   }
 
   try {
-    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
-    for (const taskId of taskIds) {
-      await softDeleteEntryAction("Aufgaben", taskId);
-    }
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await Promise.all(taskIds.map(taskId => softDeleteEntryAction("Aufgaben", taskId)));
 
     revalidatePath("/todos");
     revalidatePath("/dashboard");
@@ -274,7 +272,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   }
 
   try {
-    const { softDeleteEntryAction } = await import("@/lib/papierkorb/actions");
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     await softDeleteEntryAction("Aufgaben", taskId);
 
     revalidatePath('/todos');
