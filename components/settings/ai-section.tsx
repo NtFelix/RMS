@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Brain, ArrowDownToLine, ArrowUpFromLine, MessageSquare, DollarSign, Users, Calendar, BarChart3 } from "lucide-react"
+import { motion } from "framer-motion"
+import { Brain, ArrowDownToLine, ArrowUpFromLine, MessageSquare, DollarSign, Users, BarChart3, Cpu } from "lucide-react"
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import {
   ChartContainer,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/chart"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 interface AIAnalyticsRow {
   date: string
@@ -183,29 +185,42 @@ const AISection = () => {
   }, [data])
 
   const modelStats = useMemo(() => {
-    const map = new Map<string, { messages: number; tokens: number; cost: number }>()
+    const map = new Map<string, { messages: number; tokens: number; cost: number; input_tokens: number; output_tokens: number }>()
     for (const row of data) {
       const model = row.model || 'unknown'
-      const existing = map.get(model) || { messages: 0, tokens: 0, cost: 0 }
+      const existing = map.get(model) || { messages: 0, tokens: 0, cost: 0, input_tokens: 0, output_tokens: 0 }
       existing.messages += row.messages || 0
       existing.tokens += row.total_tokens || 0
       existing.cost += row.total_cost_usd || 0
+      existing.input_tokens += row.input_tokens || 0
+      existing.output_tokens += row.output_tokens || 0
       map.set(model, existing)
     }
     return Array.from(map.entries()).sort((a, b) => b[1].tokens - a[1].tokens)
   }, [data])
 
-  const featureStats = useMemo(() => {
-    const map = new Map<string, { messages: number; tokens: number; cost: number }>()
+  const featureModelStats = useMemo(() => {
+    const featureMap = new Map<string, Map<string, { messages: number; tokens: number; cost: number; input_tokens: number; output_tokens: number }>>()
     for (const row of data) {
       const feature = row.feature || 'unknown'
-      const existing = map.get(feature) || { messages: 0, tokens: 0, cost: 0 }
+      const model = row.model || 'unknown'
+      if (!featureMap.has(feature)) featureMap.set(feature, new Map())
+      const modelMap = featureMap.get(feature)!
+      const existing = modelMap.get(model) || { messages: 0, tokens: 0, cost: 0, input_tokens: 0, output_tokens: 0 }
       existing.messages += row.messages || 0
       existing.tokens += row.total_tokens || 0
       existing.cost += row.total_cost_usd || 0
-      map.set(feature, existing)
+      existing.input_tokens += row.input_tokens || 0
+      existing.output_tokens += row.output_tokens || 0
+      modelMap.set(model, existing)
     }
-    return Array.from(map.entries()).sort((a, b) => b[1].tokens - a[1].tokens)
+    return Array.from(featureMap.entries())
+      .map(([feature, modelMap]) => ({
+        feature,
+        models: Array.from(modelMap.entries()).sort((a, b) => b[1].tokens - a[1].tokens),
+        totalTokens: Array.from(modelMap.values()).reduce((s, m) => s + m.tokens, 0),
+      }))
+      .sort((a, b) => b.totalTokens - a.totalTokens)
   }, [data])
 
   const usersStats = useMemo(() => {
@@ -296,28 +311,116 @@ const AISection = () => {
             : 'Ihr persönlicher KI-Nutzungsverlauf.'
         }
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Calendar className="size-4 text-muted-foreground" />
+        <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit select-none z-0 mb-4">
           {datePresets.map(({ value, label }) => (
-            <button
+            <motion.button
               key={value}
-              type="button"
+              layout
               onClick={() => setDatePreset(value)}
-              className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all duration-150 ${
+              type="button"
+              className={cn(
+                "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
                 datePreset === value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-hover-bg hover:text-foreground'
-              }`}
+                  ? "text-gray-900 dark:text-gray-100 font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              {label}
-            </button>
+              {datePreset === value && (
+                <motion.div
+                  layoutId="active-ai-analytics-tab-pill"
+                  className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <span>{label}</span>
+            </motion.button>
           ))}
         </div>
 
         {loading ? (
-          <div className="flex flex-col gap-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-48 w-full" />
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <SettingsCard key={i}>
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="size-4 rounded mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  </div>
+                </SettingsCard>
+              ))}
+            </div>
+
+            <SettingsCard>
+              <div className="flex items-center gap-2 mb-4">
+                <Skeleton className="size-4 rounded" />
+                <Skeleton className="h-4 w-56" />
+              </div>
+              <div className="aspect-[3/1] w-full flex items-end gap-1 px-2">
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <Skeleton
+                    key={i}
+                    className="flex-1 rounded-t"
+                    style={{ height: `${20 + Math.random() * 60}%` }}
+                  />
+                ))}
+              </div>
+            </SettingsCard>
+
+            <SettingsCard>
+              <div className="flex items-center gap-2 mb-3">
+                <Skeleton className="size-4 rounded" />
+                <Skeleton className="h-4 w-44" />
+              </div>
+              <div className="space-y-4">
+                {Array.from({ length: 2 }).map((_, fi) => (
+                  <div key={fi}>
+                    <Skeleton className="h-5 w-28 rounded-full mb-2" />
+                    <div className="space-y-1.5 ml-1">
+                      {Array.from({ length: 2 }).map((_, mi) => (
+                        <div key={mi} className="flex items-center gap-3 py-1.5 px-2">
+                          <Skeleton className="h-3 flex-1" />
+                          <div className="flex items-center gap-3 shrink-0">
+                            <Skeleton className="h-3 w-12" />
+                            <Skeleton className="h-3 w-12" />
+                            <Skeleton className="h-3 w-14" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SettingsCard>
+
+            {isAdmin && (
+              <SettingsCard>
+                <div className="flex items-center gap-2 mb-3">
+                  <Skeleton className="size-4 rounded" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-3 w-16" />
+                        <div className="flex gap-1">
+                          <Skeleton className="h-4 w-16 rounded" />
+                          <Skeleton className="h-4 w-12 rounded" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-14" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SettingsCard>
+            )}
           </div>
         ) : error ? (
           <SettingsCard>
@@ -439,51 +542,48 @@ const AISection = () => {
               )}
             </SettingsCard>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <SettingsCard>
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 className="size-4 text-muted-foreground" />
-                  <h4 className="text-sm font-medium">Nach Modell</h4>
-                </div>
-                {modelStats.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Keine Daten</p>
-                ) : (
-                  <div className="space-y-2">
-                    {modelStats.map(([model, stats]) => (
-                      <div key={model} className="flex items-center justify-between text-sm">
-                        <span className="font-mono text-xs truncate max-w-[200px]">{model}</span>
-                        <span className="text-muted-foreground">
-                          {formatNumber(stats.tokens)} Tokens · {formatNumber(stats.messages)} Anfragen
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </SettingsCard>
-
-              <SettingsCard>
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 className="size-4 text-muted-foreground" />
-                  <h4 className="text-sm font-medium">Nach Feature</h4>
-                </div>
-                {featureStats.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Keine Daten</p>
-                ) : (
-                  <div className="space-y-2">
-                    {featureStats.map(([feature, stats]) => (
-                      <div key={feature} className="flex items-center justify-between text-sm">
+            <SettingsCard>
+              <div className="flex items-center gap-2 mb-3">
+                <Cpu className="size-4 text-muted-foreground" />
+                <h4 className="text-sm font-medium">Nach Feature & Modell</h4>
+              </div>
+              {featureModelStats.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Keine Daten</p>
+              ) : (
+                <div className="space-y-4">
+                  {featureModelStats.map(({ feature, models }) => (
+                    <div key={feature}>
+                      <div className="flex items-center gap-2 mb-2">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getFeatureColor(feature)}`}>
                           {getFeatureLabel(feature)}
                         </span>
-                        <span className="text-muted-foreground">
-                          {formatNumber(stats.tokens)} Tokens · {formatNumber(stats.messages)} Anfragen
-                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </SettingsCard>
-            </div>
+                      <div className="space-y-1.5 ml-1">
+                        {models.map(([model, stats]) => (
+                          <div key={model} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-muted/40 transition-colors">
+                            <span className="font-mono text-xs truncate min-w-0 flex-1 text-muted-foreground">{model}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="flex items-center gap-1">
+                                <ArrowDownToLine className="size-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{formatNumber(stats.input_tokens)}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <ArrowUpFromLine className="size-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{formatNumber(stats.output_tokens)}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="size-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{formatUSD(stats.cost)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SettingsCard>
 
             {isAdmin && usersStats.length > 1 && (
               <SettingsCard>
