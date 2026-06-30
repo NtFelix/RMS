@@ -1,18 +1,64 @@
 'use client';
 
-import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown, ChevronDown, ChevronUp, FileUp, AlertTriangle, Key, RefreshCw, Layers, Calendar, Check } from 'lucide-react';
+import { useState } from 'react';
+import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown, ChevronDown, ChevronUp, FileUp, AlertTriangle, Key, RefreshCw, Layers, Calendar, Check, ArrowRight, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
-import { LazyMotion, m, domAnimation } from 'framer-motion';
+import { LazyMotion, m, domAnimation, AnimatePresence } from 'framer-motion';
 import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 import BottomCTA from '@/components/ui/bottom-cta';
 import { cn } from '@/lib/utils';
 
 
 
+interface ExcelRow {
+  objekt: string;
+  whg: string;
+  mieter: string;
+  heizung: number;
+  wasser: number;
+  muell: number;
+  hauswart: number;
+  gesamt: number;
+  differenz: number;
+  fehler?: string;
+}
+
+const EXCEL_DATA: ExcelRow[] = [
+  { objekt: 'Musterstr. 12', whg: '1', mieter: 'Familie Müller', heizung: 1200, wasser: 340, muell: 210, hauswart: 450, gesamt: 2200, differenz: 160 },
+  { objekt: 'Musterstr. 12', whg: '2', mieter: 'Anna Schmidt', heizung: 950, wasser: 260, muell: 160, hauswart: 345, gesamt: 1715, differenz: -85 },
+  { objekt: 'Musterstr. 12', whg: '3', mieter: 'Peter Weber', heizung: 1400, wasser: 380, muell: 180, hauswart: 400, gesamt: 2360, differenz: 440 },
+  { objekt: 'Parkallee 8', whg: '4', mieter: 'Lisa Braun', heizung: 1350, wasser: 380, muell: 230, hauswart: 480, gesamt: 2440, differenz: 40 },
+  { objekt: 'Parkallee 8', whg: '5', mieter: 'Markus Klein', heizung: 780, wasser: 210, muell: 140, hauswart: 290, gesamt: 1420, differenz: -140 },
+  { objekt: 'Parkallee 8', whg: '6', mieter: 'Julia Fischer', heizung: 1050, wasser: 290, muell: 180, hauswart: 370, gesamt: 1890, differenz: 90 },
+  { objekt: 'Blumenweg 5', whg: '7', mieter: 'Thomas Wagner', heizung: 1500, wasser: 420, muell: 260, hauswart: 530, gesamt: 2710, differenz: 190 },
+  { objekt: 'Blumenweg 5', whg: '8', mieter: 'Sandra Hoffmann', heizung: 820, wasser: 220, muell: 150, hauswart: 310, gesamt: 1500, differenz: -180 },
+  { objekt: 'Musterstr. 12', whg: '1', mieter: 'Müller (2023)', heizung: 1150, wasser: 320, muell: 200, hauswart: 430, gesamt: 2100, differenz: 60 },
+  { objekt: 'Musterstr. 12', whg: '2', mieter: 'Schmidt (2023)', heizung: 900, wasser: 240, muell: 150, hauswart: 330, gesamt: 1620, differenz: -180 },
+  { objekt: 'Parkallee 8', whg: '4', mieter: 'Braun (2023)', heizung: 1280, wasser: 360, muell: 220, hauswart: 460, gesamt: 2320, differenz: -80 },
+  { objekt: 'Parkallee 8', whg: '6', mieter: 'Fischer (2023)', heizung: 990, wasser: 270, muell: 170, hauswart: 350, gesamt: 1780, differenz: -20 },
+  { objekt: 'Blumenweg 5', whg: '7', mieter: 'Wagner (2023)', heizung: 1420, wasser: 400, muell: 250, hauswart: 510, gesamt: 2580, differenz: 60 },
+  { objekt: 'Eichenweg 3', whg: '9', mieter: 'Markus Schulz', heizung: 1100, wasser: 310, muell: 190, hauswart: 410, gesamt: 0, differenz: 0, fehler: '#REF!' },
+  { objekt: 'Eichenweg 3', whg: '10', mieter: 'Beate Becker', heizung: 1450, wasser: 390, muell: 240, hauswart: 0, gesamt: 0, differenz: 0, fehler: '#DIV/0!' },
+];
+
+const EUR = (v: number) => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function UtilityCostPage() {
+  const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const [spreadsheetHoveredRow, setSpreadsheetHoveredRow] = useState<number | null>(null);
+
+  const donutSegments = [
+    { pct: 30, color: "#3b82f6", label: "Heizung & Warmwasser", delay: 0.45 },
+    { pct: 18, color: "#10b981", label: "Hauswart & Reinigung", delay: 0.55 },
+    { pct: 14, color: "#f59e0b", label: "Müll & Entsorgung", delay: 0.65 },
+    { pct: 12, color: "#8b5cf6", label: "Grundsteuer", delay: 0.75 },
+    { pct: 10, color: "#ec4899", label: "Versicherungen", delay: 0.85 },
+    { pct: 16, color: "#06b6d4", label: "Strom & Sonstige", delay: 0.95 },
+  ];
 
   const meterSteps = [
     {
@@ -149,56 +195,335 @@ export default function UtilityCostPage() {
   return (
     <LazyMotion features={domAnimation}>
       <div className="min-h-screen bg-background text-foreground">
-      {/* Background Decor */}
+      {/* Background Decor — Spreadsheet Grid */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-linear-to-b from-primary/10 via-primary/5 to-transparent opacity-50" />
+        
+        {/* Spreadsheet grid */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-20 dark:opacity-15">
+          <div 
+            className="w-full h-full"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, #808080 1px, transparent 1px),
+                linear-gradient(to bottom, #808080 1px, transparent 1px)
+              `,
+              backgroundSize: `96px 28px`,
+            }}
+          />
+          {/* Header row accent */}
+          <div 
+            className="absolute top-0 left-0 w-full"
+            style={{
+              height: '28px',
+              backgroundColor: '#808080',
+              opacity: 0.25,
+            }}
+          />
+        </div>
+
+        {/* Fade edges so it doesn't overwhelm the content */}
+        <div className="absolute inset-0 bg-linear-to-r from-background from-[5%] via-transparent via-[15%] to-background to-[95%]" />
+        
         <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
       </div>
 
-      {/* Hero Section */}
-      <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pt-44 pb-20 text-center max-w-7xl">
+      {/* Spreadsheet Hero — Sag Chaos Ade */}
+      <section className="min-h-screen bg-linear-to-b from-background to-muted/20">
 
-        <m.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 max-w-4xl mx-auto"
-        >
-          Abrechnungen erstellen, <br />
-          <span className="text-primary">nicht mehr ausrechnen.</span>
-        </m.h1>
+        {/* Hero — centered heading + CTAs */}
+        <div className="container mx-auto px-4 pt-48 pb-16">
+          <div className="max-w-4xl mx-auto text-center">
+            <m.h1
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight"
+            >
+              Sag <span className="text-primary italic">Chaos Ade.</span>
+            </m.h1>
+            <m.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="text-lg sm:text-xl text-muted-foreground mt-4 mb-10 max-w-2xl mx-auto"
+            >
+              Spare Zeit und exportiere deine Abrechnungen einfach mit klarer Übersicht.
+            </m.p>
+            <m.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center"
+            >
+              <CTAButton
+                variant="primary"
+                text="14 Tage kostenlos testen"
+                href="/?getStarted=true"
+                icon={ArrowRight}
+                iconPosition="right"
+              />
+              <CTAButton
+                variant="secondary"
+                text="Preise ansehen"
+                href="/#pricing"
+                icon={DollarSign}
+                iconPosition="left"
+              />
+            </m.div>
+          </div>
+        </div>
 
-        <m.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto"
-        >
-          Automatisieren Sie den Prozess von der Belegerfassung bis zum fertigen PDF.
-          Präzise, professionell und intuitiv.
-        </m.p>
+        {/* Spreadsheet Showcase */}
+        <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32">
+          <m.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="rounded-2xl border border-border/50 bg-card shadow-xl overflow-hidden"
+          >
+            {/* Formula bar */}
+            <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border/30 bg-muted/20 shrink-0">
+              <span className="text-xs font-semibold text-muted-foreground/60 min-w-[60px] px-2 py-0.5 rounded-md bg-background border border-border/30 text-center font-mono">
+                {selectedCell ? `${'ABCDEFGHI'[selectedCell.col]}${selectedCell.row + 1}` : 'H9'}
+              </span>
+              <span className="text-xs italic text-muted-foreground/30 font-serif">fx</span>
+              <div className="flex-1 h-7 rounded-md border border-border/20 bg-background px-3 flex items-center text-xs text-muted-foreground/60 font-mono truncate">
+                {selectedCell
+                  ? (() => {
+                      const r = EXCEL_DATA[selectedCell.row];
+                      return [r.objekt, r.whg, r.mieter, EUR(r.heizung), EUR(r.wasser), EUR(r.muell), EUR(r.hauswart), EUR(r.gesamt), EUR(r.differenz)][selectedCell.col];
+                    })()
+                  : '=SUMME(E2:E16)-SUMME(F2:F16)'
+                }
+              </div>
+            </div>
 
-        <m.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center"
-        >
-          <CTAButton
-            variant="primary"
-            text="Jetzt kostenlos starten"
-            href="/?getStarted=true"
-            className="h-14 px-8 rounded-xl font-bold shadow-lg"
-          />
-          <CTAButton
-            variant="secondary"
-            text="Muster Abrechnung"
-            href={EXAMPLE_BILL_PDF_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-14 px-8 rounded-xl font-bold border-2"
-          />
-        </m.div>
+            {/* Table */}
+            <div className="flex-1 min-h-0 overflow-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="sticky top-0 left-0 z-20 w-10 h-9 bg-muted/20 border-r border-b border-border/20 text-[9px] font-bold text-muted-foreground/40 text-center select-none" />
+                    {['Objekt', 'Whg', 'Mieter', 'Heizung', 'Wasser', 'Müll', 'Hauswart', 'Gesamt', 'Differenz'].map((col, j) => (
+                      <th
+                        key={col}
+                        className={cn(
+                          "sticky top-0 z-10 h-9 px-4 text-xs font-semibold text-muted-foreground/60 border-r border-b border-border/20 bg-muted/20 cursor-[cell] select-none whitespace-nowrap transition-colors text-left",
+                          selectedCell?.col === j && "bg-primary/[0.06] text-primary"
+                        )}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {EXCEL_DATA.map((row, i) => {
+                    const isError = !!row.fehler;
+                    return (
+                      <m.tr
+                        key={i}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.05 * i, duration: 0.3 }}
+                        onMouseEnter={() => setSpreadsheetHoveredRow(i)}
+                        onMouseLeave={() => setSpreadsheetHoveredRow(null)}
+                        className={cn(
+                          "transition-colors duration-100",
+                          spreadsheetHoveredRow === i && "bg-muted/20",
+                          isError && "bg-destructive/[0.03]",
+                          isError && spreadsheetHoveredRow === i && "bg-destructive/[0.06]"
+                        )}
+                      >
+                        {/* Row number */}
+                        <td
+                          className={cn(
+                            "sticky left-0 z-10 w-10 h-9 border-r border-b border-border/10 text-xs font-semibold text-muted-foreground/30 text-center bg-muted/[0.02] cursor-[cell] select-none transition-colors",
+                            selectedCell?.row === i && "bg-primary/[0.06] text-primary"
+                          )}
+                        >
+                          {i + 1}
+                        </td>
+
+                        {/* Data cells */}
+                        {[
+                          row.objekt, row.whg, row.mieter,
+                          EUR(row.heizung), EUR(row.wasser), EUR(row.muell), EUR(row.hauswart),
+                          EUR(row.gesamt), EUR(row.differenz)
+                        ].map((cell, j) => {
+                          const isSelected = selectedCell?.row === i && selectedCell?.col === j;
+                          const isNumeric = j >= 3;
+                          const isErr = j === 7 && !!row.fehler;
+
+                          return (
+                            <td
+                              key={j}
+                              onClick={() => !isErr && setSelectedCell({ row: i, col: j })}
+                        className={cn(
+                            "h-9 border-r border-b border-border/10 cursor-[cell] select-none transition-all duration-100 relative",
+                            isSelected
+                                  ? "ring-2 ring-inset ring-primary bg-primary/[0.06] z-20"
+                                  : "hover:bg-muted/10",
+                                isErr && "bg-destructive/[0.06]",
+                              )}
+                            >
+                              {isErr ? (
+                                <div className="flex items-center justify-center h-full px-3">
+                                  <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md">{row.fehler}</span>
+                                </div>
+                              ) : (
+                                <span className={cn(
+                                  "block px-4 leading-9 text-sm truncate",
+                                  isNumeric && "text-right font-mono tabular-nums text-foreground/80",
+                                  !isNumeric && "text-left text-foreground/70",
+                                  j >= 7 && "font-semibold text-foreground/90",
+                                  j === 8 && row.differenz > 0 && "text-emerald-600 dark:text-emerald-400",
+                                  j === 8 && row.differenz < 0 && "text-rose-600 dark:text-rose-400",
+                                )}>
+                                  {cell}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </m.tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/20 bg-muted/10 text-xs text-muted-foreground/60 shrink-0">
+              <span className="font-medium">{EXCEL_DATA.length} Einträge</span>
+              <span className="font-mono tabular-nums font-semibold">
+                ∑ {EXCEL_DATA.reduce((s, r) => s + (r.fehler ? 0 : r.gesamt), 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </span>
+            </div>
+          </m.div>
+        </div>
+      </section>
+
+      {/* Kostenverteilung — Donut Chart */}
+      <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32">
+        <div className="max-w-5xl mx-auto">
+          <m.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center"
+          >
+            {/* Left: Text */}
+            <div>
+              <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Transparenz</span>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-3 mb-4">
+                Jede Kostenart <span className="text-primary italic">im Blick.</span>
+              </h2>
+              <p className="text-muted-foreground leading-relaxed">
+                Von Heizung bis Versicherung — Mietevo zeigt Ihnen die genaue Verteilung 
+                Ihrer Betriebskosten. Erkennen Sie auf einen Blick, wo die größten Posten liegen.
+              </p>
+            </div>
+
+            {/* Right: Donut Chart */}
+            <div className="flex items-center justify-center">
+              <div className="relative flex items-center justify-center w-full max-w-[320px] aspect-square">
+                <m.svg
+                  viewBox="0 0 240 240"
+                  className="w-full h-full select-none"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  initial={{ rotate: -180, scale: 0.85, opacity: 0 }}
+                  whileInView={{ rotate: 0, scale: 1, opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <circle cx="120" cy="120" r="90" className="stroke-gray-100 dark:stroke-zinc-800/60 fill-none" strokeWidth="14" />
+                  {(() => {
+                    const r = 90;
+                    const circ = 2 * Math.PI * r;
+                    let cumulativeAngle = 0;
+                    return donutSegments.map((seg, i) => {
+                      const segLen = (seg.pct / 100) * circ;
+                      const angle = cumulativeAngle;
+                      cumulativeAngle += (seg.pct / 100) * 360;
+                      const isHovered = hoveredSegment === i;
+                      const segDashLen = Math.max(0.1, segLen - 24);
+                      return (
+                        <g key={i} transform={`rotate(${angle - 90}, 120, 120)`}>
+                          <m.circle
+                            cx="120" cy="120" r={r}
+                            className="fill-none stroke-transparent cursor-pointer"
+                            strokeLinecap="round" strokeWidth="28"
+                            strokeDasharray={`${segDashLen} ${circ}`}
+                            initial={{ strokeDashoffset: segDashLen }}
+                            whileInView={{ strokeDashoffset: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: seg.delay, duration: 0.8, ease: "easeOut" }}
+                            onMouseEnter={() => setHoveredSegment(i)}
+                            onMouseLeave={() => setHoveredSegment(null)}
+                          />
+                          <m.circle
+                            cx="120" cy="120" r={r}
+                            className="fill-none cursor-pointer"
+                            stroke={seg.color} strokeLinecap="round"
+                            strokeWidth={isHovered ? 22 : 16}
+                            strokeDasharray={`${segDashLen} ${circ}`}
+                            initial={{ strokeDashoffset: segDashLen }}
+                            whileInView={{ strokeDashoffset: 0 }}
+                            viewport={{ once: true }}
+                            transition={{
+                              strokeDashoffset: { delay: seg.delay, duration: 0.8, ease: "easeOut" },
+                              strokeWidth: { type: "spring", stiffness: 300, damping: 20 }
+                            }}
+                            style={{
+                              cursor: "pointer",
+                              transition: "stroke-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                              filter: isHovered ? `drop-shadow(0px 0px 8px ${seg.color}50)` : 'none'
+                            }}
+                            onMouseEnter={() => setHoveredSegment(i)}
+                            onMouseLeave={() => setHoveredSegment(null)}
+                          />
+                        </g>
+                      );
+                    });
+                  })()}
+                </m.svg>
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center p-4">
+                  <AnimatePresence mode="wait">
+                    <m.div
+                      key={hoveredSegment !== null ? `hovered-${hoveredSegment}` : 'default'}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex flex-col items-center justify-center max-w-[140px]"
+                    >
+                      {hoveredSegment !== null ? (
+                        <>
+                          <span className="text-3xl font-black tracking-tight transition-colors duration-300" style={{ color: donutSegments[hoveredSegment].color }}>
+                            {donutSegments[hoveredSegment].pct}%
+                          </span>
+                          <span className="text-[11px] font-bold text-muted-foreground mt-1 line-clamp-2 leading-tight">
+                            {donutSegments[hoveredSegment].label}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-3xl font-black tracking-tight text-foreground">84.250 €</span>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">Gesamtkosten</span>
+                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/20 px-2.5 py-0.5 rounded-full mt-2 flex items-center gap-1">↓ -12% vs. Vj.</span>
+                        </>
+                      )}
+                    </m.div>
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          </m.div>
+        </div>
       </div>
 
       {/* Main Showcase */}
