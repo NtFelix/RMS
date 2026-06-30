@@ -877,7 +877,7 @@ export default function MieterClientView({
                           </ButtonWithTooltip>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                          <DropdownMenuItem onSelect={() => setTimeout(handleAddTenant, 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
                             <div className="flex items-center font-medium">
                               <UserPlus className="mr-2 size-4" />
                               Manuell hinzufügen
@@ -886,7 +886,7 @@ export default function MieterClientView({
                               Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
                             </span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                          <DropdownMenuItem onSelect={() => setTimeout(() => setShowImportModal(true), 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
                             <div className="flex items-center font-medium">
                               <Mail className="mr-2 size-4" />
                               Aus E-Mails importieren
