@@ -135,12 +135,9 @@ export function DashboardLayout({
           isPushMode && "md:mr-[450px]"
         )}>
           <div className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden border shadow-sm",
-            "rounded-[2rem] md:rounded-[2.5rem]",
-            // Enhanced CSS-only fallback for mobile bottom margin
+            "flex-1 overflow-y-auto overflow-x-hidden",
             "mb-4 md:mb-0",
-            "responsive-transition",
-            "p-4"
+            "responsive-transition"
           )}>
             <div className={cn(
               "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
