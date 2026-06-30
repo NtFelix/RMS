@@ -118,6 +118,7 @@ export default function MieterClientView({
   const [applicantFilter, setApplicantFilter] = useState<"all" | "A-Fit" | "B-Fit" | "C-Fit">("all");
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
   const showApplicantsTab = !!rawFlag;
+  const applicantsMailImportFlag = useFeatureFlagEnabled('applicants-mail-import');
   const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
 
   // Fallback to "mieter" if applicants tab is disabled and user is on "bewerber"
@@ -867,7 +868,7 @@ export default function MieterClientView({
                     </p>
                   </div>
                   <div className="mt-0 sm:mt-1">
-                    {showApplicantsTab ? (
+                    {currentTab === 'bewerber' ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <ButtonWithTooltip className="w-full sm:w-auto gap-2" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
@@ -880,21 +881,23 @@ export default function MieterClientView({
                           <DropdownMenuItem onSelect={() => setTimeout(handleAddTenant, 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
                             <div className="flex items-center font-medium">
                               <UserPlus className="mr-2 size-4" />
-                              Manuell hinzufügen
+                              Bewerber hinzufügen
                             </div>
                             <span className="text-xs text-muted-foreground ml-6">
-                              Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
+                              Erstellen Sie einen neuen Bewerber per Hand.
                             </span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => setTimeout(() => setShowImportModal(true), 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                            <div className="flex items-center font-medium">
-                              <Mail className="mr-2 size-4" />
-                              Aus E-Mails importieren
-                            </div>
-                            <span className="text-xs text-muted-foreground ml-6">
-                              Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
-                            </span>
-                          </DropdownMenuItem>
+                          {applicantsMailImportFlag && (
+                            <DropdownMenuItem onSelect={() => setTimeout(() => setShowImportModal(true), 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                              <div className="flex items-center font-medium">
+                                <Mail className="mr-2 size-4" />
+                                Aus E-Mails importieren
+                              </div>
+                              <span className="text-xs text-muted-foreground ml-6">
+                                Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
+                              </span>
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
