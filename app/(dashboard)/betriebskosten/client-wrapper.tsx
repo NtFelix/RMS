@@ -1533,7 +1533,7 @@ export default function BetriebskostenClientView({
 
                       <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto px-1 italic">
                         {isOptimal 
-                          ? "✓ Ihre Kosten liegen unter dem Bundesdurchschnitt. Die Abrechnung entspricht dem Gebot der Wirtschaftlichkeit."
+                          ? "✓ Ihre Kosten liegen unter dem Bundesdurchschnitt."
                           : "⚠ Ihre Kosten übersteigen den Marktdurchschnitt. Prüfen Sie Optimierungspotenziale bei Versicherungen oder Dienstleistern."
                         }
                       </p>
