@@ -7,7 +7,7 @@ import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 // react-doctor-disable-next-line react-doctor/use-lazy-motion
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
 import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
 import { useToast } from "@/hooks/use-toast"
@@ -178,13 +178,26 @@ export function UserSettings({
         align={collapsed ? "start" : "end"}
         className="w-56"
         trigger={
-          <div
+          <m.div
             className={cn(
-              "flex items-center cursor-pointer transition-all duration-300 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20",
+              "flex items-center cursor-pointer transition-colors duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 overflow-hidden",
               collapsed 
-                ? "justify-center rounded-full bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 size-12 mx-auto" 
-                : "w-full px-3 py-2.5 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
+                ? "justify-center bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 mx-auto" 
+                : "bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
             )}
+            animate={{
+              width: collapsed ? "48px" : "100%",
+              height: collapsed ? "48px" : "60px",
+              borderRadius: collapsed ? "24px" : "16px",
+              paddingLeft: collapsed ? "0px" : "12px",
+              paddingRight: collapsed ? "0px" : "12px",
+            }}
+            transition={{
+              type: "spring",
+              stiffness: 400,
+              damping: 25,
+              mass: 0.8,
+            }}
             aria-label="User menu"
           >
             <div className="relative shrink-0">
@@ -194,22 +207,22 @@ export function UserSettings({
                 </AvatarFallback>
               </Avatar>
             </div>
-            <motion.div
+            <m.div
               initial={false}
               variants={{
                 expanded: {
                   opacity: 1,
-                  width: "auto",
+                  x: 0,
                   marginLeft: "12px",
                   display: "flex",
                   transition: { duration: 0.2 }
                 },
                 collapsed: {
                   opacity: 0,
-                  width: 0,
+                  x: -10,
                   marginLeft: "0px",
                   transitionEnd: { display: "none" },
-                  transition: { duration: 0.2 }
+                  transition: { duration: 0.15 }
                 }
               }}
               animate={collapsed ? "collapsed" : "expanded"}
@@ -239,8 +252,8 @@ export function UserSettings({
                   <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
                 </div>
               )}
-            </motion.div>
-          </div>
+            </m.div>
+          </m.div>
         }
       >
         <CustomDropdownLabel>Mein Konto</CustomDropdownLabel>

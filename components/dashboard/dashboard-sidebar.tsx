@@ -127,8 +127,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
 const textVariants: Variants = {
   expanded: {
     opacity: 1,
-    width: "auto",
-    marginLeft: "12px",
+    x: 0,
     scale: 1,
     filter: "blur(0px)",
     display: "block",
@@ -142,8 +141,7 @@ const textVariants: Variants = {
   },
   collapsed: {
     opacity: 0,
-    width: 0,
-    marginLeft: "0px",
+    x: -15,
     scale: 0.95,
     filter: "blur(4px)",
     transition: {
@@ -500,53 +498,69 @@ function SidebarNavLink({
   const safeId = `sidebar-nav-${item.href.replace(/^\//, '').replace(/\//g, '-') || 'home'}`;
 
   const link = (
-    <Link
-      href={item.href}
-      id={safeId}
-      onClick={(e) => {
-        if (item.href === ROUTES.SEARCH) {
-          e.preventDefault();
-          setOpen(true);
-          return;
-        }
-        setIsOpen(false)
-        if (item.href === ROUTES.HOME) {
-          useOnboardingStore.getState().completeStep('overview-open')
-        }
-      }}
-      className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-all duration-300 ease-in-out hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/15 relative cursor-pointer active:scale-98 w-full hover:z-10",
-        isCollapsed && !isMobile ? "justify-center w-10 mx-auto rounded-full" : "w-full px-3 justify-start rounded-xl",
-        getActiveStateClasses(item.href),
-      )}
-      data-active={isActive}
-      aria-current={isActive ? "page" : undefined}
-    >
-      {!isMobile ? (
-        <m.div
-          variants={iconVariants}
-          animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
-          className="shrink-0"
-        >
-          <item.icon className="size-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
-        </m.div>
-      ) : (
-        <item.icon className="size-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-115 group-hover:rotate-3" />
-      )}
-      {!isMobile && (
-        <m.span
-          variants={textVariants}
-          animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
-          className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1 overflow-hidden"
-        >
-          {item.title}
-        </m.span>
-      )}
-      {isMobile && (
-        <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1 ml-3 overflow-hidden">
-          {item.title}
-        </span>
-      )}
+    <Link href={item.href} passHref legacyBehavior>
+      <m.a
+        id={safeId}
+        onClick={(e) => {
+          if (item.href === ROUTES.SEARCH) {
+            e.preventDefault();
+            setOpen(true);
+            return;
+          }
+          setIsOpen(false)
+          if (item.href === ROUTES.HOME) {
+            useOnboardingStore.getState().completeStep('overview-open')
+          }
+        }}
+        className={cn(
+          "group flex items-center h-10 text-sm font-medium transition-colors duration-200 hover:bg-accent hover:text-white hover:shadow-md hover:shadow-accent/15 relative cursor-pointer active:scale-98 hover:z-10 overflow-hidden",
+          isCollapsed && !isMobile ? "justify-center mx-auto" : "justify-start",
+          getActiveStateClasses(item.href),
+        )}
+        animate={{
+          width: isCollapsed && !isMobile ? "40px" : "100%",
+          borderRadius: isCollapsed && !isMobile ? "20px" : "12px",
+          paddingLeft: isCollapsed && !isMobile ? "0px" : "12px",
+          paddingRight: isCollapsed && !isMobile ? "0px" : "12px",
+        }}
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 25,
+          mass: 0.8,
+        }}
+        data-active={isActive}
+        aria-current={isActive ? "page" : undefined}
+      >
+        {!isMobile ? (
+          <m.div
+            variants={iconVariants}
+            animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+            className="shrink-0 animate-in"
+          >
+            <item.icon className="size-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
+          </m.div>
+        ) : (
+          <item.icon className="size-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-115 group-hover:rotate-3" />
+        )}
+        {!isMobile && (
+          <m.span
+            variants={{
+              expanded: { opacity: 1, x: 0 },
+              collapsed: { opacity: 0, x: -10 }
+            }}
+            animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+            className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1 overflow-hidden"
+          >
+            {item.title}
+          </m.span>
+        )}
+        {isMobile && (
+          <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1 ml-3 overflow-hidden">
+            {item.title}
+          </span>
+        )}
+      </m.a>
     </Link>
   );
 
@@ -588,107 +602,120 @@ function SidebarActions({
   if (!supportButtonEnabled && !notificationCenterFeatureEnabled) return null;
 
   return (
-    <div className={cn(
-      "flex gap-3 w-full pb-4 shrink-0",
-      isCollapsed ? "flex-col items-center" : "flex-row justify-start"
-    )}>
+    <m.div 
+      layout
+      className={cn(
+        "flex gap-3 w-full pb-4 shrink-0",
+        isCollapsed ? "flex-col items-center animate-in" : "flex-row justify-start"
+      )}
+      transition={{
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        mass: 0.8,
+      }}
+    >
       {/* Support Popover */}
       {supportButtonEnabled && (
-        <Popover open={supportOpen} onOpenChange={setSupportOpen}>
-          <PopoverTrigger asChild>
-            <button 
-              type="button"
-              className={cn(
-                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-              )}
+        <m.div layout>
+          <Popover open={supportOpen} onOpenChange={setSupportOpen}>
+            <PopoverTrigger asChild>
+              <button 
+                type="button"
+                className={cn(
+                  "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                  "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                  "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+                )}
+              >
+                <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent 
+              side="right" 
+              align="end" 
+              sideOffset={12} 
+              className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
             >
-              <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent 
-            side="right" 
-            align="end" 
-            sideOffset={12} 
-            className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
-                <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Offen</span>
-              </div>
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                  <MessageCircle className="size-5 text-zinc-400 dark:text-zinc-500" />
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
+                  <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Offen</span>
                 </div>
-                <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine Support-Anfragen</h4>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
-                  Sobald du Hilfe benötigst oder Fragen hast, kannst du einen neuen Support-Chat starten.
-                </p>
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                    <MessageCircle className="size-5 text-zinc-400 dark:text-zinc-500" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine Support-Anfragen</h4>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
+                    Sobald du Hilfe benötigst oder Fragen hast, kannst du einen neuen Support-Chat starten.
+                  </p>
+                </div>
+                <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                  <Link 
+                    href="/support"
+                    onClick={() => setSupportOpen(false)}
+                    className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+                  >
+                    Support kontaktieren
+                  </Link>
+                </div>
               </div>
-              <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
-                <Link 
-                  href="/support"
-                  onClick={() => setSupportOpen(false)}
-                  className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
-                >
-                  Support kontaktieren
-                </Link>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+        </m.div>
       )}
 
       {/* Notifications Popover */}
       {notificationCenterFeatureEnabled && (
-        <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-          <PopoverTrigger asChild>
-            <button 
-              type="button"
-              className={cn(
-                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-              )}
+        <m.div layout>
+          <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+            <PopoverTrigger asChild>
+              <button 
+                type="button"
+                className={cn(
+                  "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                  "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                  "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+                )}
+              >
+                <Bell className="size-5 transition-transform duration-200 group-hover:scale-110" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent 
+              side="right" 
+              align="end" 
+              sideOffset={12} 
+              className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
             >
-              <Bell className="size-5 transition-transform duration-200 group-hover:scale-110" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent 
-            side="right" 
-            align="end" 
-            sideOffset={12} 
-            className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
-                <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
-              </div>
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                  <Bell className="size-5 text-zinc-400 dark:text-zinc-500" />
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
+                  <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
                 </div>
-                <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
-                  Du bist auf dem neuesten Stand. Hier zeigen wir dir wichtige Updates zu deinen Immobilien.
-                </p>
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                    <Bell className="size-5 text-zinc-400 dark:text-zinc-500" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
+                    Du bist auf dem neuesten Stand. Hier zeigen wir dir wichtige Updates zu deinen Immobilien.
+                  </p>
+                </div>
+                <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                  <Link 
+                    href="/settings/notifications"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+                  >
+                    Einstellungen öffnen
+                  </Link>
+                </div>
               </div>
-              <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
-                <Link 
-                  href="/settings/notifications"
-                  onClick={() => setNotificationsOpen(false)}
-                  className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
-                >
-                  Einstellungen öffnen
-                </Link>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+        </m.div>
       )}
-    </div>
+    </m.div>
   )
 }
