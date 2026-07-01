@@ -6,11 +6,48 @@ import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-// react-doctor-disable-next-line react-doctor/use-lazy-motion
 import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
 import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
 import { useToast } from "@/hooks/use-toast"
+
+const layoutTransition = {
+  type: "spring",
+  stiffness: 400,
+  damping: 38,
+  mass: 0.8
+} as const;
+
+const triggerVariants = {
+  expanded: {
+    width: "100%",
+    borderRadius: "24px", // rounded-2xl
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "10px",
+    paddingBottom: "10px",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 38,
+      mass: 0.8
+    }
+  },
+  collapsed: {
+    width: "40px",
+    borderRadius: "9999px", // rounded-full
+    paddingLeft: "0px",
+    paddingRight: "0px",
+    paddingTop: "0px",
+    paddingBottom: "0px",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 38,
+      mass: 0.8
+    }
+  }
+} as const;
 
 
 import { useUserProfile } from "@/hooks/use-user-profile"
@@ -179,50 +216,48 @@ export function UserSettings({
         className="w-56"
         trigger={
           <m.div
-            className={cn(
-              "flex items-center cursor-pointer transition-colors duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 overflow-hidden",
-              collapsed 
-                ? "justify-center bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 mx-auto" 
-                : "bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
-            )}
-            animate={{
-              width: collapsed ? "48px" : "100%",
-              height: collapsed ? "48px" : "60px",
-              borderRadius: collapsed ? "24px" : "16px",
-              paddingLeft: collapsed ? "0px" : "12px",
-              paddingRight: collapsed ? "0px" : "12px",
-            }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 25,
-              mass: 0.8,
-            }}
+            variants={triggerVariants}
+            animate={collapsed ? "collapsed" : "expanded"}
+            className="flex items-center cursor-pointer transition-colors duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 h-10 rounded-2xl"
             aria-label="User menu"
           >
-            <div className="relative shrink-0">
+            <m.div 
+              layout
+              transition={layoutTransition}
+              className="relative shrink-0"
+            >
               <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
                 <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>
               </Avatar>
-            </div>
+            </m.div>
             <m.div
               initial={false}
               variants={{
                 expanded: {
                   opacity: 1,
-                  x: 0,
+                  width: "auto",
                   marginLeft: "12px",
                   display: "flex",
-                  transition: { duration: 0.2 }
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 38,
+                    mass: 0.8
+                  }
                 },
                 collapsed: {
                   opacity: 0,
-                  x: -10,
+                  width: 0,
                   marginLeft: "0px",
-                  transitionEnd: { display: "none" },
-                  transition: { duration: 0.15 }
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 38,
+                    mass: 0.8
+                  },
+                  transitionEnd: { display: "none" }
                 }
               }}
               animate={collapsed ? "collapsed" : "expanded"}

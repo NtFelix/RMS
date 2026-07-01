@@ -115,13 +115,13 @@ export function DashboardLayout({
           <m.div 
             className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0 shrink-0"
             animate={{
-              width: preference === 'expanded' ? "16rem" : "5rem"
+              width: preference === 'expanded' ? "16rem" : "3.5rem"
             }}
             transition={{
               type: "spring",
               stiffness: 400,
-              damping: 25,
-              mass: 0.8,
+              damping: 38,
+              mass: 0.8
             }}
           >
             <DashboardSidebar sidebarData={sidebarData} />
