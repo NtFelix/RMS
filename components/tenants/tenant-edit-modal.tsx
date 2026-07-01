@@ -149,7 +149,7 @@ function TopBar({
   onDeleteRequest: () => void
   actions: { key: string; onClick: () => void }[]
 }) {
-  if (!tenantInitialData) return null
+  if (!tenantInitialData?.id) return null
 
   return (
     <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
@@ -192,20 +192,22 @@ function DeleteTenantDialog({
   tenantName,
   isDeleting,
   onDelete,
+  isApplicant = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   tenantName: string
   isDeleting: boolean
   onDelete: () => void
+  isApplicant?: boolean
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Mieter löschen?</AlertDialogTitle>
+          <AlertDialogTitle>{isApplicant ? "Bewerber löschen?" : "Mieter löschen?"}</AlertDialogTitle>
           <AlertDialogDescription>
-            Möchten Sie den Mieter &ldquo;{tenantName}&rdquo; wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            Möchten Sie {isApplicant ? "den Bewerber" : "den Mieter"} &ldquo;{tenantName}&rdquo; wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -458,7 +460,9 @@ function FormFields({
         </div>
         <div className="space-y-1">
           <SheetTitle className="sr-only">
-            {tenantInitialData ? "Mieter bearbeiten" : "Mieter hinzufügen"}
+            {tenantInitialData?.id
+              ? (isApplicant ? "Bewerber bearbeiten" : "Mieter bearbeiten")
+              : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
           </SheetTitle>
           <input
             type="text"
@@ -466,15 +470,19 @@ function FormFields({
             name="name"
             value={formData.name}
             onChange={onFieldChange}
-            placeholder={tenantInitialData ? "Unbenannter Mieter" : "Mieter hinzufügen"}
+            placeholder={tenantInitialData?.id
+              ? (isApplicant ? "Unbenannter Bewerber" : "Unbenannter Mieter")
+              : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
             disabled={isSubmitting}
-            aria-label={tenantInitialData ? "Name des Mieters" : "Name des neuen Mieters"}
+            aria-label={tenantInitialData?.id
+              ? (isApplicant ? "Name des Bewerbers" : "Name des Mieters")
+              : (isApplicant ? "Name des neuen Bewerbers" : "Name des neuen Mieters")}
             className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
           />
           <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
-            {tenantInitialData
-              ? "Bearbeiten Sie die Informationen für diesen Mieter."
-              : "Legen Sie einen neuen Mieter in Ihrer Verwaltung an."}
+            {tenantInitialData?.id
+              ? (isApplicant ? "Bearbeiten Sie die Informationen für diesen Bewerber." : "Bearbeiten Sie die Informationen für diesen Mieter.")
+              : (isApplicant ? "Legen Sie einen neuen Bewerber in Ihrer Verwaltung an." : "Legen Sie einen neuen Mieter in Ihrer Verwaltung an.")}
           </SheetDescription>
         </div>
       </div>
@@ -491,7 +499,7 @@ function FormFields({
                 icon={Building2}
                 label="Wohnung"
                 htmlFor="wohnung_id"
-                infoText="Wählen Sie die Wohnung aus, die der Mieter bewohnt."
+                infoText={isApplicant ? "Wählen Sie die Wohnung aus, die der Bewerber beziehen möchte." : "Wählen Sie die Wohnung aus, die der Mieter bewohnt."}
               />
               <div className="relative">
                 <CustomCombobox
@@ -530,7 +538,7 @@ function FormFields({
                 icon={FileText}
                 label="Notiz"
                 htmlFor="notiz"
-                infoText="Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen."
+                infoText={isApplicant ? "Hier können Sie zusätzliche Informationen oder Anmerkungen zum Bewerber erfassen." : "Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen."}
               />
               <div className="relative">
                 <Textarea
@@ -586,10 +594,12 @@ function FormActions({
   isSubmitting,
   onCancel,
   tenantInitialData,
+  isApplicant = false,
 }: {
   isSubmitting: boolean
   onCancel: () => void
   tenantInitialData: Tenant | null
+  isApplicant?: boolean
 }) {
   return (
     <SheetFooter className="px-4 pb-8 pt-2 sm:p-8 sm:pb-14 sm:pt-4">
@@ -616,7 +626,7 @@ function FormActions({
               </svg>
               Wird gespeichert...
             </span>
-          ) : (tenantInitialData ? "Änderungen speichern" : "Mieter anlegen")}
+          ) : (tenantInitialData?.id ? "Änderungen speichern" : (isApplicant ? "Bewerber anlegen" : "Mieter anlegen"))}
         </Button>
       </div>
     </SheetFooter>
@@ -914,7 +924,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       if (result.success) {
         toast({
           title: "Erfolg",
-          description: `Der Mieter "${tenantInitialData.name}" wurde erfolgreich gelöscht.`,
+          description: `${isApplicant ? "Der Bewerber" : "Der Mieter"} "${tenantInitialData.name}" wurde erfolgreich gelöscht.`,
           variant: "success",
         })
         setTenantModalDirty(false)
@@ -923,12 +933,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       } else {
         toast({
           title: "Fehler",
-          description: result.error?.message || "Der Mieter konnte nicht gelöscht werden.",
+          description: result.error?.message || (isApplicant ? "Der Bewerber konnte nicht gelöscht werden." : "Der Mieter konnte nicht gelöscht werden."),
           variant: "destructive",
         })
       }
     } catch (error) {
-      console.error("Unerwarteter Fehler beim Löschen des Mieters:", error)
+      console.error(`Unerwarteter Fehler beim Löschen ${isApplicant ? "des Bewerbers" : "des Mieters"}:`, error)
       toast({
         title: "Systemfehler",
         description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
@@ -996,8 +1006,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
       if (result.success) {
         toast({
-          title: tenantInitialData?.id ? "Mieter aktualisiert" : "Mieter erstellt",
-          description: `Die Daten des Mieters "${tenantNameForToast}" wurden erfolgreich ${tenantInitialData?.id ? "aktualisiert" : "erstellt"}.`,
+          title: tenantInitialData?.id
+            ? (isApplicant ? "Bewerber aktualisiert" : "Mieter aktualisiert")
+            : (isApplicant ? "Bewerber erstellt" : "Mieter erstellt"),
+          description: `Die Daten ${isApplicant ? "des Bewerbers" : "des Mieters"} "${tenantNameForToast}" wurden erfolgreich ${tenantInitialData?.id ? "aktualisiert" : "erstellt"}.`,
           variant: "success",
         })
         setTenantModalDirty(false)
@@ -1091,6 +1103,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
             isSubmitting={isSubmitting}
             onCancel={handleCancelClick}
             tenantInitialData={tenantInitialData}
+            isApplicant={isApplicant}
           />
         </form>
 
@@ -1100,6 +1113,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           tenantName={tenantInitialData?.name || formData.name}
           isDeleting={isDeleting}
           onDelete={handleDelete}
+          isApplicant={isApplicant}
         />
       </SheetContent>
     </Sheet>
