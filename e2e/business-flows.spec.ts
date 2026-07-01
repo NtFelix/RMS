@@ -2,7 +2,61 @@ import { test, expect } from '@playwright/test';
 import { login, hasTestCredentials, generateRandomString, acceptCookieConsent, getUiErrorMessage } from './utils';
 
 
-import { Page } from '@playwright/test';
+import { Page, Locator } from '@playwright/test';
+
+async function selectComboboxOption(page: Page, modal: Locator, optionName: string, comboboxLocator: string = '[role="combobox"]') {
+  const maxRetries = 3
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const cmb = modal.locator(comboboxLocator).first()
+    // Use evaluate click to bypass overlay interception (WebKit) and viewport checks (Chromium)
+    await cmb.evaluate(el => (el as HTMLElement).click())
+    await page.waitForTimeout(300)
+
+    const searchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first()
+    if (!(await searchbox.isVisible({ timeout: 5000 }).catch(() => false))) {
+      continue
+    }
+
+    await searchbox.fill(optionName)
+    await page.waitForTimeout(500)
+
+    const option = page.getByRole('option', { name: optionName }).first()
+    if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await option.evaluate(el => (el as HTMLElement).click())
+      // Wait for combobox to close — confirms the value was committed
+      await page.waitForTimeout(500)
+      const dropdown = page.locator('[data-combobox-dropdown]')
+      if (!(await dropdown.isVisible({ timeout: 2000 }).catch(() => false))) {
+        return
+      }
+    }
+
+    // Close combobox if still open before retry (only press Escape when
+    // dropdown is visible — pressing it when already closed would close the parent Dialog)
+    const dropdown = page.locator('[data-combobox-dropdown]')
+    if (await dropdown.isVisible({ timeout: 500 }).catch(() => false)) {
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(200)
+    }
+  }
+  throw new Error(`Option "${optionName}" not found after ${maxRetries} attempts`)
+}
+
+async function verifyEntityInTable(page: Page, name: string, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await expect(page.getByText(name).first()).toBeVisible({ timeout: 10000 })
+      return
+    } catch {
+      if (attempt < maxRetries - 1) {
+        // Page might have stale data — reload and wait for hydration
+        await page.reload({ waitUntil: 'domcontentloaded' })
+        await page.waitForTimeout(1000)
+      }
+    }
+  }
+  throw new Error(`Entity "${name}" not found in table after ${maxRetries} attempts`)
+}
 
 async function safeNavigate(page: Page, url: string, waitUntil: 'load' | 'domcontentloaded' | 'networkidle' | 'commit' = 'domcontentloaded') {
   let retries = 3;
@@ -148,32 +202,12 @@ test.describe('Business Logic Flows', () => {
     await page.fill('#miete', '1200');
 
     // Select House (Combobox)
-    // Click the combobox trigger. It usually has aria-expanded or role combobox.
-    const combobox = modal.getByRole('combobox').first();
-    await expect(combobox).toBeVisible({ timeout: 10000 });
-    await combobox.click();
-    await page.waitForTimeout(300);
-
-    // Type to search
-    const houseSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
-    await expect(houseSearchbox).toBeVisible({ timeout: 5000 }).catch(async () => {
-      // Re-try opening the combobox if searchbox is not visible (Firefox/WebKit shift safeguard)
-      await combobox.click({ force: true });
-      await expect(houseSearchbox).toBeVisible({ timeout: 5000 });
-    });
-
-    await houseSearchbox.fill(houseName);
-    await page.waitForTimeout(500);
-
-    // Select option
-    const option = page.getByRole('option', { name: houseName }).first();
-    await expect(option).toBeVisible({ timeout: 10000 });
-    await option.scrollIntoViewIfNeeded().catch(() => {});
-    await option.click({ force: true });
-    await page.waitForTimeout(300);
+    await selectComboboxOption(page, modal, houseName);
 
     // Submit
-    await page.getByRole('button', { name: /Wohnung erstellen|Speichern/i }).click();
+    const submitBtn = page.getByRole('button', { name: /Wohnung erstellen|Speichern/i });
+    await expect(submitBtn).toBeEnabled({ timeout: 10000 });
+    await submitBtn.click();
 
     // Wait for modal to close with better error reporting
     try {
@@ -189,7 +223,7 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(500);
 
     // Verify
-    await expect(page.getByText(aptName).first()).toBeVisible({ timeout: 10000 });
+    await verifyEntityInTable(page, aptName);
   });
 
   test('Create a Tenant linked to the Apartment', async ({ page }) => {
@@ -230,30 +264,8 @@ test.describe('Business Logic Flows', () => {
     await page.fill('#name', tenantName);
     await page.waitForTimeout(300);
 
-    // Select Apartment
-    // It's a CustomCombobox with id="wohnung_id" on the button trigger.
-    const combobox = modal.locator('#wohnung_id').first();
-    await expect(combobox).toBeVisible({ timeout: 10000 });
-    await combobox.click();
-    await page.waitForTimeout(300);
-
-    const aptSearchbox = page.locator('[data-combobox-dropdown]').getByRole('searchbox').first();
-    await aptSearchbox.fill(aptName);
-    await page.waitForTimeout(500);
-
-    const option = page.getByRole('option', { name: aptName }).first();
-    // Re-try opening the combobox if option is not visible
-    try {
-      await expect(option).toBeVisible({ timeout: 5000 });
-    } catch (e) {
-      await modal.locator('#wohnung_id').first().click({ force: true });
-      await expect(aptSearchbox).toBeVisible({ timeout: 5000 });
-      await aptSearchbox.fill(aptName);
-      await expect(option).toBeVisible({ timeout: 10000 });
-    }
-    await option.scrollIntoViewIfNeeded().catch(() => {});
-    await option.click({ force: true });
-    await page.waitForTimeout(300);
+    // Select Apartment (CustomCombobox with id="wohnung_id")
+    await selectComboboxOption(page, modal, aptName, '#wohnung_id');
 
     // Date - try to fill the date input
     const dateInput = page.getByPlaceholder('TT.MM.JJJJ').first();
@@ -271,7 +283,9 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(300);
 
     // Submit
-    await page.getByRole('button', { name: /Speichern/i }).click();
+    const submitBtn = page.getByRole('button', { name: /Speichern/i });
+    await expect(submitBtn).toBeEnabled({ timeout: 10000 });
+    await submitBtn.click();
 
     // Wait for modal to close
     try {
@@ -286,14 +300,12 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(500);
 
     // Verify
-    await expect(page.getByText(tenantName).first()).toBeVisible({ timeout: 10000 });
+    await verifyEntityInTable(page, tenantName);
   });
 
   test.afterAll(async ({ browser }) => {
-    // Only cleanup if we have credentials
     if (!hasTestCredentials()) return;
 
-    // Fresh browser context for cleanup
     const context = await browser.newContext();
     const page = await context.newPage();
 
@@ -301,97 +313,17 @@ test.describe('Business Logic Flows', () => {
       await login(page);
       await acceptCookieConsent(page);
 
-      const entities = [
-        { name: tenantName, path: '/mieter', label: 'Tenant' },
-        { name: aptName, path: '/wohnungen', label: 'Apartment' },
-        { name: houseName, path: '/haeuser', label: 'House' }
-      ];
+      console.log('[Cleanup] Calling E2E cleanup API...');
+      const response = await page.request.post('/api/e2e/cleanup');
+      const result = await response.json();
 
-      for (const entity of entities) {
-        try {
-          console.log(`[Cleanup] Processing ${entity.label}: ${entity.name}`);
-          await safeNavigate(page, entity.path, 'domcontentloaded');
-
-          // Strategy 1: Search for the specific entity name
-          let foundAndDeleted = false;
-          const searchInput = page.locator('input[placeholder*="suchen" i]').first();
-
-          if (await searchInput.isVisible({ timeout: 10000 }).catch(() => false)) {
-            await searchInput.clear();
-            await searchInput.fill(entity.name);
-            await page.waitForTimeout(2000);
-
-            foundAndDeleted = await attemptDelete(page, entity);
-          }
-
-          // Strategy 2: If specific name didn't work, search for "E2E" prefix to catch all test data
-          if (!foundAndDeleted && await searchInput.isVisible().catch(() => false)) {
-            console.log(`[Cleanup] Trying broader E2E search for ${entity.label}...`);
-            await searchInput.clear();
-            await searchInput.fill('E2E');
-            await page.waitForTimeout(2000);
-
-            foundAndDeleted = await attemptDelete(page, entity);
-          }
-
-          if (!foundAndDeleted) {
-            console.log(`[Cleanup] Could not delete ${entity.label}: ${entity.name}`);
-          }
-        } catch (entityError) {
-          console.error(`[Cleanup] Error during ${entity.label} cleanup:`, entityError);
-        }
+      if (response.ok()) {
+        console.log(`[Cleanup] Deleted: ${result.houses} houses, ${result.apartments} apartments, ${result.tenants} tenants`);
+      } else {
+        console.error(`[Cleanup] API error:`, result.error);
       }
-
-      async function attemptDelete(page: any, entity: any): Promise<boolean> {
-        // Look for any checkbox in the table header or the first checkbox overall
-        const selectAll = page.locator('thead input[type="checkbox"], thead [role="checkbox"], table [role="checkbox"]').first();
-
-        if (!(await selectAll.isVisible({ timeout: 3000 }).catch(() => false))) {
-          console.log(`[Cleanup] No checkboxes found for ${entity.label}`);
-          return false;
-        }
-
-        console.log(`[Cleanup] Selecting entries for ${entity.label}...`);
-        await selectAll.click({ force: true });
-        await page.waitForTimeout(1500); // Increased wait for bulk action bar
-
-        // Find the delete button - try multiple strategies
-        let deleteBtn = page.getByRole('button')
-          .filter({ hasText: /Löschen/i })
-          .filter({ has: page.locator('svg.lucide-trash-2, .lucide-trash-2, .lucide-trash') })
-          .first();
-
-        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-          // Try without the icon filter
-          deleteBtn = page.getByRole('button').filter({ hasText: /^Löschen \(\d+\)$/i }).first();
-        }
-
-        if (!(await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-          console.log(`[Cleanup] Delete button not visible for ${entity.label}`);
-          return false;
-        }
-
-        console.log(`[Cleanup] Clicking delete for ${entity.label}...`);
-        await deleteBtn.click({ force: true });
-
-        // Handle confirmation Dialog/AlertDialog
-        const confirmBtn = page.getByRole('button')
-          .filter({ hasText: /Löschen bestätigen|Löschen|Bestätigen/i })
-          .filter({ hasNotText: /Abbrechen/i })
-          .last();
-
-        if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await confirmBtn.click({ force: true });
-          console.log(`[Cleanup] Successfully deleted ${entity.label}`);
-          await page.waitForTimeout(2000);
-          return true;
-        } else {
-          console.log(`[Cleanup] Confirmation button not found for ${entity.label}`);
-          return false;
-        }
-      }
-    } catch (globalError) {
-      console.error('[Cleanup] Global error:', globalError);
+    } catch (error) {
+      console.error('[Cleanup] Error:', error);
     } finally {
       await page.close();
       await context.close();
