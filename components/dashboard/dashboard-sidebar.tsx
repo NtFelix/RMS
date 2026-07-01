@@ -8,7 +8,7 @@ import {
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
   Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell 
 } from "lucide-react"
-import { motion, Variants } from "framer-motion"
+import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -51,7 +51,7 @@ const sidebarNavGroups: SidebarNavGroupType[] = [
       {
         title: "Organisationen",
         href: "/organisation",
-        icon: Building2, // Replaced Network with Building2 for cleaner icons list
+        icon: Building2,
       },
     ]
   },
@@ -217,7 +217,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   }
 
   return (
-    <>
+    <LazyMotion features={domAnimation}>
       {/* Mobile Menu Button */}
       <Button
         variant="outline"
@@ -275,7 +275,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
           sidebarData={sidebarData}
         />
       </aside>
-    </>
+    </LazyMotion>
   )
 }
 
@@ -307,21 +307,26 @@ function SidebarContent({
   const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
   const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
 
-  // Filter items based on feature flags, organization visibility, and module permissions
+  // Combined loop iteration (flatMap/filter optimized into a single pass using reduce)
   const visibleNavItems = useMemo(() => {
-    return sidebarNavGroups.flatMap((group) => group.items).filter((item) => {
-      if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
-        return false;
+    return sidebarNavGroups.reduce<SidebarNavItemType[]>((acc, group) => {
+      for (const item of group.items) {
+        if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
+          continue;
+        }
+        if (item.href === '/organisation' && sidebarData.isOrganisationHidden) {
+          continue;
+        }
+        const requiredModule = SIDEBAR_MODULE_MAP[item.href];
+        if (requiredModule && sidebarData.modulePermissions !== null) {
+          if (!sidebarData.modulePermissions.has(requiredModule)) {
+            continue;
+          }
+        }
+        acc.push(item);
       }
-      if (item.href === '/organisation' && sidebarData.isOrganisationHidden) {
-        return false;
-      }
-      const requiredModule = SIDEBAR_MODULE_MAP[item.href];
-      if (requiredModule && sidebarData.modulePermissions !== null) {
-        return sidebarData.modulePermissions.has(requiredModule);
-      }
-      return true;
-    });
+      return acc;
+    }, []);
   }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
 
   return (
@@ -428,13 +433,13 @@ function SidebarHeader({
                 />
               </div>
               {!isMobile && (
-                <motion.span
+                <m.span
                   variants={textVariants}
                   animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
                   className="text-lg whitespace-nowrap overflow-hidden font-bold"
                 >
                   Mietevo
-                </motion.span>
+                </m.span>
               )}
               {isMobile && <span className="text-lg font-bold">Mietevo</span>}
             </Link>
@@ -443,7 +448,7 @@ function SidebarHeader({
       </div>
 
       {!isMobile && (
-        <motion.button
+        <m.button
           variants={{
             expanded: {
               opacity: 1,
@@ -465,7 +470,7 @@ function SidebarHeader({
           title="Menü einklappen"
         >
           <PanelLeft className="size-5" />
-        </motion.button>
+        </m.button>
       )}
     </div>
   )
@@ -491,10 +496,13 @@ function SidebarNavLink({
 }) {
   const isActive = isRouteActive(item.href);
 
+  // Generate safe hypenated HTML IDs instead of raw slashes
+  const safeId = `sidebar-nav-${item.href.replace(/^\//, '').replace(/\//g, '-') || 'home'}`;
+
   const link = (
     <Link
       href={item.href}
-      id={`sidebar-nav-${item.href.replace(/^\//, '')}`}
+      id={safeId}
       onClick={(e) => {
         if (item.href === ROUTES.SEARCH) {
           e.preventDefault();
@@ -515,24 +523,24 @@ function SidebarNavLink({
       aria-current={isActive ? "page" : undefined}
     >
       {!isMobile ? (
-        <motion.div
+        <m.div
           variants={iconVariants}
           animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
           className="shrink-0"
         >
           <item.icon className="size-4 min-w-4 transition-all duration-300 ease-out group-hover:rotate-3" />
-        </motion.div>
+        </m.div>
       ) : (
         <item.icon className="size-4 min-w-4 shrink-0 transition-all duration-500 ease-out group-hover:scale-115 group-hover:rotate-3" />
       )}
       {!isMobile && (
-        <motion.span
+        <m.span
           variants={textVariants}
           animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
           className="whitespace-nowrap truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1 overflow-hidden"
         >
           {item.title}
-        </motion.span>
+        </m.span>
       )}
       {isMobile && (
         <span className="truncate transition-all duration-500 ease-out group-hover:font-semibold group-hover:tracking-wide flex-1 ml-3 overflow-hidden">
@@ -574,6 +582,9 @@ function SidebarActions({
   supportButtonEnabled: boolean
   notificationCenterFeatureEnabled: boolean
 }) {
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+
   if (!supportButtonEnabled && !notificationCenterFeatureEnabled) return null;
 
   return (
@@ -583,13 +594,16 @@ function SidebarActions({
     )}>
       {/* Support Popover */}
       {supportButtonEnabled && (
-        <Popover>
+        <Popover open={supportOpen} onOpenChange={setSupportOpen}>
           <PopoverTrigger asChild>
-            <button className={cn(
-              "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-              "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-              "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-            )}>
+            <button 
+              type="button"
+              className={cn(
+                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+              )}
+            >
               <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
             </button>
           </PopoverTrigger>
@@ -615,7 +629,8 @@ function SidebarActions({
               </div>
               <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
                 <Link 
-                  href="/support" 
+                  href="/support"
+                  onClick={() => setSupportOpen(false)}
                   className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
                 >
                   Support kontaktieren
@@ -628,13 +643,16 @@ function SidebarActions({
 
       {/* Notifications Popover */}
       {notificationCenterFeatureEnabled && (
-        <Popover>
+        <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
           <PopoverTrigger asChild>
-            <button className={cn(
-              "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-              "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-              "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-            )}>
+            <button 
+              type="button"
+              className={cn(
+                "relative size-11 flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
+                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
+                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+              )}
+            >
               <Bell className="size-5 transition-transform duration-200 group-hover:scale-110" />
             </button>
           </PopoverTrigger>
@@ -660,7 +678,8 @@ function SidebarActions({
               </div>
               <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
                 <Link 
-                  href="/settings/notifications" 
+                  href="/settings/notifications"
+                  onClick={() => setNotificationsOpen(false)}
                   className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
                 >
                   Einstellungen öffnen

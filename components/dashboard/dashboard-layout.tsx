@@ -10,6 +10,8 @@ import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
 
+import { LazyMotion, domAnimation, m } from "framer-motion"
+
 export function DashboardLayout({ 
   children,
   sidebarData
@@ -109,14 +111,22 @@ export function DashboardLayout({
     <TaskDndProvider>
       <div className="flex min-h-screen bg-background w-full max-w-full">
         {/* Desktop sidebar */}
-        <div 
-          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
-          style={{
-            width: preference === 'expanded' ? "16rem" : "5rem"
-          }}
-        >
-          <DashboardSidebar sidebarData={sidebarData} />
-        </div>
+        <LazyMotion features={domAnimation}>
+          <m.div 
+            className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0 shrink-0"
+            animate={{
+              width: preference === 'expanded' ? "16rem" : "5rem"
+            }}
+            transition={{
+              type: "spring",
+              stiffness: 400,
+              damping: 25,
+              mass: 0.8,
+            }}
+          >
+            <DashboardSidebar sidebarData={sidebarData} />
+          </m.div>
+        </LazyMotion>
 
         <div className="flex flex-1 flex-col min-w-0">
           <main className={cn(
