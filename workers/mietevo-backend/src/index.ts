@@ -549,7 +549,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
         // Initialize Gemini
         const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
         const fullPrompt = `${SYSTEM_INSTRUCTION}\n\nUser Message: ${message}\n${contextText}`;
-        logger.info('Initializing Gemini API', { model: 'gemini-2.5-flash-lite', promptLength: fullPrompt.length });
+        logger.info('Initializing Gemini API', { model: 'gemini-3.1-flash-lite-preview', promptLength: fullPrompt.length });
 
         // Retry logic with exponential backoff
         const maxRetries = 3;
@@ -562,7 +562,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
             try {
                 logger.info('Attempting AI connection', { attempt: attempt + 1, maxRetries });
                 stream = await client.models.generateContentStream({
-                    model: 'models/gemini-2.5-flash-lite',
+                    model: 'models/gemini-3.1-flash-lite-preview',
                     contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
                 });
                 logger.info('AI connection successful', { attempt: attempt + 1 });
@@ -761,7 +761,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     usage: { model: string; inputTokens?: number; outputTokens?: number; totalTokens?: number; latencyMs: number; };
 }> {
     const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-    const model = 'gemini-2.5-flash-lite'; // Latest high-speed, cost-efficient model for batch tasks
+    const model = 'gemini-3.1-flash-lite-preview'; // Latest high-speed, cost-efficient model for batch tasks
     const startTime = Date.now();
     // Using a more lightweight model strictly for JSON extraction if possible, 
     // but gemini-1.5-flash is good. 'models/gemini-2.5-flash-lite' was used in existing code.
@@ -1036,6 +1036,20 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
                     const traceId = crypto.randomUUID();
+                    // Resolve org_id from the mail's user context
+                    let orgId = 'unknown';
+                    try {
+                        const { data: userOrgs } = await supabase
+                            .from('Organisation_Mitglieder')
+                            .select('organisation_id')
+                            .eq('user_id', userIdForTracking)
+                            .limit(1);
+                        if (userOrgs && userOrgs.length > 0) {
+                            orgId = userOrgs[0].organisation_id;
+                        }
+                    } catch {
+                        // Best-effort, default to unknown
+                    }
                     await posthog.capture({
                         distinctId: userIdForTracking, // Use the actual user if provided
                         event: '$ai_generation',
@@ -1053,6 +1067,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                             user_id: userIdForTracking,
                             mail_id: mail_id,
                             completeness_score: aiScore || 0,
+                            // Org analytics
+                            org_id: orgId,
+                            feature: 'agent',
                         }
                     });
                     // Shutdown is handled at the end of function
