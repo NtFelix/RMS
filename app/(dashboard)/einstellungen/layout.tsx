@@ -12,12 +12,14 @@ import {
   Monitor,
   FlaskConical,
   Mail,
+  Brain,
 } from "lucide-react"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 
 export default function EinstellungenLayout({ children }: { children: React.ReactNode }) {
   const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
+  const aiAgentEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MIETEVO_AI_AGENT)
 
   const tabs = useMemo<Omit<Tab, "content">[]>(
     () => [
@@ -28,9 +30,10 @@ export default function EinstellungenLayout({ children }: { children: React.Reac
       { value: "darstellung", label: "Darstellung", icon: Monitor },
       { value: "datenexport", label: "Datenexport", icon: DownloadCloud },
       { value: "vorschau", label: "Vorschau", icon: FlaskConical },
+      ...(aiAgentEnabled ? [{ value: "ki", label: "KI", icon: Brain }] : []),
       { value: "mietevo", label: "Mietevo", icon: Info },
     ],
-    [mailsEnabled],
+    [mailsEnabled, aiAgentEnabled],
   )
 
   return (

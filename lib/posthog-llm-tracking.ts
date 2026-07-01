@@ -27,6 +27,8 @@ export interface LLMGeneration {
   end_time?: string;
   user_id?: string;
   session_id?: string;
+  feature?: string;
+  orgId?: string;
 }
 
 export interface LLMTrace {
@@ -66,7 +68,7 @@ export class PostHogLLMTracker {
     if (!this.isPostHogAvailable()) return;
 
     try {
-      posthog.capture('$ai_generation', {
+      const properties: Record<string, unknown> = {
         $ai_trace_id: generation.trace_id || generation.id,
         $ai_model: generation.model,
         $ai_provider: generation.provider,
@@ -80,11 +82,17 @@ export class PostHogLLMTracker {
         $ai_is_error: generation.is_error || false,
         $ai_error: generation.error,
 
-        // Additional Mietevo-specific properties
         application: 'mietevo',
-        feature: 'ai_assistant',
-        timestamp: new Date().toISOString()
-      });
+        feature: generation.feature || 'ai_assistant',
+        timestamp: new Date().toISOString(),
+      }
+
+      if (generation.orgId) {
+        properties.$groups = { organization: generation.orgId }
+        properties.org_id = generation.orgId
+      }
+
+      posthog.capture('$ai_generation', properties)
 
       console.log('📊 PostHog LLM Generation tracked:', generation.id);
     } catch (error) {
@@ -132,6 +140,8 @@ export class PostHogLLMTracker {
     sessionId?: string;
     userId?: string;
     traceId?: string;
+    feature?: string;
+    orgId?: string;
   }): LLMGeneration {
     const generation: LLMGeneration = {
       id: params.id,
@@ -141,7 +151,9 @@ export class PostHogLLMTracker {
       start_time: new Date().toISOString(),
       session_id: params.sessionId,
       user_id: params.userId,
-      trace_id: params.traceId || params.id
+      trace_id: params.traceId || params.id,
+      feature: params.feature,
+      orgId: params.orgId,
     };
 
     // Track the start - DISABLED to prevent duplicate generation events

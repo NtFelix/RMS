@@ -51,6 +51,7 @@ export const POSTHOG_FEATURE_FLAGS = {
   CREATE_FILE_OPTION: 'create-file-option',
   DARK_MODE: 'dark-mode',
   AI_DOCUMENTATION_MODE: 'ai-documentation-mode',
+  MIETEVO_AI_AGENT: 'mietevo-ai-agent',
   // Sidebar features
   SUPPORT_BUTTON: 'support-button',
   NOTIFICATION_CENTER: 'notification-center',
