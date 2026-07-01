@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Mail, Lock, AlertCircle, CheckCircle, Circle } from "lucide-react";
 import { Input } from "@/components/ui/input"
@@ -9,29 +9,32 @@ import { useToast } from "@/hooks/use-toast";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import ConnectedAccountsSection from "./connected-accounts-section";
 import AuthorizedAppsSection from "./authorized-apps-section";
+import { useSettingsData } from "@/app/(dashboard)/einstellungen/settings-context"
 
 const SecuritySection = () => {
-  const supabase = createClient()
+  const settingsData = useSettingsData()
+  const supabase = useMemo(() => createClient(), [])
   const { toast } = useToast()
-  const [email, setEmail] = useState<string>("")
-  const [confirmEmail, setConfirmEmail] = useState<string>("")
+  const [email, setEmail] = useState<string>(settingsData.email ?? "")
+  const [confirmEmail, setConfirmEmail] = useState<string>(settingsData.email ?? "")
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [emailError, setEmailError] = useState<boolean>(false)
   const [passwordError, setPasswordError] = useState<boolean>(false)
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       setEmail(user.email || "")
       setConfirmEmail(user.email || "")
     }
-  }
+  }, [supabase])
 
   useEffect(() => {
+    if (settingsData.email) return
     fetchUser()
-  }, [supabase]);
+  }, [fetchUser, settingsData.email]);
 
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {

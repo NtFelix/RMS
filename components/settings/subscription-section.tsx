@@ -10,57 +10,64 @@ import SubscriptionPaymentHistory from '@/components/common/subscription-payment
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { useSettingsData } from "@/app/(dashboard)/einstellungen/settings-context"
 
 const SubscriptionSection = () => {
+  const settingsData = useSettingsData()
   const { toast } = useToast()
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
-  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null);
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(() => {
+    if (settingsData.profile && !settingsData.profileError) {
+      return settingsData.profile as unknown as UserProfileWithSubscription
+    }
+    return null
+  });
+  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !settingsData.profile || settingsData.profileError);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  const refreshUserProfile = async () => {
-    setIsFetchingStatus(true);
-    try {
-      const userProfileData = await getUserProfileForSettings();
-      if ('error' in userProfileData && userProfileData.error) {
+  useEffect(() => {
+    if (settingsData.profile && !settingsData.profileError) return
+
+    const refreshUserProfile = async () => {
+      setIsFetchingStatus(true);
+      try {
+        const userProfileData = await getUserProfileForSettings();
+        if ('error' in userProfileData && userProfileData.error) {
+          toast({
+            title: "Fehler",
+            description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
+            variant: "destructive",
+          });
+          setProfile(prev => ({
+            id: prev?.id || '',
+            email: prev?.email || '',
+            stripe_subscription_status: 'error',
+            currentWohnungenCount: 0,
+            activePlan: null,
+          } as UserProfileWithSubscription));
+        } else {
+          setProfile(userProfileData as UserProfileWithSubscription);
+        }
+      } catch (error) {
         toast({
           title: "Fehler",
-          description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
+          description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
           variant: "destructive",
         });
-        const currentEmail = profile?.email || '';
-        setProfile({
-          id: profile?.id || '',
-          email: currentEmail,
+        setProfile(prev => ({
+          id: prev?.id || '',
+          email: prev?.email || '',
           stripe_subscription_status: 'error',
           currentWohnungenCount: 0,
           activePlan: null,
-        } as UserProfileWithSubscription);
-      } else {
-        setProfile(userProfileData as UserProfileWithSubscription);
+        } as UserProfileWithSubscription));
+      } finally {
+        setIsFetchingStatus(false);
       }
-    } catch (error) {
-      toast({
-        title: "Fehler",
-        description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
-        variant: "destructive",
-      });
-      const currentEmail = profile?.email || '';
-      setProfile({
-        id: profile?.id || '',
-        email: currentEmail,
-        stripe_subscription_status: 'error',
-        currentWohnungenCount: 0,
-        activePlan: null,
-      } as UserProfileWithSubscription);
-    } finally {
-      setIsFetchingStatus(false);
-    }
-  };
+    };
 
-  useEffect(() => {
     refreshUserProfile();
-  }, []);
+  }, [settingsData.profile, settingsData.profileError]);
 
   useEffect(() => {
     if (profile?.stripe_customer_id) {

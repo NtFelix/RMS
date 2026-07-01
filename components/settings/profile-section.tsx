@@ -15,13 +15,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { BILLING_COUNTRIES } from "@/lib/constants";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { useSettingsData } from "@/app/(dashboard)/einstellungen/settings-context"
 
 const ProfileSection = () => {
+  const settingsData = useSettingsData()
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast()
   const router = useRouter()
-  const [firstName, setFirstName] = useState<string>("")
-  const [lastName, setLastName] = useState<string>("")
+  const [firstName, setFirstName] = useState<string>(settingsData.user?.firstName ?? "")
+  const [lastName, setLastName] = useState<string>(settingsData.user?.lastName ?? "")
   const [loading, setLoading] = useState<boolean>(false)
   const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
   const [isBillingAddressLoading, setIsBillingAddressLoading] = useState<boolean>(false);
@@ -48,8 +50,13 @@ const ProfileSection = () => {
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null);
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(() => {
+    if (settingsData.profile && !settingsData.profileError) {
+      return settingsData.profile as unknown as UserProfileWithSubscription
+    }
+    return null
+  });
+  const [isFetchingStatus, setIsFetchingStatus] = useState(() => !settingsData.profile || settingsData.profileError);
 
   useEffect(() => {
     const loadBillingAddress = async () => {
@@ -90,6 +97,7 @@ const ProfileSection = () => {
   }, [profile?.stripe_customer_id]);
 
   useEffect(() => {
+    if (settingsData.user) return
     supabase.auth.getUser().then(res => {
       const user = res.data.user
       if (user) {
@@ -97,7 +105,7 @@ const ProfileSection = () => {
         setLastName(user.user_metadata?.last_name || "")
       }
     });
-  }, [supabase]);
+  }, [supabase, settingsData.user]);
 
   const refreshUserProfile = async () => {
     setIsFetchingStatus(true);
@@ -252,8 +260,9 @@ const ProfileSection = () => {
   };
 
   useEffect(() => {
+    if (settingsData.profile && !settingsData.profileError) return
     refreshUserProfile();
-  }, []);
+  }, [settingsData.profile, settingsData.profileError]);
 
   const handleProfileSave = async () => {
     setLoading(true)
