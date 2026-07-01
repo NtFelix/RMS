@@ -3,16 +3,15 @@
 import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
 import { Brain, ArrowDownToLine, ArrowUpFromLine, MessageSquare, DollarSign, Users, BarChart3, Cpu } from "lucide-react"
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
+import dynamic from "next/dynamic"
 import { SettingsCard, SettingsSection } from "@/components/settings/shared"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+
+const AIAnalyticsChart = dynamic(
+  () => import("./ai-analytics-chart").then((mod) => mod.AIAnalyticsChart),
+  { ssr: false }
+)
 
 interface AIAnalyticsRow {
   date: string
@@ -63,7 +62,8 @@ function formatNumber(n: number): string {
 }
 
 function formatUSD(amount: number): string {
-  return `$${amount.toFixed(4)}`
+  const precision = amount >= 1 ? 2 : 4
+  return `$${amount.toFixed(precision)}`
 }
 
 function getFeatureLabel(feature: string | null): string {
@@ -113,11 +113,6 @@ function getFeatureColor(feature: string | null): string {
 function getGranularity(preset: DatePreset): string {
   return preset === '7d' ? '8h' : 'day'
 }
-
-const chartConfig = {
-  input: { label: 'Input', color: 'var(--color-chart-1, #2563eb)' },
-  output: { label: 'Output', color: 'var(--color-chart-2, #16a34a)' },
-} satisfies ChartConfig
 
 const datePresets: { value: DatePreset; label: string }[] = [
   { value: '7d', label: '7 Tage' },
@@ -173,16 +168,13 @@ const AISection = () => {
 
   const isAdmin = role === 'admin'
 
-  const totals = useMemo(() => {
-    const filtered = data
-    return {
-      input_tokens: filtered.reduce((s, r) => s + (r.input_tokens || 0), 0),
-      output_tokens: filtered.reduce((s, r) => s + (r.output_tokens || 0), 0),
-      total_tokens: filtered.reduce((s, r) => s + (r.total_tokens || 0), 0),
-      messages: filtered.reduce((s, r) => s + (r.messages || 0), 0),
-      total_cost: filtered.reduce((s, r) => s + (r.total_cost_usd || 0), 0),
-    }
-  }, [data])
+  const totals = useMemo(() => ({
+    input_tokens: data.reduce((s, r) => s + (r.input_tokens || 0), 0),
+    output_tokens: data.reduce((s, r) => s + (r.output_tokens || 0), 0),
+    total_tokens: data.reduce((s, r) => s + (r.total_tokens || 0), 0),
+    messages: data.reduce((s, r) => s + (r.messages || 0), 0),
+    total_cost: data.reduce((s, r) => s + (r.total_cost_usd || 0), 0),
+  }), [data])
 
   const modelStats = useMemo(() => {
     const map = new Map<string, { messages: number; tokens: number; cost: number; input_tokens: number; output_tokens: number }>()
@@ -290,17 +282,6 @@ const AISection = () => {
     return buckets
   }, [data, is8h, datePreset])
 
-  const startLabel = timeSeriesData[0]?.date
-  const middleLabel = timeSeriesData[Math.floor(timeSeriesData.length / 2)]?.date
-  const endLabel = timeSeriesData[timeSeriesData.length - 1]?.date
-
-  const formatXAxisTick = (value: string) => {
-    if (value === startLabel || value === middleLabel || value === endLabel) {
-      return value
-    }
-    return ""
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <SettingsSection
@@ -363,7 +344,7 @@ const AISection = () => {
                   <Skeleton
                     key={i}
                     className="flex-1 rounded-t"
-                    style={{ height: `${20 + Math.random() * 60}%` }}
+                    style={{ height: `${30 + ((i * 17 + 5) % 55)}%` }}
                   />
                 ))}
               </div>
@@ -500,46 +481,7 @@ const AISection = () => {
                   Input / Output Tokens im Zeitverlauf {is8h ? '(8h Intervalle)' : '(täglich)'}
                 </h4>
               </div>
-              {timeSeriesData.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Keine Daten</p>
-              ) : (
-                <ChartContainer config={chartConfig} className="aspect-[3/1] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={timeSeriesData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 11 }}
-                        tickLine={false}
-                        axisLine={false}
-                        interval={0}
-                        tickFormatter={formatXAxisTick}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 11 }}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={formatNumber}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="input"
-                        stackId="tokens"
-                        fill="var(--color-input)"
-                        radius={[0, 0, 0, 0]}
-                        maxBarSize={is8h ? 24 : 40}
-                      />
-                      <Bar
-                        dataKey="output"
-                        stackId="tokens"
-                        fill="var(--color-output)"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={is8h ? 24 : 40}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
-              )}
+              <AIAnalyticsChart timeSeriesData={timeSeriesData} is8h={is8h} />
             </SettingsCard>
 
             <SettingsCard>
