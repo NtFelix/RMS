@@ -149,7 +149,7 @@ function TopBar({
   onDeleteRequest: () => void
   actions: { key: string; onClick: () => void }[]
 }) {
-  if (!tenantInitialData) return null
+  if (!tenantInitialData?.id) return null
 
   return (
     <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
@@ -460,7 +460,7 @@ function FormFields({
         </div>
         <div className="space-y-1">
           <SheetTitle className="sr-only">
-            {tenantInitialData
+            {tenantInitialData?.id
               ? (isApplicant ? "Bewerber bearbeiten" : "Mieter bearbeiten")
               : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
           </SheetTitle>
@@ -470,17 +470,17 @@ function FormFields({
             name="name"
             value={formData.name}
             onChange={onFieldChange}
-            placeholder={tenantInitialData
+            placeholder={tenantInitialData?.id
               ? (isApplicant ? "Unbenannter Bewerber" : "Unbenannter Mieter")
               : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
             disabled={isSubmitting}
-            aria-label={tenantInitialData
+            aria-label={tenantInitialData?.id
               ? (isApplicant ? "Name des Bewerbers" : "Name des Mieters")
               : (isApplicant ? "Name des neuen Bewerbers" : "Name des neuen Mieters")}
             className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
           />
           <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
-            {tenantInitialData
+            {tenantInitialData?.id
               ? (isApplicant ? "Bearbeiten Sie die Informationen für diesen Bewerber." : "Bearbeiten Sie die Informationen für diesen Mieter.")
               : (isApplicant ? "Legen Sie einen neuen Bewerber in Ihrer Verwaltung an." : "Legen Sie einen neuen Mieter in Ihrer Verwaltung an.")}
           </SheetDescription>
@@ -626,7 +626,7 @@ function FormActions({
               </svg>
               Wird gespeichert...
             </span>
-          ) : (tenantInitialData ? "Änderungen speichern" : (isApplicant ? "Bewerber anlegen" : "Mieter anlegen"))}
+          ) : (tenantInitialData?.id ? "Änderungen speichern" : (isApplicant ? "Bewerber anlegen" : "Mieter anlegen"))}
         </Button>
       </div>
     </SheetFooter>
