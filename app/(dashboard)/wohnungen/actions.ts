@@ -6,8 +6,6 @@ import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails
 import { logAction } from '@/lib/logging-middleware';
-
-
 type WohnungFormData = {
   name: string;
   groesse: string;

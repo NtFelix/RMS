@@ -129,6 +129,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_POSTHOG_HOST}/capture/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+          event: 'file_created',
+          distinct_id: user.id,
+          properties: {
+            file_name: fileName,
+            file_size_bytes: new Blob([content]).size,
+            source: 'api_route',
+          },
+        }),
+      });
+    } catch (phError) {
+      console.error('[PostHog] Failed to capture file_created:', phError);
+    }
+
     return NextResponse.json({
       success: true,
       filePath: newFilePath,

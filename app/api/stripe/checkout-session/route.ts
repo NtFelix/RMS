@@ -155,6 +155,26 @@ export async function POST(req: Request) {
       action: 'checkout_session_created'
     });
 
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_POSTHOG_HOST}/capture/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+          event: 'checkout_initiated',
+          distinct_id: user.id,
+          properties: {
+            price_id: requestedPriceId,
+            session_id: session.id,
+            has_trial: isEligibleForTrial(),
+            source: 'api_route',
+          },
+        }),
+      });
+    } catch (phError) {
+      console.error('[PostHog] Failed to capture checkout_initiated:', phError);
+    }
+
     return NextResponse.json({ sessionId: session.id, url: session.url }, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
