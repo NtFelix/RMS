@@ -9,10 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import ConnectedAccountsSection from "./connected-accounts-section";
 import AuthorizedAppsSection from "./authorized-apps-section";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const SecuritySection = () => {
   const supabase = createClient()
   const { toast } = useToast()
+  const { user } = useAuth()
   const [email, setEmail] = useState<string>("")
   const [confirmEmail, setConfirmEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
@@ -22,16 +24,19 @@ const SecuritySection = () => {
   const [passwordError, setPasswordError] = useState<boolean>(false)
 
   const fetchUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      setEmail(user.email || "")
-      setConfirmEmail(user.email || "")
+    const { data: { user: freshUser } } = await supabase.auth.getUser()
+    if (freshUser) {
+      setEmail(freshUser.email || "")
+      setConfirmEmail(freshUser.email || "")
     }
   }
 
   useEffect(() => {
-    fetchUser()
-  }, [supabase]);
+    if (user) {
+      setEmail(user.email || "")
+      setConfirmEmail(user.email || "")
+    }
+  }, [user]);
 
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {

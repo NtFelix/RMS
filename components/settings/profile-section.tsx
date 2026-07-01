@@ -10,21 +10,33 @@ import { Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteAccountOtpModal } from "@/components/modals/delete-account-otp-modal";
 import type { UserProfileWithSubscription } from '@/types/user';
-import { getUserProfileForSettings, getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions';
+import { getBillingAddress, updateBillingAddress } from '@/app/user-profile-actions';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
 import { BILLING_COUNTRIES } from "@/lib/constants";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { useSettingsData } from "@/components/settings/settings-data-context";
+import { useAuth } from "@/components/auth/auth-provider";
 
 const ProfileSection = () => {
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast()
   const router = useRouter()
+  
+  // Use global context values
+  const { user } = useAuth()
+  const {
+    profile,
+    billingAddress: cachedBillingAddress,
+    isLoading: isSettingsLoading,
+    isBillingLoading: isCachedBillingLoading,
+    refreshData: refreshUserProfile
+  } = useSettingsData()
+
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [isSavingBilling, setIsSavingBilling] = useState<boolean>(false);
-  const [isBillingAddressLoading, setIsBillingAddressLoading] = useState<boolean>(false);
   const [billingAddress, setBillingAddress] = useState<{
     name: string;
     companyName: string;
@@ -48,107 +60,46 @@ const ProfileSection = () => {
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null);
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
 
+  // Load name values immediately when auth resolves
   useEffect(() => {
-    const loadBillingAddress = async () => {
-      if (profile?.stripe_customer_id) {
-        setIsBillingAddressLoading(true);
-        try {
-          const result = await getBillingAddress(profile.stripe_customer_id);
-
-          if ('error' in result) {
-            console.error('Error loading billing address:', result.error);
-            return;
-          }
-
-          setBillingAddress(prev => ({
-            ...prev,
-            name: result.name || '',
-            companyName: result.companyName || '',
-            line1: result.address?.line1 || '',
-            line2: result.address?.line2 || '',
-            city: result.address?.city || '',
-            state: result.address?.state || '',
-            postal_code: result.address?.postal_code || '',
-            country: result.address?.country || 'DE',
-          }));
-
-          if (result.address?.line1 && result.address.city && result.address.postal_code && result.address.country) {
-            setIsAddressComplete(true);
-          }
-        } catch (error) {
-          console.error('Error loading billing address:', error);
-        } finally {
-          setIsBillingAddressLoading(false);
-        }
-      }
-    };
-
-    loadBillingAddress();
-  }, [profile?.stripe_customer_id]);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(res => {
-      const user = res.data.user
-      if (user) {
-        setFirstName(user.user_metadata?.first_name || "")
-        setLastName(user.user_metadata?.last_name || "")
-      }
-    });
-  }, [supabase]);
-
-  const refreshUserProfile = async () => {
-    setIsFetchingStatus(true);
-    try {
-      const userProfileData = await getUserProfileForSettings();
-      if ('error' in userProfileData && userProfileData.error) {
-        console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
-        toast({
-          title: "Fehler",
-          description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
-          variant: "destructive",
-        });
-        const currentEmail = profile?.email || '';
-        setProfile({
-          id: profile?.id || '',
-          email: currentEmail,
-          stripe_subscription_status: 'error',
-          currentWohnungenCount: 0,
-          activePlan: null,
-        } as UserProfileWithSubscription);
-      } else {
-        setProfile(userProfileData as UserProfileWithSubscription);
-      }
-    } catch (error) {
-      console.error("Exception when calling getUserProfileForSettings:", error);
-      toast({
-        title: "Fehler",
-        description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
-        variant: "destructive",
-      });
-      const currentEmail = profile?.email || '';
-      setProfile({
-        id: profile?.id || '',
-        email: currentEmail,
-        stripe_subscription_status: 'error',
-        currentWohnungenCount: 0,
-        activePlan: null,
-      } as UserProfileWithSubscription);
-    } finally {
-      setIsFetchingStatus(false);
+    if (user) {
+      setFirstName(user.user_metadata?.first_name || "")
+      setLastName(user.user_metadata?.last_name || "")
     }
-  };
+  }, [user]);
+
+  // Load billing address values immediately when settings context resolves
+  useEffect(() => {
+    if (cachedBillingAddress) {
+      setBillingAddress(prev => ({
+        ...prev,
+        name: cachedBillingAddress.name || '',
+        companyName: cachedBillingAddress.companyName || '',
+        line1: cachedBillingAddress.address?.line1 || '',
+        line2: cachedBillingAddress.address?.line2 || '',
+        city: cachedBillingAddress.address?.city || '',
+        state: cachedBillingAddress.address?.state || '',
+        postal_code: cachedBillingAddress.address?.postal_code || '',
+        country: cachedBillingAddress.address?.country || 'DE',
+      }));
+
+      if (
+        cachedBillingAddress.address?.line1 &&
+        cachedBillingAddress.address.city &&
+        cachedBillingAddress.address.postal_code &&
+        cachedBillingAddress.address.country
+      ) {
+        setIsAddressComplete(true);
+      }
+    }
+  }, [cachedBillingAddress]);
 
   const handleConfirmDeleteAccount = async (otp: string) => {
     setIsDeleting(true);
     try {
-      // Fetch current user to ensure we have the correct email
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-      if (userError || !user || !user.email) {
-        console.error("Error fetching user for account deletion verification:", userError);
+      if (!user || !user.email) {
+        console.error("Error fetching user for account deletion verification");
         toast({
           title: "Fehler",
           description: "Benutzer konnte nicht identifiziert werden.",
@@ -160,7 +111,6 @@ const ProfileSection = () => {
 
       // Step 1: Verify OTP using reauthentication nonce via updateUser
       const userEmail = user.email.trim().toLowerCase();
-
 
       // reauthenticate() sends a nonce that is consumed by updateUser to authorize changes.
       // We call updateUser with the nonce to verify it. If it succeeds, the nonce was valid.
@@ -250,10 +200,6 @@ const ProfileSection = () => {
       setIsDeleting(false);
     }
   };
-
-  useEffect(() => {
-    refreshUserProfile();
-  }, []);
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -400,63 +346,34 @@ const ProfileSection = () => {
           description="Verwalten Sie Ihre Rechnungsadresse für Rechnungen."
         >
           <SettingsCard>
-            {isFetchingStatus || isBillingAddressLoading ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Company Name */}
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-36" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="flex justify-end pt-4">
-                  <Skeleton className="h-9 w-48" />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="companyName" className="text-sm font-medium leading-none">
-                      Firmenname (optional)
-                    </label>
+                  <label htmlFor="companyName" className="text-sm font-medium leading-none">
+                    Firmenname (optional)
+                  </label>
+                  <div className="relative">
                     <Input
                       id="companyName"
                       value={billingAddress.companyName || ''}
                       onChange={(e) => setBillingAddress(prev => ({ ...prev, companyName: e.target.value }))}
                       placeholder="Firmenname"
                       className="w-full"
+                      disabled={isSettingsLoading || isCachedBillingLoading || isSavingBilling}
                     />
+                    {(isSettingsLoading || isCachedBillingLoading) && (
+                      <div className="absolute inset-0 bg-muted/20 animate-pulse rounded-lg pointer-events-none" />
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-medium leading-none">
-                      Name <span className="text-destructive">*</span>
-                    </label>
+                </div>
+
+                {/* Recipient Name */}
+                <div className="space-y-2">
+                  <label htmlFor="name" className="text-sm font-medium leading-none">
+                    Name <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
                     <Input
                       id="name"
                       value={billingAddress.name || ''}
@@ -464,14 +381,21 @@ const ProfileSection = () => {
                       placeholder="Vor- und Nachname"
                       className="w-full"
                       required
+                      disabled={isSettingsLoading || isCachedBillingLoading || isSavingBilling}
                     />
+                    {(isSettingsLoading || isCachedBillingLoading) && (
+                      <div className="absolute inset-0 bg-muted/20 animate-pulse rounded-lg pointer-events-none" />
+                    )}
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="line1" className="text-sm font-medium leading-none">
-                    Straße und Hausnummer <span className="text-destructive">*</span>
-                  </label>
+              {/* Address Line 1 */}
+              <div className="space-y-2">
+                <label htmlFor="line1" className="text-sm font-medium leading-none">
+                  Straße und Hausnummer <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
                   <Input
                     id="line1"
                     value={billingAddress.line1 || ''}
@@ -479,27 +403,41 @@ const ProfileSection = () => {
                     placeholder="Musterstraße 123"
                     className="w-full"
                     required
+                    disabled={isSettingsLoading || isCachedBillingLoading || isSavingBilling}
                   />
+                  {(isSettingsLoading || isCachedBillingLoading) && (
+                    <div className="absolute inset-0 bg-muted/20 animate-pulse rounded-lg pointer-events-none" />
+                  )}
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="line2" className="text-sm font-medium leading-none">
-                    Adresszeile 2 (optional)
-                  </label>
+              {/* Address Line 2 */}
+              <div className="space-y-2">
+                <label htmlFor="line2" className="text-sm font-medium leading-none">
+                  Adresszeile 2 (optional)
+                </label>
+                <div className="relative">
                   <Input
                     id="line2"
                     value={billingAddress.line2 || ''}
                     onChange={(e) => setBillingAddress(prev => ({ ...prev, line2: e.target.value }))}
                     placeholder="Zusätzliche Adresszeile"
                     className="w-full"
+                    disabled={isSettingsLoading || isCachedBillingLoading || isSavingBilling}
                   />
+                  {(isSettingsLoading || isCachedBillingLoading) && (
+                    <div className="absolute inset-0 bg-muted/20 animate-pulse rounded-lg pointer-events-none" />
+                  )}
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="postal_code" className="text-sm font-medium leading-none">
-                      PLZ <span className="text-destructive">*</span>
-                    </label>
+              {/* Postal Code & City */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="postal_code" className="text-sm font-medium leading-none">
+                    PLZ <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
                     <Input
                       id="postal_code"
                       value={billingAddress.postal_code || ''}
@@ -507,12 +445,19 @@ const ProfileSection = () => {
                       placeholder="12345"
                       className="w-full"
                       required
+                      disabled={isSettingsLoading || isCachedBillingLoading || isSavingBilling}
                     />
+                    {(isSettingsLoading || isCachedBillingLoading) && (
+                      <div className="absolute inset-0 bg-muted/20 animate-pulse rounded-lg pointer-events-none" />
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="city" className="text-sm font-medium leading-none">
-                      Stadt <span className="text-destructive">*</span>
-                    </label>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="city" className="text-sm font-medium leading-none">
+                    Stadt <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
                     <Input
                       id="city"
                       value={billingAddress.city || ''}
@@ -520,17 +465,25 @@ const ProfileSection = () => {
                       placeholder="Musterstadt"
                       className="w-full"
                       required
+                      disabled={isSettingsLoading || isCachedBillingLoading || isSavingBilling}
                     />
+                    {(isSettingsLoading || isCachedBillingLoading) && (
+                      <div className="absolute inset-0 bg-muted/20 animate-pulse rounded-lg pointer-events-none" />
+                    )}
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="country" className="text-sm font-medium leading-none">
-                    Land <span className="text-destructive">*</span>
-                  </label>
+              {/* Country Selection */}
+              <div className="space-y-2">
+                <label htmlFor="country" className="text-sm font-medium leading-none">
+                  Land <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
                   <Select
                     value={billingAddress.country || 'DE'}
                     onValueChange={(value) => setBillingAddress(prev => ({ ...prev, country: value }))}
+                    disabled={isSettingsLoading || isCachedBillingLoading || isSavingBilling}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Land auswählen" />
@@ -559,9 +512,17 @@ const ProfileSection = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {(isSettingsLoading || isCachedBillingLoading) && (
+                    <div className="absolute inset-0 bg-muted/20 animate-pulse rounded-lg pointer-events-none" />
+                  )}
                 </div>
+              </div>
 
-                <div className="flex justify-end pt-4">
+              {/* Save Button */}
+              <div className="flex justify-end pt-4 font-normal">
+                {isSettingsLoading || isCachedBillingLoading ? (
+                  <Skeleton className="h-9 w-48" />
+                ) : (
                   <Button
                     onClick={handleBillingAddressSave}
                     disabled={isSavingBilling || !billingAddress.name || !billingAddress.line1 || !billingAddress.postal_code || !billingAddress.city || !billingAddress.country}
@@ -569,9 +530,9 @@ const ProfileSection = () => {
                   >
                     {isSavingBilling ? "Speichern..." : "Rechnungsadresse speichern"}
                   </Button>
-                </div>
+                )}
               </div>
-            )}
+            </div>
           </SettingsCard>
         </SettingsSection>
 

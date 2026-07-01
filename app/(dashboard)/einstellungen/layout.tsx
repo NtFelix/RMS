@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { SettingsSidebar } from "@/components/settings/sidebar"
+import { SettingsDataProvider } from "@/components/settings/settings-data-context"
 import type { Tab } from "@/types/settings"
 import {
   User as UserIcon,
@@ -37,11 +38,13 @@ export default function EinstellungenLayout({ children }: { children: React.Reac
   )
 
   return (
-    <div className="flex h-full gap-3 p-4">
-      <SettingsSidebar tabs={tabs} />
-      <div className="flex-1 overflow-y-auto min-w-0 p-4">
-        {children}
+    <SettingsDataProvider>
+      <div className="flex h-full gap-3 p-4">
+        <SettingsSidebar tabs={tabs} />
+        <div className="flex-1 overflow-y-auto min-w-0 p-4">
+          {children}
+        </div>
       </div>
-    </div>
+    </SettingsDataProvider>
   )
 }
