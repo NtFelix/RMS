@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useEffect } from "react"
 import { SettingsSidebar } from "@/components/settings/sidebar"
 import type { Tab } from "@/types/settings"
 import {
@@ -18,6 +18,14 @@ import { useFeatureFlagEnabled } from "posthog-js/react"
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 
 export default function EinstellungenLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const meta = document.createElement('meta')
+    meta.name = 'robots'
+    meta.content = 'noindex, nofollow'
+    document.head.appendChild(meta)
+    return () => meta.remove()
+  }, [])
+
   const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
   const aiAgentEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MIETEVO_AI_AGENT)
 
