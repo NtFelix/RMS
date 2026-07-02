@@ -18,6 +18,34 @@ const missingPostHogSourcemapVars = [
   !posthogProjectId ? 'POSTHOG_PROJECT_ID' : null,
 ].filter(Boolean);
 
+// Pin the Server Action encryption key so action IDs stay stable across builds.
+// Without a fixed key, Next.js generates a random one per build, which changes the
+// hashed Server Action IDs on every deploy. Any client still holding a page from a
+// previous deploy then hits "Failed to find Server Action ..." when it submits a
+// form. Set NEXT_SERVER_ACTIONS_ENCRYPTION_KEY to the SAME value at build and
+// runtime, and keep it identical across deploys. Generate one with:
+//   openssl rand -base64 32
+const serverActionsEncryptionKey = process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY;
+
+if (process.env.NODE_ENV === 'production' && !serverActionsEncryptionKey) {
+  console.warn(`
+============================================================
+SERVER ACTION ENCRYPTION KEY NOT SET
+============================================================
+NEXT_SERVER_ACTIONS_ENCRYPTION_KEY is not set for this production build.
+
+Next.js will generate a random key per build, so Server Action IDs
+will change on every deploy. Clients holding a page from a previous
+deploy will hit "Failed to find Server Action ..." when they submit
+a form mid-deploy.
+
+To fix, set the same value at build AND runtime (and keep it stable
+across deploys):
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$(openssl rand -base64 32)
+============================================================
+`);
+}
+
 if (process.env.NODE_ENV === 'production' && !posthogSourcemapsEnabled) {
   console.warn(`
 ============================================================
@@ -42,6 +70,10 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
+  // Deterministic build ID keyed to the release version. Rolling replicas of the
+  // same release share it, and it only changes when the version bumps. Combined
+  // with a pinned Server Action encryption key, this keeps action IDs consistent.
+  generateBuildId: async () => version,
   outputFileTracingRoot: projectRoot,
   reactStrictMode: true,
   // swcMinify is now enabled by default in Next.js 15
@@ -71,6 +103,11 @@ const nextConfig = {
   },
   experimental: {
     scrollRestoration: true,
+    serverActions: {
+      // See serverActionsEncryptionKey above. When undefined, Next.js falls back to
+      // NEXT_SERVER_ACTIONS_ENCRYPTION_KEY / a generated key, so this is safe to pass.
+      encryptionKey: serverActionsEncryptionKey,
+    },
     optimizePackageImports: [
       'recharts',
       'lucide-react',
