@@ -48,6 +48,10 @@ export default function Error({
 }) {
   useEffect(() => {
     if (shouldAutoReload(error)) {
+      // Reacting to the error boundary rendering, not to a user event — there is
+      // no event handler to move this into. A full-document reload (not
+      // router.refresh()) is required to fetch fresh Server Action IDs.
+      // react-doctor-disable-next-line react-doctor/no-event-handler
       window.location.reload()
       return
     }
