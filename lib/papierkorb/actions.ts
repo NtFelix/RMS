@@ -1,9 +1,11 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
-import { revalidatePath } from 'next/cache';
 import { ensureAuth } from '@/lib/auth-utils';
 import { isOrgAdminOrOwner } from '@/lib/permissions';
+import { revalidatePathsForTable } from './utils';
+
+
 
 export interface PapierkorbEntry {
   id: string;
@@ -29,25 +31,6 @@ export async function getPapierkorbEntriesAction(): Promise<PapierkorbEntry[]> {
   return data as PapierkorbEntry[];
 }
 
-function revalidatePathsForTable(tableName: string) {
-  if (tableName === 'Haeuser') {
-    revalidatePath('/haeuser');
-  } else if (tableName === 'Wohnungen') {
-    revalidatePath('/wohnungen');
-  } else if (tableName === 'Mieter') {
-    revalidatePath('/mieter');
-    revalidatePath('/wohnungen');
-  } else if (tableName === 'Finanzen') {
-    revalidatePath('/finanzen');
-  } else if (tableName === 'Aufgaben') {
-    revalidatePath('/todos');
-  } else if (tableName === 'Zaehler' || tableName === 'Zaehler_Ablesungen') {
-    revalidatePath('/wohnungen');
-  } else if (tableName === 'Nebenkosten') {
-    revalidatePath('/betriebskosten');
-  }
-  revalidatePath('/dashboard');
-}
 
 export async function restoreEntryAction(tableName: string, recordId: string): Promise<void> {
   await ensureAuth();

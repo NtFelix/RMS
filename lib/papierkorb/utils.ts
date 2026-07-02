@@ -72,5 +72,33 @@ export async function softDeleteEntryAction(tableName: string, recordId: string)
     }
   }
 
-  revalidatePath('/');
+  revalidatePathsForTable(tableName);
 }
+
+export function revalidatePathsForTable(tableName: string) {
+  if (tableName === 'Haeuser') {
+    revalidatePath('/haeuser');
+    revalidatePath('/wohnungen');
+    revalidatePath('/mieter');
+  } else if (tableName === 'Wohnungen') {
+    revalidatePath('/wohnungen');
+    revalidatePath('/mieter');
+  } else if (tableName === 'Mieter') {
+    revalidatePath('/mieter');
+    revalidatePath('/wohnungen');
+  } else if (tableName === 'Finanzen') {
+    revalidatePath('/finanzen');
+  } else if (tableName === 'Aufgaben') {
+    revalidatePath('/todos');
+  } else if (tableName === 'Zaehler' || tableName === 'Zaehler_Ablesungen') {
+    revalidatePath('/wohnungen');
+  } else if (tableName === 'Nebenkosten') {
+    revalidatePath('/betriebskosten');
+  } else if (tableName === 'Dokumente_Metadaten') {
+    revalidatePath('/dateien');
+  } else if (tableName === 'Rechnungen') {
+    revalidatePath('/finanzen');
+  }
+  revalidatePath('/dashboard');
+}
+
