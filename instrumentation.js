@@ -1,13 +1,19 @@
+// Detect benign client-abort errors (navigating away, closing a tab mid-request).
+// These are Node-internal noise, not real bugs, so we should never crash or report them.
+function isClientAbortError(err) {
+  const isAborted =
+    err?.message?.includes('aborted') || err?.name === 'AbortError';
+  const isEconnReset = err?.code === 'ECONNRESET';
+  return isAborted || isEconnReset;
+}
+
 export async function register() {
   // Add global error handler for uncaught exceptions to prevent server crashes on ECONNRESET
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     process.on('uncaughtException', (err) => {
-      // Ignore ECONNRESET errors from aborted requests which are common in Next.js 15
-      const isAborted = err?.message?.includes('aborted');
-      const isEconnReset = err?.code === 'ECONNRESET';
-      
-      if (isAborted && isEconnReset) {
-        // Ignore ECONNRESET errors which are common in Next.js/Node during client aborts
+      // Ignore aborted/ECONNRESET errors from aborted requests which are common in Next.js 15
+      if (isClientAbortError(err)) {
+        // Ignore errors which are common in Next.js/Node during client aborts
         return;
       }
       console.error('Uncaught Exception:', err);
@@ -35,6 +41,12 @@ export async function register() {
 
 export const onRequestError = async (err, request, context) => {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Skip benign client aborts (navigating away / closing a tab mid-request).
+    // These are Node-internal noise, not real bugs, and only pollute error tracking.
+    if (isClientAbortError(err)) {
+      return;
+    }
+
     // Log to PostHog logs
     try {
       const { posthogLogger } = await import('./lib/posthog-logger');
