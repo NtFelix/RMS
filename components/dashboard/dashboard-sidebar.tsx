@@ -351,7 +351,6 @@ function SidebarContent({
   toggleCollapse,
   sidebarData
 }: SidebarContentProps) {
-  const [hoveredHref, setHoveredHref] = useState<string | null>(null);
   const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
   const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
 
@@ -387,7 +386,6 @@ function SidebarContent({
         setIsOpen={setIsOpen}
       />
 
-      {/* Navigation list */}
       <div className="flex-1 overflow-y-auto min-h-0 py-2 custom-scrollbar">
         <nav className="grid gap-1">
           <TooltipProvider delayDuration={100} skipDelayDuration={300}>
@@ -401,8 +399,6 @@ function SidebarContent({
                 setIsOpen={setIsOpen}
                 isRouteActive={isRouteActive}
                 getActiveStateClasses={getActiveStateClasses}
-                hoveredHref={hoveredHref}
-                setHoveredHref={setHoveredHref}
               />
             ))}
           </TooltipProvider>
@@ -536,6 +532,35 @@ function SidebarHeader({
   )
 }
 
+const getIconClassName = (href: string) => {
+  const base = "size-4 min-w-4 transition-transform duration-300 ease-out group-hover:scale-120";
+  switch (href) {
+    case ROUTES.HOME:
+      return `${base} group-hover:-translate-y-0.5`;
+    case ROUTES.SEARCH:
+      return `${base} group-hover:translate-x-0.5 group-hover:-translate-y-0.5`;
+    case "/organisation":
+    case "/haeuser":
+      return `${base} group-hover:rotate-3`;
+    case "/wohnungen":
+      return `${base} group-hover:-translate-y-0.5 group-hover:rotate-2`;
+    case "/mieter":
+      return `${base} group-hover:rotate-2`;
+    case "/finanzen":
+      return `${base} group-hover:rotate-6`;
+    case "/betriebskosten":
+      return `${base} group-hover:-rotate-3`;
+    case "/todos":
+      return `${base} group-hover:rotate-3`;
+    case "/dateien":
+      return `${base} group-hover:-translate-y-0.5`;
+    case "/mails":
+      return `${base} group-hover:-rotate-6`;
+    default:
+      return `${base} group-hover:rotate-3`;
+  }
+};
+
 function SidebarNavLink({
   item,
   isCollapsed,
@@ -543,9 +568,7 @@ function SidebarNavLink({
   setOpen,
   setIsOpen,
   isRouteActive,
-  getActiveStateClasses,
-  hoveredHref,
-  setHoveredHref
+  getActiveStateClasses
 }: {
   item: SidebarNavItemType
   isCollapsed: boolean
@@ -554,8 +577,6 @@ function SidebarNavLink({
   setIsOpen: (open: boolean) => void
   isRouteActive: (href: string) => boolean
   getActiveStateClasses: (href: string) => string
-  hoveredHref: string | null
-  setHoveredHref: (href: string | null) => void
 }) {
   const isActive = isRouteActive(item.href);
 
@@ -579,27 +600,14 @@ function SidebarNavLink({
           useOnboardingStore.getState().completeStep('overview-open')
         }
       }}
-      onMouseEnter={() => setHoveredHref(item.href)}
-      onMouseLeave={() => setHoveredHref(null)}
       className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 px-3 justify-start rounded-xl",
+        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 px-3 justify-start rounded-xl isolate",
+        !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),
       )}
       data-active={isActive}
       aria-current={isActive ? "page" : undefined}
     >
-      {hoveredHref === item.href && !isActive && (
-        <m.div
-          layoutId="sidebar-hover-highlight"
-          className="absolute inset-0 bg-zinc-100/80 dark:bg-zinc-800/40 -z-10"
-          style={{ borderRadius: isCollapsed && !isMobile ? "9999px" : "20px" }}
-          transition={{
-            type: "spring",
-            stiffness: 380,
-            damping: 30
-          }}
-        />
-      )}
       {!isMobile ? (
         <m.div
           layout
@@ -608,22 +616,22 @@ function SidebarNavLink({
           animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
           className="shrink-0"
         >
-          <item.icon className="size-4 min-w-4 transition-transform duration-300 ease-out group-hover:rotate-3" />
+          <item.icon className={getIconClassName(item.href)} />
         </m.div>
       ) : (
-        <item.icon className="size-4 min-w-4 shrink-0 transition-transform duration-500 ease-out group-hover:scale-115 group-hover:rotate-3" />
+        <item.icon className={cn(getIconClassName(item.href), "shrink-0")} />
       )}
       {!isMobile && (
         <m.span
           variants={textVariants}
           animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
-          className="whitespace-nowrap truncate group-hover:font-semibold group-hover:tracking-wide flex-1 overflow-hidden"
+          className="whitespace-nowrap truncate flex-1 overflow-hidden"
         >
           {item.title}
         </m.span>
       )}
       {isMobile && (
-        <span className="truncate group-hover:font-semibold group-hover:tracking-wide flex-1 ml-3 overflow-hidden">
+        <span className="truncate flex-1 ml-3 overflow-hidden">
           {item.title}
         </span>
       )}
