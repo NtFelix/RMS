@@ -27,8 +27,7 @@ describe('useIsOverflowing', () => {
     resizeCallback = null;
     observe.mockClear();
     disconnect.mockClear();
-    // @ts-expect-error - inject mock
-    global.ResizeObserver = MockResizeObserver;
+    global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
   });
 
   it('reports overflow when the attached node overflows', () => {
