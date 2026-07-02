@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import posthog from 'posthog-js'
 
 // Next.js hashes Server Action IDs per build. When a deploy lands while a user is
@@ -19,8 +19,25 @@ function isStaleDeploymentError(error: Error): boolean {
 }
 
 // Guard against reload loops: only auto-reload once per browser session so a
-// genuinely broken deploy doesn't trap the user in an infinite refresh.
+// genuinely broken deploy doesn't trap the user in an infinite refresh. Reads and
+// marks the guard in one shot; returns true only when a reload should happen now.
 const RELOAD_GUARD_KEY = 'mietevo:server-action-reload'
+
+function shouldAutoReload(error: Error): boolean {
+  if (!isStaleDeploymentError(error)) {
+    return false
+  }
+  try {
+    if (sessionStorage.getItem(RELOAD_GUARD_KEY) === '1') {
+      return false
+    }
+    sessionStorage.setItem(RELOAD_GUARD_KEY, '1')
+  } catch {
+    // sessionStorage can be unavailable (private mode, blocked). Fall through and
+    // still attempt the one-shot reload; the worst case is one extra refresh.
+  }
+  return true
+}
 
 export default function Error({
   error,
@@ -29,40 +46,14 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  const [recovering, setRecovering] = useState(false)
-
   useEffect(() => {
-    if (isStaleDeploymentError(error)) {
-      let alreadyReloaded = false
-      try {
-        alreadyReloaded = sessionStorage.getItem(RELOAD_GUARD_KEY) === '1'
-      } catch {
-        // sessionStorage can be unavailable (private mode, blocked); fall through.
-      }
-
-      if (!alreadyReloaded) {
-        try {
-          sessionStorage.setItem(RELOAD_GUARD_KEY, '1')
-        } catch {
-          // Ignore storage failures; worst case we reload again next time.
-        }
-        setRecovering(true)
-        window.location.reload()
-        return
-      }
+    if (shouldAutoReload(error)) {
+      window.location.reload()
+      return
     }
 
     posthog.captureException(error)
   }, [error])
-
-  if (recovering) {
-    return (
-      <div>
-        <h2>Aktualisiere die Seite …</h2>
-        <p>Eine neue Version ist verfügbar. Die Seite wird neu geladen.</p>
-      </div>
-    )
-  }
 
   return (
     <div>
