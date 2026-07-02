@@ -29,6 +29,26 @@ export async function getPapierkorbEntriesAction(): Promise<PapierkorbEntry[]> {
   return data as PapierkorbEntry[];
 }
 
+function revalidatePathsForTable(tableName: string) {
+  if (tableName === 'Haeuser') {
+    revalidatePath('/haeuser');
+  } else if (tableName === 'Wohnungen') {
+    revalidatePath('/wohnungen');
+  } else if (tableName === 'Mieter') {
+    revalidatePath('/mieter');
+    revalidatePath('/wohnungen');
+  } else if (tableName === 'Finanzen') {
+    revalidatePath('/finanzen');
+  } else if (tableName === 'Aufgaben') {
+    revalidatePath('/todos');
+  } else if (tableName === 'Zaehler' || tableName === 'Zaehler_Ablesungen') {
+    revalidatePath('/wohnungen');
+  } else if (tableName === 'Nebenkosten') {
+    revalidatePath('/betriebskosten');
+  }
+  revalidatePath('/dashboard');
+}
+
 export async function restoreEntryAction(tableName: string, recordId: string): Promise<void> {
   await ensureAuth();
   if (!(await isOrgAdminOrOwner())) {
@@ -43,7 +63,7 @@ export async function restoreEntryAction(tableName: string, recordId: string): P
     console.error('Error restoring record %s from %s:', recordId, tableName, error);
     throw new Error(error.message);
   }
-  revalidatePath('/papierkorb');
+  revalidatePathsForTable(tableName);
 }
 
 export async function permanentlyDeleteEntryAction(tableName: string, recordId: string): Promise<void> {
@@ -60,5 +80,5 @@ export async function permanentlyDeleteEntryAction(tableName: string, recordId: 
     console.error('Error permanently deleting record %s from %s:', recordId, tableName, error);
     throw new Error(error.message);
   }
-  revalidatePath('/papierkorb');
+  revalidatePathsForTable(tableName);
 }

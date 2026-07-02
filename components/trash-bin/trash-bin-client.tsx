@@ -113,7 +113,7 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
     return matchesSearch && matchesType;
   });
 
-  const sortedEntries = filteredEntries.toSorted((a, b) => a.restzeit_tage - b.restzeit_tage);
+  const sortedEntries = [...filteredEntries].sort((a, b) => a.restzeit_tage - b.restzeit_tage);
 
   const deletedDocsStorage = entries
     .filter((entry) => entry.table_name === 'Dokumente_Metadaten' && entry.dateigroesse)
@@ -220,7 +220,7 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
       <div className="rounded-2xl border border-zinc-200/60 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/40 overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
+            <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e]">
               <TableHead className="w-[30%] font-semibold">Name</TableHead>
               <TableHead className="w-[12%] font-semibold">Typ</TableHead>
               <TableHead className="w-[18%] font-semibold">Gelöscht von</TableHead>
@@ -249,7 +249,7 @@ export function TrashBinClient({ initialEntries }: TrashBinClientProps) {
                 return (
                   <TableRow
                     key={entry.id}
-                    className="relative cursor-pointer transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] hover:bg-gray-50 dark:hover:bg-zinc-900/30"
+                    className="relative hover:bg-gray-50 dark:hover:bg-zinc-900/30"
                   >
                     <TableCell className="font-medium text-gray-900 dark:text-zinc-100 truncate max-w-[300px]">
                       {entry.name}
