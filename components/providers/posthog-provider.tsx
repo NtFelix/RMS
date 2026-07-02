@@ -1,10 +1,12 @@
 'use client'
 
 import posthog from 'posthog-js'
+import type { CaptureResult } from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, Suspense, useState, useReducer } from 'react'
 import posthogProxyConfig from '@/lib/posthog-proxy'
+import { isLocalDevEnvironment, isLocalDevHostname } from '@/lib/posthog-local-dev'
 
 const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 
@@ -74,6 +76,28 @@ async function initializePostHog(nonce?: string) {
     capture_pageleave: false, // We'll handle this manually along with pageview
     persistence: 'localStorage',
     enable_recording_console_log: false, // Disabled: don't capture console logs in session recordings
+    // Drop any event originating from a local dev host (localhost:3000, etc.).
+    // Next.js Fast Refresh / HMR throws transient errors mid-edit (e.g.
+    // "ReferenceError: <identifier> is not defined") that are not real bugs and
+    // were polluting production error tracking. This gate keeps dev noise out.
+    before_send: (event: CaptureResult | null) => {
+      if (!event) return event
+      const eventUrl =
+        (event.properties?.['$current_url'] as string | undefined) ??
+        (typeof window !== 'undefined' ? window.location?.href : undefined)
+      let host: string | undefined
+      if (eventUrl) {
+        try {
+          host = new URL(eventUrl).hostname
+        } catch {
+          host = undefined
+        }
+      }
+      if (isLocalDevHostname(host) || isLocalDevEnvironment()) {
+        return null
+      }
+      return event
+    },
     // GDPR: Always opt-out by default, require explicit consent
     opt_out_capturing_by_default: true,
     nonce: nonce, // Add nonce for CSP
