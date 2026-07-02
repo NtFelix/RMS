@@ -500,6 +500,11 @@ export interface ModalState {
   operatingCostsOverviewData?: OptimizedNebenkosten | null;
   openOperatingCostsOverviewModal: (nebenkosten: OptimizedNebenkosten) => void;
   closeOperatingCostsOverviewModal: () => void;
+
+  // Trash Bin Modal State
+  isTrashBinModalOpen: boolean;
+  openTrashBinModal: () => void;
+  closeTrashBinModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -735,6 +740,7 @@ const createInitialModalState = () => ({
   ...initialOperatingCostsOverviewModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
+  isTrashBinModalOpen: false,
 });
 
 type DirtyFlagKey = {
@@ -1318,5 +1324,9 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeZaehlerModal: createCloseHandler('isZaehlerModalDirty', initialZaehlerModalState),
     setZaehlerModalDirty: (isDirty) => set({ isZaehlerModalDirty: isDirty }),
+
+    // Trash Bin Modal
+    openTrashBinModal: () => set({ isTrashBinModalOpen: true }),
+    closeTrashBinModal: () => set({ isTrashBinModalOpen: false }),
   };
 });

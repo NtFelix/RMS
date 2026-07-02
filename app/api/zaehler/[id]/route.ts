@@ -111,10 +111,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
-    const { error } = await supabase
-      .from('Zaehler')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Zaehler',
+      p_record_id: id,
+    });
 
     if (error) {
       console.error('Error deleting Wasserzähler:', error)

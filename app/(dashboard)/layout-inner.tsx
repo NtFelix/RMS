@@ -42,6 +42,7 @@ const TemplatesModal = dynamic(() => import('@/components/templates/templates-mo
 const TenantMailTemplatesModal = dynamic(() => import('@/components/tenants/tenant-mail-templates-modal').then(mod => mod.TenantMailTemplatesModal), { ssr: false })
 const AIAssistantModal = dynamic(() => import('@/components/ai/ai-assistant-modal').then(mod => mod.AIAssistantModal), { ssr: false })
 const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
+const TrashBinModal = dynamic(() => import('@/components/trash-bin/trash-bin-modal').then(mod => mod.TrashBinModal), { ssr: false })
 // Default exports
 const TenantPaymentEditModal = dynamic(() => import('@/components/tenants/tenant-payment-edit-modal'), { ssr: false })
 const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenants/tenant-payment-overview-modal'), { ssr: false })
@@ -143,6 +144,9 @@ export default function DashboardInnerLayout({
     isOperatingCostsOverviewModalOpen,
     operatingCostsOverviewData,
     closeOperatingCostsOverviewModal,
+
+    // Trash Bin Modal State
+    isTrashBinModalOpen,
   } = useModalStore()
 
   return (
@@ -285,6 +289,8 @@ export default function DashboardInnerLayout({
             nebenkosten={operatingCostsOverviewData}
           />
         )}
+        {/* Trash Bin Modal */}
+        {isTrashBinModalOpen && <TrashBinModal />}
         {/* Global Confirmation Dialog */}
         {isConfirmationModalOpen && confirmationModalConfig && (
           <ConfirmationDialog

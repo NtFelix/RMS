@@ -341,13 +341,12 @@ export async function loescheWohnung(id: string) {
   }
 
   try {
-    const { error } = await supabase.from('Wohnungen')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      logAction(actionName, 'error', { apartment_id: id, error_message: error.message });
-      return { error: error.message };
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    try {
+      await softDeleteEntryAction("Wohnungen", id);
+    } catch (err: any) {
+      logAction(actionName, 'error', { apartment_id: id, error_message: err.message });
+      return { error: err.message };
     }
 
     // Cache für die Wohnungen-Seite invalidieren
