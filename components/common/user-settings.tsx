@@ -21,11 +21,12 @@ const layoutTransition = {
 const triggerVariants = {
   expanded: {
     width: "100%",
+    height: "auto",
     borderRadius: "24px", // rounded-2xl
-    paddingLeft: "14px",
-    paddingRight: "14px",
-    paddingTop: "12px",
-    paddingBottom: "12px",
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "10px",
+    paddingBottom: "10px",
     transition: {
       type: "spring",
       stiffness: 400,
@@ -35,6 +36,7 @@ const triggerVariants = {
   },
   collapsed: {
     width: "40px",
+    height: "40px",
     borderRadius: "9999px", // rounded-full
     paddingLeft: "0px",
     paddingRight: "0px",
@@ -219,8 +221,9 @@ export function UserSettings({
             variants={triggerVariants}
             animate={collapsed ? "collapsed" : "expanded"}
             whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            className="flex items-center cursor-pointer transition-colors duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 h-10 rounded-2xl"
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="flex items-center cursor-pointer transition-all duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-md bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 rounded-2xl"
             aria-label="User menu"
           >
             <m.div 

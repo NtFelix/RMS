@@ -286,8 +286,8 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-4 w-full">
-        <div className="hidden md:flex flex-col h-full w-full">
+      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-4 w-full overflow-visible">
+        <div className="hidden md:flex flex-col h-full w-full overflow-visible">
           <SidebarContent
             isCollapsed={isCollapsed}
             pathname={pathname}
@@ -377,7 +377,7 @@ function SidebarContent({
   }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
 
   return (
-    <div className="h-full w-full flex flex-col relative pl-4 pr-4 md:pr-0">
+    <div className="h-full w-full flex flex-col relative pl-4 pr-4 md:pr-0 overflow-visible">
       {/* Header / Brand Logo */}
       <SidebarHeader
         isCollapsed={isCollapsed}
@@ -413,7 +413,7 @@ function SidebarContent({
       />
       
       {/* User profile / settings */}
-      <div className="pt-2 pb-4 md:pb-0 flex flex-col gap-2 border-t border-border shrink-0">
+      <div className="pt-2 pb-4 md:pb-0 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible">
         <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
       </div>
     </div>

@@ -113,7 +113,7 @@ export function DashboardLayout({
         {/* Desktop sidebar */}
         <LazyMotion features={domAnimation}>
           <m.div 
-            className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0 shrink-0"
+            className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-visible h-screen sticky top-0 shrink-0 relative z-20"
             animate={{
               width: preference === 'expanded' ? "16rem" : "3.5rem"
             }}
