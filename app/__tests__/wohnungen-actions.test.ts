@@ -4,7 +4,7 @@
 import { wohnungServerAction } from '../wohnungen-actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { fetchUserProfile } from '@/lib/data-fetching';
+import { fetchUserProfile, getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
 
 // Mock dependencies
@@ -18,6 +18,7 @@ jest.mock('next/cache', () => ({
 
 jest.mock('@/lib/data-fetching', () => ({
   fetchUserProfile: jest.fn(),
+  getCurrentWohnungenCount: jest.fn(),
 }));
 
 jest.mock('@/lib/stripe-server', () => ({
@@ -81,6 +82,7 @@ describe('wohnungServerAction', () => {
     };
 
     (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (getCurrentWohnungenCount as jest.Mock).mockImplementation(() => Promise.resolve(currentMockCount));
   });
 
   describe('Validation', () => {

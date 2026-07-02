@@ -1,7 +1,7 @@
 
 import { wohnungServerAction } from '@/app/wohnungen-actions';
 import { revalidatePath } from 'next/cache';
-import { fetchUserProfile } from '@/lib/data-fetching';
+import { fetchUserProfile, getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
 
 // Mock dependencies
@@ -11,6 +11,7 @@ jest.mock('next/cache', () => ({
 
 jest.mock('@/lib/data-fetching', () => ({
   fetchUserProfile: jest.fn(),
+  getCurrentWohnungenCount: jest.fn(),
 }));
 
 jest.mock('@/lib/stripe-server', () => ({
@@ -102,6 +103,11 @@ describe('Wohnungen Server Actions', () => {
     // Default responses
     mockSingle.mockResolvedValue({ data: { id: 'w1', name: 'Test Apt' }, error: null });
     mockSelectEq.mockResolvedValue({ count: 0, error: null });
+    (getCurrentWohnungenCount as jest.Mock).mockImplementation(async () => {
+      const eqResult = await mockSelectEq();
+      if (eqResult && eqResult.count !== undefined) return eqResult.count;
+      return 0;
+    });
   });
 
   describe('wohnungServerAction', () => {

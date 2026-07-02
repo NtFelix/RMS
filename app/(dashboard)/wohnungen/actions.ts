@@ -3,7 +3,7 @@
 // const APARTMENT_LIMIT = 5; // Removed hardcoded limit
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
-import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
+import { fetchUserProfile, getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails
 import { logAction } from '@/lib/logging-middleware';
 
@@ -121,14 +121,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
       return { error: 'Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen.' };
     }
 
-    const { count, error: countError } = await supabase
-      .from('Wohnungen')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('Error counting apartments:', countError);
-      return { error: 'Fehler beim Zählen der Wohnungen.' };
-    }
+    const count = await getCurrentWohnungenCount(supabase, userId);
 
     if (currentApartmentLimit === null) {
       console.error("Apartment limit logic resulted in null limit unexpectedly.");
@@ -254,14 +247,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
     // If currentApartmentLimit is null here, it means the user doesn't have an active subscription,
     // which should have been caught by the 'Ein aktives Abonnement...' error above.
     if (currentApartmentLimit !== Infinity && currentApartmentLimit !== null) {
-      const { count, error: countError } = await supabase
-        .from('Wohnungen')
-        .select('*', { count: 'exact', head: true });
-
-      if (countError) {
-        console.error('Error counting apartments for update:', countError);
-        return { error: 'Fehler beim Zählen der Wohnungen.' };
-      }
+      const count = await getCurrentWohnungenCount(supabase, userId);
 
       // Note: The problem description said "count > currentApartmentLimit".
       // However, if a user has 5/5 apartments, they should still be able to EDIT one of those 5.

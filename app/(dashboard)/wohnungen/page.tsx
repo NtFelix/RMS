@@ -5,7 +5,7 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
-import { fetchUserProfile } from '@/lib/data-fetching';
+import { fetchUserProfile, getCurrentWohnungenCount } from '@/lib/data-fetching';
 
 import { getPlanDetails } from '@/lib/stripe-server';
 import { isTestEnv } from '@/lib/test-utils';
@@ -40,11 +40,6 @@ export default async function WohnungenPage() {
   // Load profile and main data in parallel with object-scope filtering.
   // The accessibleIds check restricts all queries to only houses/apartments
   // the restricted employee has object-level access to.
-  const fetchScopedApartmentsCount = async () => {
-    let q = supabase.from('Wohnungen').select('*', { count: 'exact', head: true });
-    if (accessibleIds !== null) q = q.in('haus_id', accessibleIds);
-    return q;
-  };
   const fetchScopedApartments = async () => {
     let q = supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
     if (accessibleIds !== null) q = q.in('haus_id', accessibleIds);
@@ -58,19 +53,20 @@ export default async function WohnungenPage() {
 
   const [
     userProfile,
-    countResult,
+    resolvedApartmentCount,
     rawApartmentsResult,
     tenantsResult,
     housesResult
   ] = await Promise.all([
     fetchUserProfile(),
-    fetchScopedApartmentsCount(),
+    getCurrentWohnungenCount(supabase, user.id),
     fetchScopedApartments(),
     // Tenants query is unscoped — tenantMap is only accessed by scoped apartment IDs,
     // so extra tenant data is harmless.
     supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
     fetchScopedHaeuser(),
   ]);
+  apartmentCount = resolvedApartmentCount;
 
   if (userProfile) {
     const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
@@ -107,9 +103,6 @@ export default async function WohnungenPage() {
     } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
   } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
 
-  // Handle count result
-  if (countResult.error) console.error('Error fetching apartment count:', countResult.error.message);
-  else apartmentCount = countResult.count || 0;
 
   // Handle data results
   const { data: rawApartments, error: apartmentsError } = rawApartmentsResult;

@@ -639,21 +639,77 @@ export async function getCurrentWohnungenCount(supabaseClient: SupabaseClient, u
   }
 
   try {
-    const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
-    const haeuserIds = await getAccessibleHaeuserIds();
+    const fallbackFn = async () => {
+      const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+      const haeuserIds = await getAccessibleHaeuserIds();
 
-    let query = supabaseClient
-      .from("Wohnungen")
-      .select("*", { count: "exact", head: true });
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-    query = applyHaeuserScope(query, 'haus_id', haeuserIds);
+      if (!serviceRoleKey || !supabaseUrl) {
+        // Fallback if service role client cannot be initialized (e.g. client side or test environment)
+        let query = supabaseClient
+          .from("Wohnungen")
+          .select("*", { count: "exact", head: true });
 
-    const { count, error } = await query;
+        query = applyHaeuserScope(query, "haus_id", haeuserIds);
 
-    if (error) {
-      console.error("Error fetching Wohnungen count:", error);
-      return 0;
+        const { count, error } = await query;
+
+        if (error) {
+          console.error("Error fetching Wohnungen count:", error);
+          return 0;
+        }
+
+        return count || 0;
+      }
+
+      let orgId = null;
+      if (typeof supabaseClient.rpc === 'function') {
+        const { data, error: orgError } = await supabaseClient.rpc('current_organisation_id');
+        if (orgError) {
+          console.error("Error fetching current_organisation_id for count:", orgError);
+        } else {
+          orgId = data;
+        }
+      }
+
+      const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+      const adminClient = createSupabaseClient(supabaseUrl, serviceRoleKey);
+
+      let query = adminClient
+        .from("Wohnungen")
+        .select("*", { count: "exact", head: true });
+
+      if (orgId) {
+        query = query.eq("organisation_id", orgId);
+      }
+
+      query = applyHaeuserScope(query, "haus_id", haeuserIds);
+
+      const { count, error } = await query;
+
+      if (error) {
+        console.error("Error fetching Wohnungen count via admin client:", error);
+        return 0;
+      }
+
+      return count || 0;
+    };
+
+    // If supabaseClient.rpc is not a function (e.g., in a test mock that doesn't define it),
+    // skip fetchWithRpcFallback and run the fallbackFn directly to prevent errors.
+    if (typeof supabaseClient.rpc !== 'function') {
+      return await fallbackFn();
     }
+
+    const count = await fetchWithRpcFallback<number>(
+      supabaseClient,
+      'get_organization_apartments_count',
+      {},
+      fallbackFn,
+      'getCurrentWohnungenCount'
+    );
 
     return count || 0;
   } catch (error) {

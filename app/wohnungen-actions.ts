@@ -2,7 +2,7 @@
 
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
-import { fetchUserProfile } from '@/lib/data-fetching';
+import { fetchUserProfile, getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { normalizeApartmentLimit, getEffectiveApartmentLimit } from '@/lib/utils/subscription';
 import { logAction } from '@/lib/logging-middleware';
@@ -180,11 +180,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       }
 
       // Get current apartment count for the user
-      const { count, error: countError } = await supabase
-        .from('Wohnungen')
-        .select('*', { count: 'exact', head: true });
-
-      if (countError) throw countError;
+      const count = await getCurrentWohnungenCount(supabase, user.id);
 
       // Check if user has reached their limit
       if (effectiveApartmentLimit !== Infinity && count !== null && count >= effectiveApartmentLimit) {

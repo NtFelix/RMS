@@ -1,7 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
-import { fetchUserProfile } from "@/lib/data-fetching";
+import { fetchUserProfile, getCurrentWohnungenCount } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
@@ -80,17 +80,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const { count, error: countError } = await supabase
-      .from('Wohnungen')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('API: Error counting apartments:', countError);
-      return NextResponse.json({ error: "Fehler beim Zählen der Wohnungen." }, { 
-        status: 500,
-        headers: NO_CACHE_HEADERS
-      });
-    }
+    const count = await getCurrentWohnungenCount(supabase, userId);
 
     // Enforce the limit
     // If currentApartmentLimit is still null here, it means neither trial nor subscription is valid.
