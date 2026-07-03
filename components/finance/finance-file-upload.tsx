@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { FILE_INPUT_ACCEPT, MAX_FILE_SIZE_LABEL } from "@/lib/finance-file-constants";
 import {
     getFinanceDocumentUrl,
@@ -298,6 +299,9 @@ function DocumentPreview({
     onDownload,
     onRemove,
 }: DocumentPreviewProps) {
+    const SpinnerIcon = React.useCallback((props: { className?: string }) => (
+        <Loader2 className={cn(props.className, "animate-spin")} />
+    ), []);
     return (
         <div className="space-y-2">
             <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
@@ -317,42 +321,35 @@ function DocumentPreview({
                         {formatFileSize(documentInfo.dateigroesse)}
                     </p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={onView}
-                        disabled={disabled}
-                        title="Ansehen"
-                    >
-                        <Eye className="size-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={onDownload}
-                        disabled={disabled}
-                        title="Herunterladen"
-                    >
-                        <Download className="size-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={onRemove}
-                        disabled={disabled || isDeleting}
-                        title="Entfernen"
-                    >
-                        {isDeleting ? (
-                            <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                            <X className="size-4" />
-                        )}
-                    </Button>
-                </div>
+                <ActionMenu
+                    actions={[
+                        {
+                            id: "view",
+                            icon: Eye,
+                            label: "Ansehen",
+                            onClick: onView,
+                            disabled: disabled,
+                        },
+                        {
+                            id: "download",
+                            icon: Download,
+                            label: "Herunterladen",
+                            onClick: onDownload,
+                            disabled: disabled,
+                        },
+                        {
+                            id: "remove",
+                            icon: isDeleting ? SpinnerIcon : X,
+                            label: "Entfernen",
+                            onClick: onRemove,
+                            variant: "destructive",
+                            disabled: disabled || isDeleting,
+                        },
+                    ]}
+                    shape="pill"
+                    visibility="always"
+                    className="shrink-0"
+                />
             </div>
         </div>
     );
