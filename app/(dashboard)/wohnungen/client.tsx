@@ -22,8 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -367,48 +366,15 @@ export default function WohnungenClientView({
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* 2-way sliding toggle */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("apartments")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "apartments" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "apartments" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Home className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Wohnungen</span>
-        </motion.button>
-
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("overview")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "overview" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Übersicht</span>
-        </motion.button>
-      </div>
+      <AnimatedPillToggle
+        tabs={[
+          { value: "apartments", label: "Wohnungen", icon: Home },
+          { value: "overview", label: "Übersicht", icon: BarChart3 },
+        ]}
+        activeTab={currentTab}
+        onTabChange={setCurrentTab}
+        layoutId="active-wohnungen-tab-pill"
+      />
 
       {currentTab === "apartments" ? (
         <>
