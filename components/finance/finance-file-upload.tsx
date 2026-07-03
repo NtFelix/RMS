@@ -304,22 +304,26 @@ function DocumentPreview({
     ), []);
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-                {getFileIcon(documentInfo.mime_type)}
-                <div className="flex-1 min-w-0">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <p className="text-sm font-medium truncate cursor-help">{documentInfo.dateiname}</p>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" align="start" className="max-w-[300px] break-all">
-                                {documentInfo.dateiname}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                    <p className="text-xs text-muted-foreground">
-                        {formatFileSize(documentInfo.dateigroesse)}
-                    </p>
+            <div className="flex items-center justify-between gap-4 p-3.5 border border-input bg-card hover:border-ring/50 transition-colors shadow-xs rounded-3xl min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                    {getFileIcon(documentInfo.mime_type)}
+                    <div className="min-w-0 flex flex-col">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <p className="text-sm font-medium truncate cursor-help max-w-[70px] xs:max-w-[110px] sm:max-w-[160px] md:max-w-[200px]">
+                                        {documentInfo.dateiname}
+                                    </p>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="start" className="max-w-[300px] break-all">
+                                    {documentInfo.dateiname}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <p className="text-xs text-muted-foreground">
+                            {formatFileSize(documentInfo.dateigroesse)}
+                        </p>
+                    </div>
                 </div>
                 <ActionMenu
                     actions={[
