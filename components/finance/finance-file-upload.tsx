@@ -5,6 +5,7 @@ import { Upload, File, X, Download, Eye, Loader2, FileText, Image as ImageIcon }
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { FILE_INPUT_ACCEPT, MAX_FILE_SIZE_LABEL } from "@/lib/finance-file-constants";
 import {
     getFinanceDocumentUrl,
@@ -73,12 +74,12 @@ function reducer(state: State, action: Action): State {
 
 const getFileIcon = (mimeType: string | null) => {
     if (mimeType?.startsWith("image/")) {
-        return <ImageIcon className="size-5 text-blue-500" />;
+        return <ImageIcon className="size-5 text-blue-500 shrink-0" />;
     }
     if (mimeType === "application/pdf") {
-        return <FileText className="size-5 text-red-500" />;
+        return <FileText className="size-5 text-red-500 shrink-0" />;
     }
-    return <File className="size-5 text-gray-500" />;
+    return <File className="size-5 text-gray-500 shrink-0" />;
 };
 
 const formatFileSize = (bytes: number | null) => {
@@ -302,12 +303,21 @@ function DocumentPreview({
             <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
                 {getFileIcon(documentInfo.mime_type)}
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{documentInfo.dateiname}</p>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <p className="text-sm font-medium truncate cursor-help">{documentInfo.dateiname}</p>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" align="start" className="max-w-[300px] break-all">
+                                {documentInfo.dateiname}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <p className="text-xs text-muted-foreground">
                         {formatFileSize(documentInfo.dateigroesse)}
                     </p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                     <Button
                         type="button"
                         variant="ghost"

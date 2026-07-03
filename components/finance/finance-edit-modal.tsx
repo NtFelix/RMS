@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { NumberInput } from "@/components/ui/number-input";
-import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import {
   Select,
   SelectTrigger,
@@ -25,13 +24,27 @@ import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
-import { createClient } from "@/utils/supabase/client";
 import { FinanceFileUpload } from "@/components/finance/finance-file-upload";
 import { TagInput } from "@/components/ui/tag-input";
-
 import { useModalStore } from "@/hooks/use-modal-store";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from "@/components/ui/custom-dropdown";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { deleteFinanceAction } from "@/app/finanzen-actions";
+import { PropertyHeader } from "@/components/ui/property-header";
+import { ResizeHandle } from "@/components/ui/resize-handle";
+import { Coins, Calendar, Building2, Tag, TrendingUpDown, FileText, Paperclip, MoreHorizontal, Trash2, GripVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Interfaces (can be moved to a types file if not already covered by store types)
 interface Finanz {
   id: string;
   wohnung_id?: string | null;
@@ -47,32 +60,89 @@ interface Finanz {
   };
 }
 
-interface Wohnung { // This should align with `financeModalWohnungen` items type from store
-  id: string;
-  name: string;
+interface FinanceEditModalProps {
+  serverAction: (id: string | null, payload: Omit<Finanz, "id" | "Wohnungen">) => Promise<{ success: boolean; error?: any; data?: any }>;
 }
 
-interface FinanceEditModalProps {
-  // Props like open, onOpenChange, initialData, initialWohnungen, onSuccess are now from useModalStore
-  serverAction: (id: string | null, payload: Omit<Finanz, "id" | "Wohnungen">) => Promise<{ success: boolean; error?: any; data?: any }>;
-  // loading prop can be added if server action is slow
+function TopBar({
+  financeInitialData,
+  onDeleteRequest,
+}: {
+  financeInitialData: any;
+  onDeleteRequest: () => void;
+}) {
+  if (!financeInitialData) return null;
+
+  return (
+    <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
+      <CustomDropdown
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-lg opacity-50 hover:opacity-100 hover:bg-hover-bg pointer-events-auto cursor-pointer h-8 w-8 active:scale-[0.995]"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span className="sr-only">Aktionen</span>
+          </Button>
+        }
+        align="end"
+      >
+        <CustomDropdownItem onClick={onDeleteRequest} className="text-red-600 focus:text-red-600">
+          <Trash2 className="h-4 w-4 mr-2" />
+          <span>Löschen</span>
+        </CustomDropdownItem>
+      </CustomDropdown>
+    </div>
+  );
+}
+
+function DeleteFinanceDialog({
+  open,
+  onOpenChange,
+  financeName,
+  isDeleting,
+  onDelete,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  financeName: string;
+  isDeleting: boolean;
+  onDelete: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Transaktion löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Möchten Sie diese Transaktion &ldquo;{financeName}&rdquo; wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); onDelete(); }} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            {isDeleting ? "Löschen..." : "Löschen"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 export function FinanceEditModal(props: FinanceEditModalProps) {
-  const { serverAction } = props; // Keep serverAction as a prop for now
+  const { serverAction } = props;
 
   const {
     isFinanceModalOpen,
     closeFinanceModal,
     financeInitialData,
-    financeModalWohnungen, // Use this from store
+    financeModalWohnungen,
     financeModalOnSuccess,
     isFinanceModalDirty,
     setFinanceModalDirty,
-    openConfirmationModal,
   } = useModalStore();
 
-  const router = useRouter(); // Keep router if needed for other operations
   const [formData, setFormData] = useState({
     wohnung_id: financeInitialData?.wohnung_id || "",
     name: financeInitialData?.name || "",
@@ -84,12 +154,116 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     tags: financeInitialData?.tags || [],
   });
 
-  // internalWohnungen is now financeModalWohnungen from the store
-  // const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
-  const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false); // Keep this if fetching logic remains
+  const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Track if document was changed for existing entries (auto-saved, needs refresh on close)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isPending = isSubmitting || isDeleting;
   const [documentWasChanged, setDocumentWasChanged] = useState(false);
+
+  const [width, setWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const savedWidth = localStorage.getItem("finance-modal-width");
+      if (savedWidth) {
+        const parsed = parseInt(savedWidth, 10);
+        if (!isNaN(parsed)) return parsed;
+      }
+    }
+    return 600;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const widthRef = useRef(width);
+
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dragInfoRef = useRef({ startY: 0, startHeight: 0 });
+
+  const MIN_HEIGHT_PX = 80;
+  const MAX_HEIGHT_PX = 150;
+
+  const initResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    dragInfoRef.current = {
+      startY: e.clientY,
+      startHeight: textarea.offsetHeight,
+    };
+
+    const { startY, startHeight } = dragInfoRef.current;
+    const textareaEl = textarea;
+
+    const doDrag = (moveEvent: MouseEvent) => {
+      let newHeight = startHeight + moveEvent.clientY - startY;
+      newHeight = Math.max(MIN_HEIGHT_PX, newHeight);
+      newHeight = Math.min(MAX_HEIGHT_PX, newHeight);
+      textareaEl.style.height = `${newHeight}px`;
+    };
+
+    const stopDrag = () => {
+      document.removeEventListener("mousemove", doDrag);
+      document.removeEventListener("mouseup", stopDrag);
+    };
+
+    document.addEventListener("mousemove", doDrag);
+    document.addEventListener("mouseup", stopDrag);
+  };
+
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const handleResetWidth = () => {
+        setWidth(600);
+      };
+      window.addEventListener("reset-finance-modal-width", handleResetWidth);
+      return () => {
+        window.removeEventListener("reset-finance-modal-width", handleResetWidth);
+      };
+    }
+  }, []);
+
+  const startResizing = (mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
+      const newWidth = window.innerWidth - mouseMoveEvent.clientX;
+      const minWidth = 360;
+      const maxWidth = window.innerWidth * 0.9;
+      setWidth(Math.max(minWidth, Math.min(newWidth, maxWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      const finalWidth = widthRef.current;
+      if (typeof finalWidth === "number" && !isNaN(finalWidth) && finalWidth >= 360) {
+        localStorage.setItem("finance-modal-width", String(finalWidth));
+      }
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
 
   const apartmentOptions: ComboboxOption[] = (financeModalWohnungen || []).map(w => ({ value: w.id, label: w.name }));
 
@@ -105,22 +279,12 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         dokument_id: financeInitialData?.dokument_id || null,
         tags: financeInitialData?.tags || [],
       });
-      setFinanceModalDirty(false); // Reset dirty state when modal opens or data changes
-      setDocumentWasChanged(false); // Reset document change tracking
+      setFinanceModalDirty(false);
+      setDocumentWasChanged(false);
     }
   }, [financeInitialData, isFinanceModalOpen, setFinanceModalDirty]);
 
-  // Fetching Wohnungen might need to be triggered via openFinanceModal or handled by parent
-  // For now, let's assume financeModalWohnungen is populated by the time the modal opens.
-  // If not, the original useEffect for fetching Wohnungen can be adapted.
-  // useEffect(() => {
-  //   if (isFinanceModalOpen && (!financeModalWohnungen || financeModalWohnungen.length === 0)) {
-  //     // ... fetch logic ... update store or handle locally if store doesn't own this data fetch
-  //   }
-  // }, [isFinanceModalOpen, financeModalWohnungen]);
-
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setFinanceModalDirty(true);
   };
@@ -142,7 +306,6 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   };
 
   const handleClose = (force = false) => {
-    // If document was changed for existing entry, trigger refresh before closing
     if (documentWasChanged && financeInitialData?.id && financeModalOnSuccess) {
       financeModalOnSuccess({ ...financeInitialData, dokument_id: formData.dokument_id });
     }
@@ -154,22 +317,60 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   };
 
   const attemptClose = () => {
-    handleClose(); // Store handles confirmation logic for outside clicks/X button
+    handleClose();
   };
 
   const handleCancelClick = () => {
-    handleClose(true); // Force close for "Abbrechen" button
+    handleClose(true);
+  };
+
+  const handleDelete = async () => {
+    if (!financeInitialData || isPending) return;
+    try {
+      setIsDeleting(true);
+      const result = await deleteFinanceAction(financeInitialData.id);
+
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: `Die Transaktion "${financeInitialData.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        setFinanceModalDirty(false);
+        closeFinanceModal();
+        if (financeModalOnSuccess) {
+          financeModalOnSuccess({ deleted: true, id: financeInitialData.id });
+        }
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Die Transaktion konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Unerwarteter Fehler beim Löschen der Transaktion:", error);
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (isPending) return;
 
     if (!formData.name || !formData.betrag) {
       toast({ title: "Fehler", description: "Name und Betrag sind erforderlich.", variant: "destructive" });
-      setIsSubmitting(false);
       return;
     }
+
+    setIsSubmitting(true);
 
     const payload = {
       name: formData.name,
@@ -192,13 +393,13 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
           variant: "success",
         });
 
-        setFinanceModalDirty(false); // Reset dirty state on success
+        setFinanceModalDirty(false);
         if (financeModalOnSuccess) {
           const successData = result.data || { ...payload, id: financeInitialData?.id || result.data?.id || '' };
           financeModalOnSuccess(successData);
         }
 
-        closeFinanceModal(); // Will close directly as dirty is false
+        closeFinanceModal();
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -208,7 +409,6 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
-      // Do not reset dirty flag here, error occurred, changes are still pending
     } finally {
       setIsSubmitting(false);
     }
@@ -219,136 +419,267 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   }
 
   return (
-    <Dialog open={isFinanceModalOpen} onOpenChange={(open) => !open && attemptClose()}>
-      <DialogContent
-        className="sm:max-w-[500px] md:max-w-[550px]"
+    <Sheet open={isFinanceModalOpen} onOpenChange={(open) => !open && attemptClose()}>
+      <SheetContent
+        id="finance-form-container"
+        className="w-full sm:w-[var(--sheet-width)] sm:max-w-none flex flex-col h-full p-0 gap-0"
+        style={{
+          "--sheet-width": `${width}px`,
+          transition: isResizing ? "none" : undefined
+        } as React.CSSProperties}
         isDirty={isFinanceModalDirty}
         onAttemptClose={attemptClose}
       >
-        <DialogHeader>
-          <DialogTitle>{financeInitialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}</DialogTitle>
-          <DialogDescription>Füllen Sie die erforderlichen Felder aus.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} noValidate className="grid gap-3 sm:gap-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            <div className="col-span-1 sm:col-span-2 space-y-2">
-              <LabelWithTooltip htmlFor="name" infoText="Kurze, allgemeine Bezeichnung (z.B. 'Handwerker', 'Hausverwaltung'). Detaillierte Informationen können im Notizfeld ergänzt werden. Erleichtert die spätere Suche und Kategorisierung.">
-                Bezeichnung
-              </LabelWithTooltip>
-              <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
+        <ResizeHandle
+          isResizing={isResizing}
+          setWidth={setWidth}
+          onMouseDown={startResizing}
+        />
+
+        <TopBar
+          financeInitialData={financeInitialData}
+          onDeleteRequest={() => setDeleteDialogOpen(true)}
+        />
+
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 min-h-0">
+          <ScrollArea className="flex-1">
+            <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
+              <div className="space-y-2 sm:space-y-3">
+                <div className="text-primary/80">
+                  <Coins className="h-8 w-8 sm:h-10 sm:w-10" />
+                </div>
+                <div className="space-y-1">
+                  <SheetTitle className="sr-only">
+                    {financeInitialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}
+                  </SheetTitle>
+                  <label htmlFor="name" className="sr-only">Bezeichnung</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder={financeInitialData ? "Unbenannte Transaktion" : "Transaktion hinzufügen"}
+                    disabled={isSubmitting}
+                    aria-label={financeInitialData ? "Name der Transaktion" : "Name der neuen Transaktion"}
+                    className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
+                  />
+                  <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
+                    {financeInitialData
+                      ? "Bearbeiten Sie die Details dieser Transaktion."
+                      : "Fügen Sie eine neue Einnahme oder Ausgabe hinzu."}
+                  </SheetDescription>
+                </div>
+              </div>
+
+              <div className="space-y-3 sm:space-y-6">
+                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                    Details
+                  </div>
+
+                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0">
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+                      <PropertyHeader
+                        icon={Coins}
+                        label="Betrag (€)"
+                        htmlFor="betrag"
+                        infoText="Geben Sie den Betrag der Transaktion in Euro ein."
+                      />
+                      <NumberInput
+                        id="betrag"
+                        name="betrag"
+                        step="0.01"
+                        value={formData.betrag}
+                        onChange={handleChange}
+                        required
+                        disabled={isSubmitting}
+                        className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+                      />
+                    </div>
+
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+                      <PropertyHeader
+                        icon={Calendar}
+                        label="Datum"
+                        htmlFor="datum"
+                        infoText="Buchungs- oder Zahlungsdatum. Wird für Monats- und Jahresauswertungen sowie Cashflow-Berechnungen verwendet."
+                      />
+                      <DatePicker
+                        id="datum"
+                        value={formData.datum}
+                        onChange={handleDateChange}
+                        placeholder="TT.MM.JJJJ"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+                      <PropertyHeader
+                        icon={Building2}
+                        label="Wohnung"
+                        htmlFor="wohnung_id"
+                        infoText="Ordnen Sie die Transaktion optional einer Wohnung zu, um die Auswertung pro Objekt zu erleichtern."
+                      />
+                      <CustomCombobox
+                        id="wohnung_id"
+                        width="w-full"
+                        options={apartmentOptions}
+                        value={formData.wohnung_id}
+                        onChange={handleComboboxChange}
+                        placeholder={isLoadingWohnungen ? "Lädt..." : "Wohnung auswählen"}
+                        searchPlaceholder="Wohnung suchen..."
+                        emptyText="Keine Wohnung gefunden."
+                        disabled={isLoadingWohnungen || isSubmitting}
+                      />
+                    </div>
+
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+                      <PropertyHeader
+                        icon={TrendingUpDown}
+                        label="Typ"
+                        htmlFor="ist_einnahmen"
+                        infoText="Wählen Sie aus, ob es sich um Einnahmen oder Ausgaben handelt."
+                      />
+                      <Select
+                        name="ist_einnahmen"
+                        value={formData.ist_einnahmen ? "Einnahmen" : "Ausgaben"}
+                        onValueChange={handleSelectChange}
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger id="ist_einnahmen" className="w-full">
+                          <SelectValue placeholder="Typ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Einnahmen">Einnahmen</SelectItem>
+                          <SelectItem value="Ausgaben">Ausgaben</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+                      <PropertyHeader
+                        icon={Tag}
+                        label="Tags"
+                        htmlFor="tags"
+                        infoText="Optionale Tags zur Kategorisierung, um die spätere Filterung und Auswertung zu erleichtern."
+                      />
+                      <TagInput
+                        value={formData.tags}
+                        onChange={(tags) => {
+                          setFormData({ ...formData, tags });
+                          setFinanceModalDirty(true);
+                        }}
+                        disabled={isSubmitting}
+                        placeholder="Tags auswählen (optional)..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sm:space-y-4 sm:pt-3 sm:border-t sm:border-border/40">
+                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                    Zusatzinfos
+                  </div>
+
+                  <div className="sm:grid sm:gap-4 space-y-2 sm:space-y-0 min-w-0">
+                    <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-1 sm:space-y-0">
+                      <PropertyHeader
+                        icon={FileText}
+                        label="Notiz"
+                        htmlFor="notiz"
+                        infoText="Fügen Sie optionale interne Notizen hinzu (z.B. Rechnungsnummern, Leistungsbeschreibungen)."
+                      />
+                      <div className="relative">
+                        <Textarea
+                          ref={textareaRef}
+                          id="notiz"
+                          name="notiz"
+                          value={formData.notiz || ""}
+                          onChange={handleChange}
+                          placeholder="Interne Notizen..."
+                          disabled={isSubmitting}
+                          className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all text-sm focus-visible:scale-100 resize-none min-h-[80px] pr-8"
+                        />
+                        <div
+                          className="absolute bottom-2 right-2 cursor-ns-resize p-1 rounded-md hover:bg-muted transition-colors"
+                          onMouseDown={initResize}
+                        >
+                          <GripVertical className="size-4 text-foreground/70" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 min-w-0">
+                      <PropertyHeader
+                        icon={Paperclip}
+                        label="Dokument"
+                        htmlFor="dokument"
+                        infoText="Laden Sie Rechnungen oder Belege hoch. Die Datei wird im Rechnungsordner organisiert."
+                      />
+                      <div className="w-full pt-1 min-w-0">
+                        <FinanceFileUpload
+                          dokumentId={formData.dokument_id}
+                          wohnungId={formData.wohnung_id || null}
+                          financeId={financeInitialData?.id || null}
+                          onDocumentChange={(dokumentId) => {
+                            setFormData({ ...formData, dokument_id: dokumentId });
+                            if (!financeInitialData?.id) {
+                              setFinanceModalDirty(true);
+                            } else {
+                              setDocumentWasChanged(true);
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="col-span-1 sm:col-span-2 space-y-2">
-              <LabelWithTooltip htmlFor="tags" infoText="Optionale Tags zur Kategorisierung. Erleichtert die spätere Filterung und Auswertung.">
-                Tags
-              </LabelWithTooltip>
-              <TagInput
-                value={formData.tags}
-                onChange={(tags) => {
-                  setFormData({ ...formData, tags });
-                  setFinanceModalDirty(true);
-                }}
+          </ScrollArea>
+
+          <SheetFooter className="px-4 pb-8 pt-2 sm:p-8 sm:pb-14 sm:pt-4">
+            <div className="max-w-[90%] mx-auto w-full flex gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleCancelClick}
                 disabled={isSubmitting}
-                placeholder="Tags auswählen (optional)..."
-              />
-            </div>
-            <div className="space-y-2">
-              <LabelWithTooltip htmlFor="betrag" infoText="Betrag der Transaktion in Euro.">
-                Betrag (€)
-              </LabelWithTooltip>
-              <NumberInput id="betrag" name="betrag" step="0.01" value={formData.betrag} onChange={handleChange} required disabled={isSubmitting} />
-            </div>
-            <div className="space-y-2">
-              <LabelWithTooltip htmlFor="datum" infoText="Buchungs- oder Zahlungsdatum. Wird für Monats- und Jahresauswertungen, Cashflow-Berechnungen und die korrekte Zuordnung von Transaktionen verwendet.">
-                Datum
-              </LabelWithTooltip>
-              <DatePicker
-                id="datum"
-                value={formData.datum}
-                onChange={handleDateChange}
-                placeholder="TT.MM.JJJJ"
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="space-y-2">
-              <LabelWithTooltip htmlFor="wohnung_id" infoText="Optionale Zuordnung zu einer Wohnung. Erleichtert die Auswertung pro Objekt.">
-                Wohnung
-              </LabelWithTooltip>
-              <CustomCombobox
-                id="wohnung_id"
-                width="w-full"
-                options={apartmentOptions}
-                value={formData.wohnung_id}
-                onChange={handleComboboxChange}
-                placeholder={isLoadingWohnungen ? "Lädt..." : "Wohnung auswählen"}
-                searchPlaceholder="Wohnung suchen..."
-                emptyText="Keine Wohnung gefunden."
-                disabled={isLoadingWohnungen || isSubmitting}
-              />
-            </div>
-            <div className="space-y-2">
-              <LabelWithTooltip htmlFor="ist_einnahmen" infoText="Einnahmen oder Ausgaben auswählen. Beeinflusst Auswertungen.">
-                Typ
-              </LabelWithTooltip>
-              <Select
-                name="ist_einnahmen"
-                value={formData.ist_einnahmen ? "Einnahmen" : "Ausgaben"}
-                onValueChange={handleSelectChange}
-                disabled={isSubmitting}
+                className="flex-1 rounded-xl h-11 text-muted-foreground hover:text-foreground hover:scale-[1.005] active:scale-[0.995] hover:shadow-none"
               >
-                <SelectTrigger id="ist_einnahmen">
-                  <SelectValue placeholder="Typ" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Einnahmen">Einnahmen</SelectItem>
-                  <SelectItem value="Ausgaben">Ausgaben</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-1 sm:col-span-2 space-y-2">
-              <LabelWithTooltip
-                htmlFor="notiz"
-                infoText="Optionale interne Notiz. Hier können zusätzliche Details wie Rechnungsnummern, spezifische Leistungen oder weitere Informationen eingetragen werden. Der Inhalt ist durchsuchbar und erleichtert das spätere Auffinden spezifischer Transaktionen."
+                Abbrechen
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || isLoadingWohnungen}
+                className="flex-1 rounded-xl h-11 shadow-sm font-semibold hover:scale-[1.005] active:scale-[0.995] hover:shadow-sm"
               >
-                Notiz
-              </LabelWithTooltip>
-              <Input id="notiz" name="notiz" value={formData.notiz || ""} onChange={handleChange} disabled={isSubmitting} />
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" style={{ animationDuration: "600ms" }} viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Wird gespeichert...
+                  </span>
+                ) : (
+                  financeInitialData ? "Änderungen speichern" : "Transaktion anlegen"
+                )}
+              </Button>
             </div>
-            <div className="col-span-2 space-y-2">
-              <LabelWithTooltip
-                htmlFor="dokument"
-                infoText="Optionaler Dateianhang wie Rechnung, Beleg oder Vertrag. Die Datei wird automatisch im Ordner Rechnungen nach Haus und Wohnung organisiert."
-              >
-                Dokument
-              </LabelWithTooltip>
-              <FinanceFileUpload
-                dokumentId={formData.dokument_id}
-                wohnungId={formData.wohnung_id || null}
-                financeId={financeInitialData?.id || null}
-                onDocumentChange={(dokumentId) => {
-                  setFormData({ ...formData, dokument_id: dokumentId });
-                  // Only mark as dirty for new entries (no financeInitialData.id)
-                  // For existing entries, the document link is auto-saved by the upload API
-                  if (!financeInitialData?.id) {
-                    setFinanceModalDirty(true);
-                  } else {
-                    // Track that document was changed for existing entry (for refresh on close)
-                    setDocumentWasChanged(true);
-                  }
-                }}
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
-              Abbrechen
-            </Button>
-            <Button type="submit" disabled={isSubmitting || isLoadingWohnungen}>
-              {isSubmitting ? "Wird gespeichert..." : (financeInitialData ? "Aktualisieren" : "Speichern")}
-            </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+
+        <DeleteFinanceDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          financeName={financeInitialData?.name || formData.name}
+          isDeleting={isDeleting}
+          onDelete={handleDelete}
+        />
+      </SheetContent>
+    </Sheet>
   );
 }
