@@ -421,8 +421,9 @@ export default function UtilityCostPage() {
                 Jede Kostenart <span className="text-primary italic">im Blick.</span>
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                Von Heizung bis Versicherung — Mietevo zeigt Ihnen die genaue Verteilung 
-                Ihrer Betriebskosten. Erkennen Sie auf einen Blick, wo die größten Posten liegen.
+                Von Heizung bis Versicherung: Mietevo zeigt Ihnen die genaue Verteilung 
+                Ihrer Betriebskosten. Erkennen Sie auf einen Blick, wo die größten Posten liegen 
+                und wie sich die Kosten im Vergleich zum Vorjahr verändert haben.
               </p>
             </div>
 
@@ -529,9 +530,26 @@ export default function UtilityCostPage() {
       {/* Main Showcase */}
       <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32">
         <m.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Dashboard</span>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-3 mb-4">
+            Schnell zur <span className="text-primary italic">Abrechnung.</span>
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Greifen Sie auf die Abrechnungen all Ihrer Liegenschaften zu: für jedes Jahr, 
+            jedes Haus und jede Wohnung. Wechseln Sie nahtlos zwischen Jahren und Objekten, 
+            ohne den Überblick zu verlieren.
+          </p>
+        </m.div>
+        <m.div
           initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 }}
           className="max-w-7xl mx-auto"
         >
           <MacWindow className="shadow-2xl border-border/50 bg-background/50 backdrop-blur-xl">
