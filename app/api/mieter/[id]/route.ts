@@ -116,10 +116,10 @@ export async function DELETE(
             return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
-        const { error } = await supabase
-            .from('Mieter')
-            .delete()
-            .eq('id', id);
+        const { error } = await supabase.rpc('soft_delete_record', {
+            p_table_name: 'Mieter',
+            p_record_id: id,
+        });
 
         if (error) {
             console.error(`DELETE /api/mieter/${id} error:`, error);

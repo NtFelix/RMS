@@ -267,7 +267,10 @@ export async function DELETE(request: Request) {
       });
     }
 
-    const { error } = await supabase.from('Wohnungen').delete().match({ id });
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Wohnungen',
+      p_record_id: id,
+    });
     if (error) {
       console.error("Supabase Delete Error (Wohnungen):", error);
       return NextResponse.json({ error: error.message }, { 
