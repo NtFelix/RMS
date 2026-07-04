@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell 
+  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
@@ -51,7 +51,7 @@ const sidebarNavGroups: SidebarNavGroupType[] = [
       {
         title: "Organisationen",
         href: "/organisation",
-        icon: Building2,
+        icon: Network,
       },
     ]
   },
