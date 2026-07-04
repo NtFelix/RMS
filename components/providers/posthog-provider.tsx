@@ -5,6 +5,7 @@ import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, Suspense, useState, useReducer } from 'react'
 import posthogProxyConfig from '@/lib/posthog-proxy'
+import { syncSupportIdentity } from '@/lib/posthog-support'
 
 const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 
@@ -150,6 +151,9 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
               is_anonymous: false,
             });
           }
+
+          // Sync the PostHog Support identity so tickets follow the user across browsers/devices.
+          await syncSupportIdentity(posthog, user.id)
         }
         // Note: Anonymous tracking for documentation pages removed for GDPR compliance
         // Users must accept cookies before any tracking occurs
@@ -229,6 +233,8 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
               user_type: 'authenticated',
               is_anonymous: false,
             })
+
+            void syncSupportIdentity(posthog, user.id)
 
             posthog.capture('user_logged_in', {
               provider: provider || 'email',

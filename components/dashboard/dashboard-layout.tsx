@@ -9,6 +9,12 @@ import { cn } from "@/lib/utils"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
+import dynamic from "next/dynamic"
+
+const SupportLauncher = dynamic(
+  () => import("@/components/support/support-launcher").then((mod) => mod.SupportLauncher),
+  { ssr: false },
+)
 
 export function DashboardLayout({ 
   children,
@@ -138,7 +144,8 @@ export function DashboardLayout({
           </main>
         </div>
 
-        {mounted && isMobile && <MobileBottomNavigation sidebarData={sidebarData} />}
+        {mounted && isMobile && <MobileBottomNavigation />}
+        <SupportLauncher />
       </div>
     </TaskDndProvider>
   )
