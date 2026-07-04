@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown, ChevronDown, ChevronUp, FileUp, AlertTriangle, Key, RefreshCw, Layers, Calendar, Check, ArrowRight, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
 import { CTAButton } from '@/components/ui/cta-button';
-import { LazyMotion, m, domAnimation, AnimatePresence } from 'framer-motion';
+import { LazyMotion, m, domMax, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 import BottomCTA from '@/components/ui/bottom-cta';
 import { cn } from '@/lib/utils';
@@ -50,6 +50,17 @@ export default function UtilityCostPage() {
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [spreadsheetHoveredRow, setSpreadsheetHoveredRow] = useState<number | null>(null);
+
+  const heroRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+
+  const headingOpacity = useTransform(scrollYProgress, [0, 0.55], [1, 0]);
+  const headingY = useTransform(scrollYProgress, [0, 0.55], [0, -50]);
+  const sheetParallaxY = useTransform(scrollYProgress, [0, 1], [0, 110]);
+  const gridParallaxY = useTransform(scrollYProgress, [0, 1], [0, 40]);
 
   const donutSegments = [
     { pct: 30, color: "#3b82f6", label: "Heizung & Warmwasser", delay: 0.45 },
@@ -193,10 +204,13 @@ export default function UtilityCostPage() {
 
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domMax}>
       <div className="min-h-screen bg-background text-foreground">
       {/* Background Decor — Spreadsheet Grid */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
+      <m.div
+        style={{ y: gridParallaxY }}
+        className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10"
+      >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-linear-to-b from-primary/10 via-primary/5 to-transparent opacity-50" />
         
         {/* Spreadsheet grid */}
@@ -226,36 +240,24 @@ export default function UtilityCostPage() {
         <div className="absolute inset-0 bg-linear-to-r from-background from-[5%] via-transparent via-[15%] to-background to-[95%]" />
         
         <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-      </div>
+      </m.div>
 
       {/* Spreadsheet Hero — Sag Chaos Ade */}
-      <section className="min-h-screen bg-linear-to-b from-background to-muted/20">
+      <section ref={heroRef} className="min-h-screen bg-linear-to-b from-background to-muted/20">
 
-        {/* Hero — centered heading + CTAs */}
-        <div className="container mx-auto px-4 pt-48 pb-16">
+        {/* Hero — centered heading + CTAs (scroll-driven fade) */}
+        <m.div
+          style={{ opacity: headingOpacity, y: headingY }}
+          className="container mx-auto px-4 pt-48 pb-16"
+        >
           <div className="max-w-4xl mx-auto text-center">
-            <m.h1
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight"
-            >
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
               Sag <span className="text-primary italic">Chaos Ade.</span>
-            </m.h1>
-            <m.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              className="text-lg sm:text-xl text-muted-foreground mt-4 mb-10 max-w-2xl mx-auto"
-            >
+            </h1>
+            <p className="text-lg sm:text-xl text-muted-foreground mt-4 mb-10 max-w-2xl mx-auto">
               Spare Zeit und exportiere deine Abrechnungen einfach mit klarer Übersicht.
-            </m.p>
-            <m.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center"
-            >
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <CTAButton
                 variant="primary"
                 text="14 Tage kostenlos testen"
@@ -270,18 +272,16 @@ export default function UtilityCostPage() {
                 icon={DollarSign}
                 iconPosition="left"
               />
-            </m.div>
+            </div>
           </div>
-        </div>
+        </m.div>
 
-        {/* Spreadsheet Showcase */}
-        <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32">
-          <m.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-2xl border border-border/50 bg-card shadow-xl overflow-hidden"
-          >
+        {/* Spreadsheet Showcase (scroll-driven parallax) */}
+        <m.div
+          style={{ y: sheetParallaxY }}
+          className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32"
+        >
+          <div className="rounded-2xl border border-border/50 bg-card shadow-xl overflow-hidden">
             {/* Formula bar */}
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border/30 bg-muted/20 shrink-0">
               <span className="text-xs font-semibold text-muted-foreground/60 min-w-[60px] px-2 py-0.5 rounded-md bg-background border border-border/30 text-center font-mono">
@@ -401,8 +401,8 @@ export default function UtilityCostPage() {
                 ∑ {EXCEL_DATA.reduce((s, r) => s + (r.fehler ? 0 : r.gesamt), 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
               </span>
             </div>
-          </m.div>
-        </div>
+          </div>
+        </m.div>
       </section>
 
       {/* Kostenverteilung — Donut Chart */}
@@ -693,7 +693,7 @@ export default function UtilityCostPage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center max-w-3xl mx-auto mb-20"
+            className="opacity-0 translate-y-5 text-center max-w-3xl mx-auto mb-20"
           >
             <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Alle Funktionen <span className="text-primary italic">im Gesamtüberblick.</span></h2>
             <p className="text-lg text-muted-foreground">Ein nahtloser Workflow, der Zeit spart und Fehler eliminiert.</p>
@@ -705,7 +705,7 @@ export default function UtilityCostPage() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="lg:col-span-4 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              className="opacity-0 translate-y-5 lg:col-span-4 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500"
             >
               <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
               <div className="relative h-full flex flex-col">
@@ -763,7 +763,7 @@ export default function UtilityCostPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              className="opacity-0 translate-y-5 lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500"
             >
               <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
               <div className="relative h-full flex flex-col">
@@ -820,7 +820,7 @@ export default function UtilityCostPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              className="opacity-0 translate-y-5 lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500"
             >
               <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
               <div className="relative h-full flex flex-col">
@@ -861,7 +861,7 @@ export default function UtilityCostPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.3 }}
-                className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+                className="opacity-0 translate-y-5 lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500"
               >
                 <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
                 <div className="relative h-full flex flex-col">
@@ -904,7 +904,7 @@ export default function UtilityCostPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 }}
-              className="lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-all duration-500"
+              className="opacity-0 translate-y-5 lg:col-span-2 group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500"
             >
               <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
               <div className="relative h-full flex flex-col">
