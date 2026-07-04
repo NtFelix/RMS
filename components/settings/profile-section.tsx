@@ -61,13 +61,20 @@ const ProfileSection = () => {
   const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
 
-  // Load name values immediately when auth resolves
+  // Load name values immediately on mount to ensure fresh metadata
   useEffect(() => {
-    if (user) {
-      setFirstName(user.user_metadata?.first_name || "")
-      setLastName(user.user_metadata?.last_name || "")
-    }
-  }, [user]);
+    let isMounted = true;
+    supabase.auth.getUser().then(res => {
+      const freshUser = res.data.user
+      if (freshUser && isMounted) {
+        setFirstName(freshUser.user_metadata?.first_name || "")
+        setLastName(freshUser.user_metadata?.last_name || "")
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [supabase]);
 
   // Load billing address values immediately when settings context resolves
   useEffect(() => {
@@ -284,6 +291,7 @@ const ProfileSection = () => {
           description: "Ihre Rechnungsadresse wurde erfolgreich gespeichert.",
           variant: "success",
         });
+        await refreshUserProfile();
       } else {
         throw new Error(result.error || "Ein unbekannter Fehler ist aufgetreten.");
       }

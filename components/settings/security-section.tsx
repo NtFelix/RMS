@@ -32,11 +32,8 @@ const SecuritySection = () => {
   }
 
   useEffect(() => {
-    if (user) {
-      setEmail(user.email || "")
-      setConfirmEmail(user.email || "")
-    }
-  }, [user]);
+    fetchUser()
+  }, [supabase]);
 
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {
