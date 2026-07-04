@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { StatCard } from "@/components/common/stat-card";
 import { toast } from "@/hooks/use-toast";
-import { LazyMotion, m, domAnimation } from "framer-motion";
+import { LazyMotion, domAnimation } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import {
   Users,
   Shield,
@@ -146,6 +147,11 @@ function uiReducer(state: UiState, action: UiAction): UiState {
 }
 
 // Extracted sub-components for maintainability
+const ORG_TABS = [
+  { value: "overview" as const, label: "Übersicht", icon: Network },
+  { value: "members" as const, label: "Mitarbeiter", icon: Users },
+];
+
 function OrganisationTabToggle({
   currentTab,
   onTabChange
@@ -154,47 +160,12 @@ function OrganisationTabToggle({
   onTabChange: (tab: "overview" | "members") => void;
 }) {
   return (
-    <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-      <m.button
-        layout
-        type="button"
-        onClick={() => onTabChange("overview")}
-        className={cn(
-          "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-          currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        {currentTab === "overview" && (
-          <m.div
-            layoutId="active-org-tab-pill"
-            className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          />
-        )}
-        <Network className="size-4 shrink-0" />
-        <span>&Uuml;bersicht</span>
-      </m.button>
-
-      <m.button
-        layout
-        type="button"
-        onClick={() => onTabChange("members")}
-        className={cn(
-          "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-          currentTab === "members" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        {currentTab === "members" && (
-          <m.div
-            layoutId="active-org-tab-pill"
-            className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          />
-        )}
-        <Users className="size-4 shrink-0" />
-        <span>Mitarbeiter</span>
-      </m.button>
-    </div>
+    <AnimatedPillToggle
+      tabs={ORG_TABS}
+      activeTab={currentTab}
+      onTabChange={onTabChange}
+      layoutId="active-org-tab-pill"
+    />
   );
 }
 
