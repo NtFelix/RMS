@@ -7,12 +7,27 @@ import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
   const { supabase } = await requireAuthenticatedUser();
+
+  // Permission check.
+  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
+    hasPermission('mieter', 'ansehen'),
+    hasPermission('mieter', 'erstellen'),
+    hasPermission('mieter', 'bearbeiten'),
+    hasPermission('mieter', 'loeschen'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
+  const accessibleIds = accessibleIdsResult.data;
+  if (!canView) {
+    redirect('/unauthorized');
+  }
 
   // Load data in parallel to eliminate waterfalls
   const [
@@ -24,7 +39,11 @@ export default async function MieterPage() {
       'get_mieter_wohnungen_overview',
       {},
       async () => {
-        const { data, error } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+        let q = supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+        if (accessibleIds !== null && accessibleIds.length > 0) {
+          q = q.in('haus_id', accessibleIds);
+        }
+        const { data, error } = await q;
         if (error) {
           console.error('Fehler beim Laden der Wohnungen:', error);
           throw error;
@@ -38,7 +57,13 @@ export default async function MieterPage() {
       'get_mieter_details_overview',
       {},
       async () => {
-        const { data, error } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        let q = supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        if (accessibleIds !== null && accessibleIds.length > 0) {
+          const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
+          const ids = whgIds?.map(w => w.id) ?? [];
+          q = ids.length > 0 ? q.in('wohnung_id', ids) : q;
+        }
+        const { data, error } = await q;
         if (error) {
           console.error('Fehler beim Laden der Mieter:', error);
           throw error;
@@ -49,8 +74,19 @@ export default async function MieterPage() {
     )
   ]);
 
+  // Post-fetch application-level filtering to guarantee scoping
+  let filteredMieter = rawMieter || [];
+  let filteredWohnungen = rawWohnungen || [];
+
+  if (accessibleIds !== null) {
+    const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
+    const ids = new Set(whgIds?.map(w => w.id) ?? []);
+    filteredMieter = (rawMieter || []).filter((m: any) => !m.wohnung_id || ids.has(m.wohnung_id));
+    filteredWohnungen = (rawWohnungen || []).filter((w: any) => ids.has(w.id));
+  }
+
   const today = new Date();
-  const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
+  const wohnungen: Wohnung[] = filteredWohnungen.map((apt: any) => {
     // If the data comes from our enriched RPC, it already has status and tenant
     if (apt.status && apt.tenant != null) {
       return {
@@ -60,7 +96,7 @@ export default async function MieterPage() {
     }
 
     // Fallback mapping logic
-    const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
+    const tenant = filteredMieter.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
     if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
       status = 'vermietet';
@@ -71,9 +107,9 @@ export default async function MieterPage() {
       status,
       tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
     } as Wohnung;
-  }) : [];
+  });
 
-  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({ ...m })) : [];
+  const mieter: Tenant[] = filteredMieter.map(m => ({ ...m }));
 
 
 
@@ -82,6 +118,9 @@ export default async function MieterPage() {
       initialTenants={mieter}
       initialWohnungen={wohnungen}
       serverAction={mieterServerAction}
+      canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
     />
   );
 }

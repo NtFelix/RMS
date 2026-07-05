@@ -10,6 +10,14 @@ export async function GET(
 ): Promise<NextResponse> {
     try {
         const { id } = await params;
+        const { verifyEntityInScope } = await import("@/lib/api-permissions");
+        
+        if (!(await verifyEntityInScope(id))) {
+            return NextResponse.json({ error: 'Permission denied' }, { 
+                status: 403,
+                headers: NO_CACHE_HEADERS
+            });
+        }
 
         const supabase = await createClient();
         const { data, error } = await supabase
@@ -52,6 +60,16 @@ export async function PATCH(
 ): Promise<NextResponse> {
     try {
         const { id } = await params;
+        const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+        await requireApiPermission('haeuser', 'bearbeiten');
+
+        if (!(await verifyEntityInScope(id))) {
+            return NextResponse.json({ error: 'Permission denied' }, { 
+                status: 403,
+                headers: NO_CACHE_HEADERS
+            });
+        }
+
         const body = await request.json();
 
         const supabase = await createClient();
@@ -82,8 +100,9 @@ export async function PATCH(
         });
     } catch (e) {
         console.error('Server error PATCH /api/haeuser/[id]:', e);
-        return NextResponse.json({ error: 'Serverfehler beim Aktualisieren des Hauses.' }, { 
-            status: 500,
+        const status = (e as Error).message === 'Permission denied' ? 403 : 500
+        return NextResponse.json({ error: (e as Error).message || 'Serverfehler beim Aktualisieren des Hauses.' }, { 
+            status,
             headers: NO_CACHE_HEADERS
         });
     }
@@ -99,12 +118,21 @@ export async function DELETE(
 ): Promise<NextResponse> {
     try {
         const { id } = await params;
+        const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+        await requireApiPermission('haeuser', 'loeschen');
+
+        if (!(await verifyEntityInScope(id))) {
+            return NextResponse.json({ error: 'Permission denied' }, { 
+                status: 403,
+                headers: NO_CACHE_HEADERS
+            });
+        }
 
         const supabase = await createClient();
-        const { error } = await supabase
-            .from('Haeuser')
-            .delete()
-            .eq('id', id);
+        const { error } = await supabase.rpc('soft_delete_record', {
+            p_table_name: 'Haeuser',
+            p_record_id: id,
+        });
 
         if (error) {
             console.error(`DELETE /api/haeuser/${id} error:`, error);
@@ -120,8 +148,9 @@ export async function DELETE(
         });
     } catch (e) {
         console.error('Server error DELETE /api/haeuser/[id]:', e);
-        return NextResponse.json({ error: 'Serverfehler beim Löschen des Hauses.' }, { 
-            status: 500,
+        const status = (e as Error).message === 'Permission denied' ? 403 : 500
+        return NextResponse.json({ error: (e as Error).message || 'Serverfehler beim Löschen des Hauses.' }, { 
+            status,
             headers: NO_CACHE_HEADERS
         });
     }

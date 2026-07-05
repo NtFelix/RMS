@@ -9,13 +9,7 @@ on:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
   pull_request:
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
   workflow_dispatch:
 
 env:
@@ -55,13 +49,19 @@ jobs:
 
       - name: Get changed files
         id: changed-files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_SHA="$PR_BASE_SHA"
+            HEAD_SHA="$PR_HEAD_SHA"
           else
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.sha }}"
+            BASE_SHA="$EVENT_BEFORE"
+            HEAD_SHA="$GITHUB_SHA"
 
             if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
               BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
@@ -83,19 +83,23 @@ jobs:
 
       - name: Check visual review scope
         id: visual
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should-run-visual=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
             echo "should-run-visual=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          BASE_SHA="$PR_BASE_SHA"
+          HEAD_SHA="$PR_HEAD_SHA"
 
           CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E \
             '^(app|components|lib|hooks|public|styles|playwright)/|\.css$|playwright\.config\.ts$' \
@@ -109,17 +113,21 @@ jobs:
 
       - name: Check Lighthouse audit scope
         id: lighthouse
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
           FULL_MATRIX='["mobile", "desktop", "tablet"]'
           DESKTOP_ONLY='["desktop"]'
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          elif [[ "$EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
+          elif [[ "$EVENT_NAME" == "pull_request" && ("$EVENT_ACTION" == "opened" || "$EVENT_ACTION" == "reopened") ]]; then
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
           else
@@ -129,8 +137,10 @@ jobs:
 
       - name: Check E2E scope
         id: e2e
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" || "$EVENT_NAME" == "push" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should-run-e2e=true" >> $GITHUB_OUTPUT
           else
             echo "should-run-e2e=false" >> $GITHUB_OUTPUT
@@ -138,6 +148,9 @@ jobs:
 
       - name: Discover & Filter Test Files
         id: tests
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
             -not -path "./node_modules/*" \
@@ -151,7 +164,7 @@ jobs:
           TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
 
           IS_FULL_RUN=false
-          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/main" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             IS_FULL_RUN=true
           fi
 
@@ -237,12 +250,17 @@ jobs:
 
       - name: Check deployment scope
         id: deploy
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          IS_MAIN_BRANCH=$([[ "${{ github.ref }}" == "refs/heads/main" ]] && echo "true" || echo "false")
-          IS_PR=$([[ "${{ github.event_name }}" == "pull_request" ]] && echo "true" || echo "false")
+          IS_MAIN_BRANCH=$([[ "$GITHUB_REF" == "refs/heads/main" ]] && echo "true" || echo "false")
+          IS_PR=$([[ "$EVENT_NAME" == "pull_request" ]] && echo "true" || echo "false")
           
           if [[ "$IS_PR" == "true" ]]; then
-            APP_CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" 2>/dev/null | grep -E '^(app|components|lib|hooks|public|styles|playwright|types|utils|supabase)/|\.css$|\.js$|\.tsx?$|package.*\.json|next\.config.*|tailwind\.config.*|Dockerfile|\.github/workflows' || true)
+            APP_CHANGED=$(git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" 2>/dev/null | grep -E '^(app|components|lib|hooks|public|styles|playwright|types|utils|supabase)/|\.css$|\.js$|\.tsx?$|package.*\.json|next\.config.*|tailwind\.config.*|Dockerfile|\.github/workflows' || true)
           else
             APP_CHANGED="true"
           fi
@@ -335,6 +353,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
         with:
           script: |
             const fs = require('fs').promises;
@@ -349,7 +368,7 @@ jobs:
             console.log('Running React Doctor scan for Discord payload...');
             let report;
             try {
-              execSync('npx react-doctor@latest . --diff ${{ github.base_ref }} --json > react-doctor-report.json || true');
+              execSync(`npx react-doctor@latest . --diff ${process.env.GITHUB_BASE_REF} --json > react-doctor-report.json || true`);
               const rawData = await fs.readFile('react-doctor-report.json', 'utf8');
               report = JSON.parse(rawData);
             } catch (error) {
@@ -562,14 +581,19 @@ jobs:
 
       - name: Set Image Name & Tag
         id: image
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           IMAGE_BASE="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            TAG="pr-${{ github.event.pull_request.number }}"
-          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            TAG="pr-$PR_NUMBER"
+          elif [ "$GITHUB_REF" = "refs/heads/main" ]; then
             TAG="latest"
           else
-            TAG="branch-${{ github.ref_name }}"
+            TAG="branch-$GITHUB_REF_NAME"
           fi
           echo "full_name=$IMAGE_BASE:$TAG" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
@@ -599,6 +623,7 @@ jobs:
             ROBOTS_INDEXING=${{ github.event_name == 'pull_request' && 'false' || 'true' }}
             POSTHOG_PROJECT_ID=${{ secrets.POSTHOG_PROJECT_ID }}
             POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
+            POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
           secrets: |
             "POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
             "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}"
@@ -619,6 +644,7 @@ jobs:
             -e NODE_ENV=production \
             -e NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
             -e NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
+            -e POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }} \
             ${{ steps.image.outputs.full_name }}
 
           # Give container a moment to start
@@ -805,7 +831,7 @@ jobs:
           echo "✓ Container runs as non-root user: **$USER**"
 
       - name: Push Docker image to Artifact Registry
-        if: success()
+        if: success() && github.actor != 'dependabot[bot]'
         run: |
           echo "Pushing ${{ steps.image.outputs.full_name }}..."
           docker push ${{ steps.image.outputs.full_name }}
@@ -893,7 +919,7 @@ jobs:
     name: E2E Smoke Check
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:v1.61.0-noble
     env:
       HOME: /root
     needs: [check-runs, build-app, lint, type-check]
@@ -944,7 +970,7 @@ jobs:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:v1.61.0-noble
     env:
       HOME: /root
     needs: [check-runs, build-app, lint, type-check, e2e-smoke]
@@ -1868,7 +1894,7 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:v1.61.0-noble
     env:
       HOME: /root
     needs: [lint, type-check, check-runs, build-app, e2e-smoke]
@@ -1928,14 +1954,18 @@ jobs:
       - name: Create PostHog Visual Review run
         if: always()
         id: vr-run
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          PR_ARGS: ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
             --type playwright \
             --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
-            --branch ${{ github.event.pull_request.head.ref || github.ref_name }} \
-            --commit $(git rev-parse HEAD) \
-            ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }})
+            --branch "$BRANCH_NAME" \
+            --commit "$COMMIT_SHA" \
+            $PR_ARGS)
           echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Created PostHog VR run: $RUN_ID"
 
@@ -1990,7 +2020,7 @@ jobs:
     name: Deploy Preview
     runs-on: ubuntu-latest
     needs: [docker-build, check-runs]
-    if: needs.check-runs.outputs.should-run-deploy-preview == 'true'
+    if: needs.check-runs.outputs.should-run-deploy-preview == 'true' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       pull-requests: write
@@ -2056,7 +2086,8 @@ jobs:
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
             RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
-
+            POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+ 
       - name: Comment Preview URL on PR
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
@@ -2129,7 +2160,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [docker-build, check-runs]
-    if: needs.check-runs.outputs.should-run-deploy-production == 'true'
+    if: needs.check-runs.outputs.should-run-deploy-production == 'true' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -2169,3 +2200,4 @@ jobs:
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
             RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
+            POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}

@@ -14,6 +14,7 @@ import { OperatingCostsFilters } from "@/components/finance/operating-costs-filt
 import { OperatingCostsTable } from "@/components/tables/operating-costs-table";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { StatCard } from "@/components/common/stat-card";
 import { NebenkostenDonutChart, BaseDonutChart } from "@/components/dashboard/dashboard-charts";
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
@@ -167,6 +168,10 @@ interface BetriebskostenClientViewProps {
   initialTenants?: any[];
   initialFinances?: any[];
   ownerName: string;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 export default function BetriebskostenClientView({
@@ -175,6 +180,10 @@ export default function BetriebskostenClientView({
   initialTenants = [],
   initialFinances = [],
   ownerName,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: BetriebskostenClientViewProps) {
   const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
@@ -950,48 +959,15 @@ export default function BetriebskostenClientView({
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* Visual Toggle Pill */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-        <motion.button
-          type="button"
-          layout
-          onClick={() => setCurrentTab("costs")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "costs" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "costs" && (
-            <motion.div
-              layoutId="active-betriebskosten-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <FileSpreadsheet className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Betriebskosten</span>
-        </motion.button>
-
-        <motion.button
-          type="button"
-          layout
-          onClick={() => setCurrentTab("overview")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "overview" && (
-            <motion.div
-              layoutId="active-betriebskosten-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Übersicht</span>
-        </motion.button>
-      </div>
+      <AnimatedPillToggle
+        tabs={[
+          { value: "costs", label: "Betriebskosten", icon: FileSpreadsheet },
+          { value: "overview", label: "Übersicht", icon: BarChart3 },
+        ]}
+        activeTab={currentTab}
+        onTabChange={setCurrentTab}
+        layoutId="active-betriebskosten-tab-pill"
+      />
 
       {currentTab === "costs" ? (
         <>
@@ -1037,6 +1013,7 @@ export default function BetriebskostenClientView({
                     onTemplateClick={handleOpenDefaultTemplateModal}
                     className="flex-1"
                     buttonText="Neue Abrechnung erstellen"
+                    canCreate={canCreate}
                   />
                   <Button
                     variant="outline"
@@ -1065,6 +1042,7 @@ export default function BetriebskostenClientView({
                     onTemplateClick={handleOpenDefaultTemplateModal}
                     buttonText="Betriebskostenabrechnung erstellen"
                     className="sm:w-auto"
+                    canCreate={canCreate}
                   />
                 </div>
               </div>
@@ -1090,6 +1068,9 @@ export default function BetriebskostenClientView({
                   onDeleteItem={openDeleteAlert}
                   ownerName={ownerName}
                   allHaeuser={initialHaeuser}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
+                  canViewMeters={canViewMeters}
                 />
               </div>
             </CardContent>
@@ -1520,7 +1501,7 @@ export default function BetriebskostenClientView({
 
                       <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium mt-auto px-1 italic">
                         {isOptimal 
-                          ? "✓ Ihre Kosten liegen unter dem Bundesdurchschnitt. Die Abrechnung entspricht dem Gebot der Wirtschaftlichkeit."
+                          ? "✓ Ihre Kosten liegen unter dem Bundesdurchschnitt."
                           : "⚠ Ihre Kosten übersteigen den Marktdurchschnitt. Prüfen Sie Optimierungspotenziale bei Versicherungen oder Dienstleistern."
                         }
                       </p>

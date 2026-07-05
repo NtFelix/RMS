@@ -7,9 +7,6 @@ jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
 }));
 
-jest.mock('@/lib/permissions', () => ({
-  hasPermission: jest.fn().mockResolvedValue(true),
-}));
 
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),

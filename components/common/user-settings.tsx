@@ -1,23 +1,63 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { LogOut, Settings, FileText } from "lucide-react"
+import { useState, useEffect } from "react"
+import { LogOut, Settings, FileText, Check, Trash2 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-// react-doctor-disable-next-line react-doctor/use-lazy-motion
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
+import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
+import { useToast } from "@/hooks/use-toast"
+
+const layoutTransition = {
+  type: "spring",
+  stiffness: 400,
+  damping: 38,
+  mass: 0.8
+} as const;
+
+const triggerVariants = {
+  expanded: {
+    width: "100%",
+    height: "auto",
+    borderRadius: "24px", // rounded-2xl
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "10px",
+    paddingBottom: "10px",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 38,
+      mass: 0.8
+    }
+  },
+  collapsed: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "9999px", // rounded-full
+    paddingLeft: "0px",
+    paddingRight: "0px",
+    paddingTop: "0px",
+    paddingBottom: "0px",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 38,
+      mass: 0.8
+    }
+  }
+} as const;
+
 
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ARIA_LABELS } from "@/lib/accessibility-constants"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { SettingsModal } from "@/components/modals/settings-modal"
 import { SidebarUserData } from "@/lib/server/user-data"
 import {
   CustomDropdown,
@@ -33,21 +73,95 @@ export function UserSettings({
   collapsed?: boolean;
   initialData: SidebarUserData;
 }) {
+  const { toast } = useToast()
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
-  const [openModal, setOpenModal] = useState(false)
-  const { openTemplatesModal } = useModalStore()
+  const { openTemplatesModal, openTrashBinModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
+
+  interface OrganisationItem {
+    organisation_id: string;
+    owner_id: string;
+    rolle: 'owner' | 'admin' | 'mitarbeiter';
+    name: string;
+  }
+
+  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
+  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
+
+  useEffect(() => {
+    const loadOrganisations = async () => {
+      try {
+        const res = await getMyOrganisationsAction()
+        if (res.success && res.data) {
+          setOrganisations(res.data)
+          setCurrentOrgId(res.currentOrgId ?? null)
+          sessionStorage.setItem("cached_organisations:v1", JSON.stringify({
+            orgs: res.data,
+            currentOrgId: res.currentOrgId
+          }))
+        }
+      } catch (e) {
+        console.error("Failed to load organisations:", e)
+      }
+    }
+
+    const cached = sessionStorage.getItem("cached_organisations:v1")
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        setOrganisations(parsed.orgs)
+        if (parsed.currentOrgId !== undefined) {
+          setCurrentOrgId(parsed.currentOrgId ?? null)
+        }
+      } catch {
+        sessionStorage.removeItem("cached_organisations:v1")
+      }
+    }
+
+    loadOrganisations()
+  }, [])
+
+  const handleSwitchOrg = async (orgId: string | null) => {
+    if (orgId === currentOrgId) return;
+    setIsSwitchingOrg(true);
+    try {
+      const res = await switchOrganisationAction(orgId);
+      if (res.success) {
+        window.location.reload();
+      } else {
+        console.error("Failed to switch organisation:", res.error?.message);
+        toast({
+          variant: "destructive",
+          title: "Fehler beim Wechseln",
+          description: res.error?.message || "Die Organisation konnte nicht gewechselt werden.",
+        });
+      }
+    } catch (e) {
+      console.error("Exception switching organisation:", e);
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+      });
+    } finally {
+      setIsSwitchingOrg(false);
+    }
+  };
+
 
   // Use custom hooks for data fetching
   const {
     user,
     userName,
-    userEmail,
     userInitials,
     isLoading: isLoadingUser
   } = useUserProfile(initialData)
+
+  const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
+  const isOrgAdminOrOwner = currentOrgId === null || (activeOrg && (activeOrg.rolle === 'owner' || activeOrg.rolle === 'admin'));
 
   const {
     count: apartmentCount,
@@ -104,23 +218,27 @@ export function UserSettings({
         align={collapsed ? "start" : "end"}
         className="w-56"
         trigger={
-          <div
-            className={cn(
-              "flex items-center cursor-pointer transition-all duration-300 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 w-full overflow-hidden",
-              collapsed 
-                ? "justify-center rounded-xl px-0 py-1 bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 h-12" 
-                : "px-3 py-2.5 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
-            )}
+          <m.div
+            variants={triggerVariants}
+            animate={collapsed ? "collapsed" : "expanded"}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="flex items-center cursor-pointer transition-all duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-md bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 rounded-2xl"
             aria-label="User menu"
           >
-            <div className="relative shrink-0">
+            <m.div 
+              layout
+              transition={layoutTransition}
+              className="relative shrink-0"
+            >
               <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
                 <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>
               </Avatar>
-            </div>
-            <motion.div
+            </m.div>
+            <m.div
               initial={false}
               variants={{
                 expanded: {
@@ -128,14 +246,24 @@ export function UserSettings({
                   width: "auto",
                   marginLeft: "12px",
                   display: "flex",
-                  transition: { duration: 0.2 }
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 38,
+                    mass: 0.8
+                  }
                 },
                 collapsed: {
                   opacity: 0,
                   width: 0,
                   marginLeft: "0px",
-                  transitionEnd: { display: "none" },
-                  transition: { duration: 0.2 }
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 38,
+                    mass: 0.8
+                  },
+                  transitionEnd: { display: "none" }
                 }
               }}
               animate={collapsed ? "collapsed" : "expanded"}
@@ -165,8 +293,8 @@ export function UserSettings({
                   <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
                 </div>
               )}
-            </motion.div>
-          </div>
+            </m.div>
+          </m.div>
         }
       >
         <CustomDropdownLabel>Mein Konto</CustomDropdownLabel>
@@ -180,10 +308,62 @@ export function UserSettings({
             <span>Vorlagen</span>
           </CustomDropdownItem>
         )}
-        <CustomDropdownItem onClick={() => setOpenModal(true)}>
+        <CustomDropdownItem onClick={() => router.push('/einstellungen/profil')}>
           <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>
+        {isOrgAdminOrOwner && (
+          <CustomDropdownItem onClick={() => openTrashBinModal()}>
+            <Trash2 className="mr-2 size-4" />
+            <span>Papierkorb</span>
+          </CustomDropdownItem>
+        )}
+        <CustomDropdownSeparator />
+        <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
+          Organisationen:
+        </CustomDropdownLabel>
+        <CustomDropdownItem
+          onClick={() => handleSwitchOrg(null)}
+          disabled={isSwitchingOrg}
+          className="flex items-center cursor-pointer"
+        >
+          {currentOrgId === null ? (
+            <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+          ) : (
+            <div className="mr-2 size-4 shrink-0" />
+          )}
+          <span className={cn(currentOrgId === null && "font-medium text-emerald-600 dark:text-emerald-400")}>
+            Privat
+          </span>
+        </CustomDropdownItem>
+        {organisations.map((org) => {
+          const isActive = currentOrgId === org.organisation_id;
+          const roleLabel =
+            org.rolle === 'owner' ? 'Owner' :
+            org.rolle === 'admin' ? 'Admin' :
+            'Mitarbeiter';
+
+          return (
+            <CustomDropdownItem
+              key={org.organisation_id}
+              onClick={() => handleSwitchOrg(org.organisation_id)}
+              disabled={isSwitchingOrg}
+              className="flex items-center cursor-pointer"
+            >
+              {isActive ? (
+                <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+              ) : (
+                <div className="mr-2 size-4 shrink-0" />
+              )}
+              <span className={cn(
+                "truncate",
+                isActive && "font-medium text-emerald-600 dark:text-emerald-400"
+              )}>
+                {org.name} <span className="text-xs text-gray-400 font-normal">({roleLabel})</span>
+              </span>
+            </CustomDropdownItem>
+          )
+        })}
         <CustomDropdownSeparator />
         <CustomDropdownItem
           onClick={handleLogout}
@@ -193,7 +373,6 @@ export function UserSettings({
           <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
         </CustomDropdownItem>
       </CustomDropdown>
-      <SettingsModal open={openModal} onOpenChange={setOpenModal} />
     </>
   )
 }

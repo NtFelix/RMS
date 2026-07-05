@@ -1,19 +1,8 @@
 import { ensureAuth } from "@/lib/auth-utils";
 import { redirect } from "next/navigation";
 
-export type Modul =
-  | 'haeuser'
-  | 'wohnungen'
-  | 'mieter'
-  | 'zaehler'
-  | 'finanzen'
-  | 'betriebskosten'
-  | 'dokumente'
-  | 'aufgaben'
-  | 'vorlagen'
-  | 'organisation';
-
-export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verwalten';
+import { evaluatePermission, type Modul, type Aktion } from "./permissions-core";
+export { evaluatePermission, type Modul, type Aktion };
 
 /**
  * Checks if the current authenticated user has permission for a specific module and action.
@@ -21,18 +10,20 @@ export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verw
  */
 export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boolean> {
   try {
-    const { supabase } = await ensureAuth();
-    const { data, error } = await supabase.rpc('check_permission', {
-      p_modul: modul,
-      p_aktion: aktion,
-    });
+    const { supabase, user } = await ensureAuth();
     
-    if (error) {
-      console.error(`Error in check_permission RPC for ${modul}:${aktion}:`, error);
+    // Resolve current organisation ID
+    const { data: orgId, error: orgError } = await supabase.rpc('current_organisation_id');
+    if (orgError) {
+      console.error(`Error fetching current_organisation_id for hasPermission:`, orgError);
       return false;
     }
-    
-    return data === true;
+
+    if (!orgId) {
+      return true; // Personal accounts have full access
+    }
+
+    return await evaluatePermission(supabase, user.id, orgId, modul, aktion);
   } catch (error) {
     console.error(`Exception checking permission for ${modul}:${aktion}:`, error);
     return false;
@@ -49,3 +40,22 @@ export async function requirePermission(modul: Modul, aktion: Aktion): Promise<v
     redirect("/unauthorized");
   }
 }
+
+/**
+ * Checks if the current user is an owner or admin in the active organization.
+ */
+export async function isOrgAdminOrOwner(): Promise<boolean> {
+  try {
+    const { supabase } = await ensureAuth();
+    const { data: isAdmin, error } = await supabase.rpc('is_org_admin_or_owner');
+    if (error) {
+      console.error("Error checking isOrgAdminOrOwner:", error);
+      return false;
+    }
+    return !!isAdmin;
+  } catch (error) {
+    console.error("Exception checking isOrgAdminOrOwner:", error);
+    return false;
+  }
+}
+

@@ -2,6 +2,14 @@ import { getPlanDetails } from "@/lib/stripe-server"
 import { User, SupabaseClient } from "@supabase/supabase-js"
 import { getUserDisplayData } from "@/lib/utils/user"
 import { getEffectiveApartmentLimit } from "@/lib/utils/subscription"
+import { evaluatePermission } from "@/lib/permissions-core"
+
+/**
+ * Modules that are gated by permissions in the sidebar.
+ * `null` = unrestricted (owner/admin or personal account).
+ * A Set means only the listed modules are visible to this user.
+ */
+export type SidebarModulePermissions = Set<string> | null;
 
 export interface SidebarUserData {
   user: User | null;
@@ -12,6 +20,8 @@ export interface SidebarUserData {
   apartmentLimit: number | typeof Infinity | null;
   hasOrganisationPermission: boolean;
   isOrganisationHidden: boolean;
+  /** null = no restrictions (personal account or owner/admin). Set = allowed modules. */
+  modulePermissions: SidebarModulePermissions;
 }
 
 /**
@@ -32,6 +42,7 @@ export async function getSidebarUserData(
       apartmentLimit: Infinity, // Guest users = unlimited (consistent with normalizeApartmentLimit)
       hasOrganisationPermission: false,
       isOrganisationHidden: false,
+      modulePermissions: null,
     }
   }
 
@@ -39,7 +50,7 @@ export async function getSidebarUserData(
   const displayData = getUserDisplayData(user);
 
   // Parallel fetch for apartment count, profile, organisation info if not provided
-  const [countResult, secondaryProfileResult, hasOrgPermResult, orgIdResult] = await Promise.all([
+  const [countResult, secondaryProfileResult, orgIdResult] = await Promise.all([
     supabase
       .from('Wohnungen')
       .select('id', { count: 'exact', head: true })
@@ -50,25 +61,47 @@ export async function getSidebarUserData(
       .select('stripe_subscription_status, stripe_price_id')
       .eq('id', user.id)
       .single() : Promise.resolve({ data: profile }),
-    supabase.rpc('check_permission', {
-      p_modul: 'organisation',
-      p_aktion: 'ansehen',
-    }),
-    supabase.rpc('current_organisation_id')
+    supabase.rpc('current_organisation_id'),
   ]);
 
-  const hasOrganisationPermission = hasOrgPermResult.data === true;
   const orgId = orgIdResult.data;
+  const hasOrganisationPermission = orgId !== null;
   let isOrganisationHidden = false;
+  let modulePermissions: SidebarModulePermissions = null;
 
   if (orgId) {
-    const { data: orgData } = await supabase
-      .from('Organisation')
-      .select('ist_versteckt')
-      .eq('id', orgId)
-      .maybeSingle();
-    isOrganisationHidden = orgData?.ist_versteckt ?? false;
+    const [orgDataResult, ...permChecks] = await Promise.all([
+      supabase
+        .from('Organisation')
+        .select('ist_versteckt')
+        .eq('id', orgId)
+        .maybeSingle(),
+      // Check 'ansehen' permission for each sidebar-gated module in parallel.
+      // Owners/admins → evaluatePermission returns true for all.
+      // Restricted members → only returns true for explicitly granted modules.
+      evaluatePermission(supabase, user.id, orgId, 'haeuser', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'wohnungen', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'mieter', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'finanzen', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'betriebskosten', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'aufgaben', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'dokumente', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'organisation', 'ansehen'),
+      evaluatePermission(supabase, user.id, orgId, 'zaehler', 'ansehen'),
+    ]);
+
+    isOrganisationHidden = orgDataResult.data?.ist_versteckt ?? false;
+
+    const GATED_MODULES = ['haeuser', 'wohnungen', 'mieter', 'finanzen', 'betriebskosten', 'aufgaben', 'dokumente', 'organisation', 'zaehler'] as const;
+    const allAllowed = permChecks.every(r => r === true);
+
+    if (!allAllowed && !isOrganisationHidden) {
+      modulePermissions = new Set(
+        GATED_MODULES.filter((_, i) => permChecks[i] === true)
+      );
+    }
   }
+
 
   let apartmentLimit: number | typeof Infinity | null = null;
   const activeProfile = profile || secondaryProfileResult.data;
@@ -101,5 +134,6 @@ export async function getSidebarUserData(
     apartmentLimit,
     hasOrganisationPermission,
     isOrganisationHidden,
+    modulePermissions,
   }
 }

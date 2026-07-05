@@ -1,5 +1,5 @@
 # Stage 1: Dependencies
-FROM node:22.22-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -8,7 +8,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
 # Stage 2: Build the source code
-FROM node:22.22-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Required at build time: inlined into client bundles
@@ -19,6 +19,7 @@ ARG NEXT_PUBLIC_POSTHOG_HOST
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_WORKER_URL
 ARG NEXT_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_APP_URL=https://mietevo.de
 ARG NEXT_PUBLIC_MIETEVO_MCP_URL
 ARG ROBOTS_INDEXING=true
 
@@ -34,6 +35,7 @@ ENV NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_WORKER_URL=$NEXT_PUBLIC_WORKER_URL
 ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_MIETEVO_MCP_URL=$NEXT_PUBLIC_MIETEVO_MCP_URL
 ENV ROBOTS_INDEXING=$ROBOTS_INDEXING
 ENV POSTHOG_PROJECT_ID=$POSTHOG_PROJECT_ID
@@ -53,7 +55,8 @@ RUN --mount=type=secret,id=POSTHOG_PERSONAL_API_KEY \
     npm run build
 
 # Stage 3: Production image
-FROM node:22.22-alpine AS runner
+FROM node:22-alpine AS runner
+RUN apk upgrade --no-cache && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 
 # Runtime environment variables

@@ -175,15 +175,24 @@ export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): 
     'get_nebenkosten_chart_data',
     {},
     async () => {
+      const { getAccessibleHaeuserIds } = await import("./object-scope");
+      const accessibleIds = await getAccessibleHaeuserIds();
+
       // First, get the most recent year with data
-      const { data: latestYearData } = await supabase
+      let latestYearQuery = supabase
         .from("Nebenkosten")
         .select("startdatum")
-        .order("startdatum", { ascending: false })
-        .limit(1)
-        .single();
+        .order("startdatum", { ascending: false });
 
-      if (!latestYearData?.startdatum) {
+      if (accessibleIds !== null) {
+        latestYearQuery = latestYearQuery.in("haus_id", accessibleIds);
+      }
+
+      const { data: latestYearData } = await latestYearQuery
+        .limit(1)
+    .maybeSingle();
+
+if (!latestYearData?.startdatum) {
         console.log("No Nebenkosten data found");
         return { year: new Date().getFullYear(), data: [] };
       }
@@ -194,12 +203,18 @@ export async function getNebenkostenChartData(supabaseClient?: SupabaseClient): 
       const yearEnd = `${latestYear}-12-31`;
 
       // Fetch only the data for the most recent year with data
-      const { data, error } = await supabase
+      let dataQuery = supabase
         .from("Nebenkosten")
         .select("nebenkostenart, betrag, startdatum, enddatum")
         .lte('startdatum', yearEnd)
         .gte('enddatum', yearStart)
         .order("startdatum", { ascending: false });
+
+      if (accessibleIds !== null) {
+        dataQuery = dataQuery.in("haus_id", accessibleIds);
+      }
+
+      const { data, error } = await dataQuery;
 
       if (error) {
         console.error("Error fetching Nebenkosten chart data:", error);

@@ -22,8 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -33,6 +32,10 @@ interface WohnungenClientViewProps {
   serverApartmentLimit: number;
   serverUserIsEligibleToAdd: boolean;
   serverLimitReason: 'trial' | 'subscription' | 'none';
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat("de-DE", {
@@ -48,6 +51,10 @@ export default function WohnungenClientView({
   serverApartmentLimit,
   serverUserIsEligibleToAdd,
   serverLimitReason,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
   const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
@@ -109,10 +116,12 @@ export default function WohnungenClientView({
   }, [apartments]);
 
   const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
-  const isAddButtonDisabled = !serverUserIsEligibleToAdd || limitReached;
+  const isAddButtonDisabled = !canCreate || !serverUserIsEligibleToAdd || limitReached;
 
   let buttonTooltipMessage = "";
-  if (!serverUserIsEligibleToAdd) {
+  if (!canCreate) {
+    buttonTooltipMessage = "Keine Berechtigung zum Erstellen";
+  } else if (!serverUserIsEligibleToAdd) {
     buttonTooltipMessage = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
   } else if (limitReached) {
     if (serverLimitReason === 'trial') {
@@ -308,6 +317,12 @@ export default function WohnungenClientView({
 
   const handleEditWohnung = useCallback(async (apartment: ApartmentTableType) => {
     try {
+      const existingApt = apartments.find(a => a.id === apartment.id);
+      if (existingApt) {
+        openWohnungModal(existingApt, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+        return;
+      }
+
       const supabase = createBrowserClient();
       const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartment.id).single();
       if (error || !aptToEdit) {
@@ -319,7 +334,12 @@ export default function WohnungenClientView({
     } catch (error) {
       console.error('Fehler beim Laden der Wohnung für Bearbeitung:', error);
     }
-  }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
+  }, [apartments, openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
+
+  const handleEditWohnungRef = useRef(handleEditWohnung);
+  handleEditWohnungRef.current = handleEditWohnung;
+  const apartmentsRef = useRef(apartments);
+  apartmentsRef.current = apartments;
 
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
@@ -327,61 +347,34 @@ export default function WohnungenClientView({
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
       try {
+        const existingApt = apartmentsRef.current.find(a => a.id === apartmentId);
+        if (existingApt) {
+          handleEditWohnungRef.current(existingApt);
+          return;
+        }
+
         const supabase = createBrowserClient();
         const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartmentId).single();
         if (error || !aptToEdit) { console.error('Wohnung nicht gefunden oder Fehler:', error?.message); return; }
         const transformedApt = { ...aptToEdit, Haeuser: Array.isArray(aptToEdit.Haeuser) ? aptToEdit.Haeuser[0] : aptToEdit.Haeuser } as Wohnung;
-        handleEditWohnung(transformedApt);
+        handleEditWohnungRef.current(transformedApt);
       } catch (error) { console.error('Fehler beim Laden der Wohnung für Event-Edit:', error); }
     };
     window.addEventListener('edit-apartment', handleEditApartmentListener);
     return () => window.removeEventListener('edit-apartment', handleEditApartmentListener);
-  }, [handleEditWohnung]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* 2-way sliding toggle */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("apartments")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "apartments" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "apartments" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Home className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Wohnungen</span>
-        </motion.button>
-
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("overview")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "overview" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Übersicht</span>
-        </motion.button>
-      </div>
+      <AnimatedPillToggle
+        tabs={[
+          { value: "apartments", label: "Wohnungen", icon: Home },
+          { value: "overview", label: "Übersicht", icon: BarChart3 },
+        ]}
+        activeTab={currentTab}
+        onTabChange={setCurrentTab}
+        layoutId="active-wohnungen-tab-pill"
+      />
 
       {currentTab === "apartments" ? (
         <>
@@ -518,7 +511,7 @@ export default function WohnungenClientView({
                         variant="outline"
                         size="sm"
                         onClick={() => setShowBulkDeleteConfirm(true)}
-                        disabled={isBulkDeleting}
+                        disabled={isBulkDeleting || !canDelete}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                       >
                         {isBulkDeleting ? (
@@ -548,6 +541,9 @@ export default function WohnungenClientView({
                 reloadRef={reloadRef}
                 selectedApartments={selectedApartments}
                 onSelectionChange={setSelectedApartments}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                canViewMeters={canViewMeters}
               />
             </CardContent>
           </Card>

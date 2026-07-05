@@ -93,6 +93,14 @@ export async function GET(
       );
     }
 
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (wohnungData.haus_id && !(await verifyEntityInScope(wohnungData.haus_id))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { status: 403, headers: NO_CACHE_HEADERS }
+      );
+    }
+
     // Fetch all Mieter for this Wohnung (current and historical)
     const { data: mieterData, error: mieterError } = await supabase
       .from('Mieter')

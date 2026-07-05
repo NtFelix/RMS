@@ -2,6 +2,7 @@
 
 import React, { useEffect, useReducer, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   BarChart3,
   Users,
@@ -22,7 +23,6 @@ import { SidebarUserData } from '@/lib/server/user-data'
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { cn } from '@/lib/utils'
-import { SettingsModal } from '@/components/modals/settings-modal'
 import { createClient } from '@/utils/supabase/client'
 import { ROUTES } from '@/lib/constants'
 
@@ -46,6 +46,7 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>
   onClick?: () => void
   badge?: number
+  hidden?: boolean
 }
 
 interface DropdownItem {
@@ -67,7 +68,6 @@ type NavUiState = {
   isMobile: boolean
   isDropdownOpen: boolean
   focusedItemIndex: number
-  isSettingsModalOpen: boolean
   announcement: string
   touchedItem: string | null
   isNavigating: boolean
@@ -80,7 +80,6 @@ type NavAction =
   | { type: 'SET_MOBILE'; payload: boolean }
   | { type: 'SET_DROPDOWN_OPEN'; payload: boolean }
   | { type: 'SET_FOCUSED_ITEM_INDEX'; payload: number }
-  | { type: 'SET_SETTINGS_MODAL_OPEN'; payload: boolean }
   | { type: 'SET_ANNOUNCEMENT'; payload: string }
   | { type: 'SET_TOUCHED_ITEM'; payload: string | null }
   | { type: 'SET_NAVIGATING'; payload: boolean }
@@ -93,7 +92,6 @@ const initialNavState: NavUiState = {
   isMobile: false,
   isDropdownOpen: false,
   focusedItemIndex: -1,
-  isSettingsModalOpen: false,
   announcement: '',
   touchedItem: null,
   isNavigating: false,
@@ -111,8 +109,6 @@ function navReducer(state: NavUiState, action: NavAction): NavUiState {
       return { ...state, isDropdownOpen: action.payload, focusedItemIndex: action.payload ? -1 : state.focusedItemIndex }
     case 'SET_FOCUSED_ITEM_INDEX':
       return { ...state, focusedItemIndex: action.payload }
-    case 'SET_SETTINGS_MODAL_OPEN':
-      return { ...state, isSettingsModalOpen: action.payload }
     case 'SET_ANNOUNCEMENT':
       return { ...state, announcement: action.payload }
     case 'SET_TOUCHED_ITEM':
@@ -131,6 +127,7 @@ function navReducer(state: NavUiState, action: NavAction): NavUiState {
 }
 
 function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteActive: (route: string) => boolean) {
+  const router = useRouter()
   const { setOpen: setCommandMenuOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
@@ -273,18 +270,29 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
     })
   }
 
+  const hasModulePermission = (moduleKey: string) => {
+    if (!sidebarData || sidebarData.modulePermissions === null) return true;
+    if (typeof sidebarData.modulePermissions.has === 'function') {
+      return sidebarData.modulePermissions.has(moduleKey);
+    }
+    if (Array.isArray(sidebarData.modulePermissions)) {
+      return (sidebarData.modulePermissions as any).includes(moduleKey);
+    }
+    return true;
+  };
+
   // Primary navigation items
   const primaryNavItems: NavigationItem[] = [
     { id: 'home', title: 'Home', href: ROUTES.HOME, icon: BarChart3 },
-    { id: 'tenants', title: 'Mieter', href: '/mieter', icon: Users },
+    { id: 'tenants', title: 'Mieter', href: '/mieter', icon: Users, hidden: !hasModulePermission('mieter') },
     { id: 'search', title: 'Suchen', icon: SearchIcon, onClick: handleSearchClick },
-    { id: 'finance', title: 'Finanzen', href: '/finanzen', icon: Wallet },
+    { id: 'finance', title: 'Finanzen', href: '/finanzen', icon: Wallet, hidden: !hasModulePermission('finanzen') },
     { id: 'more', title: 'Mehr', icon: Menu, onClick: handleMoreClick }
   ]
 
   // Profile click
   const handleProfileClick = () => {
-    dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: true })
+    router.push('/einstellungen/profil')
     dispatch({ type: 'SET_DROPDOWN_OPEN', payload: false })
     dispatch({ type: 'SET_ANNOUNCEMENT', payload: 'Settings opened.' })
   }
@@ -308,12 +316,12 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
   const dropdownItems: DropdownItem[] = [
     { id: 'profile', title: 'Profil', icon: User, onClick: handleProfileClick },
     { id: 'homepage', title: 'Homepage', href: '/', icon: Globe },
-    { id: 'houses', title: 'Häuser', href: '/haeuser', icon: Building2 },
-    { id: 'apartments', title: 'Wohnungen', href: '/wohnungen', icon: Home },
-    { id: 'operating-costs', title: 'Betriebskosten', href: '/betriebskosten', icon: FileSpreadsheet },
-    { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden },
-    { id: 'tasks', title: 'Aufgaben', href: '/todos', icon: CheckSquare },
-    { id: 'documents', title: 'Dokumente', href: '/dateien', icon: Folder, hidden: !documentsEnabled },
+    { id: 'houses', title: 'Häuser', href: '/haeuser', icon: Building2, hidden: !hasModulePermission('haeuser') },
+    { id: 'apartments', title: 'Wohnungen', href: '/wohnungen', icon: Home, hidden: !hasModulePermission('wohnungen') },
+    { id: 'operating-costs', title: 'Betriebskosten', href: '/betriebskosten', icon: FileSpreadsheet, hidden: !hasModulePermission('betriebskosten') },
+    { id: 'organisation', title: 'Organisationen', href: '/organisation', icon: Building2, hidden: !sidebarData?.hasOrganisationPermission || sidebarData?.isOrganisationHidden || !hasModulePermission('organisation') },
+    { id: 'tasks', title: 'Aufgaben', href: '/todos', icon: CheckSquare, hidden: !hasModulePermission('aufgaben') },
+    { id: 'documents', title: 'Dokumente', href: '/dateien', icon: Folder, hidden: !documentsEnabled || !hasModulePermission('dokumente') },
     { id: 'logout', title: 'Abmelden', icon: LogOut, onClick: handleLogout }
   ]
 
@@ -443,7 +451,7 @@ function useMobileNavigation(sidebarData: SidebarUserData | undefined, isRouteAc
     dropdownRef,
     moreButtonRef,
     dropdownItemRefs,
-    primaryNavItems,
+    primaryNavItems: primaryNavItems.filter(item => !item.hidden),
     dropdownItems,
     isMoreActive,
     visibleDropdownItems,
@@ -888,7 +896,6 @@ export default function MobileBottomNavigation({ className, sidebarData }: Mobil
         onTouchCancel={handleTouchCancel}
         className={className}
       />
-      <SettingsModal open={navState.isSettingsModalOpen} onOpenChange={(open) => dispatch({ type: 'SET_SETTINGS_MODAL_OPEN', payload: open })} />
     </>
   )
 }

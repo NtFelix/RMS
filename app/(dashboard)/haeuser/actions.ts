@@ -87,13 +87,27 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { error: insertError } = await supabase
+      const { data: newHouse, error: insertError } = await supabase
         .from("Haeuser")
-        .insert(houseData);
+        .insert(houseData)
+        .select('id')
+        .single();
 
-      if (insertError) {
-        logAction(actionName, 'error', { house_name: houseName, error_message: insertError.message });
-        return { success: false, error: { message: insertError.message } };
+      if (insertError || !newHouse) {
+        logAction(actionName, 'error', { house_name: houseName, error_message: insertError?.message || 'No data returned' });
+        return { success: false, error: { message: insertError?.message || 'Fehler beim Erstellen des Hauses.' } };
+      }
+
+      // Auto-grant scope access for restricted members
+      const haeuserIds = await getAccessibleHaeuserIds();
+      if (haeuserIds !== null) {
+        // User has restricted scope → add the new house to their override
+        const { error: scopeError } = await supabase.rpc('add_house_to_member_scope', {
+          p_house_id: newHouse.id,
+        });
+        if (scopeError) {
+          console.error('Failed to auto-grant scope for new house:', scopeError);
+        }
       }
     }
     revalidatePath("/haeuser");
@@ -125,14 +139,12 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
       return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
     }
 
-    const { error } = await supabase
-      .from("Haeuser")
-      .delete()
-      .eq("id", houseId);
-
-    if (error) {
-      logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
-      return { success: false, error: { message: error.message } };
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    try {
+      await softDeleteEntryAction("Haeuser", houseId);
+    } catch (err: any) {
+      logAction(actionName, 'error', { house_id: houseId, error_message: err.message });
+      return { success: false, error: { message: err.message } };
     }
 
     revalidatePath('/haeuser');

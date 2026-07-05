@@ -160,14 +160,12 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
         return { success: false, error: { message: "Zugriff auf diesen Mieter verweigert." } };
       }
     }
-    const { error } = await supabase
-      .from("Mieter")
-      .delete()
-      .eq("id", tenantId);
-
-    if (error) {
-      console.error("Error deleting tenant from Supabase:", error);
-      return { success: false, error: { message: error.message } };
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    try {
+      await softDeleteEntryAction("Mieter", tenantId);
+    } catch (err: any) {
+      console.error("Error soft deleting tenant:", err);
+      return { success: false, error: { message: err.message } };
     }
 
     revalidatePath('/mieter');

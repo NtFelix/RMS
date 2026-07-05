@@ -435,9 +435,7 @@ export async function fetchOptimizedNebenkostenById(id: string): Promise<{ succe
   try {
     // We use the RPC defined in modernize_nebenkosten_rpcs.sql
     // and filter for the specific ID
-    const { data, error } = await supabase.rpc('get_nebenkosten_with_metrics', {
-      user_id: user.id
-    });
+    const { data, error } = await supabase.rpc('get_nebenkosten_with_metrics');
 
     if (error) throw error;
 
@@ -943,6 +941,63 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+
+  if (!(await hasPermission('betriebskosten', 'bearbeiten'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+
+  const accessibleIds = await getAccessibleHaeuserIds();
+  if (accessibleIds !== null && formData.entries.length > 0) {
+    const meterIds = formData.entries.map(e => e.zaehler_id).filter(Boolean);
+    const mieterIds = formData.entries.map(e => e.mieter_id).filter(Boolean);
+
+    const allowedMeters = new Set<string>();
+    const allowedMieters = new Set<string>();
+
+    if (meterIds.length > 0) {
+      const { data: meters, error: meterError } = await supabase
+        .from('Zaehler')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', meterIds);
+      if (!meterError && meters) {
+        meters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) {
+            allowedMeters.add(m.id);
+          }
+        });
+      }
+    }
+
+    if (mieterIds.length > 0) {
+      const { data: mieters, error: mieterError } = await supabase
+        .from('Mieter')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', mieterIds);
+      if (!mieterError && mieters) {
+        mieters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) {
+            allowedMieters.add(m.id);
+          }
+        });
+      }
+    }
+
+    formData.entries = formData.entries.filter(e => {
+      if (e.zaehler_id) {
+        return allowedMeters.has(e.zaehler_id);
+      }
+      if (e.mieter_id) {
+        return allowedMieters.has(e.mieter_id);
+      }
+      return false;
+    });
+  }
+
   const results = [];
   let successCount = 0;
   let errorCount = 0;
@@ -1122,6 +1177,52 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
 export async function saveMeterReadingsOptimized(
   formData: MeterReadingFormData
 ): Promise<{ success: boolean; message?: string; data?: any[]; validationErrors?: string[] }> {
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('betriebskosten', 'bearbeiten'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  const { createSupabaseServerClient } = await import("@/lib/supabase-server");
+
+  const supabase = createSupabaseServerClient();
+  const accessibleIds = await getAccessibleHaeuserIds();
+  if (accessibleIds !== null && formData.entries.length > 0) {
+    const meterIds = formData.entries.map(e => e.zaehler_id).filter(Boolean);
+    const mieterIds = formData.entries.map(e => e.mieter_id).filter(Boolean);
+    const allowedMeters = new Set<string>();
+    const allowedMieters = new Set<string>();
+    if (meterIds.length > 0) {
+      const { data: meters } = await supabase
+        .from('Zaehler')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', meterIds);
+      if (meters) {
+        meters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) allowedMeters.add(m.id);
+        });
+      }
+    }
+    if (mieterIds.length > 0) {
+      const { data: mieters } = await supabase
+        .from('Mieter')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', mieterIds);
+      if (mieters) {
+        mieters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) allowedMieters.add(m.id);
+        });
+      }
+    }
+    formData.entries = formData.entries.filter(e => {
+      if (e.zaehler_id) return allowedMeters.has(e.zaehler_id);
+      if (e.mieter_id) return allowedMieters.has(e.mieter_id);
+      return false;
+    });
+  }
+
   // Import validation utilities dynamically to avoid server-side issues
   // Note: We might rename this file later, but for now it contains general validation logic acceptable for meters
   const { validateMeterReadingFormData, formatValidationErrors } = await import('@/utils/wasserzaehler-validation');

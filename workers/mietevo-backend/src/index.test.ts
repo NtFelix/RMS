@@ -151,6 +151,26 @@ describe('Backend Worker Tests', () => {
     });
 
     describe('Main Router (fetch)', () => {
+        it('should handle GET / correctly (health check)', async () => {
+            const request = new Request('https://worker.com/', {
+                method: 'GET'
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            expect(response.status).toBe(200);
+            expect(await response.text()).toBe('OK');
+        });
+
+        it('should handle GET /health correctly (health check)', async () => {
+            const request = new Request('https://worker.com/health', {
+                method: 'GET'
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            expect(response.status).toBe(200);
+            expect(await response.text()).toBe('OK');
+        });
+
         it('should route to /ai correctly', async () => {
             // Mocking handleAIRequest indirectly by checking the response or using spies
             // Since we export 'default', we can test that.

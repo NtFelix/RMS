@@ -11,6 +11,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('zaehler', 'bearbeiten');
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -25,12 +28,19 @@ export async function PATCH(
     // Verify the Zaehler_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Zaehler_Ablesungen')
-      .select('id, zaehler_id')
+      .select('id, zaehler_id, Zaehler(wohnung_id)')
       .eq('id', id)
       .maybeSingle()
 
     if (fetchError || !existing) {
       return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
+    }
+
+    const typedExisting = existing as any;
+    const wohnungId = typedExisting.Zaehler?.wohnung_id;
+
+    if (wohnungId && !(await verifyWohnungInScope(wohnungId))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Update Zaehler_Ablesung
@@ -63,7 +73,8 @@ export async function PATCH(
     return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in PATCH /api/wasser-ablesungen/[id]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (error as Error).message || 'Internal server error' }, { status, headers: NO_CACHE_HEADERS })
   }
 }
 
@@ -73,6 +84,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('zaehler', 'loeschen');
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -85,7 +99,7 @@ export async function DELETE(
     // Verify the Zaehler_Ablesung belongs to the user
     const { data: existing, error: fetchError } = await supabase
       .from('Zaehler_Ablesungen')
-      .select('id, zaehler_id')
+      .select('id, zaehler_id, Zaehler(wohnung_id)')
       .eq('id', id)
       .maybeSingle()
 
@@ -93,11 +107,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Zaehler_Ablesung not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
     }
 
+    const typedExisting = existing as any;
+    const wohnungId = typedExisting.Zaehler?.wohnung_id;
+
+    if (wohnungId && !(await verifyWohnungInScope(wohnungId))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
+    }
+
     // Delete Zaehler_Ablesung
-    const { error } = await supabase
-      .from('Zaehler_Ablesungen')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Zaehler_Ablesungen',
+      p_record_id: id,
+    });
 
     if (error) {
       console.error('Error deleting Zaehler_Ablesung:', error)
@@ -114,7 +135,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in DELETE /api/wasser-ablesungen/[id]:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (error as Error).message || 'Internal server error' }, { status, headers: NO_CACHE_HEADERS })
   }
 }
 

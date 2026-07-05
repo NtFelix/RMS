@@ -256,10 +256,10 @@ export async function DELETE(
     }
 
     // Perform the deletion
-    const { error } = await supabase
-      .from('Vorlagen')
-      .delete()
-      .eq('id', resolvedParams.id);
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Vorlagen',
+      p_record_id: resolvedParams.id,
+    });
 
     if (error) {
       console.error('DELETE /api/templates/[id] database error:', error);

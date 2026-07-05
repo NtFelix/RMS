@@ -26,10 +26,13 @@ export async function PATCH(request: Request) {
 
     const supabase = createSupabaseServerClient();
     
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'bearbeiten');
+
     // First, verify which records exist and can be updated
     const { data: existingRecords, error: fetchError } = await supabase
       .from('Finanzen')
-      .select('id')
+      .select('id, wohnung_id')
       .in('id', ids);
 
     if (fetchError) {
@@ -40,7 +43,22 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const existingIds = existingRecords?.map((record: { id: string }) => record.id) || [];
+    const existingRecordsList = existingRecords || [];
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const accessibleWohnungIds = await getAccessibleWohnungIds();
+    if (accessibleWohnungIds !== null) {
+      for (const record of existingRecordsList) {
+        if (record.wohnung_id && !accessibleWohnungIds.includes(record.wohnung_id)) {
+          return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
+      }
+    }
+
+    if (updates.wohnung_id && !(await verifyWohnungInScope(updates.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS });
+    }
+
+    const existingIds = existingRecordsList.map((record: { id: string }) => record.id);
     const missingIds = ids.filter((id: string) => !existingIds.includes(id));
     const validIds = ids.filter((id: string) => existingIds.includes(id));
 
@@ -90,9 +108,10 @@ export async function PATCH(request: Request) {
 
   } catch (error) {
     console.error('Unerwarteter Fehler bei der Massenaktualisierung:', error);
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
     return NextResponse.json(
-      { error: 'Interner Serverfehler' },
-      { status: 500, headers: NO_CACHE_HEADERS }
+      { error: (error as Error).message || 'Interner Serverfehler' },
+      { status, headers: NO_CACHE_HEADERS }
     );
   }
 }

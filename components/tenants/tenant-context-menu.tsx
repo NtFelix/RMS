@@ -8,7 +8,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, User, Trash2, Euro, FileText, Sparkles } from "lucide-react"
+import { Edit, User, Trash2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,9 +21,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
-import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
-import { useModalStore } from "@/hooks/use-modal-store";
+import { deleteTenantAction } from "@/app/mieter-actions"
+import { useModalStore } from "@/hooks/use-modal-store"
 import { useFeatureFlagEnabled } from "posthog-js/react"
+import { tenantActions, getVisibleActions, type TenantActionDef } from "@/components/tenants/tenant-menu-actions"
 
 import { Tenant } from "@/types/Tenant";
 
@@ -31,6 +33,8 @@ interface TenantContextMenuProps {
   tenant: Tenant
   onEdit: () => void
   onRefresh: () => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function TenantContextMenu({
@@ -38,6 +42,8 @@ export function TenantContextMenu({
   tenant,
   onEdit,
   onRefresh,
+  canEdit = true,
+  canDelete = true,
 }: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -77,8 +83,11 @@ export function TenantContextMenu({
         };
       }
 
-      // Open the modal with the prepared data
-      openKautionModal(cleanTenant, kautionData);
+      // Open the modal with the prepared data in the next event loop tick
+      // to allow the context menu to close properly first.
+      setTimeout(() => {
+        openKautionModal(cleanTenant, kautionData);
+      }, 0);
 
     } catch (error) {
       toast({
@@ -124,51 +133,65 @@ export function TenantContextMenu({
   };
 
   const handleTemplates = () => {
-    // Open tenant mail templates modal with tenant name and email
-    openTenantMailTemplatesModal(tenant.name, tenant.email);
+    // Open tenant mail templates modal with tenant name and email in the next tick
+    setTimeout(() => {
+      openTenantMailTemplatesModal(tenant.name, tenant.email);
+    }, 0);
   };
 
   const handleScoreDetails = () => {
-    openApplicantScoreModal({
-      tenant: {
-        id: tenant.id,
-        name: tenant.name,
-        email: tenant.email || undefined,
-        bewerbung_score: tenant.bewerbung_score,
-        bewerbung_metadaten: tenant.bewerbung_metadaten,
-        bewerbung_mail_id: tenant.bewerbung_mail_id
-      }
-    });
+    // Open applicant score details modal in the next tick
+    setTimeout(() => {
+      openApplicantScoreModal({
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          email: tenant.email || undefined,
+          bewerbung_score: tenant.bewerbung_score,
+          bewerbung_metadaten: tenant.bewerbung_metadaten,
+          bewerbung_mail_id: tenant.bewerbung_mail_id
+        }
+      });
+    }, 0);
   };
+
+  const actionHandlers: Record<string, () => void> = {
+    kaution: handleKaution,
+    datenblatt: handleScoreDetails,
+    vorlagen: handleTemplates,
+  }
 
   return (
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem 
+            onClick={() => {
+              setTimeout(() => {
+                onEdit();
+              }, 0);
+            }} 
+            disabled={!canEdit} 
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={handleKaution} className="flex items-center gap-2 cursor-pointer">
-            <Euro className="h-4 w-4" />
-            <span>Kaution</span>
-          </ContextMenuItem>
-          {tenant.bewerbung_metadaten && (
-            <ContextMenuItem onClick={handleScoreDetails} className="flex items-center gap-2 cursor-pointer text-indigo-600 dark:text-indigo-400 focus:text-indigo-600 focus:bg-indigo-50 dark:focus:bg-indigo-950">
-              <Sparkles className="h-4 w-4" />
-              <span>Datenblatt (AI)</span>
-            </ContextMenuItem>
-          )}
-          {templatesEnabled && (
-            <ContextMenuItem onClick={handleTemplates} className="flex items-center gap-2 cursor-pointer">
-              <FileText className="h-4 w-4" />
-              <span>Vorlagen</span>
-            </ContextMenuItem>
-          )}
+          {getVisibleActions(tenant, { templatesEnabled: !!templatesEnabled }).map((action) => {
+            const handler = actionHandlers[action.key]
+            if (!handler) return null
+            return (
+              <ContextMenuItem key={action.key} onClick={handler} className={cn("flex items-center gap-2 cursor-pointer", action.className)}>
+                <action.icon className="h-4 w-4" />
+                <span>{action.label}</span>
+              </ContextMenuItem>
+            )
+          })}
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />

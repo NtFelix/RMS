@@ -83,10 +83,10 @@ export async function DELETE(
   try {
     const { id } = await params
     
-    const { error } = await supabase
-      .from("Aufgaben")
-      .delete()
-      .eq("id", id)
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Aufgaben',
+      p_record_id: id,
+    });
     
     if (error) throw error
     

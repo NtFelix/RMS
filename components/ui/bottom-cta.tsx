@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Sparkles, ArrowRight, ExternalLink } from "lucide-react"
+import { Rocket, ArrowRight, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -86,7 +86,7 @@ export default function BottomCTA({
           className="mb-8"
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-xs mb-8">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <Rocket className="w-4 h-4 text-primary" />
             <span className="text-sm text-muted-foreground">{badgeText}</span>
           </div>
         </motion.div>
