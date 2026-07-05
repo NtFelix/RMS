@@ -267,19 +267,15 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
 
   try {
     const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
-    let successCount = 0;
-    for (const id of ids) {
-      await softDeleteEntryAction("Nebenkosten", id);
-      successCount++;
-    }
+    await Promise.all(ids.map(id => softDeleteEntryAction("Nebenkosten", id)));
 
     // Invalidate cache and refresh data
     revalidatePath("/dashboard/betriebskosten");
 
     return {
       success: true,
-      count: successCount,
-      message: `${successCount} Betriebskostenabrechnung${successCount !== 1 ? 'en' : ''} erfolgreich gelöscht`
+      count: ids.length,
+      message: `${ids.length} Betriebskostenabrechnung${ids.length !== 1 ? 'en' : ''} erfolgreich gelöscht`
     };
   } catch (error) {
     console.error("Error bulk deleting Nebenkosten:", error);
@@ -419,9 +415,7 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
   if (rechnungen && rechnungen.length > 0) {
     try {
       const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
-      for (const r of rechnungen) {
-        await softDeleteEntryAction("Rechnungen", r.id);
-      }
+      await Promise.all(rechnungen.map(r => softDeleteEntryAction("Rechnungen", r.id)));
     } catch (err: any) {
       console.error('Error soft deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, err);
       return { success: false, message: err.message };

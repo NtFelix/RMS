@@ -552,9 +552,7 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
 
     if (applicants && applicants.length > 0) {
       const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
-      for (const applicant of applicants) {
-        await softDeleteEntryAction("Mieter", applicant.id);
-      }
+      await Promise.all(applicants.map(applicant => softDeleteEntryAction("Mieter", applicant.id)));
     }
 
     revalidatePath('/mieter');

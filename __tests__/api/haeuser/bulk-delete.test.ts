@@ -1,25 +1,23 @@
 import { POST } from '@/app/api/haeuser/bulk-delete/route';
-import { createClient } from '@/utils/supabase/server';
-import { requireApiPermission, verifyEntityInScope } from '@/lib/api-permissions';
-
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
-}));
+import { requireApiPermission } from '@/lib/api-permissions';
+import { getAccessibleHaeuserIds } from '@/lib/object-scope';
+import { softDeleteEntryAction } from '@/lib/papierkorb/utils';
 
 jest.mock('@/lib/api-permissions', () => ({
   requireApiPermission: jest.fn(),
-  verifyEntityInScope: jest.fn(),
+}));
+
+jest.mock('@/lib/object-scope', () => ({
+  getAccessibleHaeuserIds: jest.fn(),
+}));
+
+jest.mock('@/lib/papierkorb/utils', () => ({
+  softDeleteEntryAction: jest.fn(),
 }));
 
 describe('POST /api/haeuser/bulk-delete', () => {
-  let mockSupabase: any;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSupabase = {
-      rpc: jest.fn(),
-    };
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   it('should return 400 if ids is not an array or empty', async () => {
@@ -46,12 +44,12 @@ describe('POST /api/haeuser/bulk-delete', () => {
     expect(body.error).toBe('Permission denied');
   });
 
-  it('should return 403 if verifyEntityInScope fails', async () => {
+  it('should return 403 if getAccessibleHaeuserIds denies scope', async () => {
     (requireApiPermission as jest.Mock).mockResolvedValue(undefined);
-    (verifyEntityInScope as jest.Mock).mockResolvedValue(false);
+    (getAccessibleHaeuserIds as jest.Mock).mockResolvedValue(['accessible-id-1']);
 
     const request = {
-      json: jest.fn().mockResolvedValue({ ids: ['id-1'] }),
+      json: jest.fn().mockResolvedValue({ ids: ['inaccessible-id'] }),
     } as unknown as Request;
 
     const response = await POST(request);
@@ -60,10 +58,10 @@ describe('POST /api/haeuser/bulk-delete', () => {
     expect(body.error).toBe('Permission denied');
   });
 
-  it('should call soft_delete_record for each ID and return success', async () => {
+  it('should call softDeleteEntryAction for each ID and return success', async () => {
     (requireApiPermission as jest.Mock).mockResolvedValue(undefined);
-    (verifyEntityInScope as jest.Mock).mockResolvedValue(true);
-    mockSupabase.rpc.mockResolvedValue({ error: null });
+    (getAccessibleHaeuserIds as jest.Mock).mockResolvedValue(null); // unrestricted
+    (softDeleteEntryAction as jest.Mock).mockResolvedValue(undefined);
 
     const request = {
       json: jest.fn().mockResolvedValue({ ids: ['id-1', 'id-2'] }),
@@ -74,21 +72,15 @@ describe('POST /api/haeuser/bulk-delete', () => {
     const body = await response.json();
     expect(body.successCount).toBe(2);
 
-    expect(mockSupabase.rpc).toHaveBeenCalledTimes(2);
-    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(1, 'soft_delete_record', {
-      p_table_name: 'Haeuser',
-      p_record_id: 'id-1',
-    });
-    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'soft_delete_record', {
-      p_table_name: 'Haeuser',
-      p_record_id: 'id-2',
-    });
+    expect(softDeleteEntryAction).toHaveBeenCalledTimes(2);
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(1, 'Haeuser', 'id-1');
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(2, 'Haeuser', 'id-2');
   });
 
-  it('should return 500 if supabase RPC fails', async () => {
+  it('should return 500 if softDeleteEntryAction fails', async () => {
     (requireApiPermission as jest.Mock).mockResolvedValue(undefined);
-    (verifyEntityInScope as jest.Mock).mockResolvedValue(true);
-    mockSupabase.rpc.mockResolvedValue({ error: { message: 'Database error' } });
+    (getAccessibleHaeuserIds as jest.Mock).mockResolvedValue(null);
+    (softDeleteEntryAction as jest.Mock).mockRejectedValue(new Error('Database error'));
 
     const request = {
       json: jest.fn().mockResolvedValue({ ids: ['id-1'] }),
