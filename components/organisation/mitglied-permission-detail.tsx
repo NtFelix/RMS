@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition, useMemo } from "react";
 import { MemberPermissions, HausWithWohnungen, OrganisationPolicy } from "@/lib/organisation-types";
 import { getMitgliedPermissionsAction, getOrgHaeuserAction, setMitgliedOverridesAction } from "@/lib/perms-actions";
-import { getPoliciesAction, getMitgliedPoliciesAction, updateMitgliedPoliciesAction } from "@/lib/organisation/policy-actions";
+import { getPoliciesAction, updateMitgliedPoliciesAction } from "@/lib/organisation/policy-actions";
 import { ObjectScopeEditor } from "./object-scope-editor";
 import { ModulePermissionEditor } from "./module-permission-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,8 +26,6 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
   const [originalPermissions, setOriginalPermissions] = useState<MemberPermissions | null>(null);
   const [haeuser, setHaeuser] = useState<HausWithWohnungen[]>([]);
   const [policies, setPolicies] = useState<OrganisationPolicy[]>([]);
-  const [assignedPolicyIds, setAssignedPolicyIds] = useState<string[]>([]);
-  const [originalAssignedPolicyIds, setOriginalAssignedPolicyIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, startSavingTransition] = useTransition();
 
@@ -38,18 +36,15 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
       if (isLocked) return;
       setLoading(true);
       try {
-        const [perms, houses, orgPolicies, memberPolicyIds] = await Promise.all([
+        const [perms, houses, orgPolicies] = await Promise.all([
           getMitgliedPermissionsAction(mitgliedId),
           getOrgHaeuserAction(),
           getPoliciesAction(),
-          getMitgliedPoliciesAction(mitgliedId),
         ]);
         setPermissions(perms);
         setOriginalPermissions(structuredClone(perms));
         setHaeuser(houses);
         setPolicies(orgPolicies);
-        setAssignedPolicyIds(memberPolicyIds);
-        setOriginalAssignedPolicyIds(memberPolicyIds);
       } catch (error) {
         console.error("Failed to load permissions and policies:", error);
         toast({
@@ -94,9 +89,9 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
   }, [permissions, haeuser]);
 
   const policyGrantedHausIds = useMemo(() => {
-    if (!policies || !assignedPolicyIds) return [];
+    if (!policies || !permissions?.policy_ids) return [];
 
-    const activePolicies = policies.filter(p => assignedPolicyIds.includes(p.id));
+    const activePolicies = policies.filter(p => permissions.policy_ids.includes(p.id));
 
     const hasUnrestrictedPolicy = activePolicies.some(p => {
       const houses = p.berechtigungen.objekte?.haeuser;
@@ -116,12 +111,12 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
     });
 
     return Array.from(ids);
-  }, [policies, assignedPolicyIds]);
+  }, [policies, permissions?.policy_ids]);
 
   const policyGrantedModulePermissions = useMemo(() => {
-    if (!policies || !assignedPolicyIds) return {};
+    if (!policies || !permissions?.policy_ids) return {};
 
-    const activePolicies = policies.filter(p => assignedPolicyIds.includes(p.id));
+    const activePolicies = policies.filter(p => permissions.policy_ids.includes(p.id));
     const merged: Record<string, string[]> = {};
 
     activePolicies.forEach(p => {
@@ -143,22 +138,21 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
     });
 
     return merged;
-  }, [policies, assignedPolicyIds]);
+  }, [policies, permissions?.policy_ids]);
 
   // Check if dirty
   const isDirty = useMemo(() => {
     if (!permissions || !originalPermissions) return false;
-    const hasOverridesChanges = JSON.stringify(permissions) !== JSON.stringify(originalPermissions);
-    const hasPoliciesChanges = JSON.stringify(assignedPolicyIds) !== JSON.stringify(originalAssignedPolicyIds);
-    return hasOverridesChanges || hasPoliciesChanges;
-  }, [permissions, originalPermissions, assignedPolicyIds, originalAssignedPolicyIds]);
+    return JSON.stringify(permissions) !== JSON.stringify(originalPermissions);
+  }, [permissions, originalPermissions]);
 
   const handleSave = () => {
-    if (!permissions || !isDirty) return;
+    if (!permissions || !originalPermissions || !isDirty) return;
 
     startSavingTransition(async () => {
       try {
-        const hasOverridesChanges = JSON.stringify(permissions) !== JSON.stringify(originalPermissions);
+        const hasOverridesChanges = JSON.stringify(permissions.module) !== JSON.stringify(originalPermissions.module)
+          || JSON.stringify(permissions.objekte) !== JSON.stringify(originalPermissions.objekte);
         if (hasOverridesChanges) {
           const payload = {
             module: permissions.module || {},
@@ -171,8 +165,8 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
           }
         }
 
-        const toAssign = assignedPolicyIds.filter(id => !originalAssignedPolicyIds.includes(id));
-        const toRemove = originalAssignedPolicyIds.filter(id => !assignedPolicyIds.includes(id));
+        const toAssign = permissions.policy_ids.filter(id => !originalPermissions.policy_ids.includes(id));
+        const toRemove = originalPermissions.policy_ids.filter(id => !permissions.policy_ids.includes(id));
 
         if (toAssign.length > 0 || toRemove.length > 0) {
           await updateMitgliedPoliciesAction(mitgliedId, toAssign, toRemove);
@@ -185,7 +179,6 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
         });
 
         setOriginalPermissions(structuredClone(permissions));
-        setOriginalAssignedPolicyIds([...assignedPolicyIds]);
       } catch (error: any) {
         console.error("Failed to save changes:", error);
         toast({
@@ -200,9 +193,6 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
   const handleReset = () => {
     if (originalPermissions) {
       setPermissions(structuredClone(originalPermissions));
-    }
-    if (originalAssignedPolicyIds) {
-      setAssignedPolicyIds([...originalAssignedPolicyIds]);
     }
   };
 
@@ -351,7 +341,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {policies.map(policy => {
-                const isChecked = assignedPolicyIds.includes(policy.id);
+                const isChecked = permissions.policy_ids.includes(policy.id);
                 return (
                   <div
                     key={policy.id}
@@ -366,11 +356,12 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
                       id={`policy-assign-${policy.id}`}
                       checked={isChecked}
                       onCheckedChange={(checked) => {
-                        if (checked) {
-                          setAssignedPolicyIds([...assignedPolicyIds, policy.id]);
-                        } else {
-                          setAssignedPolicyIds(assignedPolicyIds.filter(id => id !== policy.id));
-                        }
+                        setPermissions({
+                          ...permissions,
+                          policy_ids: checked
+                            ? [...permissions.policy_ids, policy.id]
+                            : permissions.policy_ids.filter(id => id !== policy.id),
+                        });
                       }}
                       disabled={saving}
                     />

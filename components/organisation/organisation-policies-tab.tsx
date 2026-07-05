@@ -43,6 +43,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
   const [editingPolicy, setEditingPolicy] = useState<OrganisationPolicy | null>(null);
   const [originalPolicy, setOriginalPolicy] = useState<OrganisationPolicy | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingPolicy, setDeletingPolicy] = useState<OrganisationPolicy | null>(null);
 
   // Fetch policies and houses on mount
   useEffect(() => {
@@ -165,19 +166,23 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
 
   const handleDelete = () => {
     if (!editingPolicy || !originalPolicy) return;
+    setDeletingPolicy(editingPolicy);
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = () => {
-    if (!editingPolicy || !originalPolicy) return;
-    const policyId = editingPolicy.id;
-    const policyName = editingPolicy.name;
+    if (!deletingPolicy) return;
+    const policyId = deletingPolicy.id;
+    const policyName = deletingPolicy.name;
 
     startSavingTransition(async () => {
       try {
         await deletePolicyAction(policyId);
         setPolicies(prev => prev.filter(p => p.id !== policyId));
-        handleSelectPolicy(null);
+        if (editingPolicy?.id === policyId) {
+          handleSelectPolicy(null);
+        }
+        setDeletingPolicy(null);
         toast({
           title: "Richtlinie gelöscht",
           description: `Die Richtlinie "${policyName}" wurde erfolgreich entfernt.`,
@@ -310,7 +315,15 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
                                 size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg"
                                 onClick={() => {
-                                  handleSelectPolicy(policy);
+                                  if (isDirty && editingPolicy && editingPolicy.id !== policy.id) {
+                                    toast({
+                                      title: "Ungespeicherte Änderungen",
+                                      description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  setDeletingPolicy(policy);
                                   setShowDeleteConfirm(true);
                                 }}
                                 title="Richtlinie löschen"
@@ -474,7 +487,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
               Richtlinie löschen
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center text-sm text-muted-foreground leading-relaxed">
-              Möchten Sie die Richtlinie <strong className="text-foreground">"{editingPolicy?.name}"</strong> wirklich löschen?
+              Möchten Sie die Richtlinie <strong className="text-foreground">"{deletingPolicy?.name}"</strong> wirklich löschen?
               Diese Richtlinie wird allen betroffenen Mitgliedern entzogen, wodurch sie die daraus resultierenden Rechte sofort verlieren.
             </AlertDialogDescription>
           </AlertDialogHeader>

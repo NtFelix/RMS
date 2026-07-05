@@ -13,6 +13,7 @@ export interface MemberPermissions {
     haeuser: string[] | null;
   };
   is_restricted: boolean;
+  policy_ids: string[];
 }
 
 export interface HausWithWohnungen {

@@ -65,15 +65,14 @@ export async function deletePolicyAction(policyId: string): Promise<void> {
 export async function getMitgliedPoliciesAction(mitgliedId: string): Promise<string[]> {
   const supabase = await createClient();
   await requirePermission('organisation', 'ansehen');
-  const { data, error } = await supabase
-    .from('Organisation_Mitglieder_Policies')
-    .select('policy_id')
-    .eq('mitglied_id', mitgliedId);
+  const { data, error } = await supabase.rpc('get_mitglied_policies', {
+    p_mitglied_id: mitgliedId,
+  });
   if (error) {
     console.error("Error fetching mitglied policies:", error);
     throw error;
   }
-  return (data ?? []).map(r => r.policy_id);
+  return (data ?? []) as string[];
 }
 
 export async function updateMitgliedPoliciesAction(
@@ -85,11 +84,15 @@ export async function updateMitgliedPoliciesAction(
   await requirePermission('organisation', 'verwalten');
 
   if (toAssign.length > 0) {
-    for (const policyId of toAssign) {
-      const { error } = await supabase.rpc('assign_policy', {
-        p_mitglied_id: mitgliedId,
-        p_policy_id: policyId,
-      });
+    const results = await Promise.all(
+      toAssign.map(policyId =>
+        supabase.rpc('assign_policy', {
+          p_mitglied_id: mitgliedId,
+          p_policy_id: policyId,
+        })
+      )
+    );
+    for (const { error } of results) {
       if (error) {
         console.error("Error in assign_policy RPC:", error);
         throw error;
@@ -98,11 +101,15 @@ export async function updateMitgliedPoliciesAction(
   }
 
   if (toRemove.length > 0) {
-    for (const policyId of toRemove) {
-      const { error } = await supabase.rpc('remove_policy', {
-        p_mitglied_id: mitgliedId,
-        p_policy_id: policyId,
-      });
+    const results = await Promise.all(
+      toRemove.map(policyId =>
+        supabase.rpc('remove_policy', {
+          p_mitglied_id: mitgliedId,
+          p_policy_id: policyId,
+        })
+      )
+    );
+    for (const { error } of results) {
       if (error) {
         console.error("Error in remove_policy RPC:", error);
         throw error;
