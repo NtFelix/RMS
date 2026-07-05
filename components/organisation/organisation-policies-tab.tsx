@@ -99,7 +99,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
     const newTemplate: OrganisationPolicy = {
       id: "",
       organisation_id: "",
-      name: "Neue Richtlinie",
+      name: "",
       berechtigungen: {
         module: {},
         objekte: { haeuser: null }
@@ -407,8 +407,9 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold uppercase text-zinc-500">Name der Richtlinie</label>
+                  <label htmlFor="policy-name-input" className="text-xs font-semibold uppercase text-zinc-500">Name der Richtlinie</label>
                   <Input
+                    id="policy-name-input"
                     type="text"
                     value={editingPolicy.name}
                     onChange={(e) => setEditingPolicy({ ...editingPolicy, name: e.target.value })}

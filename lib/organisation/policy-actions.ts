@@ -76,31 +76,41 @@ export async function getMitgliedPoliciesAction(mitgliedId: string): Promise<str
   return (data ?? []).map(r => r.policy_id);
 }
 
-export async function assignPolicyAction(mitgliedId: string, policyId: string): Promise<void> {
+export async function updateMitgliedPoliciesAction(
+  mitgliedId: string,
+  toAssign: string[],
+  toRemove: string[]
+): Promise<void> {
   const supabase = await createClient();
   await requirePermission('organisation', 'verwalten');
-  const { error } = await supabase.rpc('assign_policy', {
-    p_mitglied_id: mitgliedId,
-    p_policy_id: policyId,
-  });
-  if (error) {
-    console.error("Error in assign_policy RPC:", error);
-    throw error;
+
+  if (toAssign.length > 0) {
+    for (const policyId of toAssign) {
+      const { error } = await supabase.rpc('assign_policy', {
+        p_mitglied_id: mitgliedId,
+        p_policy_id: policyId,
+      });
+      if (error) {
+        console.error("Error in assign_policy RPC:", error);
+        throw error;
+      }
+    }
   }
+
+  if (toRemove.length > 0) {
+    for (const policyId of toRemove) {
+      const { error } = await supabase.rpc('remove_policy', {
+        p_mitglied_id: mitgliedId,
+        p_policy_id: policyId,
+      });
+      if (error) {
+        console.error("Error in remove_policy RPC:", error);
+        throw error;
+      }
+    }
+  }
+
   revalidatePath('/organisation');
 }
 
-export async function removePolicyAction(mitgliedId: string, policyId: string): Promise<void> {
-  const supabase = await createClient();
-  await requirePermission('organisation', 'verwalten');
-  const { error } = await supabase.rpc('remove_policy', {
-    p_mitglied_id: mitgliedId,
-    p_policy_id: policyId,
-  });
-  if (error) {
-    console.error("Error in remove_policy RPC:", error);
-    throw error;
-  }
-  revalidatePath('/organisation');
-}
 

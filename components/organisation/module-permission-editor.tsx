@@ -68,11 +68,9 @@ export function ModulePermissionEditor({
 
   const handleDeselectRowAll = (moduleKey: string) => {
     if (disabled) return;
-    // Fall back to policy actions
-    const policyActions = policyGrantedModulePermissions?.[moduleKey] || [];
     onChange({
       ...modulePermissions,
-      [moduleKey]: policyActions,
+      [moduleKey]: [],
     });
   };
 

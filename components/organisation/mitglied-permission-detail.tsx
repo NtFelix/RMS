@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition, useMemo } from "react";
 import { MemberPermissions, HausWithWohnungen, OrganisationPolicy } from "@/lib/organisation-types";
 import { getMitgliedPermissionsAction, getOrgHaeuserAction, setMitgliedOverridesAction } from "@/lib/perms-actions";
-import { getPoliciesAction, getMitgliedPoliciesAction, assignPolicyAction, removePolicyAction } from "@/lib/organisation/policy-actions";
+import { getPoliciesAction, getMitgliedPoliciesAction, updateMitgliedPoliciesAction } from "@/lib/organisation/policy-actions";
 import { ObjectScopeEditor } from "./object-scope-editor";
 import { ModulePermissionEditor } from "./module-permission-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -174,10 +174,9 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
         const toAssign = assignedPolicyIds.filter(id => !originalAssignedPolicyIds.includes(id));
         const toRemove = originalAssignedPolicyIds.filter(id => !assignedPolicyIds.includes(id));
 
-        await Promise.all([
-          ...toAssign.map(id => assignPolicyAction(mitgliedId, id)),
-          ...toRemove.map(id => removePolicyAction(mitgliedId, id))
-        ]);
+        if (toAssign.length > 0 || toRemove.length > 0) {
+          await updateMitgliedPoliciesAction(mitgliedId, toAssign, toRemove);
+        }
 
         toast({
           title: "Speichern erfolgreich",
