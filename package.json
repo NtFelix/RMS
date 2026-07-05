@@ -1,6 +1,6 @@
 {
   "name": "mietevo",
-  "version": "2.6.35",
+  "version": "2.6.36",
   "private": true,
   "engines": {
     "node": "^22.22.0"
