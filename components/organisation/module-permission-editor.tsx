@@ -30,15 +30,18 @@ interface ModulePermissionEditorProps {
   modulePermissions: Record<string, string[]>;
   onChange: (permissions: Record<string, string[]>) => void;
   disabled?: boolean;
+  policyGrantedModulePermissions?: Record<string, string[]>;
 }
 
 export function ModulePermissionEditor({
   modulePermissions,
   onChange,
   disabled = false,
+  policyGrantedModulePermissions,
 }: ModulePermissionEditorProps) {
   const togglePermission = (moduleKey: string, aktionKey: string) => {
     if (disabled) return;
+    if (policyGrantedModulePermissions?.[moduleKey]?.includes(aktionKey)) return; // Locked by policy
 
     const currentModulePerms = modulePermissions[moduleKey] || [];
     let nextModulePerms: string[];
@@ -65,9 +68,11 @@ export function ModulePermissionEditor({
 
   const handleDeselectRowAll = (moduleKey: string) => {
     if (disabled) return;
+    // Fall back to policy actions
+    const policyActions = policyGrantedModulePermissions?.[moduleKey] || [];
     onChange({
       ...modulePermissions,
-      [moduleKey]: [],
+      [moduleKey]: policyActions,
     });
   };
 
@@ -89,8 +94,13 @@ export function ModulePermissionEditor({
           <TableBody>
             {MODULES.map(mod => {
               const currentPerms = modulePermissions[mod.key] || [];
-              const isRowEmpty = currentPerms.length === 0;
-              const isRowAllSelected = currentPerms.length === AKTIONEN.length;
+              const policyPerms = policyGrantedModulePermissions?.[mod.key] || [];
+              
+              const isRowEmpty = currentPerms.length === 0 && policyPerms.length === 0;
+              const hasAllPermissions = AKTIONEN.every(
+                aktion => currentPerms.includes(aktion.key) || policyPerms.includes(aktion.key)
+              );
+              const isRowAllSelected = hasAllPermissions;
 
               return (
                 <TableRow key={mod.key} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
@@ -103,14 +113,15 @@ export function ModulePermissionEditor({
                     )}
                   </TableCell>
                   {AKTIONEN.map(aktion => {
-                    const isChecked = currentPerms.includes(aktion.key);
+                    const isGrantedByPolicy = policyPerms.includes(aktion.key);
+                    const isChecked = currentPerms.includes(aktion.key) || isGrantedByPolicy;
                     return (
                       <TableCell key={aktion.key} className="text-center py-3.5">
-                        <div className="flex justify-center">
+                        <div className="flex justify-center items-center gap-1">
                           <Checkbox
                             checked={isChecked}
                             onCheckedChange={() => togglePermission(mod.key, aktion.key)}
-                            disabled={disabled}
+                            disabled={disabled || isGrantedByPolicy}
                             id={`perm-${mod.key}-${aktion.key}`}
                             aria-label={`${mod.label} ${aktion.label}`}
                           />

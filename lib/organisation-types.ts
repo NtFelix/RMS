@@ -20,3 +20,17 @@ export interface HausWithWohnungen {
   name: string;
   wohnungen: { id: string; name: string }[];
 }
+
+export interface PolicyBerechtigungen {
+  module?: Record<string, string[]>;
+  objekte?: { haeuser?: string[] | null };
+}
+
+export interface OrganisationPolicy {
+  id: string;
+  organisation_id: string;
+  name: string;
+  berechtigungen: PolicyBerechtigungen;
+  erstellt_am: string;
+}
+
