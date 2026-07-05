@@ -528,15 +528,8 @@ export async function deleteZaehler(id: string) {
       return { success: false, message: "Zähler nicht gefunden." };
     }
 
-    const { error } = await supabase
-      .from("Zaehler")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.error("Error deleting meter:", error);
-      return { success: false, message: error.message };
-    }
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await softDeleteEntryAction("Zaehler", id);
 
     revalidatePath("/betriebskosten");
     return { success: true };
@@ -742,15 +735,8 @@ export async function deleteAblesung(id: string) {
 
   try {
 
-    const { error } = await supabase
-      .from("Zaehler_Ablesungen")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.error("Error deleting reading:", error);
-      return { success: false, message: error.message };
-    }
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await softDeleteEntryAction("Zaehler_Ablesungen", id);
 
     revalidatePath("/betriebskosten");
     return { success: true };
