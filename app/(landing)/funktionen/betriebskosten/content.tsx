@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Calculator, Droplets, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, Coins, PieChart, BarChart3, Filter, Droplet, ArrowUpRight, TrendingUp, TrendingDown, ChevronDown, ChevronUp, FileUp, AlertTriangle, Key, RefreshCw, Layers, Calendar, Check, ArrowRight, DollarSign } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Calculator, Zap, Flame, FileText, CheckCircle2, Receipt, FileDown, PieChart, Droplet, TrendingUp, TrendingDown, FileUp, AlertTriangle, RefreshCw, Check, ArrowRight, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MacWindow } from '@/components/ui/mac-window';
 import { MediaContent } from '@/components/ui/media-content';
@@ -61,6 +62,7 @@ export default function UtilityCostPage() {
   const headingY = useTransform(scrollYProgress, [0, 0.55], [0, -50]);
   const sheetParallaxY = useTransform(scrollYProgress, [0, 1], [0, 110]);
   const gridParallaxY = useTransform(scrollYProgress, [0, 1], [0, 40]);
+  const router = useRouter();
 
   const donutSegments = [
     { pct: 30, color: "#3b82f6", label: "Heizung & Warmwasser", delay: 0.45 },
@@ -959,7 +961,7 @@ export default function UtilityCostPage() {
 
       {/* Bottom CTA Section */}
       <BottomCTA
-        onGetStarted={() => window.location.href = '/?getStarted=true'}
+        onGetStarted={() => router.push('/?getStarted=true')}
         title="Bereit für transparente"
         subtitle="Betriebskostenabrechnungen?"
         description="Digitale Verwaltung muss nicht kompliziert sein. Starten Sie jetzt und erstellen Sie Ihre erste Abrechnung in wenigen Minuten."
