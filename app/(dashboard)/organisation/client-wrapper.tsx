@@ -42,6 +42,8 @@ import {
 } from "@/app/organisation-actions";
 
 import { MitgliedPermissionDetail } from "@/components/organisation/mitglied-permission-detail";
+import { OrganisationPoliciesTab } from "@/components/organisation/organisation-policies-tab";
+
 
 interface Member {
   mitglied_id: string;
@@ -80,7 +82,7 @@ interface OrganisationClientViewProps {
 }
 
 type UiState = {
-  currentTab: "overview" | "members";
+  currentTab: "overview" | "members" | "policies";
   searchQuery: string;
   roleFilter: string;
   statusFilter: string;
@@ -97,7 +99,7 @@ type UiState = {
 };
 
 type UiAction =
-  | { type: 'SET_TAB'; payload: "overview" | "members" }
+  | { type: 'SET_TAB'; payload: "overview" | "members" | "policies" }
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'SET_ROLE_FILTER'; payload: string }
   | { type: 'SET_STATUS_FILTER'; payload: string }
@@ -150,14 +152,15 @@ function uiReducer(state: UiState, action: UiAction): UiState {
 const ORG_TABS = [
   { value: "overview" as const, label: "Übersicht", icon: Network },
   { value: "members" as const, label: "Mitarbeiter", icon: Users },
+  { value: "policies" as const, label: "Richtlinien", icon: Shield },
 ];
 
 function OrganisationTabToggle({
   currentTab,
   onTabChange
 }: {
-  currentTab: "overview" | "members";
-  onTabChange: (tab: "overview" | "members") => void;
+  currentTab: "overview" | "members" | "policies";
+  onTabChange: (tab: "overview" | "members" | "policies") => void;
 }) {
   return (
     <AnimatedPillToggle
@@ -968,6 +971,12 @@ export default function OrganisationClientView({
           onRoleChange={handleRoleChange}
           onStatusChange={handleStatusChange}
           onRemove={handleRemove}
+        />
+      )}
+
+      {uiState.currentTab === "policies" && (
+        <OrganisationPoliciesTab
+          hasVerwaltenPermission={hasVerwaltenPermission}
         />
       )}
 
