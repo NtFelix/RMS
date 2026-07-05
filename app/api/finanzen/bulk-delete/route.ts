@@ -42,22 +42,26 @@ export async function POST(
       }
     }
     
-    // Delete all selected finance records in a single transaction
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .delete()
-      .in('id', ids);
-      
-    if (error) {
-      console.error('Bulk delete error:', error);
-      return NextResponse.json(
-        { error: 'Fehler beim Löschen der Transaktionen' }, 
-        { status: 500, headers: NO_CACHE_HEADERS }
-      );
+    // Delete all selected finance records
+    let successCount = 0;
+    for (const id of ids) {
+      const { error } = await supabase.rpc('soft_delete_record', {
+        p_table_name: 'Finanzen',
+        p_record_id: id,
+      });
+
+      if (error) {
+        console.error(`Supabase Bulk Delete Error for Finanzen ${id}:`, error);
+        return NextResponse.json(
+          { error: error.message },
+          { status: 500, headers: NO_CACHE_HEADERS }
+        );
+      }
+      successCount++;
     }
     
     return NextResponse.json(
-      { success: true, count: ids.length }, 
+      { success: true, count: successCount }, 
       { status: 200, headers: NO_CACHE_HEADERS }
     );
     

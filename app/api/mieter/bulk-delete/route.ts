@@ -39,22 +39,25 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data, error } = await supabase
-      .from('Mieter')
-      .delete()
-      .in('id', ids)
-      .select()
+    let successCount = 0;
+    for (const id of ids) {
+      const { error } = await supabase.rpc('soft_delete_record', {
+        p_table_name: 'Mieter',
+        p_record_id: id,
+      });
 
-    if (error) {
-      console.error("Supabase Bulk Delete Error:", error)
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500, headers: NO_CACHE_HEADERS }
-      )
+      if (error) {
+        console.error(`Supabase Bulk Delete Error for Mieter ${id}:`, error);
+        return NextResponse.json(
+          { error: error.message },
+          { status: 500, headers: NO_CACHE_HEADERS }
+        )
+      }
+      successCount++;
     }
 
     return NextResponse.json(
-      { successCount: data?.length || 0 },
+      { successCount },
       { status: 200, headers: NO_CACHE_HEADERS }
     )
   } catch (e) {
