@@ -981,6 +981,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     }
 
     setIsSubmitting(true)
+    // Clear the dirty flag optimistically as soon as the submit starts. This
+    // prevents the "unsaved changes" discard guard from firing during the
+    // in-flight window (or lingering after a failed save). Any further edits
+    // will re-mark the form dirty via handleFormChange.
+    setTenantModalDirty(false)
 
     try {
       const currentFormData = new FormData(e.currentTarget as HTMLFormElement)
@@ -1012,9 +1017,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           description: `Die Daten ${isApplicant ? "des Bewerbers" : "des Mieters"} "${tenantNameForToast}" wurden erfolgreich ${tenantInitialData?.id ? "aktualisiert" : "erstellt"}.`,
           variant: "success",
         })
-        setTenantModalDirty(false)
         useOnboardingStore.getState().completeStep('assign-tenant-form')
-        closeTenantModal()
+        closeTenantModal({ force: true })
         router.refresh()
       } else {
         toast({
@@ -1045,6 +1049,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         } as React.CSSProperties}
         isDirty={isTenantModalDirty}
         onAttemptClose={attemptClose}
+        disableClose={isPending}
       >
         <ResizeHandle
           isResizing={isSheetResizing}

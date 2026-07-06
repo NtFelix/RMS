@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useReducer, useTransition, useMemo } from "react";
+import { useState, useReducer, useTransition, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -582,6 +582,16 @@ function OrganisationMembersTab({
 }) {
   const selectedMember = members.find(m => m.mitglied_id === selectedMemberId);
 
+  // On narrow viewports the detail pane renders below the member table, so
+  // selecting a member can look like nothing happened. Scroll it into view
+  // whenever a member is selected.
+  const detailPaneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selectedMemberId && detailPaneRef.current) {
+      detailPaneRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedMemberId]);
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
@@ -643,7 +653,7 @@ function OrganisationMembersTab({
         </div>
 
         {/* Right Pane: Permission Configuration */}
-        <div className={cn("w-full", selectedMemberId ? "md:w-1/2" : "md:w-1/3")}>
+        <div ref={detailPaneRef} className={cn("w-full scroll-mt-24", selectedMemberId ? "md:w-1/2" : "md:w-1/3")}>
           {selectedMember ? (
             <MitgliedPermissionDetail
               mitgliedId={selectedMember.mitglied_id}
