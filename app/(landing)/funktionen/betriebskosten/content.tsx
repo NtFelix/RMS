@@ -407,6 +407,27 @@ export default function UtilityCostPage() {
         </m.div>
       </section>
 
+      {/* Transition: End of spreadsheets */}
+      <section className="py-32 relative overflow-hidden bg-background">
+        <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20">
+          <m.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center max-w-4xl mx-auto"
+          >
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
+              Keine Tabellen,{' '}
+              <span className="text-primary italic">kein Spreadsheet-Chaos.</span>
+            </h2>
+            <p className="text-lg sm:text-xl text-muted-foreground mt-6 max-w-2xl mx-auto leading-relaxed">
+              Mit Mietevo behalten Sie den Überblick über Ihre Betriebskosten, 
+              ohne jemals wieder eine Excel-Tabelle anfassen zu müssen.
+            </p>
+          </m.div>
+        </div>
+      </section>
+
       {/* Kostenverteilung — Donut Chart */}
       <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20 pb-32">
         <div className="max-w-5xl mx-auto">
