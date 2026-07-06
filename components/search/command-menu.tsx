@@ -125,7 +125,7 @@ export function CommandMenu() {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       // Toggle command menu with Cmd/Ctrl+K
-      if (e.key?.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault()
         useCommandMenu.setState((state) => ({ open: !state.open }))
         return

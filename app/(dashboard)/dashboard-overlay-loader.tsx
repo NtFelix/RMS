@@ -13,7 +13,7 @@ const DashboardOverlayHost = dynamic(() => import("./dashboard-overlay-host"), {
 function DashboardCommandHotkeys() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key?.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+      if ((event.metaKey || event.ctrlKey) && (event.key === "k" || event.key === "K")) {
         event.preventDefault()
         // Toggle the command menu by using zustand's state directly, avoiding dependency on `open`
         useCommandMenu.setState((state) => ({ open: !state.open }))
