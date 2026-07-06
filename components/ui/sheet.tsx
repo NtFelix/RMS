@@ -55,16 +55,30 @@ interface SheetContentProps
     VariantProps<typeof sheetVariants> {
   isDirty?: boolean
   onAttemptClose?: () => void
+  /**
+   * When true, all close affordances (Escape, overlay/outside click, and the
+   * close button) are inert. Use this while a submit/delete is in flight so a
+   * stray or rage-click can't route through the "unsaved changes" discard guard
+   * and force the user to discard an in-progress save.
+   */
+  disableClose?: boolean
 }
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, isDirty, onAttemptClose, ...props }, ref) => {
+>(({ side = "right", className, children, isDirty, onAttemptClose, disableClose, ...props }, ref) => {
   const handleInteraction = (
     event: Parameters<NonNullable<React.ComponentProps<typeof SheetPrimitive.Content>['onInteractOutside']>>[0]
   ) => {
     if (!event) return;
+
+    // While a save/delete is in flight, ignore outside interactions entirely so
+    // they can't trigger the discard guard.
+    if (disableClose) {
+      event.preventDefault();
+      return;
+    }
 
     // Check if the interaction is with a combobox or popover element
     const target = event.target as Element;
@@ -94,6 +108,10 @@ const SheetContent = React.forwardRef<
   const handleCloseButtonClick = (
     event: React.MouseEvent<HTMLButtonElement>
   ) => {
+    if (disableClose) {
+      event.preventDefault();
+      return;
+    }
     if (isDirty && onAttemptClose) {
       event.preventDefault();
       onAttemptClose();
@@ -109,6 +127,10 @@ const SheetContent = React.forwardRef<
         data-sheet-content="true"
         onInteractOutside={handleInteraction}
         onEscapeKeyDown={(e) => {
+          if (disableClose) {
+            e.preventDefault();
+            return;
+          }
           if (isDirty && onAttemptClose) {
             e.preventDefault();
             onAttemptClose();
