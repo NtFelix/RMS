@@ -553,14 +553,22 @@ export const getAuditLogsAction = withLogging(
   'getAuditLogs',
   async (
     limit: number,
-    offset: number
+    offset: number,
+    tableName?: string,
+    actionType?: string
   ): Promise<{ success: boolean; data?: any[]; error?: { message: string } }> => {
     try {
       const { user, supabase } = await ensureAuth();
+
+      if (!(await hasPermission('organisation', 'verwalten'))) {
+        return { success: false, error: { message: "Keine Berechtigung zum Anzeigen der Audit-Logs." } };
+      }
       
       const { data, error } = await supabase.rpc('get_organisation_audit_log', {
         p_limit: limit,
-        p_offset: offset
+        p_offset: offset,
+        p_table_name: tableName || null,
+        p_action: actionType || null
       });
 
       if (error) {
@@ -585,6 +593,10 @@ export const getAuditLogDetailsAction = withLogging(
   ): Promise<{ success: boolean; data?: any; error?: { message: string } }> => {
     try {
       const { user, supabase } = await ensureAuth();
+
+      if (!(await hasPermission('organisation', 'verwalten'))) {
+        return { success: false, error: { message: "Keine Berechtigung zum Anzeigen der Audit-Log-Details." } };
+      }
       
       const { data, error } = await supabase.rpc('get_audit_log_details', {
         p_audit_log_id: auditLogId

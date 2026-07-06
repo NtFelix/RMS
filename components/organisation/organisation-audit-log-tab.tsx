@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useId } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,9 +68,109 @@ const TABLE_NAME_MAP: Record<string, string> = {
   Vorlagen: "Vorlagen",
 };
 
+// Pure helper function to format individual values
+function formatValue(val: any): string {
+  if (val === null || val === undefined) return 'NULL';
+  if (typeof val === 'object') return JSON.stringify(val);
+  if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
+  return String(val);
+}
+
+// Pure helper function to get color classes based on audit action
+function getActionBadgeColor(action: AuditLogSummary['action']) {
+  switch (action) {
+    case 'INSERT':
+      return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+    case 'UPDATE':
+      return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+    case 'SOFT_DELETE':
+      return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+    case 'RESTORE':
+      return 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20';
+    case 'DELETE':
+      return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+    default:
+      return 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20';
+  }
+}
+
+// Sub-component for showing visual diffs between old and new state
+interface AuditLogDiffProps {
+  action: string;
+  oldData: any;
+  newData: any;
+}
+
+function AuditLogDiff({ action, oldData, newData }: AuditLogDiffProps) {
+  const oldObj = oldData || {};
+  const newObj = newData || {};
+
+  if (action === 'INSERT') {
+    return (
+      <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
+        {Object.entries(newObj).map(([key, val]) => (
+          <div key={key} className="grid grid-cols-3 py-1.5 border-b border-border/40 last:border-0 text-sm">
+            <span className="font-medium text-muted-foreground col-span-1">{key}</span>
+            <span className="text-foreground col-span-2 break-all font-mono text-xs">{formatValue(val)}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (action === 'DELETE' || action === 'SOFT_DELETE') {
+    return (
+      <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
+        {Object.entries(oldObj).map(([key, val]) => (
+          <div key={key} className="grid grid-cols-3 py-1.5 border-b border-border/40 last:border-0 text-sm">
+            <span className="font-medium text-muted-foreground col-span-1">{key}</span>
+            <span className="text-foreground col-span-2 line-through opacity-70 break-all font-mono text-xs">{formatValue(val)}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // UPDATE or RESTORE diffing
+  const allKeys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
+  const changedKeys = allKeys.filter(k => {
+    const oldVal = oldObj[k];
+    const newVal = newObj[k];
+    return JSON.stringify(oldVal) !== JSON.stringify(newVal);
+  });
+
+  if (changedKeys.length === 0) {
+    return (
+      <div className="flex items-center gap-2 p-4 rounded-lg bg-zinc-50 border border-zinc-100 dark:bg-zinc-950/20 dark:border-zinc-900/40 text-sm text-muted-foreground">
+        <Info className="size-4 shrink-0 text-zinc-500" />
+        <span>Keine geänderten Felder vorhanden (z.B. nur interne Metadaten oder unberührte Relationen).</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {changedKeys.map(key => (
+        <div key={key} className="border rounded-lg p-3 bg-muted/10 space-y-2">
+          <div className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">{key}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+            <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400">
+              <div className="text-[10px] text-rose-500/80 mb-1 font-sans uppercase font-bold">Vorher:</div>
+              <span className="line-through break-all">{formatValue(oldObj[key])}</span>
+            </div>
+            <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+              <div className="text-[10px] text-emerald-500/80 mb-1 font-sans uppercase font-bold">Nachher:</div>
+              <span className="break-all">{formatValue(newObj[key])}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function OrganisationAuditLogTab() {
   const [logs, setLogs] = useState<AuditLogSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Pagination State
@@ -87,16 +187,30 @@ export function OrganisationAuditLogTab() {
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  const [, startTransition] = useTransition();
+  // loading state derived from useTransition
+  const [isPending, startTransition] = useTransition();
 
-  // Load log summary list
-  const fetchLogs = (currentPage: number) => {
-    setIsLoading(true);
+  // Generate unique IDs for accessibility labels
+  const tableFilterSelectId = useId();
+  const actionFilterSelectId = useId();
+
+  // Reset page to 1 when filters change to avoid getting stuck on empty pages
+  useEffect(() => {
+    setPage(1);
+  }, [filterTable, filterAction]);
+
+  // Load log summary list from database using page and filter selections
+  const fetchLogs = (currentPage: number, table: string, action: string) => {
     setError(null);
     const offset = (currentPage - 1) * limit;
 
     startTransition(async () => {
-      const res = await getAuditLogsAction(limit + 1, offset); // Request limit + 1 to check if there is a next page
+      const res = await getAuditLogsAction(
+        limit + 1, 
+        offset, 
+        table === "all" ? undefined : table, 
+        action === "all" ? undefined : action
+      );
       if (res.success && res.data) {
         const hasNext = res.data.length > limit;
         const pageData = hasNext ? res.data.slice(0, limit) : res.data;
@@ -106,13 +220,12 @@ export function OrganisationAuditLogTab() {
       } else {
         setError(res.error?.message || "Fehler beim Laden des Audit-Logs.");
       }
-      setIsLoading(false);
     });
   };
 
   useEffect(() => {
-    fetchLogs(page);
-  }, [page]);
+    fetchLogs(page, filterTable, filterAction);
+  }, [page, filterTable, filterAction]);
 
   // Load detailed log on selection
   const handleSelectLog = (logId: string) => {
@@ -120,6 +233,7 @@ export function OrganisationAuditLogTab() {
     setIsSheetOpen(true);
     setDetailedLog(null);
 
+    // Call details action (separate transition for independent detail loading state)
     startTransition(async () => {
       const res = await getAuditLogDetailsAction(logId);
       if (res.success && res.data) {
@@ -130,107 +244,6 @@ export function OrganisationAuditLogTab() {
       }
       setIsDetailsLoading(false);
     });
-  };
-
-  // Filter logic (Client-side filtering for immediate feedback, database pagination for loading chunks)
-  const filteredLogs = logs.filter(log => {
-    const matchesTable = filterTable === "all" || log.table_name === filterTable;
-    const matchesAction = filterAction === "all" || log.action === filterAction;
-    return matchesTable && matchesAction;
-  });
-
-  const getActionBadgeColor = (action: AuditLogSummary['action']) => {
-    switch (action) {
-      case 'INSERT':
-        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-      case 'UPDATE':
-        return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
-      case 'SOFT_DELETE':
-        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-      case 'RESTORE':
-        return 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20';
-      case 'DELETE':
-        return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
-      default:
-        return 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20';
-    }
-  };
-
-  const formatValue = (val: any): string => {
-    if (val === null || val === undefined) return 'NULL';
-    if (typeof val === 'object') return JSON.stringify(val);
-    if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
-    return String(val);
-  };
-
-  const renderDiff = (action: string, oldData: any, newData: any) => {
-    const oldObj = oldData || {};
-    const newObj = newData || {};
-
-    if (action === 'INSERT') {
-      return (
-        <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
-          {Object.entries(newObj).map(([key, val]) => (
-            <div key={key} className="grid grid-cols-3 py-1.5 border-b border-border/40 last:border-0 text-sm">
-              <span className="font-medium text-muted-foreground col-span-1">{key}</span>
-              <span className="text-foreground col-span-2 break-all font-mono text-xs">{formatValue(val)}</span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (action === 'DELETE' || action === 'SOFT_DELETE') {
-      return (
-        <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
-          {Object.entries(oldObj).map(([key, val]) => (
-            <div key={key} className="grid grid-cols-3 py-1.5 border-b border-border/40 last:border-0 text-sm">
-              <span className="font-medium text-muted-foreground col-span-1">{key}</span>
-              <span className="text-foreground col-span-2 line-through opacity-70 break-all font-mono text-xs">{formatValue(val)}</span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    // UPDATE or RESTORE diffing
-    const allKeys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
-    // Filter out common irrelevant keys or ignore unchanged ones
-    const changedKeys = allKeys.filter(k => {
-      // Exclude generated fields from showing as changed if they only differ by minor format/precision
-      const oldVal = oldObj[k];
-      const newVal = newObj[k];
-      return JSON.stringify(oldVal) !== JSON.stringify(newVal);
-    });
-
-    if (changedKeys.length === 0) {
-      return (
-        <div className="flex items-center gap-2 p-4 rounded-lg bg-zinc-50 border border-zinc-100 dark:bg-zinc-950/20 dark:border-zinc-900/40 text-sm text-muted-foreground">
-          <Info className="size-4 shrink-0 text-zinc-500" />
-          <span>Keine geänderten Felder vorhanden (z.B. nur interne Metadaten oder unberührte Relationen).</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        {changedKeys.map(key => (
-          <div key={key} className="border rounded-lg p-3 bg-muted/10 space-y-2">
-            <div className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">{key}</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-              <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400">
-                <div className="text-[10px] text-rose-500/80 mb-1 font-sans uppercase font-bold">Vorher:</div>
-                <span className="line-through break-all">{formatValue(oldObj[key])}</span>
-              </div>
-              <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
-                <div className="text-[10px] text-emerald-500/80 mb-1 font-sans uppercase font-bold">Nachher:</div>
-                <span className="break-all">{formatValue(newObj[key])}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
   };
 
   return (
@@ -251,10 +264,10 @@ export function OrganisationAuditLogTab() {
             variant="outline" 
             size="sm" 
             className="w-full md:w-auto flex items-center gap-1.5"
-            onClick={() => fetchLogs(page)}
-            disabled={isLoading}
+            onClick={() => fetchLogs(page, filterTable, filterAction)}
+            disabled={isPending}
           >
-            <RefreshCw className={cn("size-3.5", isLoading && "animate-spin")} />
+            <RefreshCw className={cn("size-3.5", isPending && "animate-spin")} />
             Aktualisieren
           </Button>
         </div>
@@ -262,9 +275,11 @@ export function OrganisationAuditLogTab() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/40 mt-2">
           <div className="flex-1 max-w-[240px]">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Tabelle filtern</label>
+            <label htmlFor={tableFilterSelectId} className="text-xs font-medium text-muted-foreground mb-1 block">
+              Tabelle filtern
+            </label>
             <Select value={filterTable} onValueChange={setFilterTable}>
-              <SelectTrigger>
+              <SelectTrigger id={tableFilterSelectId}>
                 <SelectValue placeholder="Alle Tabellen" />
               </SelectTrigger>
               <SelectContent>
@@ -277,9 +292,11 @@ export function OrganisationAuditLogTab() {
           </div>
 
           <div className="flex-1 max-w-[200px]">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Aktion filtern</label>
+            <label htmlFor={actionFilterSelectId} className="text-xs font-medium text-muted-foreground mb-1 block">
+              Aktion filtern
+            </label>
             <Select value={filterAction} onValueChange={setFilterAction}>
-              <SelectTrigger>
+              <SelectTrigger id={actionFilterSelectId}>
                 <SelectValue placeholder="Alle Aktionen" />
               </SelectTrigger>
               <SelectContent>
@@ -314,8 +331,8 @@ export function OrganisationAuditLogTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                // Skeleton Loader
+              {isPending && logs.length === 0 ? (
+                // Skeleton Loader during initial page load
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
@@ -325,20 +342,20 @@ export function OrganisationAuditLogTab() {
                     <TableCell className="text-right"><div className="h-8 w-8 bg-muted animate-pulse rounded ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : filteredLogs.length === 0 ? (
+              ) : logs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
                     Keine Einträge im Audit-Log gefunden.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredLogs.map(log => (
+                logs.map(log => (
                   <TableRow 
                     key={log.id} 
                     className="group hover:bg-muted/50 cursor-pointer transition-colors"
                     onClick={() => handleSelectLog(log.id)}
                   >
-                    <TableCell className="font-medium whitespace-nowrap">
+                    <TableCell className="font-medium whitespace-nowrap" suppressHydrationWarning>
                       {new Date(log.changed_at).toLocaleString("de-DE", {
                         day: "2-digit",
                         month: "2-digit",
@@ -383,7 +400,7 @@ export function OrganisationAuditLogTab() {
         </div>
 
         {/* Pagination controls */}
-        {!isLoading && logs.length > 0 && (
+        {!isPending && logs.length > 0 && (
           <div className="flex items-center justify-between pt-4">
             <div className="text-xs text-muted-foreground">
               Seite {page}
@@ -393,7 +410,7 @@ export function OrganisationAuditLogTab() {
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-1"
-                disabled={page === 1 || isLoading}
+                disabled={page === 1 || isPending}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
               >
                 <ChevronLeft className="size-4" />
@@ -403,7 +420,7 @@ export function OrganisationAuditLogTab() {
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-1"
-                disabled={!hasMore || isLoading}
+                disabled={!hasMore || isPending}
                 onClick={() => setPage(p => p + 1)}
               >
                 Nächste
@@ -449,7 +466,7 @@ export function OrganisationAuditLogTab() {
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground block uppercase">Zeitpunkt</span>
-                    <span className="text-foreground">
+                    <span className="text-foreground" suppressHydrationWarning>
                       {new Date(detailedLog.changed_at).toLocaleString("de-DE", {
                         day: "2-digit",
                         month: "2-digit",
@@ -488,7 +505,11 @@ export function OrganisationAuditLogTab() {
 
                   <TabsContent value="diff" className="pt-4">
                     <h3 className="font-semibold text-sm mb-3 text-foreground">Feldänderungen:</h3>
-                    {renderDiff(detailedLog.action, detailedLog.old_data, detailedLog.new_data)}
+                    <AuditLogDiff 
+                      action={detailedLog.action} 
+                      oldData={detailedLog.old_data} 
+                      newData={detailedLog.new_data} 
+                    />
                   </TabsContent>
 
                   <TabsContent value="raw" className="pt-4">
