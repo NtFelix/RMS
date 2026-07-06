@@ -40,3 +40,22 @@ export async function requirePermission(modul: Modul, aktion: Aktion): Promise<v
     redirect("/unauthorized");
   }
 }
+
+/**
+ * Checks if the current user is an owner or admin in the active organization.
+ */
+export async function isOrgAdminOrOwner(): Promise<boolean> {
+  try {
+    const { supabase } = await ensureAuth();
+    const { data: isAdmin, error } = await supabase.rpc('is_org_admin_or_owner');
+    if (error) {
+      console.error("Error checking isOrgAdminOrOwner:", error);
+      return false;
+    }
+    return !!isAdmin;
+  } catch (error) {
+    console.error("Exception checking isOrgAdminOrOwner:", error);
+    return false;
+  }
+}
+

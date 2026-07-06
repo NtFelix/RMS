@@ -1,23 +1,61 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LogOut, Settings, FileText, Check } from "lucide-react"
+import { LogOut, Settings, FileText, Check, Trash2 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-// react-doctor-disable-next-line react-doctor/use-lazy-motion
-import { motion } from "framer-motion"
+import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
 import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
 import { useToast } from "@/hooks/use-toast"
+
+const layoutTransition = {
+  type: "spring",
+  stiffness: 400,
+  damping: 38,
+  mass: 0.8
+} as const;
+
+const triggerVariants = {
+  expanded: {
+    width: "100%",
+    height: "auto",
+    borderRadius: "24px", // rounded-2xl
+    paddingLeft: "12px",
+    paddingRight: "12px",
+    paddingTop: "10px",
+    paddingBottom: "10px",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 38,
+      mass: 0.8
+    }
+  },
+  collapsed: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "9999px", // rounded-full
+    paddingLeft: "0px",
+    paddingRight: "0px",
+    paddingTop: "0px",
+    paddingBottom: "0px",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 38,
+      mass: 0.8
+    }
+  }
+} as const;
 
 
 import { useUserProfile } from "@/hooks/use-user-profile"
 import { useApartmentUsage } from "@/hooks/use-apartment-usage"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ARIA_LABELS } from "@/lib/accessibility-constants"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { SidebarUserData } from "@/lib/server/user-data"
@@ -39,7 +77,7 @@ export function UserSettings({
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
-  const { openTemplatesModal } = useModalStore()
+  const { openTemplatesModal, openTrashBinModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   interface OrganisationItem {
@@ -118,10 +156,12 @@ export function UserSettings({
   const {
     user,
     userName,
-    userEmail,
     userInitials,
     isLoading: isLoadingUser
   } = useUserProfile(initialData)
+
+  const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
+  const isOrgAdminOrOwner = currentOrgId === null || (activeOrg && (activeOrg.rolle === 'owner' || activeOrg.rolle === 'admin'));
 
   const {
     count: apartmentCount,
@@ -178,23 +218,27 @@ export function UserSettings({
         align={collapsed ? "start" : "end"}
         className="w-56"
         trigger={
-          <div
-            className={cn(
-              "flex items-center cursor-pointer transition-all duration-300 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-lg dark:hover:shadow-zinc-950/20 overflow-hidden",
-              collapsed 
-                ? "justify-center rounded-full bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 size-12 mx-auto" 
-                : "w-full px-3 py-2.5 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/40 hover:bg-white/80 dark:hover:bg-zinc-900/70"
-            )}
+          <m.div
+            variants={triggerVariants}
+            animate={collapsed ? "collapsed" : "expanded"}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="flex items-center cursor-pointer transition-all duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-md bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 rounded-2xl"
             aria-label="User menu"
           >
-            <div className="relative shrink-0">
+            <m.div 
+              layout
+              transition={layoutTransition}
+              className="relative shrink-0"
+            >
               <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
                 <AvatarFallback className="bg-accent text-accent-foreground font-semibold">
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>
               </Avatar>
-            </div>
-            <motion.div
+            </m.div>
+            <m.div
               initial={false}
               variants={{
                 expanded: {
@@ -202,14 +246,24 @@ export function UserSettings({
                   width: "auto",
                   marginLeft: "12px",
                   display: "flex",
-                  transition: { duration: 0.2 }
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 38,
+                    mass: 0.8
+                  }
                 },
                 collapsed: {
                   opacity: 0,
                   width: 0,
                   marginLeft: "0px",
-                  transitionEnd: { display: "none" },
-                  transition: { duration: 0.2 }
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 38,
+                    mass: 0.8
+                  },
+                  transitionEnd: { display: "none" }
                 }
               }}
               animate={collapsed ? "collapsed" : "expanded"}
@@ -239,8 +293,8 @@ export function UserSettings({
                   <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
                 </div>
               )}
-            </motion.div>
-          </div>
+            </m.div>
+          </m.div>
         }
       >
         <CustomDropdownLabel>Mein Konto</CustomDropdownLabel>
@@ -258,6 +312,12 @@ export function UserSettings({
           <Settings className="mr-2 size-4" />
           <span>Einstellungen</span>
         </CustomDropdownItem>
+        {isOrgAdminOrOwner && (
+          <CustomDropdownItem onClick={() => openTrashBinModal()}>
+            <Trash2 className="mr-2 size-4" />
+            <span>Papierkorb</span>
+          </CustomDropdownItem>
+        )}
         <CustomDropdownSeparator />
         <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
           Organisationen:

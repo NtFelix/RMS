@@ -213,12 +213,10 @@ export async function deleteNebenkosten(id: string) {
     }
   }
 
-  const { error } = await supabase
-    .from("Nebenkosten")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
+  try {
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await softDeleteEntryAction("Nebenkosten", id);
+  } catch (error: any) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: error.message });
     return { success: false, message: error.message };
   }
@@ -268,21 +266,16 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
 
 
   try {
-    // Use in_ operator to delete multiple records in a single query
-    const { count, error } = await supabase
-      .from("Nebenkosten")
-      .delete()
-      .in("id", ids);
-
-    if (error) throw error;
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await Promise.all(ids.map(id => softDeleteEntryAction("Nebenkosten", id)));
 
     // Invalidate cache and refresh data
     revalidatePath("/dashboard/betriebskosten");
 
     return {
       success: true,
-      count: count || 0,
-      message: `${count} Betriebskostenabrechnung${count !== 1 ? 'en' : ''} erfolgreich gelöscht`
+      count: ids.length,
+      message: `${ids.length} Betriebskostenabrechnung${ids.length !== 1 ? 'en' : ''} erfolgreich gelöscht`
     };
   } catch (error) {
     console.error("Error bulk deleting Nebenkosten:", error);
@@ -408,14 +401,25 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
     }
   }
 
-  const { error } = await supabase
+  // Fetch Rechnungen for this Nebenkosten ID
+  const { data: rechnungen, error: fetchError } = await supabase
     .from("Rechnungen")
-    .delete()
+    .select("id")
     .eq("nebenkosten_id", nebenkostenId);
 
-  if (error) {
-    console.error('Error deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
-    return { success: false, message: error.message };
+  if (fetchError) {
+    console.error('Error fetching Rechnungen for deletion:', fetchError);
+    return { success: false, message: fetchError.message };
+  }
+
+  if (rechnungen && rechnungen.length > 0) {
+    try {
+      const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+      await Promise.all(rechnungen.map(r => softDeleteEntryAction("Rechnungen", r.id)));
+    } catch (err: any) {
+      console.error('Error soft deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, err);
+      return { success: false, message: err.message };
+    }
   }
 
   console.log(`[Server Action] Successfully deleted Rechnungen for nebenkosten_id ${nebenkostenId}`);

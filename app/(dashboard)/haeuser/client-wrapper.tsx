@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 
 const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
@@ -80,37 +81,19 @@ function bulkReducer(state: BulkState, action: BulkAction): BulkState {
   }
 }
 
-function TabButton({ tab, icon: Icon, label, isActive, onTabChange }: {
-  tab: Tab;
-  icon: typeof BarChart3;
-  label: string;
-  isActive: boolean;
-  onTabChange: (tab: Tab) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onTabChange(tab)}
-      className={cn(
-        "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-        isActive ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-      )}
-    >
-      {isActive && (
-        <div className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10" />
-      )}
-      <Icon className="size-4 shrink-0 transition-transform duration-300" />
-      <span>{label}</span>
-    </button>
-  );
-}
+const HOUSE_TABS = [
+  { value: "houses" as Tab, label: "Häuser", icon: Building2 },
+  { value: "overview" as Tab, label: "Übersicht", icon: BarChart3 },
+];
 
 function TabToggle({ currentTab, onTabChange }: { currentTab: Tab; onTabChange: (tab: Tab) => void }) {
   return (
-    <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-      <TabButton tab="houses" icon={Building2} label="Häuser" isActive={currentTab === "houses"} onTabChange={onTabChange} />
-      <TabButton tab="overview" icon={BarChart3} label="Übersicht" isActive={currentTab === "overview"} onTabChange={onTabChange} />
-    </div>
+    <AnimatedPillToggle
+      tabs={HOUSE_TABS}
+      activeTab={currentTab}
+      onTabChange={onTabChange}
+      layoutId="active-haeuser-tab-pill"
+    />
   );
 }
 

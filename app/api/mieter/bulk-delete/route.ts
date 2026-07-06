@@ -6,7 +6,7 @@ export const runtime = 'edge';
 
 export async function POST(request: Request) {
   try {
-    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    const { requireApiPermission } = await import("@/lib/api-permissions");
     await requireApiPermission('mieter', 'loeschen');
 
     const supabase = await createClient()
@@ -39,14 +39,20 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data, error } = await supabase
-      .from('Mieter')
-      .delete()
-      .in('id', ids)
-      .select()
-
-    if (error) {
-      console.error("Supabase Bulk Delete Error:", error)
+    try {
+      await Promise.all(
+        ids.map(async (id) => {
+          const { error } = await supabase.rpc('soft_delete_record', {
+            p_table_name: 'Mieter',
+            p_record_id: id,
+          });
+          if (error) {
+            console.error("Supabase Bulk Delete Error for Mieter:", id, error);
+            throw new Error(error.message);
+          }
+        })
+      );
+    } catch (error: any) {
       return NextResponse.json(
         { error: error.message },
         { status: 500, headers: NO_CACHE_HEADERS }
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { successCount: data?.length || 0 },
+      { successCount: ids.length },
       { status: 200, headers: NO_CACHE_HEADERS }
     )
   } catch (e) {

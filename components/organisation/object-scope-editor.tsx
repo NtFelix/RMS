@@ -9,6 +9,7 @@ interface ObjectScopeEditorProps {
   selectedHausIds: string[] | null; // null = unrestricted
   onChange: (hausIds: string[] | null) => void;
   disabled?: boolean;
+  policyGrantedHausIds?: string[] | null; // null = unrestricted by policies
 }
 
 export function ObjectScopeEditor({
@@ -16,22 +17,33 @@ export function ObjectScopeEditor({
   selectedHausIds,
   onChange,
   disabled = false,
+  policyGrantedHausIds,
 }: ObjectScopeEditorProps) {
   const isUnrestricted = selectedHausIds === null;
 
   const activeHausIds = React.useMemo(() => new Set(selectedHausIds || []), [selectedHausIds]);
+
+  const isHausGrantedByPolicy = React.useMemo(() => {
+    if (policyGrantedHausIds === undefined) return () => false;
+    if (policyGrantedHausIds === null) return () => true;
+    const set = new Set(policyGrantedHausIds);
+    return (id: string) => set.has(id);
+  }, [policyGrantedHausIds]);
+
+  const isPolicyUnrestricted = policyGrantedHausIds === null;
 
   const totalHousesCount = haeuser.length;
   const totalWohnungenCount = haeuser.reduce((sum, h) => sum + h.wohnungen.length, 0);
 
   const selectedHousesCount = isUnrestricted
     ? totalHousesCount
-    : haeuser.filter(h => activeHausIds.has(h.id)).length;
+    : haeuser.filter(h => activeHausIds.has(h.id) || isHausGrantedByPolicy(h.id)).length;
 
   const isLastHouse = !isUnrestricted && selectedHousesCount === 1;
 
   const toggleHaus = (hausId: string) => {
     if (disabled) return;
+    if (isHausGrantedByPolicy(hausId)) return; // Prevent changing policy-granted access
 
     if (isUnrestricted) {
       const nextHausIds = haeuser.reduce<string[]>((acc, h) => {
@@ -62,7 +74,7 @@ export function ObjectScopeEditor({
             Zusammenfassung:
           </span>{" "}
           <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2.5 py-1 rounded-full font-medium ml-1">
-            {isUnrestricted
+            {isUnrestricted || isPolicyUnrestricted
               ? `Voller Zugriff (${totalHousesCount} Häuser)`
               : `${selectedHousesCount} von ${totalHousesCount} Häusern`}
           </span>
@@ -71,7 +83,7 @@ export function ObjectScopeEditor({
           </span>
         </div>
 
-        {!isUnrestricted && !disabled && (
+        {!isUnrestricted && !isPolicyUnrestricted && !disabled && (
           <button
             type="button"
             onClick={() => onChange(null)}
@@ -82,7 +94,13 @@ export function ObjectScopeEditor({
         )}
       </div>
 
-      {isUnrestricted && (
+      {isPolicyUnrestricted && (
+        <div className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-400 p-3 rounded-xl text-xs font-medium">
+          Eine zugewiesene Richtlinie gewährt vollen Zugriff auf alle Häuser und Wohnungen. Overrides sind nicht erforderlich.
+        </div>
+      )}
+
+      {isUnrestricted && !isPolicyUnrestricted && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 p-3 rounded-xl text-xs font-medium">
           Keine Einschränkung — Mitarbeiter hat vollen Zugriff auf alle Häuser und Wohnungen.
         </div>
@@ -90,8 +108,9 @@ export function ObjectScopeEditor({
 
       <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
         {haeuser.map(haus => {
-          const isSelected = isUnrestricted || activeHausIds.has(haus.id);
-          const isLocked = isLastHouse && activeHausIds.has(haus.id);
+          const isGrantedByPolicy = isHausGrantedByPolicy(haus.id);
+          const isSelected = isUnrestricted || activeHausIds.has(haus.id) || isGrantedByPolicy;
+          const isLocked = (isLastHouse && activeHausIds.has(haus.id)) || isGrantedByPolicy;
           return (
             <div
               key={haus.id}
@@ -109,18 +128,27 @@ export function ObjectScopeEditor({
               />
               <label
                 htmlFor={`haus-${haus.id}`}
-                className={`text-sm font-semibold select-none flex-1 ${
-                  isLocked
+                className={`text-sm font-semibold select-none flex-1 flex items-center justify-between ${
+                  isLocked && !isGrantedByPolicy
                     ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                    : isGrantedByPolicy
+                    ? "text-zinc-800 dark:text-zinc-200 cursor-default"
                     : "text-zinc-800 dark:text-zinc-200 cursor-pointer"
                 }`}
               >
-                {haus.name}
-                {isLocked && (
-                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 ml-2 font-normal">
-                    (mindestens eines erforderlich)
-                  </span>
-                )}
+                <span className="flex items-center gap-2">
+                  {haus.name}
+                  {isLocked && !isGrantedByPolicy && (
+                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">
+                      (mindestens eines erforderlich)
+                    </span>
+                  )}
+                  {isGrantedByPolicy && (
+                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full font-medium">
+                      Richtlinie
+                    </span>
+                  )}
+                </span>
               </label>
               <span className="text-[10px] text-muted-foreground bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
                 {haus.wohnungen.length} Wohn.

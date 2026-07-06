@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
-import { MemberPermissions, HausWithWohnungen } from "@/lib/organisation-types";
+import React, { useState, useEffect, useTransition, useMemo } from "react";
+import { MemberPermissions, HausWithWohnungen, OrganisationPolicy } from "@/lib/organisation-types";
 import { getMitgliedPermissionsAction, getOrgHaeuserAction, setMitgliedOverridesAction } from "@/lib/perms-actions";
+import { getPoliciesAction, updateMitgliedPoliciesAction } from "@/lib/organisation/policy-actions";
 import { ObjectScopeEditor } from "./object-scope-editor";
 import { ModulePermissionEditor } from "./module-permission-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ShieldAlert, Lock, CheckCircle, RefreshCw, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Props {
   mitgliedId: string;
@@ -22,29 +25,31 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
   const [permissions, setPermissions] = useState<MemberPermissions | null>(null);
   const [originalPermissions, setOriginalPermissions] = useState<MemberPermissions | null>(null);
   const [haeuser, setHaeuser] = useState<HausWithWohnungen[]>([]);
+  const [policies, setPolicies] = useState<OrganisationPolicy[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, startSavingTransition] = useTransition();
 
   const isLocked = rolle === "owner" || rolle === "admin";
 
   useEffect(() => {
-    const fetchPermissions = async () => {
+    const fetchPermissionsAndPolicies = async () => {
       if (isLocked) return;
       setLoading(true);
       try {
-        const [perms, houses] = await Promise.all([
+        const [perms, houses, orgPolicies] = await Promise.all([
           getMitgliedPermissionsAction(mitgliedId),
           getOrgHaeuserAction(),
+          getPoliciesAction(),
         ]);
         setPermissions(perms);
-        // Deep clone to keep track of dirty states
         setOriginalPermissions(structuredClone(perms));
         setHaeuser(houses);
+        setPolicies(orgPolicies);
       } catch (error) {
-        console.error("Failed to load permissions:", error);
+        console.error("Failed to load permissions and policies:", error);
         toast({
           title: "Fehler beim Laden",
-          description: "Die Berechtigungen konnten nicht geladen werden.",
+          description: "Die Berechtigungen und Richtlinien konnten nicht geladen werden.",
           variant: "destructive",
         });
       } finally {
@@ -52,7 +57,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
       }
     };
 
-    fetchPermissions();
+    fetchPermissionsAndPolicies();
   }, [mitgliedId, isLocked]);
 
   // Compute stats for overview pane
@@ -83,33 +88,102 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
     };
   }, [permissions, haeuser]);
 
+  const policyGrantedHausIds = useMemo(() => {
+    if (!policies || !permissions?.policy_ids) return [];
+
+    const activePolicies = policies.filter(p => permissions.policy_ids.includes(p.id));
+
+    const hasUnrestrictedPolicy = activePolicies.some(p => {
+      const houses = p.berechtigungen.objekte?.haeuser;
+      return !houses || houses.length === 0;
+    });
+
+    if (hasUnrestrictedPolicy) {
+      return null;
+    }
+
+    const ids = new Set<string>();
+    activePolicies.forEach(p => {
+      const houses = p.berechtigungen.objekte?.haeuser;
+      if (Array.isArray(houses)) {
+        houses.forEach(id => ids.add(id));
+      }
+    });
+
+    return Array.from(ids);
+  }, [policies, permissions?.policy_ids]);
+
+  const policyGrantedModulePermissions = useMemo(() => {
+    if (!policies || !permissions?.policy_ids) return {};
+
+    const activePolicies = policies.filter(p => permissions.policy_ids.includes(p.id));
+    const merged: Record<string, string[]> = {};
+
+    activePolicies.forEach(p => {
+      const modules = p.berechtigungen.module;
+      if (modules) {
+        Object.entries(modules).forEach(([modKey, actions]) => {
+          if (Array.isArray(actions)) {
+            if (!merged[modKey]) {
+              merged[modKey] = [];
+            }
+            actions.forEach(action => {
+              if (!merged[modKey].includes(action)) {
+                merged[modKey].push(action);
+              }
+            });
+          }
+        });
+      }
+    });
+
+    return merged;
+  }, [policies, permissions?.policy_ids]);
+
   // Check if dirty
-  const isDirty = React.useMemo(() => {
+  const isDirty = useMemo(() => {
     if (!permissions || !originalPermissions) return false;
     return JSON.stringify(permissions) !== JSON.stringify(originalPermissions);
   }, [permissions, originalPermissions]);
 
   const handleSave = () => {
-    if (!permissions || !isDirty) return;
+    if (!permissions || !originalPermissions || !isDirty) return;
 
     startSavingTransition(async () => {
-      const payload = {
-        module: permissions.module || {},
-        objekte: { haeuser: permissions.objekte?.haeuser ?? null },
-      };
+      try {
+        const hasOverridesChanges = JSON.stringify(permissions.module) !== JSON.stringify(originalPermissions.module)
+          || JSON.stringify(permissions.objekte) !== JSON.stringify(originalPermissions.objekte);
+        if (hasOverridesChanges) {
+          const payload = {
+            module: permissions.module || {},
+            objekte: { haeuser: permissions.objekte?.haeuser ?? null },
+          };
 
-      const res = await setMitgliedOverridesAction(mitgliedId, payload);
-      if (res.success) {
+          const res = await setMitgliedOverridesAction(mitgliedId, payload);
+          if (!res.success) {
+            throw new Error(res.error || "Problem beim Speichern der Overrides.");
+          }
+        }
+
+        const toAssign = permissions.policy_ids.filter(id => !originalPermissions.policy_ids.includes(id));
+        const toRemove = originalPermissions.policy_ids.filter(id => !permissions.policy_ids.includes(id));
+
+        if (toAssign.length > 0 || toRemove.length > 0) {
+          await updateMitgliedPoliciesAction(mitgliedId, toAssign, toRemove);
+        }
+
         toast({
-          title: "Berechtigungen gespeichert",
-          description: `Die Berechtigungen für ${memberName} wurden erfolgreich aktualisiert.`,
+          title: "Speichern erfolgreich",
+          description: `Die Berechtigungen und Richtlinien für ${memberName} wurden erfolgreich aktualisiert.`,
           variant: "success",
         });
+
         setOriginalPermissions(structuredClone(permissions));
-      } else {
+      } catch (error: any) {
+        console.error("Failed to save changes:", error);
         toast({
           title: "Fehler beim Speichern",
-          description: res.error || "Es gab ein Problem beim Speichern.",
+          description: error.message || "Es gab ein Problem beim Speichern.",
           variant: "destructive",
         });
       }
@@ -253,18 +327,71 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
         </div>
       )}
 
+      {/* Zugeordnete Richtlinien */}
+      <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Zugeordnete Richtlinien</CardTitle>
+          <CardDescription className="text-xs">
+            Weisen Sie diesem Mitarbeiter Richtlinien zu. Die Berechtigungen der Richtlinien werden addiert.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {policies.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Keine Richtlinien in der Organisation vorhanden.</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {policies.map(policy => {
+                const isChecked = permissions.policy_ids.includes(policy.id);
+                return (
+                  <div
+                    key={policy.id}
+                    className={cn(
+                      "p-3 border rounded-2xl flex items-center gap-3 transition-all",
+                      isChecked
+                        ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900"
+                        : "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800"
+                    )}
+                  >
+                    <Checkbox
+                      id={`policy-assign-${policy.id}`}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => {
+                        setPermissions({
+                          ...permissions,
+                          policy_ids: checked
+                            ? [...permissions.policy_ids, policy.id]
+                            : permissions.policy_ids.filter(id => id !== policy.id),
+                        });
+                      }}
+                      disabled={saving}
+                    />
+                    <label
+                      htmlFor={`policy-assign-${policy.id}`}
+                      className="text-sm font-semibold select-none flex-1 cursor-pointer text-zinc-800 dark:text-zinc-200"
+                    >
+                      {policy.name}
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Accordion or Tabs for editors */}
       <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Objekt-Scope (Zugriffsbeschränkung)</CardTitle>
+          <CardTitle className="text-lg">Objekt-Scope (Zugriffsbeschränkung Overrides)</CardTitle>
           <CardDescription className="text-xs">
-            Legen Sie fest, auf welche Häuser und Wohnungen dieser Mitarbeiter Zugriff erhalten soll.
+            Legen Sie fest, auf welche Häuser und Wohnungen dieser Mitarbeiter über die Richtlinien hinaus Zugriff erhalten soll.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <ObjectScopeEditor
             haeuser={haeuser}
             selectedHausIds={permissions.objekte?.haeuser}
+            policyGrantedHausIds={policyGrantedHausIds}
             onChange={handleObjectScopeChange}
             disabled={saving}
           />
@@ -281,6 +408,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
         <CardContent className="p-0 sm:px-6 sm:pb-6">
           <ModulePermissionEditor
             modulePermissions={permissions.module || {}}
+            policyGrantedModulePermissions={policyGrantedModulePermissions}
             onChange={handleModulePermissionsChange}
             disabled={saving}
           />

@@ -159,7 +159,10 @@ export async function DELETE(request: Request) {
       });
     }
 
-    const { error } = await supabase.from('Mieter').delete().match({ id });
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Mieter',
+      p_record_id: id,
+    });
     if (error) {
       console.error('DELETE /api/mieter error:', error);
       return NextResponse.json({ error: error.message }, { 

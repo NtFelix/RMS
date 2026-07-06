@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
@@ -750,84 +751,21 @@ export default function MieterClientView({
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
 
       <div className="flex flex-col gap-6">
-        {/* 3-way sliding toggle */}
-        <div className={cn(
-          "flex items-center bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full select-none z-0 overflow-hidden",
-          showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"
-        )}>
-          <motion.button
-            layout
-            type="button"
-            onClick={() => {
-              setCurrentTab("mieter");
-              setFilter("current");
-              setSelectedTenants(new Set());
-            }}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-              currentTab === "mieter" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {currentTab === "mieter" && (
-              <motion.div
-                layoutId="active-tenant-tab-pill"
-                className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
-            <Users className="size-4 shrink-0 transition-transform duration-300" />
-            <span>Mieter</span>
-          </motion.button>
-
-          {showApplicantsTab && (
-            <motion.button
-              layout
-              type="button"
-              onClick={() => {
-                setCurrentTab("bewerber");
-                setFilter("current");
-                setSelectedTenants(new Set());
-              }}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-                currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {currentTab === "bewerber" && (
-                <motion.div
-                  layoutId="active-tenant-tab-pill"
-                  className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <UserPlus className="size-4 shrink-0 transition-transform duration-300" />
-              <span>Bewerber</span>
-            </motion.button>
-          )}
-
-          <motion.button
-            layout
-            type="button"
-            onClick={() => {
-              setCurrentTab("overview");
-              setSelectedTenants(new Set());
-            }}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-              currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {currentTab === "overview" && (
-              <motion.div
-                layoutId="active-tenant-tab-pill"
-                className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
-            <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-            <span>Übersicht</span>
-          </motion.button>
-        </div>
+        <AnimatedPillToggle
+          tabs={[
+            { value: "mieter", label: "Mieter", icon: Users },
+            ...(showApplicantsTab ? [{ value: "bewerber" as const, label: "Bewerber", icon: UserPlus }] : []),
+            { value: "overview", label: "Übersicht", icon: BarChart3 },
+          ]}
+          activeTab={currentTab}
+          onTabChange={(tab) => {
+            setCurrentTab(tab);
+            setSelectedTenants(new Set());
+            if (tab !== "overview") setFilter("current");
+          }}
+          layoutId="active-tenant-tab-pill"
+          className={showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"}
+        />
 
         {currentTab !== "overview" ? (
           <>

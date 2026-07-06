@@ -115,10 +115,10 @@ export async function DELETE(
     }
 
     // Delete Zaehler_Ablesung
-    const { error } = await supabase
-      .from('Zaehler_Ablesungen')
-      .delete()
-      .eq('id', id)
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Zaehler_Ablesungen',
+      p_record_id: id,
+    });
 
     if (error) {
       console.error('Error deleting Zaehler_Ablesung:', error)
