@@ -66,6 +66,12 @@ const TABLE_NAME_MAP: Record<string, string> = {
   Zaehler_Ablesungen: "Ablesungen",
   Rechnungen: "Rechnungen",
   Vorlagen: "Vorlagen",
+  Organisation: "Organisation",
+  Organisation_Mitglieder: "Mitarbeiter",
+  Organisation_Policies: "Richtlinien",
+  Organisation_Mitglieder_Policies: "Mitarbeiter-Richtlinien",
+  Organisation_Mitglieder_Overrides: "Mitarbeiter-Abweichungen",
+  Organisation_Einladungen: "Einladungen",
 };
 
 // Pure helper function to format individual values
