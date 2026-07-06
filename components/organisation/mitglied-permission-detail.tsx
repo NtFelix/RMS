@@ -341,7 +341,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {policies.map(policy => {
-                const isChecked = permissions.policy_ids.includes(policy.id);
+                const isChecked = permissions.policy_ids?.includes(policy.id);
                 return (
                   <div
                     key={policy.id}
