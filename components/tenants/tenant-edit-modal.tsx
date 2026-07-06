@@ -797,7 +797,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       })
 
       if (tenantInitialData?.nebenkosten) {
-        setNebenkostenEntries(getSortedNebenkostenEntries(tenantInitialData.nebenkosten))
+        const mappedNebenkosten = tenantInitialData.nebenkosten.map((entry: any) => ({
+          ...entry,
+          amount: entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : "",
+          date: entry.date || ""
+        }))
+        setNebenkostenEntries(getSortedNebenkostenEntries(mappedNebenkosten))
       } else {
         setNebenkostenEntries([{ id: generateId(), amount: "", date: "" }])
       }
@@ -820,12 +825,15 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const validateNebenkostenEntry = (entry: NebenkostenEntry): { amount?: string; date?: string } => {
     const errors: { amount?: string; date?: string } = {}
-    const amountValue = entry.amount.trim() === "" ? NaN : parseFloat(entry.amount)
-    if (entry.amount.trim() !== "") {
+    const amountStr = entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : ""
+    const dateStr = entry.date !== null && entry.date !== undefined ? String(entry.date) : ""
+    
+    const amountValue = amountStr.trim() === "" ? NaN : parseFloat(amountStr)
+    if (amountStr.trim() !== "") {
       if (isNaN(amountValue)) errors.amount = "Ungültiger Betrag."
       else if (amountValue <= 0) errors.amount = "Betrag muss positiv sein."
     }
-    if (entry.amount.trim() !== "" && entry.date.trim() === "") {
+    if (amountStr.trim() !== "" && dateStr.trim() === "") {
       errors.date = "Datum ist erforderlich, wenn ein Betrag vorhanden ist."
     }
     return errors
@@ -959,7 +967,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
     if (!isApplicant) {
       for (const entry of nebenkostenEntries) {
-        if (entry.amount.trim() === "" && entry.date.trim() === "") {
+        const amountStr = entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : ""
+        const dateStr = entry.date !== null && entry.date !== undefined ? String(entry.date) : ""
+
+        if (amountStr.trim() === "" && dateStr.trim() === "") {
           if (nebenkostenValidationErrors[entry.id]) {
             setNebenkostenValidationErrors(prev => {
               const newErrors = { ...prev }; delete newErrors[entry.id]; return newErrors
@@ -986,7 +997,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       const currentFormData = new FormData(e.currentTarget as HTMLFormElement)
 
       if (!isApplicant) {
-        const finalNebenkostenEntries = nebenkostenEntries.filter(entry => entry.amount.trim() !== "")
+        const finalNebenkostenEntries = nebenkostenEntries.filter(entry => {
+          const amountStr = entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : ""
+          return amountStr.trim() !== ""
+        })
         currentFormData.set('nebenkosten', JSON.stringify(finalNebenkostenEntries))
       } else {
         currentFormData.set('nebenkosten', JSON.stringify([]))

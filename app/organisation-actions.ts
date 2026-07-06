@@ -546,4 +546,73 @@ export const switchOrganisationAction = withLogging(
   }
 );
 
+/**
+ * Fetches audit logs for the current organization (paginated, brief view).
+ */
+export const getAuditLogsAction = withLogging(
+  'getAuditLogs',
+  async (
+    limit: number,
+    offset: number,
+    tableName?: string,
+    actionType?: string
+  ): Promise<{ success: boolean; data?: any[]; error?: { message: string } }> => {
+    try {
+      const { user, supabase } = await ensureAuth();
+
+      if (!(await hasPermission('organisation', 'verwalten'))) {
+        return { success: false, error: { message: "Keine Berechtigung zum Anzeigen der Audit-Logs." } };
+      }
+      
+      const { data, error } = await supabase.rpc('get_organisation_audit_log', {
+        p_limit: limit,
+        p_offset: offset,
+        p_tabellenname: tableName || null,
+        p_aktion: actionType || null
+      });
+
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+
+      return { success: true, data: data || [] };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fehler beim Laden der Audit-Logs";
+      return { success: false, error: { message: msg } };
+    }
+  }
+);
+
+/**
+ * Fetches detail view for a specific audit log record.
+ */
+export const getAuditLogDetailsAction = withLogging(
+  'getAuditLogDetails',
+  async (
+    auditLogId: string
+  ): Promise<{ success: boolean; data?: any; error?: { message: string } }> => {
+    try {
+      const { user, supabase } = await ensureAuth();
+
+      if (!(await hasPermission('organisation', 'verwalten'))) {
+        return { success: false, error: { message: "Keine Berechtigung zum Anzeigen der Audit-Log-Details." } };
+      }
+      
+      const { data, error } = await supabase.rpc('get_audit_log_details', {
+        p_audit_log_id: auditLogId
+      });
+
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+
+      return { success: true, data: data?.[0] || null };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fehler beim Laden des Audit-Log-Details";
+      return { success: false, error: { message: msg } };
+    }
+  }
+);
+
+
 

@@ -43,6 +43,7 @@ import {
 
 import { MitgliedPermissionDetail } from "@/components/organisation/mitglied-permission-detail";
 import { OrganisationPoliciesTab } from "@/components/organisation/organisation-policies-tab";
+import { OrganisationAuditLogTab } from "@/components/organisation/organisation-audit-log-tab";
 
 
 interface Member {
@@ -82,7 +83,7 @@ interface OrganisationClientViewProps {
 }
 
 type UiState = {
-  currentTab: "overview" | "members" | "policies";
+  currentTab: "overview" | "members" | "policies" | "audit_log";
   searchQuery: string;
   roleFilter: string;
   statusFilter: string;
@@ -99,7 +100,7 @@ type UiState = {
 };
 
 type UiAction =
-  | { type: 'SET_TAB'; payload: "overview" | "members" | "policies" }
+  | { type: 'SET_TAB'; payload: "overview" | "members" | "policies" | "audit_log" }
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'SET_ROLE_FILTER'; payload: string }
   | { type: 'SET_STATUS_FILTER'; payload: string }
@@ -148,23 +149,18 @@ function uiReducer(state: UiState, action: UiAction): UiState {
   }
 }
 
-// Extracted sub-components for maintainability
-const ORG_TABS = [
-  { value: "overview" as const, label: "Übersicht", icon: Network },
-  { value: "members" as const, label: "Mitarbeiter", icon: Users },
-  { value: "policies" as const, label: "Richtlinien", icon: Shield },
-];
-
 function OrganisationTabToggle({
   currentTab,
-  onTabChange
+  onTabChange,
+  tabs
 }: {
-  currentTab: "overview" | "members" | "policies";
-  onTabChange: (tab: "overview" | "members" | "policies") => void;
+  currentTab: "overview" | "members" | "policies" | "audit_log";
+  onTabChange: (tab: "overview" | "members" | "policies" | "audit_log") => void;
+  tabs: any[];
 }) {
   return (
     <AnimatedPillToggle
-      tabs={ORG_TABS}
+      tabs={tabs}
       activeTab={currentTab}
       onTabChange={onTabChange}
       layoutId="active-org-tab-pill"
@@ -870,6 +866,26 @@ export default function OrganisationClientView({
 
   const hasVerwaltenPermission = canManage || isUserOwner;
 
+  const isOwnerOrAdmin = useMemo(() => {
+    return members.some(
+      m => m.user_id === currentUser?.id && 
+           m.status === 'aktiv' && 
+           (m.rolle === 'owner' || m.rolle === 'admin')
+    );
+  }, [members, currentUser]);
+
+  const orgTabs = useMemo(() => {
+    const list: { value: "overview" | "members" | "policies" | "audit_log"; label: string; icon: any }[] = [
+      { value: "overview", label: "Übersicht", icon: Network },
+      { value: "members", label: "Mitarbeiter", icon: Users },
+      { value: "policies", label: "Richtlinien", icon: Shield },
+    ];
+    if (isOwnerOrAdmin) {
+      list.push({ value: "audit_log" as const, label: "Audit-Log", icon: Clock });
+    }
+    return list;
+  }, [isOwnerOrAdmin]);
+
   const {
     handleInvite,
     handleRevoke,
@@ -940,6 +956,7 @@ export default function OrganisationClientView({
       <OrganisationTabToggle
         currentTab={uiState.currentTab}
         onTabChange={(tab) => dispatch({ type: 'SET_TAB', payload: tab })}
+        tabs={orgTabs}
       />
 
       {uiState.currentTab === "overview" && <OrganisationOverviewTab stats={stats} />}
@@ -979,6 +996,11 @@ export default function OrganisationClientView({
           hasVerwaltenPermission={hasVerwaltenPermission}
         />
       )}
+
+      {uiState.currentTab === "audit_log" && isOwnerOrAdmin && (
+        <OrganisationAuditLogTab />
+      )}
+
 
       <OrganisationConfirmDialog
         pendingConfirm={uiState.pendingConfirm}
