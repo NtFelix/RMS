@@ -407,22 +407,22 @@ export default function UtilityCostPage() {
         </m.div>
       </section>
 
-      {/* Transition: End of spreadsheets */}
-      <section className="py-32 relative overflow-hidden bg-background">
+      {/* Transition: Goodbye spreadsheets */}
+      <section className="py-24 bg-muted/5">
         <div className="container mx-auto px-4 sm:px-8 lg:px-16 xl:px-20">
           <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center max-w-4xl mx-auto"
+            className="max-w-4xl mx-auto text-center"
           >
-            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
-              Keine Tabellen,{' '}
-              <span className="text-primary italic">kein Spreadsheet-Chaos.</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Der Wechsel</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mt-3 mb-6">
+              Tabellen weg. <span className="text-primary italic">Überblick her.</span>
             </h2>
-            <p className="text-lg sm:text-xl text-muted-foreground mt-6 max-w-2xl mx-auto leading-relaxed">
-              Mit Mietevo behalten Sie den Überblick über Ihre Betriebskosten, 
-              ohne jemals wieder eine Excel-Tabelle anfassen zu müssen.
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              Statt Excel-Zeilen und manuellen Formeln unterstützt Mietevo Sie 
+              bei Ihrer Betriebskostenabrechnung: übersichtlich und fehlerfrei.
             </p>
           </m.div>
         </div>
