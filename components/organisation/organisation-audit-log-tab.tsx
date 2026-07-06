@@ -39,18 +39,18 @@ import { cn } from "@/lib/utils";
 interface AuditLogSummary {
   id: string;
   organisation_id: string;
-  table_name: string;
-  record_id: string;
-  action: 'INSERT' | 'UPDATE' | 'DELETE' | 'SOFT_DELETE' | 'RESTORE';
-  changed_by: string | null;
-  changed_by_name: string;
-  changed_by_email: string | null;
-  changed_at: string;
+  tabellenname: string;
+  datensatz_id: string;
+  aktion: 'INSERT' | 'UPDATE' | 'DELETE' | 'SOFT_DELETE' | 'RESTORE';
+  geaendert_von: string | null;
+  geaendert_von_name: string;
+  geaendert_von_email: string | null;
+  geaendert_am: string;
 }
 
 interface AuditLogDetail extends AuditLogSummary {
-  old_data: any;
-  new_data: any;
+  alte_daten: any;
+  neue_daten: any;
 }
 
 // Map database table names to human-readable names
@@ -77,7 +77,7 @@ function formatValue(val: any): string {
 }
 
 // Pure helper function to get color classes based on audit action
-function getActionBadgeColor(action: AuditLogSummary['action']) {
+function getActionBadgeColor(action: AuditLogSummary['aktion']) {
   switch (action) {
     case 'INSERT':
       return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
@@ -96,16 +96,16 @@ function getActionBadgeColor(action: AuditLogSummary['action']) {
 
 // Sub-component for showing visual diffs between old and new state
 interface AuditLogDiffProps {
-  action: string;
-  oldData: any;
-  newData: any;
+  aktion: string;
+  alteDaten: any;
+  neueDaten: any;
 }
 
-function AuditLogDiff({ action, oldData, newData }: AuditLogDiffProps) {
-  const oldObj = oldData || {};
-  const newObj = newData || {};
+function AuditLogDiff({ aktion, alteDaten, neueDaten }: AuditLogDiffProps) {
+  const oldObj = alteDaten || {};
+  const newObj = neueDaten || {};
 
-  if (action === 'INSERT') {
+  if (aktion === 'INSERT') {
     return (
       <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
         {Object.entries(newObj).map(([key, val]) => (
@@ -118,7 +118,7 @@ function AuditLogDiff({ action, oldData, newData }: AuditLogDiffProps) {
     );
   }
 
-  if (action === 'DELETE' || action === 'SOFT_DELETE') {
+  if (aktion === 'DELETE' || aktion === 'SOFT_DELETE') {
     return (
       <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
         {Object.entries(oldObj).map(([key, val]) => (
@@ -356,7 +356,7 @@ export function OrganisationAuditLogTab() {
                     onClick={() => handleSelectLog(log.id)}
                   >
                     <TableCell className="font-medium whitespace-nowrap" suppressHydrationWarning>
-                      {new Date(log.changed_at).toLocaleString("de-DE", {
+                      {new Date(log.geaendert_am).toLocaleString("de-DE", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
@@ -368,22 +368,22 @@ export function OrganisationAuditLogTab() {
                     <TableCell>
                       <span className="flex items-center gap-1.5">
                         <Database className="size-3.5 text-zinc-400 shrink-0" />
-                        {TABLE_NAME_MAP[log.table_name] || log.table_name}
+                        {TABLE_NAME_MAP[log.tabellenname] || log.tabellenname}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={cn("px-2 py-0.5 font-semibold text-xs border uppercase rounded-full shadow-none", getActionBadgeColor(log.action))}>
-                        {log.action === 'SOFT_DELETE' ? 'Papierkorb' : log.action}
+                      <Badge variant="outline" className={cn("px-2 py-0.5 font-semibold text-xs border uppercase rounded-full shadow-none", getActionBadgeColor(log.aktion))}>
+                        {log.aktion === 'SOFT_DELETE' ? 'Papierkorb' : log.aktion}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-semibold text-sm flex items-center gap-1.5">
                           <User className="size-3.5 text-zinc-400 shrink-0" />
-                          {log.changed_by_name}
+                          {log.geaendert_von_name}
                         </span>
-                        {log.changed_by_email && (
-                          <span className="text-xs text-muted-foreground pl-5">{log.changed_by_email}</span>
+                        {log.geaendert_von_email && (
+                          <span className="text-xs text-muted-foreground pl-5">{log.geaendert_von_email}</span>
                         )}
                       </div>
                     </TableCell>
@@ -456,18 +456,18 @@ export function OrganisationAuditLogTab() {
                 <div className="grid grid-cols-2 gap-4 border rounded-lg p-4 bg-muted/10 text-sm">
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground block uppercase">Tabelle</span>
-                    <span className="font-semibold text-foreground">{TABLE_NAME_MAP[detailedLog.table_name] || detailedLog.table_name}</span>
+                    <span className="font-semibold text-foreground">{TABLE_NAME_MAP[detailedLog.tabellenname] || detailedLog.tabellenname}</span>
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground block uppercase">Aktion</span>
-                    <Badge variant="outline" className={cn("px-2 py-0.5 mt-0.5 border uppercase font-bold", getActionBadgeColor(detailedLog.action))}>
-                      {detailedLog.action}
+                    <Badge variant="outline" className={cn("px-2 py-0.5 mt-0.5 border uppercase font-bold", getActionBadgeColor(detailedLog.aktion))}>
+                      {detailedLog.aktion}
                     </Badge>
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground block uppercase">Zeitpunkt</span>
                     <span className="text-foreground" suppressHydrationWarning>
-                      {new Date(detailedLog.changed_at).toLocaleString("de-DE", {
+                      {new Date(detailedLog.geaendert_am).toLocaleString("de-DE", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
@@ -479,14 +479,14 @@ export function OrganisationAuditLogTab() {
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground block uppercase">Ausgeführt von</span>
-                    <span className="text-foreground font-medium block">{detailedLog.changed_by_name}</span>
-                    {detailedLog.changed_by_email && (
-                      <span className="text-xs text-muted-foreground">{detailedLog.changed_by_email}</span>
+                    <span className="text-foreground font-medium block">{detailedLog.geaendert_von_name}</span>
+                    {detailedLog.geaendert_von_email && (
+                      <span className="text-xs text-muted-foreground">{detailedLog.geaendert_von_email}</span>
                     )}
                   </div>
                   <div className="col-span-2 pt-2 border-t border-border/40">
                     <span className="text-xs font-semibold text-muted-foreground block uppercase">Datensatz-ID (UUID)</span>
-                    <span className="font-mono text-xs break-all text-foreground">{detailedLog.record_id}</span>
+                    <span className="font-mono text-xs break-all text-foreground">{detailedLog.datensatz_id}</span>
                   </div>
                 </div>
 
@@ -506,27 +506,27 @@ export function OrganisationAuditLogTab() {
                   <TabsContent value="diff" className="pt-4">
                     <h3 className="font-semibold text-sm mb-3 text-foreground">Feldänderungen:</h3>
                     <AuditLogDiff 
-                      action={detailedLog.action} 
-                      oldData={detailedLog.old_data} 
-                      newData={detailedLog.new_data} 
+                      aktion={detailedLog.aktion} 
+                      alteDaten={detailedLog.alte_daten} 
+                      neueDaten={detailedLog.neue_daten} 
                     />
                   </TabsContent>
 
                   <TabsContent value="raw" className="pt-4">
                     <div className="space-y-4">
-                      {detailedLog.old_data && (
+                      {detailedLog.alte_daten && (
                         <div className="space-y-1.5">
-                          <h4 className="text-xs font-semibold text-rose-500 uppercase">Alter Zustand (old_data)</h4>
+                          <h4 className="text-xs font-semibold text-rose-500 uppercase">Alter Zustand (alte_daten)</h4>
                           <pre className="p-3 bg-zinc-950 text-zinc-200 dark:bg-zinc-900 rounded-lg text-xs overflow-auto max-h-[220px] font-mono leading-relaxed">
-                            {JSON.stringify(detailedLog.old_data, null, 2)}
+                            {JSON.stringify(detailedLog.alte_daten, null, 2)}
                           </pre>
                         </div>
                       )}
-                      {detailedLog.new_data && (
+                      {detailedLog.neue_daten && (
                         <div className="space-y-1.5">
-                          <h4 className="text-xs font-semibold text-emerald-500 uppercase">Neuer Zustand (new_data)</h4>
+                          <h4 className="text-xs font-semibold text-emerald-500 uppercase">Neuer Zustand (neue_daten)</h4>
                           <pre className="p-3 bg-zinc-950 text-zinc-200 dark:bg-zinc-900 rounded-lg text-xs overflow-auto max-h-[220px] font-mono leading-relaxed">
-                            {JSON.stringify(detailedLog.new_data, null, 2)}
+                            {JSON.stringify(detailedLog.neue_daten, null, 2)}
                           </pre>
                         </div>
                       )}

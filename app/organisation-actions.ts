@@ -567,8 +567,8 @@ export const getAuditLogsAction = withLogging(
       const { data, error } = await supabase.rpc('get_organisation_audit_log', {
         p_limit: limit,
         p_offset: offset,
-        p_table_name: tableName || null,
-        p_action: actionType || null
+        p_tabellenname: tableName || null,
+        p_aktion: actionType || null
       });
 
       if (error) {
