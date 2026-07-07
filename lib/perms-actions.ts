@@ -26,7 +26,11 @@ export async function getMitgliedPermissionsAction(mitgliedId: string): Promise<
     console.error("Error in get_mitglied_permissions RPC:", error);
     throw error;
   }
-  return data as MemberPermissions;
+  const permissions = data as MemberPermissions;
+  // The get_mitglied_permissions RPC can omit policy_ids entirely (e.g. a
+  // mitarbeiter with no policies assigned). Default it so the rest of the
+  // component can trust the MemberPermissions type.
+  return { ...permissions, policy_ids: permissions?.policy_ids ?? [] };
 }
 
 export async function getOrgHaeuserAction(): Promise<HausWithWohnungen[]> {
