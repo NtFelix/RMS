@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition, useMemo, useRef } from "react";
 import { MemberPermissions, HausWithWohnungen, OrganisationPolicy } from "@/lib/organisation-types";
 import { getMitgliedPermissionsAction, getOrgHaeuserAction, setMitgliedOverridesAction } from "@/lib/perms-actions";
-import { getPoliciesAction, updateMitgliedPoliciesAction } from "@/lib/organisation/policy-actions";
+import { getPoliciesAction, updateMitgliedPoliciesAction, getMitgliedPoliciesAction } from "@/lib/organisation/policy-actions";
 import { ObjectScopeEditor } from "./object-scope-editor";
 import { ModulePermissionEditor } from "./module-permission-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,13 +38,15 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
       if (isLocked) return;
       setLoading(true);
       try {
-        const [perms, houses, orgPolicies] = await Promise.all([
+        const [perms, houses, orgPolicies, memberPolicyIds] = await Promise.all([
           getMitgliedPermissionsAction(mitgliedId),
           getOrgHaeuserAction(),
           getPoliciesAction(),
+          getMitgliedPoliciesAction(mitgliedId),
         ]);
-        setPermissions(perms);
-        setOriginalPermissions(structuredClone(perms));
+        const withPolicies = { ...perms, policy_ids: memberPolicyIds };
+        setPermissions(withPolicies);
+        setOriginalPermissions(structuredClone(withPolicies));
         setHaeuser(houses);
         setPolicies(orgPolicies);
       } catch (error) {
