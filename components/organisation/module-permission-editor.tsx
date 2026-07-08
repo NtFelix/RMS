@@ -167,11 +167,11 @@ export function ModulePermissionEditor({
       */}
       <div className="relative">
         <table className="w-full border-none border-collapse text-sm">
-          <thead className="sticky top-24 z-10 bg-transparent">
+          <thead className="sticky top-0 z-10">
             <tr className="border-none bg-transparent">
               {/* First header cell: bottom + right border */}
               <th className={cn(
-                "w-[200px] font-semibold py-3.5 pl-6 text-left align-middle text-zinc-800 dark:text-zinc-200 bg-transparent border-b border-r",
+                "w-[200px] font-semibold py-3.5 pl-6 text-left align-middle text-zinc-800 dark:text-zinc-200 border-b border-r sticky top-0 z-10 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md",
                 borderColor
               )}>
                 Modul
@@ -188,7 +188,7 @@ export function ModulePermissionEditor({
                   <th
                     key={aktion.key}
                     className={cn(
-                      "text-center align-middle font-medium py-3.5 bg-transparent border-b",
+                      "text-center align-middle font-medium py-3.5 border-b sticky top-0 z-10 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md",
                       !isLastColumn && "border-r",
                       borderColor
                     )}

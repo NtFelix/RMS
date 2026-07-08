@@ -486,7 +486,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
       {/* Left Pane: Unified Policies Navigation List */}
-      <Card className="md:col-span-1 rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden h-[calc(100vh-220px)] flex flex-col md:sticky md:top-24">
+      <Card className="md:col-span-1 rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden h-[calc(100vh-180px)] flex flex-col md:sticky md:top-24">
         <div className="p-4 border-b border-zinc-200/50 dark:border-zinc-800/50 flex flex-col gap-3 shrink-0">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Richtlinien</h3>
@@ -584,7 +584,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
       </Card>
 
       {/* Right Pane: Policy Editor Detail Panel */}
-      <div className="md:col-span-2">
+      <div className="md:col-span-2 h-[calc(100vh-180px)] overflow-y-auto pr-1 md:sticky md:top-24 scrollbar-thin">
         {editingPolicy ? (
           <div className="flex flex-col gap-6">
             {/* Header section matching MitgliedPermissionDetail */}
