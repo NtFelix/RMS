@@ -1,26 +1,26 @@
 "use client";
 
-import { useState, useEffect, useTransition, useId } from "react";
+import { useState, useEffect, useTransition, useId, useMemo, useRef } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SearchInput } from "@/components/ui/search-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip as ChartTooltip, 
+  CartesianGrid 
+} from "recharts";
 import { getAuditLogsAction, getAuditLogDetailsAction } from "@/app/organisation-actions";
 import { 
   Clock, 
@@ -30,11 +30,32 @@ import {
   RefreshCw, 
   FileJson, 
   ListFilter,
-  ChevronLeft,
-  ChevronRight,
-  Info
+  Info,
+  Search,
+  Plus,
+  Minus,
+  Edit,
+  Trash2,
+  Undo,
+  Home,
+  Building,
+  Users,
+  CreditCard,
+  FileText,
+  CheckSquare,
+  Calculator,
+  Gauge,
+  FileSpreadsheet,
+  Layout,
+  Shield,
+  Key,
+  Copy,
+  Check,
+  AlertCircle,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 interface AuditLogSummary {
   id: string;
@@ -74,33 +95,100 @@ const TABLE_NAME_MAP: Record<string, string> = {
   Organisation_Einladungen: "Einladungen",
 };
 
-// Pure helper function to format individual values
+const FRIENDLY_COLUMN_MAP: Record<string, string> = {
+  id: "ID",
+  name: "Name",
+  beschreibung: "Beschreibung",
+  strasse: "Straße",
+  hausnummer: "Hausnummer",
+  plz: "PLZ",
+  ort: "Ort",
+  land: "Land",
+  groesse: "Größe (m²)",
+  kaltmiete: "Kaltmiete",
+  warmmiete: "Warmmiete",
+  nebenkosten: "Nebenkosten",
+  telefon: "Telefonnummer",
+  email: "E-Mail-Adresse",
+  rolle: "Rolle",
+  status: "Status",
+  erstellt_am: "Erstellt am",
+  geaendert_am: "Geändert am",
+  einstellungen: "Einstellungen",
+  einheiten: "Einheiten",
+  zaehlernummer: "Zählernummer",
+  stand: "Zählerstand",
+  ablesedatum: "Ablesedatum",
+  betrag: "Betrag",
+  faellig_am: "Fällig am",
+  bezahlt: "Bezahlt",
+};
+
+// Format values helper
 function formatValue(val: any): string {
   if (val === null || val === undefined) return 'NULL';
-  if (typeof val === 'object') return JSON.stringify(val);
+  if (typeof val === 'object') return JSON.stringify(val, null, 2);
   if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
   return String(val);
 }
 
-// Pure helper function to get color classes based on audit action
-function getActionBadgeColor(action: AuditLogSummary['aktion']) {
-  switch (action) {
-    case 'INSERT':
-      return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
-    case 'UPDATE':
-      return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
-    case 'SOFT_DELETE':
-      return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
-    case 'RESTORE':
-      return 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20';
-    case 'DELETE':
-      return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+// Table specific icons mapping
+function getTableIcon(tableName: string) {
+  switch (tableName) {
+    case 'Haeuser':
+      return Home;
+    case 'Wohnungen':
+      return Building;
+    case 'Mieter':
+      return Users;
+    case 'Finanzen':
+      return CreditCard;
+    case 'Dokumente_Metadaten':
+      return FileText;
+    case 'Aufgaben':
+      return CheckSquare;
+    case 'Nebenkosten':
+      return Calculator;
+    case 'Zaehler':
+    case 'Zaehler_Ablesungen':
+      return Gauge;
+    case 'Rechnungen':
+      return FileSpreadsheet;
+    case 'Vorlagen':
+      return Layout;
+    case 'Organisation':
+      return Shield;
+    case 'Organisation_Mitglieder':
+    case 'Organisation_Einladungen':
+      return Users;
+    case 'Organisation_Policies':
+    case 'Organisation_Mitglieder_Policies':
+    case 'Organisation_Mitglieder_Overrides':
+      return Key;
     default:
-      return 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20';
+      return Database;
   }
 }
 
-// Sub-component for showing visual diffs between old and new state
+// Action color classes
+function getActionBadgeColor(action: AuditLogSummary['aktion']) {
+  switch (action) {
+    case 'INSERT':
+      return 'bg-emerald-500/10 text-emerald-700 border-emerald-200/60 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-900/40';
+    case 'UPDATE':
+      return 'bg-blue-500/10 text-blue-700 border-blue-200/60 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-900/40';
+    case 'SOFT_DELETE':
+      return 'bg-amber-500/10 text-amber-700 border-amber-200/60 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-900/40';
+    case 'RESTORE':
+      return 'bg-teal-500/10 text-teal-700 border-teal-200/60 dark:bg-teal-500/20 dark:text-teal-400 dark:border-teal-900/40';
+    case 'DELETE':
+      return 'bg-rose-500/10 text-rose-700 border-rose-200/60 dark:bg-rose-500/20 dark:text-rose-455 dark:border-rose-900/40';
+    default:
+      return 'bg-zinc-500/10 text-zinc-700 border-zinc-200/60 dark:bg-zinc-500/20 dark:text-zinc-400 dark:border-zinc-800/40';
+  }
+}
+
+// Visual diff rendering sub-component
 interface AuditLogDiffProps {
   aktion: string;
   alteDaten: any;
@@ -108,138 +196,453 @@ interface AuditLogDiffProps {
 }
 
 function AuditLogDiff({ aktion, alteDaten, neueDaten }: AuditLogDiffProps) {
+  const [searchField, setSearchField] = useState("");
+  const [layoutMode, setLayoutMode] = useState<"side-by-side" | "unified">("side-by-side");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboardLocal = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(id);
+    toast({
+      title: "Wert kopiert",
+      description: "In die Zwischenablage übertragen.",
+      variant: "success"
+    });
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
   const oldObj = alteDaten || {};
   const newObj = neueDaten || {};
 
+  const allKeys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
+  
+  const filteredKeys = allKeys.filter(k => {
+    const label = FRIENDLY_COLUMN_MAP[k] || k;
+    return label.toLowerCase().includes(searchField.toLowerCase()) || k.toLowerCase().includes(searchField.toLowerCase());
+  });
+
+  const changedKeys = filteredKeys.filter(k => {
+    const oldVal = oldObj[k];
+    const newVal = newObj[k];
+    return JSON.stringify(oldVal) !== JSON.stringify(newVal);
+  });
+
   if (aktion === 'INSERT') {
     return (
-      <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
-        {Object.entries(newObj).map(([key, val]) => (
-          <div key={key} className="grid grid-cols-3 py-1.5 border-b border-border/40 last:border-0 text-sm">
-            <span className="font-medium text-muted-foreground col-span-1">{key}</span>
-            <span className="text-foreground col-span-2 break-all font-mono text-xs">{formatValue(val)}</span>
-          </div>
-        ))}
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Felder filtern..."
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-hidden focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+          />
+        </div>
+
+        <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl overflow-hidden divide-y divide-zinc-200/40 dark:divide-zinc-800/40 bg-zinc-50/10 dark:bg-zinc-950/10">
+          {filteredKeys.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">Keine passenden Felder gefunden.</div>
+          ) : (
+            filteredKeys.map((key) => {
+              const val = newObj[key];
+              const friendlyLabel = FRIENDLY_COLUMN_MAP[key] || key;
+              return (
+                <div key={key} className="grid grid-cols-3 p-3.5 text-sm items-start hover:bg-zinc-50/40 dark:hover:bg-zinc-950/30 transition-colors">
+                  <div className="col-span-1 font-medium text-zinc-500 dark:text-zinc-400 flex flex-col pr-2">
+                    <span className="font-semibold text-xs text-zinc-700 dark:text-zinc-300">{friendlyLabel}</span>
+                    {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono truncate">{key}</span>}
+                  </div>
+                  <div className="col-span-2 flex items-start justify-between gap-2 pl-2">
+                    <span className="text-zinc-800 dark:text-zinc-200 font-mono text-xs break-all whitespace-pre-wrap select-all leading-relaxed">
+                      {formatValue(val)}
+                    </span>
+                    <button
+                      onClick={() => copyToClipboardLocal(formatValue(val), key)}
+                      className="text-muted-foreground hover:text-foreground shrink-0 transition-colors p-1 rounded hover:bg-muted"
+                      title="Wert kopieren"
+                    >
+                      {copiedField === key ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     );
   }
 
   if (aktion === 'DELETE' || aktion === 'SOFT_DELETE') {
     return (
-      <div className="space-y-1.5 border rounded-lg p-3 bg-muted/20">
-        {Object.entries(oldObj).map(([key, val]) => (
-          <div key={key} className="grid grid-cols-3 py-1.5 border-b border-border/40 last:border-0 text-sm">
-            <span className="font-medium text-muted-foreground col-span-1">{key}</span>
-            <span className="text-foreground col-span-2 line-through opacity-70 break-all font-mono text-xs">{formatValue(val)}</span>
-          </div>
-        ))}
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Felder filtern..."
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-hidden focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+          />
+        </div>
+
+        <div className="border border-rose-500/20 rounded-2xl overflow-hidden divide-y divide-rose-500/10 bg-rose-500/[0.01]">
+          {filteredKeys.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">Keine passenden Felder gefunden.</div>
+          ) : (
+            filteredKeys.map((key) => {
+              const val = oldObj[key];
+              const friendlyLabel = FRIENDLY_COLUMN_MAP[key] || key;
+              return (
+                <div key={key} className="grid grid-cols-3 p-3.5 text-sm items-start hover:bg-rose-500/[0.02] transition-colors">
+                  <div className="col-span-1 font-medium text-zinc-500 dark:text-zinc-400 flex flex-col pr-2">
+                    <span className="font-semibold text-xs text-rose-800/80 dark:text-rose-400/80">{friendlyLabel}</span>
+                    {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono truncate">{key}</span>}
+                  </div>
+                  <div className="col-span-2 flex items-start justify-between gap-2 pl-2">
+                    <span className="text-rose-650 dark:text-rose-450 line-through font-mono text-xs break-all whitespace-pre-wrap select-all leading-relaxed">
+                      {formatValue(val)}
+                    </span>
+                    <button
+                      onClick={() => copyToClipboardLocal(formatValue(val), key)}
+                      className="text-muted-foreground hover:text-foreground shrink-0 transition-colors p-1 rounded hover:bg-muted"
+                      title="Wert kopieren"
+                    >
+                      {copiedField === key ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     );
   }
 
-  // UPDATE or RESTORE diffing
-  const allKeys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
-  const changedKeys = allKeys.filter(k => {
-    const oldVal = oldObj[k];
-    const newVal = newObj[k];
-    return JSON.stringify(oldVal) !== JSON.stringify(newVal);
-  });
-
+  // UPDATE / RESTORE diffing
   if (changedKeys.length === 0) {
     return (
-      <div className="flex items-center gap-2 p-4 rounded-lg bg-zinc-50 border border-zinc-100 dark:bg-zinc-950/20 dark:border-zinc-900/40 text-sm text-muted-foreground">
-        <Info className="size-4 shrink-0 text-zinc-500" />
-        <span>Keine geänderten Felder vorhanden (z.B. nur interne Metadaten oder unberührte Relationen).</span>
+      <div className="flex items-center gap-3 p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-800/50 text-xs text-muted-foreground justify-center">
+        <Info className="size-4 shrink-0 text-zinc-550" />
+        <span>Keine geänderten Felder in den Suchergebnissen vorhanden.</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {changedKeys.map(key => (
-        <div key={key} className="border rounded-lg p-3 bg-muted/10 space-y-2">
-          <div className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">{key}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-            <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400">
-              <div className="text-[10px] text-rose-500/80 mb-1 font-sans uppercase font-bold">Vorher:</div>
-              <span className="line-through break-all">{formatValue(oldObj[key])}</span>
-            </div>
-            <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
-              <div className="text-[10px] text-emerald-500/80 mb-1 font-sans uppercase font-bold">Nachher:</div>
-              <span className="break-all">{formatValue(newObj[key])}</span>
-            </div>
-          </div>
+    <div className="space-y-4">
+      {/* Search and Layout Toggler */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Änderungen filtern..."
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-hidden focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
+          />
         </div>
-      ))}
+        <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-xl p-1 border border-zinc-200/40 dark:border-zinc-800/40 self-end sm:self-auto select-none shrink-0 h-9">
+          <button
+            onClick={() => setLayoutMode("side-by-side")}
+            className={cn(
+              "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer h-7",
+              layoutMode === "side-by-side" 
+                ? "bg-white dark:bg-zinc-850 shadow-xs text-zinc-900 dark:text-zinc-100" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Nebeneinander
+          </button>
+          <button
+            onClick={() => setLayoutMode("unified")}
+            className={cn(
+              "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer h-7",
+              layoutMode === "unified" 
+                ? "bg-white dark:bg-zinc-850 shadow-xs text-zinc-900 dark:text-zinc-100" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Kombiniert
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-3.5">
+        {changedKeys.map(key => {
+          const oldVal = oldObj[key];
+          const newVal = newObj[key];
+          const friendlyLabel = FRIENDLY_COLUMN_MAP[key] || key;
+
+          if (layoutMode === "unified") {
+            return (
+              <div key={key} className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl overflow-hidden bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs">
+                <div className="px-4 py-2 border-b border-zinc-200/40 dark:border-zinc-800/40 bg-zinc-50/30 dark:bg-zinc-950/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">{friendlyLabel}</span>
+                    {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono">{key}</span>}
+                  </div>
+                </div>
+                <div className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30 font-mono text-xs">
+                  {/* Deleted (old) */}
+                  <div className="flex items-start bg-rose-500/[0.03] p-3 text-rose-705 dark:text-rose-400">
+                    <Minus className="size-3.5 mr-2 mt-0.5 shrink-0 opacity-60" />
+                    <span className="line-through break-all whitespace-pre-wrap flex-1 select-all">{formatValue(oldVal)}</span>
+                    <button
+                      onClick={() => copyToClipboardLocal(formatValue(oldVal), `${key}-old`)}
+                      className="text-rose-500/70 hover:text-rose-550 shrink-0 ml-2 hover:bg-rose-500/10 p-1 rounded"
+                    >
+                      {copiedField === `${key}-old` ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                    </button>
+                  </div>
+                  {/* Added (new) */}
+                  <div className="flex items-start bg-emerald-500/[0.03] p-3 text-emerald-700 dark:text-emerald-400">
+                    <Plus className="size-3.5 mr-2 mt-0.5 shrink-0 opacity-60" />
+                    <span className="break-all whitespace-pre-wrap flex-1 font-semibold select-all">{formatValue(newVal)}</span>
+                    <button
+                      onClick={() => copyToClipboardLocal(formatValue(newVal), `${key}-new`)}
+                      className="text-emerald-555/70 hover:text-emerald-555 shrink-0 ml-2 hover:bg-emerald-500/10 p-1 rounded"
+                    >
+                      {copiedField === `${key}-new` ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Side-by-side Mode
+          return (
+            <div key={key} className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl overflow-hidden bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">{friendlyLabel}</span>
+                  {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono">{key}</span>}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+                {/* Left (Old) */}
+                <div className="relative group/val flex flex-col p-2.5 rounded-xl bg-rose-500/[0.02] border border-rose-500/10 text-rose-705 dark:text-rose-400">
+                  <div className="text-[9px] text-rose-500/60 uppercase font-sans font-bold mb-1 tracking-wider">Vorher:</div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="line-through break-all whitespace-pre-wrap flex-1 select-all">{formatValue(oldVal)}</span>
+                    <button
+                      onClick={() => copyToClipboardLocal(formatValue(oldVal), `${key}-old`)}
+                      className="opacity-0 group-hover/val:opacity-100 text-rose-500/70 hover:text-rose-550 shrink-0 transition-opacity p-0.5 rounded hover:bg-rose-500/10"
+                      title="Kopieren"
+                    >
+                      {copiedField === `${key}-old` ? <Check className="size-3" /> : <Copy className="size-3" />}
+                    </button>
+                  </div>
+                </div>
+                {/* Right (New) */}
+                <div className="relative group/val flex flex-col p-2.5 rounded-xl bg-emerald-500/[0.02] border border-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                  <div className="text-[9px] text-emerald-500/60 uppercase font-sans font-bold mb-1 tracking-wider">Nachher:</div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="break-all whitespace-pre-wrap flex-1 font-semibold select-all">{formatValue(newVal)}</span>
+                    <button
+                      onClick={() => copyToClipboardLocal(formatValue(newVal), `${key}-new`)}
+                      className="opacity-0 group-hover/val:opacity-100 text-emerald-650/75 hover:text-emerald-650 shrink-0 transition-opacity p-0.5 rounded hover:bg-emerald-500/10"
+                      title="Kopieren"
+                    >
+                      {copiedField === `${key}-new` ? <Check className="size-3" /> : <Copy className="size-3" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
+const CustomChartTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-zinc-950/95 dark:bg-zinc-900/95 border border-zinc-800 rounded-xl p-3 text-xs text-white shadow-xl space-y-1.5 font-sans min-w-[140px]">
+        <p className="font-bold text-[10px] text-zinc-400 uppercase tracking-wider">{data.label}</p>
+        <div className="border-t border-zinc-800/80 pt-1.5 space-y-1">
+          <p className="flex justify-between gap-4 font-semibold text-zinc-100 border-b border-zinc-800 pb-1 mb-1">
+            <span>Gesamt:</span>
+            <span>{data.Total}</span>
+          </p>
+          {data.INSERT > 0 && (
+            <p className="flex justify-between text-emerald-400 font-medium">
+              <span>Erstellt:</span>
+              <span>{data.INSERT}</span>
+            </p>
+          )}
+          {data.UPDATE > 0 && (
+            <p className="flex justify-between text-blue-400 font-medium">
+              <span>Bearbeitet:</span>
+              <span>{data.UPDATE}</span>
+            </p>
+          )}
+          {data.DELETE > 0 && (
+            <p className="flex justify-between text-rose-400 font-medium">
+              <span>Gelöscht:</span>
+              <span>{data.DELETE}</span>
+            </p>
+          )}
+          {data.SOFT_DELETE > 0 && (
+            <p className="flex justify-between text-amber-400 font-medium">
+              <span>Papierkorb:</span>
+              <span>{data.SOFT_DELETE}</span>
+            </p>
+          )}
+          {data.RESTORE > 0 && (
+            <p className="flex justify-between text-teal-400 font-medium">
+              <span>Wiederhergestellt:</span>
+              <span>{data.RESTORE}</span>
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function OrganisationAuditLogTab() {
   const [logs, setLogs] = useState<AuditLogSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  // Pagination State
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Tracking checkbox selected log IDs
+  const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
+
+  // Clientside search filter
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Infinite Scroll Pagination State
   const [page, setPage] = useState(1);
-  const limit = 15;
+  const limit = 20;
   const [hasMore, setHasMore] = useState(true);
 
   // Filter States
   const [filterTable, setFilterTable] = useState<string>("all");
   const [filterAction, setFilterAction] = useState<string>("all");
+  const [filterUser, setFilterUser] = useState<string>("all");
+  const [filterTimeframe, setFilterTimeframe] = useState<string>("last-7-days");
+  const [customDateFrom, setCustomDateFrom] = useState<string>("");
+  const [customDateTo, setCustomDateTo] = useState<string>("");
 
-  // Details Sheet State
+  // Detailed view sheet states
   const [detailedLog, setDetailedLog] = useState<AuditLogDetail | null>(null);
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedRawField, setCopiedRawField] = useState<string | null>(null);
 
-  // loading state derived from useTransition
+  // loading state transitions
   const [isPending, startTransition] = useTransition();
 
-  // Generate unique IDs for accessibility labels
-  const tableFilterSelectId = useId();
-  const actionFilterSelectId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset page to 1 when filters change to avoid getting stuck on empty pages
+  // Load data based on filters and page
   useEffect(() => {
-    setPage(1);
-  }, [filterTable, filterAction]);
-
-  // Load log summary list from database using page and filter selections
-  const fetchLogs = (currentPage: number, table: string, action: string) => {
-    setError(null);
-    const offset = (currentPage - 1) * limit;
-
-    startTransition(async () => {
+    let active = true;
+    
+    const load = async () => {
+      setError(null);
+      const offset = (page - 1) * limit;
+      
       const res = await getAuditLogsAction(
-        limit + 1, 
-        offset, 
-        table === "all" ? undefined : table, 
-        action === "all" ? undefined : action
+        limit + 1,
+        offset,
+        filterTable === "all" ? undefined : filterTable,
+        filterAction === "all" ? undefined : filterAction
       );
+
+      if (!active) return;
+
       if (res.success && res.data) {
         const hasNext = res.data.length > limit;
         const pageData = hasNext ? res.data.slice(0, limit) : res.data;
         
-        setLogs(pageData as AuditLogSummary[]);
+        setLogs(prev => {
+          if (page === 1) {
+            return pageData as AuditLogSummary[];
+          } else {
+            const existingIds = new Set(prev.map(l => l.id));
+            const newItems = (pageData as AuditLogSummary[]).filter(l => !existingIds.has(l.id));
+            return [...prev, ...newItems];
+          }
+        });
         setHasMore(hasNext);
       } else {
         setError(res.error?.message || "Fehler beim Laden des Audit-Logs.");
       }
+    };
+
+    startTransition(() => {
+      load();
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [page, filterTable, filterAction]);
+
+  const handleFilterTableChange = (val: string) => {
+    setFilterTable(val);
+    setPage(1);
+  };
+
+  const handleFilterActionChange = (val: string) => {
+    setFilterAction(val);
+    setPage(1);
+  };
+
+  const handleRefresh = () => {
+    setPage(1);
+    startTransition(async () => {
+      const res = await getAuditLogsAction(
+        limit + 1,
+        0,
+        filterTable === "all" ? undefined : filterTable,
+        filterAction === "all" ? undefined : filterAction
+      );
+      if (res.success && res.data) {
+        const hasNext = res.data.length > limit;
+        setLogs(res.data.slice(0, limit) as AuditLogSummary[]);
+        setHasMore(hasNext);
+      }
+    });
+    toast({
+      title: "Aktualisiert",
+      description: "Die Audit-Protokolle wurden neu geladen."
     });
   };
 
-  useEffect(() => {
-    fetchLogs(page, filterTable, filterAction);
-  }, [page, filterTable, filterAction]);
+  // Scroll handler to load more logs when reaching bottom of table container
+  const handleScroll = () => {
+    const container = containerRef.current;
+    if (!container) return;
 
-  // Load detailed log on selection
+    const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 80;
+    if (isNearBottom && hasMore && !isPending) {
+      setPage(p => p + 1);
+    }
+  };
+
   const handleSelectLog = (logId: string) => {
     setIsDetailsLoading(true);
     setIsSheetOpen(true);
     setDetailedLog(null);
 
-    // Call details action (separate transition for independent detail loading state)
     startTransition(async () => {
       const res = await getAuditLogDetailsAction(logId);
       if (res.success && res.data) {
@@ -252,300 +655,756 @@ export function OrganisationAuditLogTab() {
     });
   };
 
+  const copyRecordId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    toast({
+      title: "ID kopiert",
+      description: "Die Datensatz-ID wurde in die Zwischenablage kopiert.",
+      variant: "success"
+    });
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const copyToClipboardTab = (text: string, fieldId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedRawField(fieldId);
+    toast({
+      title: "Wert kopiert",
+      description: "In die Zwischenablage übertragen.",
+      variant: "success"
+    });
+    setTimeout(() => setCopiedRawField(null), 2000);
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setFilterTable("all");
+    setFilterAction("all");
+    setFilterUser("all");
+    setFilterTimeframe("all");
+    setCustomDateFrom("");
+    setCustomDateTo("");
+    setPage(1);
+  };
+
+  // Reset selected logs when filter changes
+  useEffect(() => {
+    setSelectedLogIds(new Set());
+  }, [filterTable, filterAction, filterUser, filterTimeframe, searchQuery, customDateFrom, customDateTo]);
+
+  const handleToggleAll = () => {
+    const allSelected = filteredLogs.length > 0 && filteredLogs.every(log => selectedLogIds.has(log.id));
+    setSelectedLogIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        filteredLogs.forEach(log => next.delete(log.id));
+      } else {
+        filteredLogs.forEach(log => next.add(log.id));
+      }
+      return next;
+    });
+  };
+
+  // Extract unique users dynamically from the loaded logs to fill user filter
+  const uniqueUsers = useMemo(() => {
+    const users = new Set<string>();
+    logs.forEach(log => {
+      if (log.geaendert_von_name) {
+        users.add(log.geaendert_von_name);
+      }
+    });
+    return Array.from(users).sort((a, b) => a.localeCompare(b));
+  }, [logs]);
+
+  // Clientside filters combining text search, timeframe, user selectors
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      // 1. Text Search Filter
+      const query = searchQuery.toLowerCase().trim();
+      if (query) {
+        const nameMatch = log.geaendert_von_name?.toLowerCase().includes(query);
+        const emailMatch = log.geaendert_von_email?.toLowerCase().includes(query);
+        const tableMatch = (TABLE_NAME_MAP[log.tabellenname] || log.tabellenname).toLowerCase().includes(query);
+        const actionMatch = log.aktion?.toLowerCase().includes(query);
+        const idMatch = log.datensatz_id?.toLowerCase().includes(query);
+        if (!nameMatch && !emailMatch && !tableMatch && !actionMatch && !idMatch) {
+          return false;
+        }
+      }
+
+      // 2. User Filter
+      if (filterUser !== "all" && log.geaendert_von_name !== filterUser) {
+        return false;
+      }
+
+      // 3. Time period filter
+      if (filterTimeframe !== "all") {
+        const logDate = new Date(log.geaendert_am);
+        const now = new Date();
+        
+        if (filterTimeframe === "today") {
+          const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (logDate < startOfToday) return false;
+        } else if (filterTimeframe === "last-7-days") {
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(now.getDate() - 7);
+          if (logDate < sevenDaysAgo) return false;
+        } else if (filterTimeframe === "last-30-days") {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(now.getDate() - 30);
+          if (logDate < thirtyDaysAgo) return false;
+        } else if (filterTimeframe === "custom") {
+          if (customDateFrom) {
+            const fromDate = new Date(customDateFrom);
+            fromDate.setHours(0, 0, 0, 0);
+            if (logDate < fromDate) return false;
+          }
+          if (customDateTo) {
+            const toDate = new Date(customDateTo);
+            toDate.setHours(23, 59, 59, 999);
+            if (logDate > toDate) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [logs, searchQuery, filterUser, filterTimeframe, customDateFrom, customDateTo]);
+
+  // Compute log distribution over timeframe for visual chart with high density steps (hourly/sub-daily)
+  const chartData = useMemo(() => {
+    if (filteredLogs.length === 0) return [];
+
+    // Calculate duration in days to handle custom timeframes dynamically
+    let minTime = Infinity;
+    let maxTime = -Infinity;
+    filteredLogs.forEach(log => {
+      const t = new Date(log.geaendert_am).getTime();
+      if (t < minTime) minTime = t;
+      if (t > maxTime) maxTime = t;
+    });
+
+    const diffDays = (maxTime - minTime) / (1000 * 60 * 60 * 24);
+
+    let groupingHours = 24; // Default: 1 day
+    if (filterTimeframe === "today") {
+      groupingHours = 0.5; // 30 minutes steps -> 48 bars total
+    } else if (filterTimeframe === "last-7-days") {
+      groupingHours = 2; // 2-hour steps -> 12 bars per day -> ~84 bars total
+    } else if (filterTimeframe === "last-30-days") {
+      groupingHours = 6; // 6-hour steps -> 4 bars per day -> ~120 bars total
+    } else if (filterTimeframe === "custom") {
+      if (diffDays <= 1) groupingHours = 0.5;
+      else if (diffDays <= 7) groupingHours = 2;
+      else if (diffDays <= 30) groupingHours = 6;
+      else groupingHours = 12;
+    }
+
+    const groups: Record<string, { label: string; dateObj: Date; INSERT: number; UPDATE: number; DELETE: number; RESTORE: number; SOFT_DELETE: number; Total: number }> = {};
+
+    filteredLogs.forEach(log => {
+      const date = new Date(log.geaendert_am);
+      let label = "";
+      let groupKey = "";
+      let bucketDate: Date;
+
+      if (groupingHours === 0.5) {
+        const mins = date.getMinutes();
+        const blockMins = mins < 30 ? 0 : 30;
+        const hr = date.getHours();
+        label = `${hr.toString().padStart(2, '0')}:${blockMins.toString().padStart(2, '0')}`;
+        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${hr}-${blockMins}`;
+        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hr, blockMins, 0);
+      } else if (groupingHours === 2) {
+        const hr = date.getHours();
+        const blockHr = Math.floor(hr / 2) * 2;
+        const dayLabel = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+        label = `${dayLabel} ${blockHr.toString().padStart(2, '0')}:00`;
+        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${blockHr}`;
+        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), blockHr, 0, 0);
+      } else if (groupingHours === 6) {
+        const hr = date.getHours();
+        const blockHr = Math.floor(hr / 6) * 6;
+        const dayLabel = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+        label = `${dayLabel} ${blockHr.toString().padStart(2, '0')}:00`;
+        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${blockHr}`;
+        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), blockHr, 0, 0);
+      } else if (groupingHours === 12) {
+        const hr = date.getHours();
+        const blockHr = Math.floor(hr / 12) * 12;
+        const dayLabel = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+        label = `${dayLabel} ${blockHr === 0 ? "Nacht" : "Tag"}`;
+        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${blockHr}`;
+        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), blockHr, 0, 0);
+      } else {
+        label = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+      }
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          label,
+          dateObj: bucketDate,
+          INSERT: 0,
+          UPDATE: 0,
+          DELETE: 0,
+          RESTORE: 0,
+          SOFT_DELETE: 0,
+          Total: 0
+        };
+      }
+
+      const type = log.aktion;
+      if (type === "INSERT") groups[groupKey].INSERT++;
+      else if (type === "UPDATE") groups[groupKey].UPDATE++;
+      else if (type === "DELETE") groups[groupKey].DELETE++;
+      else if (type === "RESTORE") groups[groupKey].RESTORE++;
+      else if (type === "SOFT_DELETE") groups[groupKey].SOFT_DELETE++;
+      
+      groups[groupKey].Total++;
+    });
+
+    return Object.values(groups).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+  }, [filteredLogs, filterTimeframe, customDateFrom, customDateTo]);
+
   return (
-    <Card className="shadow-sm border-border/50">
-      <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <Card className="w-full rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden bg-white dark:bg-zinc-950 flex flex-col">
+      {/* Top Header Section with Title, Description, and Actions */}
+      <CardHeader className="p-6 border-b border-zinc-200/40 dark:border-zinc-800/40 flex flex-col gap-4 bg-zinc-50/50 dark:bg-zinc-950/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-xl flex items-center gap-2">
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
               <Clock className="size-5 text-indigo-500" />
-              Audit-Log
+              <span>Audit-Protokoll</span>
             </CardTitle>
-            <CardDescription>
-              Vollständiges Protokoll aller Änderungen an Häusern, Wohnungen, Mietern, Finanzen und mehr.
+            <CardDescription className="mt-1 text-xs">
+              Vollständiges Änderungsprotokoll über alle Datenaktivitäten Ihrer Organisation ({filteredLogs.length} Einträge).
             </CardDescription>
           </div>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full md:w-auto flex items-center gap-1.5"
-            onClick={() => fetchLogs(page, filterTable, filterAction)}
-            disabled={isPending}
-          >
-            <RefreshCw className={cn("size-3.5", isPending && "animate-spin")} />
-            Aktualisieren
-          </Button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="rounded-xl h-9 text-xs flex items-center gap-1.5 cursor-pointer border-zinc-200 dark:border-zinc-800 hover:bg-muted"
+            >
+              Filter zurücksetzen
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isPending}
+              className="rounded-xl flex items-center gap-1.5 h-9 cursor-pointer border-zinc-200 dark:border-zinc-800 hover:bg-muted"
+            >
+              <RefreshCw className={cn("size-3.5", isPending && "animate-spin")} />
+              Aktualisieren
+            </Button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/40 mt-2">
-          <div className="flex-1 max-w-[240px]">
-            <label htmlFor={tableFilterSelectId} className="text-xs font-medium text-muted-foreground mb-1 block">
-              Tabelle filtern
+        {/* Log Distribution Chart */}
+        {isMounted && chartData.length > 0 ? (
+          <div className="w-full bg-zinc-50/40 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4 h-48 mb-1">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">Aktivitätsverteilung</span>
+              <span className="text-[10px] text-muted-foreground">Gruppiert nach Zeitraum</span>
+            </div>
+            <div className="w-full h-36">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(200, 200, 200, 0.1)"/>
+                  <XAxis 
+                    dataKey="label" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 9, fill: 'currentColor' }} 
+                    className="text-muted-foreground"
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 9, fill: 'currentColor' }} 
+                    className="text-muted-foreground"
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(24, 24, 27, 0.95)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      color: '#fff'
+                    }}
+                    labelClassName="font-bold mb-1"
+                  />
+                  <Bar dataKey="INSERT" name="Erstellt" fill="#10b981" stackId="a" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="UPDATE" name="Bearbeitet" fill="#3b82f6" stackId="a" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="DELETE" name="Gelöscht" fill="#ef4444" stackId="a" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : (
+          isMounted && !isPending && (
+            <div className="w-full bg-zinc-50/20 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-800/50 border-dashed rounded-2xl p-4 h-24 mb-1 flex items-center justify-center text-xs text-muted-foreground gap-2">
+              <AlertCircle className="size-4 shrink-0" />
+              Keine Log-Verteilungsdaten im ausgewählten Zeitraum verfügbar.
+            </div>
+          )
+        )}
+
+        {/* Top Filters Dashboard Bar */}
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 items-end pt-2 border-t border-zinc-200/40 dark:border-zinc-800/40">
+          {/* Text Search Input (spans full row on small screen) */}
+          <div className="sm:col-span-2 space-y-1">
+            <label htmlFor="search-logs" className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">
+              Textsuche
             </label>
-            <Select value={filterTable} onValueChange={setFilterTable}>
-              <SelectTrigger id={tableFilterSelectId}>
+            <SearchInput
+              id="search-logs"
+              placeholder="Suchen nach Benutzer, Tabelle, ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery("")}
+              className="w-full h-9 text-xs rounded-xl"
+            />
+          </div>
+
+          {/* Zeitraum select */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">
+              Zeitraum
+            </label>
+            <Select value={filterTimeframe} onValueChange={setFilterTimeframe}>
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
+                <SelectValue placeholder="Alle Zeiten" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="rounded-lg text-xs">Alle Zeiten</SelectItem>
+                <SelectItem value="today" className="rounded-lg text-xs">Heute</SelectItem>
+                <SelectItem value="last-7-days" className="rounded-lg text-xs">Letzte 7 Tage</SelectItem>
+                <SelectItem value="last-30-days" className="rounded-lg text-xs">Letzte 30 Tage</SelectItem>
+                <SelectItem value="custom" className="rounded-lg text-xs">Benutzerdefiniert...</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Table select */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">
+              Tabelle
+            </label>
+            <Select value={filterTable} onValueChange={handleFilterTableChange}>
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
                 <SelectValue placeholder="Alle Tabellen" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Tabellen</SelectItem>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="rounded-lg text-xs">Alle Tabellen</SelectItem>
                 {Object.entries(TABLE_NAME_MAP).map(([dbName, label]) => (
-                  <SelectItem key={dbName} value={dbName}>{label}</SelectItem>
+                  <SelectItem key={dbName} value={dbName} className="rounded-lg text-xs">{label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="flex-1 max-w-[200px]">
-            <label htmlFor={actionFilterSelectId} className="text-xs font-medium text-muted-foreground mb-1 block">
-              Aktion filtern
+          {/* Action select */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-zinc-555 dark:text-zinc-400">
+              Aktion
             </label>
-            <Select value={filterAction} onValueChange={setFilterAction}>
-              <SelectTrigger id={actionFilterSelectId}>
+            <Select value={filterAction} onValueChange={handleFilterActionChange}>
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
                 <SelectValue placeholder="Alle Aktionen" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Aktionen</SelectItem>
-                <SelectItem value="INSERT">Erstellen (INSERT)</SelectItem>
-                <SelectItem value="UPDATE">Bearbeiten (UPDATE)</SelectItem>
-                <SelectItem value="SOFT_DELETE">In Papierkorb (SOFT_DELETE)</SelectItem>
-                <SelectItem value="RESTORE">Wiederherstellen (RESTORE)</SelectItem>
-                <SelectItem value="DELETE">Endgültig löschen (DELETE)</SelectItem>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="rounded-lg text-xs">Alle Aktionen</SelectItem>
+                <SelectItem value="INSERT" className="rounded-lg text-xs">Erstellen (INSERT)</SelectItem>
+                <SelectItem value="UPDATE" className="rounded-lg text-xs">Bearbeiten (UPDATE)</SelectItem>
+                <SelectItem value="SOFT_DELETE" className="rounded-lg text-xs">In Papierkorb (SOFT_DELETE)</SelectItem>
+                <SelectItem value="RESTORE" className="rounded-lg text-xs">Wiederherstellen (RESTORE)</SelectItem>
+                <SelectItem value="DELETE" className="rounded-lg text-xs">Endgültig löschen (DELETE)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* User select */}
+          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+            <label className="text-xs font-semibold text-zinc-555 dark:text-zinc-400">
+              Mitarbeiter
+            </label>
+            <Select value={filterUser} onValueChange={setFilterUser}>
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
+                <SelectValue placeholder="Alle Mitarbeiter" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all" className="rounded-lg text-xs">Alle Mitarbeiter</SelectItem>
+                {uniqueUsers.map(name => (
+                  <SelectItem key={name} value={name} className="rounded-lg text-xs">{name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
+
+        {/* Custom date range fields when selected */}
+        {filterTimeframe === "custom" && (
+          <div className="flex gap-4 pt-3 items-center justify-start border-t border-dashed border-zinc-200/50 dark:border-zinc-800/50 mt-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">Zeitraum von:</span>
+              <input
+                type="date"
+                value={customDateFrom}
+                onChange={(e) => setCustomDateFrom(e.target.value)}
+                className="text-xs p-2 h-8.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">bis:</span>
+              <input
+                type="date"
+                value={customDateTo}
+                onChange={(e) => setCustomDateTo(e.target.value)}
+                className="text-xs p-2 h-8.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+              />
+            </div>
+          </div>
+        )}
       </CardHeader>
-      
-      <CardContent>
+
+      {/* Main content: Scrollable Full-Width Infinite Table Body */}
+      <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
         {error && (
-          <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm mb-4">
-            {error}
+          <div className="p-4 m-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-455 text-sm flex items-center gap-2">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        <div className="rounded-md border border-border/40">
+        <div 
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="overflow-y-auto max-h-[calc(100vh-240px)] scrollbar-thin relative bg-zinc-50/5 dark:bg-zinc-950/5"
+        >
           <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[180px]">Zeitpunkt</TableHead>
-                <TableHead className="w-[150px]">Tabelle</TableHead>
-                <TableHead className="w-[140px]">Aktion</TableHead>
-                <TableHead>Geändert von</TableHead>
-                <TableHead className="text-right w-[100px]">Details</TableHead>
+            <TableHeader className="bg-zinc-50 dark:bg-zinc-900 sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800">
+              <TableRow className="hover:bg-transparent border-b-0 h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
+                <TableHead className="w-[48px] py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">
+                  <Checkbox 
+                    checked={filteredLogs.length > 0 && filteredLogs.every(log => selectedLogIds.has(log.id))}
+                    onCheckedChange={handleToggleAll}
+                    aria-label="Alle auswählen"
+                    className="hover:scale-100 data-[state=checked]:scale-100 focus-visible:scale-100"
+                  />
+                </TableHead>
+                <TableHead className="w-[180px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Zeitpunkt</TableHead>
+                <TableHead className="w-[160px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Datenbereich</TableHead>
+                <TableHead className="w-[140px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Aktion</TableHead>
+                <TableHead className="font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Geändert von</TableHead>
+                <TableHead className="text-right w-[80px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isPending && logs.length === 0 ? (
-                // Skeleton Loader during initial page load
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell><div className="h-6 w-24 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell><div className="h-4 w-40 bg-muted animate-pulse rounded" /></TableCell>
-                    <TableCell className="text-right"><div className="h-8 w-8 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+              {logs.length === 0 && isPending ? (
+                Array.from({ length: 12 }).map((_, i) => (
+                  <TableRow key={i} className="border-b border-zinc-200/30 dark:border-zinc-800/30 h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
+                    <TableCell className="py-1 px-4 h-8"><div className="h-4 w-4 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="py-1 px-4 h-8"><div className="h-3 w-28 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="py-1 px-4 h-8"><div className="h-3 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="py-1 px-4 h-8"><div className="h-4.5 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="py-1 px-4 h-8"><div className="h-3 w-36 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="text-right py-1 px-4 h-8"><div className="h-5 w-5 bg-muted animate-pulse rounded ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : logs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                    Keine Einträge im Audit-Log gefunden.
+              ) : filteredLogs.length === 0 ? (
+                <TableRow className="hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
+                  <TableCell colSpan={6} className="h-36 text-center text-xs text-muted-foreground">
+                    <Info className="size-6 mx-auto mb-1.5 text-zinc-400 stroke-1" />
+                    Keine Protokolleinträge gefunden.
                   </TableCell>
                 </TableRow>
               ) : (
-                logs.map(log => (
-                  <TableRow 
-                    key={log.id} 
-                    className="group hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => handleSelectLog(log.id)}
-                  >
-                    <TableCell className="font-medium whitespace-nowrap" suppressHydrationWarning>
-                      {new Date(log.geaendert_am).toLocaleString("de-DE", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit"
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-1.5">
-                        <Database className="size-3.5 text-zinc-400 shrink-0" />
-                        {TABLE_NAME_MAP[log.tabellenname] || log.tabellenname}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn("px-2 py-0.5 font-semibold text-xs border uppercase rounded-full shadow-none", getActionBadgeColor(log.aktion))}>
-                        {log.aktion === 'SOFT_DELETE' ? 'Papierkorb' : log.aktion}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-sm flex items-center gap-1.5">
-                          <User className="size-3.5 text-zinc-400 shrink-0" />
-                          {log.geaendert_von_name}
+                filteredLogs.map(log => {
+                  const TableIcon = getTableIcon(log.tabellenname);
+                  return (
+                    <TableRow 
+                      key={log.id} 
+                      onClick={() => handleSelectLog(log.id)}
+                      className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-950/20 cursor-pointer border-b border-zinc-200/30 dark:border-zinc-800/30 last:border-0 transition-colors h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none"
+                    >
+                      <TableCell className="py-1 px-4 h-auto" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox 
+                          checked={selectedLogIds.has(log.id)}
+                          onCheckedChange={() => {
+                            setSelectedLogIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(log.id)) {
+                                next.delete(log.id);
+                              } else {
+                                next.add(log.id);
+                              }
+                              return next;
+                            });
+                          }}
+                          aria-label={`Auswählen ${log.id}`}
+                          className="hover:scale-100 data-[state=checked]:scale-100 focus-visible:scale-100"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium whitespace-nowrap text-zinc-650 dark:text-zinc-400 text-[11px] py-1 px-4 h-auto" suppressHydrationWarning>
+                        {new Date(log.geaendert_am).toLocaleString("de-DE", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </TableCell>
+                      <TableCell className="py-1 px-4 h-auto">
+                        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
+                          <TableIcon className="size-3.5 text-zinc-455 shrink-0" />
+                          {TABLE_NAME_MAP[log.tabellenname] || log.tabellenname}
                         </span>
-                        {log.geaendert_von_email && (
-                          <span className="text-xs text-muted-foreground pl-5">{log.geaendert_von_email}</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Eye className="size-4 text-muted-foreground" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                      <TableCell className="py-1 px-4 h-auto">
+                        <Badge variant="outline" className={cn("px-1.5 py-0 font-bold text-[8px] border uppercase rounded-md shadow-none scale-90", getActionBadgeColor(log.aktion))}>
+                          {log.aktion === 'SOFT_DELETE' ? 'Papierkorb' : log.aktion}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-1 px-4 h-auto">
+                        <div className="flex items-center gap-1.5 text-[11px] text-zinc-800 dark:text-zinc-200">
+                          <User className="size-3 text-zinc-400 shrink-0" />
+                          <span className="font-semibold">{log.geaendert_von_name}</span>
+                          {log.geaendert_von_email && (
+                            <span className="text-[10px] text-muted-foreground font-normal">({log.geaendert_von_email})</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right py-1 px-4 h-auto">
+                        <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 hover:bg-muted transition-all rounded-lg size-6 p-0 shrink-0">
+                          <Eye className="size-3.5 text-muted-foreground" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+
+              {/* Infinite Scroll loading indicator */}
+              {isPending && page > 1 && (
+                <TableRow className="h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
+                  <TableCell colSpan={6} className="py-1 px-4 h-8 text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+                      <RefreshCw className="size-3 animate-spin text-primary" />
+                      <span>Weitere Einträge werden geladen...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-
-        {/* Pagination controls */}
-        {!isPending && logs.length > 0 && (
-          <div className="flex items-center justify-between pt-4">
-            <div className="text-xs text-muted-foreground">
-              Seite {page}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-                disabled={page === 1 || isPending}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="size-4" />
-                Vorherige
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-                disabled={!hasMore || isPending}
-                onClick={() => setPage(p => p + 1)}
-              >
-                Nächste
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        )}
       </CardContent>
-
-      {/* Audit Log Entry Details Side Sheet */}
+      {/* Slide-over details sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[640px] w-full flex flex-col h-full bg-background border-l border-border">
-          <SheetHeader className="pb-4 border-b border-border/40">
-            <SheetTitle className="text-xl flex items-center gap-2">
-              <Clock className="size-5 text-indigo-500" />
-              Änderungsdetails
-            </SheetTitle>
-            <SheetDescription>
-              Genaue Details zur ausgeführten Datenbankaktion.
-            </SheetDescription>
-          </SheetHeader>
-
-          {isDetailsLoading ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
-              <span className="text-sm text-muted-foreground">Details werden geladen...</span>
-            </div>
-          ) : detailedLog ? (
-            <ScrollArea className="flex-1 pr-1">
-              <div className="space-y-6 py-6">
-                {/* Meta details */}
-                <div className="grid grid-cols-2 gap-4 border rounded-lg p-4 bg-muted/10 text-sm">
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground block uppercase">Tabelle</span>
-                    <span className="font-semibold text-foreground">{TABLE_NAME_MAP[detailedLog.tabellenname] || detailedLog.tabellenname}</span>
+        <SheetContent
+          className="w-full sm:max-w-[600px] flex flex-col h-full p-0 gap-0"
+        >
+          <div className="flex flex-col flex-1 min-h-0">
+            <ScrollArea className="flex-1">
+              <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="text-primary/80">
+                    <Clock className="h-8 w-8 sm:h-10 sm:w-10" />
                   </div>
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground block uppercase">Aktion</span>
-                    <Badge variant="outline" className={cn("px-2 py-0.5 mt-0.5 border uppercase font-bold", getActionBadgeColor(detailedLog.aktion))}>
-                      {detailedLog.aktion}
-                    </Badge>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground block uppercase">Zeitpunkt</span>
-                    <span className="text-foreground" suppressHydrationWarning>
-                      {new Date(detailedLog.geaendert_am).toLocaleString("de-DE", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit"
-                      })}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground block uppercase">Ausgeführt von</span>
-                    <span className="text-foreground font-medium block">{detailedLog.geaendert_von_name}</span>
-                    {detailedLog.geaendert_von_email && (
-                      <span className="text-xs text-muted-foreground">{detailedLog.geaendert_von_email}</span>
-                    )}
-                  </div>
-                  <div className="col-span-2 pt-2 border-t border-border/40">
-                    <span className="text-xs font-semibold text-muted-foreground block uppercase">Datensatz-ID (UUID)</span>
-                    <span className="font-mono text-xs break-all text-foreground">{detailedLog.datensatz_id}</span>
+                  <div className="space-y-1">
+                    <SheetTitle className="text-2xl sm:text-4xl font-bold tracking-tight">
+                      Änderungsdetails
+                    </SheetTitle>
+                    <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
+                      Detaillierter Verlauf des Systemereignisses und Feldunterschiede.
+                    </SheetDescription>
                   </div>
                 </div>
 
-                {/* Data Diff & Raw JSON Tabs */}
-                <Tabs defaultValue="diff" className="w-full">
-                  <TabsList className="w-full grid grid-cols-2 border border-border/40 bg-muted/30">
-                    <TabsTrigger value="diff" className="flex items-center gap-1.5">
-                      <ListFilter className="size-4" />
-                      Änderungsvergleich
-                    </TabsTrigger>
-                    <TabsTrigger value="raw" className="flex items-center gap-1.5">
-                      <FileJson className="size-4" />
-                      Rohdaten (JSON)
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="diff" className="pt-4">
-                    <h3 className="font-semibold text-sm mb-3 text-foreground">Feldänderungen:</h3>
-                    <AuditLogDiff 
-                      aktion={detailedLog.aktion} 
-                      alteDaten={detailedLog.alte_daten} 
-                      neueDaten={detailedLog.neue_daten} 
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="raw" className="pt-4">
-                    <div className="space-y-4">
-                      {detailedLog.alte_daten && (
-                        <div className="space-y-1.5">
-                          <h4 className="text-xs font-semibold text-rose-500 uppercase">Alter Zustand (alte_daten)</h4>
-                          <pre className="p-3 bg-zinc-950 text-zinc-200 dark:bg-zinc-900 rounded-lg text-xs overflow-auto max-h-[220px] font-mono leading-relaxed">
-                            {JSON.stringify(detailedLog.alte_daten, null, 2)}
-                          </pre>
+                {isDetailsLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-12">
+                    <RefreshCw className="size-6 animate-spin text-indigo-500" />
+                    <span className="text-sm font-semibold text-muted-foreground">Daten werden geladen...</span>
+                  </div>
+                ) : detailedLog ? (
+                  <div className="space-y-8">
+                    
+                    {/* Event metadata details grid */}
+                    <div className="grid grid-cols-2 gap-4 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4.5 bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Tabelle</span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                          {(() => {
+                            const Icon = getTableIcon(detailedLog.tabellenname);
+                            return <Icon className="size-3.5 text-zinc-455" />;
+                          })()}
+                          {TABLE_NAME_MAP[detailedLog.tabellenname] || detailedLog.tabellenname}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Aktion</span>
+                        <Badge variant="outline" className={cn("px-2.5 py-0.5 border uppercase font-bold text-[9px] rounded-full", getActionBadgeColor(detailedLog.aktion))}>
+                          {detailedLog.aktion}
+                        </Badge>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Zeitpunkt</span>
+                        <span className="text-zinc-800 dark:text-zinc-200 font-medium" suppressHydrationWarning>
+                          {new Date(detailedLog.geaendert_am).toLocaleString("de-DE", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit"
+                          })}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">System-ID</span>
+                        <span className="font-mono text-[10px] text-muted-foreground select-all break-all">{detailedLog.id}</span>
+                      </div>
+                      
+                      <div className="col-span-2 pt-3.5 border-t border-zinc-200/40 dark:border-zinc-800/40">
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Datensatz-ID (UUID)</span>
+                        <div className="flex items-center justify-between bg-muted/55 p-2 rounded-xl border font-mono text-xs">
+                          <span className="text-zinc-805 dark:text-zinc-200 select-all break-all">{detailedLog.datensatz_id}</span>
+                          <button
+                            onClick={() => copyRecordId(detailedLog.datensatz_id)}
+                            className="text-zinc-400 hover:text-foreground shrink-0 transition-colors p-1.5 rounded-lg hover:bg-muted"
+                            title="ID kopieren"
+                          >
+                            {copiedId === detailedLog.datensatz_id ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
+                          </button>
                         </div>
-                      )}
-                      {detailedLog.neue_daten && (
-                        <div className="space-y-1.5">
-                          <h4 className="text-xs font-semibold text-emerald-500 uppercase">Neuer Zustand (neue_daten)</h4>
-                          <pre className="p-3 bg-zinc-950 text-zinc-200 dark:bg-zinc-900 rounded-lg text-xs overflow-auto max-h-[220px] font-mono leading-relaxed">
-                            {JSON.stringify(detailedLog.neue_daten, null, 2)}
-                          </pre>
-                        </div>
-                      )}
+                      </div>
                     </div>
-                  </TabsContent>
-                </Tabs>
+
+                    {/* Author detail block */}
+                    <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4 bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs flex items-center gap-3.5">
+                      <Avatar className="size-9 border bg-linear-to-br from-indigo-500/5 to-purple-500/5">
+                        <AvatarFallback className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                          {detailedLog.geaendert_von_name
+                            ? detailedLog.geaendert_von_name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+                            : "??"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0 text-xs">
+                        <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider">Geändert von</span>
+                        <h4 className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{detailedLog.geaendert_von_name}</h4>
+                        {detailedLog.geaendert_von_email && (
+                          <p className="text-[10px] text-muted-foreground truncate">{detailedLog.geaendert_von_email}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Data snaps Comparison tabs */}
+                    <Tabs defaultValue="diff" className="w-full">
+                      <TabsList className="w-full grid grid-cols-2 border border-zinc-200/40 dark:border-zinc-850/50 bg-muted/40 p-1 rounded-xl">
+                        <TabsTrigger value="diff" className="flex items-center gap-1.5 rounded-lg cursor-pointer text-xs">
+                          <ListFilter className="size-3.5" />
+                          Vergleich
+                        </TabsTrigger>
+                        <TabsTrigger value="raw" className="flex items-center gap-1.5 rounded-lg cursor-pointer text-xs">
+                          <FileJson className="size-3.5" />
+                          Rohdaten (JSON)
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="diff" className="pt-4 outline-none">
+                        <AuditLogDiff 
+                          aktion={detailedLog.aktion} 
+                          alteDaten={detailedLog.alte_daten} 
+                          neueDaten={detailedLog.neue_daten} 
+                        />
+                      </TabsContent>
+
+                      <TabsContent value="raw" className="pt-4 outline-none space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">Snapshots:</h4>
+                          <Button 
+                            variant="outline" 
+                            size="xs"
+                            className="rounded-lg h-7 px-2.5 text-[10px] flex items-center gap-1 cursor-pointer"
+                            onClick={() => {
+                              const fullJson = JSON.stringify({ alte_daten: detailedLog.alte_daten, neue_daten: detailedLog.neue_daten }, null, 2);
+                              navigator.clipboard.writeText(fullJson);
+                              toast({
+                                title: "JSON kopiert",
+                                description: "Snapshots wurden in die Zwischenablage kopiert.",
+                                variant: "success"
+                              });
+                            }}
+                          >
+                            <Copy className="size-3" />
+                            Alles kopieren
+                          </Button>
+                        </div>
+
+                        <div className="space-y-4 font-mono text-xs">
+                          {detailedLog.alte_daten && (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[10px] font-sans text-rose-500 font-semibold uppercase">
+                                <span>Alter Zustand (alte_daten)</span>
+                                <button 
+                                  onClick={() => copyToClipboardTab(JSON.stringify(detailedLog.alte_daten, null, 2), "raw-old")}
+                                  className="text-zinc-400 hover:text-rose-555 shrink-0 transition-colors p-1"
+                                >
+                                  {copiedRawField === "raw-old" ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                                </button>
+                              </div>
+                              <pre className="p-3.5 bg-zinc-950 text-zinc-300 dark:bg-zinc-900 border dark:border-zinc-850 rounded-2xl overflow-auto max-h-[220px] leading-relaxed shadow-inner">
+                                {JSON.stringify(detailedLog.alte_daten, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                          {detailedLog.neue_daten && (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[10px] font-sans text-emerald-500 font-semibold uppercase">
+                                <span>Neuer Zustand (neue_daten)</span>
+                                <button 
+                                  onClick={() => copyToClipboardTab(JSON.stringify(detailedLog.neue_daten, null, 2), "raw-new")}
+                                  className="text-zinc-400 hover:text-emerald-555 shrink-0 transition-colors p-1"
+                                >
+                                  {copiedRawField === "raw-new" ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                                </button>
+                              </div>
+                              <pre className="p-3.5 bg-zinc-950 text-zinc-300 dark:bg-zinc-900 border dark:border-zinc-850 rounded-2xl overflow-auto max-h-[220px] leading-relaxed shadow-inner">
+                                {JSON.stringify(detailedLog.neue_daten, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                ) : (
+                  <div className="text-center text-sm text-muted-foreground py-12">
+                    Keine Details geladen.
+                  </div>
+                )}
               </div>
             </ScrollArea>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-              Keine Details geladen.
-            </div>
-          )}
+            
+            <SheetFooter className="px-4 pb-8 pt-2 sm:p-8 sm:pb-14 sm:pt-4">
+              <div className="max-w-[90%] mx-auto w-full flex gap-3">
+                <Button 
+                  variant="ghost" 
+                  className="flex-1 rounded-xl h-11 text-muted-foreground hover:text-foreground hover:shadow-none"
+                  onClick={() => setIsSheetOpen(false)}
+                >
+                  Schließen
+                </Button>
+              </div>
+            </SheetFooter>
+          </div>
         </SheetContent>
       </Sheet>
     </Card>

@@ -614,5 +614,98 @@ export const getAuditLogDetailsAction = withLogging(
   }
 );
 
+/**
+ * Fetches stats for audit logs (total, per action type, per table, most active users).
+ */
+export const getAuditLogStatsAction = withLogging(
+  'getAuditLogStats',
+  async (): Promise<{
+    success: boolean;
+    data?: {
+      total: number;
+      insertCount: number;
+      updateCount: number;
+      deleteCount: number;
+      restoreCount: number;
+      tableCounts: Record<string, number>;
+      activeUsers: { name: string; email: string | null; count: number }[];
+    } | null;
+    error?: { message: string };
+  }> => {
+    try {
+      const { user, supabase } = await ensureAuth();
+
+      if (!(await hasPermission('organisation', 'verwalten'))) {
+        return { success: false, error: { message: "Keine Berechtigung zum Anzeigen der Audit-Log-Statistiken." } };
+      }
+
+      const { data: logs, error: logsError } = await supabase
+        .from('Audit_Log')
+        .select('aktion, tabellenname, geaendert_von');
+
+      if (logsError) {
+        return { success: false, error: { message: logsError.message } };
+      }
+
+      const total = logs?.length || 0;
+      let insertCount = 0;
+      let updateCount = 0;
+      let deleteCount = 0;
+      let restoreCount = 0;
+      const tableCounts: Record<string, number> = {};
+      const userCounts: Record<string, number> = {};
+
+      for (const log of logs || []) {
+        if (log.aktion === 'INSERT') insertCount++;
+        else if (log.aktion === 'UPDATE') updateCount++;
+        else if (log.aktion === 'DELETE' || log.aktion === 'SOFT_DELETE') deleteCount++;
+        else if (log.aktion === 'RESTORE') restoreCount++;
+
+        tableCounts[log.tabellenname] = (tableCounts[log.tabellenname] || 0) + 1;
+
+        if (log.geaendert_von) {
+          userCounts[log.geaendert_von] = (userCounts[log.geaendert_von] || 0) + 1;
+        }
+      }
+
+      const membersResult = await safeRpcCall<any[]>(supabase, 'get_organisation_mitglieder', undefined, { userId: user.id });
+      const members = membersResult.success ? (membersResult.data || []) : [];
+
+      const activeUsers = Object.entries(userCounts)
+        .map(([uid, count]) => {
+          const member = members.find(m => m.user_id === uid);
+          const name = member
+            ? (member.first_name || member.last_name
+              ? `${member.first_name || ''} ${member.last_name || ''}`.trim()
+              : member.email)
+            : "System/Unbekannt";
+          const email = member?.email || null;
+          return {
+            name,
+            email,
+            count
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      return {
+        success: true,
+        data: {
+          total,
+          insertCount,
+          updateCount,
+          deleteCount,
+          restoreCount,
+          tableCounts,
+          activeUsers: activeUsers.slice(0, 5)
+        }
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fehler beim Laden der Audit-Log-Statistiken";
+      return { success: false, error: { message: msg } };
+    }
+  }
+);
+
 
 
