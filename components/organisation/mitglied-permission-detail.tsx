@@ -11,13 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Lock, RefreshCw, Save, Trash2 } from "lucide-react";
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu";
+import { Lock, RefreshCw, Save, Trash2, ChevronDown, Shield, Clock, Trash, Check, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -286,74 +290,108 @@ export function MitgliedPermissionDetail({
         
         {/* Actions inside header */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Role select / badge */}
-          {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && onRoleChange ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground font-semibold">Rolle:</span>
-              <Select
-                value={rolle}
-                onValueChange={(val) => onRoleChange(mitgliedId, memberName, val)}
-                disabled={isPending}
-              >
-                <SelectTrigger className="w-[125px] h-8 rounded-lg text-xs font-semibold bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-lg">
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <Badge variant="outline" className={cn("rounded-full font-medium text-[11px] px-2.5 py-0.5", 
-              rolle === 'owner' ? "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800" :
-              rolle === 'admin' ? "bg-blue-500/10 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-800" :
-              "bg-zinc-500/10 text-zinc-700 border-zinc-200 dark:bg-zinc-500/20 dark:text-zinc-400 dark:border-zinc-800"
-            )}>
-              {rolle === 'owner' ? 'Inhaber' : rolle === 'admin' ? 'Admin' : 'Mitarbeiter'}
-            </Badge>
-          )}
+          {/* Always show Role Badge */}
+          <Badge variant="outline" className={cn("rounded-full font-medium text-[11px] px-2.5 py-0.5", 
+            rolle === 'owner' ? "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800" :
+            rolle === 'admin' ? "bg-blue-500/10 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-800" :
+            "bg-zinc-500/10 text-zinc-700 border-zinc-200 dark:bg-zinc-500/20 dark:text-zinc-400 dark:border-zinc-800"
+          )}>
+            {rolle === 'owner' ? 'Inhaber' : rolle === 'admin' ? 'Admin' : 'Mitarbeiter'}
+          </Badge>
 
-          {/* Status select / badge */}
-          {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && onStatusChange ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground font-semibold">Status:</span>
-              <Select
-                value={status}
-                onValueChange={(val) => onStatusChange(mitgliedId, memberName, val)}
-                disabled={isPending}
-              >
-                <SelectTrigger className="w-[120px] h-8 rounded-lg text-xs font-semibold bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-lg">
-                  <SelectItem value="aktiv">Aktiv</SelectItem>
-                  <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <Badge variant="outline" className={cn("rounded-full font-medium text-[11px] px-2.5 py-0.5",
-              status === 'aktiv' ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
-              status === 'eingeladen' ? "bg-orange-500/10 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-800" :
-              "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800"
-            )}>
-              {status === 'aktiv' ? 'Aktiv' : status === 'eingeladen' ? 'Eingeladen' : 'Deaktiviert'}
-            </Badge>
-          )}
+          {/* Always show Status Badge */}
+          <Badge variant="outline" className={cn("rounded-full font-medium text-[11px] px-2.5 py-0.5",
+            status === 'aktiv' ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
+            status === 'eingeladen' ? "bg-orange-500/10 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-800" :
+            "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800"
+          )}>
+            {status === 'aktiv' ? 'Aktiv' : status === 'eingeladen' ? 'Eingeladen' : 'Deaktiviert'}
+          </Badge>
 
-          {/* Delete member button */}
-          {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && onRemove && (
-            <Button
-              variant="ghost"
-              size="xs"
-              className="text-xs text-muted-foreground hover:text-red-500 rounded-lg h-8 px-2 flex items-center gap-1 hover:bg-red-500/5 dark:hover:bg-red-500/10 border border-zinc-200/50 dark:border-zinc-800/50"
-              onClick={() => onRemove(mitgliedId, memberName)}
-              disabled={isPending}
-            >
-              <Trash2 className="size-3.5" />
-              <span>Entfernen</span>
-            </Button>
+          {/* "Verwalten" unified dropdown action */}
+          {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={isPending}
+                  className="text-xs text-muted-foreground hover:text-foreground rounded-lg h-8 px-3 flex items-center gap-1.5 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-800/50"
+                >
+                  <Settings className="size-3.5" />
+                  <span>Verwalten</span>
+                  <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48 rounded-xl p-1.5" align="end">
+                {onRoleChange && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                      <Shield className="size-4 text-zinc-500" />
+                      <span>Rolle ändern</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-40 rounded-xl p-1">
+                        <DropdownMenuItem 
+                          className={cn("justify-between cursor-pointer", rolle === "admin" && "font-semibold text-primary")}
+                          onClick={() => onRoleChange(mitgliedId, memberName, "admin")}
+                        >
+                          <span>Admin</span>
+                          {rolle === "admin" && <Check className="size-3.5" />}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className={cn("justify-between cursor-pointer", rolle === "mitarbeiter" && "font-semibold text-primary")}
+                          onClick={() => onRoleChange(mitgliedId, memberName, "mitarbeiter")}
+                        >
+                          <span>Mitarbeiter</span>
+                          {rolle === "mitarbeiter" && <Check className="size-3.5" />}
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                )}
+
+                {onStatusChange && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                      <Clock className="size-4 text-zinc-500" />
+                      <span>Status ändern</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-40 rounded-xl p-1">
+                        <DropdownMenuItem 
+                          className={cn("justify-between cursor-pointer", status === "aktiv" && "font-semibold text-emerald-600")}
+                          onClick={() => onStatusChange(mitgliedId, memberName, "aktiv")}
+                        >
+                          <span>Aktiv</span>
+                          {status === "aktiv" && <Check className="size-3.5" />}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className={cn("justify-between cursor-pointer", status === "deaktiviert" && "font-semibold text-red-600")}
+                          onClick={() => onStatusChange(mitgliedId, memberName, "deaktiviert")}
+                        >
+                          <span>Deaktiviert</span>
+                          {status === "deaktiviert" && <Check className="size-3.5" />}
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                )}
+
+                {onRemove && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600 dark:text-red-400 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-600 flex items-center gap-2 cursor-pointer"
+                      onClick={() => onRemove(mitgliedId, memberName)}
+                    >
+                      <Trash className="size-4" />
+                      <span>Mitglied entfernen</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
