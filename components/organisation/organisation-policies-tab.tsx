@@ -14,7 +14,8 @@ import { ModulePermissionEditor } from "./module-permission-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -25,8 +26,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Shield, Plus, Trash2, Save, RefreshCw, AlertTriangle, CheckCircle, Trash } from "lucide-react";
+import { Shield, PlusCircle, Save, RefreshCw, AlertTriangle, Trash, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +40,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
   const [loading, setLoading] = useState(true);
   const [saving, startSavingTransition] = useTransition();
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingPolicy, setEditingPolicy] = useState<OrganisationPolicy | null>(null);
   const [originalPolicy, setOriginalPolicy] = useState<OrganisationPolicy | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -70,12 +71,17 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
     fetchData();
   }, []);
 
+  // Filter policies based on search query
+  const filteredPolicies = useMemo(() => {
+    if (!searchQuery) return policies;
+    const query = searchQuery.toLowerCase();
+    return policies.filter(p => p.name.toLowerCase().includes(query));
+  }, [policies, searchQuery]);
 
   // Check if current editing policy is dirty
   const isDirty = useMemo(() => {
     if (!editingPolicy) return false;
     if (!originalPolicy) {
-      // New policy is dirty if name is not empty or has any permissions
       return editingPolicy.name.trim().length > 0 ||
         (editingPolicy.berechtigungen.module && Object.keys(editingPolicy.berechtigungen.module).length > 0) ||
         (editingPolicy.berechtigungen.objekte?.haeuser && editingPolicy.berechtigungen.objekte.haeuser.length > 0);
@@ -97,6 +103,14 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
   };
 
   const handleCreateNewTemplate = () => {
+    if (isDirty) {
+      toast({
+        title: "Ungespeicherte Änderungen",
+        description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen zuerst.",
+        variant: "destructive",
+      });
+      return;
+    }
     const newTemplate: OrganisationPolicy = {
       id: "",
       organisation_id: "",
@@ -235,205 +249,162 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 items-start">
-      {/* Left Pane: Policies List */}
-      <div className={cn("flex flex-col gap-4 w-full", editingPolicy ? "md:w-1/2" : "md:w-2/3")}>
-        <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div>
-              <CardTitle className="text-xl">Organisation Richtlinien</CardTitle>
-              <CardDescription>
-                Richtlinien definieren Rollen- und Objektrechte, die Teammitgliedern zugewiesen werden können.
-              </CardDescription>
-            </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      {/* Left Pane: Unified Policies Navigation List */}
+      <Card className="md:col-span-1 rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden h-[calc(100vh-220px)] flex flex-col md:sticky md:top-24">
+        <div className="p-4 border-b border-zinc-200/50 dark:border-zinc-800/50 flex flex-col gap-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Richtlinien</h3>
             {hasVerwaltenPermission && (
               <Button
-                onClick={handleCreateNewTemplate}
                 size="sm"
-                className="rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center gap-1.5 h-9"
+                onClick={handleCreateNewTemplate}
+                className="rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center gap-1.5 h-8 text-xs font-semibold px-3"
               >
-                <Plus className="size-4" />
-                <span>Neue Richtlinie</span>
+                <PlusCircle className="size-3.5" />
+                <span>Erstellen</span>
               </Button>
             )}
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-                  <TableRow>
-                    <TableHead className="py-3 pl-6">Name</TableHead>
-                    <TableHead className="py-3">Details</TableHead>
-                    <TableHead className="py-3 pr-6 text-right">Aktionen</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {policies.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
-                        Keine Richtlinien vorhanden.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    policies.map(policy => {
-                      const isUnrestricted = !policy.berechtigungen.objekte?.haeuser || policy.berechtigungen.objekte.haeuser.length === 0;
-                      const housesCount = policy.berechtigungen.objekte?.haeuser?.length || 0;
-                      const housesText = isUnrestricted
-                        ? "Alle Häuser"
-                        : `${housesCount} ${housesCount === 1 ? 'Haus' : 'Häuser'}`;
+          </div>
+          <div className="flex items-center gap-2">
+            <SearchInput
+              placeholder="Suchen nach Richtlinien..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-9 text-xs rounded-xl"
+            />
+          </div>
+        </div>
 
-                      const activeModulesCount = Object.values(policy.berechtigungen.module || {}).filter(
-                        actions => actions && actions.length > 0
-                      ).length;
-                      const modulesText = `${activeModulesCount} ${activeModulesCount === 1 ? 'Modul' : 'Module'}`;
-                      const isSelected = editingPolicy?.id === policy.id && originalPolicy !== null;
-
-                      return (
-                        <TableRow
-                          key={policy.id}
-                          onClick={() => handleSelectPolicy(isSelected ? null : policy)}
-                          className={cn(
-                            "cursor-pointer transition-colors duration-150",
-                            isSelected
-                              ? "bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-                              : "hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30"
-                          )}
-                        >
-                          <TableCell className="py-4 pl-6 font-semibold text-sm flex items-center gap-2">
-                            <Shield className="size-4 text-indigo-500 shrink-0" />
-                            <span>{policy.name}</span>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <span className="text-xs text-muted-foreground">
-                              {modulesText} · {housesText}
-                            </span>
-                          </TableCell>
-                          <TableCell className="py-4 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
-                            {hasVerwaltenPermission && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg"
-                                onClick={() => {
-                                  if (isDirty && editingPolicy && editingPolicy.id !== policy.id) {
-                                    toast({
-                                      title: "Ungespeicherte Änderungen",
-                                      description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.",
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-                                  setDeletingPolicy(policy);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                title="Richtlinie löschen"
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+        {/* Scrollable list */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-zinc-50/30 dark:bg-zinc-950/10">
+          {filteredPolicies.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              Keine Richtlinien gefunden.
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            filteredPolicies.map((policy) => {
+              const isSelected = editingPolicy?.id === policy.id && originalPolicy !== null;
+              const initials = policy.name
+                ? policy.name.split(" ").map(n => n.charAt(0)).join("").toUpperCase().slice(0, 2)
+                : "RL";
 
-      {/* Right Pane: Policy Editor */}
-      <div className={cn("w-full", editingPolicy ? "md:w-1/2" : "md:w-1/3")}>
+              const isUnrestricted = !policy.berechtigungen.objekte?.haeuser || policy.berechtigungen.objekte.haeuser.length === 0;
+              const housesCount = policy.berechtigungen.objekte?.haeuser?.length || 0;
+              const housesText = isUnrestricted
+                ? "Alle Häuser"
+                : `${housesCount} ${housesCount === 1 ? 'Haus' : 'Häuser'}`;
+
+              const activeModulesCount = Object.values(policy.berechtigungen.module || {}).filter(
+                actions => actions && actions.length > 0
+              ).length;
+              const modulesText = `${activeModulesCount} ${activeModulesCount === 1 ? 'Modul' : 'Module'}`;
+
+              return (
+                <div
+                  key={policy.id}
+                  onClick={() => {
+                    if (isDirty && editingPolicy && editingPolicy.id !== policy.id) {
+                      toast({
+                        title: "Ungespeicherte Änderungen",
+                        description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    handleSelectPolicy(isSelected ? null : policy);
+                  }}
+                  className={cn(
+                    "p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-200 border border-transparent",
+                    isSelected
+                      ? "bg-zinc-100 dark:bg-zinc-800/80 border-zinc-200/50 dark:border-zinc-700/50 shadow-xs"
+                      : "hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                  )}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-9 w-9 border border-zinc-200/20 shrink-0">
+                      <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 truncate">
+                        {policy.name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        {modulesText} · {housesText}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 mr-1 bg-zinc-100 dark:bg-zinc-800 p-1.5 rounded-lg text-zinc-500">
+                    <Shield className="size-3.5" />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </Card>
+
+      {/* Right Pane: Policy Editor Detail Panel */}
+      <div className="md:col-span-2">
         {editingPolicy ? (
           <div className="flex flex-col gap-6">
-            {/* Top Bar for Discard / Save */}
-            {isDirty && (
-              <div className="flex items-center justify-between p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                    Ungespeicherte Änderungen an dieser Richtlinie
+            {/* Header section matching MitgliedPermissionDetail */}
+            <div className="flex flex-col gap-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <h2 className="text-2xl font-bold tracking-tight text-zinc-800 dark:text-zinc-200 flex items-center gap-2 truncate">
+                    {editingPolicy.name || "Neue Richtlinie"}
+                  </h2>
+                  <span className="text-xs text-muted-foreground">
+                    {originalPolicy
+                      ? `Erstellt am ${new Date(editingPolicy.erstellt_am).toLocaleDateString("de-DE")}`
+                      : "Entwurf für eine neue Richtlinie"}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => {
-                      if (originalPolicy) {
-                        setEditingPolicy(structuredClone(originalPolicy));
-                      } else {
-                        setEditingPolicy(null);
-                      }
-                    }}
-                    disabled={saving}
-                    className="text-xs h-8 rounded-lg"
-                  >
-                    Verwerfen
-                  </Button>
-                  <Button
-                    size="xs"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="text-xs h-8 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium flex items-center gap-1.5"
-                  >
-                    {saving ? (
-                      <>
-                        <RefreshCw className="size-3 animate-spin" />
-                        <span>Speichert...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="size-3" />
-                        <span>Speichern</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
 
-            <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
-              <CardHeader className="pb-4 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl">
-                    {originalPolicy ? "Richtlinie bearbeiten" : "Neue Richtlinie erstellen"}
-                  </CardTitle>
-                  <CardDescription>
-                    {originalPolicy
-                      ? "Passen Sie den Namen und die Berechtigungen für diese Richtlinie an."
-                      : "Geben Sie der neuen Richtlinie einen Namen und definieren Sie Berechtigungen."}
-                  </CardDescription>
-                </div>
+                {/* Actions inside header */}
                 {originalPolicy && hasVerwaltenPermission && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl size-9"
-                    onClick={handleDelete}
-                    disabled={saving}
-                    title="Richtlinie löschen"
-                  >
-                    <Trash className="size-4" />
-                  </Button>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      className="text-xs text-muted-foreground hover:text-red-500 rounded-lg h-8 px-2 flex items-center gap-1 hover:bg-red-500/5 dark:hover:bg-red-500/10 border border-zinc-200/50 dark:border-zinc-800/50"
+                      onClick={handleDelete}
+                      disabled={saving}
+                    >
+                      <Trash className="size-3.5" />
+                      <span>Löschen</span>
+                    </Button>
+                  </div>
                 )}
+              </div>
+            </div>
+
+            {/* Section 1: Name der Richtlinie */}
+            <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Name der Richtlinie</CardTitle>
+                <CardDescription className="text-xs">
+                  Geben Sie einen aussagekräftigen Namen für diese Richtlinie an.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="policy-name-input" className="text-xs font-semibold uppercase text-zinc-500">Name der Richtlinie</label>
-                  <Input
-                    id="policy-name-input"
-                    type="text"
-                    value={editingPolicy.name}
-                    onChange={(e) => setEditingPolicy({ ...editingPolicy, name: e.target.value })}
-                    placeholder="z.B. Buchhaltung, Hausmeister"
-                    disabled={saving || !hasVerwaltenPermission}
-                    className="rounded-xl h-10"
-                  />
-                </div>
+              <CardContent className="pt-0">
+                <Input
+                  id="policy-name-input"
+                  type="text"
+                  value={editingPolicy.name}
+                  onChange={(e) => setEditingPolicy({ ...editingPolicy, name: e.target.value })}
+                  placeholder="z.B. Buchhaltung, Hausmeister"
+                  disabled={saving || !hasVerwaltenPermission}
+                  className="rounded-xl h-10 border-zinc-200/80 dark:border-zinc-800/80"
+                />
               </CardContent>
             </Card>
 
+            {/* Section 2: Object-Scope (Häuser-Zugriff) */}
             <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Objekt-Scope (Häuser-Zugriff)</CardTitle>
@@ -451,6 +422,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
               </CardContent>
             </Card>
 
+            {/* Section 3: Modul- und Aktionsrechte */}
             <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Modul- und Aktionsrechte</CardTitle>
@@ -466,12 +438,70 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
                 />
               </CardContent>
             </Card>
+
+            {/* Section 4: Save / Discard Bar matching MitgliedPermissionDetail */}
+            <div className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 flex items-center justify-between shadow-xs transition-all duration-200 mt-8">
+              <div className="text-xs text-zinc-500">
+                {isDirty ? (
+                  <span className="text-amber-600 dark:text-amber-400 font-medium">Ungespeicherte Änderungen</span>
+                ) : (
+                  <span>Alle Änderungen gespeichert</span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {isDirty && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (originalPolicy) {
+                        setEditingPolicy(structuredClone(originalPolicy));
+                      } else {
+                        setEditingPolicy(null);
+                      }
+                    }}
+                    disabled={saving}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5"
+                  >
+                    Verwerfen
+                  </button>
+                )}
+                <Button
+                  onClick={handleSave}
+                  disabled={!isDirty || saving}
+                  className={cn(
+                    "text-xs h-8 px-4 rounded-xl font-semibold flex items-center gap-1.5 shadow-sm transition-all",
+                    isDirty
+                      ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                      : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900 dark:text-zinc-600 cursor-not-allowed"
+                  )}
+                >
+                  {saving ? (
+                    <>
+                      <RefreshCw className="size-3 animate-spin" />
+                      <span>Speichert...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-3" />
+                      <span>Richtlinie speichern</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         ) : (
-          <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs p-6 text-center text-zinc-500">
-            <p className="text-sm">
-              Wählen Sie eine Richtlinie aus der Liste aus oder klicken Sie auf "Neue Richtlinie", um eine neue Richtlinie zu erstellen.
-            </p>
+          /* Empty state matching Mitglied empty state */
+          <Card className="rounded-[2rem] border border-dashed border-zinc-200 dark:border-zinc-800 shadow-xs p-12 text-center text-zinc-500 h-full flex flex-col items-center justify-center gap-4">
+            <div className="bg-zinc-100 dark:bg-zinc-900 p-4 rounded-full text-zinc-400 dark:text-zinc-600">
+              <Shield className="size-10" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-lg text-zinc-800 dark:text-zinc-200">Keine Richtlinie ausgewählt</h3>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                Wählen Sie eine Richtlinie aus der Liste aus oder erstellen Sie eine neue, um Berechtigungen anzuzeigen oder Einstellungen zu verwalten.
+              </p>
+            </div>
           </Card>
         )}
       </div>
