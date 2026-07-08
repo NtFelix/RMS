@@ -228,22 +228,22 @@ function OrganisationConfirmDialog({
           </div>
           <AlertDialogTitle className="text-xl font-bold text-center">
             {pendingConfirm?.type === 'revoke' && "Einladung widerrufen"}
-            {pendingConfirm?.type === 'role' && "Rolle &auml;ndern"}
-            {pendingConfirm?.type === 'status' && "Status &auml;ndern"}
+            {pendingConfirm?.type === 'role' && "Rolle ändern"}
+            {pendingConfirm?.type === 'status' && "Status ändern"}
             {pendingConfirm?.type === 'delete' && "Mitglied entfernen"}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-center text-sm text-muted-foreground leading-relaxed">
             {pendingConfirm?.type === 'revoke' && (
-              <>M&ouml;chten Sie die Einladung f&uuml;r <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich widerrufen? Die Person wird die Einladung nicht mehr annehmen k&ouml;nnen.</>
+              <>Möchten Sie die Einladung für <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich widerrufen? Die Person wird die Einladung nicht mehr annehmen können.</>
             )}
             {pendingConfirm?.type === 'role' && (
-              <>M&ouml;chten Sie die Rolle von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'owner' ? 'Inhaber' : pendingConfirm.value === 'admin' ? 'Administrator' : 'Mitarbeiter'}</strong> &auml;ndern?</>
+              <>Möchten Sie die Rolle von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'owner' ? 'Inhaber' : pendingConfirm.value === 'admin' ? 'Administrator' : 'Mitarbeiter'}</strong> ändern?</>
             )}
             {pendingConfirm?.type === 'status' && (
-              <>M&ouml;chten Sie den Status von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'aktiv' ? 'Aktiv' : 'Deaktiviert'}</strong> &auml;ndern?</>
+              <>Möchten Sie den Status von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'aktiv' ? 'Aktiv' : 'Deaktiviert'}</strong> ändern?</>
             )}
             {pendingConfirm?.type === 'delete' && (
-              <>M&ouml;chten Sie <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich aus der Organisation entfernen? Der Zugriff auf alle Daten dieser Organisation geht sofort verloren.</>
+              <>Möchten Sie <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich aus der Organisation entfernen? Der Zugriff auf alle Daten dieser Organisation geht sofort verloren.</>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -259,7 +259,7 @@ function OrganisationConfirmDialog({
             }}
             disabled={isPending}
           >
-            {isPending ? "Bitte warten..." : "Best&auml;tigen"}
+            {isPending ? "Bitte warten..." : "Bestätigen"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

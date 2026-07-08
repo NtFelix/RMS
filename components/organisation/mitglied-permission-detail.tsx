@@ -290,24 +290,6 @@ export function MitgliedPermissionDetail({
         
         {/* Actions inside header */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Always show Role Badge */}
-          <Badge variant="outline" className={cn("rounded-full font-medium text-[11px] px-2.5 py-0.5", 
-            rolle === 'owner' ? "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800" :
-            rolle === 'admin' ? "bg-blue-500/10 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-800" :
-            "bg-zinc-500/10 text-zinc-700 border-zinc-200 dark:bg-zinc-500/20 dark:text-zinc-400 dark:border-zinc-800"
-          )}>
-            {rolle === 'owner' ? 'Inhaber' : rolle === 'admin' ? 'Admin' : 'Mitarbeiter'}
-          </Badge>
-
-          {/* Always show Status Badge */}
-          <Badge variant="outline" className={cn("rounded-full font-medium text-[11px] px-2.5 py-0.5",
-            status === 'aktiv' ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
-            status === 'eingeladen' ? "bg-orange-500/10 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-800" :
-            "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800"
-          )}>
-            {status === 'aktiv' ? 'Aktiv' : status === 'eingeladen' ? 'Eingeladen' : 'Deaktiviert'}
-          </Badge>
-
           {/* "Verwalten" unified dropdown action */}
           {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && (
             <DropdownMenu>
@@ -334,14 +316,18 @@ export function MitgliedPermissionDetail({
                       <DropdownMenuSubContent className="w-40 rounded-xl p-1">
                         <DropdownMenuItem 
                           className={cn("justify-between cursor-pointer", rolle === "admin" && "font-semibold text-primary")}
-                          onClick={() => onRoleChange(mitgliedId, memberName, "admin")}
+                          onSelect={() => {
+                            setTimeout(() => onRoleChange(mitgliedId, memberName, "admin"), 100);
+                          }}
                         >
                           <span>Admin</span>
                           {rolle === "admin" && <Check className="size-3.5" />}
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className={cn("justify-between cursor-pointer", rolle === "mitarbeiter" && "font-semibold text-primary")}
-                          onClick={() => onRoleChange(mitgliedId, memberName, "mitarbeiter")}
+                          onSelect={() => {
+                            setTimeout(() => onRoleChange(mitgliedId, memberName, "mitarbeiter"), 100);
+                          }}
                         >
                           <span>Mitarbeiter</span>
                           {rolle === "mitarbeiter" && <Check className="size-3.5" />}
@@ -361,14 +347,18 @@ export function MitgliedPermissionDetail({
                       <DropdownMenuSubContent className="w-40 rounded-xl p-1">
                         <DropdownMenuItem 
                           className={cn("justify-between cursor-pointer", status === "aktiv" && "font-semibold text-emerald-600")}
-                          onClick={() => onStatusChange(mitgliedId, memberName, "aktiv")}
+                          onSelect={() => {
+                            setTimeout(() => onStatusChange(mitgliedId, memberName, "aktiv"), 100);
+                          }}
                         >
                           <span>Aktiv</span>
                           {status === "aktiv" && <Check className="size-3.5" />}
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className={cn("justify-between cursor-pointer", status === "deaktiviert" && "font-semibold text-red-600")}
-                          onClick={() => onStatusChange(mitgliedId, memberName, "deaktiviert")}
+                          onSelect={() => {
+                            setTimeout(() => onStatusChange(mitgliedId, memberName, "deaktiviert"), 100);
+                          }}
                         >
                           <span>Deaktiviert</span>
                           {status === "deaktiviert" && <Check className="size-3.5" />}
@@ -383,7 +373,9 @@ export function MitgliedPermissionDetail({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-red-600 dark:text-red-400 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-600 flex items-center gap-2 cursor-pointer"
-                      onClick={() => onRemove(mitgliedId, memberName)}
+                      onSelect={() => {
+                        setTimeout(() => onRemove(mitgliedId, memberName), 100);
+                      }}
                     >
                       <Trash className="size-4" />
                       <span>Mitglied entfernen</span>
@@ -412,7 +404,7 @@ export function MitgliedPermissionDetail({
           <div className="space-y-1.5">
             <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Rollenbasierter Vollzugriff</h3>
             <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-              Owners and admins always have full access and cannot be restricted.
+              Inhaber und Administratoren haben stets vollen Zugriff und können nicht eingeschränkt werden.
             </p>
           </div>
         </div>
