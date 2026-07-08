@@ -484,6 +484,7 @@ function OrganisationMembersTab({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full h-9 text-xs rounded-xl"
+              wrapperClassName="w-full"
             />
           </div>
         </div>
@@ -937,13 +938,7 @@ export default function OrganisationClientView({
   return (
     <LazyMotion features={domAnimation}>
       <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* Page Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Organisation</h1>
-        <p className="text-muted-foreground">
-          Verwalten Sie Ihre Organisation, Rollen und Berechtigungen der Mitarbeiter.
-        </p>
-      </div>
+
 
       {/* Inline RPC error banner */}
       {rpcError && (

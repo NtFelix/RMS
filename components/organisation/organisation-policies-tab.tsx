@@ -272,6 +272,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full h-9 text-xs rounded-xl"
+              wrapperClassName="w-full"
             />
           </div>
         </div>

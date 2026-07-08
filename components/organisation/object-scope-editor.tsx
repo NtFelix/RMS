@@ -158,11 +158,7 @@ export function ObjectScopeEditor({
                   <button
                     type="button"
                     onClick={() => toggleExpand(haus.id)}
-                    disabled={!isChecked} // Only allow expand if house is checked/active
-                    className={cn(
-                      "p-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 rounded-md transition-all text-zinc-500",
-                      !isChecked && "opacity-30 cursor-not-allowed"
-                    )}
+                    className="p-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 rounded-md transition-all text-zinc-500"
                   >
                     <ChevronRight
                       className={cn(
@@ -204,32 +200,25 @@ export function ObjectScopeEditor({
                 </span>
               </div>
 
-              {/* Indented Apartments (only if checked & expanded) */}
-              {hasWohnungen && isChecked && isExpanded && (
+              {/* Indented Apartments (only if expanded) */}
+              {hasWohnungen && isExpanded && (
                 <div className="pl-10 pr-2 py-1 space-y-1.5 border-l-2 border-zinc-200 dark:border-zinc-800 ml-6 animate-in slide-in-from-left-2 duration-150">
                   {haus.wohnungen.map(wohnung => (
                     <div
                       key={wohnung.id}
                       className={cn(
                         "p-2.5 border border-zinc-100 dark:border-zinc-900 rounded-xl flex items-center gap-3 bg-white/50 dark:bg-zinc-900/30",
-                        isChecked ? "font-normal text-zinc-800 dark:text-zinc-200" : "text-muted-foreground"
+                        isChecked ? "font-normal text-zinc-800 dark:text-zinc-200" : "text-muted-foreground opacity-60"
                       )}
                     >
-                      <Checkbox
-                        id={`wohnung-${wohnung.id}`}
-                        checked={isChecked} // Synced with house check state
-                        onCheckedChange={() => toggleHaus(haus.id)} // Toggling apartment toggles the house
-                        disabled={disabled || isGrantedByPolicy}
-                      />
-                      <label
-                        htmlFor={`wohnung-${wohnung.id}`}
+                      <span
                         className={cn(
-                          "text-xs select-none flex-1 cursor-pointer",
+                          "text-xs select-none flex-1",
                           isChecked ? "font-normal text-zinc-700 dark:text-zinc-300" : "text-muted-foreground"
                         )}
                       >
                         {wohnung.name}
-                      </label>
+                      </span>
                     </div>
                   ))}
                 </div>
