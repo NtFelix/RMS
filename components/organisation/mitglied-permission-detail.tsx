@@ -11,17 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
-} from "@/components/ui/dropdown-menu";
-import { Lock, RefreshCw, Save, Trash2, ChevronDown, Shield, Clock, Trash, Check, Settings } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Lock, RefreshCw, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -288,104 +284,7 @@ export function MitgliedPermissionDetail({
           {email && <span className="text-xs text-muted-foreground">{email}</span>}
         </div>
         
-        {/* Actions inside header */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* "Verwalten" unified dropdown action */}
-          {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  disabled={isPending}
-                  className="text-xs text-muted-foreground hover:text-foreground rounded-lg h-8 px-3 flex items-center gap-1.5 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 border border-zinc-200/50 dark:border-zinc-800/50"
-                >
-                  <Settings className="size-3.5" />
-                  <span>Verwalten</span>
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48 rounded-xl p-1.5" align="end">
-                {onRoleChange && (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                      <Shield className="size-4 text-zinc-500" />
-                      <span>Rolle ändern</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="w-40 rounded-xl p-1">
-                        <DropdownMenuItem 
-                          className={cn("justify-between cursor-pointer", rolle === "admin" && "font-semibold text-primary")}
-                          onSelect={() => {
-                            setTimeout(() => onRoleChange(mitgliedId, memberName, "admin"), 100);
-                          }}
-                        >
-                          <span>Admin</span>
-                          {rolle === "admin" && <Check className="size-3.5" />}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className={cn("justify-between cursor-pointer", rolle === "mitarbeiter" && "font-semibold text-primary")}
-                          onSelect={() => {
-                            setTimeout(() => onRoleChange(mitgliedId, memberName, "mitarbeiter"), 100);
-                          }}
-                        >
-                          <span>Mitarbeiter</span>
-                          {rolle === "mitarbeiter" && <Check className="size-3.5" />}
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                )}
 
-                {onStatusChange && (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                      <Clock className="size-4 text-zinc-500" />
-                      <span>Status ändern</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent className="w-40 rounded-xl p-1">
-                        <DropdownMenuItem 
-                          className={cn("justify-between cursor-pointer", status === "aktiv" && "font-semibold text-emerald-600")}
-                          onSelect={() => {
-                            setTimeout(() => onStatusChange(mitgliedId, memberName, "aktiv"), 100);
-                          }}
-                        >
-                          <span>Aktiv</span>
-                          {status === "aktiv" && <Check className="size-3.5" />}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className={cn("justify-between cursor-pointer", status === "deaktiviert" && "font-semibold text-red-600")}
-                          onSelect={() => {
-                            setTimeout(() => onStatusChange(mitgliedId, memberName, "deaktiviert"), 100);
-                          }}
-                        >
-                          <span>Deaktiviert</span>
-                          {status === "deaktiviert" && <Check className="size-3.5" />}
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                )}
-
-                {onRemove && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-red-600 dark:text-red-400 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-600 flex items-center gap-2 cursor-pointer"
-                      onSelect={() => {
-                        setTimeout(() => onRemove(mitgliedId, memberName), 100);
-                      }}
-                    >
-                      <Trash className="size-4" />
-                      <span>Mitglied entfernen</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
       </div>
       {summaryText && (
         <p className="text-sm text-muted-foreground">{summaryText}</p>
@@ -521,6 +420,84 @@ export function MitgliedPermissionDetail({
             />
           </CardContent>
         </Card>
+
+        {/* Section 2.5: Danger Zone (only if manageable) */}
+        {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && (
+          <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs mt-6 bg-red-500/[0.01] dark:bg-red-500/[0.02]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
+              <CardDescription className="text-xs">
+                Verwalten Sie die Rolle, den Status oder entfernen Sie das Mitglied dauerhaft aus der Organisation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-0 pt-0 pb-3">
+              {/* Role Setting Row */}
+              {onRoleChange && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitgliedsrolle</span>
+                    <span className="text-xs text-muted-foreground">Bestimmt die Berechtigungsstufe des Mitarbeiters.</span>
+                  </div>
+                  <Select
+                    value={rolle}
+                    onValueChange={(val) => onRoleChange(mitgliedId, memberName, val)}
+                    disabled={isPending}
+                  >
+                    <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="admin">Administrator</SelectItem>
+                      <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Status Setting Row */}
+              {onStatusChange && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Kontostatus</span>
+                    <span className="text-xs text-muted-foreground">Aktivieren oder deaktivieren Sie den Zugriff des Mitarbeiters.</span>
+                  </div>
+                  <Select
+                    value={status}
+                    onValueChange={(val) => onStatusChange(mitgliedId, memberName, val)}
+                    disabled={isPending}
+                  >
+                    <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="aktiv">Aktiv</SelectItem>
+                      <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Remove Member Row */}
+              {onRemove && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitglied entfernen</span>
+                    <span className="text-xs text-muted-foreground">Entzieht dauerhaft alle Berechtigungen und den Zugriff.</span>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => onRemove(mitgliedId, memberName)}
+                    disabled={isPending}
+                    className="rounded-xl font-semibold h-9 px-4 shrink-0"
+                  >
+                    Mitglied löschen
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Section 3: Save / Discard Bar (Inline below the editors) */}
         <div className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 flex items-center justify-between shadow-xs transition-all duration-200 mt-8">

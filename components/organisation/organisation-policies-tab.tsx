@@ -366,21 +366,6 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
                   </span>
                 </div>
 
-                {/* Actions inside header */}
-                {originalPolicy && hasVerwaltenPermission && (
-                  <div className="flex items-center gap-3 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="text-xs text-muted-foreground hover:text-red-500 rounded-lg h-8 px-2 flex items-center gap-1 hover:bg-red-500/5 dark:hover:bg-red-500/10 border border-zinc-200/50 dark:border-zinc-800/50"
-                      onClick={handleDelete}
-                      disabled={saving}
-                    >
-                      <Trash className="size-3.5" />
-                      <span>Löschen</span>
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -439,6 +424,33 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
                 />
               </CardContent>
             </Card>
+
+            {/* Section 3.5: Danger Zone (only if manageable & existing policy) */}
+            {originalPolicy && hasVerwaltenPermission && (
+              <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs mt-6 bg-red-500/[0.01] dark:bg-red-500/[0.02]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
+                  <CardDescription className="text-xs">
+                    Das Löschen dieser Richtlinie entzieht allen zugewiesenen Mitarbeitern die entsprechenden Berechtigungen.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-0">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Richtlinie löschen</span>
+                    <span className="text-xs text-muted-foreground">Dieser Vorgang kann nicht rückgängig gemacht werden.</span>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDelete}
+                    disabled={saving}
+                    className="rounded-xl font-semibold h-9 px-4 shrink-0"
+                  >
+                    Richtlinie löschen
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Section 4: Save / Discard Bar matching MitgliedPermissionDetail */}
             <div className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 flex items-center justify-between shadow-xs transition-all duration-200 mt-8">
