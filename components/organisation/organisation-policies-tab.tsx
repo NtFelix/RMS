@@ -26,9 +26,14 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
-import { Shield, PlusCircle, Save, RefreshCw, AlertTriangle, Trash, Clock } from "lucide-react";
+import { Shield, PlusCircle, Save, RefreshCw, AlertTriangle, Trash, Clock, Plus, Minus, Pencil, Home, Building, Users, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Eye, Trash2, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+
+interface ChangeSummary {
+  description: React.ReactNode;
+  type: "add" | "remove" | "modify";
+}
 
 interface OrganisationPoliciesTabProps {
   hasVerwaltenPermission: boolean;
@@ -91,6 +96,236 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
       JSON.stringify(editingPolicy.berechtigungen) !== JSON.stringify(originalPolicy.berechtigungen)
     );
   }, [editingPolicy, originalPolicy]);
+
+  const getModuleIcon = (modKey: string) => {
+    const cn = "inline-block size-3.5 mx-1 align-text-bottom text-zinc-500 dark:text-zinc-400";
+    switch (modKey) {
+      case "haeuser":
+        return <Home className={cn} />;
+      case "wohnungen":
+        return <Building className={cn} />;
+      case "mieter":
+        return <Users className={cn} />;
+      case "zaehler":
+        return <Gauge className={cn} />;
+      case "finanzen":
+        return <CreditCard className={cn} />;
+      case "betriebskosten":
+        return <Calculator className={cn} />;
+      case "dokumente":
+        return <FileText className={cn} />;
+      case "aufgaben":
+        return <CheckSquare className={cn} />;
+      case "vorlagen":
+        return <Layout className={cn} />;
+      case "organisation":
+        return <Shield className={cn} />;
+      default:
+        return null;
+    }
+  };
+
+  const getPermissionIcon = (action: string) => {
+    const cn = "inline-block size-3 mx-0.5 align-text-bottom text-zinc-400 dark:text-zinc-500";
+    switch (action) {
+      case "ansehen":
+        return <Eye className={cn} />;
+      case "erstellen":
+        return <Plus className={cn} />;
+      case "bearbeiten":
+        return <Pencil className={cn} />;
+      case "loeschen":
+        return <Trash2 className={cn} />;
+      case "verwalten":
+        return <Settings className={cn} />;
+      default:
+        return null;
+    }
+  };
+
+  const changesDiff = useMemo<ChangeSummary[]>(() => {
+    if (!editingPolicy) return [];
+    const list: ChangeSummary[] = [];
+
+    // 1. Name Change
+    const prevName = originalPolicy ? originalPolicy.name : "";
+    const nextName = editingPolicy.name;
+    if (prevName !== nextName && originalPolicy) {
+      list.push({
+        description: (
+          <>
+            Name von <strong>"{prevName}"</strong> zu <strong>"{nextName}"</strong> geändert
+          </>
+        ),
+        type: "modify"
+      });
+    }
+
+    // 2. House Access
+    const prevHouses = originalPolicy?.berechtigungen.objekte?.haeuser || [];
+    const nextHouses = editingPolicy.berechtigungen.objekte?.haeuser || [];
+
+    const prevIsUnrestricted = originalPolicy ? (originalPolicy.berechtigungen.objekte?.haeuser === null) : false;
+    const nextIsUnrestricted = editingPolicy.berechtigungen.objekte?.haeuser === null;
+
+    if (originalPolicy) {
+      if (prevIsUnrestricted !== nextIsUnrestricted) {
+        list.push({
+          description: nextIsUnrestricted ? (
+            <>
+              Häuser-Zugriff auf <strong>"Alle Häuser (Unbeschränkt)"</strong> geändert
+            </>
+          ) : (
+            <>
+              Häuser-Zugriff auf <strong>"Eingeschränkte Häuser"</strong> geändert
+            </>
+          ),
+          type: "modify"
+        });
+      } else if (!prevIsUnrestricted && !nextIsUnrestricted) {
+        // Added houses
+        nextHouses.forEach(id => {
+          if (!prevHouses.includes(id)) {
+            const houseName = haeuser.find(h => h.id === id)?.name || id;
+            list.push({
+              description: (
+                <>
+                  Zugriff auf Haus <strong>"{houseName}"</strong> erteilt
+                </>
+              ),
+              type: "add"
+            });
+          }
+        });
+        // Removed houses
+        prevHouses.forEach(id => {
+          if (!nextHouses.includes(id)) {
+            const houseName = haeuser.find(h => h.id === id)?.name || id;
+            list.push({
+              description: (
+                <>
+                  Zugriff auf Haus <strong>"{houseName}"</strong> entzogen
+                </>
+              ),
+              type: "remove"
+            });
+          }
+        });
+      }
+    } else {
+      // New policy: show initial scope
+      list.push({
+        description: nextIsUnrestricted ? (
+          <>
+            Häuser-Zugriff: <strong>"Alle Häuser (Unbeschränkt)"</strong>
+          </>
+        ) : (
+          <>
+            Häuser-Zugriff: <strong>{nextHouses.length} Haus/Häuser</strong>
+          </>
+        ),
+        type: "add"
+      });
+    }
+
+    // 3. Module Permissions
+    const prevModules = originalPolicy?.berechtigungen.module || {};
+    const nextModules = editingPolicy.berechtigungen.module || {};
+
+    const allModuleKeys = Array.from(new Set([
+      ...Object.keys(prevModules),
+      ...Object.keys(nextModules)
+    ]));
+
+    const actionLabelMap: Record<string, string> = {
+      ansehen: "Ansehen",
+      erstellen: "Erstellen",
+      bearbeiten: "Bearbeiten",
+      loeschen: "Löschen",
+      verwalten: "Verwalten"
+    };
+
+    const moduleLabelMap: Record<string, string> = {
+      haeuser: "Häuser",
+      wohnungen: "Wohnungen",
+      mieter: "Mieter",
+      zaehler: "Zähler",
+      finanzen: "Finanzen",
+      betriebskosten: "Betriebskosten",
+      dokumente: "Dokumente",
+      aufgaben: "Aufgaben",
+      vorlagen: "Vorlagen",
+      organisation: "Organisation"
+    };
+
+    allModuleKeys.forEach(modKey => {
+      const prevActions = prevModules[modKey] || [];
+      const nextActions = nextModules[modKey] || [];
+
+      const added = nextActions.filter(a => !prevActions.includes(a));
+      const removed = prevActions.filter(a => !nextActions.includes(a));
+
+      const modLabel = moduleLabelMap[modKey] || modKey;
+
+      if (originalPolicy) {
+        if (added.length > 0) {
+          list.push({
+            description: (
+              <>
+                Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> erteilt:{" "}
+                {added.map((a, idx) => (
+                  <span key={a} className="inline-flex items-center gap-0.5 text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 font-normal">,</span>}
+                    {getPermissionIcon(a)}
+                    <span>{actionLabelMap[a] || a}</span>
+                  </span>
+                ))}
+              </>
+            ),
+            type: "add"
+          });
+        }
+        if (removed.length > 0) {
+          list.push({
+            description: (
+              <>
+                Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> entzogen:{" "}
+                {removed.map((a, idx) => (
+                  <span key={a} className="inline-flex items-center gap-0.5 text-zinc-500 line-through">
+                    {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 no-underline">,</span>}
+                    {getPermissionIcon(a)}
+                    <span>{actionLabelMap[a] || a}</span>
+                  </span>
+                ))}
+              </>
+            ),
+            type: "remove"
+          });
+        }
+      } else {
+        // New policy: show initial permissions
+        if (nextActions.length > 0) {
+          list.push({
+            description: (
+              <>
+                Berechtigungen im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong>:{" "}
+                {nextActions.map((a, idx) => (
+                  <span key={a} className="inline-flex items-center gap-0.5 text-zinc-800 dark:text-zinc-200 font-semibold">
+                    {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 font-normal">,</span>}
+                    {getPermissionIcon(a)}
+                    <span>{actionLabelMap[a] || a}</span>
+                  </span>
+                ))}
+              </>
+            ),
+            type: "add"
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [editingPolicy, originalPolicy, haeuser]);
 
   const handleSelectPolicy = (policy: OrganisationPolicy | null) => {
     if (policy) {
@@ -453,55 +688,65 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
             )}
 
             {/* Section 4: Save / Discard Bar matching MitgliedPermissionDetail */}
-            <div className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30 flex items-center justify-between shadow-xs transition-all duration-200 mt-8">
-              <div className="text-xs text-zinc-500">
-                {isDirty ? (
-                  <span className="text-amber-600 dark:text-amber-400 font-medium">Ungespeicherte Änderungen</span>
-                ) : (
-                  <span>Alle Änderungen gespeichert</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {isDirty && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (originalPolicy) {
-                        setEditingPolicy(structuredClone(originalPolicy));
-                      } else {
-                        setEditingPolicy(null);
-                      }
-                    }}
-                    disabled={saving}
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5"
-                  >
-                    Verwerfen
-                  </button>
-                )}
-                <Button
-                  onClick={handleSave}
-                  disabled={!isDirty || saving}
-                  className={cn(
-                    "text-xs h-8 px-4 rounded-xl font-semibold flex items-center gap-1.5 shadow-sm transition-all",
-                    isDirty
-                      ? "bg-primary hover:bg-primary/90 text-primary-foreground"
-                      : "bg-zinc-100 text-zinc-400 dark:bg-zinc-900 dark:text-zinc-600 cursor-not-allowed"
-                  )}
-                >
-                  {saving ? (
-                    <>
-                      <RefreshCw className="size-3 animate-spin" />
-                      <span>Speichert...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="size-3" />
-                      <span>Richtlinie speichern</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+            {isDirty && (
+              <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs mt-8 overflow-hidden">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Ungespeicherte Änderungen</CardTitle>
+                  <CardDescription className="text-xs">
+                    Folgende Änderungen werden auf diese Richtlinie angewendet:
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <div className="flex flex-col gap-2.5">
+                    {changesDiff.map((change, idx) => (
+                      <div key={idx} className="flex items-start gap-2.5 text-xs py-0.5">
+                        <span className={cn(
+                          "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
+                          change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
+                          change.type === "remove" ? "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800" :
+                          "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800"
+                        )}>
+                          {change.type === "add" && <Plus className="size-3 stroke-[2.5]" />}
+                          {change.type === "remove" && <Minus className="size-3 stroke-[2.5]" />}
+                          {change.type === "modify" && <Pencil className="size-2.5 stroke-[2.5]" />}
+                        </span>
+                        <span className="text-zinc-600 dark:text-zinc-400 font-medium leading-6">
+                          {change.description}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+                <div className="p-6 pt-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    Möchten Sie diese Änderungen jetzt speichern?
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (originalPolicy) {
+                          setEditingPolicy(structuredClone(originalPolicy));
+                        } else {
+                          setEditingPolicy(null);
+                        }
+                      }}
+                      disabled={saving}
+                      className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 cursor-pointer bg-transparent border-0"
+                    >
+                      Verwerfen
+                    </button>
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="text-xs h-9 px-5 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all border-0"
+                    >
+                      {saving ? "Wird gespeichert..." : "Änderungen speichern"}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         ) : (
           /* Empty state matching Mitglied empty state */
