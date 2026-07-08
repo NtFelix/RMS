@@ -203,24 +203,22 @@ export function ModulePermissionEditor({
                 )}>
                   <div className="flex items-center justify-between gap-2 min-h-[40px]">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 shrink-0">
+                      <div className={cn(
+                        "p-1.5 rounded-lg shrink-0 transition-colors",
+                        isRowEmpty
+                          ? "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                      )}>
                         <ModIcon className="size-4" />
                       </div>
-                      <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 truncate">
+                      <span className={cn(
+                        "font-semibold text-sm truncate transition-all",
+                        isRowEmpty
+                          ? "line-through text-red-500/70 dark:text-red-400/60 decoration-red-500/50"
+                          : "text-zinc-800 dark:text-zinc-200"
+                      )}>
                         {mod.label}
                       </span>
-                    </div>
-                    <div className="flex gap-1 shrink-0 mr-4">
-                      {isRowEmpty && (
-                        <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:bg-red-500/20 dark:text-red-400 border-red-200/50 dark:border-red-800/30 text-[9px] py-0 px-2 rounded-full font-medium tracking-wide">
-                          Kein Zugriff
-                        </Badge>
-                      )}
-                      {hasAllPerms && (
-                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/30 text-[9px] py-0 px-2 rounded-full font-medium tracking-wide">
-                          Vollzugriff
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </td>
