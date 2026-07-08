@@ -660,36 +660,9 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
               </CardContent>
             </Card>
 
-            {/* Section 3.5: Danger Zone (only if manageable & existing policy) */}
-            {originalPolicy && hasVerwaltenPermission && (
-              <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs mt-6 bg-red-500/[0.01] dark:bg-red-500/[0.02]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
-                  <CardDescription className="text-xs">
-                    Das Löschen dieser Richtlinie entzieht allen zugewiesenen Mitarbeitern die entsprechenden Berechtigungen.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-0">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Richtlinie löschen</span>
-                    <span className="text-xs text-muted-foreground">Dieser Vorgang kann nicht rückgängig gemacht werden.</span>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDelete}
-                    disabled={saving}
-                    className="rounded-xl font-semibold h-9 px-4 shrink-0"
-                  >
-                    Richtlinie löschen
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Section 4: Save / Discard Bar matching MitgliedPermissionDetail */}
+             {/* Section 4: Save / Discard Bar matching MitgliedPermissionDetail */}
             {isDirty && (
-              <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs mt-8 overflow-hidden">
+              <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">Ungespeicherte Änderungen</CardTitle>
                   <CardDescription className="text-xs">
@@ -745,6 +718,33 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
                     </Button>
                   </div>
                 </div>
+              </Card>
+            )}
+
+            {/* Section 3.5: Danger Zone (only if manageable & existing policy) */}
+            {originalPolicy && hasVerwaltenPermission && (
+              <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs bg-red-500/[0.01] dark:bg-red-500/[0.02]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
+                  <CardDescription className="text-xs">
+                    Das Löschen dieser Richtlinie entzieht allen zugewiesenen Mitarbeitern die entsprechenden Berechtigungen.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-0">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Richtlinie löschen</span>
+                    <span className="text-xs text-muted-foreground">Dieser Vorgang kann nicht rückgängig gemacht werden.</span>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDelete}
+                    disabled={saving}
+                    className="rounded-xl font-semibold h-9 px-4 shrink-0"
+                  >
+                    Richtlinie löschen
+                  </Button>
+                </CardContent>
               </Card>
             )}
           </div>

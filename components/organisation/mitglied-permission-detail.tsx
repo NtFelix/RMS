@@ -494,38 +494,23 @@ export function MitgliedPermissionDetail({
     return list;
   }, [permissions, originalPermissions, policies, haeuser]);
 
-  // Section 0: Member Header Content
-  const summaryText = useMemo(() => {
-    if (isLocked) {
-      return `Vollzugriff auf alle Häuser und Module`;
-    }
-    if (!statsSummary) return "";
-    const housesText = statsSummary.isUnrestricted
-      ? `alle Häuser`
-      : `${statsSummary.housesCount} Haus/Häuser`;
-    return `Zugriff auf ${housesText} · ${statsSummary.activeModules} Module aktiv`;
-  }, [statsSummary, isLocked]);
-
   const headerContent = (
     <div className="flex flex-col gap-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-            {memberName}
+        <div className="flex flex-col gap-0.5 w-full">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-800 dark:text-zinc-200">
+              {memberName}
+            </h2>
             {isCurrentUser && (
-              <span className="text-[10px] text-zinc-400 font-normal border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] text-zinc-400 font-normal border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-full shrink-0">
                 Du
               </span>
             )}
-          </h2>
+          </div>
           {email && <span className="text-xs text-muted-foreground">{email}</span>}
         </div>
-        
-
       </div>
-      {summaryText && (
-        <p className="text-sm text-muted-foreground">{summaryText}</p>
-      )}
     </div>
   );
 
@@ -658,9 +643,64 @@ export function MitgliedPermissionDetail({
           </CardContent>
         </Card>
 
+        {/* Section 3: Save / Discard Bar (Application Card style) */}
+        {isDirty && (
+          <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Ungespeicherte Änderungen</CardTitle>
+              <CardDescription className="text-xs">
+                Folgende Änderungen werden auf dieses Mitglied angewendet:
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="flex flex-col gap-2.5">
+                {changesDiff.map((change, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5 text-xs py-0.5">
+                    <span className={cn(
+                      "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
+                      change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
+                      change.type === "remove" ? "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800" :
+                      "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800"
+                    )}>
+                      {change.type === "add" && <Plus className="size-3 stroke-[2.5]" />}
+                      {change.type === "remove" && <Minus className="size-3 stroke-[2.5]" />}
+                      {change.type === "modify" && <Pencil className="size-2.5 stroke-[2.5]" />}
+                    </span>
+                    <span className="text-zinc-600 dark:text-zinc-400 font-medium leading-6">
+                      {change.description}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+            <div className="p-6 pt-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="text-xs text-muted-foreground">
+                Möchten Sie diese Änderungen jetzt speichern?
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={saving}
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 cursor-pointer bg-transparent border-0"
+                >
+                  Verwerfen
+                </button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="text-xs h-9 px-5 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all border-0"
+                >
+                  {saving ? "Wird gespeichert..." : "Änderungen speichern"}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Section 2.5: Danger Zone (only if manageable) */}
         {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && (
-          <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs mt-6 bg-red-500/[0.01] dark:bg-red-500/[0.02]">
+          <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs bg-red-500/[0.01] dark:bg-red-500/[0.02]">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
               <CardDescription className="text-xs">
@@ -733,61 +773,6 @@ export function MitgliedPermissionDetail({
                 </div>
               )}
             </CardContent>
-          </Card>
-        )}
-
-        {/* Section 3: Save / Discard Bar (Application Card style) */}
-        {isDirty && (
-          <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs mt-8 overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Ungespeicherte Änderungen</CardTitle>
-              <CardDescription className="text-xs">
-                Folgende Änderungen werden auf dieses Mitglied angewendet:
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-4">
-              <div className="flex flex-col gap-2.5">
-                {changesDiff.map((change, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5 text-xs py-0.5">
-                    <span className={cn(
-                      "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
-                      change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
-                      change.type === "remove" ? "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800" :
-                      "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800"
-                    )}>
-                      {change.type === "add" && <Plus className="size-3 stroke-[2.5]" />}
-                      {change.type === "remove" && <Minus className="size-3 stroke-[2.5]" />}
-                      {change.type === "modify" && <Pencil className="size-2.5 stroke-[2.5]" />}
-                    </span>
-                    <span className="text-zinc-600 dark:text-zinc-400 font-medium leading-6">
-                      {change.description}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-            <div className="p-6 pt-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span className="text-xs text-muted-foreground">
-                Möchten Sie diese Änderungen jetzt speichern?
-              </span>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={saving}
-                  className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 cursor-pointer bg-transparent border-0"
-                >
-                  Verwerfen
-                </button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="text-xs h-9 px-5 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all border-0"
-                >
-                  {saving ? "Wird gespeichert..." : "Änderungen speichern"}
-                </Button>
-              </div>
-            </div>
           </Card>
         )}
     </div>
