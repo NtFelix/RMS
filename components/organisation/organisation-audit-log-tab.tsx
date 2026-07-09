@@ -115,6 +115,14 @@ const FRIENDLY_COLUMN_MAP: Record<string, string> = {
   betrag: "Betrag",
   faellig_am: "Fällig am",
   bezahlt: "Bezahlt",
+  kaution: "Kaution",
+  amount: "Betrag",
+  paymentDate: "Zahlungsdatum",
+  createdAt: "Erstellt am",
+  updatedAt: "Aktualisiert am",
+  zaehlerkosten: "Zählerkosten",
+  zaehlerverbrauch: "Zählerverbrauch",
+  bewerbung_metadaten: "Bewerbungsdaten",
   berechtigungen: "Berechtigungen",
   module: "Module",
   objekte: "Objektzugriff",
@@ -197,6 +205,15 @@ const ACTION_CONFIG: Record<string, { label: string; icon: React.ComponentType<{
   bearbeiten: { label: "Bearbeiten", icon: Pencil },
   loeschen:   { label: "Löschen",    icon: Trash2 },
   verwalten:  { label: "Verwalten",  icon: Settings },
+};
+
+const ZAEHLER_LABEL_MAP: Record<string, string> = {
+  kaltwasser: "Kaltwasserzähler",
+  warmwasser: "Warmwasserzähler",
+  waermemenge: "Wärmemengenzähler",
+  heizkostenverteiler: "Heizkostenverteiler",
+  strom: "Stromzähler",
+  gas: "Gaszähler",
 };
 
 // Simple diff view
@@ -313,12 +330,130 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
     );
   }
 
+  function renderNebenkostenDiff(oldVal: any, newVal: any): React.ReactNode {
+    const oldArr: { amount?: string | number; date?: string }[] = Array.isArray(oldVal) ? oldVal : [];
+    const newArr: { amount?: string | number; date?: string }[] = Array.isArray(newVal) ? newVal : [];
+
+    if (JSON.stringify(oldArr) === JSON.stringify(newArr)) return null;
+
+    return (
+      <div className="border-2 border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4 space-y-3 bg-zinc-50/10 dark:bg-zinc-950/10">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest">
+          <Calculator className="size-4 text-zinc-455" />
+          Nebenkosten-Vorauszahlungen
+        </div>
+        <div className="space-y-2">
+          {newArr.map((entry, i) => {
+            const oldEntry = oldArr.find((o) => o.date === entry.date);
+            const isNew = !oldEntry;
+            const amountChanged = oldEntry && String(oldEntry.amount) !== String(entry.amount);
+            const dateStr = entry.date ? new Date(entry.date + "T00:00:00").toLocaleDateString("de-DE") : "—";
+            return (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground min-w-[80px]">{dateStr}:</span>
+                {isNew ? (
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">{entry.amount} €</span>
+                ) : amountChanged ? (
+                  <>
+                    <span className="text-rose-500/70 line-through">{oldEntry.amount} €</span>
+                    <span className="text-muted-foreground/30 text-xs">→</span>
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">{entry.amount} €</span>
+                  </>
+                ) : (
+                  <span className="font-medium">{entry.amount} €</span>
+                )}
+              </div>
+            );
+          })}
+          {oldArr
+            .filter((o) => !newArr.some((n) => n.date === o.date))
+            .map((removed, i) => (
+              <div key={`removed-${i}`} className="text-sm text-rose-500/70 line-through">
+                {removed.date ? new Date(removed.date + "T00:00:00").toLocaleDateString("de-DE") : "—"}: {removed.amount} €
+              </div>
+            ))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderKautionDiff(oldVal: any, newVal: any): React.ReactNode {
+    const fields: { key: string; label: string }[] = [
+      { key: "amount", label: "Betrag" },
+      { key: "paymentDate", label: "Zahlungsdatum" },
+      { key: "status", label: "Status" },
+    ];
+
+    const changedFields = fields.filter((f) => JSON.stringify(oldVal?.[f.key]) !== JSON.stringify(newVal?.[f.key]));
+    if (changedFields.length === 0) return null;
+
+    return (
+      <div className="sm:grid sm:gap-3 space-y-2 sm:space-y-0">
+        {changedFields.map((f) => {
+          const oldV = f.key === "paymentDate" && oldVal?.[f.key]
+            ? new Date(oldVal[f.key] + "T00:00:00").toLocaleDateString("de-DE")
+            : f.key === "amount" ? `${oldVal?.[f.key]} €` : String(oldVal?.[f.key] ?? "—");
+          const newV = f.key === "paymentDate" && newVal?.[f.key]
+            ? new Date(newVal[f.key] + "T00:00:00").toLocaleDateString("de-DE")
+            : f.key === "amount" ? `${newVal?.[f.key]} €` : String(newVal?.[f.key] ?? "—");
+
+          return (
+            <div key={f.key} className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-0.5 sm:space-y-0">
+              <span className="text-sm text-muted-foreground/70">{f.label}</span>
+              <div className="flex items-center gap-2 flex-wrap text-sm">
+                <span className="text-rose-500/70 line-through">{oldV}</span>
+                <span className="text-muted-foreground/30 text-xs">→</span>
+                <span className="font-medium text-emerald-600 dark:text-emerald-400">{newV}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderZaehlerMapDiff(oldVal: any, newVal: any): React.ReactNode {
+    const allKeys = Array.from(new Set([...Object.keys(oldVal || {}), ...Object.keys(newVal || {})]));
+    const changed = allKeys.filter((k) => (oldVal?.[k] ?? 0) !== (newVal?.[k] ?? 0));
+    if (changed.length === 0) return null;
+
+    return (
+      <div className="sm:grid sm:gap-3 space-y-2 sm:space-y-0">
+        {changed.map((k) => {
+          const label = ZAEHLER_LABEL_MAP[k] || k;
+          const oldV = oldVal?.[k] ?? 0;
+          const newV = newVal?.[k] ?? 0;
+          return (
+            <div key={k} className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-0.5 sm:space-y-0">
+              <span className="text-sm text-muted-foreground/70">{label}</span>
+              <div className="flex items-center gap-2 flex-wrap text-sm">
+                {oldVal ? (
+                  <>
+                    <span className="text-rose-500/70 line-through">{oldV}</span>
+                    <span className="text-muted-foreground/30 text-xs">→</span>
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">{newV}</span>
+                  </>
+                ) : (
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">{newV}</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   function renderField(key: string, oldVal: any, newVal: any, depth: number): React.ReactNode {
     const label = FRIENDLY_COLUMN_MAP[key] || key;
 
     // Permission-specific rendering
     if (key === "module") return renderModuleDiff(oldVal, newVal);
     if (key === "objekte") return renderObjekteDiff(oldVal, newVal);
+    // JSONB-specific rendering
+    if (key === "nebenkosten") return renderNebenkostenDiff(oldVal, newVal);
+    if (key === "kaution") return renderKautionDiff(oldVal, newVal);
+    if (key === "zaehlerkosten" || key === "zaehlerverbrauch") return renderZaehlerMapDiff(oldVal, newVal);
 
     const bothObjects =
       typeof oldVal === "object" && oldVal !== null && !Array.isArray(oldVal) &&
@@ -350,12 +485,20 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
         <div key={key} className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-1 sm:space-y-0" style={{ paddingLeft: depth * 12 }}>
           <span className="text-sm text-muted-foreground/70">{label}</span>
           <div className="grid grid-cols-2 gap-2">
-            <pre className="text-xs bg-rose-500/[0.03] border border-rose-500/10 rounded-xl p-2.5 text-rose-600/80 dark:text-rose-400/80 overflow-auto max-h-[160px] leading-relaxed">
-              {JSON.stringify(oldVal, null, 2)}
-            </pre>
-            <pre className="text-xs bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-2.5 text-emerald-700 dark:text-emerald-400 overflow-auto max-h-[160px] leading-relaxed">
-              {JSON.stringify(newVal, null, 2)}
-            </pre>
+            {isDelete || aktion === "UPDATE" || aktion === "RESTORE" ? (
+              <pre className="text-xs bg-rose-500/[0.03] border border-rose-500/10 rounded-xl p-2.5 text-rose-600/80 dark:text-rose-400/80 overflow-auto max-h-[160px] leading-relaxed">
+                {JSON.stringify(oldVal, null, 2)}
+              </pre>
+            ) : (
+              <div />
+            )}
+            {isDelete ? (
+              <div />
+            ) : (
+              <pre className="text-xs bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-2.5 text-emerald-700 dark:text-emerald-400 overflow-auto max-h-[160px] leading-relaxed">
+                {JSON.stringify(newVal, null, 2)}
+              </pre>
+            )}
           </div>
         </div>
       );
@@ -375,7 +518,7 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
           {isDelete ? (
             <span className="text-sm text-rose-500/70 line-through break-all">{displayVal(oldVal)}</span>
           ) : aktion === "INSERT" ? (
-            <span className="text-sm font-medium break-all">{displayVal(newVal)}</span>
+            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 break-all">{displayVal(newVal)}</span>
           ) : (
             <>
               <span className="text-sm text-rose-500/70 line-through break-all">{displayVal(oldVal)}</span>
