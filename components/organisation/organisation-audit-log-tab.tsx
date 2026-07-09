@@ -12,15 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  ResponsiveContainer, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip as ChartTooltip, 
-  CartesianGrid 
-} from "recharts";
+
 import { getAuditLogsAction, getAuditLogDetailsAction } from "@/app/organisation-actions";
 import { 
   Clock, 
@@ -569,62 +561,9 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
   );
 }
 
-const CustomChartTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-zinc-950/95 dark:bg-zinc-900/95 border border-zinc-800 rounded-xl p-3 text-xs text-white shadow-xl space-y-1.5 font-sans min-w-[140px]">
-        <p className="font-bold text-[10px] text-zinc-400 uppercase tracking-wider">{data.label}</p>
-        <div className="border-t border-zinc-800/80 pt-1.5 space-y-1">
-          <p className="flex justify-between gap-4 font-semibold text-zinc-100 border-b border-zinc-800 pb-1 mb-1">
-            <span>Gesamt:</span>
-            <span>{data.Total}</span>
-          </p>
-          {data.INSERT > 0 && (
-            <p className="flex justify-between text-emerald-400 font-medium">
-              <span>Erstellt:</span>
-              <span>{data.INSERT}</span>
-            </p>
-          )}
-          {data.UPDATE > 0 && (
-            <p className="flex justify-between text-blue-400 font-medium">
-              <span>Bearbeitet:</span>
-              <span>{data.UPDATE}</span>
-            </p>
-          )}
-          {data.DELETE > 0 && (
-            <p className="flex justify-between text-rose-400 font-medium">
-              <span>Gelöscht:</span>
-              <span>{data.DELETE}</span>
-            </p>
-          )}
-          {data.SOFT_DELETE > 0 && (
-            <p className="flex justify-between text-amber-400 font-medium">
-              <span>Papierkorb:</span>
-              <span>{data.SOFT_DELETE}</span>
-            </p>
-          )}
-          {data.RESTORE > 0 && (
-            <p className="flex justify-between text-teal-400 font-medium">
-              <span>Wiederhergestellt:</span>
-              <span>{data.RESTORE}</span>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
 export function OrganisationAuditLogTab() {
   const [logs, setLogs] = useState<AuditLogSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Tracking checkbox selected log IDs
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
@@ -878,103 +817,6 @@ export function OrganisationAuditLogTab() {
     });
   }, [logs, searchQuery, filterUser, filterTimeframe, customDateFrom, customDateTo]);
 
-  // Compute log distribution over timeframe for visual chart with high density steps (hourly/sub-daily)
-  const chartData = useMemo(() => {
-    if (filteredLogs.length === 0) return [];
-
-    // Calculate duration in days to handle custom timeframes dynamically
-    let minTime = Infinity;
-    let maxTime = -Infinity;
-    filteredLogs.forEach(log => {
-      const t = new Date(log.geaendert_am).getTime();
-      if (t < minTime) minTime = t;
-      if (t > maxTime) maxTime = t;
-    });
-
-    const diffDays = (maxTime - minTime) / (1000 * 60 * 60 * 24);
-
-    let groupingHours = 24; // Default: 1 day
-    if (filterTimeframe === "today") {
-      groupingHours = 0.5; // 30 minutes steps -> 48 bars total
-    } else if (filterTimeframe === "last-7-days") {
-      groupingHours = 2; // 2-hour steps -> 12 bars per day -> ~84 bars total
-    } else if (filterTimeframe === "last-30-days") {
-      groupingHours = 6; // 6-hour steps -> 4 bars per day -> ~120 bars total
-    } else if (filterTimeframe === "custom") {
-      if (diffDays <= 1) groupingHours = 0.5;
-      else if (diffDays <= 7) groupingHours = 2;
-      else if (diffDays <= 30) groupingHours = 6;
-      else groupingHours = 12;
-    }
-
-    const groups: Record<string, { label: string; dateObj: Date; INSERT: number; UPDATE: number; DELETE: number; RESTORE: number; SOFT_DELETE: number; Total: number }> = {};
-
-    filteredLogs.forEach(log => {
-      const date = new Date(log.geaendert_am);
-      let label = "";
-      let groupKey = "";
-      let bucketDate: Date;
-
-      if (groupingHours === 0.5) {
-        const mins = date.getMinutes();
-        const blockMins = mins < 30 ? 0 : 30;
-        const hr = date.getHours();
-        label = `${hr.toString().padStart(2, '0')}:${blockMins.toString().padStart(2, '0')}`;
-        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${hr}-${blockMins}`;
-        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hr, blockMins, 0);
-      } else if (groupingHours === 2) {
-        const hr = date.getHours();
-        const blockHr = Math.floor(hr / 2) * 2;
-        const dayLabel = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-        label = `${dayLabel} ${blockHr.toString().padStart(2, '0')}:00`;
-        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${blockHr}`;
-        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), blockHr, 0, 0);
-      } else if (groupingHours === 6) {
-        const hr = date.getHours();
-        const blockHr = Math.floor(hr / 6) * 6;
-        const dayLabel = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-        label = `${dayLabel} ${blockHr.toString().padStart(2, '0')}:00`;
-        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${blockHr}`;
-        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), blockHr, 0, 0);
-      } else if (groupingHours === 12) {
-        const hr = date.getHours();
-        const blockHr = Math.floor(hr / 12) * 12;
-        const dayLabel = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-        label = `${dayLabel} ${blockHr === 0 ? "Nacht" : "Tag"}`;
-        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${blockHr}`;
-        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), blockHr, 0, 0);
-      } else {
-        label = date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
-        groupKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-        bucketDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-      }
-
-      if (!groups[groupKey]) {
-        groups[groupKey] = {
-          label,
-          dateObj: bucketDate,
-          INSERT: 0,
-          UPDATE: 0,
-          DELETE: 0,
-          RESTORE: 0,
-          SOFT_DELETE: 0,
-          Total: 0
-        };
-      }
-
-      const type = log.aktion;
-      if (type === "INSERT") groups[groupKey].INSERT++;
-      else if (type === "UPDATE") groups[groupKey].UPDATE++;
-      else if (type === "DELETE") groups[groupKey].DELETE++;
-      else if (type === "RESTORE") groups[groupKey].RESTORE++;
-      else if (type === "SOFT_DELETE") groups[groupKey].SOFT_DELETE++;
-      
-      groups[groupKey].Total++;
-    });
-
-    return Object.values(groups).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
-  }, [filteredLogs, filterTimeframe, customDateFrom, customDateTo]);
-
   return (
     <Card className="w-full rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden bg-white dark:bg-zinc-950 flex flex-col">
       {/* Top Header Section with Title, Description, and Actions */}
@@ -982,8 +824,7 @@ export function OrganisationAuditLogTab() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <CardTitle className="text-xl font-bold flex items-center gap-2">
-              <Clock className="size-5 text-indigo-500" />
-              <span>Audit-Protokoll</span>
+Audit-Log
             </CardTitle>
             <CardDescription className="mt-1 text-xs">
               Vollständiges Änderungsprotokoll über alle Datenaktivitäten Ihrer Organisation ({filteredLogs.length} Einträge).
@@ -1010,57 +851,6 @@ export function OrganisationAuditLogTab() {
             </Button>
           </div>
         </div>
-
-        {/* Log Distribution Chart */}
-        {isMounted && chartData.length > 0 ? (
-          <div className="w-full bg-zinc-50/40 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4 h-48 mb-1">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">Aktivitätsverteilung</span>
-              <span className="text-[10px] text-muted-foreground">Gruppiert nach Zeitraum</span>
-            </div>
-            <div className="w-full h-36">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(200, 200, 200, 0.1)"/>
-                  <XAxis 
-                    dataKey="label" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 9, fill: 'currentColor' }} 
-                    className="text-muted-foreground"
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 9, fill: 'currentColor' }} 
-                    className="text-muted-foreground"
-                    allowDecimals={false}
-                  />
-                  <ChartTooltip
-                    contentStyle={{
-                      backgroundColor: 'rgba(24, 24, 27, 0.95)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      color: '#fff'
-                    }}
-                    labelClassName="font-bold mb-1"
-                  />
-                  <Bar dataKey="INSERT" name="Erstellt" fill="#10b981" stackId="a" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="UPDATE" name="Bearbeitet" fill="#3b82f6" stackId="a" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="DELETE" name="Gelöscht" fill="#ef4444" stackId="a" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        ) : (
-          isMounted && !isPending && (
-            <div className="w-full bg-zinc-50/20 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-800/50 border-dashed rounded-2xl p-4 h-24 mb-1 flex items-center justify-center text-xs text-muted-foreground gap-2">
-              <AlertCircle className="size-4 shrink-0" />
-              Keine Log-Verteilungsdaten im ausgewählten Zeitraum verfügbar.
-            </div>
-          )
-        )}
 
         {/* Top Filters Dashboard Bar */}
         <div className="flex flex-wrap gap-3 items-end pt-4 border-t border-zinc-200/40 dark:border-zinc-800/40">
@@ -1177,7 +967,7 @@ export function OrganisationAuditLogTab() {
           <Table>
             <TableHeader className="bg-zinc-50 dark:bg-zinc-900 sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800">
               <TableRow className="hover:bg-transparent border-b-0 h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
-                <TableHead className="w-[48px] py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">
+                <TableHead className="w-[48px] p-0 py-1.5 pl-6 md:py-1.5 md:pl-6 h-8 hover:bg-transparent dark:hover:bg-transparent">
                   <Checkbox 
                     checked={filteredLogs.length > 0 && filteredLogs.every(log => selectedLogIds.has(log.id))}
                     onCheckedChange={handleToggleAll}
@@ -1220,7 +1010,7 @@ export function OrganisationAuditLogTab() {
                       onClick={() => handleSelectLog(log.id)}
                       className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-950/20 cursor-pointer border-b border-zinc-200/30 dark:border-zinc-800/30 last:border-0 transition-colors h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none"
                     >
-                      <TableCell className="py-1 px-4 h-auto" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="p-0 py-1 pl-6 md:py-1 md:pl-6 h-auto" onClick={(e) => e.stopPropagation()}>
                         <Checkbox 
                           checked={selectedLogIds.has(log.id)}
                           onCheckedChange={() => {
