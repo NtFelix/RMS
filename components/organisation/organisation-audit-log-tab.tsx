@@ -816,7 +816,7 @@ export function OrganisationAuditLogTab() {
 Audit-Log
             </CardTitle>
             <CardDescription className="mt-1 text-xs">
-              Vollständiges Audit-Log über alle Datenaktivitäten Ihrer Organisation ({filteredLogs.length} Einträge).
+              Vollständiges Audit-Log über alle Datenaktivitäten Ihrer Organisation.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -1063,13 +1063,16 @@ Audit-Log
                 })
               )}
 
-              {/* Infinite Scroll loading indicator */}
+              {/* Infinite Scroll loading spinner */}
               {isPending && page > 1 && (
-                <TableRow className="h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
-                  <TableCell colSpan={6} className="py-1 px-4 h-8 text-center">
-                    <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
-                      <RefreshCw className="size-3 animate-spin text-primary" />
-                      <span>Weitere Einträge werden geladen...</span>
+                <TableRow className="hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
+                  <TableCell colSpan={6} className="py-8 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <svg className="animate-spin h-7 w-7 text-primary" style={{ animationDuration: "600ms" }} viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span className="text-sm font-medium text-muted-foreground">Weitere Einträge werden geladen...</span>
                     </div>
                   </TableCell>
                 </TableRow>
