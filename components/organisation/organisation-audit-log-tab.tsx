@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useId, useMemo, useRef } from "react";
+import { useState, useEffect, useTransition, useMemo, useRef } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -28,15 +27,7 @@ import {
   User, 
   Eye, 
   RefreshCw, 
-  FileJson, 
-  ListFilter,
   Info,
-  Search,
-  Plus,
-  Minus,
-  Edit,
-  Trash2,
-  Undo,
   Home,
   Building,
   Users,
@@ -49,10 +40,12 @@ import {
   Layout,
   Shield,
   Key,
-  Copy,
-  Check,
   AlertCircle,
-  ArrowLeft
+  Plus,
+  Pencil,
+  Trash2,
+  Settings,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -122,15 +115,11 @@ const FRIENDLY_COLUMN_MAP: Record<string, string> = {
   betrag: "Betrag",
   faellig_am: "Fällig am",
   bezahlt: "Bezahlt",
+  berechtigungen: "Berechtigungen",
+  module: "Module",
+  objekte: "Objektzugriff",
+  policy_id: "Richtlinie",
 };
-
-// Format values helper
-function formatValue(val: any): string {
-  if (val === null || val === undefined) return 'NULL';
-  if (typeof val === 'object') return JSON.stringify(val, null, 2);
-  if (typeof val === 'boolean') return val ? 'Ja' : 'Nein';
-  return String(val);
-}
 
 // Table specific icons mapping
 function getTableIcon(tableName: string) {
@@ -188,277 +177,249 @@ function getActionBadgeColor(action: AuditLogSummary['aktion']) {
   }
 }
 
-// Visual diff rendering sub-component
-interface AuditLogDiffProps {
-  aktion: string;
-  alteDaten: any;
-  neueDaten: any;
-}
+// Permission rendering maps
+const MODULE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  haeuser:        { label: "Häuser",        icon: Home },
+  wohnungen:      { label: "Wohnungen",      icon: Building },
+  mieter:         { label: "Mieter",         icon: Users },
+  zaehler:        { label: "Zähler",         icon: Gauge },
+  finanzen:       { label: "Finanzen",       icon: CreditCard },
+  betriebskosten: { label: "Betriebskosten", icon: Calculator },
+  dokumente:      { label: "Dokumente",      icon: FileText },
+  aufgaben:       { label: "Aufgaben",       icon: CheckSquare },
+  vorlagen:       { label: "Vorlagen",       icon: Layout },
+  organisation:   { label: "Organisation",   icon: Shield },
+};
 
-function AuditLogDiff({ aktion, alteDaten, neueDaten }: AuditLogDiffProps) {
-  const [searchField, setSearchField] = useState("");
-  const [layoutMode, setLayoutMode] = useState<"side-by-side" | "unified">("side-by-side");
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+const ACTION_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  ansehen:    { label: "Ansehen",    icon: Eye },
+  erstellen:  { label: "Erstellen",  icon: Plus },
+  bearbeiten: { label: "Bearbeiten", icon: Pencil },
+  loeschen:   { label: "Löschen",    icon: Trash2 },
+  verwalten:  { label: "Verwalten",  icon: Settings },
+};
 
-  const copyToClipboardLocal = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(id);
-    toast({
-      title: "Wert kopiert",
-      description: "In die Zwischenablage übertragen.",
-      variant: "success"
-    });
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
+// Simple diff view
+function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDaten: any; neueDaten: any }) {
   const oldObj = alteDaten || {};
   const newObj = neueDaten || {};
 
-  const allKeys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
-  
-  const filteredKeys = allKeys.filter(k => {
-    const label = FRIENDLY_COLUMN_MAP[k] || k;
-    return label.toLowerCase().includes(searchField.toLowerCase()) || k.toLowerCase().includes(searchField.toLowerCase());
-  });
+  const isDelete = aktion === "DELETE" || aktion === "SOFT_DELETE";
 
-  const changedKeys = filteredKeys.filter(k => {
-    const oldVal = oldObj[k];
-    const newVal = newObj[k];
-    return JSON.stringify(oldVal) !== JSON.stringify(newVal);
-  });
+  function getChangedKeys(objA: any, objB: any): string[] {
+    const all = new Set([...Object.keys(objA || {}), ...Object.keys(objB || {})]);
+    return Array.from(all).filter((k) => JSON.stringify(objA?.[k]) !== JSON.stringify(objB?.[k]));
+  }
 
-  if (aktion === 'INSERT') {
+  function renderPermissionActions(oldActions: string[] | undefined, newActions: string[] | undefined) {
+    const oldSet = new Set(oldActions || []);
+    const newSet = new Set(newActions || []);
+    const added = Array.from(newSet).filter((a) => !oldSet.has(a));
+    const removed = Array.from(oldSet).filter((a) => !newSet.has(a));
+
     return (
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Felder filtern..."
-            value={searchField}
-            onChange={(e) => setSearchField(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-hidden focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-          />
-        </div>
-
-        <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl overflow-hidden divide-y divide-zinc-200/40 dark:divide-zinc-800/40 bg-zinc-50/10 dark:bg-zinc-950/10">
-          {filteredKeys.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">Keine passenden Felder gefunden.</div>
-          ) : (
-            filteredKeys.map((key) => {
-              const val = newObj[key];
-              const friendlyLabel = FRIENDLY_COLUMN_MAP[key] || key;
+      <div className="flex items-center gap-3 flex-wrap text-sm">
+        {removed.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-rose-500/70 uppercase tracking-wider">Entzogen:</span>
+            {removed.map((a) => {
+              const cfg = ACTION_CONFIG[a];
+              const Icon = cfg?.icon;
               return (
-                <div key={key} className="grid grid-cols-3 p-3.5 text-sm items-start hover:bg-zinc-50/40 dark:hover:bg-zinc-950/30 transition-colors">
-                  <div className="col-span-1 font-medium text-zinc-500 dark:text-zinc-400 flex flex-col pr-2">
-                    <span className="font-semibold text-xs text-zinc-700 dark:text-zinc-300">{friendlyLabel}</span>
-                    {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono truncate">{key}</span>}
-                  </div>
-                  <div className="col-span-2 flex items-start justify-between gap-2 pl-2">
-                    <span className="text-zinc-800 dark:text-zinc-200 font-mono text-xs break-all whitespace-pre-wrap select-all leading-relaxed">
-                      {formatValue(val)}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboardLocal(formatValue(val), key)}
-                      className="text-muted-foreground hover:text-foreground shrink-0 transition-colors p-1 rounded hover:bg-muted"
-                      title="Wert kopieren"
-                    >
-                      {copiedField === key ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-                    </button>
-                  </div>
-                </div>
+                <span key={a} className="inline-flex items-center gap-1 text-rose-500/70 line-through text-xs">
+                  {Icon && <Icon className="size-3.5" />}
+                  {cfg?.label || a}
+                </span>
               );
-            })
+            })}
+          </div>
+        )}
+        {added.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-emerald-600/70 uppercase tracking-wider">Erteilt:</span>
+            {added.map((a) => {
+              const cfg = ACTION_CONFIG[a];
+              const Icon = cfg?.icon;
+              return (
+                <span key={a} className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium text-xs">
+                  {Icon && <Icon className="size-3.5" />}
+                  {cfg?.label || a}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderModuleDiff(oldModules: any, newModules: any): React.ReactNode {
+    const oldMod = oldModules || {};
+    const newMod = newModules || {};
+    const allModKeys = Array.from(new Set([...Object.keys(oldMod), ...Object.keys(newMod)]));
+    const changedModKeys = allModKeys.filter((k) => JSON.stringify(oldMod[k]) !== JSON.stringify(newMod[k]));
+
+    if (changedModKeys.length === 0) return null;
+
+    return (
+      <div className="space-y-3.5">
+        {changedModKeys.map((modKey) => {
+          const cfg = MODULE_CONFIG[modKey];
+          const Icon = cfg?.icon;
+          const oldActs: string[] = oldMod[modKey] || [];
+          const newActs: string[] = newMod[modKey] || [];
+
+          return (
+            <div key={modKey} className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-1 sm:space-y-0">
+              <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
+                {Icon && <Icon className="size-4 text-zinc-455" />}
+                {cfg?.label || modKey}
+              </span>
+              {renderPermissionActions(oldActs, newActs)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderObjekteDiff(oldObjekte: any, newObjekte: any): React.ReactNode {
+    const oldH = oldObjekte?.haeuser;
+    const newH = newObjekte?.haeuser;
+    if (JSON.stringify(oldH) === JSON.stringify(newH)) return null;
+
+    const renderHouseVal = (val: any) => {
+      if (val === null) return { label: "Alle Häuser (uneingeschränkt)", className: "font-medium" };
+      if (Array.isArray(val) && val.length === 0) return { label: "Keine Häuser", className: "text-muted-foreground" };
+      if (Array.isArray(val)) return { label: `${val.length} Häuser (spezifisch)`, className: "text-muted-foreground" };
+      return { label: String(val), className: "" };
+    };
+
+    const oldR = renderHouseVal(oldH);
+    const newR = renderHouseVal(newH);
+
+    return (
+      <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-0.5 sm:space-y-0">
+        <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
+          <Building2 className="size-4 text-zinc-455" />
+          Häuserzugriff
+        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-sm text-rose-500/70 line-through ${oldR.className}`}>{oldR.label}</span>
+          <span className="text-muted-foreground/30 text-xs shrink-0">→</span>
+          <span className={`text-sm font-medium text-emerald-600 dark:text-emerald-400 ${newR.className}`}>{newR.label}</span>
+        </div>
+      </div>
+    );
+  }
+
+  function renderField(key: string, oldVal: any, newVal: any, depth: number): React.ReactNode {
+    const label = FRIENDLY_COLUMN_MAP[key] || key;
+
+    // Permission-specific rendering
+    if (key === "module") return renderModuleDiff(oldVal, newVal);
+    if (key === "objekte") return renderObjekteDiff(oldVal, newVal);
+
+    const bothObjects =
+      typeof oldVal === "object" && oldVal !== null && !Array.isArray(oldVal) &&
+      typeof newVal === "object" && newVal !== null && !Array.isArray(newVal);
+
+    if (bothObjects) {
+      const subKeys = getChangedKeys(oldVal, newVal);
+      if (subKeys.length === 0) return null;
+
+      return (
+        <div key={key} className="space-y-3">
+          {depth === 0 ? (
+            <span className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest block">{label}</span>
+          ) : (
+            <span className="text-sm font-medium text-muted-foreground/70 block" style={{ paddingLeft: depth * 12 }}>{label}</span>
+          )}
+          <div style={{ paddingLeft: (depth + 1) * 12 }}>
+            {subKeys.map((subKey) => renderField(subKey, oldVal[subKey], newVal[subKey], depth + 1))}
+          </div>
+        </div>
+      );
+    }
+
+    const isJson = typeof oldVal === "object" && oldVal !== null ||
+                  typeof newVal === "object" && newVal !== null;
+
+    if (isJson) {
+      return (
+        <div key={key} className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-1 sm:space-y-0" style={{ paddingLeft: depth * 12 }}>
+          <span className="text-sm text-muted-foreground/70">{label}</span>
+          <div className="grid grid-cols-2 gap-2">
+            <pre className="text-xs bg-rose-500/[0.03] border border-rose-500/10 rounded-xl p-2.5 text-rose-600/80 dark:text-rose-400/80 overflow-auto max-h-[160px] leading-relaxed">
+              {JSON.stringify(oldVal, null, 2)}
+            </pre>
+            <pre className="text-xs bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-2.5 text-emerald-700 dark:text-emerald-400 overflow-auto max-h-[160px] leading-relaxed">
+              {JSON.stringify(newVal, null, 2)}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+
+    // Primitive value
+    const displayVal = (val: any) => {
+      if (val === null || val === undefined) return "NULL";
+      if (typeof val === "boolean") return val ? "Ja" : "Nein";
+      return String(val);
+    };
+
+    return (
+      <div key={key} className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-0.5 sm:space-y-0" style={{ paddingLeft: depth * 12 }}>
+        <span className="text-sm text-muted-foreground/70">{label}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isDelete ? (
+            <span className="text-sm text-rose-500/70 line-through break-all">{displayVal(oldVal)}</span>
+          ) : aktion === "INSERT" ? (
+            <span className="text-sm font-medium break-all">{displayVal(newVal)}</span>
+          ) : (
+            <>
+              <span className="text-sm text-rose-500/70 line-through break-all">{displayVal(oldVal)}</span>
+              <span className="text-muted-foreground/30 text-xs shrink-0">→</span>
+              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 break-all">{displayVal(newVal)}</span>
+            </>
           )}
         </div>
       </div>
     );
   }
 
-  if (aktion === 'DELETE' || aktion === 'SOFT_DELETE') {
+  if (isDelete) {
+    const all = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
     return (
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Felder filtern..."
-            value={searchField}
-            onChange={(e) => setSearchField(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-hidden focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-          />
-        </div>
-
-        <div className="border border-rose-500/20 rounded-2xl overflow-hidden divide-y divide-rose-500/10 bg-rose-500/[0.01]">
-          {filteredKeys.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">Keine passenden Felder gefunden.</div>
-          ) : (
-            filteredKeys.map((key) => {
-              const val = oldObj[key];
-              const friendlyLabel = FRIENDLY_COLUMN_MAP[key] || key;
-              return (
-                <div key={key} className="grid grid-cols-3 p-3.5 text-sm items-start hover:bg-rose-500/[0.02] transition-colors">
-                  <div className="col-span-1 font-medium text-zinc-500 dark:text-zinc-400 flex flex-col pr-2">
-                    <span className="font-semibold text-xs text-rose-800/80 dark:text-rose-400/80">{friendlyLabel}</span>
-                    {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono truncate">{key}</span>}
-                  </div>
-                  <div className="col-span-2 flex items-start justify-between gap-2 pl-2">
-                    <span className="text-rose-650 dark:text-rose-450 line-through font-mono text-xs break-all whitespace-pre-wrap select-all leading-relaxed">
-                      {formatValue(val)}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboardLocal(formatValue(val), key)}
-                      className="text-muted-foreground hover:text-foreground shrink-0 transition-colors p-1 rounded hover:bg-muted"
-                      title="Wert kopieren"
-                    >
-                      {copiedField === key ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+      <div className="sm:grid sm:gap-5 space-y-3 sm:space-y-0">
+        {all.map((key) => renderField(key, oldObj[key], newObj[key], 0))}
       </div>
     );
   }
 
-  // UPDATE / RESTORE diffing
+  if (aktion === "INSERT") {
+    const all = Object.keys(newObj);
+    return (
+      <div className="sm:grid sm:gap-5 space-y-3 sm:space-y-0">
+        {all.map((key) => renderField(key, undefined, newObj[key], 0))}
+      </div>
+    );
+  }
+
+  // UPDATE / RESTORE
+  const changedKeys = getChangedKeys(oldObj, newObj);
   if (changedKeys.length === 0) {
     return (
-      <div className="flex items-center gap-3 p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-950/20 border border-zinc-200/50 dark:border-zinc-800/50 text-xs text-muted-foreground justify-center">
-        <Info className="size-4 shrink-0 text-zinc-550" />
-        <span>Keine geänderten Felder in den Suchergebnissen vorhanden.</span>
+      <div className="flex items-center gap-2 p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 text-sm text-muted-foreground/70 justify-center">
+        <Info className="size-4 shrink-0 text-muted-foreground/40" />
+        <span>Keine Feldänderungen vorhanden.</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Search and Layout Toggler */}
-      <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Änderungen filtern..."
-            value={searchField}
-            onChange={(e) => setSearchField(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-hidden focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
-          />
-        </div>
-        <div className="flex items-center bg-zinc-100 dark:bg-zinc-900 rounded-xl p-1 border border-zinc-200/40 dark:border-zinc-800/40 self-end sm:self-auto select-none shrink-0 h-9">
-          <button
-            onClick={() => setLayoutMode("side-by-side")}
-            className={cn(
-              "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer h-7",
-              layoutMode === "side-by-side" 
-                ? "bg-white dark:bg-zinc-850 shadow-xs text-zinc-900 dark:text-zinc-100" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Nebeneinander
-          </button>
-          <button
-            onClick={() => setLayoutMode("unified")}
-            className={cn(
-              "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer h-7",
-              layoutMode === "unified" 
-                ? "bg-white dark:bg-zinc-850 shadow-xs text-zinc-900 dark:text-zinc-100" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Kombiniert
-          </button>
-        </div>
-      </div>
-
-      <div className="space-y-3.5">
-        {changedKeys.map(key => {
-          const oldVal = oldObj[key];
-          const newVal = newObj[key];
-          const friendlyLabel = FRIENDLY_COLUMN_MAP[key] || key;
-
-          if (layoutMode === "unified") {
-            return (
-              <div key={key} className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl overflow-hidden bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs">
-                <div className="px-4 py-2 border-b border-zinc-200/40 dark:border-zinc-800/40 bg-zinc-50/30 dark:bg-zinc-950/20 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">{friendlyLabel}</span>
-                    {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono">{key}</span>}
-                  </div>
-                </div>
-                <div className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30 font-mono text-xs">
-                  {/* Deleted (old) */}
-                  <div className="flex items-start bg-rose-500/[0.03] p-3 text-rose-705 dark:text-rose-400">
-                    <Minus className="size-3.5 mr-2 mt-0.5 shrink-0 opacity-60" />
-                    <span className="line-through break-all whitespace-pre-wrap flex-1 select-all">{formatValue(oldVal)}</span>
-                    <button
-                      onClick={() => copyToClipboardLocal(formatValue(oldVal), `${key}-old`)}
-                      className="text-rose-500/70 hover:text-rose-550 shrink-0 ml-2 hover:bg-rose-500/10 p-1 rounded"
-                    >
-                      {copiedField === `${key}-old` ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                    </button>
-                  </div>
-                  {/* Added (new) */}
-                  <div className="flex items-start bg-emerald-500/[0.03] p-3 text-emerald-700 dark:text-emerald-400">
-                    <Plus className="size-3.5 mr-2 mt-0.5 shrink-0 opacity-60" />
-                    <span className="break-all whitespace-pre-wrap flex-1 font-semibold select-all">{formatValue(newVal)}</span>
-                    <button
-                      onClick={() => copyToClipboardLocal(formatValue(newVal), `${key}-new`)}
-                      className="text-emerald-555/70 hover:text-emerald-555 shrink-0 ml-2 hover:bg-emerald-500/10 p-1 rounded"
-                    >
-                      {copiedField === `${key}-new` ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-
-          // Side-by-side Mode
-          return (
-            <div key={key} className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl overflow-hidden bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-xs text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">{friendlyLabel}</span>
-                  {friendlyLabel !== key && <span className="text-[10px] text-muted-foreground font-mono">{key}</span>}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                {/* Left (Old) */}
-                <div className="relative group/val flex flex-col p-2.5 rounded-xl bg-rose-500/[0.02] border border-rose-500/10 text-rose-705 dark:text-rose-400">
-                  <div className="text-[9px] text-rose-500/60 uppercase font-sans font-bold mb-1 tracking-wider">Vorher:</div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="line-through break-all whitespace-pre-wrap flex-1 select-all">{formatValue(oldVal)}</span>
-                    <button
-                      onClick={() => copyToClipboardLocal(formatValue(oldVal), `${key}-old`)}
-                      className="opacity-0 group-hover/val:opacity-100 text-rose-500/70 hover:text-rose-550 shrink-0 transition-opacity p-0.5 rounded hover:bg-rose-500/10"
-                      title="Kopieren"
-                    >
-                      {copiedField === `${key}-old` ? <Check className="size-3" /> : <Copy className="size-3" />}
-                    </button>
-                  </div>
-                </div>
-                {/* Right (New) */}
-                <div className="relative group/val flex flex-col p-2.5 rounded-xl bg-emerald-500/[0.02] border border-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                  <div className="text-[9px] text-emerald-500/60 uppercase font-sans font-bold mb-1 tracking-wider">Nachher:</div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="break-all whitespace-pre-wrap flex-1 font-semibold select-all">{formatValue(newVal)}</span>
-                    <button
-                      onClick={() => copyToClipboardLocal(formatValue(newVal), `${key}-new`)}
-                      className="opacity-0 group-hover/val:opacity-100 text-emerald-650/75 hover:text-emerald-650 shrink-0 transition-opacity p-0.5 rounded hover:bg-emerald-500/10"
-                      title="Kopieren"
-                    >
-                      {copiedField === `${key}-new` ? <Check className="size-3" /> : <Copy className="size-3" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    <div className="sm:grid sm:gap-5 space-y-3 sm:space-y-0">
+      {changedKeys.map((key) => renderField(key, oldObj[key], newObj[key], 0))}
     </div>
   );
 }
@@ -1216,7 +1177,10 @@ export function OrganisationAuditLogTab() {
               <div className="max-w-[90%] mx-auto pt-10 sm:pt-14 pb-6 px-4 sm:px-8 space-y-4 sm:space-y-8">
                 <div className="space-y-2 sm:space-y-3">
                   <div className="text-primary/80">
-                    <Clock className="h-8 w-8 sm:h-10 sm:w-10" />
+                    {detailedLog ? (() => {
+                      const TableIcon = getTableIcon(detailedLog.tabellenname);
+                      return <TableIcon className="h-8 w-8 sm:h-10 sm:w-10" />;
+                    })() : <Clock className="h-8 w-8 sm:h-10 sm:w-10" />}
                   </div>
                   <div className="space-y-1">
                     <SheetTitle className="text-2xl sm:text-4xl font-bold tracking-tight">
@@ -1229,164 +1193,89 @@ export function OrganisationAuditLogTab() {
                 </div>
 
                 {isDetailsLoading ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-12">
-                    <RefreshCw className="size-6 animate-spin text-indigo-500" />
-                    <span className="text-sm font-semibold text-muted-foreground">Daten werden geladen...</span>
+                  <div className="flex items-center justify-center gap-3 py-16">
+                    <RefreshCw className="size-5 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Lade Details...</span>
                   </div>
                 ) : detailedLog ? (
-                  <div className="space-y-8">
-                    
-                    {/* Event metadata details grid */}
-                    <div className="grid grid-cols-2 gap-4 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4.5 bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs text-xs">
-                      <div>
-                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Tabelle</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                          {(() => {
-                            const Icon = getTableIcon(detailedLog.tabellenname);
-                            return <Icon className="size-3.5 text-zinc-455" />;
-                          })()}
-                          {TABLE_NAME_MAP[detailedLog.tabellenname] || detailedLog.tabellenname}
-                        </span>
+                  <div className="space-y-8 sm:space-y-10">
+                    {/* Ereignis section */}
+                    <div className="sm:space-y-5 sm:pt-4 sm:border-t sm:border-border/40">
+                      <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                        Ereignis
                       </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Aktion</span>
-                        <Badge variant="outline" className={cn("px-2.5 py-0.5 border uppercase font-bold text-[9px] rounded-full", getActionBadgeColor(detailedLog.aktion))}>
-                          {detailedLog.aktion}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Zeitpunkt</span>
-                        <span className="text-zinc-800 dark:text-zinc-200 font-medium" suppressHydrationWarning>
-                          {new Date(detailedLog.geaendert_am).toLocaleString("de-DE", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit"
-                          })}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">System-ID</span>
-                        <span className="font-mono text-[10px] text-muted-foreground select-all break-all">{detailedLog.id}</span>
-                      </div>
-                      
-                      <div className="col-span-2 pt-3.5 border-t border-zinc-200/40 dark:border-zinc-800/40">
-                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider mb-1">Datensatz-ID (UUID)</span>
-                        <div className="flex items-center justify-between bg-muted/55 p-2 rounded-xl border font-mono text-xs">
-                          <span className="text-zinc-805 dark:text-zinc-200 select-all break-all">{detailedLog.datensatz_id}</span>
-                          <button
-                            onClick={() => copyRecordId(detailedLog.datensatz_id)}
-                            className="text-zinc-400 hover:text-foreground shrink-0 transition-colors p-1.5 rounded-lg hover:bg-muted"
-                            title="ID kopieren"
-                          >
-                            {copiedId === detailedLog.datensatz_id ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
-                          </button>
+                      <div className="sm:grid sm:gap-5 space-y-3 sm:space-y-0">
+                        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
+                          <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
+                            <Database className="size-3.5 text-zinc-455" />
+                            Tabelle
+                          </span>
+                          <span className="text-sm font-medium flex items-center gap-1.5">
+                            {(() => {
+                              const Icon = getTableIcon(detailedLog.tabellenname);
+                              return <Icon className="size-4 text-zinc-455" />;
+                            })()}
+                            {TABLE_NAME_MAP[detailedLog.tabellenname] || detailedLog.tabellenname}
+                          </span>
+                        </div>
+                        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
+                          <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
+                            {(() => {
+                              const ActionIcon = ACTION_CONFIG[detailedLog.aktion.toLowerCase()]?.icon || Eye;
+                              return <ActionIcon className="size-3.5 text-zinc-455" />;
+                            })()}
+                            Aktion
+                          </span>
+                          <Badge variant="outline" className={cn("w-fit px-2.5 py-0.5 uppercase font-bold text-[10px] rounded-full", getActionBadgeColor(detailedLog.aktion))}>
+                            {detailedLog.aktion === "SOFT_DELETE" ? "Papierkorb" : detailedLog.aktion}
+                          </Badge>
+                        </div>
+                        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
+                          <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
+                            <Clock className="size-3.5 text-zinc-455" />
+                            Zeitpunkt
+                          </span>
+                          <span className="text-sm font-medium" suppressHydrationWarning>
+                            {new Date(detailedLog.geaendert_am).toLocaleString("de-DE", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </span>
+                        </div>
+                        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
+                          <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
+                            <User className="size-3.5 text-zinc-455" />
+                            Geändert von
+                          </span>
+                          <span className="text-sm font-medium">{detailedLog.geaendert_von_name}</span>
+                        </div>
+                        <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
+                          <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
+                            <Key className="size-3.5 text-zinc-455" />
+                            Datensatz-ID
+                          </span>
+                          <span className="text-sm font-mono text-muted-foreground select-all break-all">{detailedLog.datensatz_id}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Author detail block */}
-                    <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4 bg-zinc-50/10 dark:bg-zinc-950/10 shadow-xs flex items-center gap-3.5">
-                      <Avatar className="size-9 border bg-linear-to-br from-indigo-500/5 to-purple-500/5">
-                        <AvatarFallback className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                          {detailedLog.geaendert_von_name
-                            ? detailedLog.geaendert_von_name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
-                            : "??"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0 text-xs">
-                        <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 block uppercase tracking-wider">Geändert von</span>
-                        <h4 className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{detailedLog.geaendert_von_name}</h4>
-                        {detailedLog.geaendert_von_email && (
-                          <p className="text-[10px] text-muted-foreground truncate">{detailedLog.geaendert_von_email}</p>
-                        )}
+                    {/* Änderungen section */}
+                    <div className="sm:space-y-5 sm:pt-4 sm:border-t sm:border-border/40">
+                      <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest">
+                        Änderungen
                       </div>
+                      <SimpleDiff 
+                        aktion={detailedLog.aktion} 
+                        alteDaten={detailedLog.alte_daten} 
+                        neueDaten={detailedLog.neue_daten} 
+                      />
                     </div>
-
-                    {/* Data snaps Comparison tabs */}
-                    <Tabs defaultValue="diff" className="w-full">
-                      <TabsList className="w-full grid grid-cols-2 border border-zinc-200/40 dark:border-zinc-850/50 bg-muted/40 p-1 rounded-xl">
-                        <TabsTrigger value="diff" className="flex items-center gap-1.5 rounded-lg cursor-pointer text-xs">
-                          <ListFilter className="size-3.5" />
-                          Vergleich
-                        </TabsTrigger>
-                        <TabsTrigger value="raw" className="flex items-center gap-1.5 rounded-lg cursor-pointer text-xs">
-                          <FileJson className="size-3.5" />
-                          Rohdaten (JSON)
-                        </TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="diff" className="pt-4 outline-none">
-                        <AuditLogDiff 
-                          aktion={detailedLog.aktion} 
-                          alteDaten={detailedLog.alte_daten} 
-                          neueDaten={detailedLog.neue_daten} 
-                        />
-                      </TabsContent>
-
-                      <TabsContent value="raw" className="pt-4 outline-none space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">Snapshots:</h4>
-                          <Button 
-                            variant="outline" 
-                            size="xs"
-                            className="rounded-lg h-7 px-2.5 text-[10px] flex items-center gap-1 cursor-pointer"
-                            onClick={() => {
-                              const fullJson = JSON.stringify({ alte_daten: detailedLog.alte_daten, neue_daten: detailedLog.neue_daten }, null, 2);
-                              navigator.clipboard.writeText(fullJson);
-                              toast({
-                                title: "JSON kopiert",
-                                description: "Snapshots wurden in die Zwischenablage kopiert.",
-                                variant: "success"
-                              });
-                            }}
-                          >
-                            <Copy className="size-3" />
-                            Alles kopieren
-                          </Button>
-                        </div>
-
-                        <div className="space-y-4 font-mono text-xs">
-                          {detailedLog.alte_daten && (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px] font-sans text-rose-500 font-semibold uppercase">
-                                <span>Alter Zustand (alte_daten)</span>
-                                <button 
-                                  onClick={() => copyToClipboardTab(JSON.stringify(detailedLog.alte_daten, null, 2), "raw-old")}
-                                  className="text-zinc-400 hover:text-rose-555 shrink-0 transition-colors p-1"
-                                >
-                                  {copiedRawField === "raw-old" ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                                </button>
-                              </div>
-                              <pre className="p-3.5 bg-zinc-950 text-zinc-300 dark:bg-zinc-900 border dark:border-zinc-850 rounded-2xl overflow-auto max-h-[220px] leading-relaxed shadow-inner">
-                                {JSON.stringify(detailedLog.alte_daten, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-                          {detailedLog.neue_daten && (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px] font-sans text-emerald-500 font-semibold uppercase">
-                                <span>Neuer Zustand (neue_daten)</span>
-                                <button 
-                                  onClick={() => copyToClipboardTab(JSON.stringify(detailedLog.neue_daten, null, 2), "raw-new")}
-                                  className="text-zinc-400 hover:text-emerald-555 shrink-0 transition-colors p-1"
-                                >
-                                  {copiedRawField === "raw-new" ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                                </button>
-                              </div>
-                              <pre className="p-3.5 bg-zinc-950 text-zinc-300 dark:bg-zinc-900 border dark:border-zinc-850 rounded-2xl overflow-auto max-h-[220px] leading-relaxed shadow-inner">
-                                {JSON.stringify(detailedLog.neue_daten, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
-                      </TabsContent>
-                    </Tabs>
                   </div>
                 ) : (
-                  <div className="text-center text-sm text-muted-foreground py-12">
+                  <div className="text-center text-sm text-muted-foreground py-16">
                     Keine Details geladen.
                   </div>
                 )}
