@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition, useMemo, useRef } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,6 +27,7 @@ import {
   Database, 
   User, 
   Eye, 
+  Copy,
   RefreshCw, 
   Info,
   Home,
@@ -1285,10 +1287,25 @@ export function OrganisationAuditLogTab() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right py-1 px-4 h-auto">
-                        <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 hover:bg-muted transition-all rounded-lg size-6 p-0 shrink-0">
-                          <Eye className="size-3.5 text-muted-foreground" />
-                        </Button>
+                      <TableCell className="text-right py-1 px-4 h-auto w-[90px]">
+                        <ActionMenu
+                          actions={[
+                            { id: `open-${log.id}`, icon: Eye, label: "Details anzeigen", onClick: (e) => { e?.stopPropagation(); handleSelectLog(log.id); } },
+                            { id: `copy-${log.id}`, icon: Copy, label: "Als JSON kopieren", onClick: async (e) => { 
+                              e?.stopPropagation(); 
+                              try {
+                                await navigator.clipboard.writeText(JSON.stringify(log, null, 2));
+                                toast({ title: "Kopiert", description: "Protokolleintrag als JSON in die Zwischenablage kopiert.", variant: "success" });
+                              } catch {
+                                toast({ title: "Fehler", description: "Konnte nicht in die Zwischenablage kopiert werden.", variant: "destructive" });
+                              }
+                            } },
+                          ]}
+                          shape="pill"
+                          visibility="hover"
+                          className="inline-flex"
+                          stopPropagation
+                        />
                       </TableCell>
                     </TableRow>
                   );
