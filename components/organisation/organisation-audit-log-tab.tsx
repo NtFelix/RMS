@@ -1063,30 +1063,11 @@ export function OrganisationAuditLogTab() {
         )}
 
         {/* Top Filters Dashboard Bar */}
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 items-end pt-2 border-t border-zinc-200/40 dark:border-zinc-800/40">
-          {/* Text Search Input (spans full row on small screen) */}
-          <div className="sm:col-span-2 space-y-1">
-            <label htmlFor="search-logs" className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">
-              Textsuche
-            </label>
-            <SearchInput
-              id="search-logs"
-              placeholder="Suchen nach Benutzer, Tabelle, ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onClear={() => setSearchQuery("")}
-              className="w-full h-9 text-xs rounded-xl"
-            />
-          </div>
-
-          {/* Zeitraum select */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">
-              Zeitraum
-            </label>
+        <div className="flex flex-wrap gap-3 items-end pt-4 border-t border-zinc-200/40 dark:border-zinc-800/40">
+          <div className="flex-1 min-w-[130px]">
             <Select value={filterTimeframe} onValueChange={setFilterTimeframe}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
-                <SelectValue placeholder="Alle Zeiten" />
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+                <SelectValue placeholder="Zeitraum" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
                 <SelectItem value="all" className="rounded-lg text-xs">Alle Zeiten</SelectItem>
@@ -1098,14 +1079,10 @@ export function OrganisationAuditLogTab() {
             </Select>
           </div>
 
-          {/* Table select */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">
-              Tabelle
-            </label>
+          <div className="flex-1 min-w-[130px]">
             <Select value={filterTable} onValueChange={handleFilterTableChange}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
-                <SelectValue placeholder="Alle Tabellen" />
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+                <SelectValue placeholder="Tabelle" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
                 <SelectItem value="all" className="rounded-lg text-xs">Alle Tabellen</SelectItem>
@@ -1116,14 +1093,10 @@ export function OrganisationAuditLogTab() {
             </Select>
           </div>
 
-          {/* Action select */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-zinc-555 dark:text-zinc-400">
-              Aktion
-            </label>
+          <div className="flex-1 min-w-[130px]">
             <Select value={filterAction} onValueChange={handleFilterActionChange}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
-                <SelectValue placeholder="Alle Aktionen" />
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+                <SelectValue placeholder="Aktion" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
                 <SelectItem value="all" className="rounded-lg text-xs">Alle Aktionen</SelectItem>
@@ -1136,14 +1109,10 @@ export function OrganisationAuditLogTab() {
             </Select>
           </div>
 
-          {/* User select */}
-          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-            <label className="text-xs font-semibold text-zinc-555 dark:text-zinc-400">
-              Mitarbeiter
-            </label>
+          <div className="flex-1 min-w-[130px]">
             <Select value={filterUser} onValueChange={setFilterUser}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850">
-                <SelectValue placeholder="Alle Mitarbeiter" />
+              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+                <SelectValue placeholder="Mitarbeiter" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
                 <SelectItem value="all" className="rounded-lg text-xs">Alle Mitarbeiter</SelectItem>
@@ -1152,6 +1121,17 @@ export function OrganisationAuditLogTab() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex-[1.5] min-w-[180px]">
+            <SearchInput
+              id="search-logs"
+              placeholder="Suche..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery("")}
+              className="w-full h-9 text-xs rounded-xl"
+            />
           </div>
         </div>
 
