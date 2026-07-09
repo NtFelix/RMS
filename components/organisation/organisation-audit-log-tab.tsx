@@ -668,7 +668,7 @@ export function OrganisationAuditLogTab() {
     });
     toast({
       title: "Aktualisiert",
-      description: "Die Audit-Protokolle wurden neu geladen."
+      description: "Audit-Logs wurden neu geladen."
     });
   };
 
@@ -720,17 +720,6 @@ export function OrganisationAuditLogTab() {
       variant: "success"
     });
     setTimeout(() => setCopiedRawField(null), 2000);
-  };
-
-  const handleResetFilters = () => {
-    setSearchQuery("");
-    setFilterTable("all");
-    setFilterAction("all");
-    setFilterUser("all");
-    setFilterTimeframe("all");
-    setCustomDateFrom("");
-    setCustomDateTo("");
-    setPage(1);
   };
 
   // Reset selected logs when filter changes
@@ -827,18 +816,10 @@ export function OrganisationAuditLogTab() {
 Audit-Log
             </CardTitle>
             <CardDescription className="mt-1 text-xs">
-              Vollständiges Änderungsprotokoll über alle Datenaktivitäten Ihrer Organisation ({filteredLogs.length} Einträge).
+              Vollständiges Audit-Log über alle Datenaktivitäten Ihrer Organisation ({filteredLogs.length} Einträge).
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetFilters}
-              className="rounded-xl h-9 text-xs flex items-center gap-1.5 cursor-pointer border-zinc-200 dark:border-zinc-800 hover:bg-muted"
-            >
-              Filter zurücksetzen
-            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -979,7 +960,7 @@ Audit-Log
                 <TableHead className="w-[160px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Datenbereich</TableHead>
                 <TableHead className="w-[140px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Aktion</TableHead>
                 <TableHead className="font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Geändert von</TableHead>
-                <TableHead className="text-right w-[80px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Details</TableHead>
+                <TableHead className="text-right w-[80px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 pl-4 pr-6 md:pr-6 h-8 hover:bg-transparent dark:hover:bg-transparent">Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -998,7 +979,7 @@ Audit-Log
                 <TableRow className="hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
                   <TableCell colSpan={6} className="h-36 text-center text-xs text-muted-foreground">
                     <Info className="size-6 mx-auto mb-1.5 text-zinc-400 stroke-1" />
-                    Keine Protokolleinträge gefunden.
+                    Keine Logs gefunden.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -1057,7 +1038,7 @@ Audit-Log
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right py-1 px-4 h-auto w-[90px]">
+                      <TableCell className="text-right py-1 pl-4 pr-6 md:pr-6 h-auto w-[90px]">
                         <ActionMenu
                           actions={[
                             { id: `open-${log.id}`, icon: Eye, label: "Details anzeigen", onClick: (e) => { e?.stopPropagation(); handleSelectLog(log.id); } },
@@ -1065,7 +1046,7 @@ Audit-Log
                               e?.stopPropagation(); 
                               try {
                                 await navigator.clipboard.writeText(JSON.stringify(log, null, 2));
-                                toast({ title: "Kopiert", description: "Protokolleintrag als JSON in die Zwischenablage kopiert.", variant: "success" });
+                                toast({ title: "Kopiert", description: "Log als JSON in die Zwischenablage kopiert.", variant: "success" });
                               } catch {
                                 toast({ title: "Fehler", description: "Konnte nicht in die Zwischenablage kopiert werden.", variant: "destructive" });
                               }
