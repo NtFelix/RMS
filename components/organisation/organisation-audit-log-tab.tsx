@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo, useRef } from "react";
+import { useState, useEffect, useTransition, useMemo, useRef, Fragment } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -450,12 +450,12 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
     const label = FRIENDLY_COLUMN_MAP[key] || key;
 
     // Permission-specific rendering
-    if (key === "module") return renderModuleDiff(oldVal, newVal);
-    if (key === "objekte") return renderObjekteDiff(oldVal, newVal);
+    if (key === "module") return <Fragment key={key}>{renderModuleDiff(oldVal, newVal)}</Fragment>;
+    if (key === "objekte") return <Fragment key={key}>{renderObjekteDiff(oldVal, newVal)}</Fragment>;
     // JSONB-specific rendering
-    if (key === "nebenkosten") return renderNebenkostenDiff(oldVal, newVal);
-    if (key === "kaution") return renderKautionDiff(oldVal, newVal);
-    if (key === "zaehlerkosten" || key === "zaehlerverbrauch") return renderZaehlerMapDiff(oldVal, newVal);
+    if (key === "nebenkosten") return <Fragment key={key}>{renderNebenkostenDiff(oldVal, newVal)}</Fragment>;
+    if (key === "kaution") return <Fragment key={key}>{renderKautionDiff(oldVal, newVal)}</Fragment>;
+    if (key === "zaehlerkosten" || key === "zaehlerverbrauch") return <Fragment key={key}>{renderZaehlerMapDiff(oldVal, newVal)}</Fragment>;
 
     const bothObjects =
       typeof oldVal === "object" && oldVal !== null && !Array.isArray(oldVal) &&
