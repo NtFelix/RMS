@@ -482,6 +482,7 @@ function OrganisationMembersTab({
           </div>
           <div className="flex items-center gap-2">
             <SearchInput
+              aria-label="Mitarbeiter durchsuchen"
               placeholder="Suchen nach Name oder E-Mail..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
@@ -508,7 +509,10 @@ function OrganisationMembersTab({
               return (
                 <div
                   key={item.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelectMember(isSelected ? null : item.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectMember(isSelected ? null : item.id); } }}
                   className={cn(
                     "p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-200 border border-transparent",
                     isSelected
@@ -854,8 +858,8 @@ export default function OrganisationClientView({
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invitations, setInvitations] = useState<Invitation[]>(initialInvitations);
-  const [initialPoliciesState] = useState<any[]>(initialPolicies);
-  const [initialHaeuserState] = useState<any[]>(initialHaeuser);
+  const initialPoliciesState = useMemo(() => initialPolicies, [initialPolicies]);
+  const initialHaeuserState = useMemo(() => initialHaeuser, [initialHaeuser]);
   const expiredInvitationIds = useMemo(() => {
     const now = new Date();
     const expired = new Set<string>();

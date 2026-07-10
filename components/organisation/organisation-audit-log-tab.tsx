@@ -17,35 +17,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getAuditLogsAction, getAuditLogDetailsAction } from "@/app/organisation-actions";
 import { 
   Clock, 
-  Database, 
   User, 
   Eye, 
   Copy,
   RefreshCw, 
   Download,
   Info,
-  Home,
-  Building,
-  Users,
-  CreditCard,
-  FileText,
-  CheckSquare,
   Calculator,
-  Gauge,
-  FileSpreadsheet,
-  Layout,
-  Shield,
   Key,
   AlertCircle,
-  Plus,
-  Pencil,
-  Trash2,
-  Settings,
   Building2,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { AuditLogDetailSkeleton } from "./organisation-loading-skeletons";
+import { MODULE_CONFIG, ACTION_CONFIG, getTableIcon } from "@/lib/organisation/permission-utils";
 
 interface AuditLogSummary {
   id: string;
@@ -126,43 +113,7 @@ const FRIENDLY_COLUMN_MAP: Record<string, string> = {
   policy_id: "Richtlinie",
 };
 
-// Table specific icons mapping
-function getTableIcon(tableName: string) {
-  switch (tableName) {
-    case 'Haeuser':
-      return Home;
-    case 'Wohnungen':
-      return Building;
-    case 'Mieter':
-      return Users;
-    case 'Finanzen':
-      return CreditCard;
-    case 'Dokumente_Metadaten':
-      return FileText;
-    case 'Aufgaben':
-      return CheckSquare;
-    case 'Nebenkosten':
-      return Calculator;
-    case 'Zaehler':
-    case 'Zaehler_Ablesungen':
-      return Gauge;
-    case 'Rechnungen':
-      return FileSpreadsheet;
-    case 'Vorlagen':
-      return Layout;
-    case 'Organisation':
-      return Shield;
-    case 'Organisation_Mitglieder':
-    case 'Organisation_Einladungen':
-      return Users;
-    case 'Organisation_Policies':
-    case 'Organisation_Mitglieder_Policies':
-    case 'Organisation_Mitglieder_Overrides':
-      return Key;
-    default:
-      return Database;
-  }
-}
+
 
 // Action color classes
 function getActionBadgeColor(action: AuditLogSummary['aktion']) {
@@ -176,33 +127,13 @@ function getActionBadgeColor(action: AuditLogSummary['aktion']) {
     case 'RESTORE':
       return 'bg-teal-500/10 text-teal-700 border-teal-200/60 dark:bg-teal-500/20 dark:text-teal-400 dark:border-teal-900/40';
     case 'DELETE':
-      return 'bg-rose-500/10 text-rose-700 border-rose-200/60 dark:bg-rose-500/20 dark:text-rose-455 dark:border-rose-900/40';
+      return 'bg-rose-500/10 text-rose-700 border-rose-200/60 dark:bg-rose-500/20 dark:text-rose-500 dark:border-rose-900/40';
     default:
       return 'bg-zinc-500/10 text-zinc-700 border-zinc-200/60 dark:bg-zinc-500/20 dark:text-zinc-400 dark:border-zinc-800/40';
   }
 }
 
-// Permission rendering maps
-const MODULE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  haeuser:        { label: "Häuser",        icon: Home },
-  wohnungen:      { label: "Wohnungen",      icon: Building },
-  mieter:         { label: "Mieter",         icon: Users },
-  zaehler:        { label: "Zähler",         icon: Gauge },
-  finanzen:       { label: "Finanzen",       icon: CreditCard },
-  betriebskosten: { label: "Betriebskosten", icon: Calculator },
-  dokumente:      { label: "Dokumente",      icon: FileText },
-  aufgaben:       { label: "Aufgaben",       icon: CheckSquare },
-  vorlagen:       { label: "Vorlagen",       icon: Layout },
-  organisation:   { label: "Organisation",   icon: Shield },
-};
 
-const ACTION_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-  ansehen:    { label: "Ansehen",    icon: Eye },
-  erstellen:  { label: "Erstellen",  icon: Plus },
-  bearbeiten: { label: "Bearbeiten", icon: Pencil },
-  loeschen:   { label: "Löschen",    icon: Trash2 },
-  verwalten:  { label: "Verwalten",  icon: Settings },
-};
 
 const ZAEHLER_LABEL_MAP: Record<string, string> = {
   kaltwasser: "Kaltwasserzähler",
@@ -286,7 +217,7 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
           return (
             <div key={modKey} className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-1 sm:space-y-0">
               <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
-                {Icon && <Icon className="size-4 text-zinc-455" />}
+                {Icon && <Icon className="size-4 text-zinc-500" />}
                 {cfg?.label || modKey}
               </span>
               {renderPermissionActions(oldActs, newActs)}
@@ -315,7 +246,7 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
     return (
       <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-start sm:gap-4 space-y-0.5 sm:space-y-0">
         <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
-          <Building2 className="size-4 text-zinc-455" />
+          <Building2 className="size-4 text-zinc-500" />
           Häuserzugriff
         </span>
         <div className="flex items-center gap-2 flex-wrap">
@@ -336,7 +267,7 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
     return (
       <div className="border-2 border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl p-4 space-y-3 bg-zinc-50/10 dark:bg-zinc-950/10">
         <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground/50 uppercase tracking-widest">
-          <Calculator className="size-4 text-zinc-455" />
+          <Calculator className="size-4 text-zinc-500" />
           Nebenkosten-Vorauszahlungen
         </div>
         <div className="space-y-2">
@@ -704,25 +635,31 @@ export function OrganisationAuditLogTab() {
   };
 
   const copyRecordId = (id: string) => {
-    navigator.clipboard.writeText(id);
-    setCopiedId(id);
-    toast({
-      title: "ID kopiert",
-      description: "Die Datensatz-ID wurde in die Zwischenablage kopiert.",
-      variant: "success"
+    navigator.clipboard.writeText(id).then(() => {
+      setCopiedId(id);
+      toast({
+        title: "ID kopiert",
+        description: "Die Datensatz-ID wurde in die Zwischenablage kopiert.",
+        variant: "success"
+      });
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => {
+      toast({ title: "Fehler", description: "Konnte nicht in die Zwischenablage kopiert werden.", variant: "destructive" });
     });
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const copyToClipboardTab = (text: string, fieldId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedRawField(fieldId);
-    toast({
-      title: "Wert kopiert",
-      description: "In die Zwischenablage übertragen.",
-      variant: "success"
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedRawField(fieldId);
+      toast({
+        title: "Wert kopiert",
+        description: "In die Zwischenablage übertragen.",
+        variant: "success"
+      });
+      setTimeout(() => setCopiedRawField(null), 2000);
+    }).catch(() => {
+      toast({ title: "Fehler", description: "Konnte nicht in die Zwischenablage kopiert werden.", variant: "destructive" });
     });
-    setTimeout(() => setCopiedRawField(null), 2000);
   };
 
   // Reset selected logs when filter changes
@@ -792,7 +729,7 @@ export function OrganisationAuditLogTab() {
       link.href = URL.createObjectURL(blob);
       link.download = `audit-log_${new Date().toISOString().split('T')[0]}.xls`;
       link.click();
-      toast({ title: "Export erfolgreich", description: `${data.length} Logs als XLS exportiert.`, variant: "success" });
+      toast({ title: "Export erfolgreich", description: `${data.length} Logs als Excel exportiert.`, variant: "success" });
     }
   };
 
@@ -908,7 +845,7 @@ Audit-Log
         <div className="flex flex-wrap gap-3 items-end pt-4 border-t border-zinc-200/40 dark:border-zinc-800/40">
           <div className="flex-1 min-w-[130px]">
             <Select value={filterTimeframe} onValueChange={setFilterTimeframe}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+              <SelectTrigger aria-label="Zeitraum filtern" className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-800 w-full">
                 <SelectValue placeholder="Zeitraum" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -923,7 +860,7 @@ Audit-Log
 
           <div className="flex-1 min-w-[130px]">
             <Select value={filterTable} onValueChange={handleFilterTableChange}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+              <SelectTrigger aria-label="Tabelle filtern" className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-800 w-full">
                 <SelectValue placeholder="Tabelle" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -937,7 +874,7 @@ Audit-Log
 
           <div className="flex-1 min-w-[130px]">
             <Select value={filterAction} onValueChange={handleFilterActionChange}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+              <SelectTrigger aria-label="Aktion filtern" className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-800 w-full">
                 <SelectValue placeholder="Aktion" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -953,7 +890,7 @@ Audit-Log
 
           <div className="flex-1 min-w-[130px]">
             <Select value={filterUser} onValueChange={setFilterUser}>
-              <SelectTrigger className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-850 w-full">
+              <SelectTrigger aria-label="Mitarbeiter filtern" className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-800 w-full">
                 <SelectValue placeholder="Mitarbeiter" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -967,6 +904,7 @@ Audit-Log
 
           <div className="flex-[1.5] min-w-[180px]">
             <SearchInput
+              aria-label="Audit-Logs durchsuchen"
               id="search-logs"
               placeholder="Suche..."
               value={searchQuery}
@@ -981,18 +919,20 @@ Audit-Log
         {filterTimeframe === "custom" && (
           <div className="flex gap-4 pt-3 items-center justify-start border-t border-dashed border-zinc-200/50 dark:border-zinc-800/50 mt-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">Zeitraum von:</span>
+              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Zeitraum von:</span>
               <input
                 type="date"
+                aria-label="Startdatum für benutzerdefinierten Zeitraum"
                 value={customDateFrom}
                 onChange={(e) => setCustomDateFrom(e.target.value)}
                 className="text-xs p-2 h-8.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">bis:</span>
+              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">bis:</span>
               <input
                 type="date"
+                aria-label="Enddatum für benutzerdefinierten Zeitraum"
                 value={customDateTo}
                 onChange={(e) => setCustomDateTo(e.target.value)}
                 className="text-xs p-2 h-8.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent outline-none focus:ring-1 focus:ring-primary focus:border-primary"
@@ -1005,7 +945,7 @@ Audit-Log
       {/* Main content: Scrollable Full-Width Infinite Table Body */}
       <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
         {error && (
-          <div className="p-4 m-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-455 text-sm flex items-center gap-2">
+          <div className="p-4 m-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-500 text-sm flex items-center gap-2">
             <AlertCircle className="size-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -1014,6 +954,7 @@ Audit-Log
         <div 
           ref={containerRef}
           onScroll={handleScroll}
+          aria-live="polite"
           className="overflow-y-auto max-h-[calc(100vh-240px)] scrollbar-thin relative bg-zinc-50/5 dark:bg-zinc-950/5"
         >
           <Table>
@@ -1056,7 +997,7 @@ Audit-Log
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="rounded-xl min-w-[110px]">
                           <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('csv')}>Als CSV</DropdownMenuItem>
-                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('xlsx')}>Als XLSX</DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('xlsx')}>Als XLS</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                       <DropdownMenu>
@@ -1118,11 +1059,11 @@ Audit-Log
                               return next;
                             });
                           }}
-                          aria-label={`Auswählen ${log.id}`}
+                          aria-label={TABLE_NAME_MAP[log.tabellenname] ? `Zeile auswählen: ${TABLE_NAME_MAP[log.tabellenname]}` : "Zeile auswählen"}
                           className="hover:scale-100 data-[state=checked]:scale-100 focus-visible:scale-100"
                         />
                       </TableCell>
-                      <TableCell className="font-medium whitespace-nowrap text-zinc-650 dark:text-zinc-400 text-[11px] py-1 px-4 h-auto" suppressHydrationWarning>
+                      <TableCell className="font-medium whitespace-nowrap text-zinc-600 dark:text-zinc-400 text-[11px] py-1 px-4 h-auto" suppressHydrationWarning>
                         {new Date(log.geaendert_am).toLocaleString("de-DE", {
                           day: "2-digit",
                           month: "2-digit",
@@ -1133,7 +1074,7 @@ Audit-Log
                       </TableCell>
                       <TableCell className="py-1 px-4 h-auto">
                         <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
-                          <TableIcon className="size-3.5 text-zinc-455 shrink-0" />
+                          <TableIcon className="size-3.5 text-zinc-500 shrink-0" />
                           {TABLE_NAME_MAP[log.tabellenname] || log.tabellenname}
                         </span>
                       </TableCell>
@@ -1231,13 +1172,13 @@ Audit-Log
                       <div className="sm:grid sm:gap-5 space-y-3 sm:space-y-0">
                         <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
                           <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
-                            <Database className="size-3.5 text-zinc-455" />
+                            <Database className="size-3.5 text-zinc-500" />
                             Tabelle
                           </span>
                           <span className="text-sm font-medium flex items-center gap-1.5">
                             {(() => {
                               const Icon = getTableIcon(detailedLog.tabellenname);
-                              return <Icon className="size-4 text-zinc-455" />;
+                              return <Icon className="size-4 text-zinc-500" />;
                             })()}
                             {TABLE_NAME_MAP[detailedLog.tabellenname] || detailedLog.tabellenname}
                           </span>
@@ -1246,7 +1187,7 @@ Audit-Log
                           <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
                             {(() => {
                               const ActionIcon = ACTION_CONFIG[detailedLog.aktion.toLowerCase()]?.icon || Eye;
-                              return <ActionIcon className="size-3.5 text-zinc-455" />;
+                              return <ActionIcon className="size-3.5 text-zinc-500" />;
                             })()}
                             Aktion
                           </span>
@@ -1256,7 +1197,7 @@ Audit-Log
                         </div>
                         <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
                           <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
-                            <Clock className="size-3.5 text-zinc-455" />
+                            <Clock className="size-3.5 text-zinc-500" />
                             Zeitpunkt
                           </span>
                           <span className="text-sm font-medium" suppressHydrationWarning>
@@ -1271,14 +1212,14 @@ Audit-Log
                         </div>
                         <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
                           <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
-                            <User className="size-3.5 text-zinc-455" />
+                            <User className="size-3.5 text-zinc-500" />
                             Geändert von
                           </span>
                           <span className="text-sm font-medium">{detailedLog.geaendert_von_name}</span>
                         </div>
                         <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
                           <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
-                            <Key className="size-3.5 text-zinc-455" />
+                            <Key className="size-3.5 text-zinc-500" />
                             Datensatz-ID
                           </span>
                           <span className="text-sm font-mono text-muted-foreground select-all break-all">{detailedLog.datensatz_id}</span>

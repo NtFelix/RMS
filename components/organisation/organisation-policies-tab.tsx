@@ -25,15 +25,11 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
-import { Shield, PlusCircle, Save, AlertTriangle, Trash, Clock, Plus, Minus, Pencil, Home, Building, Users, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Eye, Trash2, Settings } from "lucide-react";
+import { Shield, PlusCircle, Save, AlertTriangle, Trash, Clock, Plus, Minus, Pencil } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { PolicyDetailsSkeleton } from "./organisation-loading-skeletons";
-
-interface ChangeSummary {
-  description: React.ReactNode;
-  type: "add" | "remove" | "modify";
-}
+import { getModuleIcon, getPermissionIcon, getModuleLabel, getActionLabel, ChangeSummary } from "@/lib/organisation/permission-utils";
 
 interface OrganisationPoliciesTabProps {
   hasVerwaltenPermission: boolean;
@@ -74,52 +70,6 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
       JSON.stringify(editingPolicy.berechtigungen) !== JSON.stringify(originalPolicy.berechtigungen)
     );
   }, [editingPolicy, originalPolicy]);
-
-  const getModuleIcon = (modKey: string) => {
-    const cn = "inline-block size-3.5 mx-1 align-text-bottom text-zinc-500 dark:text-zinc-400";
-    switch (modKey) {
-      case "haeuser":
-        return <Home className={cn} />;
-      case "wohnungen":
-        return <Building className={cn} />;
-      case "mieter":
-        return <Users className={cn} />;
-      case "zaehler":
-        return <Gauge className={cn} />;
-      case "finanzen":
-        return <CreditCard className={cn} />;
-      case "betriebskosten":
-        return <Calculator className={cn} />;
-      case "dokumente":
-        return <FileText className={cn} />;
-      case "aufgaben":
-        return <CheckSquare className={cn} />;
-      case "vorlagen":
-        return <Layout className={cn} />;
-      case "organisation":
-        return <Shield className={cn} />;
-      default:
-        return null;
-    }
-  };
-
-  const getPermissionIcon = (action: string) => {
-    const cn = "inline-block size-3 mx-0.5 align-text-bottom text-zinc-400 dark:text-zinc-500";
-    switch (action) {
-      case "ansehen":
-        return <Eye className={cn} />;
-      case "erstellen":
-        return <Plus className={cn} />;
-      case "bearbeiten":
-        return <Pencil className={cn} />;
-      case "loeschen":
-        return <Trash2 className={cn} />;
-      case "verwalten":
-        return <Settings className={cn} />;
-      default:
-        return null;
-    }
-  };
 
   const changesDiff = useMemo<ChangeSummary[]>(() => {
     if (!editingPolicy) return [];
@@ -215,27 +165,6 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
       ...Object.keys(nextModules)
     ]));
 
-    const actionLabelMap: Record<string, string> = {
-      ansehen: "Ansehen",
-      erstellen: "Erstellen",
-      bearbeiten: "Bearbeiten",
-      loeschen: "Löschen",
-      verwalten: "Verwalten"
-    };
-
-    const moduleLabelMap: Record<string, string> = {
-      haeuser: "Häuser",
-      wohnungen: "Wohnungen",
-      mieter: "Mieter",
-      zaehler: "Zähler",
-      finanzen: "Finanzen",
-      betriebskosten: "Betriebskosten",
-      dokumente: "Dokumente",
-      aufgaben: "Aufgaben",
-      vorlagen: "Vorlagen",
-      organisation: "Organisation"
-    };
-
     allModuleKeys.forEach(modKey => {
       const prevActions = prevModules[modKey] || [];
       const nextActions = nextModules[modKey] || [];
@@ -243,7 +172,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
       const added = nextActions.filter(a => !prevActions.includes(a));
       const removed = prevActions.filter(a => !nextActions.includes(a));
 
-      const modLabel = moduleLabelMap[modKey] || modKey;
+      const modLabel = getModuleLabel(modKey);
 
       if (originalPolicy) {
         if (added.length > 0) {
@@ -255,7 +184,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                   <span key={a} className="inline-flex items-center gap-0.5 text-zinc-800 dark:text-zinc-200 font-semibold">
                     {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 font-normal">,</span>}
                     {getPermissionIcon(a)}
-                    <span>{actionLabelMap[a] || a}</span>
+                    <span>{getActionLabel(a)}</span>
                   </span>
                 ))}
               </>
@@ -272,7 +201,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                   <span key={a} className="inline-flex items-center gap-0.5 text-zinc-500 line-through">
                     {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 no-underline">,</span>}
                     {getPermissionIcon(a)}
-                    <span>{actionLabelMap[a] || a}</span>
+                    <span>{getActionLabel(a)}</span>
                   </span>
                 ))}
               </>
@@ -291,7 +220,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                   <span key={a} className="inline-flex items-center gap-0.5 text-zinc-800 dark:text-zinc-200 font-semibold">
                     {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 font-normal">,</span>}
                     {getPermissionIcon(a)}
-                    <span>{actionLabelMap[a] || a}</span>
+                    <span>{getActionLabel(a)}</span>
                   </span>
                 ))}
               </>
@@ -494,6 +423,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
           </div>
           <div className="flex items-center gap-2">
             <SearchInput
+              aria-label="Richtlinien durchsuchen"
               placeholder="Suchen nach Richtlinien..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -530,6 +460,8 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
               return (
                 <div
                   key={policy.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     if (isDirty && editingPolicy && editingPolicy.id !== policy.id) {
                       toast({
@@ -541,6 +473,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                     }
                     handleSelectPolicy(isSelected ? null : policy);
                   }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (isDirty && editingPolicy && editingPolicy.id !== policy.id) { toast({ title: "Ungespeicherte Änderungen", description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.", variant: "destructive" }); return; } handleSelectPolicy(isSelected ? null : policy); } }}
                   className={cn(
                     "p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-200 border border-transparent",
                     isSelected
@@ -609,6 +542,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                 <Input
                   id="policy-name-input"
                   type="text"
+                  aria-label="Name der Richtlinie"
                   value={editingPolicy.name}
                   onChange={(e) => setEditingPolicy({ ...editingPolicy, name: e.target.value })}
                   placeholder="z.B. Buchhaltung, Hausmeister"

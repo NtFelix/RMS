@@ -158,6 +158,8 @@ export function ObjectScopeEditor({
                   <button
                     type="button"
                     onClick={() => toggleExpand(haus.id)}
+                    aria-expanded={isExpanded}
+                    aria-label={isExpanded ? `${haus.name} einklappen` : `${haus.name} ausklappen`}
                     className="p-1 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50 rounded-md transition-all text-zinc-500"
                   >
                     <ChevronRight

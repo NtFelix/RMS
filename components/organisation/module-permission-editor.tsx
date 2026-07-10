@@ -140,22 +140,6 @@ export function ModulePermissionEditor({
     onChange(nextPermissions);
   };
 
-  const getGridState = () => {
-    let totalCount = 0;
-    let checkedCount = 0;
-    MODULES.forEach(mod => {
-      const current = modulePermissions[mod.key] || [];
-      const policy = policyGrantedModulePermissions?.[mod.key] || [];
-      AKTIONEN.forEach(a => {
-        totalCount++;
-        if (current.includes(a.key) || policy.includes(a.key)) checkedCount++;
-      });
-    });
-    if (checkedCount === 0) return "unchecked";
-    if (checkedCount === totalCount) return "checked";
-    return "indeterminate";
-  };
-
   // Shared border styling classes
   const borderColor = "border-zinc-200 dark:border-zinc-800";
 
