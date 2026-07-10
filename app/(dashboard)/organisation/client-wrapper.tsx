@@ -611,7 +611,7 @@ function OrganisationMembersTab({
                     </Badge>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground" suppressHydrationWarning>
                   Eingeladen am {new Date(selectedItem.rawItem.erstellt_am).toLocaleDateString("de-DE")} · Ablaufdatum: {new Date(selectedItem.rawItem.expires_at).toLocaleDateString("de-DE")}
                 </p>
               </div>

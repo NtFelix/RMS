@@ -39,7 +39,7 @@ interface OrganisationPoliciesTabProps {
 
 export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicies, initialHaeuser }: OrganisationPoliciesTabProps) {
   const [policies, setPolicies] = useState<OrganisationPolicy[]>(initialPolicies);
-  const [haeuser] = useState<HausWithWohnungen[]>(initialHaeuser);
+  const haeuser = initialHaeuser;
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const detailRequestIdRef = useRef(0);
   const [saving, startSavingTransition] = useTransition();
