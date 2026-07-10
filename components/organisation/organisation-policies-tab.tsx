@@ -249,6 +249,11 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
     try {
       const detail = await getPolicyAction(policy.id);
       if (requestId !== detailRequestIdRef.current) return;
+      if (!detail) {
+        toast({ title: "Nicht gefunden", description: "Die Richtlinie wurde nicht gefunden.", variant: "destructive" });
+        setIsDetailLoading(false);
+        return;
+      }
       setEditingPolicy(structuredClone(detail));
       setOriginalPolicy(structuredClone(detail));
     } catch (error) {
@@ -314,7 +319,8 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
           // Create new policy
           const newPolicy = await createPolicyAction(editingPolicy.name, payloadBerechtigungen);
           setPolicies(prev => [...prev, newPolicy]);
-          handleSelectPolicy(newPolicy);
+          setEditingPolicy(structuredClone(newPolicy));
+          setOriginalPolicy(structuredClone(newPolicy));
           toast({
             title: "Richtlinie erstellt",
             description: `Die Richtlinie "${newPolicy.name}" wurde erfolgreich erstellt.`,
@@ -324,7 +330,8 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
           // Update existing policy
           const updatedPolicy = await updatePolicyAction(editingPolicy.id, editingPolicy.name, payloadBerechtigungen);
           setPolicies(prev => prev.map(p => p.id === updatedPolicy.id ? updatedPolicy : p));
-          handleSelectPolicy(updatedPolicy);
+          setEditingPolicy(structuredClone(updatedPolicy));
+          setOriginalPolicy(structuredClone(updatedPolicy));
           toast({
             title: "Richtlinie aktualisiert",
             description: `Die Richtlinie "${updatedPolicy.name}" wurde erfolgreich gespeichert.`,
@@ -463,17 +470,19 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    if (isDirty && editingPolicy && editingPolicy.id !== policy.id) {
-                      toast({
-                        title: "Ungespeicherte Änderungen",
-                        description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.",
-                        variant: "destructive",
-                      });
-                      return;
+                    if (isDirty && editingPolicy) {
+                      if (isSelected || editingPolicy.id !== policy.id) {
+                        toast({
+                          title: "Ungespeicherte Änderungen",
+                          description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                     }
                     handleSelectPolicy(isSelected ? null : policy);
                   }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (isDirty && editingPolicy && editingPolicy.id !== policy.id) { toast({ title: "Ungespeicherte Änderungen", description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.", variant: "destructive" }); return; } handleSelectPolicy(isSelected ? null : policy); } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (isDirty && editingPolicy) { if (isSelected || editingPolicy.id !== policy.id) { toast({ title: "Ungespeicherte Änderungen", description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.", variant: "destructive" }); return; } } handleSelectPolicy(isSelected ? null : policy); } }}
                   className={cn(
                     "p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-200 border border-transparent",
                     isSelected

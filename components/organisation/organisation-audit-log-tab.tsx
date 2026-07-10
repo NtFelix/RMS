@@ -522,8 +522,6 @@ export function OrganisationAuditLogTab() {
   const [detailedLog, setDetailedLog] = useState<AuditLogDetail | null>(null);
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copiedRawField, setCopiedRawField] = useState<string | null>(null);
 
   // loading state transitions
   const [isPending, startTransition] = useTransition();
@@ -636,34 +634,6 @@ export function OrganisationAuditLogTab() {
     });
   };
 
-  const copyRecordId = (id: string) => {
-    navigator.clipboard.writeText(id).then(() => {
-      setCopiedId(id);
-      toast({
-        title: "ID kopiert",
-        description: "Die Datensatz-ID wurde in die Zwischenablage kopiert.",
-        variant: "success"
-      });
-      setTimeout(() => setCopiedId(null), 2000);
-    }).catch(() => {
-      toast({ title: "Fehler", description: "Konnte nicht in die Zwischenablage kopiert werden.", variant: "destructive" });
-    });
-  };
-
-  const copyToClipboardTab = (text: string, fieldId: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedRawField(fieldId);
-      toast({
-        title: "Wert kopiert",
-        description: "In die Zwischenablage übertragen.",
-        variant: "success"
-      });
-      setTimeout(() => setCopiedRawField(null), 2000);
-    }).catch(() => {
-      toast({ title: "Fehler", description: "Konnte nicht in die Zwischenablage kopiert werden.", variant: "destructive" });
-    });
-  };
-
   // Reset selected logs when filter changes
   useEffect(() => {
     setSelectedLogIds(new Set());
@@ -711,10 +681,12 @@ export function OrganisationAuditLogTab() {
       ].map(v => escapeCsvValue(v)).join(','));
       const content = [csvHeader, ...rows].join('\n');
       const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `audit-log_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
+      URL.revokeObjectURL(url);
       toast({ title: "Export erfolgreich", description: `${data.length} Logs als CSV exportiert.`, variant: "success" });
     } else {
       const rows = data.map(l => `<tr>
@@ -727,10 +699,12 @@ export function OrganisationAuditLogTab() {
       </tr>`).join('');
       const html = `<html><head><meta charset="utf-8"><table><tr><th>ID</th><th>Tabelle</th><th>Aktion</th><th>Geändert von</th><th>E-Mail</th><th>Zeitpunkt</th></tr>${rows}</table></html>`;
       const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      link.href = url;
       link.download = `audit-log_${new Date().toISOString().split('T')[0]}.xls`;
       link.click();
+      URL.revokeObjectURL(url);
       toast({ title: "Export erfolgreich", description: `${data.length} Logs als Excel exportiert.`, variant: "success" });
     }
   };
@@ -791,12 +765,10 @@ export function OrganisationAuditLogTab() {
           const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           if (logDate < startOfToday) return false;
         } else if (filterTimeframe === "last-7-days") {
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(now.getDate() - 7);
+          const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
           if (logDate < sevenDaysAgo) return false;
         } else if (filterTimeframe === "last-30-days") {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(now.getDate() - 30);
+          const thirtyDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
           if (logDate < thirtyDaysAgo) return false;
         } else if (filterTimeframe === "custom") {
           if (customDateFrom) {
@@ -1187,10 +1159,7 @@ Audit-Log
                         </div>
                         <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-0.5 sm:space-y-0">
                           <span className="text-sm text-muted-foreground/70 flex items-center gap-1.5">
-                            {(() => {
-                              const ActionIcon = ACTION_CONFIG[detailedLog.aktion.toLowerCase()]?.icon || Eye;
-                              return <ActionIcon className="size-3.5 text-zinc-500" />;
-                            })()}
+                            <Eye className="size-3.5 text-zinc-500" />
                             Aktion
                           </span>
                           <Badge variant="outline" className={cn("w-fit px-2.5 py-0.5 uppercase font-bold text-[10px] rounded-full", getActionBadgeColor(detailedLog.aktion))}>
