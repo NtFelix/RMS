@@ -86,6 +86,8 @@ interface OrganisationClientViewProps {
   };
   initialMembers: Member[];
   initialInvitations: Invitation[];
+  initialPolicies: any[];
+  initialHaeuser: any[];
   currentUser: any;
   canManage?: boolean;
   rpcError?: string | null;
@@ -843,6 +845,8 @@ function useOrganisationActions({
 export default function OrganisationClientView({
   initialMembers,
   initialInvitations,
+  initialPolicies,
+  initialHaeuser,
   currentUser,
   canManage = false,
   rpcError = null
@@ -850,6 +854,8 @@ export default function OrganisationClientView({
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invitations, setInvitations] = useState<Invitation[]>(initialInvitations);
+  const [initialPoliciesState] = useState<any[]>(initialPolicies);
+  const [initialHaeuserState] = useState<any[]>(initialHaeuser);
   const expiredInvitationIds = useMemo(() => {
     const now = new Date();
     const expired = new Set<string>();
@@ -992,6 +998,8 @@ export default function OrganisationClientView({
       {uiState.currentTab === "policies" && (
         <OrganisationPoliciesTab
           hasVerwaltenPermission={hasVerwaltenPermission}
+          initialPolicies={initialPoliciesState}
+          initialHaeuser={initialHaeuserState}
         />
       )}
 

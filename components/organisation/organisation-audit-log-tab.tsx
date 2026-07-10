@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { AuditLogDetailSkeleton } from "./organisation-loading-skeletons";
 
 interface AuditLogSummary {
   id: string;
@@ -1219,10 +1220,7 @@ Audit-Log
                 </div>
 
                 {isDetailsLoading ? (
-                  <div className="flex items-center justify-center gap-3 py-16">
-                    <RefreshCw className="size-5 animate-spin text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Lade Details...</span>
-                  </div>
+                  <AuditLogDetailSkeleton />
                 ) : detailedLog ? (
                   <div className="space-y-8 sm:space-y-10">
                     {/* Ereignis section */}

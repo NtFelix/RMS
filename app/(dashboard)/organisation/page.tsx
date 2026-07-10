@@ -42,8 +42,8 @@ export default async function OrganisationPage() {
     redirect("/unauthorized");
   }
 
-  // Fetch members and open invitations in parallel
-  const [membersResult, invitationsResult, canManage] = await Promise.all([
+  // Fetch members, invitations, policies, and houses in parallel
+  const [membersResult, invitationsResult, policiesResult, housesResult, canManage] = await Promise.all([
     safeRpcCall<any[]>(supabase, 'get_organisation_mitglieder', undefined, { userId: user.id }),
     supabase
       .from('Organisation_Einladungen')
@@ -51,6 +51,8 @@ export default async function OrganisationPage() {
       .eq('organisation_id', orgId)
       .eq('status', 'offen')
       .order('erstellt_am', { ascending: false }),
+    safeRpcCall<any[]>(supabase, 'get_policies'),
+    safeRpcCall<any[]>(supabase, 'get_org_haeuser_mit_wohnungen'),
     hasPermission('organisation', 'verwalten')
   ]);
 
@@ -62,14 +64,26 @@ export default async function OrganisationPage() {
     console.error("Error loading invitations:", invitationsResult.error.message);
   }
 
+  if (!policiesResult.success) {
+    console.error("Error loading policies:", policiesResult.message);
+  }
+
+  if (!housesResult.success) {
+    console.error("Error loading houses:", housesResult.message);
+  }
+
   const members = membersResult.data ?? [];
   const invitations = invitationsResult.data ?? [];
+  const initialPolicies = policiesResult.data ?? [];
+  const initialHaeuser = housesResult.data ?? [];
 
   return (
     <OrganisationClientView
       org={org}
       initialMembers={members}
       initialInvitations={invitations}
+      initialPolicies={initialPolicies}
+      initialHaeuser={initialHaeuser}
       currentUser={user}
       canManage={canManage}
       rpcError={!membersResult.success ? (membersResult.message ?? 'Fehler beim Laden der Mitglieder') : null}

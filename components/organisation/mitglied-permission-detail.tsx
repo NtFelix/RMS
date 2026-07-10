@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import {
   Lock,
-  RefreshCw,
   Save,
   Plus,
   Minus,
@@ -40,6 +39,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { MemberPermissionsSkeleton } from "./organisation-loading-skeletons";
 
 interface ChangeSummary {
   description: React.ReactNode;
@@ -535,9 +535,9 @@ export function MitgliedPermissionDetail({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2rem] min-h-[300px] gap-3">
-        <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Berechtigungen werden geladen...</span>
+      <div className="flex flex-col gap-6">
+        {headerContent}
+        <MemberPermissionsSkeleton />
       </div>
     );
   }

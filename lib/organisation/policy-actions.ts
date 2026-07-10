@@ -16,6 +16,25 @@ export async function getPoliciesAction(): Promise<OrganisationPolicy[]> {
   return (data ?? []) as OrganisationPolicy[];
 }
 
+/** Fetches one policy when its detail panel is opened. RLS limits the row to the active organisation. */
+export async function getPolicyAction(policyId: string): Promise<OrganisationPolicy> {
+  const supabase = await createClient();
+  await requirePermission('organisation', 'ansehen');
+
+  const { data, error } = await supabase
+    .from('Organisation_Policies')
+    .select('id, organisation_id, name, berechtigungen, erstellt_am')
+    .eq('id', policyId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching policy:", error);
+    throw error;
+  }
+
+  return data as OrganisationPolicy;
+}
+
 export async function createPolicyAction(name: string, berechtigungen: PolicyBerechtigungen): Promise<OrganisationPolicy> {
   const supabase = await createClient();
   await requirePermission('organisation', 'verwalten');
@@ -119,5 +138,4 @@ export async function updateMitgliedPoliciesAction(
 
   revalidatePath('/organisation');
 }
-
 

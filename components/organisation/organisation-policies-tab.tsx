@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useRef } from "react";
 import { HausWithWohnungen, OrganisationPolicy, PolicyBerechtigungen } from "@/lib/organisation-types";
 import {
-  getPoliciesAction,
+  getPolicyAction,
   createPolicyAction,
   updatePolicyAction,
   deletePolicyAction
 } from "@/lib/organisation/policy-actions";
-import { getOrgHaeuserAction } from "@/lib/perms-actions";
 import { ObjectScopeEditor } from "./object-scope-editor";
 import { ModulePermissionEditor } from "./module-permission-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,9 +25,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
-import { Shield, PlusCircle, Save, RefreshCw, AlertTriangle, Trash, Clock, Plus, Minus, Pencil, Home, Building, Users, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Eye, Trash2, Settings } from "lucide-react";
+import { Shield, PlusCircle, Save, AlertTriangle, Trash, Clock, Plus, Minus, Pencil, Home, Building, Users, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Eye, Trash2, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { PolicyDetailsSkeleton } from "./organisation-loading-skeletons";
 
 interface ChangeSummary {
   description: React.ReactNode;
@@ -37,12 +37,15 @@ interface ChangeSummary {
 
 interface OrganisationPoliciesTabProps {
   hasVerwaltenPermission: boolean;
+  initialPolicies: OrganisationPolicy[];
+  initialHaeuser: HausWithWohnungen[];
 }
 
-export function OrganisationPoliciesTab({ hasVerwaltenPermission }: OrganisationPoliciesTabProps) {
-  const [policies, setPolicies] = useState<OrganisationPolicy[]>([]);
-  const [haeuser, setHaeuser] = useState<HausWithWohnungen[]>([]);
-  const [loading, setLoading] = useState(true);
+export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicies, initialHaeuser }: OrganisationPoliciesTabProps) {
+  const [policies, setPolicies] = useState<OrganisationPolicy[]>(initialPolicies);
+  const [haeuser] = useState<HausWithWohnungen[]>(initialHaeuser);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const detailRequestIdRef = useRef(0);
   const [saving, startSavingTransition] = useTransition();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,31 +53,6 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
   const [originalPolicy, setOriginalPolicy] = useState<OrganisationPolicy | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingPolicy, setDeletingPolicy] = useState<OrganisationPolicy | null>(null);
-
-  // Fetch policies and houses on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [policiesData, housesData] = await Promise.all([
-          getPoliciesAction(),
-          getOrgHaeuserAction(),
-        ]);
-        setPolicies(policiesData);
-        setHaeuser(housesData);
-      } catch (error) {
-        console.error("Failed to load policies or houses:", error);
-        toast({
-          title: "Fehler beim Laden",
-          description: "Die Daten konnten nicht geladen werden.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   // Filter policies based on search query
   const filteredPolicies = useMemo(() => {
@@ -327,13 +305,35 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
     return list;
   }, [editingPolicy, originalPolicy, haeuser]);
 
-  const handleSelectPolicy = (policy: OrganisationPolicy | null) => {
-    if (policy) {
-      setEditingPolicy(structuredClone(policy));
-      setOriginalPolicy(structuredClone(policy));
-    } else {
+  const handleSelectPolicy = async (policy: OrganisationPolicy | null) => {
+    const requestId = ++detailRequestIdRef.current;
+    if (!policy) {
       setEditingPolicy(null);
       setOriginalPolicy(null);
+      setIsDetailLoading(false);
+      return;
+    }
+
+    setIsDetailLoading(true);
+    setEditingPolicy(null);
+    setOriginalPolicy(null);
+    try {
+      const detail = await getPolicyAction(policy.id);
+      if (requestId !== detailRequestIdRef.current) return;
+      setEditingPolicy(structuredClone(detail));
+      setOriginalPolicy(structuredClone(detail));
+    } catch (error) {
+      if (requestId !== detailRequestIdRef.current) return;
+      console.error("Failed to load policy details:", error);
+      toast({
+        title: "Fehler beim Laden",
+        description: "Die Richtliniendetails konnten nicht geladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      if (requestId === detailRequestIdRef.current) {
+        setIsDetailLoading(false);
+      }
     }
   };
 
@@ -474,15 +474,6 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2rem] min-h-[400px] gap-3">
-        <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Richtlinien werden geladen...</span>
-      </div>
-    );
-  }
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
       {/* Left Pane: Unified Policies Navigation List */}
@@ -585,7 +576,9 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission }: Organisation
 
       {/* Right Pane: Policy Editor Detail Panel */}
       <div className="md:col-span-2 h-[calc(100vh-180px)] overflow-y-auto pr-1 md:sticky md:top-24 scrollbar-thin">
-        {editingPolicy ? (
+        {isDetailLoading ? (
+          <PolicyDetailsSkeleton />
+        ) : editingPolicy ? (
           <div className="flex flex-col gap-6">
             {/* Header section matching MitgliedPermissionDetail */}
             <div className="flex flex-col gap-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
