@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useMemo, useRef, Fragment } from "react";
+import { useState, useEffect, useTransition, useMemo, useCallback, useRef, Fragment } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -573,6 +573,8 @@ export function OrganisationAuditLogTab() {
     return () => {
       active = false;
     };
+  // filterUser, searchQuery, filterTimeframe excluded intentionally:
+  // they're applied client-side in filteredLogs useMemo below
   }, [page, filterTable, filterAction]);
 
   const handleFilterTableChange = (val: string) => {
@@ -607,7 +609,7 @@ export function OrganisationAuditLogTab() {
   };
 
   // Scroll handler to load more logs when reaching bottom of table container
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
@@ -615,7 +617,7 @@ export function OrganisationAuditLogTab() {
     if (isNearBottom && hasMore && !isPending) {
       setPage(p => p + 1);
     }
-  };
+  }, [hasMore, isPending]);
 
   const handleSelectLog = (logId: string) => {
     setIsDetailsLoading(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useReducer, useTransition, useMemo } from "react";
+import { useState, useReducer, useTransition, useMemo, type Dispatch, type SetStateAction, type FormEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -277,7 +277,6 @@ function OrganisationMembersTab({
   statusFilter,
   inviteEmail,
   inviteRole,
-  filteredMembers,
   members,
   invitations,
   expiredInvitationIds,
@@ -303,7 +302,6 @@ function OrganisationMembersTab({
   statusFilter: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
-  filteredMembers: Member[];
   members: Member[];
   invitations: Invitation[];
   expiredInvitationIds: Set<string>;
@@ -318,7 +316,7 @@ function OrganisationMembersTab({
   onStatusFilterChange: (val: string) => void;
   onInviteEmailChange: (val: string) => void;
   onInviteRoleChange: (val: "admin" | "mitarbeiter") => void;
-  onInvite: (e: React.FormEvent) => void;
+  onInvite: (e: FormEvent) => void;
   onRevoke: (id: string, email: string) => void;
   onRoleChange: (memberId: string, name: string, newRole: string) => void;
   onStatusChange: (memberId: string, name: string, newStatus: string) => void;
@@ -404,7 +402,7 @@ function OrganisationMembersTab({
     return unifiedMembers.find(item => item.id === selectedMemberId) || null;
   }, [unifiedMembers, selectedMemberId]);
 
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  const handleInviteSubmit = (e: FormEvent) => {
     e.preventDefault();
     onInvite(e);
     setInviteOpen(false);
@@ -671,8 +669,6 @@ function OrganisationMembersTab({
     </div>
   );
 }
-// End of extracted sub-components
-
 function useOrganisationActions({
   uiState,
   dispatch,
@@ -683,14 +679,14 @@ function useOrganisationActions({
   toast: showToast
 }: {
   uiState: UiState;
-  dispatch: React.Dispatch<UiAction>;
-  setMembers: React.Dispatch<React.SetStateAction<Member[]>>;
-  setInvitations: React.Dispatch<React.SetStateAction<Invitation[]>>;
+  dispatch: Dispatch<UiAction>;
+  setMembers: Dispatch<SetStateAction<Member[]>>;
+  setInvitations: Dispatch<SetStateAction<Invitation[]>>;
   startInviteTransition: (callback: () => void) => void;
   startActionTransition: (callback: () => void) => void;
   toast: typeof toast;
 }) {
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = (e: FormEvent) => {
     e.preventDefault();
     if (!uiState.inviteEmail) return;
 
@@ -929,21 +925,6 @@ export default function OrganisationClientView({
     return { active, admins, pendingInvites, ownerName };
   }, [members, invitations]);
 
-  // Filtered members list
-  const filteredMembers = useMemo(() => {
-    return members.filter(m => {
-      const name = `${m.first_name || ""} ${m.last_name || ""}`.toLowerCase();
-      const email = m.email.toLowerCase();
-      const query = uiState.searchQuery.toLowerCase();
-
-      const matchesSearch = name.includes(query) || email.includes(query);
-      const matchesRole = uiState.roleFilter === "all" || m.rolle === uiState.roleFilter;
-      const matchesStatus = uiState.statusFilter === "all" || m.status === uiState.statusFilter;
-
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [members, uiState.searchQuery, uiState.roleFilter, uiState.statusFilter]);
-
   return (
     <LazyMotion features={domAnimation}>
       <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
@@ -975,7 +956,6 @@ export default function OrganisationClientView({
           statusFilter={uiState.statusFilter}
           inviteEmail={uiState.inviteEmail}
           inviteRole={uiState.inviteRole}
-          filteredMembers={filteredMembers}
           members={members}
           invitations={invitations}
           expiredInvitationIds={expiredInvitationIds}

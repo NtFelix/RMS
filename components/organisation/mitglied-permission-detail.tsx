@@ -68,7 +68,7 @@ export function MitgliedPermissionDetail({
 
   const isLocked = rolle === "owner" || rolle === "admin";
   const isCurrentUser = selectedMemberUserId === currentUserId;
-  const isOwnerRow = rolle === "owner";
+  const isOwner = rolle === "owner";
 
   useEffect(() => {
     const fetchPermissionsAndPolicies = async () => {
@@ -617,7 +617,7 @@ export function MitgliedPermissionDetail({
         )}
 
         {/* Section 2.5: Danger Zone (only if manageable) */}
-        {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser && (
+        {hasVerwaltenPermission && !isOwner && !isCurrentUser && (
           <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs bg-red-500/[0.01] dark:bg-red-500/[0.02]">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
