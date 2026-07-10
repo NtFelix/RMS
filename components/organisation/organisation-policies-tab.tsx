@@ -598,8 +598,10 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                 </CardHeader>
                 <CardContent className="pb-4">
                   <div className="flex flex-col gap-2.5">
-                    {changesDiff.map((change, idx) => (
-                      <div key={idx} className="flex items-start gap-2.5 text-xs py-0.5">
+                    {changesDiff.map((change, idx) => {
+                      const changeKey = `change-${change.type}-${idx}`;
+                      return (
+                      <div key={changeKey} className="flex items-start gap-2.5 text-xs py-0.5">
                         <span className={cn(
                           "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
                           change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
@@ -614,7 +616,8 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                           {change.description}
                         </span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
                 <div className="p-6 pt-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

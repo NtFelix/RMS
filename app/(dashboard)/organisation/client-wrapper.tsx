@@ -858,8 +858,7 @@ export default function OrganisationClientView({
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [invitations, setInvitations] = useState<Invitation[]>(initialInvitations);
-  const initialPoliciesState = useMemo(() => initialPolicies, [initialPolicies]);
-  const initialHaeuserState = useMemo(() => initialHaeuser, [initialHaeuser]);
+  // Pass initial props directly — stable references from server component
   const expiredInvitationIds = useMemo(() => {
     const now = new Date();
     const expired = new Set<string>();
@@ -1002,8 +1001,8 @@ export default function OrganisationClientView({
       {uiState.currentTab === "policies" && (
         <OrganisationPoliciesTab
           hasVerwaltenPermission={hasVerwaltenPermission}
-          initialPolicies={initialPoliciesState}
-          initialHaeuser={initialHaeuserState}
+          initialPolicies={initialPolicies}
+          initialHaeuser={initialHaeuser}
         />
       )}
 

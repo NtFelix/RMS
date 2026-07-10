@@ -569,23 +569,26 @@ export function MitgliedPermissionDetail({
             </CardHeader>
             <CardContent className="pb-4">
               <div className="flex flex-col gap-2.5">
-                {changesDiff.map((change, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5 text-xs py-0.5">
-                    <span className={cn(
-                      "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
-                      change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
-                      change.type === "remove" ? "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800" :
-                      "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800"
-                    )}>
-                      {change.type === "add" && <Plus className="size-3 stroke-[2.5]" />}
-                      {change.type === "remove" && <Minus className="size-3 stroke-[2.5]" />}
-                      {change.type === "modify" && <Pencil className="size-2.5 stroke-[2.5]" />}
-                    </span>
-                    <span className="text-zinc-600 dark:text-zinc-400 font-medium leading-6">
-                      {change.description}
-                    </span>
-                  </div>
-                ))}
+                {changesDiff.map((change, idx) => {
+                  const changeKey = `change-${change.type}-${idx}`;
+                  return (
+                    <div key={changeKey} className="flex items-start gap-2.5 text-xs py-0.5">
+                      <span className={cn(
+                        "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
+                        change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
+                        change.type === "remove" ? "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800" :
+                        "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800"
+                      )}>
+                        {change.type === "add" && <Plus className="size-3 stroke-[2.5]" />}
+                        {change.type === "remove" && <Minus className="size-3 stroke-[2.5]" />}
+                        {change.type === "modify" && <Pencil className="size-2.5 stroke-[2.5]" />}
+                      </span>
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium leading-6">
+                        {change.description}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
             <div className="p-6 pt-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

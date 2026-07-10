@@ -277,7 +277,7 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
             const amountChanged = oldEntry && String(oldEntry.amount) !== String(entry.amount);
             const dateStr = entry.date ? new Date(entry.date + "T00:00:00").toLocaleDateString("de-DE") : "—";
             return (
-              <div key={i} className="flex items-center gap-2 text-sm">
+              <div key={entry.date || i} className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground min-w-[80px]">{dateStr}:</span>
                 {isNew ? (
                   <span className="font-medium text-emerald-600 dark:text-emerald-400">{entry.amount} €</span>
@@ -296,7 +296,7 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
           {oldArr
             .filter((o) => !newArr.some((n) => n.date === o.date))
             .map((removed, i) => (
-              <div key={`removed-${i}`} className="text-sm text-rose-500/70 line-through">
+              <div key={`removed-${removed.date || i}`} className="text-sm text-rose-500/70 line-through">
                 {removed.date ? new Date(removed.date + "T00:00:00").toLocaleDateString("de-DE") : "—"}: {removed.amount} €
               </div>
             ))}
