@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -21,6 +22,7 @@ import {
   Eye, 
   Copy,
   RefreshCw, 
+  Download,
   Info,
   Home,
   Building,
@@ -740,6 +742,74 @@ export function OrganisationAuditLogTab() {
     });
   };
 
+  const escapeCsvValue = (value: string | null | undefined): string => {
+    if (!value) return '';
+    const s = String(value);
+    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
+  const selectedLogsData = useMemo(() =>
+    logs.filter(l => selectedLogIds.has(l.id)),
+    [logs, selectedLogIds]
+  );
+
+  const handleBulkExport = (format: 'csv' | 'xlsx') => {
+    const data = selectedLogsData;
+    if (format === 'csv') {
+      const headers = ['ID', 'Tabelle', 'Aktion', 'Geändert von', 'E-Mail', 'Zeitpunkt'];
+      const csvHeader = headers.map(h => escapeCsvValue(h)).join(',');
+      const rows = data.map(l => [
+        l.id,
+        TABLE_NAME_MAP[l.tabellenname] || l.tabellenname,
+        l.aktion,
+        l.geaendert_von_name,
+        l.geaendert_von_email || '',
+        new Date(l.geaendert_am).toLocaleString('de-DE')
+      ].map(v => escapeCsvValue(v)).join(','));
+      const content = [csvHeader, ...rows].join('\n');
+      const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `audit-log_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      toast({ title: "Export erfolgreich", description: `${data.length} Logs als CSV exportiert.`, variant: "success" });
+    } else {
+      const rows = data.map(l => `<tr>
+        <td>${escapeCsvValue(l.id)}</td>
+        <td>${escapeCsvValue(TABLE_NAME_MAP[l.tabellenname] || l.tabellenname)}</td>
+        <td>${escapeCsvValue(l.aktion)}</td>
+        <td>${escapeCsvValue(l.geaendert_von_name)}</td>
+        <td>${escapeCsvValue(l.geaendert_von_email || '')}</td>
+        <td>${new Date(l.geaendert_am).toLocaleString('de-DE')}</td>
+      </tr>`).join('');
+      const html = `<html><head><meta charset="utf-8"><table><tr><th>ID</th><th>Tabelle</th><th>Aktion</th><th>Geändert von</th><th>E-Mail</th><th>Zeitpunkt</th></tr>${rows}</table></html>`;
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `audit-log_${new Date().toISOString().split('T')[0]}.xls`;
+      link.click();
+      toast({ title: "Export erfolgreich", description: `${data.length} Logs als XLS exportiert.`, variant: "success" });
+    }
+  };
+
+  const handleBulkCopy = async (format: 'json' | 'md') => {
+    const data = selectedLogsData;
+    const text = format === 'json'
+      ? JSON.stringify(data, null, 2)
+      : ['| ID | Tabelle | Aktion | Geändert von | E-Mail | Zeitpunkt |',
+         '|---|---|---|---|---|---|',
+         ...data.map(l => `| ${l.id} | ${TABLE_NAME_MAP[l.tabellenname] || l.tabellenname} | ${l.aktion} | ${l.geaendert_von_name} | ${l.geaendert_von_email || ''} | ${new Date(l.geaendert_am).toLocaleString('de-DE')} |`)].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Kopiert", description: `${data.length} Logs als ${format.toUpperCase()} in die Zwischenablage kopiert.`, variant: "success" });
+    } catch {
+      toast({ title: "Fehler", description: "Konnte nicht in die Zwischenablage kopiert werden.", variant: "destructive" });
+    }
+  };
+
   // Extract unique users dynamically from the loaded logs to fill user filter
   const uniqueUsers = useMemo(() => {
     const users = new Set<string>();
@@ -949,18 +1019,60 @@ Audit-Log
             <TableHeader className="bg-zinc-50 dark:bg-zinc-900 sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800">
               <TableRow className="hover:bg-transparent border-b-0 h-8 hover:!scale-100 active:!scale-100 hover:!transform-none active:!transform-none">
                 <TableHead className="w-[48px] p-0 py-1.5 pl-6 md:py-1.5 md:pl-6 h-8 hover:bg-transparent dark:hover:bg-transparent">
-                  <Checkbox 
-                    checked={filteredLogs.length > 0 && filteredLogs.every(log => selectedLogIds.has(log.id))}
-                    onCheckedChange={handleToggleAll}
-                    aria-label="Alle auswählen"
-                    className="hover:scale-100 data-[state=checked]:scale-100 focus-visible:scale-100"
-                  />
+                  {selectedLogIds.size > 0 ? (
+                    <Checkbox checked onCheckedChange={() => setSelectedLogIds(new Set())} className="data-[state=checked]:bg-primary" />
+                  ) : (
+                    <Checkbox 
+                      checked={filteredLogs.length > 0 && filteredLogs.every(log => selectedLogIds.has(log.id))}
+                      onCheckedChange={handleToggleAll}
+                      aria-label="Alle auswählen"
+                      className="hover:scale-100 data-[state=checked]:scale-100 focus-visible:scale-100"
+                    />
+                  )}
                 </TableHead>
-                <TableHead className="w-[180px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Zeitpunkt</TableHead>
-                <TableHead className="w-[160px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Datenbereich</TableHead>
-                <TableHead className="w-[140px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Aktion</TableHead>
-                <TableHead className="font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">Geändert von</TableHead>
-                <TableHead className="text-right w-[80px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 pl-4 pr-6 md:pr-6 h-8 hover:bg-transparent dark:hover:bg-transparent">Details</TableHead>
+                <TableHead className="w-[150px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">
+                  {selectedLogIds.size > 0 ? null : "Zeitpunkt"}
+                </TableHead>
+                <TableHead className="w-[140px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">
+                  {selectedLogIds.size > 0 ? null : "Datenbereich"}
+                </TableHead>
+                <TableHead className="w-[110px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">
+                  {selectedLogIds.size > 0 ? null : "Aktion"}
+                </TableHead>
+                <TableHead className="font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 px-4 h-8 hover:bg-transparent dark:hover:bg-transparent">
+                  {selectedLogIds.size > 0 ? null : "Geändert von"}
+                </TableHead>
+                <TableHead className="text-right w-[280px] font-semibold text-[11px] text-zinc-700 dark:text-zinc-300 py-1.5 pl-4 pr-6 md:pr-6 h-8 hover:bg-transparent dark:hover:bg-transparent">
+                  {selectedLogIds.size > 0 ? (
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-[11px] font-medium text-zinc-500 mr-1 whitespace-nowrap">{selectedLogIds.size} ausgewählt</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 gap-1.5 rounded-lg text-[11px] px-2.5 cursor-pointer">
+                            <Download className="size-3" />
+                            Export
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl min-w-[110px]">
+                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('csv')}>Als CSV</DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('xlsx')}>Als XLSX</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 gap-1.5 rounded-lg text-[11px] px-2.5 cursor-pointer">
+                            <Copy className="size-3" />
+                            Kopieren
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl min-w-[110px]">
+                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkCopy('json')}>Als JSON</DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkCopy('md')}>Als Markdown</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : "Details"}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
