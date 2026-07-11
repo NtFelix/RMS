@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
+import { useFeatureFlagEnabled } from 'posthog-js/react'
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import { Mail, Lock, AlertCircle, CheckCircle, Circle } from "lucide-react";
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -9,10 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import ConnectedAccountsSection from "./connected-accounts-section";
 import AuthorizedAppsSection from "./authorized-apps-section";
+import PasskeySection from "./passkey-section";
 
 const SecuritySection = () => {
   const supabase = createClient()
   const { toast } = useToast()
+  const passkeyEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.AUTH_PASSKEY)
   const [email, setEmail] = useState<string>("")
   const [confirmEmail, setConfirmEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
@@ -208,6 +212,7 @@ const SecuritySection = () => {
         </SettingsCard>
       </SettingsSection>
 
+      {passkeyEnabled && <PasskeySection />}
       <ConnectedAccountsSection onUpdate={fetchUser} />
       <AuthorizedAppsSection />
     </div>

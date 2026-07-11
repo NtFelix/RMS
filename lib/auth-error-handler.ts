@@ -56,6 +56,15 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
     // OTP errors
     "otp_expired": "Der Bestätigungscode ist abgelaufen. Bitte fordern Sie einen neuen an.",
     "otp_disabled": "Einmalpasswörter sind deaktiviert.",
+
+    // Passkey / WebAuthn errors
+    "passkey_disabled": "Passkey-Anmeldung ist für dieses Projekt nicht aktiviert.",
+    "too_many_passkeys": "Sie haben die maximale Anzahl an Passkeys erreicht.",
+    "webauthn_credential_exists": "Dieser Passkey wurde bereits registriert.",
+    "webauthn_credential_not_found": "Dieser Passkey ist nicht mit Ihrem Konto verknüpft.",
+    "webauthn_challenge_not_found": "Die Authentifizierungsanforderung ist ungültig oder abgelaufen.",
+    "webauthn_challenge_expired": "Die Authentifizierungsanforderung ist abgelaufen. Bitte versuchen Sie es erneut.",
+    "webauthn_verification_failed": "Die Passkey-Verifizierung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
 } as const
 
 /**
@@ -79,6 +88,11 @@ const MESSAGE_PATTERNS: Array<{ pattern: string; message: string }> = [
     // Rate limiting (handle both correct spelling and common typo)
     { pattern: "Too many requests", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
     { pattern: "rate limit exceeded", message: "Zu viele Anfragen. Bitte warten Sie einen Moment." },
+
+    // Passkey cancellation errors
+    { pattern: "Passkey ceremony cancelled", message: "Der Passkey-Vorgang wurde abgebrochen." },
+    { pattern: "The operation either timed out or was not allowed", message: "Der Passkey-Vorgang wurde abgebrochen." },
+    { pattern: "Request has been cancelled by the user", message: "Der Passkey-Vorgang wurde abgebrochen." },
 
     // Network / Database outage errors
     { pattern: "Failed to fetch", message: DATABASE_DOWN_ERROR_MESSAGE },

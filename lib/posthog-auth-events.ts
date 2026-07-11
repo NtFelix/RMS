@@ -41,6 +41,7 @@ export type AuthMethod =
     | 'github'          // GitHub OAuth (future)
     | 'magic_link'      // Passwordless email link
     | 'sso'             // Enterprise SSO (future)
+    | 'passkey'         // Passkey / WebAuthn
     | string;           // Allow custom methods
 
 /**
@@ -54,7 +55,9 @@ export type AuthAction =
     | 'password_update' // Password change
     | 'email_verify'    // Email verification
     | 'session_refresh' // Session refresh
-    | 'session_expire'; // Session expiration
+    | 'session_expire'  // Session expiration
+    | 'passkey_register'// Passkey registration
+    | 'passkey_delete'; // Passkey deletion
 
 /**
  * Authentication status
@@ -78,6 +81,8 @@ export type AuthErrorType =
     | 'oauth_cancelled'
     | 'oauth_error'
     | 'expired_token'
+    | 'passkey_cancelled'
+    | 'passkey_error'
     | 'unknown';
 
 /**
@@ -376,6 +381,36 @@ export function trackOnboardingCompleted(planName?: string) {
 
 export function trackOnboardingSkipped() {
     trackOnboarding({ action: 'skipped' });
+}
+
+// --- Passkey ---
+
+export function trackPasskeyLoginStarted() {
+    trackAuth({ action: 'login', status: 'started', method: 'passkey' });
+}
+
+export function trackPasskeyLoginSuccess() {
+    trackAuth({ action: 'login', status: 'success', method: 'passkey' });
+}
+
+export function trackPasskeyLoginFailed(errorType: AuthErrorType = 'passkey_error') {
+    trackAuth({ action: 'login', status: 'failed', method: 'passkey', error_type: errorType });
+}
+
+export function trackPasskeyRegisterStarted() {
+    trackAuth({ action: 'passkey_register', status: 'started', method: 'passkey' });
+}
+
+export function trackPasskeyRegisterSuccess() {
+    trackAuth({ action: 'passkey_register', status: 'success', method: 'passkey' });
+}
+
+export function trackPasskeyRegisterFailed(errorType: AuthErrorType = 'passkey_error') {
+    trackAuth({ action: 'passkey_register', status: 'failed', method: 'passkey', error_type: errorType });
+}
+
+export function trackPasskeyDeleted() {
+    trackAuth({ action: 'passkey_delete', status: 'success', method: 'passkey' });
 }
 
 // --- Legacy page view functions (kept for backwards compatibility) ---
