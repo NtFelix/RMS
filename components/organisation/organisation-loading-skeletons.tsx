@@ -144,11 +144,11 @@ export function AuditLogDetailSkeleton() {
 export function OrganisationMembersPageSkeleton() {
   return (
     <div className="flex flex-col gap-6 p-4 sm:gap-8 sm:p-8" aria-busy="true" aria-label="Organisation wird geladen">
-      <div className="flex w-full gap-1 rounded-full border border-zinc-200/30 bg-zinc-100/80 p-1 text-xs font-medium dark:border-zinc-800/30 dark:bg-zinc-900/80 sm:w-[480px]">
-        <span className="flex-1 rounded-full px-3 py-2 text-center">Übersicht</span>
-        <span className="flex-1 rounded-full bg-background px-3 py-2 text-center shadow-xs">Mitarbeiter</span>
-        <span className="flex-1 rounded-full px-3 py-2 text-center">Richtlinien</span>
-        <span className="flex-1 rounded-full px-3 py-2 text-center">Audit-Log</span>
+      <div className="flex w-full gap-1 rounded-full border border-zinc-200/30 bg-zinc-100/80 p-1 dark:border-zinc-800/30 dark:bg-zinc-900/80 sm:w-[480px]">
+        <Skeleton className="h-9 flex-1 rounded-full" />
+        <Skeleton className="h-9 flex-1 rounded-full" />
+        <Skeleton className="h-9 flex-1 rounded-full" />
+        <Skeleton className="h-9 flex-1 rounded-full" />
       </div>
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-3">
         <Card className="flex h-[calc(100vh-180px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-200/50 shadow-xs dark:border-zinc-800/50 md:sticky md:top-24">
