@@ -39,6 +39,7 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
+    "agent",
     "node_modules",
     "supabase/functions",
     "workers"
