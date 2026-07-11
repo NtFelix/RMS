@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import type { LLMStep, ToolCallRecord } from '@/types/llm-steps';
 
@@ -61,15 +61,15 @@ export function IntelligenceInsight({
         </motion.span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden relative mt-3 ml-1"
-          >
+      <div
+        className="grid overflow-hidden relative mt-3 ml-1"
+        style={{
+          gridTemplateRows: isExpanded ? '1fr' : '0fr',
+          opacity: isExpanded ? 1 : 0,
+          transition: 'grid-template-rows 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease',
+        }}
+      >
+        <div className="min-h-0">
             <div className="absolute left-[3px] top-1 bottom-1 w-[1px] bg-foreground/10" />
 
             <div className="space-y-4 pt-1 ml-5">
@@ -166,14 +166,15 @@ export function IntelligenceInsight({
                       )}
 
                       {step.toolResult && (
-                        <AnimatePresence>
-                          {expandedToolId === step.id && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
-                            >
+                        <div
+                          className="grid overflow-hidden"
+                          style={{
+                            gridTemplateRows: expandedToolId === step.id ? '1fr' : '0fr',
+                            opacity: expandedToolId === step.id ? 1 : 0,
+                            transition: 'grid-template-rows 0.25s ease, opacity 0.2s ease',
+                          }}
+                        >
+                          <div className="min-h-0">
                               <div className="mt-2.5 pb-2 space-y-3 pl-3 border-l border-border/20">
                                 <div className="space-y-1">
                                   <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/35">Input</span>
@@ -191,18 +192,16 @@ export function IntelligenceInsight({
                                   </div>
                                 )}
                               </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                            </div>
+                          </div>
                       )}
                     </div>
                   </motion.div>
                 );
               })}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+          </div>
+        </div>
+      </div>
+    );
+  }

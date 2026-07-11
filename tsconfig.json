@@ -42,6 +42,7 @@
     "agent",
     "node_modules",
     "supabase/functions",
-    "workers"
+    "workers",
+    "agent"
   ]
 }

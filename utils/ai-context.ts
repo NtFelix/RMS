@@ -4,7 +4,8 @@ export async function getAIContextForPathname(pathname: string) {
   const supabase = await createClient();
   let contextParts: string[] = [];
 
-  contextParts.push(`Current Page Path: ${pathname}`);
+  const sanitizedPathname = pathname.replace(/[\n\r\t]+/g, ' ').replace(/[\x00-\x1f\x7f-\x9f]/g, '').substring(0, 200);
+  contextParts.push(`Current Page Path: ${sanitizedPathname}`);
 
   try {
     // Check if we are on a specific house page /haeuser/[id]
