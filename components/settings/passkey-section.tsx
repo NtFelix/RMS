@@ -37,6 +37,24 @@ type Passkey = {
   last_used_at?: string
 }
 
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Berlin",
+  })
+}
+
+const getDeviceIcon = (friendlyName?: string) => {
+  const name = friendlyName?.toLowerCase() || ""
+  if (name.includes("iphone") || name.includes("ipad") || name.includes("android") || name.includes("phone") || name.includes("mobile")) {
+    return <Smartphone className="h-5 w-5 text-muted-foreground" />
+  }
+  return <Monitor className="h-5 w-5 text-muted-foreground" />
+}
+
 const PasskeySection = () => {
   const supabase = createClient()
   const { toast } = useToast()
@@ -133,23 +151,6 @@ const PasskeySection = () => {
     })
     setDeletingId(null)
     fetchPasskeys()
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  }
-
-  const getDeviceIcon = (friendlyName?: string) => {
-    const name = friendlyName?.toLowerCase() || ""
-    if (name.includes("iphone") || name.includes("ipad") || name.includes("android") || name.includes("phone") || name.includes("mobile")) {
-      return <Smartphone className="h-5 w-5 text-muted-foreground" />
-    }
-    return <Monitor className="h-5 w-5 text-muted-foreground" />
   }
 
   return (
