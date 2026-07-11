@@ -1,4 +1,4 @@
-import type { AuthError } from "@supabase/supabase-js"
+type AuthErrorLike = { code?: string; message: string }
 
 /**
  * Centralized authentication error handler for Supabase Auth errors.
@@ -112,7 +112,7 @@ const MESSAGE_PATTERNS: Array<{ pattern: string; message: string }> = [
  * @param error - The Supabase AuthError object
  * @returns A German error message suitable for display to users
  */
-export function getAuthErrorMessage(error: AuthError): string {
+export function getAuthErrorMessage(error: AuthErrorLike): string {
     // Strategy 1: Use error code if available (preferred, more stable)
     if (error.code && error.code in ERROR_CODE_MESSAGES) {
         return ERROR_CODE_MESSAGES[error.code]
