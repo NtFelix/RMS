@@ -32,7 +32,18 @@ export async function getPolicyAction(policyId: string): Promise<OrganisationPol
     throw error;
   }
 
-  return data as OrganisationPolicy | null;
+  if (!data) return null;
+
+  // Defence in depth: verify the returned policy belongs to the user's current org.
+  // RLS already enforces this, but this catch ensures cross-org reads stay impossible
+  // even if RLS were ever misconfigured or bypassed.
+  const { data: currentOrgId, error: orgError } = await supabase.rpc('current_organisation_id');
+  if (orgError || !currentOrgId || data.organisation_id !== currentOrgId) {
+    console.error("Organisation mismatch — policy does not belong to current organisation");
+    return null;
+  }
+
+  return data as OrganisationPolicy;
 }
 
 export async function createPolicyAction(name: string, berechtigungen: PolicyBerechtigungen): Promise<OrganisationPolicy> {

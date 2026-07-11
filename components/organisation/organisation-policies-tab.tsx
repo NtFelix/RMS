@@ -25,7 +25,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog";
-import { Shield, PlusCircle, Save, AlertTriangle, Trash, Clock, Plus, Minus, Pencil } from "lucide-react";
+import { Shield, PlusCircle, AlertTriangle, Trash, Plus, Minus, Pencil } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { PolicyDetailsSkeleton } from "./organisation-loading-skeletons";
@@ -470,15 +470,13 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    if (isDirty && editingPolicy) {
-                      if (isSelected || editingPolicy.id !== policy.id) {
-                        toast({
-                          title: "Ungespeicherte Änderungen",
-                          description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
+                    if (isDirty && editingPolicy && (isSelected || editingPolicy.id !== policy.id)) {
+                      toast({
+                        title: "Ungespeicherte Änderungen",
+                        description: "Bitte speichern oder verwerfen Sie die aktuellen Änderungen.",
+                        variant: "destructive",
+                      });
+                      return;
                     }
                     handleSelectPolicy(isSelected ? null : policy);
                   }}

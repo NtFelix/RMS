@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { AuditLogDetailSkeleton } from "./organisation-loading-skeletons";
 import { MODULE_CONFIG, ACTION_CONFIG, getTableIcon } from "@/lib/organisation/permission-utils";
+import * as XLSX from 'xlsx';
 
 interface AuditLogSummary {
   id: string;
@@ -639,6 +639,26 @@ export function OrganisationAuditLogTab() {
     setSelectedLogIds(new Set());
   }, [filterTable, filterAction, filterUser, filterTimeframe, searchQuery, customDateFrom, customDateTo]);
 
+  // Prune stale selections — IDs that no longer exist in logs (e.g. after pagination refresh)
+  useEffect(() => {
+    setSelectedLogIds(prev => {
+      const validIds = new Set(logs.map(l => l.id));
+      let changed = false;
+      for (const id of prev) {
+        if (!validIds.has(id)) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) return prev;
+      const pruned = new Set(prev);
+      for (const id of prev) {
+        if (!validIds.has(id)) pruned.delete(id);
+      }
+      return pruned;
+    });
+  }, [logs]);
+
   const handleToggleAll = () => {
     const allSelected = filteredLogs.length > 0 && filteredLogs.every(log => selectedLogIds.has(log.id));
     setSelectedLogIds(prev => {
@@ -668,18 +688,20 @@ export function OrganisationAuditLogTab() {
 
   const handleBulkExport = (format: 'csv' | 'xlsx') => {
     const data = selectedLogsData;
+    const rows = data.map(l => ({
+      ID: l.id,
+      Tabelle: TABLE_NAME_MAP[l.tabellenname] || l.tabellenname,
+      Aktion: l.aktion,
+      'Geändert von': l.geaendert_von_name,
+      'E-Mail': l.geaendert_von_email || '',
+      Zeitpunkt: new Date(l.geaendert_am).toLocaleString('de-DE'),
+    }));
+
     if (format === 'csv') {
-      const headers = ['ID', 'Tabelle', 'Aktion', 'Geändert von', 'E-Mail', 'Zeitpunkt'];
+      const headers = Object.keys(rows[0] || {});
       const csvHeader = headers.map(h => escapeCsvValue(h)).join(',');
-      const rows = data.map(l => [
-        l.id,
-        TABLE_NAME_MAP[l.tabellenname] || l.tabellenname,
-        l.aktion,
-        l.geaendert_von_name,
-        l.geaendert_von_email || '',
-        new Date(l.geaendert_am).toLocaleString('de-DE')
-      ].map(v => escapeCsvValue(v)).join(','));
-      const content = [csvHeader, ...rows].join('\n');
+      const csvRows = rows.map(r => headers.map(h => escapeCsvValue(String((r as any)[h] ?? ''))).join(','));
+      const content = [csvHeader, ...csvRows].join('\n');
       const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -689,22 +711,10 @@ export function OrganisationAuditLogTab() {
       URL.revokeObjectURL(url);
       toast({ title: "Export erfolgreich", description: `${data.length} Logs als CSV exportiert.`, variant: "success" });
     } else {
-      const rows = data.map(l => `<tr>
-        <td>${escapeCsvValue(l.id)}</td>
-        <td>${escapeCsvValue(TABLE_NAME_MAP[l.tabellenname] || l.tabellenname)}</td>
-        <td>${escapeCsvValue(l.aktion)}</td>
-        <td>${escapeCsvValue(l.geaendert_von_name)}</td>
-        <td>${escapeCsvValue(l.geaendert_von_email || '')}</td>
-        <td>${new Date(l.geaendert_am).toLocaleString('de-DE')}</td>
-      </tr>`).join('');
-      const html = `<html><head><meta charset="utf-8"><table><tr><th>ID</th><th>Tabelle</th><th>Aktion</th><th>Geändert von</th><th>E-Mail</th><th>Zeitpunkt</th></tr>${rows}</table></html>`;
-      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `audit-log_${new Date().toISOString().split('T')[0]}.xls`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Audit-Log');
+      XLSX.writeFile(wb, `audit-log_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast({ title: "Export erfolgreich", description: `${data.length} Logs als Excel exportiert.`, variant: "success" });
     }
   };
@@ -971,7 +981,7 @@ Audit-Log
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="rounded-xl min-w-[110px]">
                           <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('csv')}>Als CSV</DropdownMenuItem>
-                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('xlsx')}>Als XLS</DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs rounded-lg cursor-pointer" onClick={() => handleBulkExport('xlsx')}>Als XLSX</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                       <DropdownMenu>
