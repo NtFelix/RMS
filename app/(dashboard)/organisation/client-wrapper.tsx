@@ -133,25 +133,6 @@ function uiReducer(state: UiState, action: UiAction): UiState {
   }
 }
 
-function OrganisationTabToggle({
-  currentTab,
-  onTabChange,
-  tabs
-}: {
-  currentTab: "overview" | "members" | "policies" | "audit_log";
-  onTabChange: (tab: "overview" | "members" | "policies" | "audit_log") => void;
-  tabs: any[];
-}) {
-  return (
-    <AnimatedPillToggle
-      tabs={tabs}
-      activeTab={currentTab}
-      onTabChange={onTabChange}
-      layoutId="active-org-tab-pill"
-    />
-  );
-}
-
 function OrganisationOverviewTab({ stats }: { stats: { active: number; admins: number; pendingInvites: number; ownerName: string } }) {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -918,10 +899,11 @@ export default function OrganisationClientView({
         </div>
       )}
 
-      <OrganisationTabToggle
-        currentTab={uiState.currentTab}
-        onTabChange={(tab) => dispatch({ type: 'SET_TAB', payload: tab })}
+      <AnimatedPillToggle
         tabs={orgTabs}
+        activeTab={uiState.currentTab}
+        onTabChange={(tab) => dispatch({ type: 'SET_TAB', payload: tab })}
+        layoutId="active-org-tab-pill"
       />
 
       {uiState.currentTab === "overview" && <OrganisationOverviewTab stats={stats} />}
