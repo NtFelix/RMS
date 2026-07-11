@@ -57,10 +57,7 @@ You help landlords navigate the platform, answer questions about their property 
 You can only read and present data — you cannot create, update, or delete anything.
 Always be concise, helpful, and professional. Respond in the user's language.
 
-Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-
---- CURRENT CONTEXT ---
-${pageContext}`;
+Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
     // 6. Define Tools
     const allFunctionDeclarations = [
@@ -147,13 +144,14 @@ ${pageContext}`;
       : [];
 
     // 7. Create Chat with History, System Prompt & Tools
+    const contextMessage = pageContext ? [{ role: "user", parts: [{ text: `Current page context:\n${pageContext}` }] }] : [];
     const chat = client.chats.create({
       model: model,
       config: {
         systemInstruction,
         tools,
       },
-      history: history, // Provide past conversation turns
+      history: [...contextMessage, ...history],
     });
 
     const encoder = new TextEncoder();
