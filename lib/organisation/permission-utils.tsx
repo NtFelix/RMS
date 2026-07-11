@@ -82,6 +82,7 @@ export function getTableIcon(tableName: string): LucideIcon {
 }
 
 export interface ChangeSummary {
+  id: string;
   description: React.ReactNode;
   type: "add" | "remove" | "modify";
 }

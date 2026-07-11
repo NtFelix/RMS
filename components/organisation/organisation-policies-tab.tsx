@@ -73,6 +73,8 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
 
   const changesDiff = useMemo<ChangeSummary[]>(() => {
     if (!editingPolicy) return [];
+    let changeIdCounter = 0;
+    const nextId = () => `change-${changeIdCounter++}`;
     const list: ChangeSummary[] = [];
 
     // 1. Name Change
@@ -80,6 +82,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
     const nextName = editingPolicy.name;
     if (prevName !== nextName && originalPolicy) {
       list.push({
+        id: nextId(),
         description: (
           <>
             Name von <strong>"{prevName}"</strong> zu <strong>"{nextName}"</strong> geändert
@@ -99,6 +102,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
     if (originalPolicy) {
       if (prevIsUnrestricted !== nextIsUnrestricted) {
         list.push({
+          id: nextId(),
           description: nextIsUnrestricted ? (
             <>
               Häuser-Zugriff auf <strong>"Alle Häuser (Unbeschränkt)"</strong> geändert
@@ -116,6 +120,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
           if (!prevHouses.includes(id)) {
             const houseName = haeuser.find(h => h.id === id)?.name || id;
             list.push({
+              id: nextId(),
               description: (
                 <>
                   Zugriff auf Haus <strong>"{houseName}"</strong> erteilt
@@ -130,6 +135,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
           if (!nextHouses.includes(id)) {
             const houseName = haeuser.find(h => h.id === id)?.name || id;
             list.push({
+              id: nextId(),
               description: (
                 <>
                   Zugriff auf Haus <strong>"{houseName}"</strong> entzogen
@@ -143,6 +149,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
     } else {
       // New policy: show initial scope
       list.push({
+        id: nextId(),
         description: nextIsUnrestricted ? (
           <>
             Häuser-Zugriff: <strong>"Alle Häuser (Unbeschränkt)"</strong>
@@ -177,6 +184,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
       if (originalPolicy) {
         if (added.length > 0) {
           list.push({
+            id: nextId(),
             description: (
               <>
                 Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> erteilt:{" "}
@@ -194,6 +202,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
         }
         if (removed.length > 0) {
           list.push({
+            id: nextId(),
             description: (
               <>
                 Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> entzogen:{" "}
@@ -213,6 +222,7 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
         // New policy: show initial permissions
         if (nextActions.length > 0) {
           list.push({
+            id: nextId(),
             description: (
               <>
                 Berechtigungen im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong>:{" "}
@@ -605,10 +615,9 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                 </CardHeader>
                 <CardContent className="pb-4">
                   <div className="flex flex-col gap-2.5">
-                    {/* eslint-disable-next-line react/no-array-index-key */}
-                    {changesDiff.map((change, idx) => {
+                    {changesDiff.map(change => {
                       return (
-                      <div key={`${change.type}-${idx}`} className="flex items-start gap-2.5 text-xs py-0.5">
+                      <div key={change.id} className="flex items-start gap-2.5 text-xs py-0.5">
                         <span className={cn(
                           "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
                           change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :

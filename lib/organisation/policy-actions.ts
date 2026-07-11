@@ -38,7 +38,11 @@ export async function getPolicyAction(policyId: string): Promise<OrganisationPol
   // RLS already enforces this, but this catch ensures cross-org reads stay impossible
   // even if RLS were ever misconfigured or bypassed.
   const { data: currentOrgId, error: orgError } = await supabase.rpc('current_organisation_id');
-  if (orgError || !currentOrgId || data.organisation_id !== currentOrgId) {
+  if (orgError) {
+    console.error("Failed to verify organisation membership:", orgError);
+    throw orgError;
+  }
+  if (!currentOrgId || data.organisation_id !== currentOrgId) {
     console.error("Organisation mismatch — policy does not belong to current organisation");
     return null;
   }

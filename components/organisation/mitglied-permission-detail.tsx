@@ -72,7 +72,6 @@ export function MitgliedPermissionDetail({
 
   useEffect(() => {
     if (isLocked) return;
-    const abortController = new AbortController();
     let cancelled = false;
 
     const fetchPermissionsAndPolicies = async () => {
@@ -107,7 +106,6 @@ export function MitgliedPermissionDetail({
 
     return () => {
       cancelled = true;
-      abortController.abort();
     };
   }, [mitgliedId, isLocked]);
 
@@ -276,6 +274,8 @@ export function MitgliedPermissionDetail({
 
   const changesDiff = useMemo<ChangeSummary[]>(() => {
     if (!permissions || !originalPermissions) return [];
+    let changeIdCounter = 0;
+    const nextId = () => `change-${changeIdCounter++}`;
     const list: ChangeSummary[] = [];
 
     // 1. Policies assigned
@@ -287,6 +287,7 @@ export function MitgliedPermissionDetail({
       if (!prevPolicies.includes(id)) {
         const policyName = policies.find(p => p.id === id)?.name || id;
         list.push({
+          id: nextId(),
           description: (
             <>
               Richtlinie <strong>"{policyName}"</strong> zugewiesen
@@ -301,6 +302,7 @@ export function MitgliedPermissionDetail({
       if (!nextPolicies.includes(id)) {
         const policyName = policies.find(p => p.id === id)?.name || id;
         list.push({
+          id: nextId(),
           description: (
             <>
               Richtlinie <strong>"{policyName}"</strong> entzogen
@@ -320,6 +322,7 @@ export function MitgliedPermissionDetail({
 
     if (prevIsUnrestricted !== nextIsUnrestricted) {
       list.push({
+        id: nextId(),
         description: nextIsUnrestricted ? (
           <>
             Häuser-Zugriff auf <strong>"Alle Häuser (Unbeschränkt)"</strong> geändert
@@ -337,6 +340,7 @@ export function MitgliedPermissionDetail({
         if (!prevHouses.includes(id)) {
           const houseName = haeuser.find(h => h.id === id)?.name || id;
           list.push({
+            id: nextId(),
             description: (
               <>
                 Zugriff auf Haus <strong>"{houseName}"</strong> erteilt
@@ -351,6 +355,7 @@ export function MitgliedPermissionDetail({
         if (!nextHouses.includes(id)) {
           const houseName = haeuser.find(h => h.id === id)?.name || id;
           list.push({
+            id: nextId(),
             description: (
               <>
                 Zugriff auf Haus <strong>"{houseName}"</strong> entzogen
@@ -382,6 +387,7 @@ export function MitgliedPermissionDetail({
 
       if (added.length > 0) {
         list.push({
+          id: nextId(),
           description: (
             <>
               Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> erteilt:{" "}
@@ -399,6 +405,7 @@ export function MitgliedPermissionDetail({
       }
       if (removed.length > 0) {
         list.push({
+          id: nextId(),
           description: (
             <>
               Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> entzogen:{" "}
@@ -534,7 +541,7 @@ export function MitgliedPermissionDetail({
         {/* Section 1: Object-Scope Editor (House Access) */}
         <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">House Access</CardTitle>
+            <CardTitle className="text-lg">Hauszugriff</CardTitle>
             <CardDescription className="text-xs">
               Legen Sie fest, auf welche Häuser und Wohnungen dieser Mitarbeiter über die Richtlinien hinaus Zugriff erhalten soll.
             </CardDescription>
@@ -553,7 +560,7 @@ export function MitgliedPermissionDetail({
         {/* Section 2: Module & Action Permissions (Matrix Editor) */}
         <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Module Permissions</CardTitle>
+            <CardTitle className="text-lg">Modulrechte</CardTitle>
             <CardDescription className="text-xs">
               Legen Sie fest, welche Aktionen in den jeweiligen Modulen ausgeführt werden dürfen.
             </CardDescription>
@@ -579,10 +586,9 @@ export function MitgliedPermissionDetail({
             </CardHeader>
             <CardContent className="pb-4">
               <div className="flex flex-col gap-2.5">
-                {changesDiff.map((change, idx) => {
+                {changesDiff.map(change => {
                   return (
-                    // eslint-disable-next-line react/no-array-index-key
-                    <div key={change.type === "modify" ? `modify-${idx}` : `${change.type}-${idx}`} className="flex items-start gap-2.5 text-xs py-0.5">
+                    <div key={change.id} className="flex items-start gap-2.5 text-xs py-0.5">
                       <span className={cn(
                         "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
                         change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :

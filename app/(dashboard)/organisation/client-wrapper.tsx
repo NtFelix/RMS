@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useReducer, useTransition, useMemo, type Dispatch, type SetStateAction, type FormEvent } from "react";
+import { useState, useReducer, useTransition, useMemo, useEffect, useRef, type Dispatch, type SetStateAction, type FormEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,8 +79,6 @@ interface OrganisationClientViewProps {
 type UiState = {
   currentTab: "overview" | "members" | "policies" | "audit_log";
   searchQuery: string;
-  roleFilter: string;
-  statusFilter: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
   selectedMemberId: string | null;
@@ -96,8 +94,6 @@ type UiState = {
 type UiAction =
   | { type: 'SET_TAB'; payload: "overview" | "members" | "policies" | "audit_log" }
   | { type: 'SET_SEARCH_QUERY'; payload: string }
-  | { type: 'SET_ROLE_FILTER'; payload: string }
-  | { type: 'SET_STATUS_FILTER'; payload: string }
   | { type: 'SET_INVITE_EMAIL'; payload: string }
   | { type: 'SET_INVITE_ROLE'; payload: "admin" | "mitarbeiter" }
   | { type: 'SET_SELECTED_MEMBER'; payload: string | null }
@@ -108,8 +104,6 @@ type UiAction =
 const initialUiState: UiState = {
   currentTab: "overview",
   searchQuery: "",
-  roleFilter: "all",
-  statusFilter: "all",
   inviteEmail: "",
   inviteRole: "mitarbeiter",
   selectedMemberId: null,
@@ -122,10 +116,6 @@ function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, currentTab: action.payload };
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.payload };
-    case 'SET_ROLE_FILTER':
-      return { ...state, roleFilter: action.payload };
-    case 'SET_STATUS_FILTER':
-      return { ...state, statusFilter: action.payload };
     case 'SET_INVITE_EMAIL':
       return { ...state, inviteEmail: action.payload };
     case 'SET_INVITE_ROLE':
@@ -137,7 +127,7 @@ function uiReducer(state: UiState, action: UiAction): UiState {
     case 'CLEAR_INVITE_EMAIL':
       return { ...state, inviteEmail: "" };
     case 'RESET_FILTERS':
-      return { ...state, searchQuery: "", roleFilter: "all", statusFilter: "all", selectedMemberId: null };
+      return { ...state, searchQuery: "", selectedMemberId: null };
     default:
       return state;
   }
@@ -256,8 +246,6 @@ function OrganisationConfirmDialog({
 
 function OrganisationMembersTab({
   searchQuery,
-  roleFilter,
-  statusFilter,
   inviteEmail,
   inviteRole,
   members,
@@ -270,8 +258,6 @@ function OrganisationMembersTab({
   selectedMemberId,
   onSelectMember,
   onSearchChange,
-  onRoleFilterChange,
-  onStatusFilterChange,
   onInviteEmailChange,
   onInviteRoleChange,
   onInvite,
@@ -281,8 +267,6 @@ function OrganisationMembersTab({
   onRemove
 }: {
   searchQuery: string;
-  roleFilter: string;
-  statusFilter: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
   members: OrganisationMember[];
@@ -295,8 +279,6 @@ function OrganisationMembersTab({
   selectedMemberId: string | null;
   onSelectMember: (id: string | null) => void;
   onSearchChange: (val: string) => void;
-  onRoleFilterChange: (val: string) => void;
-  onStatusFilterChange: (val: string) => void;
   onInviteEmailChange: (val: string) => void;
   onInviteRoleChange: (val: "admin" | "mitarbeiter") => void;
   onInvite: (e: FormEvent) => void;
@@ -306,6 +288,7 @@ function OrganisationMembersTab({
   onRemove: (memberId: string, name: string) => void;
 }) {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const hasSubmittedInvite = useRef(false);
 
   // Unified list of members and invitations
   const unifiedMembers = useMemo(() => {
@@ -317,7 +300,8 @@ function OrganisationMembersTab({
       role: 'owner' | 'admin' | 'mitarbeiter';
       status: 'aktiv' | 'eingeladen' | 'deaktiviert';
       isExpiredInvitation?: boolean;
-      rawItem: any;
+      member: OrganisationMember;
+      invitation: OrganisationInvitation;
     }[] = [];
 
     // Add members
@@ -332,7 +316,8 @@ function OrganisationMembersTab({
         email: m.email,
         role: m.rolle,
         status: m.status === 'aktiv' ? 'aktiv' : 'deaktiviert',
-        rawItem: m
+        member: m,
+        invitation: null as unknown as OrganisationInvitation,
       });
     });
 
@@ -348,7 +333,8 @@ function OrganisationMembersTab({
           role: inv.rolle,
           status: isExpired ? 'deaktiviert' : 'eingeladen',
           isExpiredInvitation: isExpired,
-          rawItem: inv
+          member: null as unknown as OrganisationMember,
+          invitation: inv,
         });
       }
     });
@@ -387,9 +373,17 @@ function OrganisationMembersTab({
 
   const handleInviteSubmit = (e: FormEvent) => {
     e.preventDefault();
+    hasSubmittedInvite.current = true;
     onInvite(e);
-    setInviteOpen(false);
   };
+
+  // Close dialog when invite completes (inviteEmail cleared on success via CLEAR_INVITE_EMAIL dispatch)
+  useEffect(() => {
+    if (hasSubmittedInvite.current && !inviteEmail) {
+      setInviteOpen(false);
+      hasSubmittedInvite.current = false;
+    }
+  }, [inviteEmail]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
@@ -564,7 +558,7 @@ function OrganisationMembersTab({
               email={selectedItem.email}
               hasVerwaltenPermission={hasVerwaltenPermission}
               currentUserId={currentUserId}
-              selectedMemberUserId={selectedItem.rawItem.user_id}
+              selectedMemberUserId={selectedItem.member.user_id}
               onRoleChange={onRoleChange}
               onStatusChange={onStatusChange}
               onRemove={onRemove}
@@ -593,7 +587,7 @@ function OrganisationMembersTab({
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground" suppressHydrationWarning>
-                  Eingeladen am {new Date(selectedItem.rawItem.erstellt_am).toLocaleDateString("de-DE")} · Ablaufdatum: {new Date(selectedItem.rawItem.expires_at).toLocaleDateString("de-DE")}
+                  Eingeladen am {new Date(selectedItem.invitation.erstellt_am).toLocaleDateString("de-DE")} · Ablaufdatum: {new Date(selectedItem.invitation.expires_at).toLocaleDateString("de-DE")}
                 </p>
               </div>
 
@@ -838,11 +832,11 @@ export default function OrganisationClientView({
   const [members, setMembers] = useState<OrganisationMember[]>(initialMembers);
   const [invitations, setInvitations] = useState<OrganisationInvitation[]>(initialInvitations);
   // Pass initial props directly — stable references from server component
+  const expiryThreshold = useRef(Date.now());
   const expiredInvitationIds = useMemo(() => {
-    const now = new Date();
     const expired = new Set<string>();
     invitations.forEach(invite => {
-      if (new Date(invite.expires_at) < now) {
+      if (new Date(invite.expires_at).getTime() < expiryThreshold.current) {
         expired.add(invite.id);
       }
     });
@@ -935,8 +929,6 @@ export default function OrganisationClientView({
       {uiState.currentTab === "members" && (
         <OrganisationMembersTab
           searchQuery={uiState.searchQuery}
-          roleFilter={uiState.roleFilter}
-          statusFilter={uiState.statusFilter}
           inviteEmail={uiState.inviteEmail}
           inviteRole={uiState.inviteRole}
           members={members}
@@ -949,8 +941,6 @@ export default function OrganisationClientView({
           selectedMemberId={uiState.selectedMemberId}
           onSelectMember={(id) => dispatch({ type: 'SET_SELECTED_MEMBER', payload: id })}
           onSearchChange={(val) => dispatch({ type: 'SET_SEARCH_QUERY', payload: val })}
-          onRoleFilterChange={(val) => dispatch({ type: 'SET_ROLE_FILTER', payload: val })}
-          onStatusFilterChange={(val) => dispatch({ type: 'SET_STATUS_FILTER', payload: val })}
           onInviteEmailChange={(val) => dispatch({ type: 'SET_INVITE_EMAIL', payload: val })}
           onInviteRoleChange={(val) => dispatch({ type: 'SET_INVITE_ROLE', payload: val })}
           onInvite={handleInvite}

@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { AuditLogDetailSkeleton } from "./organisation-loading-skeletons";
 import { MODULE_CONFIG, ACTION_CONFIG, getTableIcon } from "@/lib/organisation/permission-utils";
-import * as XLSX from 'xlsx';
 
 interface AuditLogSummary {
   id: string;
@@ -527,6 +526,7 @@ export function OrganisationAuditLogTab() {
   const [isPending, startTransition] = useTransition();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const refreshRef = useRef(false);
 
   // Load data based on filters and page
   useEffect(() => {
@@ -562,6 +562,14 @@ export function OrganisationAuditLogTab() {
       } else {
         setError(res.error?.message || "Fehler beim Laden des Audit-Logs.");
       }
+
+      if (refreshRef.current && page === 1) {
+        refreshRef.current = false;
+        toast({
+          title: "Aktualisiert",
+          description: "Audit-Logs wurden neu geladen."
+        });
+      }
     };
 
     startTransition(() => {
@@ -571,9 +579,9 @@ export function OrganisationAuditLogTab() {
     return () => {
       active = false;
     };
-  // filterUser, searchQuery, filterTimeframe excluded intentionally:
-  // they're applied client-side in filteredLogs useMemo below
-  }, [page, filterTable, filterAction]);
+  // Filter and search changes reset to page 1 so the latest matching entries load from the server.
+  // customDateFrom/customDateTo excluded — the server doesn't filter by date, only client-side.
+  }, [page, filterTable, filterAction, filterUser, filterTimeframe, searchQuery]);
 
   const handleFilterTableChange = (val: string) => {
     setFilterTable(val);
@@ -585,25 +593,24 @@ export function OrganisationAuditLogTab() {
     setPage(1);
   };
 
-  const handleRefresh = () => {
+  const handleFilterUserChange = (val: string) => {
+    setFilterUser(val);
     setPage(1);
-    startTransition(async () => {
-      const res = await getAuditLogsAction(
-        limit + 1,
-        0,
-        filterTable === "all" ? undefined : filterTable,
-        filterAction === "all" ? undefined : filterAction
-      );
-      if (res.success && res.data) {
-        const hasNext = res.data.length > limit;
-        setLogs(res.data.slice(0, limit) as AuditLogSummary[]);
-        setHasMore(hasNext);
-      }
-    });
-    toast({
-      title: "Aktualisiert",
-      description: "Audit-Logs wurden neu geladen."
-    });
+  };
+
+  const handleFilterTimeframeChange = (val: string) => {
+    setFilterTimeframe(val);
+    setPage(1);
+  };
+
+  const handleSearchQueryChange = (val: string) => {
+    setSearchQuery(val);
+    setPage(1);
+  };
+
+  const handleRefresh = () => {
+    refreshRef.current = true;
+    setPage(1);
   };
 
   // Scroll handler to load more logs when reaching bottom of table container
@@ -686,7 +693,7 @@ export function OrganisationAuditLogTab() {
     [logs, selectedLogIds]
   );
 
-  const handleBulkExport = (format: 'csv' | 'xlsx') => {
+  const handleBulkExport = async (format: 'csv' | 'xlsx') => {
     const data = selectedLogsData;
     const rows = data.map(l => ({
       ID: l.id,
@@ -707,10 +714,13 @@ export function OrganisationAuditLogTab() {
       const link = document.createElement('a');
       link.href = url;
       link.download = `audit-log_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
       link.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast({ title: "Export erfolgreich", description: `${data.length} Logs als CSV exportiert.`, variant: "success" });
     } else {
+      const XLSX = await import('xlsx');
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Audit-Log');
@@ -828,7 +838,7 @@ Audit-Log
         {/* Top Filters Dashboard Bar */}
         <div className="flex flex-wrap gap-3 items-end pt-4 border-t border-zinc-200/40 dark:border-zinc-800/40">
           <div className="flex-1 min-w-[130px]">
-            <Select value={filterTimeframe} onValueChange={setFilterTimeframe}>
+            <Select value={filterTimeframe} onValueChange={handleFilterTimeframeChange}>
               <SelectTrigger aria-label="Zeitraum filtern" className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-800 w-full">
                 <SelectValue placeholder="Zeitraum" />
               </SelectTrigger>
@@ -873,7 +883,7 @@ Audit-Log
           </div>
 
           <div className="flex-1 min-w-[130px]">
-            <Select value={filterUser} onValueChange={setFilterUser}>
+            <Select value={filterUser} onValueChange={handleFilterUserChange}>
               <SelectTrigger aria-label="Mitarbeiter filtern" className="rounded-xl h-9 text-xs bg-transparent border-zinc-200 dark:border-zinc-800 w-full">
                 <SelectValue placeholder="Mitarbeiter" />
               </SelectTrigger>
@@ -892,8 +902,8 @@ Audit-Log
               id="search-logs"
               placeholder="Suche..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onClear={() => setSearchQuery("")}
+              onChange={(e) => handleSearchQueryChange(e.target.value)}
+              onClear={() => handleSearchQueryChange("")}
               className="w-full h-9 text-xs rounded-xl"
             />
           </div>

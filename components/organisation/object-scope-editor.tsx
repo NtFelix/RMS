@@ -130,7 +130,7 @@ export function ObjectScopeEditor({
       {/* Info banner for unrestricted access */}
       {(isUnrestricted || isPolicyUnrestricted) && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 p-3.5 rounded-xl text-xs font-medium leading-normal animate-in fade-in duration-200">
-          No restriction — this member has access to all houses
+          Keine Einschränkung — dieses Mitglied hat Zugriff auf alle Häuser
         </div>
       )}
 
