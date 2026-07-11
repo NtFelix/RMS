@@ -605,10 +605,10 @@ export function OrganisationPoliciesTab({ hasVerwaltenPermission, initialPolicie
                 </CardHeader>
                 <CardContent className="pb-4">
                   <div className="flex flex-col gap-2.5">
+                    {/* eslint-disable-next-line react/no-array-index-key */}
                     {changesDiff.map((change, idx) => {
-                      const changeKey = `change-${change.type}-${idx}`;
                       return (
-                      <div key={changeKey} className="flex items-start gap-2.5 text-xs py-0.5">
+                      <div key={`${change.type}-${idx}`} className="flex items-start gap-2.5 text-xs py-0.5">
                         <span className={cn(
                           "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
                           change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :

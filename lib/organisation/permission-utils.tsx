@@ -81,8 +81,6 @@ export function getTableIcon(tableName: string): LucideIcon {
   }
 }
 
-export const DASHBOARD_OFFSET = 180;
-
 export interface ChangeSummary {
   description: React.ReactNode;
   type: "add" | "remove" | "modify";

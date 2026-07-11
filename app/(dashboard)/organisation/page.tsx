@@ -1,11 +1,16 @@
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import OrganisationClientView from "./client-wrapper";
 import { safeRpcCall } from "@/lib/error-handling";
+import type {
+  OrganisationMember,
+  OrganisationInvitation,
+  OrganisationPolicy,
+  HausWithWohnungen,
+} from "@/lib/organisation-types";
 
 export default async function OrganisationPage() {
   // Get authenticated user first
@@ -44,15 +49,15 @@ export default async function OrganisationPage() {
 
   // Fetch members, invitations, policies, and houses in parallel
   const [membersResult, invitationsResult, policiesResult, housesResult, canManage] = await Promise.all([
-    safeRpcCall<any[]>(supabase, 'get_organisation_mitglieder', undefined, { userId: user.id }),
+    safeRpcCall<OrganisationMember[]>(supabase, 'get_organisation_mitglieder', undefined, { userId: user.id }),
     supabase
       .from('Organisation_Einladungen')
       .select('*')
       .eq('organisation_id', orgId)
       .eq('status', 'offen')
       .order('erstellt_am', { ascending: false }),
-    safeRpcCall<any[]>(supabase, 'get_policies'),
-    safeRpcCall<any[]>(supabase, 'get_org_haeuser_mit_wohnungen'),
+    safeRpcCall<OrganisationPolicy[]>(supabase, 'get_policies'),
+    safeRpcCall<HausWithWohnungen[]>(supabase, 'get_org_haeuser_mit_wohnungen'),
     hasPermission('organisation', 'verwalten')
   ]);
 

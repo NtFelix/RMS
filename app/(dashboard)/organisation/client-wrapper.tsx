@@ -53,42 +53,25 @@ import {
 import { MitgliedPermissionDetail } from "@/components/organisation/mitglied-permission-detail";
 import { OrganisationPoliciesTab } from "@/components/organisation/organisation-policies-tab";
 import { OrganisationAuditLogTab } from "@/components/organisation/organisation-audit-log-tab";
+import type { OrganisationMember, OrganisationInvitation, OrganisationPolicy, HausWithWohnungen } from "@/lib/organisation-types";
+import type { User } from "@supabase/supabase-js";
 
 
-interface Member {
-  mitglied_id: string;
-  user_id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  rolle: 'owner' | 'admin' | 'mitarbeiter';
-  status: 'eingeladen' | 'aktiv' | 'deaktiviert';
-  erstellt_am: string;
-}
-
-interface Invitation {
-  id: string;
-  organisation_id: string;
-  token: string;
-  email: string;
-  expires_at: string;
-  status: 'offen' | 'angenommen' | 'widerrufen' | 'abgelaufen';
-  rolle: 'admin' | 'mitarbeiter';
-  erstellt_am: string;
-}
+export type Member = OrganisationMember;
+export type Invitation = OrganisationInvitation;
 
 interface OrganisationClientViewProps {
   org: {
     id: string;
     owner_id: string;
     ist_versteckt: boolean;
-    einstellungen: any;
+    einstellungen: Record<string, unknown> | null;
   };
-  initialMembers: Member[];
-  initialInvitations: Invitation[];
-  initialPolicies: any[];
-  initialHaeuser: any[];
-  currentUser: any;
+  initialMembers: OrganisationMember[];
+  initialInvitations: OrganisationInvitation[];
+  initialPolicies: OrganisationPolicy[];
+  initialHaeuser: HausWithWohnungen[];
+  currentUser: User;
   canManage?: boolean;
   rpcError?: string | null;
 }
@@ -302,8 +285,8 @@ function OrganisationMembersTab({
   statusFilter: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
-  members: Member[];
-  invitations: Invitation[];
+  members: OrganisationMember[];
+  invitations: OrganisationInvitation[];
   expiredInvitationIds: Set<string>;
   hasVerwaltenPermission: boolean;
   isPending: boolean;
@@ -680,8 +663,8 @@ function useOrganisationActions({
 }: {
   uiState: UiState;
   dispatch: Dispatch<UiAction>;
-  setMembers: Dispatch<SetStateAction<Member[]>>;
-  setInvitations: Dispatch<SetStateAction<Invitation[]>>;
+  setMembers: Dispatch<SetStateAction<OrganisationMember[]>>;
+  setInvitations: Dispatch<SetStateAction<OrganisationInvitation[]>>;
   startInviteTransition: (callback: () => void) => void;
   startActionTransition: (callback: () => void) => void;
   toast: typeof toast;
@@ -769,7 +752,7 @@ function useOrganisationActions({
           } geändert.`,
           variant: "success"
         });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as Member['rolle'] } : m));
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as OrganisationMember['rolle'] } : m));
       } else {
         showToast({ title: "Fehler beim Ändern der Rolle", description: res.error?.message || "Die Rolle konnte nicht geändert werden.", variant: "destructive" });
       }
@@ -798,7 +781,7 @@ function useOrganisationActions({
           } geändert.`,
           variant: "success"
         });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as Member['status'] } : m));
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as OrganisationMember['status'] } : m));
       } else {
         showToast({ title: "Fehler beim Ändern des Status", description: res.error?.message || "Der Status konnte nicht geändert werden.", variant: "destructive" });
       }
@@ -852,8 +835,8 @@ export default function OrganisationClientView({
   rpcError = null
 }: OrganisationClientViewProps) {
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
-  const [members, setMembers] = useState<Member[]>(initialMembers);
-  const [invitations, setInvitations] = useState<Invitation[]>(initialInvitations);
+  const [members, setMembers] = useState<OrganisationMember[]>(initialMembers);
+  const [invitations, setInvitations] = useState<OrganisationInvitation[]>(initialInvitations);
   // Pass initial props directly — stable references from server component
   const expiredInvitationIds = useMemo(() => {
     const now = new Date();

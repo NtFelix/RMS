@@ -71,8 +71,11 @@ export function MitgliedPermissionDetail({
   const isOwner = rolle === "owner";
 
   useEffect(() => {
+    if (isLocked) return;
+    const abortController = new AbortController();
+    let cancelled = false;
+
     const fetchPermissionsAndPolicies = async () => {
-      if (isLocked) return;
       setLoading(true);
       try {
         const [perms, houses, orgPolicies, memberPolicyIds] = await Promise.all([
@@ -81,12 +84,14 @@ export function MitgliedPermissionDetail({
           getPoliciesAction(),
           getMitgliedPoliciesAction(mitgliedId),
         ]);
+        if (cancelled) return;
         const withPolicies = { ...perms, policy_ids: memberPolicyIds };
         setPermissions(withPolicies);
         setOriginalPermissions(structuredClone(withPolicies));
         setHaeuser(houses);
         setPolicies(orgPolicies);
       } catch (error) {
+        if (cancelled) return;
         console.error("Failed to load permissions and policies:", error);
         toast({
           title: "Fehler beim Laden",
@@ -94,11 +99,16 @@ export function MitgliedPermissionDetail({
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchPermissionsAndPolicies();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
   }, [mitgliedId, isLocked]);
 
   useEffect(() => {
@@ -570,9 +580,9 @@ export function MitgliedPermissionDetail({
             <CardContent className="pb-4">
               <div className="flex flex-col gap-2.5">
                 {changesDiff.map((change, idx) => {
-                  const changeKey = `change-${change.type}-${idx}`;
                   return (
-                    <div key={changeKey} className="flex items-start gap-2.5 text-xs py-0.5">
+                    // eslint-disable-next-line react/no-array-index-key
+                    <div key={change.type === "modify" ? `modify-${idx}` : `${change.type}-${idx}`} className="flex items-start gap-2.5 text-xs py-0.5">
                       <span className={cn(
                         "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
                         change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :

@@ -35,3 +35,25 @@ export interface OrganisationPolicy {
   erstellt_am: string;
 }
 
+export interface OrganisationMember {
+  mitglied_id: string;
+  user_id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  rolle: 'owner' | 'admin' | 'mitarbeiter';
+  status: 'eingeladen' | 'aktiv' | 'deaktiviert';
+  erstellt_am: string;
+}
+
+export interface OrganisationInvitation {
+  id: string;
+  organisation_id: string;
+  token: string;
+  email: string;
+  expires_at: string;
+  status: 'offen' | 'angenommen' | 'widerrufen' | 'abgelaufen';
+  rolle: 'admin' | 'mitarbeiter';
+  erstellt_am: string;
+}
+
