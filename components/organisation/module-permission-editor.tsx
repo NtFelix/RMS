@@ -2,28 +2,47 @@
 
 import React from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import {
+  Building2,
+  KeyRound,
+  Users2,
+  Gauge,
+  Coins,
+  Calculator,
+  FileText,
+  CheckSquare,
+  LayoutTemplate,
+  Settings,
+  LucideIcon
+} from "lucide-react";
 
-const MODULES = [
-  { key: "haeuser", label: "Häuser" },
-  { key: "wohnungen", label: "Wohnungen" },
-  { key: "mieter", label: "Mieter" },
-  { key: "zaehler", label: "Zähler" },
-  { key: "finanzen", label: "Finanzen" },
-  { key: "betriebskosten", label: "Betriebskosten" },
-  { key: "dokumente", label: "Dokumente" },
-  { key: "aufgaben", label: "Aufgaben" },
-  { key: "organisation", label: "Organisation" },
+interface ModuleConfig {
+  key: "haeuser" | "wohnungen" | "mieter" | "zaehler" | "finanzen" | "betriebskosten" | "dokumente" | "aufgaben" | "vorlagen" | "organisation";
+  label: string;
+  icon: LucideIcon;
+}
+
+const MODULES: readonly ModuleConfig[] = [
+  { key: "haeuser",        label: "Häuser",        icon: Building2      },
+  { key: "wohnungen",      label: "Wohnungen",      icon: KeyRound       },
+  { key: "mieter",         label: "Mieter",         icon: Users2         },
+  { key: "zaehler",        label: "Zähler",         icon: Gauge          },
+  { key: "finanzen",       label: "Finanzen",       icon: Coins          },
+  { key: "betriebskosten", label: "Betriebskosten", icon: Calculator     },
+  { key: "dokumente",      label: "Dokumente",      icon: FileText       },
+  { key: "aufgaben",       label: "Aufgaben",       icon: CheckSquare    },
+  { key: "vorlagen",       label: "Vorlagen",       icon: LayoutTemplate },
+  { key: "organisation",   label: "Organisation",   icon: Settings       },
 ] as const;
 
 const AKTIONEN = [
-  { key: "ansehen", label: "Ansehen" },
-  { key: "erstellen", label: "Erstellen" },
+  { key: "ansehen",    label: "Ansehen"    },
+  { key: "erstellen",  label: "Erstellen"  },
   { key: "bearbeiten", label: "Bearbeiten" },
-  { key: "loeschen", label: "Löschen" },
-  { key: "verwalten", label: "Verwalten" },
+  { key: "loeschen",   label: "Löschen"    },
+  { key: "verwalten",  label: "Verwalten"  },
 ] as const;
 
 interface ModulePermissionEditorProps {
@@ -39,120 +58,234 @@ export function ModulePermissionEditor({
   disabled = false,
   policyGrantedModulePermissions,
 }: ModulePermissionEditorProps) {
+
   const togglePermission = (moduleKey: string, aktionKey: string) => {
     if (disabled) return;
-    if (policyGrantedModulePermissions?.[moduleKey]?.includes(aktionKey)) return; // Locked by policy
+    const policy = policyGrantedModulePermissions?.[moduleKey] || [];
+    if (policy.includes(aktionKey)) return;
+    const current = modulePermissions[moduleKey] || [];
+    onChange({
+      ...modulePermissions,
+      [moduleKey]: current.includes(aktionKey)
+        ? current.filter(a => a !== aktionKey)
+        : [...current, aktionKey],
+    });
+  };
 
-    const currentModulePerms = modulePermissions[moduleKey] || [];
-    let nextModulePerms: string[];
+  const toggleColumn = (actionKey: string) => {
+    if (disabled) return;
+    const isAllChecked = MODULES.every(mod => {
+      const current = modulePermissions[mod.key] || [];
+      const policy = policyGrantedModulePermissions?.[mod.key] || [];
+      return current.includes(actionKey) || policy.includes(actionKey);
+    });
+    const nextPermissions = { ...modulePermissions };
+    MODULES.forEach(mod => {
+      const policy = policyGrantedModulePermissions?.[mod.key] || [];
+      if (policy.includes(actionKey)) return;
+      const current = nextPermissions[mod.key] || [];
+      nextPermissions[mod.key] = isAllChecked
+        ? current.filter(a => a !== actionKey)
+        : current.includes(actionKey) ? current : [...current, actionKey];
+    });
+    onChange(nextPermissions);
+  };
 
-    if (currentModulePerms.includes(aktionKey)) {
-      nextModulePerms = currentModulePerms.filter(a => a !== aktionKey);
+  const getColumnState = (actionKey: string) => {
+    let checkedCount = 0;
+    MODULES.forEach(mod => {
+      const current = modulePermissions[mod.key] || [];
+      const policy = policyGrantedModulePermissions?.[mod.key] || [];
+      if (current.includes(actionKey) || policy.includes(actionKey)) checkedCount++;
+    });
+    if (checkedCount === 0) return "unchecked";
+    if (checkedCount === MODULES.length) return "checked";
+    return "indeterminate";
+  };
+
+  const toggleRow = (moduleKey: string) => {
+    if (disabled) return;
+    const current = modulePermissions[moduleKey] || [];
+    const policy = policyGrantedModulePermissions?.[moduleKey] || [];
+    const checkedActions = AKTIONEN.filter(a => current.includes(a.key) || policy.includes(a.key));
+    const allSelected = checkedActions.length === AKTIONEN.length;
+
+    const nextPermissions = { ...modulePermissions };
+    if (allSelected) {
+      // Deselect all that are not policy locked
+      nextPermissions[moduleKey] = current.filter(a => policy.includes(a));
     } else {
-      nextModulePerms = [...currentModulePerms, aktionKey];
+      // Select all
+      nextPermissions[moduleKey] = AKTIONEN.map(a => a.key);
     }
-
-    onChange({
-      ...modulePermissions,
-      [moduleKey]: nextModulePerms,
-    });
+    onChange(nextPermissions);
   };
 
-  const handleSelectRowAll = (moduleKey: string) => {
+  const toggleAllGrid = () => {
     if (disabled) return;
-    onChange({
-      ...modulePermissions,
-      [moduleKey]: AKTIONEN.map(a => a.key),
+    const isAllChecked = MODULES.every(mod => {
+      const current = modulePermissions[mod.key] || [];
+      const policy = policyGrantedModulePermissions?.[mod.key] || [];
+      return AKTIONEN.every(a => current.includes(a.key) || policy.includes(a.key));
     });
+    const nextPermissions = { ...modulePermissions };
+    MODULES.forEach(mod => {
+      const policy = policyGrantedModulePermissions?.[mod.key] || [];
+      if (isAllChecked) {
+        nextPermissions[mod.key] = (nextPermissions[mod.key] || []).filter(a => policy.includes(a));
+      } else {
+        nextPermissions[mod.key] = AKTIONEN.map(a => a.key);
+      }
+    });
+    onChange(nextPermissions);
   };
 
-  const handleDeselectRowAll = (moduleKey: string) => {
-    if (disabled) return;
-    onChange({
-      ...modulePermissions,
-      [moduleKey]: [],
-    });
-  };
+  // Shared border styling classes
+  const borderColor = "border-zinc-200 dark:border-zinc-800";
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-2xl">
-        <Table>
-          <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-            <TableRow>
-              <TableHead className="w-[180px] font-semibold py-3 pl-6">Modul</TableHead>
-              {AKTIONEN.map(aktion => (
-                <TableHead key={aktion.key} className="text-center font-medium text-xs py-3">
-                  {aktion.label}
-                </TableHead>
-              ))}
-              {!disabled && <TableHead className="w-[140px] text-right py-3 pr-6">Aktionen</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      {/* 
+        Native HTML table with custom borders. 
+        Wrapped in a relative container so row-select checkboxes can float outside.
+      */}
+      <div className="relative">
+        <table className="w-full border-none border-collapse text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-none bg-transparent">
+              {/* First header cell: bottom + right border */}
+              <th className={cn(
+                "w-[200px] font-semibold py-3.5 pl-6 text-left align-middle text-zinc-800 dark:text-zinc-200 border-b border-r sticky top-0 z-10 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md",
+                borderColor
+              )}>
+                Modul
+              </th>
+
+              {AKTIONEN.map((aktion, idx) => {
+                const columnState = getColumnState(aktion.key);
+                const isChecked = columnState === "checked";
+                const isIndeterminate = columnState === "indeterminate";
+                const isVerwalten = aktion.key === "verwalten";
+                const isLastColumn = idx === AKTIONEN.length - 1;
+
+                return (
+                  <th
+                    key={aktion.key}
+                    className={cn(
+                      "text-center align-middle font-medium py-3.5 border-b sticky top-0 z-10 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md",
+                      !isLastColumn && "border-r",
+                      borderColor
+                    )}
+                  >
+                    <div className="flex flex-col items-center gap-1.5 justify-center">
+                      <span className={cn(
+                        "font-semibold text-zinc-700 dark:text-zinc-300",
+                        isVerwalten && "text-amber-600 dark:text-amber-400"
+                      )}>
+                        {aktion.label}
+                      </span>
+                      <Checkbox
+                        checked={isIndeterminate ? "indeterminate" : isChecked}
+                        onCheckedChange={() => toggleColumn(aktion.key)}
+                        disabled={disabled}
+                        aria-label={`${aktion.label} für alle Module`}
+                        className={cn(
+                          "scale-90",
+                          isVerwalten && "border-amber-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-white"
+                        )}
+                      />
+                    </div>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+
+          <tbody className="divide-none bg-transparent">
             {MODULES.map(mod => {
-              const currentPerms = modulePermissions[mod.key] || [];
-              const policyPerms = policyGrantedModulePermissions?.[mod.key] || [];
-              
-              const isRowEmpty = currentPerms.length === 0 && policyPerms.length === 0;
-              const hasAllPermissions = AKTIONEN.every(
-                aktion => currentPerms.includes(aktion.key) || policyPerms.includes(aktion.key)
-              );
-              const isRowAllSelected = hasAllPermissions;
+              const currentPerms  = modulePermissions[mod.key] || [];
+              const policyPerms   = policyGrantedModulePermissions?.[mod.key] || [];
+              const isRowEmpty    = currentPerms.length === 0 && policyPerms.length === 0;
+              const checkedActions = AKTIONEN.filter(a => currentPerms.includes(a.key) || policyPerms.includes(a.key));
+              const isRowChecked = checkedActions.length === AKTIONEN.length;
+              const isRowIndeterminate = checkedActions.length > 0 && checkedActions.length < AKTIONEN.length;
+              const ModIcon  = mod.icon;
 
               return (
-                <TableRow key={mod.key} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
-                  <TableCell className="font-semibold text-sm py-3.5 pl-6 flex items-center gap-2">
-                    <span>{mod.label}</span>
-                    {isRowEmpty && (
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] py-0 px-1.5 rounded-full font-medium">
-                        Kein Zugriff
-                      </Badge>
+                <tr key={mod.key} className="group/row border-none bg-transparent relative">
+                  {/* First body cell: right border */}
+                  <td className={cn(
+                    "py-3.5 pl-6 align-middle bg-transparent border-r relative",
+                    borderColor
+                  )}>
+                    {/* Floating row-select checkbox – hidden, revealed on hover, positioned outside the cell without hover gaps */}
+                    {!disabled && (
+                      <div className="absolute right-full top-0 bottom-0 w-12 flex items-center justify-end pr-3 opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 ease-out z-20">
+                        <Checkbox
+                          checked={isRowIndeterminate ? "indeterminate" : isRowChecked}
+                          onCheckedChange={() => toggleRow(mod.key)}
+                          disabled={disabled}
+                          aria-label={`Alle Berechtigungen für Modul ${mod.label}`}
+                          className="scale-90"
+                        />
+                      </div>
                     )}
-                  </TableCell>
-                  {AKTIONEN.map(aktion => {
+                    <div className="flex items-center gap-2.5 min-h-[40px]">
+                      <div className={cn(
+                        "p-1.5 rounded-lg shrink-0 transition-colors",
+                        isRowEmpty
+                          ? "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                      )}>
+                        <ModIcon className="size-4" />
+                      </div>
+                      <span className={cn(
+                        "font-semibold text-sm truncate transition-all",
+                        isRowEmpty
+                          ? "line-through text-red-500/70 dark:text-red-400/60 decoration-red-500/50"
+                          : "text-zinc-800 dark:text-zinc-200"
+                      )}>
+                        {mod.label}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Action checkbox cells: right border (except last column) */}
+                  {AKTIONEN.map((aktion, idx) => {
                     const isGrantedByPolicy = policyPerms.includes(aktion.key);
-                    const isChecked = currentPerms.includes(aktion.key) || isGrantedByPolicy;
+                    const isChecked  = currentPerms.includes(aktion.key) || isGrantedByPolicy;
+                    const isVerwalten = aktion.key === "verwalten";
+                    const isLastColumn = idx === AKTIONEN.length - 1;
+
                     return (
-                      <TableCell key={aktion.key} className="text-center py-3.5">
-                        <div className="flex justify-center items-center gap-1">
+                      <td
+                        key={aktion.key}
+                        className={cn(
+                          "text-center align-middle py-3.5 bg-transparent",
+                          !isLastColumn && "border-r",
+                          borderColor
+                        )}
+                      >
+                        <div className="flex justify-center items-center">
                           <Checkbox
                             checked={isChecked}
                             onCheckedChange={() => togglePermission(mod.key, aktion.key)}
                             disabled={disabled || isGrantedByPolicy}
                             id={`perm-${mod.key}-${aktion.key}`}
                             aria-label={`${mod.label} ${aktion.label}`}
+                            className={cn(
+                              isVerwalten && "border-amber-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-white"
+                            )}
                           />
                         </div>
-                      </TableCell>
+                      </td>
                     );
                   })}
-                  {!disabled && (
-                    <TableCell className="text-right py-3.5 pr-6">
-                      <div className="flex justify-end gap-1.5">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => {
-                            if (isRowAllSelected) {
-                              handleDeselectRowAll(mod.key);
-                            } else {
-                              handleSelectRowAll(mod.key);
-                            }
-                          }}
-                          className="h-7 text-xs rounded-lg px-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                        >
-                          {isRowAllSelected ? "Zurücksetzen" : "Alle"}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
-                </TableRow>
+                </tr>
               );
             })}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
     </div>
   );

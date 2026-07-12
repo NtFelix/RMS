@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useReducer, useTransition, useMemo } from "react";
+import { useState, useReducer, useTransition, useMemo, useEffect, useRef, type Dispatch, type SetStateAction, type FormEvent } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { StatCard } from "@/components/common/stat-card";
 import { toast } from "@/hooks/use-toast";
 import { LazyMotion, domAnimation } from "framer-motion";
@@ -44,40 +53,25 @@ import {
 import { MitgliedPermissionDetail } from "@/components/organisation/mitglied-permission-detail";
 import { OrganisationPoliciesTab } from "@/components/organisation/organisation-policies-tab";
 import { OrganisationAuditLogTab } from "@/components/organisation/organisation-audit-log-tab";
+import type { OrganisationMember, OrganisationInvitation, OrganisationPolicy, HausWithWohnungen } from "@/lib/organisation-types";
+import type { User } from "@supabase/supabase-js";
 
 
-interface Member {
-  mitglied_id: string;
-  user_id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  rolle: 'owner' | 'admin' | 'mitarbeiter';
-  status: 'eingeladen' | 'aktiv' | 'deaktiviert';
-  erstellt_am: string;
-}
-
-interface Invitation {
-  id: string;
-  organisation_id: string;
-  token: string;
-  email: string;
-  expires_at: string;
-  status: 'offen' | 'angenommen' | 'widerrufen' | 'abgelaufen';
-  rolle: 'admin' | 'mitarbeiter';
-  erstellt_am: string;
-}
+export type Member = OrganisationMember;
+export type Invitation = OrganisationInvitation;
 
 interface OrganisationClientViewProps {
   org: {
     id: string;
     owner_id: string;
     ist_versteckt: boolean;
-    einstellungen: any;
+    einstellungen: Record<string, unknown> | null;
   };
-  initialMembers: Member[];
-  initialInvitations: Invitation[];
-  currentUser: any;
+  initialMembers: OrganisationMember[];
+  initialInvitations: OrganisationInvitation[];
+  initialPolicies: OrganisationPolicy[];
+  initialHaeuser: HausWithWohnungen[];
+  currentUser: User;
   canManage?: boolean;
   rpcError?: string | null;
 }
@@ -85,8 +79,6 @@ interface OrganisationClientViewProps {
 type UiState = {
   currentTab: "overview" | "members" | "policies" | "audit_log";
   searchQuery: string;
-  roleFilter: string;
-  statusFilter: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
   selectedMemberId: string | null;
@@ -102,8 +94,6 @@ type UiState = {
 type UiAction =
   | { type: 'SET_TAB'; payload: "overview" | "members" | "policies" | "audit_log" }
   | { type: 'SET_SEARCH_QUERY'; payload: string }
-  | { type: 'SET_ROLE_FILTER'; payload: string }
-  | { type: 'SET_STATUS_FILTER'; payload: string }
   | { type: 'SET_INVITE_EMAIL'; payload: string }
   | { type: 'SET_INVITE_ROLE'; payload: "admin" | "mitarbeiter" }
   | { type: 'SET_SELECTED_MEMBER'; payload: string | null }
@@ -114,8 +104,6 @@ type UiAction =
 const initialUiState: UiState = {
   currentTab: "overview",
   searchQuery: "",
-  roleFilter: "all",
-  statusFilter: "all",
   inviteEmail: "",
   inviteRole: "mitarbeiter",
   selectedMemberId: null,
@@ -128,10 +116,6 @@ function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, currentTab: action.payload };
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.payload };
-    case 'SET_ROLE_FILTER':
-      return { ...state, roleFilter: action.payload };
-    case 'SET_STATUS_FILTER':
-      return { ...state, statusFilter: action.payload };
     case 'SET_INVITE_EMAIL':
       return { ...state, inviteEmail: action.payload };
     case 'SET_INVITE_ROLE':
@@ -143,29 +127,10 @@ function uiReducer(state: UiState, action: UiAction): UiState {
     case 'CLEAR_INVITE_EMAIL':
       return { ...state, inviteEmail: "" };
     case 'RESET_FILTERS':
-      return { ...state, searchQuery: "", roleFilter: "all", statusFilter: "all", selectedMemberId: null };
+      return { ...state, searchQuery: "", selectedMemberId: null };
     default:
       return state;
   }
-}
-
-function OrganisationTabToggle({
-  currentTab,
-  onTabChange,
-  tabs
-}: {
-  currentTab: "overview" | "members" | "policies" | "audit_log";
-  onTabChange: (tab: "overview" | "members" | "policies" | "audit_log") => void;
-  tabs: any[];
-}) {
-  return (
-    <AnimatedPillToggle
-      tabs={tabs}
-      activeTab={currentTab}
-      onTabChange={onTabChange}
-      layoutId="active-org-tab-pill"
-    />
-  );
 }
 
 function OrganisationOverviewTab({ stats }: { stats: { active: number; admins: number; pendingInvites: number; ownerName: string } }) {
@@ -219,22 +184,22 @@ function OrganisationConfirmDialog({
           </div>
           <AlertDialogTitle className="text-xl font-bold text-center">
             {pendingConfirm?.type === 'revoke' && "Einladung widerrufen"}
-            {pendingConfirm?.type === 'role' && "Rolle &auml;ndern"}
-            {pendingConfirm?.type === 'status' && "Status &auml;ndern"}
+            {pendingConfirm?.type === 'role' && "Rolle ändern"}
+            {pendingConfirm?.type === 'status' && "Status ändern"}
             {pendingConfirm?.type === 'delete' && "Mitglied entfernen"}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-center text-sm text-muted-foreground leading-relaxed">
             {pendingConfirm?.type === 'revoke' && (
-              <>M&ouml;chten Sie die Einladung f&uuml;r <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich widerrufen? Die Person wird die Einladung nicht mehr annehmen k&ouml;nnen.</>
+              <>Möchten Sie die Einladung für <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich widerrufen? Die Person wird die Einladung nicht mehr annehmen können.</>
             )}
             {pendingConfirm?.type === 'role' && (
-              <>M&ouml;chten Sie die Rolle von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'owner' ? 'Inhaber' : pendingConfirm.value === 'admin' ? 'Administrator' : 'Mitarbeiter'}</strong> &auml;ndern?</>
+              <>Möchten Sie die Rolle von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'owner' ? 'Inhaber' : pendingConfirm.value === 'admin' ? 'Administrator' : 'Mitarbeiter'}</strong> ändern?</>
             )}
             {pendingConfirm?.type === 'status' && (
-              <>M&ouml;chten Sie den Status von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'aktiv' ? 'Aktiv' : 'Deaktiviert'}</strong> &auml;ndern?</>
+              <>Möchten Sie den Status von <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich auf <strong className="text-foreground">{pendingConfirm.value === 'aktiv' ? 'Aktiv' : 'Deaktiviert'}</strong> ändern?</>
             )}
             {pendingConfirm?.type === 'delete' && (
-              <>M&ouml;chten Sie <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich aus der Organisation entfernen? Der Zugriff auf alle Daten dieser Organisation geht sofort verloren.</>
+              <>Möchten Sie <strong className="text-foreground">{pendingConfirm.memberName}</strong> wirklich aus der Organisation entfernen? Der Zugriff auf alle Daten dieser Organisation geht sofort verloren.</>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -250,7 +215,7 @@ function OrganisationConfirmDialog({
             }}
             disabled={isPending}
           >
-            {isPending ? "Bitte warten..." : "Best&auml;tigen"}
+            {isPending ? "Bitte warten..." : "Bestätigen"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -258,278 +223,12 @@ function OrganisationConfirmDialog({
   );
 }
 
-function OrganisationMembersTable({
-  filteredMembers,
-  hasVerwaltenPermission,
-  isPending,
-  currentUserId,
-  selectedMemberId,
-  onSelectMember,
-  onRoleChange,
-  onStatusChange,
-  onRemove
-}: {
-  filteredMembers: Member[];
-  hasVerwaltenPermission: boolean;
-  isPending: boolean;
-  currentUserId?: string;
-  selectedMemberId: string | null;
-  onSelectMember: (id: string | null) => void;
-  onRoleChange: (memberId: string, name: string, newRole: string) => void;
-  onStatusChange: (memberId: string, name: string, newStatus: string) => void;
-  onRemove: (memberId: string, name: string) => void;
-}) {
-  return (
-    <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xl">Aktive &amp; Deaktivierte Mitglieder</CardTitle>
-        <CardDescription>Mitglieder, die Zugriff auf diese Organisation haben. Klicken Sie auf ein Mitglied, um Berechtigungen zu bearbeiten.</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-              <TableRow>
-                <TableHead className="py-3 pl-6">Mitglied</TableHead>
-                <TableHead className="py-3">Rolle</TableHead>
-                <TableHead className="py-3">Status</TableHead>
-                <TableHead className="py-3">Hinzugef&uuml;gt am</TableHead>
-                {hasVerwaltenPermission && <TableHead className="py-3 pr-6 text-right">Aktionen</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={hasVerwaltenPermission ? 5 : 4} className="py-8 text-center text-muted-foreground">
-                    Keine Mitglieder gefunden.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredMembers.map((member) => {
-                  const fullName = member.first_name || member.last_name
-                    ? `${member.first_name || ""} ${member.last_name || ""}`.trim()
-                    : "";
-                  const initials = member.first_name || member.last_name
-                    ? ((member.first_name?.charAt(0) ?? "") + (member.last_name?.charAt(0) ?? "")).toUpperCase()
-                    : member.email.charAt(0).toUpperCase();
-                  const isCurrentUser = member.user_id === currentUserId;
-                  const isOwnerRow = member.rolle === 'owner';
-                  const isSelected = selectedMemberId === member.mitglied_id;
 
-                  return (
-                    <TableRow
-                      key={member.mitglied_id}
-                      onClick={() => onSelectMember(isSelected ? null : member.mitglied_id)}
-                      className={cn(
-                        "cursor-pointer transition-colors duration-150",
-                        isSelected
-                          ? "bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-                          : "hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30"
-                      )}
-                    >
-                      <TableCell className="py-4 pl-6 flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border border-zinc-200/20">
-                          <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">{initials}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-sm">
-                            {fullName || member.email.split('@')[0]}
-                            {isCurrentUser && <span className="text-[10px] ml-2 text-zinc-400 font-normal border border-zinc-200 dark:border-zinc-800 px-1.5 py-0.5 rounded-full">Du</span>}
-                          </span>
-                          <span className="text-xs text-muted-foreground">{member.email}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
-                        {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
-                          <Select defaultValue={member.rolle} onValueChange={(val) => onRoleChange(member.mitglied_id, fullName || member.email, val)} disabled={isPending}>
-                            <SelectTrigger className="w-[130px] h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent className="rounded-lg">
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant="outline" className={cn("capitalize rounded-full font-medium text-[11px]", isOwnerRow ? "bg-indigo-50/80 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400 border-indigo-200/50" : member.rolle === 'admin' ? "bg-purple-50/80 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 border-purple-200/50" : "bg-zinc-50/80 text-zinc-700 dark:bg-zinc-950/30 dark:text-zinc-400 border-zinc-200/50")}>
-                            {isOwnerRow ? "Inhaber" : member.rolle === 'admin' ? "Admin" : "Mitarbeiter"}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
-                        {hasVerwaltenPermission && !isOwnerRow && !isCurrentUser ? (
-                          <Select defaultValue={member.status} onValueChange={(val) => onStatusChange(member.mitglied_id, fullName || member.email, val)} disabled={isPending}>
-                            <SelectTrigger className="w-[120px] h-8 rounded-lg text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent className="rounded-lg">
-                              <SelectItem value="aktiv">Aktiv</SelectItem>
-                              <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant="outline" className={cn("rounded-full font-medium text-[11px]", member.status === 'aktiv' ? "bg-emerald-50/80 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200/50" : "bg-rose-50/80 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border-rose-200/50")}>
-                            {member.status === 'aktiv' ? "Aktiv" : "Deaktiviert"}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>
-                        {new Date(member.erstellt_am).toLocaleDateString("de-DE")}
-                      </TableCell>
-                      {hasVerwaltenPermission && (
-                        <TableCell className="py-4 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
-                          {!isOwnerRow && !isCurrentUser ? (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg" onClick={() => onRemove(member.mitglied_id, fullName || member.email)} disabled={isPending} title="Mitglied entfernen">
-                              <Trash2 className="size-4" />
-                            </Button>
-                          ) : null}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function OrganisationInvitationsTable({
-  invitations,
-  expiredInvitationIds,
-  hasVerwaltenPermission,
-  isPending,
-  onRevoke
-}: {
-  invitations: Invitation[];
-  expiredInvitationIds: Set<string>;
-  hasVerwaltenPermission: boolean;
-  isPending: boolean;
-  onRevoke: (id: string, email: string) => void;
-}) {
-  return (
-    <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xl">Ausstehende Einladungen</CardTitle>
-        <CardDescription>Eingeladene Personen, die ihre Einladung noch nicht angenommen haben.</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-              <TableRow>
-                <TableHead className="py-3 pl-6">E-Mail-Adresse</TableHead>
-                <TableHead className="py-3">Eingeladen als</TableHead>
-                <TableHead className="py-3">Eingeladen am</TableHead>
-                <TableHead className="py-3">Ablaufdatum</TableHead>
-                {hasVerwaltenPermission && <TableHead className="py-3 pr-6 text-right">Aktionen</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invitations.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={hasVerwaltenPermission ? 5 : 4} className="py-8 text-center text-muted-foreground">
-                    Keine ausstehenden Einladungen vorhanden.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                invitations.map((invite) => {
-                  const isExpired = expiredInvitationIds.has(invite.id);
-                  return (
-                    <TableRow key={invite.id} className="hover:bg-zinc-50/30 dark:hover:bg-zinc-900/30">
-                      <TableCell className="py-4 pl-6 font-medium text-sm flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border border-zinc-200/20">
-                          <AvatarFallback className="bg-zinc-100 text-zinc-500 text-xs font-bold"><Mail className="size-4" /></AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-sm">{invite.email}</span>
-                          {isExpired && <span className="text-[10px] text-rose-500 font-medium">Abgelaufen</span>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <Badge variant="outline" className={cn("capitalize rounded-full font-medium text-[11px]", invite.rolle === 'admin' ? "bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400 border-purple-200/50" : "bg-zinc-50 text-zinc-700 dark:bg-zinc-950/30 dark:text-zinc-400 border-zinc-200/50")}>
-                          {invite.rolle === 'admin' ? "Admin" : "Mitarbeiter"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>{new Date(invite.erstellt_am).toLocaleDateString("de-DE")}</TableCell>
-                      <TableCell className="py-4 text-xs text-muted-foreground" suppressHydrationWarning>{new Date(invite.expires_at).toLocaleDateString("de-DE")}</TableCell>
-                      {hasVerwaltenPermission && (
-                        <TableCell className="py-4 pr-6 text-right">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500 rounded-lg" onClick={() => onRevoke(invite.id, invite.email)} disabled={isPending} title="Einladung widerrufen">
-                            <X className="size-4" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function OrganisationInvitePanel({
-  inviteEmail,
-  inviteRole,
-  isInviting,
-  onInviteEmailChange,
-  onInviteRoleChange,
-  onInvite
-}: {
-  inviteEmail: string;
-  inviteRole: "admin" | "mitarbeiter";
-  isInviting: boolean;
-  onInviteEmailChange: (val: string) => void;
-  onInviteRoleChange: (val: "admin" | "mitarbeiter") => void;
-  onInvite: (e: React.FormEvent) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-6">
-      <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
-        <CardHeader>
-          <CardTitle className="text-xl">Mitarbeiter einladen</CardTitle>
-          <CardDescription>Senden Sie eine Einladung per E-Mail, um neue Teammitglieder hinzuzuf&uuml;gen.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onInvite} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="email-input">E-Mail-Adresse</label>
-              <Input id="email-input" type="email" placeholder="z.B. mitarbeiter@firma.de" value={inviteEmail} onChange={(e) => onInviteEmailChange(e.target.value)} className="rounded-xl border-zinc-200/80 dark:border-zinc-800/80 h-10" required disabled={isInviting} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="role-select">Rolle</label>
-              <Select value={inviteRole} onValueChange={(val) => onInviteRoleChange(val as "admin" | "mitarbeiter")} disabled={isInviting}>
-                <SelectTrigger id="role-select" className="rounded-xl h-10"><SelectValue /></SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full mt-2 h-10 rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center justify-center gap-2 font-medium" disabled={isInviting || !inviteEmail}>
-              {isInviting ? (
-                <><Clock className="size-4 animate-spin" /><span>Wird eingeladen...</span></>
-              ) : (
-                <><PlusCircle className="size-4" /><span>Einladen</span></>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 function OrganisationMembersTab({
   searchQuery,
-  roleFilter,
-  statusFilter,
   inviteEmail,
   inviteRole,
-  filteredMembers,
   members,
   invitations,
   expiredInvitationIds,
@@ -540,8 +239,6 @@ function OrganisationMembersTab({
   selectedMemberId,
   onSelectMember,
   onSearchChange,
-  onRoleFilterChange,
-  onStatusFilterChange,
   onInviteEmailChange,
   onInviteRoleChange,
   onInvite,
@@ -551,13 +248,10 @@ function OrganisationMembersTab({
   onRemove
 }: {
   searchQuery: string;
-  roleFilter: string;
-  statusFilter: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
-  filteredMembers: Member[];
-  members: Member[];
-  invitations: Invitation[];
+  members: OrganisationMember[];
+  invitations: OrganisationInvitation[];
   expiredInvitationIds: Set<string>;
   hasVerwaltenPermission: boolean;
   isPending: boolean;
@@ -566,103 +260,373 @@ function OrganisationMembersTab({
   selectedMemberId: string | null;
   onSelectMember: (id: string | null) => void;
   onSearchChange: (val: string) => void;
-  onRoleFilterChange: (val: string) => void;
-  onStatusFilterChange: (val: string) => void;
   onInviteEmailChange: (val: string) => void;
   onInviteRoleChange: (val: "admin" | "mitarbeiter") => void;
-  onInvite: (e: React.FormEvent) => void;
+  onInvite: (e: FormEvent) => void;
   onRevoke: (id: string, email: string) => void;
   onRoleChange: (memberId: string, name: string, newRole: string) => void;
   onStatusChange: (memberId: string, name: string, newStatus: string) => void;
   onRemove: (memberId: string, name: string) => void;
 }) {
-  const selectedMember = members.find(m => m.mitglied_id === selectedMemberId);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const hasSubmittedInvite = useRef(false);
+
+  // Unified list of members and invitations
+  const unifiedMembers = useMemo(() => {
+    const list: {
+      id: string;
+      type: 'member' | 'invitation';
+      name: string;
+      email: string;
+      role: 'owner' | 'admin' | 'mitarbeiter';
+      status: 'aktiv' | 'eingeladen' | 'deaktiviert';
+      isExpiredInvitation?: boolean;
+      member: OrganisationMember;
+      invitation: OrganisationInvitation;
+    }[] = [];
+
+    // Add members
+    members.forEach(m => {
+      const fullName = m.first_name || m.last_name
+        ? `${m.first_name || ""} ${m.last_name || ""}`.trim()
+        : m.email.split('@')[0];
+      list.push({
+        id: m.mitglied_id,
+        type: 'member',
+        name: fullName,
+        email: m.email,
+        role: m.rolle,
+        status: m.status === 'aktiv' ? 'aktiv' : 'deaktiviert',
+        member: m,
+        invitation: null as unknown as OrganisationInvitation,
+      });
+    });
+
+    // Add open/pending invitations
+    invitations.forEach(inv => {
+      if (inv.status === 'offen') {
+        const isExpired = expiredInvitationIds.has(inv.id);
+        list.push({
+          id: inv.id,
+          type: 'invitation',
+          name: inv.email.split('@')[0],
+          email: inv.email,
+          role: inv.rolle,
+          status: isExpired ? 'deaktiviert' : 'eingeladen',
+          isExpiredInvitation: isExpired,
+          member: null as unknown as OrganisationMember,
+          invitation: inv,
+        });
+      }
+    });
+
+    // Sort: owners -> admins -> mitarbeiter
+    list.sort((a, b) => {
+      const roleOrder = { owner: 0, admin: 1, mitarbeiter: 2 };
+      const statusOrder = { aktiv: 0, eingeladen: 1, deaktiviert: 2 };
+      
+      if (roleOrder[a.role] !== roleOrder[b.role]) {
+        return roleOrder[a.role] - roleOrder[b.role];
+      }
+      if (statusOrder[a.status] !== statusOrder[b.status]) {
+        return statusOrder[a.status] - statusOrder[b.status];
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    return list;
+  }, [members, invitations, expiredInvitationIds]);
+
+  // Filter list by search query
+  const filteredUnifiedMembers = useMemo(() => {
+    if (!searchQuery) return unifiedMembers;
+    const query = searchQuery.toLowerCase();
+    return unifiedMembers.filter(item => 
+      item.name.toLowerCase().includes(query) || 
+      item.email.toLowerCase().includes(query)
+    );
+  }, [unifiedMembers, searchQuery]);
+
+  // Find currently selected item (could be member or invitation)
+  const selectedItem = useMemo(() => {
+    return unifiedMembers.find(item => item.id === selectedMemberId) || null;
+  }, [unifiedMembers, selectedMemberId]);
+
+  const handleInviteSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    hasSubmittedInvite.current = true;
+    onInvite(e);
+  };
+
+  // Close dialog when invite completes (inviteEmail cleared on success via CLEAR_INVITE_EMAIL dispatch)
+  useEffect(() => {
+    if (hasSubmittedInvite.current && !inviteEmail) {
+      setInviteOpen(false);
+      hasSubmittedInvite.current = false;
+    }
+  }, [inviteEmail]);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
-        <div className="flex flex-1 items-center gap-4 max-w-md">
-          <SearchInput placeholder="Mitarbeiter suchen..." value={searchQuery} onChange={(e) => onSearchChange(e.target.value)} className="w-full" />
-        </div>
-        <div className="flex items-center gap-3">
-          <Select value={roleFilter} onValueChange={(val) => onRoleFilterChange(val)}>
-            <SelectTrigger className="w-[160px] rounded-xl"><SelectValue placeholder="Rolle filtern" /></SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="all">Alle Rollen</SelectItem>
-              <SelectItem value="owner">Inhaber</SelectItem>
-              <SelectItem value="admin">Administrator</SelectItem>
-              <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={(val) => onStatusFilterChange(val)}>
-            <SelectTrigger className="w-[160px] rounded-xl"><SelectValue placeholder="Status filtern" /></SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="all">Alle Status</SelectItem>
-              <SelectItem value="aktiv">Aktiv</SelectItem>
-              <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-6 items-start">
-        {/* Left/Middle Pane: Member tables & Invites */}
-        <div className={cn("flex flex-col gap-6", selectedMemberId ? "w-full md:w-1/2" : "w-full md:w-2/3")}>
-          <OrganisationMembersTable
-            filteredMembers={filteredMembers}
-            hasVerwaltenPermission={hasVerwaltenPermission}
-            isPending={isPending}
-            currentUserId={currentUserId}
-            selectedMemberId={selectedMemberId}
-            onSelectMember={onSelectMember}
-            onRoleChange={onRoleChange}
-            onStatusChange={onStatusChange}
-            onRemove={onRemove}
-          />
-          <OrganisationInvitationsTable
-            invitations={invitations}
-            expiredInvitationIds={expiredInvitationIds}
-            hasVerwaltenPermission={hasVerwaltenPermission}
-            isPending={isPending}
-            onRevoke={onRevoke}
-          />
-          {hasVerwaltenPermission && (
-            <OrganisationInvitePanel
-              inviteEmail={inviteEmail}
-              inviteRole={inviteRole}
-              isInviting={isInviting}
-              onInviteEmailChange={onInviteEmailChange}
-              onInviteRoleChange={onInviteRoleChange}
-              onInvite={onInvite}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      {/* Left Pane: Unified Member List */}
+      <Card className="md:col-span-1 rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden h-[calc(100vh-180px)] flex flex-col md:sticky md:top-24">
+        <div className="p-4 border-b border-zinc-200/50 dark:border-zinc-800/50 flex flex-col gap-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Mitarbeiter</h3>
+            {hasVerwaltenPermission && (
+              <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center gap-1.5 h-8 text-xs font-semibold px-3">
+                    <PlusCircle className="size-3.5" />
+                    <span>Einladen</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent size="sm" className="rounded-[2rem]">
+                  <DialogHeader>
+                    <DialogTitle className="text-lg font-bold">Mitarbeiter einladen</DialogTitle>
+                    <DialogDescription className="text-xs">
+                      Senden Sie eine Einladung per E-Mail, um neue Teammitglieder hinzuzufügen.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleInviteSubmit} className="flex flex-col gap-4 py-2">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="email-input">E-Mail-Adresse</label>
+                      <Input
+                        id="email-input"
+                        type="email"
+                        placeholder="z.B. mitarbeiter@firma.de"
+                        value={inviteEmail}
+                        onChange={(e) => onInviteEmailChange(e.target.value)}
+                        className="rounded-xl border-zinc-200/85 dark:border-zinc-800/85 h-10"
+                        required
+                        disabled={isInviting}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-semibold uppercase text-muted-foreground" htmlFor="role-select">Rolle</label>
+                      <Select
+                        value={inviteRole}
+                        onValueChange={(val) => onInviteRoleChange(val as "admin" | "mitarbeiter")}
+                        disabled={isInviting}
+                      >
+                        <SelectTrigger id="role-select" className="rounded-xl h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+                          <SelectItem value="admin">Administrator</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <DialogFooter className="mt-2">
+                      <Button
+                        type="submit"
+                        className="w-full h-10 rounded-xl bg-primary hover:bg-primary/95 text-white flex items-center justify-center gap-2 font-medium"
+                        disabled={isInviting || !inviteEmail}
+                      >
+                        {isInviting ? (
+                          <><Clock className="size-4 animate-spin" /><span>Wird eingeladen...</span></>
+                        ) : (
+                          <><PlusCircle className="size-4" /><span>Einladung senden</span></>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <SearchInput
+              aria-label="Mitarbeiter durchsuchen"
+              placeholder="Suchen nach Name oder E-Mail..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full h-9 text-xs rounded-xl"
+              wrapperClassName="w-full"
             />
+          </div>
+        </div>
+
+        {/* Scrollable list */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-zinc-50/30 dark:bg-zinc-950/10">
+          {filteredUnifiedMembers.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              Keine Mitglieder gefunden.
+            </div>
+          ) : (
+            filteredUnifiedMembers.map((item) => {
+              const initials = item.name
+                ? item.name.split(" ").map(n => n.charAt(0)).join("").toUpperCase().slice(0, 2)
+                : item.email.charAt(0).toUpperCase();
+
+              const isSelected = selectedMemberId === item.id;
+
+              return (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSelectMember(isSelected ? null : item.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectMember(isSelected ? null : item.id); } }}
+                  className={cn(
+                    "p-3 rounded-2xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-200 border border-transparent",
+                    isSelected
+                      ? "bg-zinc-100 dark:bg-zinc-800/80 border-zinc-200/50 dark:border-zinc-700/50 shadow-xs"
+                      : "hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                  )}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-9 w-9 border border-zinc-200/20 shrink-0">
+                      <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 truncate">
+                        {item.name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate">
+                        {item.email}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Badges on right side */}
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    {/* Role Badge */}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-full font-medium text-[9px] px-2 py-0 hover:bg-transparent tracking-wide capitalize",
+                        item.role === 'owner' ? "bg-amber-500/10 text-amber-700 border-amber-200/60 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-900/40" :
+                        item.role === 'admin' ? "bg-blue-500/10 text-blue-700 border-blue-200/60 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-900/40" :
+                        "bg-zinc-500/10 text-zinc-700 border-zinc-200/60 dark:bg-zinc-500/20 dark:text-zinc-400 dark:border-zinc-800/40"
+                      )}
+                    >
+                      {item.role === 'owner' ? 'Inhaber' : item.role === 'admin' ? 'Admin' : 'Mitarbeiter'}
+                    </Badge>
+
+                    {/* Status Badge */}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-full font-medium text-[9px] px-2 py-0 hover:bg-transparent tracking-wide",
+                        item.status === 'aktiv' ? "bg-emerald-500/10 text-emerald-700 border-emerald-200/60 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-900/40" :
+                        item.status === 'eingeladen' ? "bg-orange-500/10 text-orange-700 border-orange-200/60 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-900/40" :
+                        "bg-red-500/10 text-red-700 border-red-200/60 dark:bg-red-500/20 dark:text-red-400 dark:border-red-900/40"
+                      )}
+                    >
+                      {item.status === 'aktiv' ? 'Aktiv' : item.status === 'eingeladen' ? 'Eingeladen' : 'Deaktiviert'}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
+      </Card>
 
-        {/* Right Pane: Permission Configuration */}
-        <div className={cn("w-full", selectedMemberId ? "md:w-1/2" : "md:w-1/3")}>
-          {selectedMember ? (
+      {/* Right Pane: Detail Panel */}
+      <div className="md:col-span-2 h-[calc(100vh-180px)] overflow-y-auto pr-1 md:sticky md:top-24 scrollbar-thin">
+        {selectedItem ? (
+          selectedItem.type === 'member' ? (
             <MitgliedPermissionDetail
-              mitgliedId={selectedMember.mitglied_id}
-              rolle={selectedMember.rolle}
-              status={selectedMember.status}
-              memberName={
-                selectedMember.first_name || selectedMember.last_name
-                  ? `${selectedMember.first_name || ""} ${selectedMember.last_name || ""}`.trim()
-                  : selectedMember.email
-              }
+              mitgliedId={selectedItem.id}
+              rolle={selectedItem.role}
+              status={selectedItem.status}
+              memberName={selectedItem.name}
+              email={selectedItem.email}
+              hasVerwaltenPermission={hasVerwaltenPermission}
+              currentUserId={currentUserId}
+              selectedMemberUserId={selectedItem.member.user_id}
+              onRoleChange={onRoleChange}
+              onStatusChange={onStatusChange}
+              onRemove={onRemove}
+              isPending={isPending}
             />
           ) : (
-            <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs p-6 text-center text-zinc-500">
-              <p className="text-sm">Klicken Sie auf ein Mitglied in der Tabelle, um dessen detaillierte Objekt- und Modulberechtigungen anzuzeigen und zu bearbeiten.</p>
-            </Card>
-          )}
-        </div>
+            /* Invitation Detail Panel */
+            <div className="flex flex-col gap-6 h-full">
+              {/* Header */}
+              <div className="flex flex-col gap-3 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <h2 className="text-2xl font-bold tracking-tight text-zinc-800 dark:text-zinc-200 truncate">
+                    {selectedItem.email}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="rounded-full font-medium text-[11px] px-2.5 py-0.5 bg-zinc-500/10 text-zinc-700 border-zinc-200 dark:bg-zinc-500/20 dark:text-zinc-400 dark:border-zinc-800">
+                      {selectedItem.role === 'admin' ? 'Admin' : 'Mitarbeiter'}
+                    </Badge>
+                    <Badge variant="outline" className={cn("rounded-full font-medium text-[11px] px-2.5 py-0.5", 
+                      selectedItem.isExpiredInvitation 
+                        ? "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800"
+                        : "bg-orange-500/10 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-800"
+                    )}>
+                      {selectedItem.isExpiredInvitation ? 'Einladung abgelaufen' : 'Eingeladen'}
+                    </Badge>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground" suppressHydrationWarning>
+                  Eingeladen am {new Date(selectedItem.invitation.erstellt_am).toLocaleDateString("de-DE")} · Ablaufdatum: {new Date(selectedItem.invitation.expires_at).toLocaleDateString("de-DE")}
+                </p>
+              </div>
+
+              {/* Centered Message Card */}
+              <div className="flex flex-col items-center justify-center p-12 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2rem] bg-zinc-50/50 dark:bg-zinc-900/30 text-center gap-4 min-h-[250px]">
+                <div className="bg-orange-500/10 text-orange-500 p-4 rounded-full">
+                  <Mail className="size-8 animate-pulse" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Einladung ausstehend</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+                    Dieser Benutzer wurde per E-Mail eingeladen. Detaillierte Berechtigungen und Overrides können angepasst werden, sobald er die Einladung angenommen hat.
+                  </p>
+                </div>
+              </div>
+
+              {/* Revoke Invitation card */}
+              {hasVerwaltenPermission && (
+                <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Einladung verwalten</CardTitle>
+                    <CardDescription className="text-xs">
+                      Sie können diese ausstehende Einladung widerrufen. Der eingeladene Benutzer kann der Organisation dann nicht mehr beitreten.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Button
+                      variant="destructive"
+                      className="rounded-xl h-10 font-semibold px-4 flex items-center gap-2"
+                      onClick={() => onRevoke(selectedItem.id, selectedItem.email)}
+                      disabled={isPending}
+                    >
+                      <X className="size-4" />
+                      <span>Einladung widerrufen</span>
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )
+        ) : (
+          /* Empty state */
+          <Card className="rounded-[2rem] border border-dashed border-zinc-200 dark:border-zinc-800 shadow-xs p-12 text-center text-zinc-500 h-full flex flex-col items-center justify-center gap-4">
+            <div className="bg-zinc-100 dark:bg-zinc-900 p-4 rounded-full text-zinc-400 dark:text-zinc-600">
+              <Users className="size-10" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-lg text-zinc-800 dark:text-zinc-200">Kein Mitglied ausgewählt</h3>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                Wählen Sie ein Mitglied oder eine Einladung aus der Liste aus, um Berechtigungen anzuzeigen oder Einstellungen zu verwalten.
+              </p>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
 }
-// End of extracted sub-components
-
 function useOrganisationActions({
   uiState,
   dispatch,
@@ -673,14 +637,14 @@ function useOrganisationActions({
   toast: showToast
 }: {
   uiState: UiState;
-  dispatch: React.Dispatch<UiAction>;
-  setMembers: React.Dispatch<React.SetStateAction<Member[]>>;
-  setInvitations: React.Dispatch<React.SetStateAction<Invitation[]>>;
+  dispatch: Dispatch<UiAction>;
+  setMembers: Dispatch<SetStateAction<OrganisationMember[]>>;
+  setInvitations: Dispatch<SetStateAction<OrganisationInvitation[]>>;
   startInviteTransition: (callback: () => void) => void;
   startActionTransition: (callback: () => void) => void;
   toast: typeof toast;
 }) {
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = (e: FormEvent) => {
     e.preventDefault();
     if (!uiState.inviteEmail) return;
 
@@ -763,7 +727,7 @@ function useOrganisationActions({
           } geändert.`,
           variant: "success"
         });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as Member['rolle'] } : m));
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, rolle: newRole as OrganisationMember['rolle'] } : m));
       } else {
         showToast({ title: "Fehler beim Ändern der Rolle", description: res.error?.message || "Die Rolle konnte nicht geändert werden.", variant: "destructive" });
       }
@@ -792,7 +756,7 @@ function useOrganisationActions({
           } geändert.`,
           variant: "success"
         });
-        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as Member['status'] } : m));
+        setMembers(prev => prev.map(m => m.mitglied_id === memberId ? { ...m, status: newStatus as OrganisationMember['status'] } : m));
       } else {
         showToast({ title: "Fehler beim Ändern des Status", description: res.error?.message || "Der Status konnte nicht geändert werden.", variant: "destructive" });
       }
@@ -839,18 +803,21 @@ function useOrganisationActions({
 export default function OrganisationClientView({
   initialMembers,
   initialInvitations,
+  initialPolicies,
+  initialHaeuser,
   currentUser,
   canManage = false,
   rpcError = null
 }: OrganisationClientViewProps) {
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
-  const [members, setMembers] = useState<Member[]>(initialMembers);
-  const [invitations, setInvitations] = useState<Invitation[]>(initialInvitations);
+  const [members, setMembers] = useState<OrganisationMember[]>(initialMembers);
+  const [invitations, setInvitations] = useState<OrganisationInvitation[]>(initialInvitations);
+  // Pass initial props directly — stable references from server component
+  const expiryThreshold = useRef(Date.now());
   const expiredInvitationIds = useMemo(() => {
-    const now = new Date();
     const expired = new Set<string>();
     invitations.forEach(invite => {
-      if (new Date(invite.expires_at) < now) {
+      if (new Date(invite.expires_at).getTime() < expiryThreshold.current) {
         expired.add(invite.id);
       }
     });
@@ -916,31 +883,10 @@ export default function OrganisationClientView({
     return { active, admins, pendingInvites, ownerName };
   }, [members, invitations]);
 
-  // Filtered members list
-  const filteredMembers = useMemo(() => {
-    return members.filter(m => {
-      const name = `${m.first_name || ""} ${m.last_name || ""}`.toLowerCase();
-      const email = m.email.toLowerCase();
-      const query = uiState.searchQuery.toLowerCase();
-
-      const matchesSearch = name.includes(query) || email.includes(query);
-      const matchesRole = uiState.roleFilter === "all" || m.rolle === uiState.roleFilter;
-      const matchesStatus = uiState.statusFilter === "all" || m.status === uiState.statusFilter;
-
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [members, uiState.searchQuery, uiState.roleFilter, uiState.statusFilter]);
-
   return (
     <LazyMotion features={domAnimation}>
       <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* Page Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Organisation</h1>
-        <p className="text-muted-foreground">
-          Verwalten Sie Ihre Organisation, Rollen und Berechtigungen der Mitarbeiter.
-        </p>
-      </div>
+
 
       {/* Inline RPC error banner */}
       {rpcError && (
@@ -953,10 +899,11 @@ export default function OrganisationClientView({
         </div>
       )}
 
-      <OrganisationTabToggle
-        currentTab={uiState.currentTab}
-        onTabChange={(tab) => dispatch({ type: 'SET_TAB', payload: tab })}
+      <AnimatedPillToggle
         tabs={orgTabs}
+        activeTab={uiState.currentTab}
+        onTabChange={(tab) => dispatch({ type: 'SET_TAB', payload: tab })}
+        layoutId="active-org-tab-pill"
       />
 
       {uiState.currentTab === "overview" && <OrganisationOverviewTab stats={stats} />}
@@ -964,11 +911,8 @@ export default function OrganisationClientView({
       {uiState.currentTab === "members" && (
         <OrganisationMembersTab
           searchQuery={uiState.searchQuery}
-          roleFilter={uiState.roleFilter}
-          statusFilter={uiState.statusFilter}
           inviteEmail={uiState.inviteEmail}
           inviteRole={uiState.inviteRole}
-          filteredMembers={filteredMembers}
           members={members}
           invitations={invitations}
           expiredInvitationIds={expiredInvitationIds}
@@ -979,8 +923,6 @@ export default function OrganisationClientView({
           selectedMemberId={uiState.selectedMemberId}
           onSelectMember={(id) => dispatch({ type: 'SET_SELECTED_MEMBER', payload: id })}
           onSearchChange={(val) => dispatch({ type: 'SET_SEARCH_QUERY', payload: val })}
-          onRoleFilterChange={(val) => dispatch({ type: 'SET_ROLE_FILTER', payload: val })}
-          onStatusFilterChange={(val) => dispatch({ type: 'SET_STATUS_FILTER', payload: val })}
           onInviteEmailChange={(val) => dispatch({ type: 'SET_INVITE_EMAIL', payload: val })}
           onInviteRoleChange={(val) => dispatch({ type: 'SET_INVITE_ROLE', payload: val })}
           onInvite={handleInvite}
@@ -994,6 +936,8 @@ export default function OrganisationClientView({
       {uiState.currentTab === "policies" && (
         <OrganisationPoliciesTab
           hasVerwaltenPermission={hasVerwaltenPermission}
+          initialPolicies={initialPolicies}
+          initialHaeuser={initialHaeuser}
         />
       )}
 

@@ -8,20 +8,55 @@ import { ObjectScopeEditor } from "./object-scope-editor";
 import { ModulePermissionEditor } from "./module-permission-editor";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShieldAlert, Lock, CheckCircle, RefreshCw, Save } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Lock,
+  Plus,
+  Minus,
+  Pencil,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { MemberPermissionsSkeleton } from "./organisation-loading-skeletons";
+import { getModuleIcon, getPermissionIcon, getModuleLabel, getActionLabel, ChangeSummary } from "@/lib/organisation/permission-utils";
 
 interface Props {
   mitgliedId: string;
   rolle: "owner" | "admin" | "mitarbeiter";
   status: "eingeladen" | "aktiv" | "deaktiviert";
   memberName: string;
+  email?: string;
+  hasVerwaltenPermission?: boolean;
+  currentUserId?: string;
+  selectedMemberUserId?: string;
+  onRoleChange?: (memberId: string, name: string, newRole: string) => void;
+  onStatusChange?: (memberId: string, name: string, newStatus: string) => void;
+  onRemove?: (memberId: string, name: string) => void;
+  isPending?: boolean;
 }
 
-export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName }: Props) {
+export function MitgliedPermissionDetail({
+  mitgliedId,
+  rolle,
+  status,
+  memberName,
+  email,
+  hasVerwaltenPermission = false,
+  currentUserId,
+  selectedMemberUserId,
+  onRoleChange,
+  onStatusChange,
+  onRemove,
+  isPending = false,
+}: Props) {
   const [permissions, setPermissions] = useState<MemberPermissions | null>(null);
   const [originalPermissions, setOriginalPermissions] = useState<MemberPermissions | null>(null);
   const permissionsRef = useRef(permissions);
@@ -32,10 +67,14 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
   const [saving, startSavingTransition] = useTransition();
 
   const isLocked = rolle === "owner" || rolle === "admin";
+  const isCurrentUser = selectedMemberUserId === currentUserId;
+  const isOwner = rolle === "owner";
 
   useEffect(() => {
+    if (isLocked) return;
+    let cancelled = false;
+
     const fetchPermissionsAndPolicies = async () => {
-      if (isLocked) return;
       setLoading(true);
       try {
         const [perms, houses, orgPolicies, memberPolicyIds] = await Promise.all([
@@ -44,12 +83,14 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
           getPoliciesAction(),
           getMitgliedPoliciesAction(mitgliedId),
         ]);
+        if (cancelled) return;
         const withPolicies = { ...perms, policy_ids: memberPolicyIds };
         setPermissions(withPolicies);
         setOriginalPermissions(structuredClone(withPolicies));
         setHaeuser(houses);
         setPolicies(orgPolicies);
       } catch (error) {
+        if (cancelled) return;
         console.error("Failed to load permissions and policies:", error);
         toast({
           title: "Fehler beim Laden",
@@ -57,11 +98,15 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchPermissionsAndPolicies();
+
+    return () => {
+      cancelled = true;
+    };
   }, [mitgliedId, isLocked]);
 
   useEffect(() => {
@@ -72,7 +117,7 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
   }, [originalPermissions]);
 
   // Compute stats for overview pane
-  const statsSummary = React.useMemo(() => {
+  const statsSummary = useMemo(() => {
     if (!permissions) return null;
     const isUnrestricted = permissions.objekte?.haeuser === null;
     
@@ -227,38 +272,204 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
     });
   };
 
+  const changesDiff = useMemo<ChangeSummary[]>(() => {
+    if (!permissions || !originalPermissions) return [];
+    let changeIdCounter = 0;
+    const nextId = () => `change-${changeIdCounter++}`;
+    const list: ChangeSummary[] = [];
+
+    // 1. Policies assigned
+    const prevPolicies = originalPermissions.policy_ids || [];
+    const nextPolicies = permissions.policy_ids || [];
+    
+    // Added policies
+    nextPolicies.forEach(id => {
+      if (!prevPolicies.includes(id)) {
+        const policyName = policies.find(p => p.id === id)?.name || id;
+        list.push({
+          id: nextId(),
+          description: (
+            <>
+              Richtlinie <strong>"{policyName}"</strong> zugewiesen
+            </>
+          ),
+          type: "add"
+        });
+      }
+    });
+    // Removed policies
+    prevPolicies.forEach(id => {
+      if (!nextPolicies.includes(id)) {
+        const policyName = policies.find(p => p.id === id)?.name || id;
+        list.push({
+          id: nextId(),
+          description: (
+            <>
+              Richtlinie <strong>"{policyName}"</strong> entzogen
+            </>
+          ),
+          type: "remove"
+        });
+      }
+    });
+
+    // 2. House Access
+    const prevHouses = originalPermissions.objekte?.haeuser || [];
+    const nextHouses = permissions.objekte?.haeuser || [];
+
+    const prevIsUnrestricted = originalPermissions.objekte?.haeuser === null;
+    const nextIsUnrestricted = permissions.objekte?.haeuser === null;
+
+    if (prevIsUnrestricted !== nextIsUnrestricted) {
+      list.push({
+        id: nextId(),
+        description: nextIsUnrestricted ? (
+          <>
+            Häuser-Zugriff auf <strong>"Alle Häuser (Unbeschränkt)"</strong> geändert
+          </>
+        ) : (
+          <>
+            Häuser-Zugriff auf <strong>"Eingeschränkte Häuser"</strong> geändert
+          </>
+        ),
+        type: "modify"
+      });
+    } else if (!prevIsUnrestricted && !nextIsUnrestricted) {
+      // Added houses
+      nextHouses.forEach(id => {
+        if (!prevHouses.includes(id)) {
+          const houseName = haeuser.find(h => h.id === id)?.name || id;
+          list.push({
+            id: nextId(),
+            description: (
+              <>
+                Zugriff auf Haus <strong>"{houseName}"</strong> erteilt
+              </>
+            ),
+            type: "add"
+          });
+        }
+      });
+      // Removed houses
+      prevHouses.forEach(id => {
+        if (!nextHouses.includes(id)) {
+          const houseName = haeuser.find(h => h.id === id)?.name || id;
+          list.push({
+            id: nextId(),
+            description: (
+              <>
+                Zugriff auf Haus <strong>"{houseName}"</strong> entzogen
+              </>
+            ),
+            type: "remove"
+          });
+        }
+      });
+    }
+
+    // 3. Module Permissions
+    const prevModules = originalPermissions.module || {};
+    const nextModules = permissions.module || {};
+
+    const allModuleKeys = Array.from(new Set([
+      ...Object.keys(prevModules),
+      ...Object.keys(nextModules)
+    ]));
+
+    allModuleKeys.forEach(modKey => {
+      const prevActions = prevModules[modKey] || [];
+      const nextActions = nextModules[modKey] || [];
+
+      const added = nextActions.filter(a => !prevActions.includes(a));
+      const removed = prevActions.filter(a => !nextActions.includes(a));
+
+      const modLabel = getModuleLabel(modKey);
+
+      if (added.length > 0) {
+        list.push({
+          id: nextId(),
+          description: (
+            <>
+              Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> erteilt:{" "}
+              {added.map((a, idx) => (
+                <span key={a} className="inline-flex items-center gap-0.5 text-zinc-800 dark:text-zinc-200 font-semibold">
+                  {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 font-normal">,</span>}
+                  {getPermissionIcon(a)}
+                  <span>{getActionLabel(a)}</span>
+                </span>
+              ))}
+            </>
+          ),
+          type: "add"
+        });
+      }
+      if (removed.length > 0) {
+        list.push({
+          id: nextId(),
+          description: (
+            <>
+              Berechtigung im Modul {getModuleIcon(modKey)} <strong>"{modLabel}"</strong> entzogen:{" "}
+              {removed.map((a, idx) => (
+                <span key={a} className="inline-flex items-center gap-0.5 text-zinc-500 line-through">
+                  {idx > 0 && <span className="text-zinc-400 dark:text-zinc-600 mr-1 no-underline">,</span>}
+                  {getPermissionIcon(a)}
+                  <span>{getActionLabel(a)}</span>
+                </span>
+              ))}
+            </>
+          ),
+          type: "remove"
+        });
+      }
+    });
+
+    return list;
+  }, [permissions, originalPermissions, policies, haeuser]);
+
+  const headerContent = (
+    <div className="flex flex-col gap-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex flex-col gap-0.5 w-full">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-800 dark:text-zinc-200">
+              {memberName}
+            </h2>
+            {isCurrentUser && (
+              <span className="text-[10px] text-zinc-400 font-normal border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-full shrink-0">
+                Du
+              </span>
+            )}
+          </div>
+          {email && <span className="text-xs text-muted-foreground">{email}</span>}
+        </div>
+      </div>
+    </div>
+  );
+
   if (isLocked) {
     return (
       <div className="flex flex-col gap-6">
-        <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Lock className="size-5 text-indigo-500" />
-              Rollenbasierte Berechtigungen
-            </CardTitle>
-            <CardDescription>
-              Für diese Rolle sind Berechtigungen fest definiert.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 pt-0">
-            <Alert className="rounded-2xl bg-indigo-500/10 border-indigo-500/20 text-indigo-700 dark:text-indigo-400 [&>svg]:text-indigo-500">
-              <ShieldAlert className="size-4" />
-              <AlertTitle className="font-semibold">{rolle === "owner" ? "Eigentümer" : "Administrator"}</AlertTitle>
-              <AlertDescription className="text-xs mt-1">
-                {rolle === "owner" ? "Der Eigentümer" : "Administratoren"} der Organisation {rolle === "owner" ? "hat" : "haben"} vollumfänglichen Zugriff auf alle Objekte, Module und Einstellungen und {rolle === "owner" ? "kann" : "können"} nicht eingeschränkt werden.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
+        {headerContent}
+        <div className="flex flex-col items-center justify-center p-12 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2rem] bg-zinc-50/50 dark:bg-zinc-900/30 text-center gap-4 min-h-[300px]">
+          <div className="bg-indigo-500/10 text-indigo-500 p-4 rounded-full">
+            <Lock className="size-8" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Rollenbasierter Vollzugriff</h3>
+            <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+              Inhaber und Administratoren haben stets vollen Zugriff und können nicht eingeschränkt werden.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2rem] min-h-[300px] gap-3">
-        <RefreshCw className="size-6 animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Berechtigungen werden geladen...</span>
+      <div className="flex flex-col gap-6">
+        {headerContent}
+        <MemberPermissionsSkeleton />
       </div>
     );
   }
@@ -272,161 +483,232 @@ export function MitgliedPermissionDetail({ mitgliedId, rolle, status, memberName
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Top Save / Discard bar if dirty */}
-      {isDirty && (
-        <div className="flex items-center justify-between p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-              Ungespeicherte Änderungen an den Berechtigungen von {memberName}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={handleReset}
-              disabled={saving}
-              className="text-xs h-8 rounded-lg"
-            >
-              Verwerfen
-            </Button>
-            <Button
-              size="xs"
-              onClick={handleSave}
-              disabled={saving}
-              className="text-xs h-8 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium flex items-center gap-1.5"
-            >
-              {saving ? (
-                <>
-                  <RefreshCw className="size-3 animate-spin" />
-                  <span>Speichert...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="size-3" />
-                  <span>Speichern</span>
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
+    <div className="space-y-6">
+      {headerContent}
 
-      {/* Permissions Stats Summary Bar */}
-      {statsSummary && (
-        <div className="grid grid-cols-3 gap-4 p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Objekt-Scope</span>
-            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-              {statsSummary.isUnrestricted
-                ? "Unbeschränkt"
-                : `${statsSummary.housesCount} Haus / ${statsSummary.apartmentsCount} Wohn.`}
-            </span>
-          </div>
-          <div className="flex flex-col gap-0.5 border-x border-zinc-200/80 dark:border-zinc-800/80 px-4">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Module</span>
-            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-              {statsSummary.activeModules} von 10 aktiv
-            </span>
-          </div>
-          <div className="flex flex-col gap-0.5 pl-4">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
-            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1">
-              <CheckCircle className="size-3.5 text-emerald-500" />
-              Konfiguriert
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Zugeordnete Richtlinien */}
-      <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Zugeordnete Richtlinien</CardTitle>
-          <CardDescription className="text-xs">
-            Weisen Sie diesem Mitarbeiter Richtlinien zu. Die Berechtigungen der Richtlinien werden addiert.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {policies.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Keine Richtlinien in der Organisation vorhanden.</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {policies.map(policy => {
-                const isChecked = permissions.policy_ids?.includes(policy.id);
-                return (
-                  <div
-                    key={policy.id}
-                    className={cn(
-                      "p-3 border rounded-2xl flex items-center gap-3 transition-all",
-                      isChecked
-                        ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900"
-                        : "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800"
-                    )}
-                  >
-                    <Checkbox
-                      id={`policy-assign-${policy.id}`}
-                      checked={isChecked}
-                      onCheckedChange={(checked) => {
-                        setPermissions(prev => ({
-                          ...prev!,
-                          policy_ids: checked
-                            ? [...prev!.policy_ids, policy.id]
-                            : prev!.policy_ids.filter(id => id !== policy.id),
-                        }));
-                      }}
-                      disabled={saving}
-                    />
-                    <label
-                      htmlFor={`policy-assign-${policy.id}`}
-                      className="text-sm font-semibold select-none flex-1 cursor-pointer text-zinc-800 dark:text-zinc-200"
+        {/* Zugeordnete Richtlinien */}
+        <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Zugeordnete Richtlinien</CardTitle>
+            <CardDescription className="text-xs">
+              Weisen Sie diesem Mitarbeiter Richtlinien zu. Die Berechtigungen der Richtlinien werden addiert.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {policies.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Keine Richtlinien in der Organisation vorhanden.</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {policies.map(policy => {
+                  const isChecked = permissions.policy_ids?.includes(policy.id);
+                  return (
+                    <div
+                      key={policy.id}
+                      className={cn(
+                        "p-3 border rounded-2xl flex items-center gap-3 transition-all",
+                        isChecked
+                          ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900"
+                          : "bg-zinc-50/50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800"
+                      )}
                     >
-                      {policy.name}
-                    </label>
-                  </div>
-                );
-              })}
+                      <Checkbox
+                        id={`policy-assign-${policy.id}`}
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          setPermissions(prev => ({
+                            ...prev!,
+                            policy_ids: checked
+                              ? [...prev!.policy_ids, policy.id]
+                              : prev!.policy_ids.filter(id => id !== policy.id),
+                          }));
+                        }}
+                        disabled={saving}
+                      />
+                      <label
+                        htmlFor={`policy-assign-${policy.id}`}
+                        className="text-sm font-semibold select-none flex-1 cursor-pointer text-zinc-800 dark:text-zinc-200"
+                      >
+                        {policy.name}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Section 1: Object-Scope Editor (House Access) */}
+        <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Hauszugriff</CardTitle>
+            <CardDescription className="text-xs">
+              Legen Sie fest, auf welche Häuser und Wohnungen dieser Mitarbeiter über die Richtlinien hinaus Zugriff erhalten soll.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ObjectScopeEditor
+              haeuser={haeuser}
+              selectedHausIds={permissions.objekte?.haeuser}
+              policyGrantedHausIds={policyGrantedHausIds}
+              onChange={handleObjectScopeChange}
+              disabled={saving}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Section 2: Module & Action Permissions (Matrix Editor) */}
+        <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Modulrechte</CardTitle>
+            <CardDescription className="text-xs">
+              Legen Sie fest, welche Aktionen in den jeweiligen Modulen ausgeführt werden dürfen.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 sm:px-6 sm:pb-6">
+            <ModulePermissionEditor
+              modulePermissions={permissions.module || {}}
+              policyGrantedModulePermissions={policyGrantedModulePermissions}
+              onChange={handleModulePermissionsChange}
+              disabled={saving}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Section 3: Save / Discard Bar (Application Card style) */}
+        {isDirty && (
+          <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Ungespeicherte Änderungen</CardTitle>
+              <CardDescription className="text-xs">
+                Folgende Änderungen werden auf dieses Mitglied angewendet:
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="flex flex-col gap-2.5">
+                {changesDiff.map(change => {
+                  return (
+                    <div key={change.id} className="flex items-start gap-2.5 text-xs py-0.5">
+                      <span className={cn(
+                        "flex items-center justify-center size-5 rounded-full shrink-0 border mt-0.5",
+                        change.type === "add" ? "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-800" :
+                        change.type === "remove" ? "bg-red-500/10 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-800" :
+                        "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800"
+                      )}>
+                        {change.type === "add" && <Plus className="size-3 stroke-[2.5]" />}
+                        {change.type === "remove" && <Minus className="size-3 stroke-[2.5]" />}
+                        {change.type === "modify" && <Pencil className="size-2.5 stroke-[2.5]" />}
+                      </span>
+                      <span className="text-zinc-600 dark:text-zinc-400 font-medium leading-6">
+                        {change.description}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+            <div className="p-6 pt-4 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="text-xs text-muted-foreground">
+                Möchten Sie diese Änderungen jetzt speichern?
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={saving}
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 cursor-pointer bg-transparent border-0"
+                >
+                  Verwerfen
+                </button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="text-xs h-9 px-5 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all border-0"
+                >
+                  {saving ? "Wird gespeichert..." : "Änderungen speichern"}
+                </Button>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </Card>
+        )}
 
-      {/* Accordion or Tabs for editors */}
-      <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Objekt-Scope (Zugriffsbeschränkung Overrides)</CardTitle>
-          <CardDescription className="text-xs">
-            Legen Sie fest, auf welche Häuser und Wohnungen dieser Mitarbeiter über die Richtlinien hinaus Zugriff erhalten soll.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <ObjectScopeEditor
-            haeuser={haeuser}
-            selectedHausIds={permissions.objekte?.haeuser}
-            policyGrantedHausIds={policyGrantedHausIds}
-            onChange={handleObjectScopeChange}
-            disabled={saving}
-          />
-        </CardContent>
-      </Card>
+        {/* Section 2.5: Danger Zone (only if manageable) */}
+        {hasVerwaltenPermission && !isOwner && !isCurrentUser && (
+          <Card className="rounded-[2rem] border border-red-200/50 dark:border-red-900/30 shadow-xs bg-red-500/[0.01] dark:bg-red-500/[0.02]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-red-600 dark:text-red-400">Gefahrenbereich</CardTitle>
+              <CardDescription className="text-xs">
+                Verwalten Sie die Rolle, den Status oder entfernen Sie das Mitglied dauerhaft aus der Organisation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-0 pt-0 pb-3">
+              {/* Role Setting Row */}
+              {onRoleChange && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitgliedsrolle</span>
+                    <span className="text-xs text-muted-foreground">Bestimmt die Berechtigungsstufe des Mitarbeiters.</span>
+                  </div>
+                  <Select
+                    value={rolle}
+                    onValueChange={(val) => onRoleChange(mitgliedId, memberName, val)}
+                    disabled={isPending}
+                  >
+                    <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="admin">Administrator</SelectItem>
+                      <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-      <Card className="rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Modul- und Aktionsberechtigungen</CardTitle>
-          <CardDescription className="text-xs">
-            Legen Sie fest, welche Aktionen in den jeweiligen Modulen ausgeführt werden dürfen.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0 sm:px-6 sm:pb-6">
-          <ModulePermissionEditor
-            modulePermissions={permissions.module || {}}
-            policyGrantedModulePermissions={policyGrantedModulePermissions}
-            onChange={handleModulePermissionsChange}
-            disabled={saving}
-          />
-        </CardContent>
-      </Card>
+              {/* Status Setting Row */}
+              {onStatusChange && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-zinc-200/50 dark:border-zinc-800/30">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Kontostatus</span>
+                    <span className="text-xs text-muted-foreground">Aktivieren oder deaktivieren Sie den Zugriff des Mitarbeiters.</span>
+                  </div>
+                  <Select
+                    value={status}
+                    onValueChange={(val) => onStatusChange(mitgliedId, memberName, val)}
+                    disabled={isPending}
+                  >
+                    <SelectTrigger className="w-[140px] h-9 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="aktiv">Aktiv</SelectItem>
+                      <SelectItem value="deaktiviert">Deaktiviert</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Remove Member Row */}
+              {onRemove && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Mitglied entfernen</span>
+                    <span className="text-xs text-muted-foreground">Entzieht dauerhaft alle Berechtigungen und den Zugriff.</span>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => onRemove(mitgliedId, memberName)}
+                    disabled={isPending}
+                    className="rounded-xl font-semibold h-9 px-4 shrink-0"
+                  >
+                    Mitglied löschen
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }
