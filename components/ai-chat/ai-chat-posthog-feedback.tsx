@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Copy, Check, RotateCcw, ThumbsUp, ThumbsDown, X } from "lucide-react";
 import {
@@ -32,6 +32,12 @@ export function PostHogFeedback({
   const [feedbackText, setFeedbackText] = useState('');
   const [sending, setSending] = useState(false);
   const [pendingRating, setPendingRating] = useState<'up' | 'down' | null>(null);
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => clearTimeout(timerRef.current);
+  }, []);
 
   if (!traceId) return null;
 
@@ -66,9 +72,10 @@ export function PostHogFeedback({
 
   const handleCopy = () => {
     if (!content) return;
-    navigator.clipboard.writeText(content);
+    navigator.clipboard.writeText(content).catch(() => {});
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 2000);
   }
 
   const openDialog = (rating: 'up' | 'down') => {

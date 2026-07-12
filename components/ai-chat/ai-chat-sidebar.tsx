@@ -25,6 +25,8 @@ export function AIChatSidebar() {
   const { isOpen, displayMode, toggleDisplayMode, toggleOpen, enabledToolIds, toggleTool } = useAIChatStore();
   
   const [messages, setMessages] = useState<Message[]>([]);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
@@ -176,7 +178,7 @@ export function AIChatSidebar() {
 
     try {
       // Exclude the last message from history — it's the current user input sent separately as message/attachment
-      const currentHistory = historyOverride || messages.slice(0, -1);
+      const currentHistory = historyOverride || messagesRef.current.slice(0, -1);
       // Truncate history to last 20 turns and remove attachment data from old messages
       const recentHistory = currentHistory.slice(-40);
       const history = recentHistory.map((m, i) => {

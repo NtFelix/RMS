@@ -46,10 +46,7 @@ Total Units: ${sanitize(String(house.anzahl_wohnungen ?? 'Unknown'))}`);
         if (!error && tenant) {
           contextParts.push(`Active Tenant Data:
 Name: ${sanitize(tenant.vorname)} ${sanitize(tenant.nachname)}
-Email: ${sanitize(tenant.email || 'N/A')}
-Phone: ${sanitize(tenant.telefon || 'N/A')}
-Rent: ${sanitize(String(tenant.miete ?? 0))}
-Deposit Status: ${sanitize(tenant.kaution_status || 'N/A')}
+Status: ${sanitize(tenant.status || 'N/A')}
 Apartment: ${sanitize(tenant.wohnungen?.name || 'N/A')} in House: ${sanitize(tenant.wohnungen?.haeuser?.name || 'N/A')}`);
         }
       });

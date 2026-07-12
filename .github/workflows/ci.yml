@@ -2202,8 +2202,5 @@ jobs:
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
             RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
-<<<<<<< HEAD
             POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
-=======
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
->>>>>>> 1f074566 (fix: add GEMINI_API_KEY to Dockerfile runner stage and Cloud Run env_vars)

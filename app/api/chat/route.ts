@@ -1,14 +1,20 @@
+import type { FunctionDeclaration, FunctionCall, Content, Chat } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@/utils/supabase/server";
 import { getAIContextForPathname } from "@/utils/ai-context";
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { v4 as uuidv4 } from 'uuid';
+import type { StreamEvent } from '@/components/ai-chat/ai-chat-types';
 
 const clampLimit = (val: unknown): number =>
   Math.min(Math.max(Number(val) || 10, 1), 100);
 
-// Simple in-memory rate limiter: 30 requests per 60s sliding window per user
+/* Rate limiter — best-effort per-instance sliding window.
+   30 requests per 60s per user. In multi-instance Cloud Run deployments
+   each instance has its own counter; this is not a hard global limit.
+   For strict global rate limiting, replace with Redis or a database-backed
+   solution. */
 const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -25,15 +31,7 @@ function checkRateLimit(userId: string): boolean {
   return true;
 }
 
-// Periodic cleanup to prevent memory leak
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of rateLimitStore) {
-    if (now - val.windowStart > RATE_LIMIT_WINDOW_MS) rateLimitStore.delete(key);
-  }
-}, RATE_LIMIT_WINDOW_MS);
-
-const allFunctionDeclarations = [
+const allFunctionDeclarations: FunctionDeclaration[] = [
     {
       name: "get_houses",
       description: "Get a list of all houses (properties/Häuser) managed by the user.",
@@ -149,6 +147,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Sanitize history — only allow user/model roles to prevent prompt injection
+    const ALLOWED_HISTORY_ROLES = new Set(['user', 'model']);
+    const sanitizedHistory: Content[] = (history as Content[]).filter(
+      (m) => typeof m.role === 'string' && ALLOWED_HISTORY_ROLES.has(m.role)
+    );
+
     // 3. Resolve org_id — try cookie first, then fall back to current_organisation_id RPC
     let orgId = req.cookies.get('current_organisation_id')?.value;
     if (!orgId || orgId === 'unknown') {
@@ -180,11 +184,11 @@ Always be concise, helpful, and professional. Respond in the user's language.
 
 Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
-    const filteredFunctions = allFunctionDeclarations.filter(f => 
-      !enabledToolIds || (Array.isArray(enabledToolIds) && enabledToolIds.includes(f.name))
+    const filteredFunctions = allFunctionDeclarations.filter((f): f is FunctionDeclaration & { name: string } => 
+      !!f.name && (!enabledToolIds || (Array.isArray(enabledToolIds) && enabledToolIds.includes(f.name)))
     );
 
-    const tools: object[] = filteredFunctions.length > 0 
+    const tools = filteredFunctions.length > 0 
       ? [{ functionDeclarations: filteredFunctions }] 
       : [];
 
@@ -196,18 +200,18 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
         systemInstruction,
         tools,
       },
-      history: [...contextMessage, ...history],
+      history: [...contextMessage, ...sanitizedHistory],
     });
 
     const executeTurn = async (
-      chatInstance: ReturnType<GoogleGenAI['chats']['create']>,
-      sendFn: (data: Record<string, unknown>) => void,
+      chatInstance: Chat,
+      sendFn: (data: StreamEvent) => void,
       addUsageFn: (res: { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }) => void,
       parts: ({ text: string } | { inlineData: { data: string; mimeType: string } } | { functionResponse: { name: string; id?: string; response: Record<string, unknown> } })[]
     ) => {
       const result = await chatInstance.sendMessageStream({ message: parts });
       let fullText = "";
-      let functionCalls: { name: string; args?: Record<string, unknown>; id?: string }[] = [];
+      let functionCalls: FunctionCall[] = [];
       let finalUsage: { promptTokenCount?: number; candidatesTokenCount?: number } | undefined;
       
       for await (const chunk of result) {
@@ -217,7 +221,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
           sendFn({ type: "content", content: text });
         }
         if (chunk.functionCalls) {
-          functionCalls = chunk.functionCalls.filter((fc): fc is { name: string; args?: Record<string, unknown>; id?: string } => !!fc.name);
+          functionCalls = chunk.functionCalls.filter((fc): fc is FunctionCall & { name: string } => !!fc.name);
         }
         if (chunk.usageMetadata) {
           finalUsage = chunk.usageMetadata as { promptTokenCount?: number; candidatesTokenCount?: number };
@@ -235,7 +239,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
     const stream = new ReadableStream({
       async start(controller) {
         let streamClosed = false;
-        const send = (data: Record<string, unknown>) => {
+        const send = (data: StreamEvent) => {
           if (streamClosed) return;
           try {
             controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
@@ -277,13 +281,15 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
           
           const maxToolLoops = 5;
           let remainingLoops = maxToolLoops;
-          const executedTools: { name: string; args: unknown; result: Record<string, unknown>; error: string | null }[] = [];
+          type ToolExecuted = { name: string; args: Record<string, unknown> | undefined; result: Record<string, unknown>; error: string | null };
+          const executedTools: ToolExecuted[] = [];
           
           while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && remainingLoops > 0) {
             remainingLoops--;
             const responses: { functionResponse: { name: string; id?: string; response: Record<string, unknown> } }[] = [];
 
             for (const call of aiResponse.functionCalls) {
+              if (!call.name) continue;
               const label = call.name === "get_houses" ? "Häuser abrufen..." :
                             call.name === "get_apartments" ? "Wohnungen suchen..." :
                             call.name === "get_tenants" ? "Mieter-Datenbank durchsuchen..." :
@@ -403,8 +409,8 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
                 result = { error: toolError };
               }
               
-              const toolResult = {
-                name: call.name,
+              const toolResult: ToolExecuted = {
+                name: call.name!,
                 args: call.args,
                 result: result,
                 error: toolError,
@@ -416,7 +422,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
               
               responses.push({
                 functionResponse: {
-                  name: call.name,
+                  name: call.name!,
                   id: call.id,
                   response: result
                 }
