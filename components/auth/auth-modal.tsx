@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { LOGO_URL } from "@/lib/constants"
+import { LOGO_URL, POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog,
@@ -21,7 +22,11 @@ import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
-import { Loader2 } from "lucide-react"
+import { Loader2, Fingerprint } from "lucide-react"
+import posthog from 'posthog-js'
+import { trackPasskeyLoginStarted, trackPasskeyLoginSuccess, trackPasskeyLoginFailed } from '@/lib/posthog-auth-events'
+import { getAuthErrorMessage } from "@/lib/auth-error-handler"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -57,6 +62,7 @@ export default function AuthModal({
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
 
   const [socialLoading, setSocialLoading] = useState<string | null>(null) // 'google' | 'microsoft' | null
+  const passkeyEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.AUTH_PASSKEY)
 
   const socialProviders = [
     {
@@ -401,25 +407,96 @@ export default function AuthModal({
                     </div>
                   </div>
 
-                  <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
-                    {socialProviders.map((provider) => (
-                      <Button
-                        key={provider.id}
-                        type="button"
-                        variant="outline"
-                        className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                        onClick={() => handleSocialAuth(provider.id, 'login')}
-                        disabled={socialLoading !== null}
-                      >
-                        {socialLoading === provider.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <provider.Icon className="h-4 w-4 mr-2" />
-                        )}
-                        {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
-                      </Button>
-                    ))}
-                  </div>
+                  {passkeyEnabled ? (
+                    <TooltipProvider>
+                      <div className="flex flex-col lg:flex-row gap-3">
+                        {socialProviders.map((provider) => (
+                          <Tooltip key={provider.id}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1 h-10 rounded-lg border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                                onClick={() => handleSocialAuth(provider.id, 'login')}
+                                disabled={socialLoading !== null}
+                              >
+                                {socialLoading === provider.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <provider.Icon className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Mit {provider.name} anmelden</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="flex-1 h-10 rounded-lg border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                              onClick={async () => {
+                                setLoginError(null)
+                                const supabase = createClient()
+                                trackPasskeyLoginStarted()
+                                const { data, error: passkeyError } = await supabase.auth.signInWithPasskey()
+                                if (passkeyError) {
+                                  const errorType = passkeyError.message?.toLowerCase().includes('cancelled') || passkeyError.message?.toLowerCase().includes('not allowed')
+                                    ? 'passkey_cancelled'
+                                    : 'passkey_error'
+                                  trackPasskeyLoginFailed(errorType)
+                                  setLoginError(getAuthErrorMessage(passkeyError))
+                                  return
+                                }
+                                if (data?.user) {
+                                  if (posthog.has_opted_in_capturing?.()) {
+                                    posthog.identify(data.user.id, {
+                                      email: data.user.email,
+                                      name: data.user.user_metadata?.name || '',
+                                      last_sign_in: data.user.last_sign_in_at,
+                                      user_type: 'authenticated',
+                                      is_anonymous: false,
+                                    })
+                                  }
+                                  trackPasskeyLoginSuccess()
+                                }
+                                onAuthenticated()
+                                onClose()
+                              }}
+                            >
+                              <Fingerprint className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Mit Passkey anmelden</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TooltipProvider>
+                  ) : (
+                    <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
+                      {socialProviders.map((provider) => (
+                        <Button
+                          key={provider.id}
+                          type="button"
+                          variant="outline"
+                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                          onClick={() => handleSocialAuth(provider.id, 'login')}
+                          disabled={socialLoading !== null}
+                        >
+                          {socialLoading === provider.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <provider.Icon className="h-4 w-4 mr-2" />
+                          )}
+                          {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </AuthForm>
             </>
@@ -504,25 +581,54 @@ export default function AuthModal({
                       </div>
                     </div>
 
-                    <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
-                      {socialProviders.map((provider) => (
-                        <Button
-                          key={provider.id}
-                          type="button"
-                          variant="outline"
-                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
-                          onClick={() => handleSocialAuth(provider.id, 'signup')}
-                          disabled={socialLoading !== null}
-                        >
-                          {socialLoading === provider.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <provider.Icon className="h-4 w-4 mr-2" />
-                          )}
-                          {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
-                        </Button>
-                      ))}
-                    </div>
+                    {passkeyEnabled ? (
+                      <TooltipProvider>
+                        <div className="flex gap-3">
+                          {socialProviders.map((provider) => (
+                            <Tooltip key={provider.id}>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="flex-1 h-10 rounded-lg border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                                  onClick={() => handleSocialAuth(provider.id, 'signup')}
+                                  disabled={socialLoading !== null}
+                                >
+                                  {socialLoading === provider.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <provider.Icon className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Mit {provider.name} registrieren</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
+                      </TooltipProvider>
+                    ) : (
+                      <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-3"}>
+                        {socialProviders.map((provider) => (
+                          <Button
+                            key={provider.id}
+                            type="button"
+                            variant="outline"
+                            className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-10 rounded-lg text-sm font-medium border-border hover:bg-muted/50 transition-colors`}
+                            onClick={() => handleSocialAuth(provider.id, 'signup')}
+                            disabled={socialLoading !== null}
+                          >
+                            {socialLoading === provider.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <provider.Icon className="h-4 w-4 mr-2" />
+                            )}
+                            {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </form>
               </CardContent>

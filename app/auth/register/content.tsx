@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, Loader2, Check, Sparkles } from "lucide-react"
-import { LOGO_URL, ROUTES, BASE_URL } from "@/lib/constants"
+import { LOGO_URL, ROUTES, BASE_URL, POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import posthog from 'posthog-js'
 import { getAuthErrorMessage } from "@/lib/auth-error-handler"
@@ -18,6 +19,7 @@ import { trackRegisterStarted, trackRegisterSuccess, trackRegisterFailed } from 
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 import { authState } from "@/lib/auth-state"
@@ -41,6 +43,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const passkeyEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.AUTH_PASSKEY)
 
   useEffect(() => {
     setMounted(true)
@@ -395,35 +398,70 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-4"}>
-                    {socialProviders.map((provider) => (
-                      <Button
-                        key={provider.id}
-                        type="button"
-                        variant="outline"
-                        className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors`}
-                        onClick={async () => {
-                          setSocialLoading(provider.id)
-                          setError(null)
-
-                          const { error } = await provider.handler('signup')
-
-                          if (error) {
-                            setError(error)
-                            setSocialLoading(null)
-                          }
-                        }}
-                        disabled={isLoading || socialLoading !== null}
-                      >
-                        {socialLoading === provider.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <provider.Icon className="h-5 w-5 mr-2" />
-                        )}
-                        {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
-                      </Button>
-                    ))}
-                  </div>
+                  {passkeyEnabled ? (
+                    <TooltipProvider>
+                      <div className="flex gap-3">
+                        {socialProviders.map((provider) => (
+                          <Tooltip key={provider.id}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1 h-12 rounded-xl border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                                onClick={async () => {
+                                  setSocialLoading(provider.id)
+                                  setError(null)
+                                  const { error } = await provider.handler('signup')
+                                  if (error) {
+                                    setError(error)
+                                    setSocialLoading(null)
+                                  }
+                                }}
+                                disabled={isLoading || socialLoading !== null}
+                              >
+                                {socialLoading === provider.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <provider.Icon className="h-5 w-5" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Mit {provider.name} registrieren</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </TooltipProvider>
+                  ) : (
+                    <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-4"}>
+                      {socialProviders.map((provider) => (
+                        <Button
+                          key={provider.id}
+                          type="button"
+                          variant="outline"
+                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors`}
+                          onClick={async () => {
+                            setSocialLoading(provider.id)
+                            setError(null)
+                            const { error } = await provider.handler('signup')
+                            if (error) {
+                              setError(error)
+                              setSocialLoading(null)
+                            }
+                          }}
+                          disabled={isLoading || socialLoading !== null}
+                        >
+                          {socialLoading === provider.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <provider.Icon className="h-5 w-5 mr-2" />
+                          )}
+                          {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               }
 

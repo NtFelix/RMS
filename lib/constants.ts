@@ -58,6 +58,8 @@ export const POSTHOG_FEATURE_FLAGS = {
   // Landing page
   SHOW_PRODUKTE_DROPDOWN: 'show-produkte-dropdown',
   SHOW_LOESUNGEN_DROPDOWN: 'show-loesungen-dropdown',
+  // Auth features
+  AUTH_PASSKEY: 'auth-passkey',
 } as const;
 
 // Application routes - centralized to prevent hardcoded paths

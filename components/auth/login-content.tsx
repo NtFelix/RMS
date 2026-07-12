@@ -9,15 +9,17 @@ import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, Loader2, AlertCircle, Database } from "lucide-react"
-import { LOGO_URL, ROUTES } from "@/lib/constants"
+import { Eye, EyeOff, Loader2, AlertCircle, Database, Fingerprint } from "lucide-react"
+import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { useFeatureFlagEnabled } from 'posthog-js/react'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import posthog from 'posthog-js'
-import { trackLoginStarted, trackLoginSuccess, trackLoginFailed } from '@/lib/posthog-auth-events'
+import { trackLoginStarted, trackLoginSuccess, trackLoginFailed, trackPasskeyLoginStarted, trackPasskeyLoginSuccess, trackPasskeyLoginFailed } from '@/lib/posthog-auth-events'
 import { getAuthErrorMessage, getUrlErrorMessage, DATABASE_DOWN_ERROR_MESSAGE } from "@/lib/auth-error-handler"
 import { motion } from "framer-motion"
 import { Auth3DDecorations } from "@/components/auth/auth-3d-decorations"
 import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 import { getSafeAuthRedirect } from "@/lib/auth-redirects"
@@ -54,6 +56,7 @@ export default function LoginContent() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const passkeyEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.AUTH_PASSKEY)
 
   useEffect(() => {
     setMounted(true)
@@ -347,36 +350,114 @@ export default function LoginContent() {
                     </div>
                   </div>
 
-                  <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-4"}>
-                    {socialProviders.map((provider) => (
-                      <Button
-                        key={provider.id}
-                        type="button"
-                        variant="outline"
-                        className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors`}
-                        onClick={async () => {
-                          setSocialLoading(provider.id)
-                          setError(null)
-
-                          const safeRedirect = getSafeAuthRedirect(redirectParam, window.location.origin)
-                          const { error } = await provider.handler('login', safeRedirect)
-
-                          if (error) {
-                            setError(error)
-                            setSocialLoading(null)
-                          }
-                        }}
-                        disabled={isLoading || socialLoading !== null}
-                      >
-                        {socialLoading === provider.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <provider.Icon className="h-5 w-5 mr-2" />
-                        )}
-                        {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
-                      </Button>
-                    ))}
-                  </div>
+                  {passkeyEnabled ? (
+                    <TooltipProvider>
+                      <div className="flex flex-col lg:flex-row gap-3">
+                        {socialProviders.map((provider) => (
+                          <Tooltip key={provider.id}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="flex-1 h-12 rounded-xl border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                                onClick={async () => {
+                                  setSocialLoading(provider.id)
+                                  setError(null)
+                                  const safeRedirect = getSafeAuthRedirect(redirectParam, window.location.origin)
+                                  const { error } = await provider.handler('login', safeRedirect)
+                                  if (error) {
+                                    setError(error)
+                                    setSocialLoading(null)
+                                  }
+                                }}
+                                disabled={isLoading || socialLoading !== null}
+                              >
+                                {socialLoading === provider.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <provider.Icon className="h-5 w-5" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Mit {provider.name} anmelden</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="flex-1 h-12 rounded-xl border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                              onClick={async () => {
+                                setError(null)
+                                const supabase = createClient()
+                                trackPasskeyLoginStarted()
+                                const { data, error: passkeyError } = await supabase.auth.signInWithPasskey()
+                                if (passkeyError) {
+                                  const errorType = passkeyError.message?.toLowerCase().includes('cancelled') || passkeyError.message?.toLowerCase().includes('not allowed')
+                                    ? 'passkey_cancelled'
+                                    : 'passkey_error'
+                                  trackPasskeyLoginFailed(errorType)
+                                  setError(getAuthErrorMessage(passkeyError))
+                                  return
+                                }
+                                if (data?.user) {
+                                  if (posthog.has_opted_in_capturing?.()) {
+                                    posthog.identify(data.user.id, {
+                                      email: data.user.email,
+                                      name: data.user.user_metadata?.name || '',
+                                      last_sign_in: data.user.last_sign_in_at,
+                                      user_type: 'authenticated',
+                                      is_anonymous: false,
+                                    })
+                                  }
+                                  trackPasskeyLoginSuccess()
+                                }
+                                window.location.assign(getSafeAuthRedirect(redirectParam, window.location.origin))
+                              }}
+                              disabled={isLoading}
+                            >
+                              <Fingerprint className="h-5 w-5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Mit Passkey anmelden</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TooltipProvider>
+                  ) : (
+                    <div className={enabledProvidersCount > 1 ? "flex gap-3" : "space-y-4"}>
+                      {socialProviders.map((provider) => (
+                        <Button
+                          key={provider.id}
+                          type="button"
+                          variant="outline"
+                          className={`${enabledProvidersCount > 1 ? "flex-1 px-0" : "w-full"} h-12 rounded-xl text-base font-medium border-border hover:bg-muted/50 transition-colors`}
+                          onClick={async () => {
+                            setSocialLoading(provider.id)
+                            setError(null)
+                            const safeRedirect = getSafeAuthRedirect(redirectParam, window.location.origin)
+                            const { error } = await provider.handler('login', safeRedirect)
+                            if (error) {
+                              setError(error)
+                              setSocialLoading(null)
+                            }
+                          }}
+                          disabled={isLoading || socialLoading !== null}
+                        >
+                          {socialLoading === provider.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <provider.Icon className="h-5 w-5 mr-2" />
+                          )}
+                          {enabledProvidersCount > 1 ? provider.name : provider.fullLabel}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
