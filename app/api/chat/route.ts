@@ -154,13 +154,47 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
       history: [...contextMessage, ...history],
     });
 
+    const clampLimit = (val: unknown): number =>
+      Math.min(Math.max(Number(val) || 10, 1), 100);
+
+    const executeTurn = async (
+      chatInstance: ReturnType<GoogleGenAI['chats']['create']>,
+      sendFn: (data: Record<string, unknown>) => void,
+      addUsageFn: (res: { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } }) => void,
+      parts: ({ text: string } | { inlineData: { data: string; mimeType: string } } | { functionResponse: { name: string; id?: string; response: Record<string, unknown> } })[]
+    ) => {
+      const result = await chatInstance.sendMessageStream({ message: parts });
+      let fullText = "";
+      let functionCalls: { name: string; args?: Record<string, unknown>; id?: string }[] = [];
+      let finalUsage: { promptTokenCount?: number; candidatesTokenCount?: number } | undefined;
+      
+      for await (const chunk of result) {
+        const text = chunk.text;
+        if (text) {
+          fullText += text;
+          sendFn({ type: "content", content: text });
+        }
+        if (chunk.functionCalls) {
+          functionCalls = chunk.functionCalls.filter((fc): fc is { name: string; args?: Record<string, unknown>; id?: string } => !!fc.name);
+        }
+        if (chunk.usageMetadata) {
+          finalUsage = chunk.usageMetadata as { promptTokenCount?: number; candidatesTokenCount?: number };
+        }
+      }
+      
+      return {
+        text: () => fullText,
+        functionCalls,
+        usageMetadata: finalUsage,
+      };
+    };
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         const send = (data: Record<string, unknown>) => controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
 
         try {
-          // Send Message & Handle Function Calls
           const messageParts: ({ text: string } | { inlineData: { data: string; mimeType: string } })[] = [{ text: message }];
           if (attachment) {
             messageParts.push({
@@ -181,43 +215,17 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
             }
           };
 
-          const executeTurn = async (parts: ({ text: string } | { inlineData: { data: string; mimeType: string } } | { functionResponse: { name: string; id?: string; response: Record<string, unknown> } })[]) => {
-            const result = await chat.sendMessageStream({ message: parts });
-            let fullText = "";
-            let functionCalls: { name: string; args?: Record<string, unknown>; id?: string }[] = [];
-            let finalUsage: { promptTokenCount?: number; candidatesTokenCount?: number } | undefined;
-            
-            for await (const chunk of result) {
-              const text = chunk.text;
-              if (text) {
-                fullText += text;
-                send({ type: "content", content: text });
-              }
-              if (chunk.functionCalls) {
-                functionCalls = chunk.functionCalls.filter((fc): fc is { name: string; args?: Record<string, unknown>; id?: string } => !!fc.name);
-              }
-              if (chunk.usageMetadata) {
-                finalUsage = chunk.usageMetadata as { promptTokenCount?: number; candidatesTokenCount?: number };
-              }
-            }
-            
-            return {
-              text: () => fullText,
-              functionCalls,
-              usageMetadata: finalUsage,
-            };
-          };
-
           send({ type: "step_start", stepType: "thinking", label: "Nachricht analysieren..." });
-          let aiResponse = await executeTurn(messageParts);
+          let aiResponse = await executeTurn(chat, send, addUsage, messageParts);
           addUsage(aiResponse);
           send({ type: "step_done" });
           
-          let maxToolLoops = 5;
+          const maxToolLoops = 5;
+          let remainingLoops = maxToolLoops;
           const executedTools: { name: string; args: unknown; result: Record<string, unknown>; error: string | null }[] = [];
           
-          while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && maxToolLoops > 0) {
-            maxToolLoops--;
+          while (aiResponse.functionCalls && aiResponse.functionCalls.length > 0 && remainingLoops > 0) {
+            remainingLoops--;
             const responses: { functionResponse: { name: string; id?: string; response: Record<string, unknown> } }[] = [];
 
             for (const call of aiResponse.functionCalls) {
@@ -240,7 +248,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
               let toolError: string | null = null;
               try {
                 if (call.name === "get_houses") {
-                  const limit = Number(call.args?.limit) || 10;
+                  const limit = clampLimit(call.args?.limit);
                   const { data, error } = await supabase.from('Haeuser')
                     .select('id, name, strasse, plz, ort, groesse, Wohnungen(groesse)')
                     .limit(limit);
@@ -251,7 +259,6 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
                     const { Wohnungen, ...house } = h;
                     let finalGroesse = house.groesse;
                     
-                    // If groesse is null (automatic), sum up the apartment sizes
                     if (finalGroesse === null && Array.isArray(Wohnungen)) {
                       finalGroesse = Wohnungen.reduce((acc: number, w: { groesse?: number | null }) => acc + (Number(w.groesse) || 0), 0);
                     }
@@ -266,7 +273,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
                   if (call.args?.house_id) {
                      query = query.eq('haus_id', call.args.house_id);
                   }
-                  const limit = Number(call.args?.limit) || 10;
+                  const limit = clampLimit(call.args?.limit);
                   const { data, error } = await query.limit(limit);
                   if (error) toolError = error.message;
                   result = error ? { error: error.message } : { data: data || [] };
@@ -276,7 +283,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
                   if (call.args?.search_term) {
                      query = query.ilike('name', `%${call.args.search_term}%`);
                   }
-                  const limit = Number(call.args?.limit) || 10;
+                  const limit = clampLimit(call.args?.limit);
                   const { data, error } = await query.limit(limit);
                   if (error) toolError = error.message;
                   result = error ? { error: error.message } : { data: data || [] };
@@ -298,7 +305,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
                     if (call.args?.end_date) query = query.lte('datum', call.args.end_date);
                   }
 
-                  const limit = Number(call.args?.limit) || 10;
+                  const limit = clampLimit(call.args?.limit);
                   const { data, error } = await query.limit(limit);
                   if (error) toolError = error.message;
                   result = error ? { error: error.message } : { data: data || [] };
@@ -317,7 +324,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
                     if (call.args?.end_date) query = query.lte('faelligkeitsdatum', call.args.end_date);
                   }
 
-                  const limit = Number(call.args?.limit) || 10;
+                  const limit = clampLimit(call.args?.limit);
                   const { data, error } = await query.limit(limit);
                   if (error) toolError = error.message;
                   result = error ? { error: error.message } : { data: data || [] };
@@ -327,7 +334,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
                   if (call.args?.haeuser_id) {
                      query = query.eq('haeuser_id', call.args.haeuser_id);
                   }
-                  const limit = Number(call.args?.limit) || 10;
+                  const limit = clampLimit(call.args?.limit);
                   const { data, error } = await query.limit(limit);
                   if (error) toolError = error.message;
                   result = error ? { error: error.message } : { data: data || [] };
@@ -362,7 +369,7 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
             }
 
             send({ type: "step_start", stepType: "thinking", label: "Daten verarbeiten..." });
-            aiResponse = await executeTurn(responses);
+            aiResponse = await executeTurn(chat, send, addUsage, responses);
             addUsage(aiResponse);
             send({ type: "step_done" });
           }
@@ -425,8 +432,11 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
 
   } catch (error: unknown) {
     console.error("Chat API Root Error:", error);
+    const errorMessage = process.env.NODE_ENV === 'development'
+      ? (error instanceof Error ? error.message : String(error))
+      : undefined;
     return NextResponse.json(
-      { error: "Internal Server Error", details: error instanceof Error ? error.message : String(error) },
+      { error: "Internal Server Error", ...(errorMessage ? { details: errorMessage } : {}) },
       { status: 500 }
     );
   }

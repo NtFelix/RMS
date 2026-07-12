@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 
+const AI_FEEDBACK_SURVEY_ID = '019ce11d-f79c-0000-4959-8e5eb60be080';
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest) {
       distinctId: user.id,
       event: 'survey sent',
       properties: {
-        $survey_id: '019ce11d-f79c-0000-4959-8e5eb60be080',
+        $survey_id: AI_FEEDBACK_SURVEY_ID,
         $survey_response: rating === 'up' ? 1 : 2,
         $survey_response_1: text || '',
         $ai_trace_id: traceId,

@@ -1,7 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
 
 function sanitize(value: string): string {
-  return value.replace(/[\n\r\t]+/g, ' ').replace(/[\x00-\x1f\x7f-\x9f]/g, '').substring(0, 200);
+  return value
+    .replace(/[\n\r\t]+/g, ' ')
+    .replace(/[\x00-\x1f\x7f-\x9f]/g, '')
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '[uuid]')
+    .substring(0, 200);
 }
 
 export async function getAIContextForPathname(pathname: string) {

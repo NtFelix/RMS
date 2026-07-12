@@ -176,13 +176,16 @@ export function AIChatSidebar() {
 
     try {
       const currentHistory = historyOverride || messages;
-      const history = currentHistory.map((m) => {
+      // Truncate history to last 20 turns and remove attachment data from old messages
+      const recentHistory = currentHistory.slice(-40);
+      const history = recentHistory.map((m, i) => {
         const parts: ({ text: string } | { inlineData: { data: string; mimeType: string } })[] = [];
         if (m.content) parts.push({ text: m.content });
         if (m.attachment) {
+          const isRecent = i >= recentHistory.length - 4;
           parts.push({
             inlineData: {
-              data: m.attachment.data,
+              data: isRecent ? m.attachment.data : "",
               mimeType: m.attachment.type
             }
           });
@@ -233,7 +236,10 @@ export function AIChatSidebar() {
             const data = JSON.parse(line);
             
             if (data.type === "step_start") {
-              if (currentStepId) updateStep(currentStepId, { status: "done" });
+              if (currentStepId) {
+                updateStep(currentStepId, { status: "done" });
+                currentStepId = null;
+              }
               currentStepId = addStep(data.stepType, data.label, "loading", data.detail);
             } 
             else if (data.type === "step_done") {

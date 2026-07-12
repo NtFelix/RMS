@@ -24,13 +24,14 @@ export function SidebarFloatingButton({ isOpen, isDark, onToggle }: { isOpen: bo
             onClick={onToggle}
           >
             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <Image 
-              src={LOGO_URL} 
-              alt="Mietevo AI" 
-              width={32} 
-              height={32} 
-              className="object-contain relative z-10" 
-            />
+            <div className="relative z-10 w-8 h-8">
+              <Image 
+                src={LOGO_URL} 
+                alt="Mietevo AI" 
+                fill
+                className="object-contain" 
+              />
+            </div>
           </Button>
           <div className="absolute bottom-full right-0 mb-4 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex flex-col items-start whitespace-nowrap">
             <div className={`px-4 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md flex flex-col items-start gap-1 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-black/[0.05]'}`}>
