@@ -19,8 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import type { AIToolId } from "@/hooks/use-ai-chat-store";
-
-const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+import { ALLOWED_IMAGE_MIME_TYPES } from '@/lib/constants';
 
 export function ChatInput({
   inputValue,

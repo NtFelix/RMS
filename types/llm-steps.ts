@@ -14,7 +14,7 @@ export interface LLMStep {
 
 export interface ToolCallRecord {
   name: string;
-  args: any;
-  result?: any;
+  args: Record<string, unknown> | undefined;
+  result?: Record<string, unknown>;
   error?: string | null;
 }

@@ -299,13 +299,11 @@ export function AIChatSidebar() {
     } catch (error) {
       console.error("AI Chat Error:", error);
       finishSteps(false);
-      const errorMessage: Message = {
-        id: uuidv4(),
-        role: "model",
-        content:
-          "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => prev.map(m =>
+        m.id === aiMessageId
+          ? { ...m, role: "model" as const, content: "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal." }
+          : m
+      ));
     } finally {
       setIsLoading(false);
       setActiveId(null);

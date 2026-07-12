@@ -5,12 +5,108 @@ import { getAIContextForPathname } from "@/utils/ai-context";
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { v4 as uuidv4 } from 'uuid';
 
+const clampLimit = (val: unknown): number =>
+  Math.min(Math.max(Number(val) || 10, 1), 100);
+
+const allFunctionDeclarations = [
+    {
+      name: "get_houses",
+      description: "Get a list of all houses (properties/Häuser) managed by the user.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          limit: { type: Type.INTEGER, description: "Maximum number of houses to return (default is 10)" }
+        }
+      }
+    },
+    {
+      name: "get_apartments",
+      description: "Get a list of apartments (Wohnungen), optionally filtered by a specific house ID.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          house_id: { type: Type.STRING, description: "Optional UUID of the house to filter apartments by." },
+          limit: { type: Type.INTEGER, description: "Maximum number of apartments to return (default is 10)" }
+        }
+      }
+    },
+    {
+      name: "get_tenants",
+      description: "Get a list of tenants (Mieter), optionally filtered by their name.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          search_term: { type: Type.STRING, description: "Optional search term for filtering tenants by name." },
+          limit: { type: Type.INTEGER, description: "Maximum number of tenants to return (default is 10)" }
+        }
+      }
+    },
+    {
+      name: "get_finances",
+      description: "Get a list of financial transactions (Finanzen). Defaults to the latest entries. Can be filtered by apartment, type, exact date, or date range.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          wohnung_id: { type: Type.STRING, description: "Optional UUID of the apartment (Wohnung) to filter finances by." },
+          ist_einnahmen: { type: Type.BOOLEAN, description: "Optional boolean to filter by income (true) or expense (false)." },
+          exact_date: { type: Type.STRING, description: "Filter by an exact date (YYYY-MM-DD)." },
+          start_date: { type: Type.STRING, description: "Start of a date range (ISO format/YYYY-MM-DD)." },
+          end_date: { type: Type.STRING, description: "End of a date range (ISO format/YYYY-MM-DD)." },
+          limit: { type: Type.INTEGER, description: "Maximum number of transactions to return (default is 10)" }
+        }
+      }
+    },
+    {
+      name: "get_tasks",
+      description: "Get a list of tasks (Aufgaben). Defaults to most recently due or created. Can be filtered by status, exact date, or date range.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          ist_erledigt: { type: Type.BOOLEAN, description: "Optional boolean to filter by completed (true) or pending (false) tasks." },
+          exact_date: { type: Type.STRING, description: "Filter by an exact due date (YYYY-MM-DD)." },
+          start_date: { type: Type.STRING, description: "Start of a due date range (ISO format/YYYY-MM-DD)." },
+          end_date: { type: Type.STRING, description: "End of a due date range (ISO format/YYYY-MM-DD)." },
+          limit: { type: Type.INTEGER, description: "Maximum number of tasks to return (default is 10)" }
+        }
+      }
+    },
+    {
+      name: "get_nebenkosten",
+      description: "Get a list of ancillary costs / utility costs (Nebenkosten), optionally filtered by house ID.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          haeuser_id: { type: Type.STRING, description: "Optional UUID of the house (Haus) to filter ancillary costs by." },
+          limit: { type: Type.INTEGER, description: "Maximum number of Nebenkosten records to return (default is 10)" }
+        }
+      }
+    }
+];
+
 export async function POST(req: NextRequest) {
   const traceId = uuidv4();
   const startTime = Date.now();
   let userId = "anonymous";
 
   try {
+    // 2. Parse Request Body (before auth to catch malformed JSON early)
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const { message, history = [], pathname, sessionId, model = "gemini-3.1-flash-lite-preview", attachment, enabledToolIds } = body as {
+      message?: string;
+      history?: { role: string; parts: { text?: string; inlineData?: { data: string; mimeType: string } }[] }[];
+      pathname?: string;
+      sessionId?: string;
+      model?: string;
+      attachment?: { data: string; type: string };
+      enabledToolIds?: string[];
+    };
+
     // 1. Authenticate Request
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -19,10 +115,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     userId = user.id;
-
-    // 2. Parse Request Body
-    const body = await req.json();
-    const { message, history = [], pathname, sessionId, model = "gemini-3.1-flash-lite-preview", attachment, enabledToolIds } = body;
 
     if (!message || !pathname || !sessionId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -59,82 +151,6 @@ Always be concise, helpful, and professional. Respond in the user's language.
 
 Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
-    // 6. Define Tools
-    const allFunctionDeclarations = [
-        {
-          name: "get_houses",
-          description: "Get a list of all houses (properties/Häuser) managed by the user.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              limit: { type: Type.INTEGER, description: "Maximum number of houses to return (default is 10)" }
-            }
-          }
-        },
-        {
-          name: "get_apartments",
-          description: "Get a list of apartments (Wohnungen), optionally filtered by a specific house ID.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              house_id: { type: Type.STRING, description: "Optional UUID of the house to filter apartments by." },
-              limit: { type: Type.INTEGER, description: "Maximum number of apartments to return (default is 10)" }
-            }
-          }
-        },
-        {
-          name: "get_tenants",
-          description: "Get a list of tenants (Mieter), optionally filtered by their name.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              search_term: { type: Type.STRING, description: "Optional search term for filtering tenants by name." },
-              limit: { type: Type.INTEGER, description: "Maximum number of tenants to return (default is 10)" }
-            }
-          }
-        },
-        {
-          name: "get_finances",
-          description: "Get a list of financial transactions (Finanzen). Defaults to the latest entries. Can be filtered by apartment, type, exact date, or date range.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              wohnung_id: { type: Type.STRING, description: "Optional UUID of the apartment (Wohnung) to filter finances by." },
-              ist_einnahmen: { type: Type.BOOLEAN, description: "Optional boolean to filter by income (true) or expense (false)." },
-              exact_date: { type: Type.STRING, description: "Filter by an exact date (YYYY-MM-DD)." },
-              start_date: { type: Type.STRING, description: "Start of a date range (ISO format/YYYY-MM-DD)." },
-              end_date: { type: Type.STRING, description: "End of a date range (ISO format/YYYY-MM-DD)." },
-              limit: { type: Type.INTEGER, description: "Maximum number of transactions to return (default is 10)" }
-            }
-          }
-        },
-        {
-          name: "get_tasks",
-          description: "Get a list of tasks (Aufgaben). Defaults to most recently due or created. Can be filtered by status, exact date, or date range.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              ist_erledigt: { type: Type.BOOLEAN, description: "Optional boolean to filter by completed (true) or pending (false) tasks." },
-              exact_date: { type: Type.STRING, description: "Filter by an exact due date (YYYY-MM-DD)." },
-              start_date: { type: Type.STRING, description: "Start of a due date range (ISO format/YYYY-MM-DD)." },
-              end_date: { type: Type.STRING, description: "End of a due date range (ISO format/YYYY-MM-DD)." },
-              limit: { type: Type.INTEGER, description: "Maximum number of tasks to return (default is 10)" }
-            }
-          }
-        },
-        {
-          name: "get_nebenkosten",
-          description: "Get a list of ancillary costs / utility costs (Nebenkosten), optionally filtered by house ID.",
-          parameters: {
-            type: Type.OBJECT,
-            properties: {
-              haeuser_id: { type: Type.STRING, description: "Optional UUID of the house (Haus) to filter ancillary costs by." },
-              limit: { type: Type.INTEGER, description: "Maximum number of Nebenkosten records to return (default is 10)" }
-            }
-          }
-        }
-    ];
-
     const filteredFunctions = allFunctionDeclarations.filter(f => 
       !enabledToolIds || (Array.isArray(enabledToolIds) && enabledToolIds.includes(f.name))
     );
@@ -153,9 +169,6 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
       },
       history: [...contextMessage, ...history],
     });
-
-    const clampLimit = (val: unknown): number =>
-      Math.min(Math.max(Number(val) || 10, 1), 100);
 
     const executeTurn = async (
       chatInstance: ReturnType<GoogleGenAI['chats']['create']>,
@@ -380,34 +393,29 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
           const latency = (Date.now() - startTime) / 1000;
           send({ type: "step_done" });
 
-          // 8. Track Generation in PostHog
-          try {
-            await posthog.capture({
-              distinctId: userId,
-              event: '$ai_generation',
-              groups: { organization: orgId },
-              properties: {
-                $ai_trace_id: traceId,
-                $ai_session_id: sessionId,
-                $ai_span_name: 'mietevo_ai_agent',
-                $ai_model: model,
-                $ai_provider: 'google',
-                $ai_input: [{ role: 'user', content: message }],
-                $ai_output_choices: [{ role: 'assistant', content: replyText }],
-                $ai_input_tokens: totalInputTokens,
-                $ai_output_tokens: totalOutputTokens,
-                $ai_latency: latency,
-                $ai_tools_called: executedTools.map(t => t.name),
-                $ai_tool_call_count: executedTools.length,
-                $ai_http_status: 200,
-                org_id: orgId,
-                feature: 'chat',
-              },
-            });
-            await posthog.flush();
-          } catch (e) {
-            console.error("[PostHog] Failed to track $ai_generation:", e);
-          }
+          // 8. Track Generation in PostHog (fire-and-forget, don't block the stream)
+          posthog.capture({
+            distinctId: userId,
+            event: '$ai_generation',
+            groups: { organization: orgId },
+            properties: {
+              $ai_trace_id: traceId,
+              $ai_session_id: sessionId,
+              $ai_span_name: 'mietevo_ai_agent',
+              $ai_model: model,
+              $ai_provider: 'google',
+              $ai_input: [{ role: 'user', content: message }],
+              $ai_output_choices: [{ role: 'assistant', content: replyText }],
+              $ai_input_tokens: totalInputTokens,
+              $ai_output_tokens: totalOutputTokens,
+              $ai_latency: latency,
+              $ai_tools_called: executedTools.map(t => t.name),
+              $ai_tool_call_count: executedTools.length,
+              $ai_http_status: 200,
+              org_id: orgId,
+              feature: 'chat',
+            },
+          }).catch((e: unknown) => console.error("[PostHog] Failed to track $ai_generation:", e));
 
           // Final payload
           send({ 

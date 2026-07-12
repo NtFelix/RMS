@@ -3,8 +3,7 @@
 import React from "react";
 import { File as FileIcon } from "lucide-react";
 import type { Message } from "./ai-chat-types";
-
-const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+import { ALLOWED_IMAGE_MIME_TYPES } from '@/lib/constants';
 
 export function UserMessageBubble({ message }: { message: Message }) {
   return (

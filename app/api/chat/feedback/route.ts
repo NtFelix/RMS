@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         $survey_response_1: text || '',
         $ai_trace_id: traceId,
         $survey_submission_id: submissionId,
-        $survey_completed: !text || !!text,
+        $survey_completed: !!text,
       },
     });
     await posthog.flush();

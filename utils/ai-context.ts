@@ -15,63 +15,62 @@ export async function getAIContextForPathname(pathname: string) {
   contextParts.push(`Current Page Path: ${sanitize(pathname)}`);
 
   try {
-    // Check if we are on a specific house page /haeuser/[id]
     const houseMatch = pathname.match(/\/haeuser\/([^/]+)/);
+    const tenantMatch = pathname.match(/\/mieter\/([^/]+)/);
+    const unitMatch = pathname.match(/\/wohnungen\/([^/]+)/);
+
+    const queries: (() => Promise<void>)[] = [];
+
     if (houseMatch && houseMatch[1]) {
       const houseId = houseMatch[1];
-      const { data: house, error } = await supabase
-        .from('haeuser')
-        .select('*')
-        .eq('id', houseId)
-        .single();
-      
-      if (!error && house) {
-        contextParts.push(`Active House Data:
+      queries.push(async () => {
+        const { data: house, error } = await supabase.from('haeuser').select('*').eq('id', houseId).single();
+        if (!error && house) {
+          contextParts.push(`Active House Data:
 Name: ${sanitize(house.name)}
 Address: ${sanitize(house.strasse)} ${sanitize(house.hausnummer)}, ${sanitize(house.plz)} ${sanitize(house.ort)}
 Total Units: ${sanitize(String(house.anzahl_wohnungen ?? 'Unknown'))}`);
-      }
+        }
+      });
     }
 
-    // Check if we are on a specific tenant page /mieter/[id]
-    const tenantMatch = pathname.match(/\/mieter\/([^/]+)/);
     if (tenantMatch && tenantMatch[1]) {
       const tenantId = tenantMatch[1];
-      const { data: tenant, error } = await supabase
-        .from('mieter')
-        .select('*, wohnungen(name, haeuser(name))')
-        .eq('id', tenantId)
-        .single();
-      
-      if (!error && tenant) {
-        contextParts.push(`Active Tenant Data:
+      queries.push(async () => {
+        const { data: tenant, error } = await supabase.from('mieter')
+          .select('*, wohnungen(name, haeuser(name))')
+          .eq('id', tenantId)
+          .single();
+        if (!error && tenant) {
+          contextParts.push(`Active Tenant Data:
 Name: ${sanitize(tenant.vorname)} ${sanitize(tenant.nachname)}
 Email: ${sanitize(tenant.email || 'N/A')}
 Phone: ${sanitize(tenant.telefon || 'N/A')}
 Rent: ${sanitize(String(tenant.miete ?? 0))}
 Deposit Status: ${sanitize(tenant.kaution_status || 'N/A')}
 Apartment: ${sanitize(tenant.wohnungen?.name || 'N/A')} in House: ${sanitize(tenant.wohnungen?.haeuser?.name || 'N/A')}`);
-      }
+        }
+      });
     }
 
-    // Check if we are on a specific unit page /wohnungen/[id]
-    const unitMatch = pathname.match(/\/wohnungen\/([^/]+)/);
     if (unitMatch && unitMatch[1] && !tenantMatch) {
       const unitId = unitMatch[1];
-      const { data: unit, error } = await supabase
-        .from('wohnungen')
-        .select('*, haeuser(name)')
-        .eq('id', unitId)
-        .single();
-      
-      if (!error && unit) {
-        contextParts.push(`Active Unit (Apartment) Data:
+      queries.push(async () => {
+        const { data: unit, error } = await supabase.from('wohnungen')
+          .select('*, haeuser(name)')
+          .eq('id', unitId)
+          .single();
+        if (!error && unit) {
+          contextParts.push(`Active Unit (Apartment) Data:
 Name: ${sanitize(unit.name)}
 House: ${sanitize(unit.haeuser?.name || 'N/A')}
 Floor: ${sanitize(unit.etage || 'N/A')}
 Type: ${sanitize(unit.wohnungstyp || 'N/A')}`);
-      }
+        }
+      });
     }
+
+    await Promise.all(queries.map(fn => fn()));
 
   } catch (err) {
     console.error("Error fetching context for AI:", err);
