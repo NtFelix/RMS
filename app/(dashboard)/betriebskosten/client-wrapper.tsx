@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { Droplets, X, FileSpreadsheet, Building2, Euro, Ruler, Percent, Activity, BarChart3, TrendingUp, TrendingDown, Info, HelpCircle, Target, Coins } from "lucide-react";
 import {
   HoverCard,
@@ -185,7 +186,7 @@ export default function BetriebskostenClientView({
   canDelete = true,
   canViewMeters = true,
 }: BetriebskostenClientViewProps) {
-  const [currentTab, setCurrentTab] = useState<"costs" | "overview">("costs");
+  const [currentTab, setCurrentTab] = useTabParams<"costs" | "overview">("costs", ["costs", "overview"]);
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
   const [prognosisTimeframe, setPrognosisTimeframe] = useState<"this" | "last" | "5y">("last");
   const [auditTimeframe, setAuditTimeframe] = useState<"this" | "last" | "5y">("last");

@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 
@@ -57,7 +58,7 @@ export default function WohnungenClientView({
   canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
-  const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
+  const [currentTab, setCurrentTab] = useTabParams<"apartments" | "overview">("apartments", ["apartments", "overview"]);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);

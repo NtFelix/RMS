@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
+import { Suspense } from "react";
 import FinanzenClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
@@ -181,16 +182,18 @@ export default async function FinanzenPage() {
     summaryData = await getSummaryData(supabase, initialYear, accessibleWohnungIds);
   }
 
-  return <FinanzenClientWrapper
-    finances={finances}
-    wohnungen={wohnungen}
-    summaryData={summaryData}
-    initialAvailableYears={availableYears}
-    initialYear={initialYear}
-    isUsingFallbackYear={initialYear !== currentYear}
-    currentYear={currentYear}
-    canCreate={canCreate}
-    canEdit={canEdit}
-    canDelete={canDelete}
-  />;
+  return <Suspense fallback={null}>
+    <FinanzenClientWrapper
+      finances={finances}
+      wohnungen={wohnungen}
+      summaryData={summaryData}
+      initialAvailableYears={availableYears}
+      initialYear={initialYear}
+      isUsingFallbackYear={initialYear !== currentYear}
+      currentYear={currentYear}
+      canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
+    />
+  </Suspense>;
 }

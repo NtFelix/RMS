@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
+import { Suspense } from "react";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
@@ -114,13 +115,15 @@ export default async function MieterPage() {
 
 
   return (
-    <MieterClientView
-      initialTenants={mieter}
-      initialWohnungen={wohnungen}
-      serverAction={mieterServerAction}
-      canCreate={canCreate}
-      canEdit={canEdit}
-      canDelete={canDelete}
-    />
+    <Suspense fallback={null}>
+      <MieterClientView
+        initialTenants={mieter}
+        initialWohnungen={wohnungen}
+        serverAction={mieterServerAction}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        canDelete={canDelete}
+      />
+    </Suspense>
   );
 }

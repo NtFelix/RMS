@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
@@ -103,8 +104,10 @@ export default function MieterClientView({
   canDelete = true,
 }: MieterClientViewProps) {
   const router = useRouter()
+  const rawFlag = useFeatureFlagEnabled('applicants-tab');
+  const showApplicantsTab = !!rawFlag;
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
-  const [currentTab, setCurrentTab] = useState<"mieter" | "bewerber" | "overview">("mieter");
+  const [currentTab, setCurrentTab] = useTabParams<"mieter" | "bewerber" | "overview">("mieter", ["mieter", "overview", ...(showApplicantsTab ? (["bewerber"] as const) : [])]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -117,8 +120,6 @@ export default function MieterClientView({
   const [depositFilter, setDepositFilter] = useState<"all" | "Erhalten" | "Zurückgezahlt" | "Ausstehend">("all");
   const [applicantSearch, setApplicantSearch] = useState<string>("");
   const [applicantFilter, setApplicantFilter] = useState<"all" | "A-Fit" | "B-Fit" | "C-Fit">("all");
-  const rawFlag = useFeatureFlagEnabled('applicants-tab');
-  const showApplicantsTab = !!rawFlag;
   const applicantsMailImportFlag = useFeatureFlagEnabled('applicants-mail-import');
   const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
 

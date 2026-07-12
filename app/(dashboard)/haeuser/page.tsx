@@ -1,6 +1,7 @@
 // "use client" directive removed. This file is now a pure Server Component.
 
 export const runtime = 'edge';
+import { Suspense } from "react";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
@@ -117,5 +118,5 @@ export default async function HaeuserPage() {
     };
   });
 
-  return <HaeuserClientView enrichedHaeuser={enrichedHaeuser} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} />;
+  return <Suspense fallback={null}><HaeuserClientView enrichedHaeuser={enrichedHaeuser} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} /></Suspense>;
 }

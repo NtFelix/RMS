@@ -9,6 +9,7 @@ import { FinanceDonutChart, BaseDonutChart } from "@/components/dashboard/dashbo
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 import dynamic from "next/dynamic";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info, Building2, Coins, Clock, Percent, Activity } from "lucide-react";
 
 // Dynamically import heavy components
@@ -115,7 +116,7 @@ export default function FinanzenClientWrapper({
   canEdit = true,
   canDelete = true,
 }: FinanzenClientWrapperProps) {
-  const [currentTab, setCurrentTab] = useState<"finance" | "overview">("finance");
+  const [currentTab, setCurrentTab] = useTabParams<"finance" | "overview">("finance", ["finance", "overview"]);
   const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [unitSearch, setUnitSearch] = useState<string>("");
