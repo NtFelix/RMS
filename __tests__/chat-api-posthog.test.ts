@@ -10,11 +10,17 @@ jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
 }));
 
+function createPostHogMock() {
+  return {
+    capture: jest.fn(() => Promise.resolve()),
+    shutdown: jest.fn(() => Promise.resolve()),
+    on: jest.fn(),
+    flush: jest.fn(() => Promise.resolve()),
+  };
+}
+
 jest.mock('posthog-node', () => ({
-  PostHog: jest.fn().mockImplementation(() => ({
-    capture: jest.fn(),
-    shutdown: jest.fn().mockResolvedValue(undefined),
-  })),
+  PostHog: jest.fn(createPostHogMock),
 }));
 
 jest.mock('@google/genai', () => ({
@@ -44,13 +50,16 @@ jest.mock('uuid', () => ({
 describe('Chat API Analytics Pipeline', () => {
   let POST: any;
   let mockSupabase: any;
-  let mockPostHogInstance: any;
+  let posthogSingleton: any;
   let mockGeminiSendMessage: any;
 
   beforeAll(async () => {
     process.env.GEMINI_API_KEY = 'test-api-key';
     process.env.POSTHOG_API_KEY = 'test-posthog-key';
     process.env.POSTHOG_HOST = 'https://eu.i.posthog.com';
+
+    const { getPostHogServer } = await import('../app/posthog-server.mjs');
+    posthogSingleton = getPostHogServer();
 
     const route = await import('../app/api/chat/route');
     POST = route.POST;
@@ -67,20 +76,21 @@ describe('Chat API Analytics Pipeline', () => {
         select: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
       }),
+      rpc: jest.fn().mockResolvedValue({ data: 'test-org', error: null }),
     };
     (createClient as jest.Mock).mockResolvedValue(mockSupabase);
 
-    mockPostHogInstance = {
-      capture: jest.fn(),
-      shutdown: jest.fn().mockResolvedValue(undefined),
-    };
-    (PostHog as jest.Mock).mockReturnValue(mockPostHogInstance);
+    // Re-attach mock methods to the singleton, since clearAllMocks resets them
+    // Implementation functions survive clearAllMocks, but we need fresh fns for assertions
+    posthogSingleton.capture = jest.fn(() => Promise.resolve());
+    posthogSingleton.shutdown = jest.fn(() => Promise.resolve());
+    posthogSingleton.flush = jest.fn(() => Promise.resolve());
 
     mockGeminiSendMessage = jest.fn();
     (GoogleGenAI as any).mockImplementation(() => ({
       chats: {
         create: jest.fn(() => ({
-          sendMessage: mockGeminiSendMessage,
+          sendMessageStream: mockGeminiSendMessage,
         })),
       },
     }));
@@ -98,27 +108,50 @@ describe('Chat API Analytics Pipeline', () => {
     }
   };
 
+  function mockGeminiResult(text: string, functionCalls: any[], usageMetadata: any) {
+    const chunks = [
+      ...(text ? [{ text, functionCalls: undefined, usageMetadata: undefined }] : []),
+      ...(functionCalls.length > 0 ? [{ text: '', functionCalls, usageMetadata: undefined }] : []),
+      { text: '', functionCalls: undefined, usageMetadata },
+    ].filter(c => Object.values(c).some(v => v !== undefined));
+    return {
+      [Symbol.asyncIterator]: () => {
+        let i = 0;
+        return {
+          next: () => {
+            if (i < chunks.length) return Promise.resolve({ value: chunks[i++], done: false });
+            return Promise.resolve({ value: undefined, done: true });
+          },
+        };
+      },
+    };
+  }
+
+  function createMockRequest(data: Record<string, unknown>) {
+    const req = new (global as any).Request('http://api/chat', { method: 'POST', body: JSON.stringify(data) });
+    req.json = jest.fn().mockResolvedValue(data);
+    req.cookies = { get: jest.fn().mockReturnValue({ value: 'test-org' }) };
+    return req;
+  }
+
   it('should accumulate and submit token usage from all reasoning steps', async () => {
-    mockGeminiSendMessage.mockResolvedValueOnce({
-      text: 'Thinking...',
-      functionCalls: [{ name: 'get_houses', args: {}, id: '1' }],
-      usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 20 }
-    });
+    mockGeminiSendMessage.mockResolvedValueOnce(mockGeminiResult(
+      'Thinking...',
+      [{ name: 'get_houses', args: {}, id: '1' }],
+      { promptTokenCount: 100, candidatesTokenCount: 20 }
+    ));
 
-    mockGeminiSendMessage.mockResolvedValueOnce({
-      text: 'Final reply',
-      functionCalls: [],
-      usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 30 }
-    });
+    mockGeminiSendMessage.mockResolvedValueOnce(mockGeminiResult(
+      'Final reply',
+      [],
+      { promptTokenCount: 50, candidatesTokenCount: 30 }
+    ));
 
-    const reqData = { message: 'Häuser zeigen', pathname: '/test', sessionId: 's1' };
-    const req = new (global as any).Request('http://api/chat', { method: 'POST', body: JSON.stringify(reqData) });
-    req.json = jest.fn().mockResolvedValue(reqData);
-
+    const req = createMockRequest({ message: 'Häuser zeigen', pathname: '/test', sessionId: 's1' });
     const response = await POST(req);
     await consumeStream(response);
 
-    expect(mockPostHogInstance.capture).toHaveBeenCalledWith(expect.objectContaining({
+    expect(posthogSingleton.capture).toHaveBeenCalledWith(expect.objectContaining({
       properties: expect.objectContaining({
         $ai_input_tokens: 150,
         $ai_output_tokens: 50,
@@ -128,32 +161,29 @@ describe('Chat API Analytics Pipeline', () => {
   });
 
   it('should track complex tool chains with multiple reasoning loops', async () => {
-    mockGeminiSendMessage.mockResolvedValueOnce({
-      text: 'Ich schaue nach Häusern...',
-      functionCalls: [{ name: 'get_houses', args: {}, id: 'h1' }],
-      usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 10 }
-    });
+    mockGeminiSendMessage.mockResolvedValueOnce(mockGeminiResult(
+      'Ich schaue nach Häusern...',
+      [{ name: 'get_houses', args: {}, id: 'h1' }],
+      { promptTokenCount: 100, candidatesTokenCount: 10 }
+    ));
 
-    mockGeminiSendMessage.mockResolvedValueOnce({
-      text: 'Habe Häuser. Jetzt nach Einheiten suchen...',
-      functionCalls: [{ name: 'get_apartments', args: { house_id: '123' }, id: 'u1' }],
-      usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 10 }
-    });
+    mockGeminiSendMessage.mockResolvedValueOnce(mockGeminiResult(
+      'Habe Häuser. Jetzt nach Einheiten suchen...',
+      [{ name: 'get_apartments', args: { house_id: '123' }, id: 'u1' }],
+      { promptTokenCount: 50, candidatesTokenCount: 10 }
+    ));
 
-    mockGeminiSendMessage.mockResolvedValueOnce({
-      text: 'Hier ist die Übersicht.',
-      functionCalls: [],
-      usageMetadata: { promptTokenCount: 30, candidatesTokenCount: 20 }
-    });
+    mockGeminiSendMessage.mockResolvedValueOnce(mockGeminiResult(
+      'Hier ist die Übersicht.',
+      [],
+      { promptTokenCount: 30, candidatesTokenCount: 20 }
+    ));
 
-    const reqData = { message: 'Komplex', pathname: '/dashboard', sessionId: 's2' };
-    const req = new (global as any).Request('http://api/chat', { method: 'POST', body: JSON.stringify(reqData) });
-    req.json = jest.fn().mockResolvedValue(reqData);
-
+    const req = createMockRequest({ message: 'Komplex', pathname: '/dashboard', sessionId: 's2' });
     const response = await POST(req);
     await consumeStream(response);
 
-    expect(mockPostHogInstance.capture).toHaveBeenCalledWith(expect.objectContaining({
+    expect(posthogSingleton.capture).toHaveBeenCalledWith(expect.objectContaining({
       properties: expect.objectContaining({
         $ai_input_tokens: 180,
         $ai_output_tokens: 40,
@@ -164,20 +194,17 @@ describe('Chat API Analytics Pipeline', () => {
   });
 
   it('should include $ai_http_status in the PostHog capture properties', async () => {
-    mockGeminiSendMessage.mockResolvedValueOnce({
-      text: 'Hello world',
-      functionCalls: [],
-      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 }
-    });
+    mockGeminiSendMessage.mockResolvedValueOnce(mockGeminiResult(
+      'Hello world',
+      [],
+      { promptTokenCount: 10, candidatesTokenCount: 5 }
+    ));
 
-    const reqData = { message: 'Hi', pathname: '/', sessionId: 's3' };
-    const req = new (global as any).Request('http://api/chat', { method: 'POST', body: JSON.stringify(reqData) });
-    req.json = jest.fn().mockResolvedValue(reqData);
-
+    const req = createMockRequest({ message: 'Hi', pathname: '/', sessionId: 's3' });
     const response = await POST(req);
     await consumeStream(response);
 
-    expect(mockPostHogInstance.capture).toHaveBeenCalledWith(expect.objectContaining({
+    expect(posthogSingleton.capture).toHaveBeenCalledWith(expect.objectContaining({
       properties: expect.objectContaining({
         $ai_http_status: 200,
         $ai_provider: 'google',

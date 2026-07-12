@@ -2,6 +2,14 @@
 
 import { useState, useCallback, useRef } from "react";
 import type { LLMStep, StepStatus, StepType } from "@/types/llm-steps";
+import type { ToolCallRecord } from "@/types/llm-steps";
+
+type StepUpdate = {
+  status?: StepStatus;
+  label?: string;
+  detail?: string;
+  toolResult?: ToolCallRecord;
+};
 import { v4 as uuidv4 } from "uuid";
 
 export function useGeminiSteps() {
@@ -21,7 +29,7 @@ export function useGeminiSteps() {
     return id;
   }, []);
 
-  const updateStep = useCallback((stepId: string, updates: Partial<LLMStep>) => {
+  const updateStep = useCallback((stepId: string, updates: StepUpdate) => {
     const nextSteps = stepsRef.current.map(s => {
       if (s.id !== stepId) return s;
       

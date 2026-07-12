@@ -8,6 +8,31 @@ import { v4 as uuidv4 } from 'uuid';
 const clampLimit = (val: unknown): number =>
   Math.min(Math.max(Number(val) || 10, 1), 100);
 
+// Simple in-memory rate limiter: 30 requests per 60s sliding window per user
+const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitStore.get(userId);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitStore.set(userId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+// Periodic cleanup to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimitStore) {
+    if (now - val.windowStart > RATE_LIMIT_WINDOW_MS) rateLimitStore.delete(key);
+  }
+}, RATE_LIMIT_WINDOW_MS);
+
 const allFunctionDeclarations = [
     {
       name: "get_houses",
@@ -116,6 +141,10 @@ export async function POST(req: NextRequest) {
     }
     userId = user.id;
 
+    if (!checkRateLimit(userId)) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
     if (!message || !pathname || !sessionId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -205,7 +234,20 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (data: Record<string, unknown>) => controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+        let streamClosed = false;
+        const send = (data: Record<string, unknown>) => {
+          if (streamClosed) return;
+          try {
+            controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+          } catch {
+            streamClosed = true;
+          }
+        };
+        const closeStream = () => {
+          if (streamClosed) return;
+          streamClosed = true;
+          try { controller.close(); } catch { /* ignore */ }
+        };
 
         try {
           const messageParts: ({ text: string } | { inlineData: { data: string; mimeType: string } })[] = [{ text: message }];
@@ -394,28 +436,35 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
           send({ type: "step_done" });
 
           // 8. Track Generation in PostHog (fire-and-forget, don't block the stream)
-          posthog.capture({
-            distinctId: userId,
-            event: '$ai_generation',
-            groups: { organization: orgId },
-            properties: {
-              $ai_trace_id: traceId,
-              $ai_session_id: sessionId,
-              $ai_span_name: 'mietevo_ai_agent',
-              $ai_model: model,
-              $ai_provider: 'google',
-              $ai_input: [{ role: 'user', content: message }],
-              $ai_output_choices: [{ role: 'assistant', content: replyText }],
-              $ai_input_tokens: totalInputTokens,
-              $ai_output_tokens: totalOutputTokens,
-              $ai_latency: latency,
-              $ai_tools_called: executedTools.map(t => t.name),
-              $ai_tool_call_count: executedTools.length,
-              $ai_http_status: 200,
-              org_id: orgId,
-              feature: 'chat',
-            },
-          }).catch((e: unknown) => console.error("[PostHog] Failed to track $ai_generation:", e));
+          try {
+            const captureResult = posthog.capture({
+              distinctId: userId,
+              event: '$ai_generation',
+              groups: { organization: orgId },
+              properties: {
+                $ai_trace_id: traceId,
+                $ai_session_id: sessionId,
+                $ai_span_name: 'mietevo_ai_agent',
+                $ai_model: model,
+                $ai_provider: 'google',
+                $ai_input: [{ role: 'user', content: message }],
+                $ai_output_choices: [{ role: 'assistant', content: replyText }],
+                $ai_input_tokens: totalInputTokens,
+                $ai_output_tokens: totalOutputTokens,
+                $ai_latency: latency,
+                $ai_tools_called: executedTools.map(t => t.name),
+                $ai_tool_call_count: executedTools.length,
+                $ai_http_status: 200,
+                org_id: orgId,
+                feature: 'chat',
+              },
+            });
+            if (captureResult && typeof (captureResult as Promise<void>).catch === 'function') {
+              (captureResult as Promise<void>).catch((e: unknown) => console.error("[PostHog] Failed to track $ai_generation:", e));
+            }
+          } catch (e) {
+            console.error("[PostHog] Failed to track $ai_generation:", e);
+          }
 
           // Final payload
           send({ 
@@ -424,12 +473,12 @@ Current Date: ${new Date().toLocaleDateString('de-DE', { weekday: 'long', year: 
             traceId: traceId,
             toolCalls: executedTools 
           });
-          controller.close();
+          closeStream();
 
         } catch (error: unknown) {
           console.error("Stream Error:", error);
           send({ type: "error", message: error instanceof Error ? error.message : "Internal Server Error" });
-          controller.close();
+          closeStream();
         }
       }
     });

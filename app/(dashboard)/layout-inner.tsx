@@ -272,7 +272,7 @@ export default function DashboardInnerLayout({
             variant={confirmationModalConfig.variant}
           />
         )}
-        {/* </GlobalDragDropProvider> */}
+
       </NestedDialogProvider>
       <OnboardingTour />
       <AIChatSidebar />

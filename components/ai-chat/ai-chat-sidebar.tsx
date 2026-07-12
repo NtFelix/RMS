@@ -175,7 +175,8 @@ export function AIChatSidebar() {
     });
 
     try {
-      const currentHistory = historyOverride || messages;
+      // Exclude the last message from history — it's the current user input sent separately as message/attachment
+      const currentHistory = historyOverride || messages.slice(0, -1);
       // Truncate history to last 20 turns and remove attachment data from old messages
       const recentHistory = currentHistory.slice(-40);
       const history = recentHistory.map((m, i) => {
