@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       // Use service client for safe metadata check
       const supabase = createSupabaseServiceClient();
       const { data: existingMsg } = await supabase
-        .from('KI_Agenten_Nachrichten')
+        .from('KI_Nachrichten')
         .select('inhalt, status')
         .eq('client_nachricht_id', idempotencyKey)
         .eq('organisation_id', orgId)
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     // 6. Persist user message (using RLS user client)
     const { data: userMsg, error: userMsgError } = await userSupabase
-      .from('KI_Agenten_Nachrichten')
+      .from('KI_Nachrichten')
       .insert({
         konversation_id: conversationId,
         organisation_id: orgId,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
 
     // 7. Create Assistant placeholder message (using RLS user client)
     const { data: assistantMsg, error: assistantMsgError } = await userSupabase
-      .from('KI_Agenten_Nachrichten')
+      .from('KI_Nachrichten')
       .insert({
         konversation_id: conversationId,
         organisation_id: orgId,
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
 
     // 8. Create Run tracking entry (using RLS user client)
     const { data: run, error: runError } = await userSupabase
-      .from('KI_Agenten_Runs')
+      .from('KI_Runs')
       .insert({
         konversation_id: conversationId,
         organisation_id: orgId,
@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
 
     // Set run status to laufend (using RLS user client)
     await userSupabase
-      .from('KI_Agenten_Runs')
+      .from('KI_Runs')
       .update({ status: 'laufend', gestartet_am: new Date().toISOString() })
       .eq('id', run.id);
 
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
 
         // Update run status to abgeschlossen (using user RLS client)
         await userJwtSupabase
-          .from('KI_Agenten_Runs')
+          .from('KI_Runs')
           .update({
             status: 'abgeschlossen',
             beendet_am: new Date().toISOString(),
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
         const errMsg = runErr instanceof Error ? runErr.message : String(runErr);
         // Update run status to fehler (using user RLS client)
         await userJwtSupabase
-          .from('KI_Agenten_Runs')
+          .from('KI_Runs')
           .update({
             status: 'fehler',
             beendet_am: new Date().toISOString(),

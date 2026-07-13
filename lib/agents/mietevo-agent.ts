@@ -85,7 +85,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
     if (conversationId) {
       // Order by descending to fetch the 20 newest messages, then reverse in memory
       const { data: historyData } = await supabase
-        .from('KI_Agenten_Nachrichten')
+        .from('KI_Nachrichten')
         .select('rolle, inhalt')
         .eq('konversation_id', conversationId)
         .order('erstellt_am', { ascending: false })
@@ -136,7 +136,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
         if (now - lastDbWriteTime > 500) {
           lastDbWriteTime = now;
           supabase
-            .from('KI_Agenten_Nachrichten')
+            .from('KI_Nachrichten')
             .update({ inhalt: fullText })
             .eq('id', messageId)
             .then(({ error }) => {
@@ -174,7 +174,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
       // Finalize database assistant message entry
       if (messageId) {
         await supabase
-          .from('KI_Agenten_Nachrichten')
+          .from('KI_Nachrichten')
           .update({
             inhalt: fullText,
             status: 'abgeschlossen',
@@ -209,7 +209,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
       const errorMsg = err instanceof Error ? err.message : String(err);
       if (messageId) {
         await supabase
-          .from('KI_Agenten_Nachrichten')
+          .from('KI_Nachrichten')
           .update({
             status: 'fehler',
             fehler_meldung: errorMsg,

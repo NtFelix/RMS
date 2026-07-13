@@ -26,7 +26,7 @@ async function handleCleanup(req: NextRequest) {
 
     // 1. Fetch runs that are stuck in 'laufend' status for more than 10 minutes
     const { data: timedOutRuns, error: fetchError } = await supabase
-      .from('KI_Agenten_Runs')
+      .from('KI_Runs')
       .select('id, nachricht_id')
       .eq('status', 'laufend')
       .lt('gestartet_am', tenMinutesAgo);
@@ -51,7 +51,7 @@ async function handleCleanup(req: NextRequest) {
 
     // 2. Mark runs as 'zeitueberschreitung'
     const { error: updateRunsError } = await supabase
-      .from('KI_Agenten_Runs')
+      .from('KI_Runs')
       .update({
         status: 'zeitueberschreitung',
         beendet_am: new Date().toISOString(),
@@ -66,7 +66,7 @@ async function handleCleanup(req: NextRequest) {
     // 3. Mark the corresponding generated messages as 'fehler'
     if (messageIds.length > 0) {
       const { error: updateMessagesError } = await supabase
-        .from('KI_Agenten_Nachrichten')
+        .from('KI_Nachrichten')
         .update({
           status: 'fehler',
           fehler_meldung: 'Run timed out (exceeded 10 minutes limit)',
