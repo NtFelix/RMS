@@ -123,10 +123,13 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
         const now = Date.now();
         if (now - lastDbWriteTime > 500) {
           lastDbWriteTime = now;
-          await supabase
+          supabase
             .from('KI_Agenten_Nachrichten')
             .update({ inhalt: fullText })
-            .eq('id', messageId);
+            .eq('id', messageId)
+            .then(({ error }) => {
+              if (error) console.error('[mietevo-agent] Stream update error:', error.message);
+            });
         }
       }
     };

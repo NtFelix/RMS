@@ -1,6 +1,6 @@
 import { Worker } from 'worker_threads';
 import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { mkdirSync, rmSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 
 const WHITELIST = ['fetch_mieter_list', 'fetch_finanzen_summary', 'create_aufgabe', 'get_haeuser_list'];
@@ -64,39 +64,49 @@ export async function runCustomCode(
     // Ignore if directory already exists
   }
 
-  return new Promise((resolve, reject) => {
-    const workerPath = join(process.cwd(), 'lib/sandbox/worker.js');
-    const worker = new Worker(workerPath, {
-      workerData: { code, context, timeout: 30000, memoryLimit: 256 },
-      resourceLimits: {
-        maxOldGenerationSizeMb: 256,
-      },
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const workerPath = join(process.cwd(), 'lib/sandbox/worker.js');
+      const worker = new Worker(workerPath, {
+        workerData: { code, context, timeout: 30000, memoryLimit: 256 },
+        resourceLimits: {
+          maxOldGenerationSizeMb: 256,
+        },
+      });
+
+      const timeout = setTimeout(() => {
+        worker.terminate();
+        reject(new Error('Code execution timed out (30s)'));
+      }, 30000);
+
+      worker.on('message', (msg) => {
+        clearTimeout(timeout);
+        if (msg.error) {
+          reject(new Error(msg.error));
+        } else {
+          resolve(msg.result);
+        }
+      });
+
+      worker.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+
+      worker.on('exit', (exitCode) => {
+        clearTimeout(timeout);
+        if (exitCode !== 0) {
+          reject(new Error(`Worker exited with code ${exitCode}`));
+        }
+      });
     });
 
-    const timeout = setTimeout(() => {
-      worker.terminate();
-      reject(new Error('Code execution timed out (30s)'));
-    }, 30000);
-
-    worker.on('message', (msg) => {
-      clearTimeout(timeout);
-      if (msg.error) {
-        reject(new Error(msg.error));
-      } else {
-        resolve(msg.result);
-      }
-    });
-
-    worker.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
-    worker.on('exit', (exitCode) => {
-      clearTimeout(timeout);
-      if (exitCode !== 0) {
-        reject(new Error(`Worker exited with code ${exitCode}`));
-      }
-    });
-  });
+    return result;
+  } finally {
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch (e) {
+      // Ignore cleanup error
+    }
+  }
 }

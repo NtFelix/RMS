@@ -1,17 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
+import { createClient } from '@/utils/supabase/server';
 import { createSupabaseServiceClient } from '@/lib/sandbox/runner';
 import { runAgent } from '@/lib/agents/mietevo-agent';
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, conversationId, userId, orgId, agentMitgliedId, agentId } = await req.json();
+    const { message, conversationId, orgId, agentMitgliedId, agentId } = await req.json();
 
     const idempotencyKey = req.headers.get('x-idempotency-key') || req.headers.get('X-Idempotency-Key');
     
+    // 1. Authenticate user session
+    const userSupabase = await createClient();
+    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    
+    if (authError || !session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const user = session.user;
+    const userJwt = session.access_token;
+
     const supabase = createSupabaseServiceClient();
 
-    // 1. Idempotency Check
+    // 2. Validate tenant access (user must belong to the specified organization)
+    const { data: membership, error: membershipError } = await userSupabase
+      .from('Organisation_Mitglieder')
+      .select('id, rolle')
+      .eq('organisation_id', orgId)
+      .eq('user_id', user.id)
+      .is('geloescht_am', null)
+      .single();
+
+    if (membershipError || !membership) {
+      return NextResponse.json({ error: 'Forbidden: You are not a member of this organization' }, { status: 403 });
+    }
+
+    // 3. Validate agent membership (if agentMitgliedId is provided)
+    if (agentMitgliedId) {
+      const { data: agentMembership, error: agentMembershipError } = await userSupabase
+        .from('Organisation_Mitglieder')
+        .select('id')
+        .eq('id', agentMitgliedId)
+        .eq('organisation_id', orgId)
+        .eq('rolle', 'agent')
+        .single();
+
+      if (agentMembershipError || !agentMembership) {
+        return NextResponse.json({ error: 'Forbidden: Invalid agent membership' }, { status: 403 });
+      }
+    }
+
+    // 4. Idempotency Check (Only return completed responses)
     if (idempotencyKey) {
       const { data: existingMsg } = await supabase
         .from('KI_Agenten_Nachrichten')
@@ -20,7 +60,7 @@ export async function POST(req: NextRequest) {
         .eq('organisation_id', orgId)
         .single();
 
-      if (existingMsg) {
+      if (existingMsg && existingMsg.status === 'abgeschlossen') {
         return NextResponse.json({
           text: existingMsg.inhalt,
           status: existingMsg.status,
@@ -29,7 +69,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Persist user message
+    // 5. Persist user message
     const { data: userMsg, error: userMsgError } = await supabase
       .from('KI_Agenten_Nachrichten')
       .insert({
@@ -40,7 +80,7 @@ export async function POST(req: NextRequest) {
         inhalt: message,
         status: 'gesendet',
         client_nachricht_id: idempotencyKey || null,
-        erstellt_von: userId || null
+        erstellt_von: user.id
       })
       .select('id')
       .single();
@@ -49,7 +89,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `User message creation failed: ${userMsgError.message}` }, { status: 500 });
     }
 
-    // 3. Create Assistant placeholder message
+    // 6. Create Assistant placeholder message
     const { data: assistantMsg, error: assistantMsgError } = await supabase
       .from('KI_Agenten_Nachrichten')
       .insert({
@@ -59,7 +99,7 @@ export async function POST(req: NextRequest) {
         rolle: 'assistant',
         inhalt: '',
         status: 'generiert',
-        erstellt_von: userId || null
+        erstellt_von: user.id
       })
       .select('id')
       .single();
@@ -68,7 +108,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Assistant message placeholder creation failed: ${assistantMsgError.message}` }, { status: 500 });
     }
 
-    // 4. Create Run tracking entry
+    // 7. Create Run tracking entry
     const { data: run, error: runError } = await supabase
       .from('KI_Agenten_Runs')
       .insert({
@@ -79,7 +119,7 @@ export async function POST(req: NextRequest) {
         auth_mode: 'user',
         status: 'in_warteschlange',
         ausfuehrungs_typ: 'waituntil',
-        erstellt_von: userId || null
+        erstellt_von: user.id
       })
       .select('id')
       .single();
@@ -94,7 +134,7 @@ export async function POST(req: NextRequest) {
       .update({ status: 'laufend', gestartet_am: new Date().toISOString() })
       .eq('id', run.id);
 
-    // 5. Open SSE Stream to client
+    // 8. Open SSE Stream to client
     const encoder = new TextEncoder();
     let streamController: any = null;
 
@@ -104,7 +144,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 6. Define background runner via waitUntil to keep execution alive even if SSE aborts
+    // 9. Define background runner via waitUntil
     const backgroundPromise = (async () => {
       try {
         const result = await runAgent({
@@ -112,10 +152,11 @@ export async function POST(req: NextRequest) {
           conversationId,
           messageId: assistantMsg.id,
           authMode: 'user',
-          userId,
+          userId: user.id,
           orgId,
           agentMitgliedId,
           agentId,
+          userJwt, // Enforce RLS in DB queries
           onToken: (token) => {
             if (streamController) {
               try {
