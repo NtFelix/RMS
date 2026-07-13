@@ -39,8 +39,15 @@ async function handleCleanup(req: NextRequest) {
       return NextResponse.json({ message: 'No timed out runs found.' });
     }
 
-    const runIds = timedOutRuns.map((r) => r.id);
-    const messageIds = timedOutRuns.map((r) => r.nachricht_id).filter(Boolean) as string[];
+    const runIds: string[] = [];
+    const messageIds: string[] = [];
+
+    for (const r of timedOutRuns) {
+      runIds.push(r.id);
+      if (r.nachricht_id) {
+        messageIds.push(r.nachricht_id);
+      }
+    }
 
     // 2. Mark runs as 'zeitueberschreitung'
     const { error: updateRunsError } = await supabase

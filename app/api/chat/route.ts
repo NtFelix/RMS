@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
 import { createClient } from '@/utils/supabase/server';
-import { createSupabaseServiceClient } from '@/lib/sandbox/runner';
+import { createSupabaseServiceClient, createSupabaseUserClient } from '@/lib/sandbox/runner';
 import { runAgent } from '@/lib/agents/mietevo-agent';
 
 export async function POST(req: NextRequest) {
@@ -21,8 +21,6 @@ export async function POST(req: NextRequest) {
     const user = session.user;
     const userJwt = session.access_token;
 
-    const supabase = createSupabaseServiceClient();
-
     // 2. Validate tenant access (user must belong to the specified organization)
     const { data: membership, error: membershipError } = await userSupabase
       .from('Organisation_Mitglieder')
@@ -36,7 +34,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: You are not a member of this organization' }, { status: 403 });
     }
 
-    // 3. Validate agent membership (if agentMitgliedId is provided)
+    // 3. Validate conversation scoping (conversation must belong to the organization)
+    if (conversationId) {
+      const { data: conversation, error: convError } = await userSupabase
+        .from('KI_Konversationen')
+        .select('id')
+        .eq('id', conversationId)
+        .eq('organisation_id', orgId)
+        .is('geloescht_am', null)
+        .single();
+
+      if (convError || !conversation) {
+        return NextResponse.json({ error: 'Forbidden: Conversation does not belong to this organization or does not exist' }, { status: 403 });
+      }
+    }
+
+    // 4. Validate agent membership (if agentMitgliedId is provided)
     if (agentMitgliedId) {
       const { data: agentMembership, error: agentMembershipError } = await userSupabase
         .from('Organisation_Mitglieder')
@@ -51,8 +64,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Idempotency Check (Only return completed responses)
+    // 5. Idempotency Check (Only return completed responses)
     if (idempotencyKey) {
+      // Use service client for safe metadata check
+      const supabase = createSupabaseServiceClient();
       const { data: existingMsg } = await supabase
         .from('KI_Agenten_Nachrichten')
         .select('inhalt, status')
@@ -69,8 +84,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Persist user message
-    const { data: userMsg, error: userMsgError } = await supabase
+    // 6. Persist user message (using RLS user client)
+    const { data: userMsg, error: userMsgError } = await userSupabase
       .from('KI_Agenten_Nachrichten')
       .insert({
         konversation_id: conversationId,
@@ -89,8 +104,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `User message creation failed: ${userMsgError.message}` }, { status: 500 });
     }
 
-    // 6. Create Assistant placeholder message
-    const { data: assistantMsg, error: assistantMsgError } = await supabase
+    // 7. Create Assistant placeholder message (using RLS user client)
+    const { data: assistantMsg, error: assistantMsgError } = await userSupabase
       .from('KI_Agenten_Nachrichten')
       .insert({
         konversation_id: conversationId,
@@ -108,8 +123,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Assistant message placeholder creation failed: ${assistantMsgError.message}` }, { status: 500 });
     }
 
-    // 7. Create Run tracking entry
-    const { data: run, error: runError } = await supabase
+    // 8. Create Run tracking entry (using RLS user client)
+    const { data: run, error: runError } = await userSupabase
       .from('KI_Agenten_Runs')
       .insert({
         konversation_id: conversationId,
@@ -128,13 +143,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Run registration failed: ${runError.message}` }, { status: 500 });
     }
 
-    // Set run status to laufend
-    await supabase
+    // Set run status to laufend (using RLS user client)
+    await userSupabase
       .from('KI_Agenten_Runs')
       .update({ status: 'laufend', gestartet_am: new Date().toISOString() })
       .eq('id', run.id);
 
-    // 8. Open SSE Stream to client
+    // 9. Open SSE Stream to client
     const encoder = new TextEncoder();
     let streamController: any = null;
 
@@ -144,8 +159,10 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 9. Define background runner via waitUntil
+    // 10. Define background runner via waitUntil
     const backgroundPromise = (async () => {
+      // Create user RLS client for background updates
+      const userJwtSupabase = createSupabaseUserClient(userJwt);
       try {
         const result = await runAgent({
           runId: run.id,
@@ -156,6 +173,7 @@ export async function POST(req: NextRequest) {
           orgId,
           agentMitgliedId,
           agentId,
+          userMessage: message, // Explicitly pass the current user message to prevent race conditions
           userJwt, // Enforce RLS in DB queries
           onToken: (token) => {
             if (streamController) {
@@ -169,8 +187,8 @@ export async function POST(req: NextRequest) {
           }
         });
 
-        // Update run status to abgeschlossen
-        await supabase
+        // Update run status to abgeschlossen (using user RLS client)
+        await userJwtSupabase
           .from('KI_Agenten_Runs')
           .update({
             status: 'abgeschlossen',
@@ -187,8 +205,8 @@ export async function POST(req: NextRequest) {
         }
       } catch (runErr: any) {
         const errMsg = runErr instanceof Error ? runErr.message : String(runErr);
-        // Update run status to fehler
-        await supabase
+        // Update run status to fehler (using user RLS client)
+        await userJwtSupabase
           .from('KI_Agenten_Runs')
           .update({
             status: 'fehler',

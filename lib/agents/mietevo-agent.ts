@@ -17,6 +17,7 @@ export interface RunAgentParams {
   orgId: string;
   agentMitgliedId?: string;
   agentId?: string;
+  userMessage?: string; // Explicit current user message
   onToken?: (token: string) => void;
   userJwt?: string;
 }
@@ -40,6 +41,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
     orgId,
     agentMitgliedId,
     agentId,
+    userMessage,
     onToken,
     userJwt,
   } = params;
@@ -81,19 +83,29 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
     // 3. Fetch chat history (last 20 messages)
     let formattedMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
     if (conversationId) {
+      // Order by descending to fetch the 20 newest messages, then reverse in memory
       const { data: historyData } = await supabase
         .from('KI_Agenten_Nachrichten')
         .select('rolle, inhalt')
         .eq('konversation_id', conversationId)
-        .order('erstellt_am', { ascending: true })
+        .order('erstellt_am', { ascending: false })
         .limit(20);
 
       if (historyData) {
-        formattedMessages = historyData.map((m) => ({
+        const chronologicalHistory = [...historyData].reverse();
+        formattedMessages = chronologicalHistory.map((m) => ({
           role: m.rolle === 'assistant' ? 'assistant' : m.rolle === 'system' ? 'system' : 'user',
           content: m.inhalt || '',
         }));
       }
+    }
+
+    // Explicitly append the current user message to history
+    if (userMessage) {
+      formattedMessages.push({
+        role: 'user',
+        content: userMessage,
+      });
     }
 
     // 4. Instantiate Vercel AI SDK ToolLoopAgent with instructions and tools
@@ -179,6 +191,8 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
         conversation_id: conversationId,
         agent_id: agentId,
         auth_mode: authMode,
+        feature: conversationId ? 'chat' : 'agent',
+        org_id: orgId,
         model: 'gemini-3-flash',
         prompt_tokens: usage?.promptTokens || 0,
         completion_tokens: usage?.completionTokens || 0,

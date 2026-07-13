@@ -56,6 +56,10 @@ export async function runCustomCode(
   code: string, 
   context: { runId: string; konversationId: string; mitgliedId: string }
 ): Promise<any> {
+  if (process.env.ENABLE_CUSTOM_CODE !== 'true') {
+    throw new Error('Custom code execution is disabled by default for security.');
+  }
+
   // Pre-create temporary directory
   const tempDir = `/tmp/agent-${context.runId}`;
   try {
