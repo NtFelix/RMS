@@ -37,6 +37,9 @@ export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
 export const WEBSITE_DOMAIN = 'mietevo.de';
 
 
+// Allowed MIME types for image preview in chat attachments
+export const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
 // Feature flags removed as functionality is now standard
 // PostHog feature flag keys - centralized to prevent magic strings
 export const POSTHOG_FEATURE_FLAGS = {

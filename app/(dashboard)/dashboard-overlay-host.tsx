@@ -103,10 +103,6 @@ const TenantMailTemplatesModal = dynamic(
   () => import("@/components/tenants/tenant-mail-templates-modal").then((mod) => mod.TenantMailTemplatesModal),
   { ssr: false },
 )
-const AIAssistantModal = dynamic(
-  () => import("@/components/ai/ai-assistant-modal").then((mod) => mod.AIAssistantModal),
-  { ssr: false },
-)
 const TenantPaymentEditModal = dynamic(
   () => import("@/components/tenants/tenant-payment-edit-modal"),
   { ssr: false },
@@ -157,7 +153,7 @@ export default function DashboardOverlayHost() {
     if (confirmationModalConfig?.onConfirm) {
       confirmationModalConfig.onConfirm()
     }
-  }, [confirmationModalConfig?.onConfirm])
+  }, [confirmationModalConfig])
 
   return (
     <>
@@ -259,7 +255,6 @@ export default function DashboardOverlayHost() {
         tenantName={tenantMailTemplatesModalData?.tenantName}
         tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
       />
-      <AIAssistantModal />
       <TenantPaymentEditModal />
       <TenantPaymentOverviewModal />
       {isConfirmationModalOpen && confirmationModalConfig && (

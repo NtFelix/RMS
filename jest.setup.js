@@ -244,31 +244,6 @@ jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
 }));
 
-// Mock complex AI-related dependencies to prevent hanging
-jest.mock('@/hooks/use-ai-cache-client', () => ({
-  useAICacheClient: () => ({
-    cacheResponse: jest.fn(),
-    getCachedResponse: jest.fn(),
-    hasCachedResponse: jest.fn(),
-    stats: { hits: 0, misses: 0 }
-  }),
-  useAICacheWarming: () => ({
-    preloadFrequentQueries: jest.fn()
-  })
-}));
-
-// AI input validation is used directly in tests to verify logic
-jest.unmock('@/lib/ai-input-validation');
-
-jest.mock('@/lib/ai-documentation-context', () => ({
-  categorizeAIError: jest.fn(() => ({
-    errorType: 'unknown_error',
-    errorMessage: 'Test error',
-    retryable: false
-  })),
-  trackAIRequestFailure: jest.fn()
-}));
-
 // Prevent timers from hanging tests
 jest.useFakeTimers({ advanceTimers: true });
 
