@@ -1,0 +1,90 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
+
+export async function GET(req: NextRequest) {
+  try {
+    const userSupabase = await createClient();
+    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    
+    if (authError || !session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const orgId = searchParams.get('orgId');
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Missing orgId query parameter' }, { status: 400 });
+    }
+
+    // Load active, non-deleted conversations sorted by last access descending
+    const { data, error } = await userSupabase
+      .from('KI_Konversationen')
+      .select('id, titel, letzter_zugriff, status')
+      .eq('organisation_id', orgId)
+      .eq('status', 'aktiv')
+      .is('geloescht_am', null)
+      .order('letzter_zugriff', { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const userSupabase = await createClient();
+    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    
+    if (authError || !session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { orgId, titel } = await req.json();
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'Missing orgId' }, { status: 400 });
+    }
+
+    // Resolve user's membership ID
+    const { data: member, error: memberError } = await userSupabase
+      .from('Organisation_Mitglieder')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('organisation_id', orgId)
+      .is('geloescht_am', null)
+      .single();
+
+    if (memberError || !member) {
+      return NextResponse.json({ error: 'Forbidden: You are not a member of this organization' }, { status: 403 });
+    }
+
+    // Create new conversation
+    const { data, error } = await userSupabase
+      .from('KI_Konversationen')
+      .insert({
+        organisation_id: orgId,
+        mitglied_id: member.id,
+        agent_id: null,
+        titel: titel || 'Neue Konversation',
+        status: 'aktiv',
+        storage_status: 'db',
+        erstellt_von: session.user.id
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
