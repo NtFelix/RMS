@@ -29,6 +29,7 @@ export function SidebarFloatingButton({ isOpen, isDark, onToggle }: { isOpen: bo
                 src={LOGO_URL} 
                 alt="Mietevo AI" 
                 fill
+                sizes="32px"
                 className="object-contain" 
               />
             </div>

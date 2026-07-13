@@ -11,13 +11,10 @@ import { useAIChatStore } from "@/hooks/use-ai-chat-store";
 import type { ToolCallRecord } from '@/types/llm-steps';
 import { useGeminiSteps } from '@/hooks/useGeminiSteps';
 import type { Message, MessageVersion } from "./ai-chat-types";
-import { EmptyState } from "./ai-chat-empty-state";
-import { UserMessageBubble } from "./ai-chat-user-message";
-import { AIMessageCard } from "./ai-chat-ai-message";
+import { MessagesList } from "./ai-chat-messages-list";
 import { ChatInput } from "./ai-chat-input";
 import { SidebarHeader } from "./ai-chat-header";
 import { SidebarFloatingButton } from "./ai-chat-floating-button";
-import { IntelligenceInsight } from "./ai-chat-intelligence-insight";
 
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
@@ -26,7 +23,7 @@ export function AIChatSidebar() {
   
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
@@ -397,55 +394,15 @@ export function AIChatSidebar() {
               displayMode={displayMode}
             />
 
-            {/* Messages Area */}
-            <div
-              className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-6"
-              ref={scrollRef}
-            >
-              {messages.length === 0 ? (
-                <EmptyState />
-              ) : (
-                <AnimatePresence initial={false}>
-                   {messages.map((m) => (
-                     <motion.div
-                       key={m.id}
-                       initial={{ opacity: 0, y: 10 }}
-                       animate={{ opacity: 1, y: 0 }}
-                       className={`flex w-full flex-col ${
-                         m.role === "user" ? "items-end" : "items-start"
-                       }`}
-                     >
-                       {m.role === "user" ? (
-                         <UserMessageBubble message={m} />
-                       ) : (
-                         <AIMessageCard
-                           content={m.content}
-                           traceId={m.traceId}
-                           currentVersionIndex={m.currentVersionIndex}
-                           totalVersions={m.versions?.length}
-                           steps={m.steps}
-                           toolCalls={m.toolCalls}
-                           isActive={m.id === activeId}
-                           isLoading={isLoading}
-                           liveSteps={llmSteps}
-                           onRegenerate={() => regenerateMessage(m.id)}
-                           onVersionChange={(idx) => switchVersion(m.id, idx)}
-                         />
-                       )}
-                     </motion.div>
-                   ))}
-                 </AnimatePresence>
-              )}
-                {isLoading && activeId === null && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="w-full"
-                  >
-                    <IntelligenceInsight steps={llmSteps} isLoading={true} />
-                  </motion.div>
-                )}
-            </div>
+            <MessagesList
+              messages={messages}
+              isLoading={isLoading}
+              activeId={activeId}
+              llmSteps={llmSteps}
+              scrollRef={scrollRef}
+              regenerateMessage={regenerateMessage}
+              switchVersion={switchVersion}
+            />
 
             <ChatInput
               inputValue={inputValue}

@@ -34,10 +34,17 @@ export function PostHogFeedback({
   const [pendingRating, setPendingRating] = useState<'up' | 'down' | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const feedbackTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     return () => clearTimeout(timerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (pendingRating) {
+      feedbackTextareaRef.current?.focus();
+    }
+  }, [pendingRating]);
 
   if (!traceId) return null;
 
@@ -195,11 +202,11 @@ export function PostHogFeedback({
             </DialogTitle>
           </DialogHeader>
           <textarea
+            ref={feedbackTextareaRef}
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
             placeholder={pendingRating === 'down' ? 'Was ging besser?' : 'Weiteres Feedback (optional)'}
             className="w-full h-20 px-3 py-2 text-xs rounded-lg border border-border/30 bg-transparent text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/40 transition-colors resize-none"
-            autoFocus
           />
           <div className="flex items-center justify-end gap-2">
             <Button
