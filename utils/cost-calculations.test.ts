@@ -9,9 +9,13 @@ import {
 import { calculateTenantOccupancy } from './date-calculations';
 
 // Mock the date calculation to control the output
-jest.mock('./date-calculations', () => ({
-  calculateTenantOccupancy: jest.fn()
-}));
+jest.mock('./date-calculations', () => {
+  const actual = jest.requireActual('./date-calculations');
+  return {
+    ...actual,
+    calculateTenantOccupancy: jest.fn()
+  };
+});
 
 describe('cost-calculations', () => {
   const mockTenant1 = { id: 't1', wohnung_id: 'w1', Wohnungen: { groesse: 50 } } as any;

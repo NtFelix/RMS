@@ -9,7 +9,7 @@
  */
 
 import type { Mieter, ZaehlerAblesung, Zaehler } from "@/lib/types";
-import { calculateTenantOccupancy } from "./date-calculations";
+import { calculateTenantOccupancy, parseAsUtc } from "./date-calculations";
 
 /**
  * Represents a water reading with associated tenant and period information
@@ -128,18 +128,6 @@ function getApartmentTenantsInPeriod(
  * - Tenant move-ins/move-outs during billing period
  * - WG cost splitting based on occupancy
  */
-// Helper to parse date string (ISO or German format) as UTC Date object at 00:00:00Z
-const parseAsUtc = (dateStr: string): Date => {
-  let isoStr = dateStr;
-  // Check if German date format DD.MM.YYYY
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
-    const [day, month, year] = dateStr.split('.');
-    isoStr = `${year}-${month}-${day}`;
-  }
-  const cleanStr = isoStr.includes('T') ? isoStr : `${isoStr}T00:00:00Z`;
-  return new Date(cleanStr);
-};
-
 // Helper to add days to a Date object in a UTC-safe way
 const addDaysUtc = (date: Date, days: number): Date => {
   const result = new Date(date.getTime());
@@ -176,6 +164,17 @@ export function calculateTenantMeterConsumption(
     const apartmentTenants = getApartmentTenantsInPeriod(tenants, apartmentId, periodStart, periodEnd);
 
     if (apartmentTenants.length === 0) return;
+
+    // Precalculate UTC dates and effective occupancy limits for each tenant in this apartment once
+    const tenantsWithDates = apartmentTenants.map(tenant => {
+      const einStart = tenant.einzug ? parseAsUtc(tenant.einzug) : startPeriodUtc;
+      const auzEnd = tenant.auszug ? parseAsUtc(tenant.auszug) : endPeriodUtc;
+      return {
+        tenant,
+        effectiveStart: einStart > startPeriodUtc ? einStart : startPeriodUtc,
+        effectiveEnd: auzEnd < endPeriodUtc ? auzEnd : endPeriodUtc
+      };
+    });
 
     // Initialize map of consumption fields for each tenant in this apartment
     const tenantAllocations = new Map<string, {
@@ -233,13 +232,9 @@ export function calculateTenantMeterConsumption(
         const current = new Date(startReadingUtc.getTime());
         while (current <= endReadingUtc) {
           // Find all tenants active on this specific day
-          const activeTenants = apartmentTenants.filter(tenant => {
-            const einStart = tenant.einzug ? parseAsUtc(tenant.einzug) : startPeriodUtc;
-            const auzEnd = tenant.auszug ? parseAsUtc(tenant.auszug) : endPeriodUtc;
-            const effectiveStart = einStart > startPeriodUtc ? einStart : startPeriodUtc;
-            const effectiveEnd = auzEnd < endPeriodUtc ? auzEnd : endPeriodUtc;
-            return current >= effectiveStart && current <= effectiveEnd;
-          });
+          const activeTenants = tenantsWithDates
+            .filter(t => current >= t.effectiveStart && current <= t.effectiveEnd)
+            .map(t => t.tenant);
 
           if (activeTenants.length > 0) {
             const dailyShare = consumptionPerDay / activeTenants.length;
@@ -251,7 +246,7 @@ export function calculateTenantMeterConsumption(
               const existingDetail = allocation.details.get(meter.id);
               if (existingDetail) {
                 existingDetail.consumption += dailyShare;
-                if (new Date(reading.ablese_datum) > new Date(existingDetail.readingDate)) {
+                if (parseAsUtc(reading.ablese_datum) > parseAsUtc(existingDetail.readingDate)) {
                   existingDetail.readingDate = reading.ablese_datum;
                 }
               } else {

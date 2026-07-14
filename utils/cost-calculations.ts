@@ -3,22 +3,11 @@
  */
 
 import type { Mieter } from "@/lib/types";
-import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
+import { calculateTenantOccupancy, TenantOccupancy, parseAsUtc } from "./date-calculations";
 
 /**
  * Calculate cost distribution based on area (pro Flaeche) with day-based weighting
  */
-// Helper to parse date string (ISO or German format) as UTC Date object at 00:00:00Z
-const parseAsUtc = (dateStr: string): Date => {
-  let isoStr = dateStr;
-  // Check if German date format DD.MM.YYYY
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
-    const [day, month, year] = dateStr.split('.');
-    isoStr = `${year}-${month}-${day}`;
-  }
-  const cleanStr = isoStr.includes('T') ? isoStr : `${isoStr}T00:00:00Z`;
-  return new Date(cleanStr);
-};
 
 export function calculateProFlächeDistribution(
   tenants: Mieter[],

@@ -229,3 +229,17 @@ export function formatPeriodDuration(startdatum: string, enddatum: string): stri
     return 'Ungültiger Zeitraum';
   }
 }
+
+/**
+ * Helper to parse date string (ISO or German format) as UTC Date object at 00:00:00Z
+ */
+export const parseAsUtc = (dateStr: string): Date => {
+  let isoStr = dateStr;
+  // Check if German date format DD.MM.YYYY
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
+    const [day, month, year] = dateStr.split('.');
+    isoStr = `${year}-${month}-${day}`;
+  }
+  const cleanStr = isoStr.includes('T') ? isoStr : `${isoStr}T00:00:00Z`;
+  return new Date(cleanStr);
+};
