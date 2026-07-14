@@ -1,5 +1,6 @@
 import { ToolLoopAgent, isStepCount } from 'ai';
 import { vertex } from '@ai-sdk/google-vertex';
+import { google } from '@ai-sdk/google';
 import { AsyncLocalStorage } from 'async_hooks';
 import { createSupabaseServiceClient } from '@/lib/sandbox/runner';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
@@ -110,7 +111,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
 
     // 4. Instantiate Vercel AI SDK ToolLoopAgent with instructions and tools
     const agentInstance = new ToolLoopAgent({
-      model: vertex('gemini-3-flash'),
+      model: process.env.GEMINI_API_KEY ? google('gemini-3-flash') : vertex('gemini-3-flash'),
       instructions: instructions,
       tools: {
         fetchMieter,
