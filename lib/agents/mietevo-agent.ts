@@ -8,7 +8,7 @@ const googleProvider = createGoogleGenerativeAI({
   apiKey: googleApiKey,
 });
 import { createSupabaseServiceClient } from '@/lib/sandbox/runner';
-import { capturePostHogEvent } from '@/lib/posthog-helpers';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { fetchMieter } from './tools/mietevo/fetch_mieter';
 import { fetchFinanzen } from './tools/mietevo/fetch_finanzen';
 import { createAufgabe } from './tools/mietevo/create_aufgabe';
@@ -191,19 +191,32 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
       }
 
       // Track execution metrics in PostHog
-      const distinctId = userId || agentMitgliedId || runId || 'system-agent';
-      await capturePostHogEvent(distinctId, '$ai_generation', {
-        run_id: runId,
-        conversation_id: conversationId,
-        agent_id: agentId,
-        auth_mode: authMode,
-        feature: conversationId ? 'chat' : 'agent',
-        org_id: orgId,
-        model: 'gemini-3-flash',
-        prompt_tokens: usage?.promptTokens || 0,
-        completion_tokens: usage?.completionTokens || 0,
-        latency_ms: latencyMs,
-      });
+      try {
+        const posthog = getPostHogServer();
+        const distinctId = userId || agentMitgliedId || runId || 'system-agent';
+        await posthog.capture({
+          distinctId,
+          event: '$ai_generation',
+          groups: { organization: orgId },
+          properties: {
+            $ai_trace_id: runId,
+            $ai_session_id: conversationId || runId,
+            $ai_span_name: 'mietevo_ai_agent',
+            $ai_model: googleApiKey ? 'gemini-3-flash-preview' : 'gemini-3-flash',
+            $ai_provider: googleApiKey ? 'google' : 'vertex',
+            $ai_input: formattedMessages.map(m => ({ role: m.role, content: m.content })),
+            $ai_output_choices: [{ role: 'assistant', content: fullText }],
+            $ai_input_tokens: usage?.promptTokens || 0,
+            $ai_output_tokens: usage?.completionTokens || 0,
+            $ai_latency: latencyMs,
+            org_id: orgId,
+            feature: conversationId ? 'chat' : 'agent',
+          },
+        });
+        await posthog.flush();
+      } catch (phError) {
+        console.error('[PostHog] Failed to track $ai_generation:', phError);
+      }
 
       return {
         text: fullText,
