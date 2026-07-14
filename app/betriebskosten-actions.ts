@@ -2721,6 +2721,11 @@ export async function createAbrechnungCalculationOptimizedAction(
     const house_metrics = dbResult.house_metrics || {};
     const calculation_metadata = dbResult.calculation_metadata || {};
 
+    // Ensure gesamtFlaeche is set on nebenkosten_data for calculations to use
+    if (nebenkosten_data && house_metrics) {
+      (nebenkosten_data as any).gesamtFlaeche = house_metrics.totalArea;
+    }
+
     // Validate that we have the necessary data
     if (!tenants_with_occupancy || tenants_with_occupancy.length === 0) {
       return {

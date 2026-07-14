@@ -52,6 +52,19 @@ describe('cost-calculations', () => {
       expect(result['t1'].amount).toBe(0);
     });
 
+    it('distributes based on totalHouseArea when provided (vacancies case)', () => {
+      const smallTenant = { ...mockTenant1, id: 't3', Wohnungen: { groesse: 30 } };
+      const largeTenant = { ...mockTenant2, id: 't4', Wohnungen: { groesse: 70 } };
+
+      // Total house area is 150 (there is a 50 sqm vacant apartment)
+      // Use a short period in January to avoid DST timezone issues
+      const result = calculateProFlächeDistribution([smallTenant, largeTenant], 1500, '2023-01-01', '2023-01-10', 150);
+      // smallTenant gets 30/150 * 1500 = 300
+      expect(result['t3'].amount).toBeCloseTo(300);
+      // largeTenant gets 70/150 * 1500 = 700
+      expect(result['t4'].amount).toBeCloseTo(700);
+    });
+
     it('correctly handles shared apartments (WGs) by using union of occupancy', () => {
       // 2 tenants in same apartment, same dates. Total house area = 50. Total cost = 1000.
       // Apartment weight should be 50 * 1 = 50. Both tenants share 50. Cost is 1000. Each pays 500.
