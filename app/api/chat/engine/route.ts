@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const { message, conversationId, agentMitgliedId, agentId } = await req.json();
 
     // 1. Create a User JWT Supabase client to validate conversation scoping & perform RLS inserts
-    const userJwtSupabase = createSupabaseUserClient(userJwt);
+    const userJwtSupabase = createSupabaseUserClient(userJwt, orgId);
 
     // Validate conversation scoping
     if (conversationId) {
@@ -212,6 +212,7 @@ export async function POST(req: NextRequest) {
       }
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
