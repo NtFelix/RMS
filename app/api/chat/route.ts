@@ -8,16 +8,20 @@ export async function POST(req: NextRequest) {
 
     const idempotencyKey = req.headers.get('x-idempotency-key') || req.headers.get('X-Idempotency-Key');
     
-    // 1. Authenticate user session
+    // 1. Authenticate user session using secure getUser()
     const userSupabase = await createClient();
-    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { data: { session } } = await userSupabase.auth.getSession();
+    const userJwt = session?.access_token;
     
-    const user = session.user;
-    const userJwt = session.access_token;
+    if (!userJwt) {
+      return NextResponse.json({ error: 'Session token not found' }, { status: 401 });
+    }
 
     // Auto-resolve organization if not passed
     if (!orgId) {

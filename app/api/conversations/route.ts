@@ -4,9 +4,9 @@ import { createClient } from '@/utils/supabase/server';
 export async function GET(req: NextRequest) {
   try {
     const userSupabase = await createClient();
-    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       const { data: membership } = await userSupabase
         .from('Organisation_Mitglieder')
         .select('organisation_id')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .eq('status', 'aktiv')
         .limit(1)
         .maybeSingle();
@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const userSupabase = await createClient();
-    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       const { data: membership } = await userSupabase
         .from('Organisation_Mitglieder')
         .select('organisation_id')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .eq('status', 'aktiv')
         .limit(1)
         .maybeSingle();
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     const { data: member, error: memberError } = await userSupabase
       .from('Organisation_Mitglieder')
       .select('id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .eq('organisation_id', orgId)
       .eq('status', 'aktiv')
       .single();
@@ -109,17 +109,19 @@ export async function POST(req: NextRequest) {
         titel: titel || 'Neue Konversation',
         status: 'aktiv',
         storage_status: 'db',
-        erstellt_von: session.user.id
+        erstellt_von: user.id
       })
       .select('id')
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[conversations POST database error]:', error);
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
     }
 
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[conversations POST exception]:', err);
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
   }
 }

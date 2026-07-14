@@ -276,11 +276,13 @@ export function AIChatSidebar() {
           setActiveConversationId(data.id);
           loadConversationsList();
         } else {
-          throw new Error('Konnte Konversation nicht initialisieren.');
+          const errBody = await response.json().catch(() => ({}));
+          console.error('[AIChatSidebar] POST /api/conversations failed:', response.status, errBody);
+          throw new Error(errBody.error || 'Konnte Konversation nicht initialisieren.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('[AIChatSidebar] Failed to initialize conversation:', err);
-        setError('Konnte Konversation nicht initialisieren.');
+        setError(err.message || 'Konnte Konversation nicht initialisieren.');
         setIsLoading(false);
         setActiveId(null);
         return;
