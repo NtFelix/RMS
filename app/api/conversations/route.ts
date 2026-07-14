@@ -3,8 +3,8 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function GET(req: NextRequest) {
   try {
-    const userSupabase = await createClient();
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+    const authClient = await createClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -15,12 +15,12 @@ export async function GET(req: NextRequest) {
 
     // Auto-resolve organization if not passed
     if (!orgId) {
-      const { data: rpcOrgId } = await userSupabase.rpc('current_organisation_id');
+      const { data: rpcOrgId } = await authClient.rpc('current_organisation_id');
       orgId = rpcOrgId;
     }
 
     if (!orgId) {
-      const { data: membership } = await userSupabase
+      const { data: membership } = await authClient
         .from('Organisation_Mitglieder')
         .select('organisation_id')
         .eq('user_id', user.id)
@@ -33,6 +33,9 @@ export async function GET(req: NextRequest) {
     if (!orgId) {
       return NextResponse.json({ error: 'No active organization found' }, { status: 400 });
     }
+
+    // Instantiate userSupabase with the active organization ID
+    const userSupabase = await createClient(orgId);
 
     // Load active, non-deleted conversations sorted by last access descending
     const { data, error } = await userSupabase
@@ -56,8 +59,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const userSupabase = await createClient();
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+    const authClient = await createClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -68,12 +71,12 @@ export async function POST(req: NextRequest) {
 
     // Auto-resolve organization if not passed
     if (!orgId) {
-      const { data: rpcOrgId } = await userSupabase.rpc('current_organisation_id');
+      const { data: rpcOrgId } = await authClient.rpc('current_organisation_id');
       orgId = rpcOrgId;
     }
 
     if (!orgId) {
-      const { data: membership } = await userSupabase
+      const { data: membership } = await authClient
         .from('Organisation_Mitglieder')
         .select('organisation_id')
         .eq('user_id', user.id)
@@ -86,6 +89,9 @@ export async function POST(req: NextRequest) {
     if (!orgId) {
       return NextResponse.json({ error: 'No active organization found' }, { status: 400 });
     }
+
+    // Instantiate userSupabase with the active organization ID
+    const userSupabase = await createClient(orgId);
 
     // Resolve user's membership ID
     const { data: member, error: memberError } = await userSupabase

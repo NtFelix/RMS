@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+
+function getSupabaseService() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function GET(
   req: NextRequest,
@@ -7,12 +15,29 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const userSupabase = await createClient();
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+    const authClient = await createClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseService = getSupabaseService();
+
+    // Read organization ID via service role client to bypass RLS SELECT constraints
+    const { data: convMeta, error: metaError } = await supabaseService
+      .from('KI_Konversationen')
+      .select('organisation_id')
+      .eq('id', id)
+      .is('geloescht_am', null)
+      .single();
+
+    if (metaError || !convMeta) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    // Instantiate client with organization ID
+    const userSupabase = await createClient(convMeta.organisation_id);
 
     const { data: conversation, error: convError } = await userSupabase
       .from('KI_Konversationen')
@@ -52,12 +77,29 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const userSupabase = await createClient();
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+    const authClient = await createClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseService = getSupabaseService();
+
+    // Read organization ID via service role client to bypass RLS SELECT constraints
+    const { data: convMeta, error: metaError } = await supabaseService
+      .from('KI_Konversationen')
+      .select('organisation_id')
+      .eq('id', id)
+      .is('geloescht_am', null)
+      .single();
+
+    if (metaError || !convMeta) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    // Instantiate client with organization ID
+    const userSupabase = await createClient(convMeta.organisation_id);
 
     const { data: conversation, error: convError } = await userSupabase
       .from('KI_Konversationen')
@@ -117,12 +159,29 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const userSupabase = await createClient();
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+    const authClient = await createClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseService = getSupabaseService();
+
+    // Read organization ID via service role client to bypass RLS SELECT constraints
+    const { data: convMeta, error: metaError } = await supabaseService
+      .from('KI_Konversationen')
+      .select('organisation_id')
+      .eq('id', id)
+      .is('geloescht_am', null)
+      .single();
+
+    if (metaError || !convMeta) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    // Instantiate client with organization ID
+    const userSupabase = await createClient(convMeta.organisation_id);
 
     const { titel, status } = await req.json();
     const updateData: Record<string, any> = {};
@@ -163,12 +222,29 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const userSupabase = await createClient();
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
+    const authClient = await createClient();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseService = getSupabaseService();
+
+    // Read organization ID via service role client to bypass RLS SELECT constraints
+    const { data: convMeta, error: metaError } = await supabaseService
+      .from('KI_Konversationen')
+      .select('organisation_id')
+      .eq('id', id)
+      .is('geloescht_am', null)
+      .single();
+
+    if (metaError || !convMeta) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    // Instantiate client with organization ID
+    const userSupabase = await createClient(convMeta.organisation_id);
 
     // Perform soft-delete
     const { error } = await userSupabase
