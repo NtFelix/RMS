@@ -26,6 +26,7 @@ export interface RunAgentParams {
   userMessage?: string; // Explicit current user message
   onToken?: (token: string) => void;
   userJwt?: string;
+  model?: string;
 }
 
 export const agentRuntimeLocalStorage = new AsyncLocalStorage<{
@@ -50,6 +51,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
     userMessage,
     onToken,
     userJwt,
+    model,
   } = params;
 
   return agentRuntimeLocalStorage.run({ orgId, agentMitgliedId, userJwt }, async () => {
@@ -114,9 +116,14 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
       });
     }
 
-    // 4. Instantiate Vercel AI SDK ToolLoopAgent with instructions and tools
+    // 4. Resolve the requested model dynamically
+    const actualModel = googleApiKey 
+      ? (model || 'gemini-3-flash-preview') 
+      : (model && model.startsWith('gemini-') ? (model === 'gemini-3.1-flash-lite-preview' ? 'gemini-3-flash-lite' : model.replace('-preview', '')) : 'gemini-3-flash');
+
+    // 5. Instantiate Vercel AI SDK ToolLoopAgent with instructions and tools
     const agentInstance = new ToolLoopAgent({
-      model: googleApiKey ? googleProvider('gemini-3-flash-preview') : vertex('gemini-3-flash'),
+      model: googleApiKey ? googleProvider(actualModel) : vertex(actualModel),
       instructions: instructions,
       tools: {
         fetchMieter,
@@ -202,7 +209,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
             $ai_trace_id: runId,
             $ai_session_id: conversationId || runId,
             $ai_span_name: 'mietevo_ai_agent',
-            $ai_model: googleApiKey ? 'gemini-3-flash-preview' : 'gemini-3-flash',
+            $ai_model: actualModel,
             $ai_provider: googleApiKey ? 'google' : 'vertex',
             $ai_input: formattedMessages.map(m => ({ role: m.role, content: m.content })),
             $ai_output_choices: [{ role: 'assistant', content: fullText }],

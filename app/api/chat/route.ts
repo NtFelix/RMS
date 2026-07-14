@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    let { message, conversationId, orgId, agentMitgliedId, agentId } = body;
+    let { message, conversationId, orgId, agentMitgliedId, agentId, model } = body;
 
     const idempotencyKey = req.headers.get('x-idempotency-key') || req.headers.get('X-Idempotency-Key');
     
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         'X-User-Jwt': userJwt,
         ...(idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {}),
       },
-      body: JSON.stringify({ message, conversationId, agentMitgliedId, agentId }),
+      body: JSON.stringify({ message, conversationId, agentMitgliedId, agentId, model }),
     });
 
     if (!response.ok) {

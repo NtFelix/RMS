@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing auth metadata headers' }, { status: 400 });
     }
 
-    const { message, conversationId, agentMitgliedId, agentId } = await req.json();
+    const { message, conversationId, agentMitgliedId, agentId, model } = await req.json();
 
     // 1. Create a User JWT Supabase client to validate conversation scoping & perform RLS inserts
     const userJwtSupabase = createSupabaseUserClient(userJwt, orgId);
@@ -154,6 +154,7 @@ export async function POST(req: NextRequest) {
           agentId,
           userMessage: message,
           userJwt,
+          model,
           onToken: (token) => {
             fullText += token;
             if (streamController) {
