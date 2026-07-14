@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       .select('id, rolle')
       .eq('organisation_id', orgId)
       .eq('user_id', user.id)
-      .is('geloescht_am', null)
+      .eq('status', 'aktiv')
       .single();
 
     if (membershipError || !membership) {

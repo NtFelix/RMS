@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -16,6 +16,7 @@ import { ChatInput } from "./ai-chat-input";
 import { SidebarHeader } from "./ai-chat-header";
 import { SidebarFloatingButton } from "./ai-chat-floating-button";
 import { createClient } from "@/utils/supabase/client";
+import { ChatConversationList } from "../chat/ChatConversationList";
 
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
@@ -46,6 +47,9 @@ export function AIChatSidebar() {
   const supabase = createClient();
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const realtimeChannelRef = useRef<any>(null);
 
   // Resolve current organization context on mount
@@ -68,15 +72,15 @@ export function AIChatSidebar() {
   }, [supabase]);
 
   // Unsubscribe helper
-  const unsubscribeFromRealtime = () => {
+  const unsubscribeFromRealtime = useCallback(() => {
     if (realtimeChannelRef.current) {
       realtimeChannelRef.current.unsubscribe();
       realtimeChannelRef.current = null;
     }
-  };
+  }, []);
 
   // Subscribe fallback helper
-  const subscribeToRealtime = (conversationId: string, aiMessageId: string) => {
+  const subscribeToRealtime = useCallback((conversationId: string, aiMessageId: string) => {
     unsubscribeFromRealtime();
     const channel = supabase
       .channel(`konversation:${conversationId}`)
@@ -108,7 +112,19 @@ export function AIChatSidebar() {
       )
       .subscribe();
     realtimeChannelRef.current = channel;
-  };
+  }, [unsubscribeFromRealtime, supabase]);
+
+  const loadConversationsList = useCallback(async () => {
+    if (!activeOrgId) return;
+    try {
+      const res = await fetch(`/api/conversations?orgId=${activeOrgId}`);
+      if (res.ok) {
+        setConversations(await res.json());
+      }
+    } catch (err) {
+      console.error('[AIChatSidebar] Error loading list:', err);
+    }
+  }, [activeOrgId]);
 
   // Load latest active conversation on sidebar open
   useEffect(() => {
@@ -118,6 +134,7 @@ export function AIChatSidebar() {
           const res = await fetch(`/api/conversations?orgId=${activeOrgId}`);
           if (res.ok) {
             const convs = await res.json();
+            setConversations(convs);
             if (convs && convs.length > 0) {
               const latest = convs[0];
               setActiveConversationId(latest.id);
@@ -135,7 +152,6 @@ export function AIChatSidebar() {
                 }));
                 setMessages(mapped);
                 
-                // If generating on load, subscribe to realtime updates
                 const lastMsg = details.messages?.[details.messages.length - 1];
                 if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
                   setIsLoading(true);
@@ -154,7 +170,14 @@ export function AIChatSidebar() {
       unsubscribeFromRealtime();
     }
     return () => unsubscribeFromRealtime();
-  }, [isOpen, activeOrgId]);
+  }, [isOpen, activeOrgId, subscribeToRealtime, unsubscribeFromRealtime]);
+
+  // Refresh conversations list whenever history toggled open
+  useEffect(() => {
+    if (showHistory) {
+      loadConversationsList();
+    }
+  }, [showHistory, loadConversationsList]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,6 +259,7 @@ export function AIChatSidebar() {
     setIsLoading(true);
     setActiveId(aiMessageId);
     startSteps();
+    setError(null);
 
     // Auto-initialize conversation if not yet active
     let currentConvId = activeConversationId;
@@ -250,11 +274,13 @@ export function AIChatSidebar() {
           const data = await response.json();
           currentConvId = data.id;
           setActiveConversationId(data.id);
+          loadConversationsList();
         } else {
           throw new Error('Konnte Konversation nicht initialisieren.');
         }
       } catch (err) {
         console.error('[AIChatSidebar] Failed to initialize conversation:', err);
+        setError('Konnte Konversation nicht initialisieren.');
         setIsLoading(false);
         setActiveId(null);
         return;
@@ -402,8 +428,9 @@ export function AIChatSidebar() {
         currentVersionIndex: finalVersions.length - 1
       } : m));
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Chat Error:", error);
+      setError(error.message || "Kommunikationsfehler");
       finishSteps(false);
       setMessages((prev) => prev.map(m =>
         m.id === aiMessageId
@@ -498,35 +525,127 @@ export function AIChatSidebar() {
               onToggleDisplayMode={toggleDisplayMode}
               onToggleSidebar={toggleSidebar}
               displayMode={displayMode}
+              showHistory={showHistory}
+              onToggleHistory={() => setShowHistory(!showHistory)}
             />
 
-            <MessagesList
-              messages={messages}
-              isLoading={isLoading}
-              activeId={activeId}
-              llmSteps={llmSteps}
-              scrollRef={scrollRef}
-              regenerateMessage={regenerateMessage}
-              switchVersion={switchVersion}
-            />
+            {error && (
+              <div className="px-6 py-2.5 bg-destructive/10 dark:bg-destructive/25 text-destructive-foreground dark:text-red-300 text-xs border-b border-destructive/20 font-medium">
+                {error}
+              </div>
+            )}
 
-            <ChatInput
-              inputValue={inputValue}
-              setInputValue={setInputValue}
-              attachment={attachment}
-              setAttachment={setAttachment}
-              isLoading={isLoading}
-              isDark={isDark}
-              selectedModel={selectedModel}
-              setSelectedModel={setSelectedModel}
-              enabledToolIds={enabledToolIds}
-              toggleTool={toggleTool}
-              handleFileSelect={handleFileSelect}
-              fileInputRef={fileInputRef}
-              textareaRef={textareaRef}
-              handleKeyDown={handleKeyDown}
-              sendMessage={sendMessage}
-            />
+            {showHistory ? (
+              <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 dark:bg-gray-950/10">
+                <ChatConversationList
+                  conversations={conversations}
+                  activeId={activeConversationId || undefined}
+                  onSelect={async (id) => {
+                    setActiveConversationId(id);
+                    setShowHistory(false);
+                    setError(null);
+                    try {
+                      const detailsRes = await fetch(`/api/conversations/${id}`);
+                      if (detailsRes.ok) {
+                        const data = await detailsRes.json();
+                        const mapped = (data.messages || []).map((m: any) => ({
+                          id: m.id,
+                          role: m.rolle === 'assistant' ? 'model' : m.rolle,
+                          content: m.inhalt || '',
+                          status: m.status,
+                          steps: m.steps || [],
+                          versions: m.versions || []
+                        }));
+                        setMessages(mapped);
+                        
+                        const lastMsg = data.messages?.[data.messages.length - 1];
+                        if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
+                          setIsLoading(true);
+                          setActiveId(lastMsg.id);
+                          subscribeToRealtime(id, lastMsg.id);
+                        } else {
+                          setIsLoading(false);
+                          unsubscribeFromRealtime();
+                        }
+                      }
+                    } catch (err) {
+                      console.error('[AIChatSidebar] Failed to load conversation details:', err);
+                    }
+                  }}
+                  onCreate={() => {
+                    clearChat();
+                    setShowHistory(false);
+                  }}
+                  onArchive={async (id, e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await fetch(`/api/conversations/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'archiviert' }),
+                      });
+                      if (response.ok) {
+                        if (activeConversationId === id) {
+                          setActiveConversationId(null);
+                          setMessages([]);
+                        }
+                        loadConversationsList();
+                      }
+                    } catch (err) {
+                      console.error('[AIChatSidebar] Archive error:', err);
+                    }
+                  }}
+                  onDelete={async (id, e) => {
+                    e.stopPropagation();
+                    if (!confirm('Möchtest du diese Konversation wirklich löschen?')) return;
+                    try {
+                      const response = await fetch(`/api/conversations/${id}`, {
+                        method: 'DELETE',
+                      });
+                      if (response.ok) {
+                        if (activeConversationId === id) {
+                          setActiveConversationId(null);
+                          setMessages([]);
+                        }
+                        loadConversationsList();
+                      }
+                    } catch (err) {
+                      console.error('[AIChatSidebar] Delete error:', err);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                <MessagesList
+                  messages={messages}
+                  isLoading={isLoading}
+                  activeId={activeId}
+                  llmSteps={llmSteps}
+                  scrollRef={scrollRef}
+                  regenerateMessage={regenerateMessage}
+                  switchVersion={switchVersion}
+                />
+
+                <ChatInput
+                  inputValue={inputValue}
+                  setInputValue={setInputValue}
+                  attachment={attachment}
+                  setAttachment={setAttachment}
+                  isLoading={isLoading}
+                  isDark={isDark}
+                  selectedModel={selectedModel}
+                  setSelectedModel={setSelectedModel}
+                  enabledToolIds={enabledToolIds}
+                  toggleTool={toggleTool}
+                  handleFileSelect={handleFileSelect}
+                  fileInputRef={fileInputRef}
+                  textareaRef={textareaRef}
+                  handleKeyDown={handleKeyDown}
+                  sendMessage={sendMessage}
+                />
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

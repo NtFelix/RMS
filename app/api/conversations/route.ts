@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('user_id', session.user.id)
       .eq('organisation_id', orgId)
-      .is('geloescht_am', null)
+      .eq('status', 'aktiv')
       .single();
 
     if (memberError || !member) {
