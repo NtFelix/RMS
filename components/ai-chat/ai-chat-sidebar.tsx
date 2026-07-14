@@ -337,7 +337,12 @@ export function AIChatSidebar() {
       });
 
       if (!res.ok) {
-        throw new Error(`API responded with an error: ${res.status}`);
+        const errText = await res.text().catch(() => '');
+        let errBody: any = {};
+        try {
+          errBody = JSON.parse(errText);
+        } catch (e) {}
+        throw new Error(errBody.error || errText || `API responded with an error: ${res.status}`);
       }
 
       const reader = res.body?.getReader();
