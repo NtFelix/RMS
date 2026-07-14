@@ -715,6 +715,59 @@ describe('Water Cost Calculations', () => {
       expect(fullYearResult!.isWGMember).toBe(true);
       expect(midYearResult!.isWGMember).toBe(true);
     });
+
+    it('should handle move-out date alignment and interpolation for part-time tenants', () => {
+      // 1. Move-out on 31.07.2025, exact reading on 31.07.2025: should use the reading
+      const tenantA: Mieter = {
+        ...tenant1,
+        id: 'tenant-a',
+        einzug: '2025-01-01',
+        auszug: '2025-07-31',
+      };
+      
+      const readingsExact = [
+        { ...reading1, id: 'r-1', ablese_datum: '2025-07-31', verbrauch: 39.843, zaehler_id: 'meter-1' },
+        { ...reading2, id: 'r-2', ablese_datum: '2025-12-31', verbrauch: 12.304, zaehler_id: 'meter-1' }
+      ];
+
+      const resultExact = calculateTenantMeterConsumption(
+        [tenantA],
+        [meter1],
+        readingsExact,
+        periodStart,
+        periodEnd
+      );
+      expect(resultExact[0].totalConsumption).toBeCloseTo(39.843, 3);
+
+      // 2. No reading on move-out day, but reading on 01.08.2025: should assign ~99.5% usage to tenant
+      const readingsOneDayLater = [
+        { ...reading1, id: 'r-1', ablese_datum: '2025-08-01', verbrauch: 40.0, zaehler_id: 'meter-1' }
+      ];
+
+      const resultOneDayLater = calculateTenantMeterConsumption(
+        [tenantA],
+        [meter1],
+        readingsOneDayLater,
+        periodStart,
+        periodEnd
+      );
+      // 212 days (up to 31.07) out of 213 days (up to 01.08) = 99.53%
+      expect(resultOneDayLater[0].totalConsumption).toBeCloseTo(40.0 * (212 / 213), 3);
+
+      // 3. Only one reading at the end of the year: should calculate fair share (212/365 days)
+      const readingsEndOfYear = [
+        { ...reading1, id: 'r-1', ablese_datum: '2025-12-31', verbrauch: 100.0, zaehler_id: 'meter-1' }
+      ];
+
+      const resultEndOfYear = calculateTenantMeterConsumption(
+        [tenantA],
+        [meter1],
+        readingsEndOfYear,
+        periodStart,
+        periodEnd
+      );
+      expect(resultEndOfYear[0].totalConsumption).toBeCloseTo(100.0 * (212 / 365), 3);
+    });
   });
 
   describe('Water Cost Configuration Issues (Common "Bug" Scenarios)', () => {
