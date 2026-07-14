@@ -15,6 +15,7 @@ import { MessagesList } from "./ai-chat-messages-list";
 import { ChatInput } from "./ai-chat-input";
 import { SidebarHeader } from "./ai-chat-header";
 import { SidebarFloatingButton } from "./ai-chat-floating-button";
+import { createClient } from "@/utils/supabase/client";
 
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
@@ -42,6 +43,119 @@ export function AIChatSidebar() {
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
 
+  const supabase = createClient();
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const realtimeChannelRef = useRef<any>(null);
+
+  // Resolve current organization context on mount
+  useEffect(() => {
+    supabase.rpc('current_organisation_id').then(async ({ data: orgId }) => {
+      if (!orgId) {
+        const { data: membership } = await supabase
+          .from('Organisation_Mitglieder')
+          .select('organisation_id')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('status', 'aktiv')
+          .limit(1)
+          .maybeSingle();
+        orgId = membership?.organisation_id;
+      }
+      if (orgId) {
+        setActiveOrgId(orgId);
+      }
+    });
+  }, [supabase]);
+
+  // Unsubscribe helper
+  const unsubscribeFromRealtime = () => {
+    if (realtimeChannelRef.current) {
+      realtimeChannelRef.current.unsubscribe();
+      realtimeChannelRef.current = null;
+    }
+  };
+
+  // Subscribe fallback helper
+  const subscribeToRealtime = (conversationId: string, aiMessageId: string) => {
+    unsubscribeFromRealtime();
+    const channel = supabase
+      .channel(`konversation:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'KI_Nachrichten',
+          filter: `konversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          if (newMsg && newMsg.rolle === 'assistant' && newMsg.id === aiMessageId) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMessageId
+                  ? { ...m, content: newMsg.inhalt, status: newMsg.status }
+                  : m
+              )
+            );
+            if (newMsg.status === 'abgeschlossen' || newMsg.status === 'fehler') {
+              setIsLoading(false);
+              setActiveId(null);
+              unsubscribeFromRealtime();
+            }
+          }
+        }
+      )
+      .subscribe();
+    realtimeChannelRef.current = channel;
+  };
+
+  // Load latest active conversation on sidebar open
+  useEffect(() => {
+    if (isOpen && activeOrgId) {
+      const loadHistory = async () => {
+        try {
+          const res = await fetch(`/api/conversations?orgId=${activeOrgId}`);
+          if (res.ok) {
+            const convs = await res.json();
+            if (convs && convs.length > 0) {
+              const latest = convs[0];
+              setActiveConversationId(latest.id);
+              
+              const detailsRes = await fetch(`/api/conversations/${latest.id}`);
+              if (detailsRes.ok) {
+                const details = await detailsRes.json();
+                const mapped = (details.messages || []).map((m: any) => ({
+                  id: m.id,
+                  role: m.rolle === 'assistant' ? 'model' : m.rolle,
+                  content: m.inhalt || '',
+                  status: m.status,
+                  steps: m.steps || [],
+                  versions: m.versions || []
+                }));
+                setMessages(mapped);
+                
+                // If generating on load, subscribe to realtime updates
+                const lastMsg = details.messages?.[details.messages.length - 1];
+                if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
+                  setIsLoading(true);
+                  setActiveId(lastMsg.id);
+                  subscribeToRealtime(latest.id, lastMsg.id);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[AIChatSidebar] Failed to load history:', err);
+        }
+      };
+      loadHistory();
+    } else if (!isOpen) {
+      unsubscribeFromRealtime();
+    }
+    return () => unsubscribeFromRealtime();
+  }, [isOpen, activeOrgId]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -64,41 +178,6 @@ export function AIChatSidebar() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-
-
-  // Hotkey listener for Cmd/Ctrl + J
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
-        e.preventDefault();
-        toggleOpen();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [toggleOpen]);
-
-  // Focus textarea when sidebar opens
-  useEffect(() => {
-    if (isOpen) {
-      // Small timeout to wait for sidebar spring animation to start/complete enough
-      const timer = setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  // Auto-scroll to bottom of messages smoothly
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth"
-      });
-    }
-  }, [messages, isLoading]);
-
   if (!isAIAgentEnabled) return null;
 
   const toggleSidebar = () => {
@@ -113,8 +192,18 @@ export function AIChatSidebar() {
     toggleOpen();
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
+    if (activeConversationId) {
+      try {
+        await fetch(`/api/conversations/${activeConversationId}`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.error('[AIChatSidebar] Failed to delete conversation:', err);
+      }
+    }
     setMessages([]);
+    setActiveConversationId(null);
     sessionIdRef.current = uuidv4(); // Start a new session
   };
 
@@ -148,6 +237,30 @@ export function AIChatSidebar() {
     setActiveId(aiMessageId);
     startSteps();
 
+    // Auto-initialize conversation if not yet active
+    let currentConvId = activeConversationId;
+    if (!currentConvId && activeOrgId) {
+      try {
+        const response = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId: activeOrgId, titel: messageContent.slice(0, 40) }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          currentConvId = data.id;
+          setActiveConversationId(data.id);
+        } else {
+          throw new Error('Konnte Konversation nicht initialisieren.');
+        }
+      } catch (err) {
+        console.error('[AIChatSidebar] Failed to initialize conversation:', err);
+        setIsLoading(false);
+        setActiveId(null);
+        return;
+      }
+    }
+
     // Immediately create/clear content to start fresh or hide previous answer
     setMessages(prev => {
       if (regenerateId) {
@@ -174,35 +287,18 @@ export function AIChatSidebar() {
     });
 
     try {
-      // Exclude the last message from history — it's the current user input sent separately as message/attachment
-      const currentHistory = historyOverride || messagesRef.current.slice(0, -1);
-      // Truncate history to last 20 turns and remove attachment data from old messages
-      const recentHistory = currentHistory.slice(-40);
-      const history = recentHistory.map((m, i) => {
-        const parts: ({ text: string } | { inlineData: { data: string; mimeType: string } })[] = [];
-        if (m.content) parts.push({ text: m.content });
-        if (m.attachment) {
-          const isRecent = i >= recentHistory.length - 4;
-          parts.push({
-            inlineData: {
-              data: isRecent ? m.attachment.data : "",
-              mimeType: m.attachment.type
-            }
-          });
-        }
-        if (parts.length === 0) parts.push({ text: " " });
-        return { role: m.role, parts };
-      });
-
+      const clientNachrichtId = uuidv4();
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": clientNachrichtId
+        },
         body: JSON.stringify({
           message: messageContent || "Hier ist eine Datei zur Analyse.",
           attachment: messageAttachment,
-          history,
-          pathname,
-          sessionId: sessionIdRef.current!,
+          conversationId: currentConvId,
+          orgId: activeOrgId,
           model: selectedModel,
           enabledToolIds,
         }),
@@ -221,6 +317,7 @@ export function AIChatSidebar() {
       let finalReply = "";
       let traceId = "";
       let toolResults: ToolCallRecord[] = [];
+      let receivedDone = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -263,6 +360,7 @@ export function AIChatSidebar() {
               finalReply = data.reply;
               traceId = data.traceId;
               toolResults = data.toolCalls || toolResults;
+              receivedDone = true;
             }
             else if (data.type === "error") {
               throw new Error(data.message);
@@ -271,6 +369,13 @@ export function AIChatSidebar() {
             console.error("Error parsing stream line:", e, line);
           }
         }
+      }
+
+      // If stream ended early without final reply payload, fall back to realtime tracking
+      if (!receivedDone && currentConvId) {
+        console.log('[AIChatSidebar] Stream disconnected early. Activating Realtime fallback...');
+        subscribeToRealtime(currentConvId, aiMessageId);
+        return; // Don't finalize state yet
       }
 
       setAllDone();
@@ -296,6 +401,7 @@ export function AIChatSidebar() {
         versions: finalVersions,
         currentVersionIndex: finalVersions.length - 1
       } : m));
+
     } catch (error) {
       console.error("AI Chat Error:", error);
       finishSteps(false);

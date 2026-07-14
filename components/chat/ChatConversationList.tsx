@@ -35,9 +35,10 @@ export const ChatConversationList: React.FC<ListProps> = ({
           <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Verlauf</h3>
         </div>
         <button
+          type="button"
           onClick={onCreate}
           className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-all duration-150 border border-indigo-100/50 dark:border-indigo-900/30 flex items-center justify-center shadow-sm"
-          title="Neue Konversation"
+          aria-label="Neue Konversation"
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -55,6 +56,10 @@ export const ChatConversationList: React.FC<ListProps> = ({
               <div
                 key={c.id}
                 onClick={() => onSelect(c.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(c.id); } }}
+                role="button"
+                tabIndex={0}
+                aria-label={c.titel || 'Neue Konversation'}
                 className={`group flex items-center justify-between px-3 py-3 rounded-xl cursor-pointer transition-all duration-200 border ${
                   isActive
                     ? 'bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/50 dark:border-indigo-900/50 shadow-sm shadow-indigo-500/5'
@@ -67,16 +72,18 @@ export const ChatConversationList: React.FC<ListProps> = ({
                 </div>
                 <div className="flex items-center space-x-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   <button
+                    type="button"
                     onClick={(e) => onArchive(c.id, e)}
                     className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-100"
-                    title="Archivieren"
+                    aria-label="Archivieren"
                   >
                     <Archive className="w-3.5 h-3.5" />
                   </button>
                   <button
+                    type="button"
                     onClick={(e) => onDelete(c.id, e)}
                     className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all duration-100"
-                    title="Löschen"
+                    aria-label="Löschen"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

@@ -32,6 +32,7 @@ export class ChatErrorBoundary extends Component<Props, State> {
           <h3 className="font-semibold mb-1">Etwas ist schiefgelaufen</h3>
           <p className="text-xs opacity-90">{this.state.error?.message || 'Ein unerwarteter UI-Fehler ist aufgetreten.'}</p>
           <button
+            type="button"
             onClick={() => this.setState({ hasError: false, error: null })}
             className="mt-2 text-xs font-semibold underline hover:no-underline"
           >

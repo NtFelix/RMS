@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, conversationId, orgId, agentMitgliedId, agentId } = body;
+    let { message, conversationId, orgId, agentMitgliedId, agentId } = body;
 
     const idempotencyKey = req.headers.get('x-idempotency-key') || req.headers.get('X-Idempotency-Key');
     
@@ -18,6 +18,27 @@ export async function POST(req: NextRequest) {
     
     const user = session.user;
     const userJwt = session.access_token;
+
+    // Auto-resolve organization if not passed
+    if (!orgId) {
+      const { data: rpcOrgId } = await userSupabase.rpc('current_organisation_id');
+      orgId = rpcOrgId;
+    }
+
+    if (!orgId) {
+      const { data: membership } = await userSupabase
+        .from('Organisation_Mitglieder')
+        .select('organisation_id')
+        .eq('user_id', user.id)
+        .eq('status', 'aktiv')
+        .limit(1)
+        .maybeSingle();
+      orgId = membership?.organisation_id || null;
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'No active organization found' }, { status: 400 });
+    }
 
     // 2. Validate tenant access (user must belong to the specified organization)
     const { data: membership, error: membershipError } = await userSupabase

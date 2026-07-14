@@ -14,7 +14,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Fetch conversation metadata
     const { data: conversation, error: convError } = await userSupabase
       .from('KI_Konversationen')
       .select('*')
@@ -26,46 +25,6 @@ export async function GET(
       return NextResponse.json({ error: 'Conversation not found or access denied' }, { status: 404 });
     }
 
-    // 2. Reactivate if archived in bucket
-    if (conversation.storage_status === 'bucket' && conversation.storage_pfad) {
-      const { data: fileData, error: downloadError } = await userSupabase.storage
-        .from('documents')
-        .download(conversation.storage_pfad);
-
-      if (!downloadError && fileData) {
-        try {
-          const messagesJson = JSON.parse(await fileData.text());
-          // Write back messages to database
-          if (Array.isArray(messagesJson) && messagesJson.length > 0) {
-            await userSupabase.from('KI_Nachrichten').insert(
-              messagesJson.map(m => ({
-                ...m,
-                konversation_id: id,
-                organisation_id: conversation.organisation_id
-              }))
-            );
-          }
-          // Reset storage status back to DB
-          await userSupabase
-            .from('KI_Konversationen')
-            .update({ storage_status: 'db', storage_pfad: null })
-            .eq('id', id);
-          
-          conversation.storage_status = 'db';
-          conversation.storage_pfad = null;
-        } catch (parseErr) {
-          console.error('[conversations] Failed to parse bucket messages:', parseErr);
-        }
-      }
-    }
-
-    // 3. Update letzter_zugriff
-    await userSupabase
-      .from('KI_Konversationen')
-      .update({ letzter_zugriff: new Date().toISOString() })
-      .eq('id', id);
-
-    // 4. Fetch all messages for the conversation sorted chronologically
     const { data: messages, error: messagesError } = await userSupabase
       .from('KI_Nachrichten')
       .select('*')
@@ -81,6 +40,70 @@ export async function GET(
       conversation,
       messages: messages || []
     });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const userSupabase = await createClient();
+    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    
+    if (authError || !session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: conversation, error: convError } = await userSupabase
+      .from('KI_Konversationen')
+      .select('*')
+      .eq('id', id)
+      .is('geloescht_am', null)
+      .single();
+
+    if (convError || !conversation) {
+      return NextResponse.json({ error: 'Conversation not found or access denied' }, { status: 404 });
+    }
+
+    // Reactivate if archived in bucket
+    if (conversation.storage_status === 'bucket' && conversation.storage_pfad) {
+      const { data: fileData, error: downloadError } = await userSupabase.storage
+        .from('documents')
+        .download(conversation.storage_pfad);
+
+      if (!downloadError && fileData) {
+        try {
+          const messagesJson = JSON.parse(await fileData.text());
+          if (Array.isArray(messagesJson) && messagesJson.length > 0) {
+            await userSupabase.from('KI_Nachrichten').insert(
+              messagesJson.map(m => ({
+                ...m,
+                konversation_id: id,
+                organisation_id: conversation.organisation_id
+              }))
+            );
+          }
+          await userSupabase
+            .from('KI_Konversationen')
+            .update({ storage_status: 'db', storage_pfad: null })
+            .eq('id', id);
+        } catch (parseErr) {
+          console.error('[conversations] Failed to parse bucket messages:', parseErr);
+        }
+      }
+    }
+
+    // Touch letzter_zugriff
+    await userSupabase
+      .from('KI_Konversationen')
+      .update({ letzter_zugriff: new Date().toISOString() })
+      .eq('id', id);
+
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

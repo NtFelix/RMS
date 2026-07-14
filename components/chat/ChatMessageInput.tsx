@@ -53,8 +53,10 @@ export const ChatMessageInput: React.FC<InputProps> = ({ onSend, disabled }) => 
           disabled={disabled}
         />
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={!value.trim() || disabled}
+          aria-label="Nachricht senden"
           className="p-2.5 text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 rounded-xl transition-all duration-150 flex items-center justify-center shadow-sm disabled:shadow-none"
         >
           <Send className="w-3.5 h-3.5" />

@@ -20,10 +20,15 @@ export async function loadChatHistory(conversationId: string, limit = 20) {
     return [];
   }
 
-  return (data || [])
-    .map(msg => ({
-      role: msg.rolle as 'user' | 'assistant',
-      content: msg.inhalt || '',
-    }))
-    .filter(msg => msg.content && msg.content.trim().length > 0);
+  const result: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  for (const msg of data || []) {
+    const content = (msg.inhalt || '').trim();
+    if (content) {
+      result.push({
+        role: msg.rolle as 'user' | 'assistant',
+        content,
+      });
+    }
+  }
+  return result;
 }

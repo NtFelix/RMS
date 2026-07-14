@@ -11,10 +11,27 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const orgId = searchParams.get('orgId');
+    let orgId = searchParams.get('orgId');
+
+    // Auto-resolve organization if not passed
+    if (!orgId) {
+      const { data: rpcOrgId } = await userSupabase.rpc('current_organisation_id');
+      orgId = rpcOrgId;
+    }
 
     if (!orgId) {
-      return NextResponse.json({ error: 'Missing orgId query parameter' }, { status: 400 });
+      const { data: membership } = await userSupabase
+        .from('Organisation_Mitglieder')
+        .select('organisation_id')
+        .eq('user_id', session.user.id)
+        .eq('status', 'aktiv')
+        .limit(1)
+        .maybeSingle();
+      orgId = membership?.organisation_id || null;
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'No active organization found' }, { status: 400 });
     }
 
     // Load active, non-deleted conversations sorted by last access descending
@@ -45,10 +62,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { orgId, titel } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    let { orgId, titel } = body;
+
+    // Auto-resolve organization if not passed
+    if (!orgId) {
+      const { data: rpcOrgId } = await userSupabase.rpc('current_organisation_id');
+      orgId = rpcOrgId;
+    }
 
     if (!orgId) {
-      return NextResponse.json({ error: 'Missing orgId' }, { status: 400 });
+      const { data: membership } = await userSupabase
+        .from('Organisation_Mitglieder')
+        .select('organisation_id')
+        .eq('user_id', session.user.id)
+        .eq('status', 'aktiv')
+        .limit(1)
+        .maybeSingle();
+      orgId = membership?.organisation_id || null;
+    }
+
+    if (!orgId) {
+      return NextResponse.json({ error: 'No active organization found' }, { status: 400 });
     }
 
     // Resolve user's membership ID

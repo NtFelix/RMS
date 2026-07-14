@@ -125,18 +125,24 @@ export async function POST(req: NextRequest) {
       .update({ status: 'laufend', gestartet_am: new Date().toISOString() })
       .eq('id', run.id);
 
-    // 6. Open SSE Stream
+    // 6. Open JSON lines stream
     const encoder = new TextEncoder();
     let streamController: any = null;
 
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         streamController = controller;
+        // Emit thinking step start at stream beginning
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify({ type: 'step_start', stepType: 'thinking', label: 'Antwort generieren...' }) + '\n'));
+          controller.enqueue(encoder.encode(JSON.stringify({ type: 'step_done' }) + '\n'));
+        } catch (e) {}
       }
     });
 
     const backgroundPromise = (async () => {
       try {
+        let fullText = '';
         const result = await runAgent({
           runId: run.id,
           conversationId,
@@ -149,9 +155,11 @@ export async function POST(req: NextRequest) {
           userMessage: message,
           userJwt,
           onToken: (token) => {
+            fullText += token;
             if (streamController) {
               try {
-                streamController.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'token', text: token })}\n\n`));
+                // Emit text token in the exact JSON format expected by AIChatSidebar
+                streamController.enqueue(encoder.encode(JSON.stringify({ type: 'content', content: token }) + '\n'));
               } catch (e) {}
             }
           }
@@ -169,7 +177,8 @@ export async function POST(req: NextRequest) {
 
         if (streamController) {
           try {
-            streamController.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
+            // Emit final reply payload expected by the client to finalize state
+            streamController.enqueue(encoder.encode(JSON.stringify({ type: 'final_reply', reply: fullText || result?.text || '' }) + '\n'));
             streamController.close();
           } catch (e) {}
         }
@@ -186,7 +195,7 @@ export async function POST(req: NextRequest) {
 
         if (streamController) {
           try {
-            streamController.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', message: errMsg })}\n\n`));
+            streamController.enqueue(encoder.encode(JSON.stringify({ type: 'error', message: errMsg }) + '\n'));
             streamController.close();
           } catch (e) {}
         }
@@ -197,7 +206,7 @@ export async function POST(req: NextRequest) {
 
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/plain',
         'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
       }

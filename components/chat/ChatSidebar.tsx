@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, X, History, MessageSquare, ChevronLeft, ChevronRight, Bot } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Bot } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { ChatConversationList } from './ChatConversationList';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatMessageInput } from './ChatMessageInput';
 import { ChatErrorBoundary } from './ChatErrorBoundary';
+import { ChatSidebarHeader } from './ChatSidebarHeader';
 
 interface ChatSidebarProps {
-  orgId: string;
+  orgId?: string;
 }
 
 interface Conversation {
@@ -36,111 +37,30 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(orgId || null);
   const realtimeChannelRef = useRef<any>(null);
 
-  // Load conversations list
-  const loadConversations = async () => {
-    try {
-      const response = await fetch(`/api/conversations?orgId=${orgId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data);
-      }
-    } catch (err) {
-      console.error('[ChatSidebar] Error loading conversations:', err);
-    }
-  };
-
-  // Load specific conversation messages
-  const loadConversationDetails = async (id: string) => {
-    try {
-      setError(null);
-      const response = await fetch(`/api/conversations/${id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data.messages || []);
-        
-        // If the latest message from assistant is still generating, subscribe to realtime updates immediately
-        const latestMsg = data.messages?.[data.messages.length - 1];
-        if (latestMsg && latestMsg.role === 'assistant' && latestMsg.status === 'generiert') {
-          setIsGenerating(true);
-          subscribeToRealtime(id);
-        } else {
-          setIsGenerating(false);
-          unsubscribeFromRealtime();
+  // Fetch current organization id dynamically on mount if not provided as prop
+  useEffect(() => {
+    if (!orgId) {
+      supabase.rpc('current_organisation_id').then(({ data, error }) => {
+        if (!error && data) {
+          setActiveOrgId(data);
         }
-      }
-    } catch (err) {
-      console.error('[ChatSidebar] Error loading conversation details:', err);
-      setError('Fehler beim Laden des Chat-Verlaufs.');
-    }
-  };
-
-  // Create a new conversation
-  const handleCreateConversation = async () => {
-    try {
-      setError(null);
-      const response = await fetch('/api/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, titel: 'Neue Konversation' }),
       });
-      if (response.ok) {
-        const data = await response.json();
-        setActiveConversationId(data.id);
-        setMessages([]);
-        setShowHistory(false);
-        await loadConversations();
-      }
-    } catch (err) {
-      console.error('[ChatSidebar] Error creating conversation:', err);
-      setError('Konnte keine neue Konversation erstellen.');
+    } else {
+      setActiveOrgId(orgId);
     }
-  };
+  }, [orgId, supabase]);
 
-  // Archive a conversation
-  const handleArchiveConversation = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const response = await fetch(`/api/conversations/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'archiviert' }),
-      });
-      if (response.ok) {
-        if (activeConversationId === id) {
-          setActiveConversationId(undefined);
-          setMessages([]);
-        }
-        await loadConversations();
-      }
-    } catch (err) {
-      console.error('[ChatSidebar] Error archiving conversation:', err);
+  const unsubscribeFromRealtime = useCallback(() => {
+    if (realtimeChannelRef.current) {
+      realtimeChannelRef.current.unsubscribe();
+      realtimeChannelRef.current = null;
     }
-  };
+  }, []);
 
-  // Delete a conversation (soft delete)
-  const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm('Möchtest du diese Konversation wirklich löschen?')) return;
-    try {
-      const response = await fetch(`/api/conversations/${id}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        if (activeConversationId === id) {
-          setActiveConversationId(undefined);
-          setMessages([]);
-        }
-        await loadConversations();
-      }
-    } catch (err) {
-      console.error('[ChatSidebar] Error deleting conversation:', err);
-    }
-  };
-
-  // Subscribe to Supabase Realtime for message updates (Fallback or Multi-Device sync)
-  const subscribeToRealtime = (conversationId: string) => {
+  const subscribeToRealtime = useCallback((conversationId: string): (() => void) => {
     unsubscribeFromRealtime();
     
     const channel = supabase
@@ -159,7 +79,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
             setMessages((prev) => {
               const exists = prev.findIndex((m) => m.id === newMsg.id);
               if (exists !== -1) {
-                // Update existing message content and status
                 const updated = [...prev];
                 updated[exists] = {
                   ...updated[exists],
@@ -168,7 +87,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
                 };
                 return updated;
               } else {
-                // Insert new message
                 return [
                   ...prev,
                   {
@@ -184,7 +102,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
             if (newMsg.status === 'abgeschlossen' || newMsg.status === 'fehler') {
               setIsGenerating(false);
               unsubscribeFromRealtime();
-              loadConversations(); // Reload list to update titles/access times
+              loadConversations();
             }
           }
         }
@@ -192,28 +110,124 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
       .subscribe();
 
     realtimeChannelRef.current = channel;
-  };
+    return () => {
+      channel.unsubscribe();
+      if (realtimeChannelRef.current === channel) {
+        realtimeChannelRef.current = null;
+      }
+    };
+  }, [unsubscribeFromRealtime]);
 
-  const unsubscribeFromRealtime = () => {
-    if (realtimeChannelRef.current) {
-      realtimeChannelRef.current.unsubscribe();
-      realtimeChannelRef.current = null;
+  const loadConversations = useCallback(async () => {
+    if (!activeOrgId) return;
+    try {
+      const response = await fetch(`/api/conversations?orgId=${activeOrgId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data);
+      }
+    } catch (err) {
+      console.error('[ChatSidebar] Error loading conversations:', err);
     }
-  };
+  }, [activeOrgId]);
 
-  // Send message via SSE
-  const handleSendMessage = async (text: string) => {
+  const loadConversationDetails = useCallback(async (id: string) => {
+    try {
+      setError(null);
+      await fetch(`/api/conversations/${id}`, { method: 'POST' });
+      const response = await fetch(`/api/conversations/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.messages || []);
+        
+        const latestMsg = data.messages?.[data.messages.length - 1];
+        if (latestMsg && latestMsg.role === 'assistant' && latestMsg.status === 'generiert') {
+          setIsGenerating(true);
+          subscribeToRealtime(id);
+        } else {
+          setIsGenerating(false);
+          unsubscribeFromRealtime();
+        }
+      }
+    } catch (err) {
+      console.error('[ChatSidebar] Error loading conversation details:', err);
+      setError('Fehler beim Laden des Chat-Verlaufs.');
+    }
+  }, [subscribeToRealtime, unsubscribeFromRealtime]);
+
+  const handleCreateConversation = useCallback(async () => {
+    if (!activeOrgId) return;
+    try {
+      setError(null);
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: activeOrgId, titel: 'Neue Konversation' }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setActiveConversationId(data.id);
+        setMessages([]);
+        setShowHistory(false);
+        await loadConversations();
+      }
+    } catch (err) {
+      console.error('[ChatSidebar] Error creating conversation:', err);
+      setError('Konnte keine neue Konversation erstellen.');
+    }
+  }, [activeOrgId, loadConversations]);
+
+  const handleArchiveConversation = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(`/api/conversations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archiviert' }),
+      });
+      if (response.ok) {
+        if (activeConversationId === id) {
+          setActiveConversationId(undefined);
+          setMessages([]);
+        }
+        await loadConversations();
+      }
+    } catch (err) {
+      console.error('[ChatSidebar] Error archiving conversation:', err);
+    }
+  }, [activeConversationId, loadConversations]);
+
+  const handleDeleteConversation = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Möchtest du diese Konversation wirklich löschen?')) return;
+    try {
+      const response = await fetch(`/api/conversations/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        if (activeConversationId === id) {
+          setActiveConversationId(undefined);
+          setMessages([]);
+        }
+        await loadConversations();
+      }
+    } catch (err) {
+      console.error('[ChatSidebar] Error deleting conversation:', err);
+    }
+  }, [activeConversationId, loadConversations]);
+
+  const handleSendMessage = useCallback(async (text: string) => {
+    if (!activeOrgId) return;
     let currentConvId = activeConversationId;
     setError(null);
     setIsGenerating(true);
 
     try {
-      // 1. Create conversation first if not active
       if (!currentConvId) {
         const response = await fetch('/api/conversations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orgId, titel: text.slice(0, 40) }),
+          body: JSON.stringify({ orgId: activeOrgId, titel: text.slice(0, 40) }),
         });
         if (response.ok) {
           const data = await response.json();
@@ -224,7 +238,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
         }
       }
 
-      // Appending local user message state immediately for responsive design
       const userMsgId = crypto.randomUUID();
       const assistantMsgId = crypto.randomUUID();
       setMessages((prev) => [
@@ -243,7 +256,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
         body: JSON.stringify({
           message: text,
           conversationId: currentConvId,
-          orgId,
+          orgId: activeOrgId,
         }),
       });
 
@@ -251,7 +264,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
         throw new Error(await response.text());
       }
 
-      // 2. Stream SSE responses
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -291,19 +303,16 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
                 throw new Error(data.message);
               }
             } catch (err) {
-              // Ignore line parses if malformed JSON, continue streaming
             }
           }
         }
       }
 
-      // 3. Trigger Realtime fallback if connection dropped early without done signal
       if (currentConvId) {
         if (!receivedDoneSignal) {
           console.log('[ChatSidebar] Connection dropped. Activating Realtime fallback...');
           subscribeToRealtime(currentConvId);
         } else {
-          // Load clean db states
           await loadConversationDetails(currentConvId);
           await loadConversations();
         }
@@ -314,10 +323,10 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
       setError(err.message || 'Verbindung zum KI-Service fehlgeschlagen.');
       setIsGenerating(false);
     }
-  };
+  }, [activeOrgId, activeConversationId, subscribeToRealtime, loadConversationDetails, loadConversations]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && activeOrgId) {
       loadConversations();
       if (activeConversationId) {
         loadConversationDetails(activeConversationId);
@@ -326,14 +335,16 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
       unsubscribeFromRealtime();
     }
     return () => unsubscribeFromRealtime();
-  }, [isOpen, activeConversationId]);
+  }, [isOpen, activeConversationId, activeOrgId, loadConversations, loadConversationDetails, unsubscribeFromRealtime]);
 
   return (
     <>
       {/* Floating Toggle Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-2xl shadow-lg hover:shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center border border-indigo-500/20"
+        aria-label={isOpen ? 'Chat schließen' : 'Chat öffnen'}
+        className="fixed bottom-6 right-6 z-40 bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-2xl shadow-lg hover:shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center border border-indigo-500/20 animate-in zoom-in-50 duration-300"
       >
         <Bot className="w-6 h-6 animate-pulse" />
       </button>
@@ -344,33 +355,11 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({ orgId }) => {
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-gray-100 dark:border-gray-800/80 flex items-center justify-between bg-white/95 dark:bg-gray-900/95 backdrop-blur-md">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/10">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-none">Mietevo Copilot</h2>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Bereit für deine Fragen</span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-150"
-              title="Verlauf anzeigen"
-            >
-              <History className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-150"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <ChatSidebarHeader
+          showHistory={showHistory}
+          onToggleHistory={() => setShowHistory(!showHistory)}
+          onClose={() => setIsOpen(false)}
+        />
 
         {/* Error Notification */}
         {error && (
