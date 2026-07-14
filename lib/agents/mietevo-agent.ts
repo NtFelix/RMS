@@ -1,7 +1,12 @@
 import { ToolLoopAgent, isStepCount } from 'ai';
 import { vertex } from '@ai-sdk/google-vertex';
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { AsyncLocalStorage } from 'async_hooks';
+
+const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+const googleProvider = createGoogleGenerativeAI({
+  apiKey: googleApiKey,
+});
 import { createSupabaseServiceClient } from '@/lib/sandbox/runner';
 import { capturePostHogEvent } from '@/lib/posthog-helpers';
 import { fetchMieter } from './tools/mietevo/fetch_mieter';
@@ -111,7 +116,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
 
     // 4. Instantiate Vercel AI SDK ToolLoopAgent with instructions and tools
     const agentInstance = new ToolLoopAgent({
-      model: process.env.GEMINI_API_KEY ? google('gemini-3-flash') : vertex('gemini-3-flash'),
+      model: googleApiKey ? googleProvider('gemini-3-flash-preview') : vertex('gemini-3-flash'),
       instructions: instructions,
       tools: {
         fetchMieter,
