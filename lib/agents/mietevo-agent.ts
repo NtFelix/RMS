@@ -136,25 +136,28 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
 
     let fullText = '';
     let lastDbWriteTime = Date.now();
-
+    let activeWritePromise: Promise<any> = Promise.resolve();
+ 
     // Helper to batch update database text output every 500ms
     const handleToken = async (text: string) => {
       fullText += text;
       if (onToken) {
         onToken(text);
       }
-
+ 
       if (messageId) {
         const now = Date.now();
         if (now - lastDbWriteTime > 500) {
           lastDbWriteTime = now;
-          supabase
-            .from('KI_Nachrichten')
-            .update({ inhalt: fullText })
-            .eq('id', messageId)
-            .then(({ error }) => {
-              if (error) console.error('[mietevo-agent] Stream update error:', error.message);
-            });
+          activeWritePromise = Promise.resolve(
+            supabase
+              .from('KI_Nachrichten')
+              .update({ inhalt: fullText })
+              .eq('id', messageId)
+              .then(({ error }) => {
+                if (error) console.error('[mietevo-agent] Stream update error:', error.message);
+              })
+          );
         }
       }
     };
@@ -183,6 +186,9 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
 
       const latencyMs = Date.now() - startTime;
       const totalTokens = (usage?.promptTokens || 0) + (usage?.completionTokens || 0);
+
+      // Ensure any pending/in-flight throttled writes finish before the final completed write
+      await activeWritePromise;
 
       // Finalize database assistant message entry
       if (messageId) {

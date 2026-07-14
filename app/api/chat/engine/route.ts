@@ -46,17 +46,27 @@ export async function POST(req: NextRequest) {
       const supabase = createSupabaseServiceClient();
       const { data: existingMsg } = await supabase
         .from('KI_Nachrichten')
-        .select('inhalt, status')
+        .select('inhalt, status, konversation_id')
         .eq('client_nachricht_id', idempotencyKey)
         .eq('organisation_id', orgId)
-        .single();
+        .maybeSingle(); // Use maybeSingle to avoid 406 errors on zero matches
 
-      if (existingMsg && existingMsg.status === 'abgeschlossen') {
-        return NextResponse.json({
-          text: existingMsg.inhalt,
-          status: existingMsg.status,
-          cached: true
-        });
+      if (existingMsg) {
+        if (existingMsg.status === 'abgeschlossen') {
+          return NextResponse.json({
+            text: existingMsg.inhalt,
+            status: existingMsg.status,
+            cached: true
+          });
+        }
+        
+        if (existingMsg.status === 'gesendet' || existingMsg.status === 'generiert') {
+          return NextResponse.json({
+            error: 'Generation already in progress',
+            conversationId: existingMsg.konversation_id,
+            status: existingMsg.status
+          }, { status: 409 });
+        }
       }
     }
 
