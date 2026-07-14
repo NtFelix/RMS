@@ -49,7 +49,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -116,12 +117,14 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[conversations POST database error]:', error);
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Database error', details: error }, { status: 500 });
     }
 
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('[conversations POST exception]:', err);
-    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    const stack = err instanceof Error ? err.stack : null;
+    return NextResponse.json({ error: message, stack }, { status: 500 });
   }
 }

@@ -8,9 +8,9 @@ export async function GET(
   try {
     const { id } = await params;
     const userSupabase = await createClient();
-    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -41,7 +41,8 @@ export async function GET(
       messages: messages || []
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -52,9 +53,9 @@ export async function POST(
   try {
     const { id } = await params;
     const userSupabase = await createClient();
-    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -105,7 +106,8 @@ export async function POST(
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -116,9 +118,9 @@ export async function PATCH(
   try {
     const { id } = await params;
     const userSupabase = await createClient();
-    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -150,7 +152,8 @@ export async function PATCH(
 
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -161,9 +164,9 @@ export async function DELETE(
   try {
     const { id } = await params;
     const userSupabase = await createClient();
-    const { data: { session }, error: authError } = await userSupabase.auth.getSession();
+    const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -172,7 +175,7 @@ export async function DELETE(
       .from('KI_Konversationen')
       .update({
         geloescht_am: new Date().toISOString(),
-        geloescht_von: session.user.id,
+        geloescht_von: user.id,
         status: 'geloescht'
       })
       .eq('id', id);
@@ -183,6 +186,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

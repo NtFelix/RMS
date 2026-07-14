@@ -276,9 +276,13 @@ export function AIChatSidebar() {
           setActiveConversationId(data.id);
           loadConversationsList();
         } else {
-          const errBody = await response.json().catch(() => ({}));
-          console.error('[AIChatSidebar] POST /api/conversations failed:', response.status, errBody);
-          throw new Error(errBody.error || 'Konnte Konversation nicht initialisieren.');
+          const errText = await response.text().catch(() => '');
+          console.error('[AIChatSidebar] POST /api/conversations failed:', response.status, errText);
+          let errBody: any = {};
+          try {
+            errBody = JSON.parse(errText);
+          } catch (e) {}
+          throw new Error(errBody.error || errText || 'Konnte Konversation nicht initialisieren.');
         }
       } catch (err: any) {
         console.error('[AIChatSidebar] Failed to initialize conversation:', err);
