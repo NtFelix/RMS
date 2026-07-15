@@ -217,9 +217,14 @@ export function calculateTenantMeterConsumption(
       // Allocate each reading's consumption to the tenants active during that reading's specific interval
       sortedReadings.forEach((reading, index) => {
         const endReadingUtc = parseAsUtc(reading.ablese_datum);
-        const startReadingUtc = (index === 0)
+        let startReadingUtc = (index === 0)
           ? startPeriodUtc
           : addDaysUtc(parseAsUtc(sortedReadings[index - 1].ablese_datum), 1);
+
+        // Clamp: if start is after end (e.g., same-date readings), run a single-day interval
+        if (startReadingUtc > endReadingUtc) {
+          startReadingUtc = new Date(endReadingUtc.getTime());
+        }
 
         let totalIntervalDays = Math.round((endReadingUtc.getTime() - startReadingUtc.getTime()) / (1000 * 3600 * 24)) + 1;
         if (totalIntervalDays <= 0) {
@@ -227,10 +232,13 @@ export function calculateTenantMeterConsumption(
         }
 
         const consumptionPerDay = reading.verbrauch / totalIntervalDays;
+        const readingDateUtc = endReadingUtc;
 
         // Iterate day-by-day in UTC to allocate consumption exactly to the active tenants of each day
         const current = new Date(startReadingUtc.getTime());
-        while (current <= endReadingUtc) {
+        const maxDays = 366 * 3;
+        let dayCount = 0;
+        while (current <= endReadingUtc && dayCount < maxDays) {
           // Find all tenants active on this specific day
           const activeTenants = tenantsWithDates
             .filter(t => current >= t.effectiveStart && current <= t.effectiveEnd)
@@ -246,7 +254,7 @@ export function calculateTenantMeterConsumption(
               const existingDetail = allocation.details.get(meter.id);
               if (existingDetail) {
                 existingDetail.consumption += dailyShare;
-                if (parseAsUtc(reading.ablese_datum) > parseAsUtc(existingDetail.readingDate)) {
+                if (readingDateUtc > parseAsUtc(existingDetail.readingDate)) {
                   existingDetail.readingDate = reading.ablese_datum;
                 }
               } else {
@@ -262,6 +270,7 @@ export function calculateTenantMeterConsumption(
           }
 
           current.setUTCDate(current.getUTCDate() + 1);
+          dayCount++;
         }
       });
     });

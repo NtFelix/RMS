@@ -234,12 +234,21 @@ export function formatPeriodDuration(startdatum: string, enddatum: string): stri
  * Helper to parse date string (ISO or German format) as UTC Date object at 00:00:00Z
  */
 export const parseAsUtc = (dateStr: string): Date => {
+  if (!dateStr) return new Date(NaN);
   let isoStr = dateStr;
-  // Check if German date format DD.MM.YYYY
-  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(dateStr)) {
     const [day, month, year] = dateStr.split('.');
-    isoStr = `${year}-${month}-${day}`;
+    isoStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
   const cleanStr = isoStr.includes('T') ? isoStr : `${isoStr}T00:00:00Z`;
   return new Date(cleanStr);
+};
+
+/**
+ * Calculate the total number of days in a period (inclusive) using UTC-safe parsing
+ */
+export const calculateTotalDays = (startdatum: string, enddatum: string): number => {
+  const start = parseAsUtc(startdatum);
+  const end = parseAsUtc(enddatum);
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
 };
