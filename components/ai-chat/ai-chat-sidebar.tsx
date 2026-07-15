@@ -18,6 +18,30 @@ import { SidebarFloatingButton } from "./ai-chat-floating-button";
 import { createClient } from "@/utils/supabase/client";
 import { ChatConversationList } from "../chat/ChatConversationList";
 
+function createRealtimeSubscription(
+  supabase: ReturnType<typeof createClient>,
+  conversationId: string,
+  aiMessageId: string,
+  onUpdate: (inhalt: string, status: string) => void
+) {
+  const channel = supabase
+    .channel(`konversation:${conversationId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'KI_Nachrichten',
+      filter: `konversation_id=eq.${conversationId}`,
+    }, (payload: any) => {
+      const newMsg = payload.new as any;
+      if (newMsg && newMsg.rolle === 'assistant' && newMsg.id === aiMessageId) {
+        onUpdate(newMsg.inhalt, newMsg.status);
+      }
+    })
+    .subscribe();
+
+  return () => { channel.unsubscribe(); };
+}
+
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
   
@@ -51,6 +75,7 @@ export function AIChatSidebar() {
   const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const realtimeChannelRef = useRef<any>(null);
+  const [realtimeTarget, setRealtimeTarget] = useState<{ conversationId: string; aiMessageId: string } | null>(null);
 
   // Resolve current organization context on mount
   useEffect(() => {
@@ -73,6 +98,7 @@ export function AIChatSidebar() {
 
   // Unsubscribe helper
   const unsubscribeFromRealtime = useCallback(() => {
+    setRealtimeTarget(null);
     if (realtimeChannelRef.current) {
       realtimeChannelRef.current.unsubscribe();
       realtimeChannelRef.current = null;
@@ -81,38 +107,41 @@ export function AIChatSidebar() {
 
   // Subscribe fallback helper
   const subscribeToRealtime = useCallback((conversationId: string, aiMessageId: string) => {
-    unsubscribeFromRealtime();
-    const channel = supabase
-      .channel(`konversation:${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'KI_Nachrichten',
-          filter: `konversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as any;
-          if (newMsg && newMsg.rolle === 'assistant' && newMsg.id === aiMessageId) {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === aiMessageId
-                  ? { ...m, content: newMsg.inhalt, status: newMsg.status }
-                  : m
-              )
-            );
-            if (newMsg.status === 'abgeschlossen' || newMsg.status === 'fehler') {
-              setIsLoading(false);
-              setActiveId(null);
-              unsubscribeFromRealtime();
-            }
-          }
+    setRealtimeTarget({ conversationId, aiMessageId });
+  }, []);
+
+  // Manage realtime subscription lifecycle via effect
+  useEffect(() => {
+    if (!realtimeTarget) return;
+
+    const { conversationId, aiMessageId } = realtimeTarget;
+
+    const unsubscribe = createRealtimeSubscription(
+      supabase,
+      conversationId,
+      aiMessageId,
+      (inhalt, status) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId
+              ? { ...m, content: inhalt, status }
+              : m
+          )
+        );
+        if (status === 'abgeschlossen' || status === 'fehler') {
+          setIsLoading(false);
+          setActiveId(null);
         }
-      )
-      .subscribe();
-    realtimeChannelRef.current = channel;
-  }, [unsubscribeFromRealtime, supabase]);
+      }
+    );
+
+    realtimeChannelRef.current = { unsubscribe };
+
+    return () => {
+      unsubscribe();
+      realtimeChannelRef.current = null;
+    };
+  }, [realtimeTarget, supabase]);
 
   const loadConversationsList = useCallback(async () => {
     if (!activeOrgId) return;
@@ -128,48 +157,65 @@ export function AIChatSidebar() {
 
   // Load latest active conversation on sidebar open
   useEffect(() => {
-    if (isOpen && activeOrgId) {
-      const loadHistory = async () => {
-        try {
-          const res = await fetch(`/api/conversations?orgId=${activeOrgId}`);
-          if (res.ok) {
-            const convs = await res.json();
-            setConversations(convs);
-            if (convs && convs.length > 0) {
-              const latest = convs[0];
-              setActiveConversationId(latest.id);
-              
-              const detailsRes = await fetch(`/api/conversations/${latest.id}`);
-              if (detailsRes.ok) {
-                const details = await detailsRes.json();
-                const mapped = (details.messages || []).map((m: any) => ({
-                  id: m.id,
-                  role: m.rolle === 'assistant' ? 'model' : m.rolle,
-                  content: m.inhalt || '',
-                  status: m.status,
-                  steps: m.steps || [],
-                  versions: m.versions || []
-                }));
-                setMessages(mapped);
-                
-                const lastMsg = details.messages?.[details.messages.length - 1];
-                if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
-                  setIsLoading(true);
-                  setActiveId(lastMsg.id);
-                  subscribeToRealtime(latest.id, lastMsg.id);
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error('[AIChatSidebar] Failed to load history:', err);
-        }
-      };
-      loadHistory();
-    } else if (!isOpen) {
-      unsubscribeFromRealtime();
+    if (!isOpen || !activeOrgId) {
+      if (!isOpen) unsubscribeFromRealtime();
+      return;
     }
-    return () => unsubscribeFromRealtime();
+
+    const abortController = new AbortController();
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(`/api/conversations?orgId=${activeOrgId}`, {
+          signal: abortController.signal,
+        });
+        if (cancelled || !res.ok) return;
+        const convs = await res.json();
+        if (cancelled) return;
+        setConversations(convs);
+
+        if (convs && convs.length > 0) {
+          const latest = convs[0];
+          if (cancelled) return;
+          setActiveConversationId(latest.id);
+
+          const detailsRes = await fetch(`/api/conversations/${latest.id}`, {
+            signal: abortController.signal,
+          });
+          if (cancelled || !detailsRes.ok) return;
+          const details = await detailsRes.json();
+          if (cancelled) return;
+
+          const mapped = (details.messages || []).map((m: any) => ({
+            id: m.id,
+            role: m.rolle === 'assistant' ? 'model' : m.rolle,
+            content: m.inhalt || '',
+            status: m.status,
+            steps: m.steps || [],
+            versions: m.versions || []
+          }));
+          setMessages(mapped);
+
+          const lastMsg = details.messages?.[details.messages.length - 1];
+          if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
+            setIsLoading(true);
+            setActiveId(lastMsg.id);
+            subscribeToRealtime(latest.id, lastMsg.id);
+          }
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        console.error('[AIChatSidebar] Failed to load history:', err);
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
   }, [isOpen, activeOrgId, subscribeToRealtime, unsubscribeFromRealtime]);
 
   // Refresh conversations list whenever history toggled open
