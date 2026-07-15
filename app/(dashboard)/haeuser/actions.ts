@@ -111,6 +111,9 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
     revalidatePath("/haeuser");
+    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/wohnungen");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
     return { success: true };
   } catch (e: unknown) {
@@ -148,6 +151,9 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
     }
 
     revalidatePath('/haeuser');
+    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/wohnungen");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { house_id: houseId });
     return { success: true };
 

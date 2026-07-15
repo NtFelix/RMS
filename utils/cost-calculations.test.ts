@@ -9,9 +9,13 @@ import {
 import { calculateTenantOccupancy } from './date-calculations';
 
 // Mock the date calculation to control the output
-jest.mock('./date-calculations', () => ({
-  calculateTenantOccupancy: jest.fn()
-}));
+jest.mock('./date-calculations', () => {
+  const actual = jest.requireActual('./date-calculations');
+  return {
+    ...actual,
+    calculateTenantOccupancy: jest.fn()
+  };
+});
 
 describe('cost-calculations', () => {
   const mockTenant1 = { id: 't1', wohnung_id: 'w1', Wohnungen: { groesse: 50 } } as any;
@@ -50,6 +54,19 @@ describe('cost-calculations', () => {
       const zeroTenant = { ...mockTenant1, Wohnungen: { groesse: 0 } };
       const result = calculateProFlächeDistribution([zeroTenant], 1000, startdatum, enddatum);
       expect(result['t1'].amount).toBe(0);
+    });
+
+    it('distributes based on totalHouseArea when provided (vacancies case)', () => {
+      const smallTenant = { ...mockTenant1, id: 't3', Wohnungen: { groesse: 30 } };
+      const largeTenant = { ...mockTenant2, id: 't4', Wohnungen: { groesse: 70 } };
+
+      // Total house area is 150 (there is a 50 sqm vacant apartment)
+      // Use a short period in January to avoid DST timezone issues
+      const result = calculateProFlächeDistribution([smallTenant, largeTenant], 1500, '2023-01-01', '2023-01-10', 150);
+      // smallTenant gets 30/150 * 1500 = 300
+      expect(result['t3'].amount).toBeCloseTo(300);
+      // largeTenant gets 70/150 * 1500 = 700
+      expect(result['t4'].amount).toBeCloseTo(700);
     });
 
     it('correctly handles shared apartments (WGs) by using union of occupancy', () => {
