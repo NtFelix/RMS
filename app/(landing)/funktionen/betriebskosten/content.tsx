@@ -145,7 +145,7 @@ export default function UtilityCostPage() {
               <AlertTriangle size={15} />
             </div>
             <div>
-              <div className="text-[11px] font-bold text-destructive uppercase tracking-wider">Plausi-Warnung</div>
+              <div className="text-[11px] font-bold text-destructive uppercase tracking-wider">Plausibilitäts-Warnung</div>
               <div className="text-[9px] text-muted-foreground">Eingabefehler?</div>
             </div>
           </div>
