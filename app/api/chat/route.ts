@@ -58,7 +58,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Forward request to internal engine (AI Service)
-    const aiServiceUrl = process.env.AI_SERVICE_URL || `${new URL(req.url).origin}/api/chat/engine`;
+    const baseSiteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const aiServiceUrl = process.env.AI_SERVICE_URL ?? `${baseSiteUrl}/api/chat/engine`;
     const aiServiceSecret = process.env.AI_SERVICE_AUTH_SECRET || 'local-ai-secret';
 
     const response = await fetch(aiServiceUrl, {
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     return new Response(response.body, {
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/plain',
         'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
       },
