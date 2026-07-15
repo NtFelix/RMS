@@ -1892,9 +1892,9 @@ async function resolveActualPaymentsData(
   options: { prepaymentMode?: 'scheduled' | 'actual' } = {},
   nebenkostenId: string
 ): Promise<Finanzen[]> {
-  const dbPrepaymentMode = (nebenkosten_data as any).vorauszahlungs_art;
-  const effectivePrepaymentMode = options.prepaymentMode ||
-    (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
+    const dbPrepaymentMode = nebenkosten_data?.vorauszahlungs_art;
+    const effectivePrepaymentMode = options.prepaymentMode ||
+      (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
 
   if (effectivePrepaymentMode === 'actual') {
     const apartmentIds = tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
@@ -2711,7 +2711,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     }
 
     // Parse the structured data from the database function
-    const nebenkosten_data = dbResult.nebenkosten_data;
+    const nebenkosten_data = dbResult.nebenkosten_data as Nebenkosten;
     const tenants_with_occupancy = dbResult.tenants_with_occupancy || [];
 
     // Workaround for vorauszahlungs_art removed - database function now includes it.
@@ -2723,7 +2723,7 @@ export async function createAbrechnungCalculationOptimizedAction(
 
     // Ensure gesamtFlaeche is set on nebenkosten_data for calculations to use
     if (nebenkosten_data && house_metrics) {
-      (nebenkosten_data as any).gesamtFlaeche = house_metrics.totalArea;
+      nebenkosten_data.gesamtFlaeche = house_metrics.totalArea;
     }
 
     // Validate that we have the necessary data
