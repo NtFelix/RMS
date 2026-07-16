@@ -601,6 +601,14 @@ export function AIChatSidebar() {
                     setActiveConversationId(id);
                     setShowHistory(false);
                     setError(null);
+
+                    // If the conversation is archived, restore it first via POST
+                    const conv = conversations.find(c => c.id === id);
+                    if (conv?.status === 'archiviert') {
+                      await fetch(`/api/conversations/${id}`, { method: 'POST' });
+                      loadConversationsList();
+                    }
+
                     try {
                       const detailsRes = await fetch(`/api/conversations/${id}`);
                       if (detailsRes.ok) {
@@ -650,6 +658,21 @@ export function AIChatSidebar() {
                       }
                     } catch (err) {
                       console.error('[AIChatSidebar] Archive error:', err);
+                    }
+                  }}
+                  onRestore={async (id, e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await fetch(`/api/conversations/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'aktiv' }),
+                      });
+                      if (response.ok) {
+                        loadConversationsList();
+                      }
+                    } catch (err) {
+                      console.error('[AIChatSidebar] Restore error:', err);
                     }
                   }}
                   onDelete={async (id, e) => {

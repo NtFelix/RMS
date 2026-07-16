@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Forward request to internal engine (AI Service)
     const baseSiteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const aiServiceUrl = process.env.AI_SERVICE_URL ?? `${baseSiteUrl}/api/chat/engine`;
-    const aiServiceSecret = process.env.AI_SERVICE_AUTH_SECRET || 'local-ai-secret';
+    const aiServiceSecret = process.env.AI_SERVICE_AUTH_SECRET!;
 
     const response = await fetch(aiServiceUrl, {
       method: 'POST',

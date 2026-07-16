@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import pako from 'pako';
 
 function getSupabaseService() {
   return createSupabaseClient(
@@ -115,28 +116,43 @@ export async function POST(
     // Reactivate if archived in bucket
     if (conversation.storage_status === 'bucket' && conversation.storage_pfad) {
       const { data: fileData, error: downloadError } = await userSupabase.storage
-        .from('documents')
+        .from('ki-nachrichten')
         .download(conversation.storage_pfad);
 
-      if (!downloadError && fileData) {
-        try {
-          const messagesJson = JSON.parse(await fileData.text());
-          if (Array.isArray(messagesJson) && messagesJson.length > 0) {
-            await userSupabase.from('KI_Nachrichten').insert(
-              messagesJson.map(m => ({
-                ...m,
-                konversation_id: id,
-                organisation_id: conversation.organisation_id
-              }))
-            );
+      if (downloadError || !fileData) {
+        return NextResponse.json({ error: 'Failed to download archived conversation' }, { status: 500 });
+      }
+
+      try {
+        const uint8Array = new Uint8Array(await fileData.arrayBuffer());
+        const decompressed = pako.ungzip(uint8Array, { to: 'string' });
+        const archive = JSON.parse(decompressed);
+
+        if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
+          const { error: insertError } = await userSupabase.from('KI_Nachrichten').insert(
+            archive.nachrichten.map((m: Record<string, unknown>) => ({
+              ...m,
+              konversation_id: id,
+              organisation_id: conversation.organisation_id
+            }))
+          );
+
+          if (insertError) {
+            return NextResponse.json({ error: insertError.message }, { status: 500 });
           }
-          await userSupabase
-            .from('KI_Konversationen')
-            .update({ storage_status: 'db', storage_pfad: null })
-            .eq('id', id);
-        } catch (parseErr) {
-          console.error('[conversations] Failed to parse bucket messages:', parseErr);
         }
+
+        const { error: updateError } = await userSupabase
+          .from('KI_Konversationen')
+          .update({ storage_status: 'db', storage_pfad: null, status: 'aktiv' })
+          .eq('id', id);
+
+        if (updateError) {
+          return NextResponse.json({ error: updateError.message }, { status: 500 });
+        }
+      } catch (parseErr) {
+        console.error('[conversations] Failed to parse archived messages:', parseErr);
+        return NextResponse.json({ error: 'Failed to parse archived conversation data' }, { status: 500 });
       }
     }
 
@@ -183,19 +199,155 @@ export async function PATCH(
     // Instantiate client with organization ID
     const userSupabase = await createClient(convMeta.organisation_id);
 
+    const { data: conversation, error: convError } = await userSupabase
+      .from('KI_Konversationen')
+      .select('*')
+      .eq('id', id)
+      .is('geloescht_am', null)
+      .single();
+
+    if (convError || !conversation) {
+      return NextResponse.json({ error: 'Conversation not found or access denied' }, { status: 404 });
+    }
+
     const { titel, status } = await req.json();
     const updateData: Record<string, any> = {};
 
     if (titel !== undefined) updateData.titel = titel;
     if (status !== undefined) {
       updateData.status = status;
-      if (status === 'archiviert') {
-        updateData.archiviert_am = new Date().toISOString();
-      }
     }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    // Unarchive: restore messages from bucket to DB
+    if (status === 'aktiv' && conversation.storage_status === 'bucket' && conversation.storage_pfad) {
+      const { data: fileData, error: downloadError } = await userSupabase.storage
+        .from('ki-nachrichten')
+        .download(conversation.storage_pfad);
+
+      if (downloadError || !fileData) {
+        return NextResponse.json({ error: 'Failed to download archived conversation' }, { status: 500 });
+      }
+
+      try {
+        const uint8Array = new Uint8Array(await fileData.arrayBuffer());
+        const decompressed = pako.ungzip(uint8Array, { to: 'string' });
+        const archive = JSON.parse(decompressed);
+
+        if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
+          const { error: insertError } = await userSupabase.from('KI_Nachrichten').insert(
+            archive.nachrichten.map((m: Record<string, unknown>) => ({
+              ...m,
+              konversation_id: id,
+              organisation_id: conversation.organisation_id,
+            }))
+          );
+
+          if (insertError) {
+            return NextResponse.json({ error: insertError.message }, { status: 500 });
+          }
+        }
+
+        updateData.storage_status = 'db';
+        updateData.storage_pfad = null;
+        updateData.status = 'aktiv';
+
+        const { data: updatedConv, error: updateError } = await userSupabase
+          .from('KI_Konversationen')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (updateError) {
+          return NextResponse.json({ error: updateError.message }, { status: 500 });
+        }
+
+        return NextResponse.json(updatedConv);
+      } catch (parseErr) {
+        console.error('[conversations] Failed to parse archived messages:', parseErr);
+        return NextResponse.json({ error: 'Failed to parse archived conversation data' }, { status: 500 });
+      }
+    }
+
+    // Archive: move messages from DB to bucket
+    if (status === 'archiviert') {
+      if (conversation.storage_status === 'bucket') {
+        return NextResponse.json({ error: 'Conversation is already archived' }, { status: 409 });
+      }
+
+      const { data: messages, error: messagesError } = await userSupabase
+        .from('KI_Nachrichten')
+        .select('*')
+        .eq('konversation_id', id)
+        .is('geloescht_am', null)
+        .order('erstellt_am', { ascending: true });
+
+      if (messagesError) {
+        return NextResponse.json({ error: messagesError.message }, { status: 500 });
+      }
+
+      // Build archive payload
+      const totalTokens = messages?.reduce((sum: number, m: any) => sum + (m.token_anzahl || 0), 0) || 0;
+      const archive = {
+        konversation_id: id,
+        nachrichten: messages || [],
+        metadaten: {
+          token_gesamt: totalTokens,
+          agent_id: conversation.agent_id,
+        },
+      };
+
+      // Fetch mitglied_id from the conversation if not available
+      const storagePath = `${conversation.mitglied_id || user.id}/${id}/archiv.json.gz`;
+
+      const jsonString = JSON.stringify(archive);
+      const compressed = pako.gzip(jsonString);
+
+      const { error: uploadError } = await userSupabase.storage
+        .from('ki-nachrichten')
+        .upload(storagePath, compressed, {
+          contentType: 'application/gzip',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        return NextResponse.json({ error: `Failed to upload archive: ${uploadError.message}` }, { status: 500 });
+      }
+
+      // Update conversation to bucket status
+      updateData.storage_pfad = storagePath;
+      updateData.storage_status = 'bucket';
+      updateData.archiviert_am = new Date().toISOString();
+
+      const { data: updatedConv, error: updateError } = await userSupabase
+        .from('KI_Konversationen')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      // Hard-delete messages from DB (they are now in the bucket)
+      if (messages && messages.length > 0) {
+        const { error: deleteError } = await userSupabase
+          .from('KI_Nachrichten')
+          .delete()
+          .eq('konversation_id', id)
+          .is('geloescht_am', null);
+
+        if (deleteError) {
+          console.error('[conversations] Failed to delete archived messages:', deleteError);
+        }
+      }
+
+      return NextResponse.json(updatedConv);
     }
 
     const { data, error } = await userSupabase

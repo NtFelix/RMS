@@ -37,13 +37,14 @@ export async function GET(req: NextRequest) {
     // Instantiate userSupabase with the active organization ID
     const userSupabase = await createClient(orgId);
 
-    // Load active, non-deleted conversations sorted by last access descending
+    // Load non-deleted conversations sorted by status (aktiv first) then by last access
     const { data, error } = await userSupabase
       .from('KI_Konversationen')
-      .select('id, titel, letzter_zugriff, status')
+      .select('id, titel, letzter_zugriff, status, storage_status')
       .eq('organisation_id', orgId)
-      .eq('status', 'aktiv')
+      .in('status', ['aktiv', 'archiviert'])
       .is('geloescht_am', null)
+      .order('status', { ascending: true })
       .order('letzter_zugriff', { ascending: false });
 
     if (error) {

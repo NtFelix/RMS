@@ -6,7 +6,7 @@ import { runAgent } from '@/lib/agents/mietevo-agent';
 export async function POST(req: NextRequest) {
   try {
     const authSecret = req.headers.get('X-AI-Service-Auth') || req.headers.get('x-ai-service-auth');
-    const expectedSecret = process.env.AI_SERVICE_AUTH_SECRET || 'local-ai-secret';
+    const expectedSecret = process.env.AI_SERVICE_AUTH_SECRET!;
     
     if (authSecret !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized: Invalid service secret' }, { status: 401 });
