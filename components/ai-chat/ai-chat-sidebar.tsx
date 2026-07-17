@@ -151,7 +151,7 @@ export function AIChatSidebar() {
         setConversations(await res.json());
       }
     } catch (err) {
-      console.error('[AIChatSidebar] Error loading list:', err);
+      // silently fail — retry on next open
     }
   }, [activeOrgId]);
 
@@ -262,15 +262,6 @@ export function AIChatSidebar() {
   };
 
   const clearChat = async () => {
-    if (activeConversationId) {
-      try {
-        await fetch(`/api/conversations/${activeConversationId}`, {
-          method: 'DELETE',
-        });
-      } catch (err) {
-        console.error('[AIChatSidebar] Failed to delete conversation:', err);
-      }
-    }
     setMessages([]);
     setActiveConversationId(null);
     sessionIdRef.current = uuidv4(); // Start a new session
@@ -605,7 +596,12 @@ export function AIChatSidebar() {
                     // If the conversation is archived, restore it first via POST
                     const conv = conversations.find(c => c.id === id);
                     if (conv?.status === 'archiviert') {
-                      await fetch(`/api/conversations/${id}`, { method: 'POST' });
+                      const restoreRes = await fetch(`/api/conversations/${id}`, { method: 'POST' });
+                      if (!restoreRes.ok) {
+                        const errBody = await restoreRes.json().catch(() => ({}));
+                        setError(errBody.error || 'Konnte archivierte Konversation nicht wiederherstellen.');
+                        return;
+                      }
                       loadConversationsList();
                     }
 
@@ -632,9 +628,11 @@ export function AIChatSidebar() {
                           setIsLoading(false);
                           unsubscribeFromRealtime();
                         }
+                      } else {
+                        setError('Konnte Konversation nicht laden.');
                       }
                     } catch (err) {
-                      console.error('[AIChatSidebar] Failed to load conversation details:', err);
+                      setError('Fehler beim Laden der Konversation.');
                     }
                   }}
                   onCreate={() => {
@@ -655,9 +653,11 @@ export function AIChatSidebar() {
                           setMessages([]);
                         }
                         loadConversationsList();
+                      } else {
+                        setError('Archivieren fehlgeschlagen.');
                       }
                     } catch (err) {
-                      console.error('[AIChatSidebar] Archive error:', err);
+                      setError('Netzwerkfehler beim Archivieren.');
                     }
                   }}
                   onRestore={async (id, e) => {
@@ -670,9 +670,11 @@ export function AIChatSidebar() {
                       });
                       if (response.ok) {
                         loadConversationsList();
+                      } else {
+                        setError('Wiederherstellen fehlgeschlagen.');
                       }
                     } catch (err) {
-                      console.error('[AIChatSidebar] Restore error:', err);
+                      setError('Netzwerkfehler beim Wiederherstellen.');
                     }
                   }}
                   onDelete={async (id, e) => {
@@ -688,9 +690,11 @@ export function AIChatSidebar() {
                           setMessages([]);
                         }
                         loadConversationsList();
+                      } else {
+                        setError('Löschen fehlgeschlagen.');
                       }
                     } catch (err) {
-                      console.error('[AIChatSidebar] Delete error:', err);
+                      setError('Netzwerkfehler beim Löschen.');
                     }
                   }}
                 />

@@ -109,7 +109,8 @@ describe('PATCH /api/conversations/[id] — archive', () => {
     nach.delete = jest.fn(() => {
       const d = q([]);
       d.eq = jest.fn(() => d);
-      d.is = jest.fn().mockResolvedValue({ error: null });
+      d.is = jest.fn(() => d);
+      d.in = jest.fn().mockResolvedValue({ error: null });
       return d;
     });
 

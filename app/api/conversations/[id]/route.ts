@@ -344,13 +344,14 @@ export async function PATCH(
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
 
-      // Hard-delete messages from DB (they are now in the bucket)
-      if (messages && messages.length > 0) {
+      // Hard-delete only the messages that were archived (by ID, not konversation_id)
+      // to avoid TOCTOU: messages that arrived between fetch and delete stay in DB
+      const archivedIds = messages?.map(m => m.id).filter(Boolean) || [];
+      if (archivedIds.length > 0) {
         const { error: deleteError } = await userSupabase
           .from('KI_Nachrichten')
           .delete()
-          .eq('konversation_id', id)
-          .is('geloescht_am', null);
+          .in('id', archivedIds);
 
         if (deleteError) {
           console.error('[conversations] Failed to delete archived messages:', deleteError);
