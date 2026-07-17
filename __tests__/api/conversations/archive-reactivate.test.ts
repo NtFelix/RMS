@@ -1,6 +1,7 @@
 /**
  * @jest-environment node
  */
+import { NextRequest } from 'next/server';
 import { PATCH, POST } from '@/app/api/conversations/[id]/route';
 import pako from 'pako';
 
@@ -76,7 +77,7 @@ const messages = [
 ];
 
 function req(body: Record<string, unknown>) {
-  return { json: jest.fn().mockResolvedValue(body) } as unknown as Request;
+  return { json: jest.fn().mockResolvedValue(body) } as unknown as NextRequest;
 }
 
 // Helper: configure mockFrom for the "two single() lookups then any table" pattern
