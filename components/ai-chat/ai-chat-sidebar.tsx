@@ -76,6 +76,7 @@ export function AIChatSidebar() {
   const [error, setError] = useState<string | null>(null);
   const realtimeChannelRef = useRef<any>(null);
   const [realtimeTarget, setRealtimeTarget] = useState<{ conversationId: string; aiMessageId: string } | null>(null);
+  const selectedConvRef = useRef<string | null>(null);
 
   // Resolve current organization context on mount
   useEffect(() => {
@@ -589,6 +590,7 @@ export function AIChatSidebar() {
                   conversations={conversations}
                   activeId={activeConversationId || undefined}
                   onSelect={async (id) => {
+                    selectedConvRef.current = id;
                     setActiveConversationId(id);
                     setShowHistory(false);
                     setError(null);
@@ -607,8 +609,10 @@ export function AIChatSidebar() {
 
                     try {
                       const detailsRes = await fetch(`/api/conversations/${id}`);
+                      if (selectedConvRef.current !== id) return; // stale
                       if (detailsRes.ok) {
                         const data = await detailsRes.json();
+                        if (selectedConvRef.current !== id) return; // stale
                         const mapped = (data.messages || []).map((m: any) => ({
                           id: m.id,
                           role: m.rolle === 'assistant' ? 'model' : m.rolle,
@@ -620,6 +624,7 @@ export function AIChatSidebar() {
                         setMessages(mapped);
                         
                         const lastMsg = data.messages?.[data.messages.length - 1];
+                        if (selectedConvRef.current !== id) return; // stale
                         if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
                           setIsLoading(true);
                           setActiveId(lastMsg.id);

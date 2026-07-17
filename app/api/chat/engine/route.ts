@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
 import { createSupabaseServiceClient, createSupabaseUserClient } from '@/lib/sandbox/runner';
 import { runAgent } from '@/lib/agents/mietevo-agent';
+
+function timingSafeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 export async function POST(req: NextRequest) {
   try {
     const authSecret = req.headers.get('X-AI-Service-Auth') || req.headers.get('x-ai-service-auth');
     const expectedSecret = process.env.AI_SERVICE_AUTH_SECRET!;
     
-    if (authSecret !== expectedSecret) {
+    if (!authSecret || !timingSafeCompare(authSecret, expectedSecret)) {
       return NextResponse.json({ error: 'Unauthorized: Invalid service secret' }, { status: 401 });
     }
 
@@ -23,8 +29,18 @@ export async function POST(req: NextRequest) {
 
     const { message, conversationId, agentMitgliedId, agentId, model } = await req.json();
 
-    // 1. Create a User JWT Supabase client to validate conversation scoping & perform RLS inserts
+    // 1. Validate X-User-Id and X-Org-Id against the provided JWT
     const userJwtSupabase = createSupabaseUserClient(userJwt, orgId);
+    const { data: { user: jwtUser }, error: jwtError } = await userJwtSupabase.auth.getUser();
+    if (jwtError || !jwtUser) {
+      return NextResponse.json({ error: 'Invalid JWT' }, { status: 401 });
+    }
+    if (jwtUser.id !== userId) {
+      return NextResponse.json({ error: 'X-User-Id does not match JWT' }, { status: 403 });
+    }
+    // X-Org-Id is validated implicitly: createSupabaseUserClient(userJwt, orgId) sets
+    // current_organisation_id in the Cookie header; if the JWT user is not a member of this org,
+    // subsequent RLS-checked queries will return zero rows
 
     // Validate conversation scoping
     if (conversationId) {

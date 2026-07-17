@@ -38,6 +38,7 @@ function q(responses: any[]) {
     select: jest.fn(() => obj),
     eq: jest.fn(() => obj),
     is: jest.fn(() => obj),
+    in: jest.fn(() => obj),
     order: jest.fn(() => obj),
     single,
     update: jest.fn(() => obj),
@@ -80,9 +81,9 @@ function req(body: Record<string, unknown>) {
   return { json: jest.fn().mockResolvedValue(body) } as unknown as NextRequest;
 }
 
-// Helper: configure mockFrom for the "two single() lookups then any table" pattern
-function mockConvOnly(first: any, second: any) {
-  const c = q([first, second]);
+// Helper: configure mockFrom for a single conversation lookup
+function mockConvOnly(result: any) {
+  const c = q([result]);
   mockFrom.mockImplementation((t: string) => t === 'KI_Konversationen' ? c : q([]));
   return c;
 }
@@ -100,13 +101,13 @@ describe('PATCH /api/conversations/[id] — archive', () => {
   });
 
   it('archives conversation', async () => {
-    // First two .single() calls
-    const conv = q([{ data: { organisation_id: ORG }, error: null }, { data: activeConv, error: null }]);
+    // Single .single() call — new code uses one lookup
+    const conv = q([{ data: activeConv, error: null }]);
 
     // Nachrichten query
     const nach = q([]);
     nach.order = jest.fn().mockResolvedValue({ data: messages, error: null });
-    nach.delete = jest.fn(() => {
+    nach.update = jest.fn(() => {
       const d = q([]);
       d.eq = jest.fn(() => d);
       d.is = jest.fn(() => d);
@@ -140,7 +141,7 @@ describe('PATCH /api/conversations/[id] — archive', () => {
   });
 
   it('returns 409 if already archived', async () => {
-    mockConvOnly({ data: { organisation_id: ORG }, error: null }, { data: archivedConv, error: null });
+    mockConvOnly({ data: archivedConv, error: null });
     const res = await PATCH(req({ status: 'archiviert' }), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(409);
   });
@@ -149,7 +150,7 @@ describe('PATCH /api/conversations/[id] — archive', () => {
     const archive = { konversation_id: CID, nachrichten: messages, metadaten: { token_gesamt: 30, agent_id: AID } };
     const storageDownload = jest.fn().mockResolvedValue({ data: new Blob([pako.gzip(JSON.stringify(archive))]), error: null });
 
-    const conv = q([{ data: { organisation_id: ORG }, error: null }, { data: archivedConv, error: null }]);
+    const conv = q([{ data: archivedConv, error: null }]);
     const insertMock = q([]);
     insertMock.insert = jest.fn().mockResolvedValue({ error: null });
     const updMock = q([{ data: { ...activeConv, status: 'aktiv' }, error: null }]);
@@ -184,13 +185,13 @@ describe('PATCH /api/conversations/[id] — archive', () => {
   });
 
   it('returns 400 if no fields', async () => {
-    mockConvOnly({ data: { organisation_id: ORG }, error: null }, { data: activeConv, error: null });
+    mockConvOnly({ data: activeConv, error: null });
     const res = await PATCH(req({}), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(400);
   });
 
   it('returns 404 if conversation not found', async () => {
-    mockConvOnly({ data: { organisation_id: ORG }, error: null }, { data: null, error: { message: 'nope' } });
+    mockConvOnly({ data: null, error: { message: 'nope' } });
     const res = await PATCH(req({ status: 'archiviert' }), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(404);
   });
@@ -209,7 +210,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
     const archive = { konversation_id: CID, nachrichten: messages, metadaten: { token_gesamt: 30, agent_id: AID } };
     storageDownload.mockResolvedValue({ data: new Blob([pako.gzip(JSON.stringify(archive))]), error: null });
 
-    const conv = q([{ data: { organisation_id: ORG }, error: null }, { data: archivedConv, error: null }]);
+    const conv = q([{ data: archivedConv, error: null }]);
     const insertMock = q([]);
     insertMock.insert = jest.fn().mockResolvedValue({ error: null });
     const updMock = q([]);
@@ -241,7 +242,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
   });
 
   it('returns success for active conversation (no bucket)', async () => {
-    const conv = q([{ data: { organisation_id: ORG }, error: null }, { data: activeConv, error: null }]);
+    const conv = q([{ data: activeConv, error: null }]);
     const updMock = q([]);
     updMock.update = jest.fn(() => updMock);
     updMock.eq = jest.fn(() => Promise.resolve({ error: null }));
@@ -261,7 +262,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
 
   it('returns 500 if bucket download fails', async () => {
     storageDownload.mockResolvedValue({ data: null, error: { message: 'boom' } });
-    mockConvOnly({ data: { organisation_id: ORG }, error: null }, { data: archivedConv, error: null });
+    mockConvOnly({ data: archivedConv, error: null });
 
     const res = await POST(req({}), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(500);
