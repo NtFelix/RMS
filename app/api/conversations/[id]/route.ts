@@ -128,13 +128,24 @@ export async function POST(
         const archive = JSON.parse(decompressed);
 
         if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
-          const { error: insertError } = await userSupabase.from('KI_Nachrichten').insert(
-            archive.nachrichten.map((m: Record<string, unknown>) => ({
-              ...m,
-              konversation_id: id,
-              organisation_id: conversation.organisation_id
-            }))
-          );
+          const restoredMessages = archive.nachrichten.map((m: Record<string, unknown>) => ({
+            ...m,
+            konversation_id: id,
+            organisation_id: conversation.organisation_id
+          }));
+
+          // Remove soft-deleted rows first to avoid PK conflicts
+          const archivedIds = restoredMessages.map((m: any) => m.id).filter(Boolean);
+          if (archivedIds.length > 0) {
+            await userSupabase
+              .from('KI_Nachrichten')
+              .delete()
+              .in('id', archivedIds);
+          }
+
+          const { error: insertError } = await userSupabase
+            .from('KI_Nachrichten')
+            .insert(restoredMessages);
 
           if (insertError) {
             return NextResponse.json({ error: insertError.message }, { status: 500 });
@@ -252,13 +263,24 @@ export async function PATCH(
         const archive = JSON.parse(decompressed);
 
         if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
-          const { error: insertError } = await userSupabase.from('KI_Nachrichten').insert(
-            archive.nachrichten.map((m: Record<string, unknown>) => ({
-              ...m,
-              konversation_id: id,
-              organisation_id: conversation.organisation_id,
-            }))
-          );
+          const restoredMessages = archive.nachrichten.map((m: Record<string, unknown>) => ({
+            ...m,
+            konversation_id: id,
+            organisation_id: conversation.organisation_id,
+          }));
+
+          // Remove soft-deleted rows first to avoid PK conflicts with upsert
+          const archivedIds = restoredMessages.map((m: any) => m.id).filter(Boolean);
+          if (archivedIds.length > 0) {
+            await userSupabase
+              .from('KI_Nachrichten')
+              .delete()
+              .in('id', archivedIds);
+          }
+
+          const { error: insertError } = await userSupabase
+            .from('KI_Nachrichten')
+            .insert(restoredMessages);
 
           if (insertError) {
             return NextResponse.json({ error: insertError.message }, { status: 500 });
@@ -384,6 +406,7 @@ export async function PATCH(
     return NextResponse.json(data);
   } catch (err: any) {
     const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    console.error('[conversations] PATCH unexpected error:', err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

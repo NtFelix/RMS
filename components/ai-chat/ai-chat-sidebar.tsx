@@ -676,6 +676,8 @@ export function AIChatSidebar() {
                       if (response.ok) {
                         loadConversationsList();
                       } else {
+                        const body = await response.json().catch(() => null);
+                        console.error('[restore] Server error:', body?.error || response.statusText);
                         setError('Wiederherstellen fehlgeschlagen.');
                       }
                     } catch (err) {

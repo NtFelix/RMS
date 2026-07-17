@@ -50,6 +50,7 @@ function q(responses: any[]) {
     update: jest.fn(() => obj),
     delete: jest.fn(() => obj),
     insert: jest.fn(() => Promise.resolve({ error: null })),
+    upsert: jest.fn(() => Promise.resolve({ error: null })),
   };
   return obj;
 }
