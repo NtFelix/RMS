@@ -15,8 +15,15 @@ const mockSupabaseClient = {
   rpc: mockRpc,
 };
 
+const mockServiceFrom = jest.fn();
+const mockServiceSupabase = { from: mockServiceFrom };
+
 jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(() => mockSupabaseClient),
+}));
+
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => mockServiceSupabase),
 }));
 
 function req(url: string) {
@@ -26,6 +33,21 @@ function req(url: string) {
 const ORG = 'org-123';
 const USER = 'user-456';
 const CID = 'conv-789';
+
+function mockServiceDefaults() {
+  mockServiceFrom.mockImplementation((t: string) => {
+    if (t === 'KI_Konversationen') {
+      const q: any = buildQuery({ data: { organisation_id: ORG }, error: null });
+      return q;
+    }
+    if (t === 'Organisation_Mitglieder') {
+      const q: any = buildQuery({ data: { id: 'member-1' }, error: null });
+      q.maybeSingle = jest.fn().mockResolvedValue({ data: { id: 'member-1' }, error: null });
+      return q;
+    }
+    return buildQuery(null);
+  });
+}
 
 function buildQuery(result: any) {
   const q: any = {
@@ -115,26 +137,27 @@ describe('DELETE /api/conversations/[id] — soft-delete', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 404 if conversation not found', async () => {
-    const q = buildQuery({ data: null, error: { message: 'not found' } });
-    mockFrom.mockReturnValue(q);
+  it('returns 404 if service role cannot find conversation', async () => {
+    mockServiceFrom.mockImplementation((t: string) => {
+      if (t === 'KI_Konversationen') {
+        const q = buildQuery({ data: null, error: { message: 'not found' } });
+        return q;
+      }
+      return buildQuery(null);
+    });
 
     const res = await DELETE(req('http://api'), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(404);
   });
 
   it('soft-deletes conversation via geloescht_am', async () => {
-    let callCount = 0;
-    const selectQ = buildQuery({ data: { organisation_id: ORG }, error: null });
+    mockServiceDefaults();
 
     const updateQ = buildQuery(null);
     updateQ.update = jest.fn(() => updateQ);
     updateQ.eq = jest.fn().mockResolvedValue({ error: null });
 
-    mockFrom.mockImplementation(() => {
-      callCount++;
-      return callCount === 1 ? selectQ : updateQ;
-    });
+    mockFrom.mockReturnValue(updateQ);
 
     const res = await DELETE(req('http://api'), { params: Promise.resolve({ id: CID }) });
     const body = await res.json();

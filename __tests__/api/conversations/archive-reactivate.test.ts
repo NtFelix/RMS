@@ -21,15 +21,20 @@ jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(() => mockSupabaseClient),
 }));
 
+const mockServiceFrom = jest.fn();
+const mockServiceSupabase = {
+  from: mockServiceFrom,
+};
+
 jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(() => mockSupabaseClient),
+  createClient: jest.fn(() => mockServiceSupabase),
 }));
 
 // Build a flat object where all query methods return the object itself,
 // and .single() returns a Promise
 function q(responses: any[]) {
   let idx = 0;
-  const single = jest.fn(() => {
+  const terminal = jest.fn(() => {
     const r = responses[idx] ?? { data: null, error: { message: `call ${idx} not mocked` } };
     idx++;
     return Promise.resolve(r);
@@ -40,7 +45,8 @@ function q(responses: any[]) {
     is: jest.fn(() => obj),
     in: jest.fn(() => obj),
     order: jest.fn(() => obj),
-    single,
+    single: terminal,
+    maybeSingle: terminal,
     update: jest.fn(() => obj),
     delete: jest.fn(() => obj),
     insert: jest.fn(() => Promise.resolve({ error: null })),
@@ -88,6 +94,23 @@ function mockConvOnly(result: any) {
   return c;
 }
 
+// Helper: configure mockServiceFrom for org lookup + membership check
+function mockServiceDefaults() {
+  mockServiceFrom.mockImplementation((t: string) => {
+    if (t === 'KI_Konversationen') {
+      const qq = q([]);
+      qq.single = jest.fn().mockResolvedValue({ data: { organisation_id: ORG }, error: null });
+      return qq;
+    }
+    if (t === 'Organisation_Mitglieder') {
+      const qq = q([]);
+      qq.maybeSingle = jest.fn().mockResolvedValue({ data: { id: 'member-1' }, error: null });
+      return qq;
+    }
+    return q([]);
+  });
+}
+
 describe('PATCH /api/conversations/[id] — archive', () => {
   const storageUpload = jest.fn();
   const storageRemove = jest.fn();
@@ -101,7 +124,7 @@ describe('PATCH /api/conversations/[id] — archive', () => {
   });
 
   it('archives conversation', async () => {
-    // Single .single() call — new code uses one lookup
+    mockServiceDefaults();
     const conv = q([{ data: activeConv, error: null }]);
 
     // Nachrichten query
@@ -141,12 +164,14 @@ describe('PATCH /api/conversations/[id] — archive', () => {
   });
 
   it('returns 409 if already archived', async () => {
+    mockServiceDefaults();
     mockConvOnly({ data: archivedConv, error: null });
     const res = await PATCH(req({ status: 'archiviert' }), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(409);
   });
 
   it('unarchives conversation: downloads gzip, inserts messages, updates status', async () => {
+    mockServiceDefaults();
     const archive = { konversation_id: CID, nachrichten: messages, metadaten: { token_gesamt: 30, agent_id: AID } };
     const storageDownload = jest.fn().mockResolvedValue({ data: new Blob([pako.gzip(JSON.stringify(archive))]), error: null });
 
@@ -185,12 +210,14 @@ describe('PATCH /api/conversations/[id] — archive', () => {
   });
 
   it('returns 400 if no fields', async () => {
+    mockServiceDefaults();
     mockConvOnly({ data: activeConv, error: null });
     const res = await PATCH(req({}), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(400);
   });
 
   it('returns 404 if conversation not found', async () => {
+    mockServiceDefaults();
     mockConvOnly({ data: null, error: { message: 'nope' } });
     const res = await PATCH(req({ status: 'archiviert' }), { params: Promise.resolve({ id: CID }) });
     expect(res.status).toBe(404);
@@ -207,6 +234,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
   });
 
   it('restores archived conversation', async () => {
+    mockServiceDefaults();
     const archive = { konversation_id: CID, nachrichten: messages, metadaten: { token_gesamt: 30, agent_id: AID } };
     storageDownload.mockResolvedValue({ data: new Blob([pako.gzip(JSON.stringify(archive))]), error: null });
 
@@ -242,6 +270,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
   });
 
   it('returns success for active conversation (no bucket)', async () => {
+    mockServiceDefaults();
     const conv = q([{ data: activeConv, error: null }]);
     const updMock = q([]);
     updMock.update = jest.fn(() => updMock);
@@ -261,6 +290,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
   });
 
   it('returns 500 if bucket download fails', async () => {
+    mockServiceDefaults();
     storageDownload.mockResolvedValue({ data: null, error: { message: 'boom' } });
     mockConvOnly({ data: archivedConv, error: null });
 
