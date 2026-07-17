@@ -88,12 +88,14 @@ function mockConvOnly(first: any, second: any) {
 
 describe('PATCH /api/conversations/[id] — archive', () => {
   const storageUpload = jest.fn();
+  const storageRemove = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuthGetUser.mockResolvedValue({ data: { user: { id: USER } }, error: null });
-    mockStorageFrom.mockReturnValue({ upload: storageUpload, download: jest.fn() });
+    mockStorageFrom.mockReturnValue({ upload: storageUpload, download: jest.fn(), remove: storageRemove });
     storageUpload.mockResolvedValue({ error: null });
+    storageRemove.mockResolvedValue({ error: null });
   });
 
   it('archives conversation', async () => {
@@ -150,7 +152,8 @@ describe('PATCH /api/conversations/[id] — archive', () => {
     insertMock.insert = jest.fn().mockResolvedValue({ error: null });
     const updMock = q([{ data: { ...activeConv, status: 'aktiv' }, error: null }]);
 
-    mockStorageFrom.mockReturnValue({ download: storageDownload, upload: jest.fn() });
+    const storageRemove = jest.fn().mockResolvedValue({ error: null });
+    mockStorageFrom.mockReturnValue({ download: storageDownload, upload: jest.fn(), remove: storageRemove });
     mockFrom.mockImplementation((t: string) => {
       if (t === 'KI_Konversationen') {
         conv.update = jest.fn(() => updMock);
@@ -166,6 +169,7 @@ describe('PATCH /api/conversations/[id] — archive', () => {
     expect(res.status).toBe(200);
     expect(body.status).toBe('aktiv');
     expect(storageDownload).toHaveBeenCalledWith(`${MID}/${CID}/archiv.json.gz`);
+    expect(storageRemove).toHaveBeenCalledWith([`${MID}/${CID}/archiv.json.gz`]);
     expect(insertMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ konversation_id: CID, rolle: 'user', inhalt: 'Hello' }),
     ]));
@@ -210,6 +214,9 @@ describe('POST /api/conversations/[id] — reactivate', () => {
     updMock.update = jest.fn(() => updMock);
     updMock.eq = jest.fn(() => Promise.resolve({ error: null }));
 
+    const storageRemove = jest.fn().mockResolvedValue({ error: null });
+    mockStorageFrom.mockReturnValue({ download: storageDownload, upload: jest.fn(), remove: storageRemove });
+
     mockFrom.mockImplementation((t: string) => {
       if (t === 'KI_Konversationen') {
         conv.update = jest.fn(() => updMock);
@@ -225,6 +232,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(storageDownload).toHaveBeenCalledWith(`${MID}/${CID}/archiv.json.gz`);
+    expect(storageRemove).toHaveBeenCalledWith([`${MID}/${CID}/archiv.json.gz`]);
     expect(insertMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ konversation_id: CID, rolle: 'user', inhalt: 'Hello' }),
     ]));

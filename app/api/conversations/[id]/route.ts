@@ -150,6 +150,11 @@ export async function POST(
         if (updateError) {
           return NextResponse.json({ error: updateError.message }, { status: 500 });
         }
+
+        // Clean up archive from bucket after successful restore
+        await userSupabase.storage
+          .from('ki-nachrichten')
+          .remove([conversation.storage_pfad]);
       } catch (parseErr) {
         console.error('[conversations] Failed to parse archived messages:', parseErr);
         return NextResponse.json({ error: 'Failed to parse archived conversation data' }, { status: 500 });
@@ -265,6 +270,11 @@ export async function PATCH(
         if (updateError) {
           return NextResponse.json({ error: updateError.message }, { status: 500 });
         }
+
+        // Clean up archive from bucket after successful restore
+        await userSupabase.storage
+          .from('ki-nachrichten')
+          .remove([conversation.storage_pfad]);
 
         return NextResponse.json(updatedConv);
       } catch (parseErr) {
