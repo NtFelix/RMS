@@ -177,8 +177,22 @@ describe('PATCH /api/conversations/[id] — archive', () => {
     const storageDownload = jest.fn().mockResolvedValue({ data: new Blob([pako.gzip(JSON.stringify(archive))]), error: null });
 
     const conv = q([{ data: archivedConv, error: null }]);
-    const insertMock = q([]);
-    insertMock.insert = jest.fn().mockResolvedValue({ error: null });
+    const nachServiceMock = q([]);
+    mockServiceFrom.mockImplementation((t: string) => {
+      if (t === 'KI_Konversationen') {
+        const qq = q([]);
+        qq.single = jest.fn().mockResolvedValue({ data: { organisation_id: ORG }, error: null });
+        return qq;
+      }
+      if (t === 'Organisation_Mitglieder') {
+        const qq = q([]);
+        qq.maybeSingle = jest.fn().mockResolvedValue({ data: { id: 'member-1' }, error: null });
+        return qq;
+      }
+      if (t === 'KI_Nachrichten') return nachServiceMock;
+      return q([]);
+    });
+
     const updMock = q([{ data: { ...activeConv, status: 'aktiv' }, error: null }]);
 
     const storageRemove = jest.fn().mockResolvedValue({ error: null });
@@ -188,7 +202,6 @@ describe('PATCH /api/conversations/[id] — archive', () => {
         conv.update = jest.fn(() => updMock);
         return conv;
       }
-      if (t === 'KI_Nachrichten') return insertMock;
       return q([]);
     });
 
@@ -199,7 +212,7 @@ describe('PATCH /api/conversations/[id] — archive', () => {
     expect(body.status).toBe('aktiv');
     expect(storageDownload).toHaveBeenCalledWith(`${MID}/${CID}/archiv.json.gz`);
     expect(storageRemove).toHaveBeenCalledWith([`${MID}/${CID}/archiv.json.gz`]);
-    expect(insertMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
+    expect(nachServiceMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ konversation_id: CID, rolle: 'user', inhalt: 'Hello' }),
     ]));
   });
@@ -240,8 +253,22 @@ describe('POST /api/conversations/[id] — reactivate', () => {
     storageDownload.mockResolvedValue({ data: new Blob([pako.gzip(JSON.stringify(archive))]), error: null });
 
     const conv = q([{ data: archivedConv, error: null }]);
-    const insertMock = q([]);
-    insertMock.insert = jest.fn().mockResolvedValue({ error: null });
+    const nachServiceMock = q([]);
+    mockServiceFrom.mockImplementation((t: string) => {
+      if (t === 'KI_Konversationen') {
+        const qq = q([]);
+        qq.single = jest.fn().mockResolvedValue({ data: { organisation_id: ORG }, error: null });
+        return qq;
+      }
+      if (t === 'Organisation_Mitglieder') {
+        const qq = q([]);
+        qq.maybeSingle = jest.fn().mockResolvedValue({ data: { id: 'member-1' }, error: null });
+        return qq;
+      }
+      if (t === 'KI_Nachrichten') return nachServiceMock;
+      return q([]);
+    });
+
     const updMock = q([]);
     updMock.update = jest.fn(() => updMock);
     updMock.eq = jest.fn(() => Promise.resolve({ error: null }));
@@ -254,7 +281,6 @@ describe('POST /api/conversations/[id] — reactivate', () => {
         conv.update = jest.fn(() => updMock);
         return conv;
       }
-      if (t === 'KI_Nachrichten') return insertMock;
       return q([]);
     });
 
@@ -265,7 +291,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
     expect(body.success).toBe(true);
     expect(storageDownload).toHaveBeenCalledWith(`${MID}/${CID}/archiv.json.gz`);
     expect(storageRemove).toHaveBeenCalledWith([`${MID}/${CID}/archiv.json.gz`]);
-    expect(insertMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
+    expect(nachServiceMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ konversation_id: CID, rolle: 'user', inhalt: 'Hello' }),
     ]));
   });

@@ -134,16 +134,17 @@ export async function POST(
             organisation_id: conversation.organisation_id
           }));
 
-          // Remove soft-deleted rows first to avoid PK conflicts
+          // Remove soft-deleted rows first to avoid PK conflicts.
+          // Uses service role to bypass RLS (current_organisation_id reads from JWT claim, not Cookie header).
           const archivedIds = restoredMessages.map((m: any) => m.id).filter(Boolean);
           if (archivedIds.length > 0) {
-            await userSupabase
+            await supabaseService
               .from('KI_Nachrichten')
               .delete()
               .in('id', archivedIds);
           }
 
-          const { error: insertError } = await userSupabase
+          const { error: insertError } = await supabaseService
             .from('KI_Nachrichten')
             .insert(restoredMessages);
 
@@ -269,16 +270,17 @@ export async function PATCH(
             organisation_id: conversation.organisation_id,
           }));
 
-          // Remove soft-deleted rows first to avoid PK conflicts with upsert
+          // Remove soft-deleted rows first to avoid PK conflicts.
+          // Uses service role to bypass RLS (current_organisation_id reads from JWT claim, not Cookie header).
           const archivedIds = restoredMessages.map((m: any) => m.id).filter(Boolean);
           if (archivedIds.length > 0) {
-            await userSupabase
+            await supabaseService
               .from('KI_Nachrichten')
               .delete()
               .in('id', archivedIds);
           }
 
-          const { error: insertError } = await userSupabase
+          const { error: insertError } = await supabaseService
             .from('KI_Nachrichten')
             .insert(restoredMessages);
 
