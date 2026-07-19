@@ -2,8 +2,16 @@
  * @jest-environment node
  */
 import { NextRequest } from 'next/server';
-import { GET } from '@/app/api/conversations/route';
-import { DELETE } from '@/app/api/conversations/[id]/route';
+
+let GET: any;
+let DELETE: any;
+
+beforeAll(async () => {
+  const routeConversations = await import('@/app/api/conversations/route');
+  const routeConversationsId = await import('@/app/api/conversations/[id]/route');
+  GET = routeConversations.GET;
+  DELETE = routeConversationsId.DELETE;
+});
 
 const mockFrom = jest.fn();
 const mockAuthGetUser = jest.fn();

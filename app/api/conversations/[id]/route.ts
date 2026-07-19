@@ -153,12 +153,7 @@ export async function POST(
         }
       }
 
-      // Clean up bucket archive before updating conversation (safe to retry on failure)
-      await userSupabase.storage
-        .from(STORAGE_BUCKET)
-        .remove([conversation.storage_pfad]);
-
-      // Update conversation LAST — if anything above fails, conversation state is unchanged and user can retry
+      // Update conversation first
       const { error: updateError } = await userSupabase
         .from('KI_Konversationen')
         .update({ storage_status: 'db', storage_pfad: null, status: 'aktiv' })
@@ -167,6 +162,11 @@ export async function POST(
       if (updateError) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
+
+      // Clean up bucket archive last
+      await userSupabase.storage
+        .from(STORAGE_BUCKET)
+        .remove([conversation.storage_pfad]);
     }
 
     // Touch letzter_zugriff
@@ -282,12 +282,7 @@ export async function PATCH(
         }
       }
 
-      // Clean up bucket archive before updating conversation (safe to retry on failure)
-      await userSupabase.storage
-        .from(STORAGE_BUCKET)
-        .remove([conversation.storage_pfad]);
-
-      // Update conversation LAST — if anything above fails, conversation state is unchanged and user can retry
+      // Update conversation first
       updateData.storage_status = 'db';
       updateData.storage_pfad = null;
       updateData.status = 'aktiv';
@@ -302,6 +297,11 @@ export async function PATCH(
       if (updateError) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
+
+      // Clean up bucket archive last
+      await userSupabase.storage
+        .from(STORAGE_BUCKET)
+        .remove([conversation.storage_pfad]);
 
       return NextResponse.json(updatedConv);
     }

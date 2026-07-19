@@ -2,8 +2,16 @@
  * @jest-environment node
  */
 import { NextRequest } from 'next/server';
-import { PATCH, POST } from '@/app/api/conversations/[id]/route';
 import pako from 'pako';
+
+let PATCH: any;
+let POST: any;
+
+beforeAll(async () => {
+  const route = await import('@/app/api/conversations/[id]/route');
+  PATCH = route.PATCH;
+  POST = route.POST;
+});
 
 jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -212,7 +220,7 @@ describe('PATCH /api/conversations/[id] — archive', () => {
     expect(body.status).toBe('aktiv');
     expect(storageDownload).toHaveBeenCalledWith(`${MID}/${CID}/archiv.json.gz`);
     expect(storageRemove).toHaveBeenCalledWith([`${MID}/${CID}/archiv.json.gz`]);
-    expect(nachServiceMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
+    expect(nachServiceMock.upsert).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ konversation_id: CID, rolle: 'user', inhalt: 'Hello' }),
     ]));
   });
@@ -291,7 +299,7 @@ describe('POST /api/conversations/[id] — reactivate', () => {
     expect(body.success).toBe(true);
     expect(storageDownload).toHaveBeenCalledWith(`${MID}/${CID}/archiv.json.gz`);
     expect(storageRemove).toHaveBeenCalledWith([`${MID}/${CID}/archiv.json.gz`]);
-    expect(nachServiceMock.insert).toHaveBeenCalledWith(expect.arrayContaining([
+    expect(nachServiceMock.upsert).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ konversation_id: CID, rolle: 'user', inhalt: 'Hello' }),
     ]));
   });
