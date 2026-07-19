@@ -69,10 +69,9 @@ export async function POST(req: NextRequest) {
         'X-AI-Service-Auth': aiServiceSecret,
         'X-User-Id': user.id,
         'X-Org-Id': orgId,
-        'X-User-Jwt': userJwt,
         ...(idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {}),
       },
-      body: JSON.stringify({ message, conversationId, agentMitgliedId, agentId, model }),
+      body: JSON.stringify({ message, conversationId, agentMitgliedId, agentId, model, userJwt }),
     });
 
     if (!response.ok) {

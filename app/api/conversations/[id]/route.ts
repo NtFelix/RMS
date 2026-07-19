@@ -3,12 +3,16 @@ import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import pako from 'pako';
 
-function getSupabaseService() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
 }
+
+const supabaseService = createSupabaseClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const STORAGE_BUCKET = 'ki-nachrichten';
 
 export async function GET(
   req: NextRequest,
@@ -74,7 +78,6 @@ export async function POST(
     }
 
     // Look up org_id via service role (minimal — only organisation_id, no sensitive data)
-    const supabaseService = getSupabaseService();
     const { data: convMeta, error: metaError } = await supabaseService
       .from('KI_Konversationen')
       .select('organisation_id')
@@ -115,60 +118,54 @@ export async function POST(
     // Reactivate if archived in bucket
     if (conversation.storage_status === 'bucket' && conversation.storage_pfad) {
       const { data: fileData, error: downloadError } = await userSupabase.storage
-        .from('ki-nachrichten')
+        .from(STORAGE_BUCKET)
         .download(conversation.storage_pfad);
 
       if (downloadError || !fileData) {
         return NextResponse.json({ error: 'Failed to download archived conversation' }, { status: 500 });
       }
 
+      let archive: any;
       try {
         const uint8Array = new Uint8Array(await fileData.arrayBuffer());
         const decompressed = pako.ungzip(uint8Array, { to: 'string' });
-        const archive = JSON.parse(decompressed);
-
-        if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
-          const restoredMessages = archive.nachrichten.map((m: Record<string, unknown>) => ({
-            ...m,
-            konversation_id: id,
-            organisation_id: conversation.organisation_id
-          }));
-
-          // Remove soft-deleted rows first to avoid PK conflicts.
-          // Uses service role to bypass RLS (current_organisation_id reads from JWT claim, not Cookie header).
-          const archivedIds = restoredMessages.map((m: any) => m.id).filter(Boolean);
-          if (archivedIds.length > 0) {
-            await supabaseService
-              .from('KI_Nachrichten')
-              .delete()
-              .in('id', archivedIds);
-          }
-
-          const { error: insertError } = await supabaseService
-            .from('KI_Nachrichten')
-            .insert(restoredMessages);
-
-          if (insertError) {
-            return NextResponse.json({ error: insertError.message }, { status: 500 });
-          }
-        }
-
-        const { error: updateError } = await userSupabase
-          .from('KI_Konversationen')
-          .update({ storage_status: 'db', storage_pfad: null, status: 'aktiv' })
-          .eq('id', id);
-
-        if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 500 });
-        }
-
-        // Clean up archive from bucket after successful restore
-        await userSupabase.storage
-          .from('ki-nachrichten')
-          .remove([conversation.storage_pfad]);
+        archive = JSON.parse(decompressed);
       } catch (parseErr) {
         console.error('[conversations] Failed to parse archived messages:', parseErr);
         return NextResponse.json({ error: 'Failed to parse archived conversation data' }, { status: 500 });
+      }
+
+      // Restore messages via upsert (atomic — no data loss on failure).
+      // Uses service role to bypass RLS (current_organisation_id reads from JWT claim, not Cookie header).
+      if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
+        const restoredMessages = archive.nachrichten.map((m: Record<string, unknown>) => ({
+          ...m,
+          konversation_id: id,
+          organisation_id: conversation.organisation_id,
+        }));
+
+        const { error: upsertError } = await supabaseService
+          .from('KI_Nachrichten')
+          .upsert(restoredMessages);
+
+        if (upsertError) {
+          return NextResponse.json({ error: `Failed to restore messages: ${upsertError.message}` }, { status: 500 });
+        }
+      }
+
+      // Clean up bucket archive before updating conversation (safe to retry on failure)
+      await userSupabase.storage
+        .from(STORAGE_BUCKET)
+        .remove([conversation.storage_pfad]);
+
+      // Update conversation LAST — if anything above fails, conversation state is unchanged and user can retry
+      const { error: updateError } = await userSupabase
+        .from('KI_Konversationen')
+        .update({ storage_status: 'db', storage_pfad: null, status: 'aktiv' })
+        .eq('id', id);
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
     }
 
@@ -199,7 +196,6 @@ export async function PATCH(
     }
 
     // Look up org_id via service role + verify membership
-    const supabaseService = getSupabaseService();
     const { data: convMeta, error: metaError } = await supabaseService
       .from('KI_Konversationen')
       .select('organisation_id')
@@ -251,69 +247,63 @@ export async function PATCH(
     // Unarchive: restore messages from bucket to DB
     if (status === 'aktiv' && conversation.storage_status === 'bucket' && conversation.storage_pfad) {
       const { data: fileData, error: downloadError } = await userSupabase.storage
-        .from('ki-nachrichten')
+        .from(STORAGE_BUCKET)
         .download(conversation.storage_pfad);
 
       if (downloadError || !fileData) {
         return NextResponse.json({ error: 'Failed to download archived conversation' }, { status: 500 });
       }
 
+      let archive: any;
       try {
         const uint8Array = new Uint8Array(await fileData.arrayBuffer());
         const decompressed = pako.ungzip(uint8Array, { to: 'string' });
-        const archive = JSON.parse(decompressed);
-
-        if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
-          const restoredMessages = archive.nachrichten.map((m: Record<string, unknown>) => ({
-            ...m,
-            konversation_id: id,
-            organisation_id: conversation.organisation_id,
-          }));
-
-          // Remove soft-deleted rows first to avoid PK conflicts.
-          // Uses service role to bypass RLS (current_organisation_id reads from JWT claim, not Cookie header).
-          const archivedIds = restoredMessages.map((m: any) => m.id).filter(Boolean);
-          if (archivedIds.length > 0) {
-            await supabaseService
-              .from('KI_Nachrichten')
-              .delete()
-              .in('id', archivedIds);
-          }
-
-          const { error: insertError } = await supabaseService
-            .from('KI_Nachrichten')
-            .insert(restoredMessages);
-
-          if (insertError) {
-            return NextResponse.json({ error: insertError.message }, { status: 500 });
-          }
-        }
-
-        updateData.storage_status = 'db';
-        updateData.storage_pfad = null;
-        updateData.status = 'aktiv';
-
-        const { data: updatedConv, error: updateError } = await userSupabase
-          .from('KI_Konversationen')
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 500 });
-        }
-
-        // Clean up archive from bucket after successful restore
-        await userSupabase.storage
-          .from('ki-nachrichten')
-          .remove([conversation.storage_pfad]);
-
-        return NextResponse.json(updatedConv);
+        archive = JSON.parse(decompressed);
       } catch (parseErr) {
         console.error('[conversations] Failed to parse archived messages:', parseErr);
         return NextResponse.json({ error: 'Failed to parse archived conversation data' }, { status: 500 });
       }
+
+      // Restore messages via upsert (atomic — no data loss on failure).
+      // Uses service role to bypass RLS (current_organisation_id reads from JWT claim, not Cookie header).
+      if (archive && Array.isArray(archive.nachrichten) && archive.nachrichten.length > 0) {
+        const restoredMessages = archive.nachrichten.map((m: Record<string, unknown>) => ({
+          ...m,
+          konversation_id: id,
+          organisation_id: conversation.organisation_id,
+        }));
+
+        const { error: upsertError } = await supabaseService
+          .from('KI_Nachrichten')
+          .upsert(restoredMessages);
+
+        if (upsertError) {
+          return NextResponse.json({ error: `Failed to restore messages: ${upsertError.message}` }, { status: 500 });
+        }
+      }
+
+      // Clean up bucket archive before updating conversation (safe to retry on failure)
+      await userSupabase.storage
+        .from(STORAGE_BUCKET)
+        .remove([conversation.storage_pfad]);
+
+      // Update conversation LAST — if anything above fails, conversation state is unchanged and user can retry
+      updateData.storage_status = 'db';
+      updateData.storage_pfad = null;
+      updateData.status = 'aktiv';
+
+      const { data: updatedConv, error: updateError } = await userSupabase
+        .from('KI_Konversationen')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      return NextResponse.json(updatedConv);
     }
 
     // Archive: move messages from DB to bucket
@@ -351,7 +341,7 @@ export async function PATCH(
       const compressed = pako.gzip(jsonString);
 
       const { error: uploadError } = await userSupabase.storage
-        .from('ki-nachrichten')
+        .from(STORAGE_BUCKET)
         .upload(storagePath, compressed, {
           contentType: 'application/gzip',
           upsert: true,
@@ -361,7 +351,22 @@ export async function PATCH(
         return NextResponse.json({ error: `Failed to upload archive: ${uploadError.message}` }, { status: 500 });
       }
 
-      // Update conversation to bucket status
+      // Soft-delete archived messages BEFORE updating conversation (safety net: if bucket file is lost,
+      // messages can be recovered by clearing geloescht_am).
+      // Uses service role to bypass RLS and ensure the safety net is reliable.
+      const archivedIds = messages?.map(m => m.id).filter(Boolean) || [];
+      if (archivedIds.length > 0) {
+        const { error: deleteError } = await supabaseService
+          .from('KI_Nachrichten')
+          .update({ geloescht_am: new Date().toISOString(), geloescht_von: user.id })
+          .in('id', archivedIds);
+
+        if (deleteError) {
+          return NextResponse.json({ error: `Failed to soft-delete archived messages: ${deleteError.message}` }, { status: 500 });
+        }
+      }
+
+      // Update conversation LAST — if soft-delete fails above, conversation is unchanged and user can retry
       updateData.storage_pfad = storagePath;
       updateData.storage_status = 'bucket';
       updateData.archiviert_am = new Date().toISOString();
@@ -375,21 +380,6 @@ export async function PATCH(
 
       if (updateError) {
         return NextResponse.json({ error: updateError.message }, { status: 500 });
-      }
-
-      // Soft-delete archived messages (safety net: if bucket file is lost,
-      // messages can be recovered by clearing geloescht_am).
-      // Uses service role to bypass RLS and ensure the safety net is reliable.
-      const archivedIds = messages?.map(m => m.id).filter(Boolean) || [];
-      if (archivedIds.length > 0) {
-        const { error: deleteError } = await supabaseService
-          .from('KI_Nachrichten')
-          .update({ geloescht_am: new Date().toISOString(), geloescht_von: user.id })
-          .in('id', archivedIds);
-
-        if (deleteError) {
-          console.error('[conversations] Failed to soft-delete archived messages:', deleteError);
-        }
       }
 
       return NextResponse.json(updatedConv);
@@ -428,7 +418,6 @@ export async function DELETE(
     }
 
     // Look up org_id via service role + verify membership
-    const supabaseService = getSupabaseService();
     const { data: convMeta, error: metaError } = await supabaseService
       .from('KI_Konversationen')
       .select('organisation_id')

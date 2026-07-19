@@ -131,7 +131,6 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error('[conversations POST exception]:', err);
     const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
-    const stack = err instanceof Error ? err.stack : null;
-    return NextResponse.json({ error: message, stack }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

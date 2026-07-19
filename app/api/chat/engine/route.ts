@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { createSupabaseServiceClient, createSupabaseUserClient } from '@/lib/sandbox/runner';
+import { createSupabaseUserClient } from '@/lib/sandbox/runner';
 import { runAgent } from '@/lib/agents/mietevo-agent';
 
 function timingSafeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
@@ -20,14 +19,13 @@ export async function POST(req: NextRequest) {
 
     const userId = req.headers.get('X-User-Id') || req.headers.get('x-user-id');
     const orgId = req.headers.get('X-Org-Id') || req.headers.get('x-org-id');
-    const userJwt = req.headers.get('X-User-Jwt') || req.headers.get('x-user-jwt');
     const idempotencyKey = req.headers.get('X-Idempotency-Key') || req.headers.get('x-idempotency-key');
 
-    if (!userId || !orgId || !userJwt) {
-      return NextResponse.json({ error: 'Missing auth metadata headers' }, { status: 400 });
-    }
+    const { message, conversationId, agentMitgliedId, agentId, model, userJwt } = await req.json();
 
-    const { message, conversationId, agentMitgliedId, agentId, model } = await req.json();
+    if (!userId || !orgId || !userJwt) {
+      return NextResponse.json({ error: 'Missing required auth fields (userId, orgId, userJwt)' }, { status: 400 });
+    }
 
     // 1. Validate X-User-Id and X-Org-Id against the provided JWT
     const userJwtSupabase = createSupabaseUserClient(userJwt, orgId);
@@ -57,15 +55,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Idempotency Check (Only return completed responses)
+    // 2. Idempotency Check — uses same user RLS client as the insert for consistency
     if (idempotencyKey) {
-      const supabase = createSupabaseServiceClient();
-      const { data: existingMsg } = await supabase
+      const { data: existingMsg } = await userJwtSupabase
         .from('KI_Nachrichten')
         .select('inhalt, status, konversation_id')
         .eq('client_nachricht_id', idempotencyKey)
         .eq('organisation_id', orgId)
-        .maybeSingle(); // Use maybeSingle to avoid 406 errors on zero matches
+        .is('geloescht_am', null)
+        .maybeSingle();
 
       if (existingMsg) {
         if (existingMsg.status === 'abgeschlossen') {
@@ -103,6 +101,15 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (userMsgError) {
+      // If the idempotency key was already used (unique constraint), return 409
+      if (userMsgError.message?.includes('duplicate key') || userMsgError.code === '23505') {
+        const existingId = idempotencyKey || '';
+        return NextResponse.json({
+          error: 'Message with this idempotency key already exists',
+          idempotencyKey: existingId,
+          status: 'conflict'
+        }, { status: 409 });
+      }
       return NextResponse.json({ error: `User message creation failed: ${userMsgError.message}` }, { status: 500 });
     }
 
@@ -158,11 +165,14 @@ export async function POST(req: NextRequest) {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         streamController = controller;
-        // Emit thinking step start at stream beginning
         try {
           controller.enqueue(encoder.encode(JSON.stringify({ type: 'step_start', stepType: 'thinking', label: 'Antwort generieren...' }) + '\n'));
           controller.enqueue(encoder.encode(JSON.stringify({ type: 'step_done' }) + '\n'));
-        } catch (e) {}
+        } catch (e) {
+          if (e instanceof Error && e.message !== 'Controller is already closed') {
+            console.error('[engine] Stream start error:', e);
+          }
+        }
       }
     });
 
@@ -185,9 +195,12 @@ export async function POST(req: NextRequest) {
             fullText += token;
             if (streamController) {
               try {
-                // Emit text token in the exact JSON format expected by AIChatSidebar
                 streamController.enqueue(encoder.encode(JSON.stringify({ type: 'content', content: token }) + '\n'));
-              } catch (e) {}
+              } catch (e) {
+                if (e instanceof Error && e.message !== 'Controller is already closed') {
+                  console.error('[engine] Stream enqueue token error:', e);
+                }
+              }
             }
           }
         });
@@ -204,10 +217,13 @@ export async function POST(req: NextRequest) {
 
         if (streamController) {
           try {
-            // Emit final reply payload expected by the client to finalize state
             streamController.enqueue(encoder.encode(JSON.stringify({ type: 'final_reply', reply: fullText || result?.text || '' }) + '\n'));
             streamController.close();
-          } catch (e) {}
+          } catch (e) {
+            if (e instanceof Error && e.message !== 'Controller is already closed') {
+              console.error('[engine] Stream finalize error:', e);
+            }
+          }
         }
       } catch (runErr: any) {
         const errMsg = runErr instanceof Error ? runErr.message : String(runErr);
@@ -224,7 +240,11 @@ export async function POST(req: NextRequest) {
           try {
             streamController.enqueue(encoder.encode(JSON.stringify({ type: 'error', message: errMsg }) + '\n'));
             streamController.close();
-          } catch (e) {}
+          } catch (e) {
+            if (e instanceof Error && e.message !== 'Controller is already closed') {
+              console.error('[engine] Stream error finalize error:', e);
+            }
+          }
         }
       }
     })();
