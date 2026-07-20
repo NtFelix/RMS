@@ -3,14 +3,12 @@ import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import pako from 'pako';
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+function getSupabaseService() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key'
+  );
 }
-
-const supabaseService = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 const STORAGE_BUCKET = 'ki-nachrichten';
 
@@ -78,6 +76,7 @@ export async function POST(
     }
 
     // Look up org_id via service role (minimal — only organisation_id, no sensitive data)
+    const supabaseService = getSupabaseService();
     const { data: convMeta, error: metaError } = await supabaseService
       .from('KI_Konversationen')
       .select('organisation_id')
@@ -196,6 +195,7 @@ export async function PATCH(
     }
 
     // Look up org_id via service role + verify membership
+    const supabaseService = getSupabaseService();
     const { data: convMeta, error: metaError } = await supabaseService
       .from('KI_Konversationen')
       .select('organisation_id')
@@ -418,6 +418,7 @@ export async function DELETE(
     }
 
     // Look up org_id via service role + verify membership
+    const supabaseService = getSupabaseService();
     const { data: convMeta, error: metaError } = await supabaseService
       .from('KI_Konversationen')
       .select('organisation_id')
