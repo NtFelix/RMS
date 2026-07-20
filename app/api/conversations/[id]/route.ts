@@ -354,7 +354,7 @@ export async function PATCH(
       // Soft-delete archived messages BEFORE updating conversation (safety net: if bucket file is lost,
       // messages can be recovered by clearing geloescht_am).
       // Uses service role to bypass RLS and ensure the safety net is reliable.
-      const archivedIds = messages?.map(m => m.id).filter(Boolean) || [];
+      const archivedIds = messages?.flatMap(m => m.id ? [m.id] : []) || [];
       if (archivedIds.length > 0) {
         const { error: deleteError } = await supabaseService
           .from('KI_Nachrichten')
