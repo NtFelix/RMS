@@ -5,15 +5,18 @@ import { createSupabaseUserClient } from '@/lib/sandbox/runner';
 import { runAgent } from '@/lib/agents/mietevo-agent';
 
 function timingSafeCompare(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const expectedSecret = process.env.AI_SERVICE_AUTH_SECRET;
     const authSecret = req.headers.get('X-AI-Service-Auth') || req.headers.get('x-ai-service-auth');
-    const expectedSecret = process.env.AI_SERVICE_AUTH_SECRET!;
     
-    if (!authSecret || !timingSafeCompare(authSecret, expectedSecret)) {
+    if (!expectedSecret || !authSecret || !timingSafeCompare(authSecret, expectedSecret)) {
       return NextResponse.json({ error: 'Unauthorized: Invalid service secret' }, { status: 401 });
     }
 
@@ -21,7 +24,9 @@ export async function POST(req: NextRequest) {
     const orgId = req.headers.get('X-Org-Id') || req.headers.get('x-org-id');
     const idempotencyKey = req.headers.get('X-Idempotency-Key') || req.headers.get('x-idempotency-key');
 
-    const { message, conversationId, agentMitgliedId, agentId, model, userJwt } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { message, conversationId, agentMitgliedId, agentId, model, userJwt: bodyUserJwt } = body || {};
+    const userJwt = req.headers.get('X-User-Jwt') || req.headers.get('x-user-jwt') || bodyUserJwt;
 
     if (!userId || !orgId || !userJwt) {
       return NextResponse.json({ error: 'Missing required auth fields (userId, orgId, userJwt)' }, { status: 400 });
