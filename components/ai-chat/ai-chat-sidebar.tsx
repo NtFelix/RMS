@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import posthog from "posthog-js";
 import { v4 as uuidv4 } from "uuid";
@@ -15,6 +15,32 @@ import { MessagesList } from "./ai-chat-messages-list";
 import { ChatInput } from "./ai-chat-input";
 import { SidebarHeader } from "./ai-chat-header";
 import { SidebarFloatingButton } from "./ai-chat-floating-button";
+import { createClient } from "@/utils/supabase/client";
+import { ChatConversationList } from "../chat/ChatConversationList";
+
+function createRealtimeSubscription(
+  supabase: ReturnType<typeof createClient>,
+  conversationId: string,
+  aiMessageId: string,
+  onUpdate: (inhalt: string, status: string) => void
+) {
+  const channel = supabase
+    .channel(`konversation:${conversationId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'KI_Nachrichten',
+      filter: `konversation_id=eq.${conversationId}`,
+    }, (payload: any) => {
+      const newMsg = payload.new as any;
+      if (newMsg && newMsg.rolle === 'assistant' && newMsg.id === aiMessageId) {
+        onUpdate(newMsg.inhalt, newMsg.status);
+      }
+    })
+    .subscribe();
+
+  return () => { channel.unsubscribe(); };
+}
 
 export function AIChatSidebar() {
   const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
@@ -42,6 +68,164 @@ export function AIChatSidebar() {
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
 
+  const supabase = createClient();
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const realtimeChannelRef = useRef<any>(null);
+  const [realtimeTarget, setRealtimeTarget] = useState<{ conversationId: string; aiMessageId: string } | null>(null);
+  const selectedConvRef = useRef<string | null>(null);
+
+  // Resolve current organization context on mount
+  useEffect(() => {
+    supabase.rpc('current_organisation_id').then(async ({ data: orgId }) => {
+      if (!orgId) {
+        const { data: membership } = await supabase
+          .from('Organisation_Mitglieder')
+          .select('organisation_id')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('status', 'aktiv')
+          .limit(1)
+          .maybeSingle();
+        orgId = membership?.organisation_id;
+      }
+      if (orgId) {
+        setActiveOrgId(orgId);
+      }
+    });
+  }, [supabase]);
+
+  // Unsubscribe helper
+  const unsubscribeFromRealtime = useCallback(() => {
+    setRealtimeTarget(null);
+    if (realtimeChannelRef.current) {
+      realtimeChannelRef.current.unsubscribe();
+      realtimeChannelRef.current = null;
+    }
+  }, []);
+
+  // Subscribe fallback helper
+  const subscribeToRealtime = useCallback((conversationId: string, aiMessageId: string) => {
+    setRealtimeTarget({ conversationId, aiMessageId });
+  }, []);
+
+  // Manage realtime subscription lifecycle via effect
+  useEffect(() => {
+    if (!realtimeTarget) return;
+
+    const { conversationId, aiMessageId } = realtimeTarget;
+
+    const unsubscribe = createRealtimeSubscription(
+      supabase,
+      conversationId,
+      aiMessageId,
+      (inhalt, status) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId
+              ? { ...m, content: inhalt, status }
+              : m
+          )
+        );
+        if (status === 'abgeschlossen' || status === 'fehler') {
+          setIsLoading(false);
+          setActiveId(null);
+        }
+      }
+    );
+
+    realtimeChannelRef.current = { unsubscribe };
+
+    return () => {
+      unsubscribe();
+      realtimeChannelRef.current = null;
+    };
+  }, [realtimeTarget, supabase]);
+
+  const loadConversationsList = useCallback(async () => {
+    if (!activeOrgId) return;
+    try {
+      const res = await fetch(`/api/conversations?orgId=${activeOrgId}`);
+      if (res.ok) {
+        setConversations(await res.json());
+      }
+    } catch (err) {
+      // silently fail — retry on next open
+    }
+  }, [activeOrgId]);
+
+  // Load latest active conversation on sidebar open
+  useEffect(() => {
+    if (!isOpen || !activeOrgId) {
+      if (!isOpen) unsubscribeFromRealtime();
+      return;
+    }
+
+    const abortController = new AbortController();
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(`/api/conversations?orgId=${activeOrgId}`, {
+          signal: abortController.signal,
+        });
+        if (cancelled || !res.ok) return;
+        const convs = await res.json();
+        if (cancelled) return;
+        setConversations(convs);
+
+        if (convs && convs.length > 0) {
+          const latest = convs[0];
+          if (cancelled) return;
+          setActiveConversationId(latest.id);
+
+          const detailsRes = await fetch(`/api/conversations/${latest.id}`, {
+            signal: abortController.signal,
+          });
+          if (cancelled || !detailsRes.ok) return;
+          const details = await detailsRes.json();
+          if (cancelled) return;
+
+          const mapped = (details.messages || []).map((m: any) => ({
+            id: m.id,
+            role: m.rolle === 'assistant' ? 'model' : m.rolle,
+            content: m.inhalt || '',
+            status: m.status,
+            steps: m.steps || [],
+            versions: m.versions || []
+          }));
+          setMessages(mapped);
+
+          const lastMsg = details.messages?.[details.messages.length - 1];
+          if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
+            setIsLoading(true);
+            setActiveId(lastMsg.id);
+            subscribeToRealtime(latest.id, lastMsg.id);
+          }
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        console.error('[AIChatSidebar] Failed to load history:', err);
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, [isOpen, activeOrgId, subscribeToRealtime, unsubscribeFromRealtime]);
+
+  // Refresh conversations list whenever history toggled open
+  useEffect(() => {
+    if (showHistory) {
+      loadConversationsList();
+    }
+  }, [showHistory, loadConversationsList]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -64,41 +248,6 @@ export function AIChatSidebar() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-
-
-  // Hotkey listener for Cmd/Ctrl + J
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
-        e.preventDefault();
-        toggleOpen();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [toggleOpen]);
-
-  // Focus textarea when sidebar opens
-  useEffect(() => {
-    if (isOpen) {
-      // Small timeout to wait for sidebar spring animation to start/complete enough
-      const timer = setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
-  // Auto-scroll to bottom of messages smoothly
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth"
-      });
-    }
-  }, [messages, isLoading]);
-
   if (!isAIAgentEnabled) return null;
 
   const toggleSidebar = () => {
@@ -113,8 +262,9 @@ export function AIChatSidebar() {
     toggleOpen();
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
     setMessages([]);
+    setActiveConversationId(null);
     sessionIdRef.current = uuidv4(); // Start a new session
   };
 
@@ -147,6 +297,39 @@ export function AIChatSidebar() {
     setIsLoading(true);
     setActiveId(aiMessageId);
     startSteps();
+    setError(null);
+
+    // Auto-initialize conversation if not yet active
+    let currentConvId = activeConversationId;
+    if (!currentConvId && activeOrgId) {
+      try {
+        const response = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId: activeOrgId, titel: messageContent.slice(0, 40) }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          currentConvId = data.id;
+          setActiveConversationId(data.id);
+          loadConversationsList();
+        } else {
+          const errText = await response.text().catch(() => '');
+          console.error('[AIChatSidebar] POST /api/conversations failed:', response.status, errText);
+          let errBody: any = {};
+          try {
+            errBody = JSON.parse(errText);
+          } catch (e) {}
+          throw new Error(errBody.error || errText || 'Konnte Konversation nicht initialisieren.');
+        }
+      } catch (err: any) {
+        console.error('[AIChatSidebar] Failed to initialize conversation:', err);
+        setError(err.message || 'Konnte Konversation nicht initialisieren.');
+        setIsLoading(false);
+        setActiveId(null);
+        return;
+      }
+    }
 
     // Immediately create/clear content to start fresh or hide previous answer
     setMessages(prev => {
@@ -174,42 +357,30 @@ export function AIChatSidebar() {
     });
 
     try {
-      // Exclude the last message from history — it's the current user input sent separately as message/attachment
-      const currentHistory = historyOverride || messagesRef.current.slice(0, -1);
-      // Truncate history to last 20 turns and remove attachment data from old messages
-      const recentHistory = currentHistory.slice(-40);
-      const history = recentHistory.map((m, i) => {
-        const parts: ({ text: string } | { inlineData: { data: string; mimeType: string } })[] = [];
-        if (m.content) parts.push({ text: m.content });
-        if (m.attachment) {
-          const isRecent = i >= recentHistory.length - 4;
-          parts.push({
-            inlineData: {
-              data: isRecent ? m.attachment.data : "",
-              mimeType: m.attachment.type
-            }
-          });
-        }
-        if (parts.length === 0) parts.push({ text: " " });
-        return { role: m.role, parts };
-      });
-
+      const clientNachrichtId = uuidv4();
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": clientNachrichtId
+        },
         body: JSON.stringify({
           message: messageContent || "Hier ist eine Datei zur Analyse.",
           attachment: messageAttachment,
-          history,
-          pathname,
-          sessionId: sessionIdRef.current!,
+          conversationId: currentConvId,
+          orgId: activeOrgId,
           model: selectedModel,
           enabledToolIds,
         }),
       });
 
       if (!res.ok) {
-        throw new Error(`API responded with an error: ${res.status}`);
+        const errText = await res.text().catch(() => '');
+        let errBody: any = {};
+        try {
+          errBody = JSON.parse(errText);
+        } catch (e) {}
+        throw new Error(errBody.error || errText || `API responded with an error: ${res.status}`);
       }
 
       const reader = res.body?.getReader();
@@ -221,6 +392,7 @@ export function AIChatSidebar() {
       let finalReply = "";
       let traceId = "";
       let toolResults: ToolCallRecord[] = [];
+      let receivedDone = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -263,6 +435,7 @@ export function AIChatSidebar() {
               finalReply = data.reply;
               traceId = data.traceId;
               toolResults = data.toolCalls || toolResults;
+              receivedDone = true;
             }
             else if (data.type === "error") {
               throw new Error(data.message);
@@ -271,6 +444,13 @@ export function AIChatSidebar() {
             console.error("Error parsing stream line:", e, line);
           }
         }
+      }
+
+      // If stream ended early without final reply payload, fall back to realtime tracking
+      if (!receivedDone && currentConvId) {
+        console.log('[AIChatSidebar] Stream disconnected early. Activating Realtime fallback...');
+        subscribeToRealtime(currentConvId, aiMessageId);
+        return; // Don't finalize state yet
       }
 
       setAllDone();
@@ -296,8 +476,10 @@ export function AIChatSidebar() {
         versions: finalVersions,
         currentVersionIndex: finalVersions.length - 1
       } : m));
-    } catch (error) {
+
+    } catch (error: any) {
       console.error("AI Chat Error:", error);
+      setError(error.message || "Kommunikationsfehler");
       finishSteps(false);
       setMessages((prev) => prev.map(m =>
         m.id === aiMessageId
@@ -392,35 +574,169 @@ export function AIChatSidebar() {
               onToggleDisplayMode={toggleDisplayMode}
               onToggleSidebar={toggleSidebar}
               displayMode={displayMode}
+              showHistory={showHistory}
+              onToggleHistory={() => setShowHistory(!showHistory)}
             />
 
-            <MessagesList
-              messages={messages}
-              isLoading={isLoading}
-              activeId={activeId}
-              llmSteps={llmSteps}
-              scrollRef={scrollRef}
-              regenerateMessage={regenerateMessage}
-              switchVersion={switchVersion}
-            />
+            {error && (
+              <div className="px-6 py-2.5 bg-destructive/10 dark:bg-destructive/25 text-destructive-foreground dark:text-red-300 text-xs border-b border-destructive/20 font-medium">
+                {error}
+              </div>
+            )}
 
-            <ChatInput
-              inputValue={inputValue}
-              setInputValue={setInputValue}
-              attachment={attachment}
-              setAttachment={setAttachment}
-              isLoading={isLoading}
-              isDark={isDark}
-              selectedModel={selectedModel}
-              setSelectedModel={setSelectedModel}
-              enabledToolIds={enabledToolIds}
-              toggleTool={toggleTool}
-              handleFileSelect={handleFileSelect}
-              fileInputRef={fileInputRef}
-              textareaRef={textareaRef}
-              handleKeyDown={handleKeyDown}
-              sendMessage={sendMessage}
-            />
+            {showHistory ? (
+              <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 dark:bg-gray-950/10">
+                <ChatConversationList
+                  conversations={conversations}
+                  activeId={activeConversationId || undefined}
+                  onSelect={async (id) => {
+                    selectedConvRef.current = id;
+                    setActiveConversationId(id);
+                    setShowHistory(false);
+                    setError(null);
+
+                    // If the conversation is archived, restore it first via POST
+                    const conv = conversations.find(c => c.id === id);
+                    if (conv?.status === 'archiviert') {
+                      const restoreRes = await fetch(`/api/conversations/${id}`, { method: 'POST' });
+                      if (!restoreRes.ok) {
+                        const errBody = await restoreRes.json().catch(() => ({}));
+                        setError(errBody.error || 'Konnte archivierte Konversation nicht wiederherstellen.');
+                        return;
+                      }
+                      loadConversationsList();
+                    }
+
+                    try {
+                      const detailsRes = await fetch(`/api/conversations/${id}`);
+                      if (selectedConvRef.current !== id) return; // stale
+                      if (detailsRes.ok) {
+                        const data = await detailsRes.json();
+                        if (selectedConvRef.current !== id) return; // stale
+                        const mapped = (data.messages || []).map((m: any) => ({
+                          id: m.id,
+                          role: m.rolle === 'assistant' ? 'model' : m.rolle,
+                          content: m.inhalt || '',
+                          status: m.status,
+                          steps: m.steps || [],
+                          versions: m.versions || []
+                        }));
+                        setMessages(mapped);
+                        
+                        const lastMsg = data.messages?.[data.messages.length - 1];
+                        if (selectedConvRef.current !== id) return; // stale
+                        if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
+                          setIsLoading(true);
+                          setActiveId(lastMsg.id);
+                          subscribeToRealtime(id, lastMsg.id);
+                        } else {
+                          setIsLoading(false);
+                          unsubscribeFromRealtime();
+                        }
+                      } else {
+                        setError('Konnte Konversation nicht laden.');
+                      }
+                    } catch (err) {
+                      setError('Fehler beim Laden der Konversation.');
+                    }
+                  }}
+                  onCreate={() => {
+                    clearChat();
+                    setShowHistory(false);
+                  }}
+                  onArchive={async (id, e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await fetch(`/api/conversations/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'archiviert' }),
+                      });
+                      if (response.ok) {
+                        if (activeConversationId === id) {
+                          setActiveConversationId(null);
+                          setMessages([]);
+                        }
+                        loadConversationsList();
+                      } else {
+                        setError('Archivieren fehlgeschlagen.');
+                      }
+                    } catch (err) {
+                      setError('Netzwerkfehler beim Archivieren.');
+                    }
+                  }}
+                  onRestore={async (id, e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await fetch(`/api/conversations/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'aktiv' }),
+                      });
+                      if (response.ok) {
+                        loadConversationsList();
+                      } else {
+                        const body = await response.json().catch(() => null);
+                        console.error('[restore] Server error:', body?.error || response.statusText);
+                        setError('Wiederherstellen fehlgeschlagen.');
+                      }
+                    } catch (err) {
+                      setError('Netzwerkfehler beim Wiederherstellen.');
+                    }
+                  }}
+                  onDelete={async (id, e) => {
+                    e.stopPropagation();
+                    if (!confirm('Möchtest du diese Konversation wirklich löschen?')) return;
+                    try {
+                      const response = await fetch(`/api/conversations/${id}`, {
+                        method: 'DELETE',
+                      });
+                      if (response.ok) {
+                        if (activeConversationId === id) {
+                          setActiveConversationId(null);
+                          setMessages([]);
+                        }
+                        loadConversationsList();
+                      } else {
+                        setError('Löschen fehlgeschlagen.');
+                      }
+                    } catch (err) {
+                      setError('Netzwerkfehler beim Löschen.');
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                <MessagesList
+                  messages={messages}
+                  isLoading={isLoading}
+                  activeId={activeId}
+                  llmSteps={llmSteps}
+                  scrollRef={scrollRef}
+                  regenerateMessage={regenerateMessage}
+                  switchVersion={switchVersion}
+                />
+
+                <ChatInput
+                  inputValue={inputValue}
+                  setInputValue={setInputValue}
+                  attachment={attachment}
+                  setAttachment={setAttachment}
+                  isLoading={isLoading}
+                  isDark={isDark}
+                  selectedModel={selectedModel}
+                  setSelectedModel={setSelectedModel}
+                  enabledToolIds={enabledToolIds}
+                  toggleTool={toggleTool}
+                  handleFileSelect={handleFileSelect}
+                  fileInputRef={fileInputRef}
+                  textareaRef={textareaRef}
+                  handleKeyDown={handleKeyDown}
+                  sendMessage={sendMessage}
+                />
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

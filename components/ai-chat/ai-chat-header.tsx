@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button";
-import { Trash2, Square, Columns, ChevronsRight } from "lucide-react";
+import { Plus, Clock, Square, Columns, ChevronsRight } from "lucide-react";
 import Image from "next/image";
 import { LOGO_URL } from "@/lib/constants";
 
@@ -11,12 +11,16 @@ export function SidebarHeader({
   onToggleDisplayMode,
   onToggleSidebar,
   displayMode,
+  showHistory,
+  onToggleHistory,
 }: {
   isDark: boolean;
   onClearChat: () => void;
   onToggleDisplayMode: () => void;
   onToggleSidebar: () => void;
   displayMode: "push" | "overlay";
+  showHistory: boolean;
+  onToggleHistory: () => void;
 }) {
   return (
     <div className="flex items-center justify-between px-6 py-6 bg-transparent z-20">
@@ -35,10 +39,23 @@ export function SidebarHeader({
           variant="ghost"
           size="icon"
           onClick={onClearChat}
-          title="Chat leeren"
-          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5 hover:text-destructive' : 'hover:bg-black/5 hover:text-red-500 text-muted-foreground'}`}
+          title="Neue Konversation"
+          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${isDark ? 'hover:bg-white/5 hover:text-primary' : 'hover:bg-black/5 hover:text-indigo-600 text-muted-foreground'}`}
         >
-          <Trash2 className="w-4 h-4" />
+          <Plus className="w-4.5 h-4.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleHistory}
+          title="Verlauf anzeigen"
+          className={`rounded-full w-8 h-8 flex-shrink-0 transition-all ${
+            showHistory
+              ? (isDark ? 'bg-white/10 text-primary' : 'bg-black/5 text-indigo-600')
+              : (isDark ? 'hover:bg-white/5' : 'hover:bg-black/5 text-muted-foreground')
+          }`}
+        >
+          <Clock className="w-4 h-4" />
         </Button>
         <Button
           variant="ghost"

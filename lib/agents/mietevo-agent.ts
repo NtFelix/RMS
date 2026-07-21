@@ -1,8 +1,14 @@
 import { ToolLoopAgent, isStepCount } from 'ai';
 import { vertex } from '@ai-sdk/google-vertex';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { AsyncLocalStorage } from 'async_hooks';
+
+const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+const googleProvider = createGoogleGenerativeAI({
+  apiKey: googleApiKey,
+});
 import { createSupabaseServiceClient } from '@/lib/sandbox/runner';
-import { capturePostHogEvent } from '@/lib/posthog-helpers';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { fetchMieter } from './tools/mietevo/fetch_mieter';
 import { fetchFinanzen } from './tools/mietevo/fetch_finanzen';
 import { createAufgabe } from './tools/mietevo/create_aufgabe';
@@ -20,6 +26,7 @@ export interface RunAgentParams {
   userMessage?: string; // Explicit current user message
   onToken?: (token: string) => void;
   userJwt?: string;
+  model?: string;
 }
 
 export const agentRuntimeLocalStorage = new AsyncLocalStorage<{
@@ -44,6 +51,7 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
     userMessage,
     onToken,
     userJwt,
+    model,
   } = params;
 
   return agentRuntimeLocalStorage.run({ orgId, agentMitgliedId, userJwt }, async () => {
@@ -108,9 +116,14 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
       });
     }
 
-    // 4. Instantiate Vercel AI SDK ToolLoopAgent with instructions and tools
+    // 4. Resolve the requested model dynamically
+    const actualModel = googleApiKey 
+      ? (model || 'gemini-3-flash-preview') 
+      : (model && model.startsWith('gemini-') ? (model === 'gemini-3.1-flash-lite-preview' ? 'gemini-3-flash-lite' : model.replace('-preview', '')) : 'gemini-3-flash');
+
+    // 5. Instantiate Vercel AI SDK ToolLoopAgent with instructions and tools
     const agentInstance = new ToolLoopAgent({
-      model: vertex('gemini-3-flash'),
+      model: googleApiKey ? googleProvider(actualModel) : vertex(actualModel),
       instructions: instructions,
       tools: {
         fetchMieter,
@@ -123,25 +136,28 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
 
     let fullText = '';
     let lastDbWriteTime = Date.now();
-
+    let activeWritePromise: Promise<any> = Promise.resolve();
+ 
     // Helper to batch update database text output every 500ms
     const handleToken = async (text: string) => {
       fullText += text;
       if (onToken) {
         onToken(text);
       }
-
+ 
       if (messageId) {
         const now = Date.now();
         if (now - lastDbWriteTime > 500) {
           lastDbWriteTime = now;
-          supabase
-            .from('KI_Nachrichten')
-            .update({ inhalt: fullText })
-            .eq('id', messageId)
-            .then(({ error }) => {
-              if (error) console.error('[mietevo-agent] Stream update error:', error.message);
-            });
+          activeWritePromise = Promise.resolve(
+            supabase
+              .from('KI_Nachrichten')
+              .update({ inhalt: fullText })
+              .eq('id', messageId)
+              .then(({ error }) => {
+                if (error) console.error('[mietevo-agent] Stream update error:', error.message);
+              })
+          );
         }
       }
     };
@@ -171,6 +187,9 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
       const latencyMs = Date.now() - startTime;
       const totalTokens = (usage?.promptTokens || 0) + (usage?.completionTokens || 0);
 
+      // Ensure any pending/in-flight throttled writes finish before the final completed write
+      await activeWritePromise;
+
       // Finalize database assistant message entry
       if (messageId) {
         await supabase
@@ -185,19 +204,32 @@ export async function runAgent(params: RunAgentParams): Promise<any> {
       }
 
       // Track execution metrics in PostHog
-      const distinctId = userId || agentMitgliedId || runId || 'system-agent';
-      await capturePostHogEvent(distinctId, '$ai_generation', {
-        run_id: runId,
-        conversation_id: conversationId,
-        agent_id: agentId,
-        auth_mode: authMode,
-        feature: conversationId ? 'chat' : 'agent',
-        org_id: orgId,
-        model: 'gemini-3-flash',
-        prompt_tokens: usage?.promptTokens || 0,
-        completion_tokens: usage?.completionTokens || 0,
-        latency_ms: latencyMs,
-      });
+      try {
+        const posthog = getPostHogServer();
+        const distinctId = userId || agentMitgliedId || runId || 'system-agent';
+        await posthog.capture({
+          distinctId,
+          event: '$ai_generation',
+          groups: { organization: orgId },
+          properties: {
+            $ai_trace_id: runId,
+            $ai_session_id: conversationId || runId,
+            $ai_span_name: 'mietevo_ai_agent',
+            $ai_model: actualModel,
+            $ai_provider: googleApiKey ? 'google' : 'vertex',
+            $ai_input: formattedMessages.map(m => ({ role: m.role, content: m.content })),
+            $ai_output_choices: [{ role: 'assistant', content: fullText }],
+            $ai_input_tokens: usage?.promptTokens || 0,
+            $ai_output_tokens: usage?.completionTokens || 0,
+            $ai_latency: latencyMs,
+            org_id: orgId,
+            feature: conversationId ? 'chat' : 'agent',
+          },
+        });
+        await posthog.flush();
+      } catch (phError) {
+        console.error('[PostHog] Failed to track $ai_generation:', phError);
+      }
 
       return {
         text: fullText,
