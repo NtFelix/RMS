@@ -3,53 +3,78 @@
 import { useSearchParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export interface UseTabParamsOptions {
+  paramName?: string;
+  history?: "replace" | "push";
+}
+
 export function useTabParams<T extends string>(
   defaultValue: T,
-  validValues: readonly T[]
+  validValues: readonly T[],
+  options: UseTabParamsOptions = {}
 ): [T, (tab: T) => void] {
+  const { paramName = "tab", history = "replace" } = options;
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // Stabilize props via refs so stale closures aren't a problem
+  // Store refs for event handlers to avoid stale closures
   const validValuesRef = useRef(validValues);
   const defaultValueRef = useRef(defaultValue);
-  validValuesRef.current = validValues;
-  defaultValueRef.current = defaultValue;
+
+  useEffect(() => {
+    validValuesRef.current = validValues;
+    defaultValueRef.current = defaultValue;
+  }, [validValues, defaultValue]);
 
   const getTabFromParams = useCallback((): T => {
-    const tabParam = searchParams.get("tab") as T | null;
+    const tabParam = searchParams?.get(paramName) as T | null;
     if (tabParam && validValuesRef.current.includes(tabParam)) {
       return tabParam;
     }
     return defaultValueRef.current;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, paramName]);
 
   const [activeTab, setActiveTab] = useState<T>(getTabFromParams);
 
-  // Sync state when URL changes externally (back/forward browser navigation)
+  // Track the raw searchParams query string to detect external URL changes (e.g. Back/Forward)
+  const currentQueryString = searchParams?.toString() ?? "";
+  const lastQueryStringRef = useRef<string>(currentQueryString);
+  const lastValidValuesRef = useRef(validValues);
+  const validValuesKey = validValues.join(",");
+
   useEffect(() => {
-    setActiveTab(getTabFromParams());
-  }, [getTabFromParams]);
+    const queryStringChanged = currentQueryString !== lastQueryStringRef.current;
+    const validValuesChanged =
+      validValues.length !== lastValidValuesRef.current.length ||
+      validValues.some((v, i) => v !== lastValidValuesRef.current[i]);
+
+    if (queryStringChanged || validValuesChanged) {
+      lastQueryStringRef.current = currentQueryString;
+      lastValidValuesRef.current = validValues;
+      setActiveTab(getTabFromParams());
+    }
+  }, [currentQueryString, validValuesKey, getTabFromParams]);
 
   const setTab = useCallback(
     (tab: T) => {
       setActiveTab(tab);
       const params = new URLSearchParams(window.location.search);
       if (tab === defaultValueRef.current) {
-        params.delete("tab");
+        params.delete(paramName);
       } else {
-        params.set("tab", tab);
+        params.set(paramName, tab);
       }
       const query = params.toString();
-      window.history.replaceState(
-        null,
-        "",
-        `${pathname}${query ? `?${query}` : ""}`
-      );
+      const url = `${pathname}${query ? `?${query}` : ""}`;
+      if (history === "push") {
+        window.history.pushState(null, "", url);
+      } else {
+        window.history.replaceState(null, "", url);
+      }
     },
-    [pathname]
+    [pathname, paramName, history]
   );
 
   return [activeTab, setTab];
 }
+
