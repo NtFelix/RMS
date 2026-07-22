@@ -3,8 +3,6 @@
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-import { Suspense } from "react";
-import Loading from "./loading";
 import { fetchHaeuser as fetchHaeuserServer, fetchWithRpcFallback } from "../../../lib/data-fetching";
 import { fetchNebenkostenListOptimized } from "@/app/betriebskosten-actions";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
@@ -85,18 +83,16 @@ export default async function BetriebskostenPage() {
   }
 
   return (
-    <Suspense fallback={<Loading />}>
-      <BetriebskostenClientView
-        initialNebenkosten={nebenkostenData}
-        initialHaeuser={haeuserData}
-        initialTenants={tenants}
-        initialFinances={finances}
-        ownerName={ownerName}
-        canCreate={canCreate}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        canViewMeters={canViewMeters}
-      />
-    </Suspense>
+    <BetriebskostenClientView
+      initialNebenkosten={nebenkostenData}
+      initialHaeuser={haeuserData}
+      initialTenants={tenants}
+      initialFinances={finances}
+      ownerName={ownerName}
+      canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
+      canViewMeters={canViewMeters}
+    />
   );
 }

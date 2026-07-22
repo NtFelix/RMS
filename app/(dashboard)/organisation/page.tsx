@@ -1,7 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import { Suspense } from "react";
-import Loading from "./loading";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -85,17 +83,15 @@ export default async function OrganisationPage() {
   const initialHaeuser = housesResult.data ?? [];
 
   return (
-    <Suspense fallback={<Loading />}>
-      <OrganisationClientView
-        org={org}
-        initialMembers={members}
-        initialInvitations={invitations}
-        initialPolicies={initialPolicies}
-        initialHaeuser={initialHaeuser}
-        currentUser={user}
-        canManage={canManage}
-        rpcError={!membersResult.success ? (membersResult.message ?? 'Fehler beim Laden der Mitglieder') : null}
-      />
-    </Suspense>
+    <OrganisationClientView
+      org={org}
+      initialMembers={members}
+      initialInvitations={invitations}
+      initialPolicies={initialPolicies}
+      initialHaeuser={initialHaeuser}
+      currentUser={user}
+      canManage={canManage}
+      rpcError={!membersResult.success ? (membersResult.message ?? 'Fehler beim Laden der Mitglieder') : null}
+    />
   );
 }
