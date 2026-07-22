@@ -488,8 +488,9 @@ export default function FinanzenClientWrapper({
   const [totalBalance, setTotalBalance] = useState(0);
   const [filteredIncome, setFilteredIncome] = useState(0);
   const [filteredExpenses, setFilteredExpenses] = useState(0);
-  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
+  const isInitialMountRef = useRef(true);
   const reloadRef = useRef<(() => void) | null>(null);
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
   const filtersRef = useRef(filters);
@@ -880,6 +881,11 @@ export default function FinanzenClientWrapper({
   }, []); // Only run once on mount
 
   useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
     setIsFilterLoading(true);
     const timer = setTimeout(() => {
       loadMoreTransactions(true).finally(() => setIsFilterLoading(false));
