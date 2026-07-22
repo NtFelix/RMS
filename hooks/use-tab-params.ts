@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, startTransition } from "react";
 
 export interface UseTabParamsOptions {
   paramName?: string;
@@ -51,13 +51,17 @@ export function useTabParams<T extends string>(
     if (queryStringChanged || validValuesChanged) {
       lastQueryStringRef.current = currentQueryString;
       lastValidValuesRef.current = validValues;
-      setActiveTab(getTabFromParams());
+      startTransition(() => {
+        setActiveTab(getTabFromParams());
+      });
     }
   }, [currentQueryString, validValuesKey, getTabFromParams]);
 
   const setTab = useCallback(
     (tab: T) => {
-      setActiveTab(tab);
+      startTransition(() => {
+        setActiveTab(tab);
+      });
       const params = new URLSearchParams(window.location.search);
       if (tab === defaultValueRef.current) {
         params.delete(paramName);
@@ -65,6 +69,7 @@ export function useTabParams<T extends string>(
         params.set(paramName, tab);
       }
       const query = params.toString();
+      lastQueryStringRef.current = query;
       const url = `${pathname}${query ? `?${query}` : ""}`;
       if (history === "push") {
         window.history.pushState(null, "", url);
