@@ -104,6 +104,8 @@ const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 2
 });
 
+const VALID_FINANZEN_TABS = ["finance", "overview"] as const;
+
 export default function FinanzenClientWrapper({
   finances: initialFinances,
   wohnungen = [],
@@ -116,7 +118,7 @@ export default function FinanzenClientWrapper({
   canEdit = true,
   canDelete = true,
 }: FinanzenClientWrapperProps) {
-  const [currentTab, setCurrentTab] = useTabParams<"finance" | "overview">("finance", ["finance", "overview"]);
+  const [currentTab, setCurrentTab] = useTabParams<"finance" | "overview">("finance", VALID_FINANZEN_TABS);
   const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [unitSearch, setUnitSearch] = useState<string>("");

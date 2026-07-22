@@ -175,6 +175,8 @@ interface BetriebskostenClientViewProps {
   canViewMeters?: boolean;
 }
 
+const VALID_BETRIEBSKOSTEN_TABS = ["costs", "overview"] as const;
+
 export default function BetriebskostenClientView({
   initialNebenkosten,
   initialHaeuser,
@@ -186,7 +188,7 @@ export default function BetriebskostenClientView({
   canDelete = true,
   canViewMeters = true,
 }: BetriebskostenClientViewProps) {
-  const [currentTab, setCurrentTab] = useTabParams<"costs" | "overview">("costs", ["costs", "overview"]);
+  const [currentTab, setCurrentTab] = useTabParams<"costs" | "overview">("costs", VALID_BETRIEBSKOSTEN_TABS);
   const [prognosisMode, setPrognosisMode] = useState<"real" | "goal">("goal");
   const [prognosisTimeframe, setPrognosisTimeframe] = useState<"this" | "last" | "5y">("last");
   const [auditTimeframe, setAuditTimeframe] = useState<"this" | "last" | "5y">("last");

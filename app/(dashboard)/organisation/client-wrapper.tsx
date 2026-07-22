@@ -796,7 +796,10 @@ function useOrganisationActions({
   };
 }
 
+const VALID_ORGANISATION_TABS = ["overview", "members", "policies", "audit_log"] as const;
+
 export default function OrganisationClientView({
+  org,
   initialMembers,
   initialInvitations,
   initialPolicies,
@@ -805,7 +808,7 @@ export default function OrganisationClientView({
   canManage = false,
   rpcError = null
 }: OrganisationClientViewProps) {
-  const [currentTab, setCurrentTab] = useTabParams<"overview" | "members" | "policies" | "audit_log">("overview", ["overview", "members", "policies", "audit_log"]);
+  const [currentTab, setCurrentTab] = useTabParams<"overview" | "members" | "policies" | "audit_log">("overview", VALID_ORGANISATION_TABS);
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [members, setMembers] = useState<OrganisationMember[]>(initialMembers);
   const [invitations, setInvitations] = useState<OrganisationInvitation[]>(initialInvitations);

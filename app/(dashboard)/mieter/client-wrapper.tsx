@@ -95,6 +95,9 @@ interface MieterClientViewProps {
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
 import { useFeatureFlagEnabled } from "posthog-js/react";
 
+const VALID_MIETER_TABS_DEFAULT = ["mieter", "overview"] as const;
+const VALID_MIETER_TABS_WITH_BEWERBER = ["mieter", "overview", "bewerber"] as const;
+
 export default function MieterClientView({
   initialTenants,
   initialWohnungen,
@@ -106,8 +109,9 @@ export default function MieterClientView({
   const router = useRouter()
   const rawFlag = useFeatureFlagEnabled('applicants-tab');
   const showApplicantsTab = !!rawFlag;
+  const validTabs = showApplicantsTab ? VALID_MIETER_TABS_WITH_BEWERBER : VALID_MIETER_TABS_DEFAULT;
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
-  const [currentTab, setCurrentTab] = useTabParams<"mieter" | "bewerber" | "overview">("mieter", ["mieter", "overview", ...(showApplicantsTab ? (["bewerber"] as const) : [])]);
+  const [currentTab, setCurrentTab] = useTabParams<"mieter" | "bewerber" | "overview">("mieter", validTabs);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);

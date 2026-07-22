@@ -20,11 +20,12 @@ export function useTabParams<T extends string>(
   // Store refs for event handlers to avoid stale closures
   const validValuesRef = useRef(validValues);
   const defaultValueRef = useRef(defaultValue);
+  const validValuesKey = validValues.join(",");
 
   useEffect(() => {
     validValuesRef.current = validValues;
     defaultValueRef.current = defaultValue;
-  }, [validValues, defaultValue]);
+  }, [validValuesKey, defaultValue]);
 
   const getTabFromParams = useCallback((): T => {
     const tabParam = searchParams?.get(paramName) as T | null;
@@ -40,7 +41,6 @@ export function useTabParams<T extends string>(
   const currentQueryString = searchParams?.toString() ?? "";
   const lastQueryStringRef = useRef<string>(currentQueryString);
   const lastValidValuesRef = useRef(validValues);
-  const validValuesKey = validValues.join(",");
 
   useEffect(() => {
     const queryStringChanged = currentQueryString !== lastQueryStringRef.current;

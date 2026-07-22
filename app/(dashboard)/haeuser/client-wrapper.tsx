@@ -662,9 +662,11 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
   );
 }
 
+const VALID_HAEUSER_TABS = ["houses", "overview"] as const;
+
 export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, canEdit = true, canDelete = true }: HaeuserClientViewProps) {
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useTabParams<Tab>("houses", ["houses", "overview"]);
+  const [currentTab, setCurrentTab] = useTabParams<Tab>("houses", VALID_HAEUSER_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [{ selectedHouses, showBulkDeleteConfirm, isBulkDeleting }, dispatchBulk] = useReducer(bulkReducer, {
