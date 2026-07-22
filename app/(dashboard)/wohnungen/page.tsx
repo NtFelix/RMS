@@ -5,6 +5,7 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import { Suspense } from "react";
+import Loading from "./loading";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchUserProfile } from '@/lib/data-fetching';
 
@@ -148,7 +149,7 @@ export default async function WohnungenPage() {
   }) : [];
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<Loading />}>
       <WohnungenClientView
         initialWohnungenData={initialWohnungen}
         housesData={houses}

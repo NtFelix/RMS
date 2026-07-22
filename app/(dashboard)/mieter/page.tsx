@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 import { Suspense } from "react";
+import Loading from "./loading";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
@@ -115,7 +116,7 @@ export default async function MieterPage() {
 
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<Loading />}>
       <MieterClientView
         initialTenants={mieter}
         initialWohnungen={wohnungen}

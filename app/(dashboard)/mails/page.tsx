@@ -2,6 +2,8 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
+import { Suspense } from "react";
+import Loading from "./loading";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { requirePermission } from "@/lib/permissions";
 import MailsClientView from "./client-wrapper";
@@ -28,9 +30,11 @@ export default async function MailsPage() {
     : [];
 
   return (
-    <MailsClientView
-      initialMails={mails}
-      userId={user.id}
-    />
+    <Suspense fallback={<Loading />}>
+      <MailsClientView
+        initialMails={mails}
+        userId={user.id}
+      />
+    </Suspense>
   );
 }

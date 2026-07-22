@@ -2,6 +2,7 @@
 
 export const runtime = 'edge';
 import { Suspense } from "react";
+import Loading from "./loading";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
@@ -118,5 +119,5 @@ export default async function HaeuserPage() {
     };
   });
 
-  return <Suspense fallback={null}><HaeuserClientView enrichedHaeuser={enrichedHaeuser} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} /></Suspense>;
+  return <Suspense fallback={<Loading />}><HaeuserClientView enrichedHaeuser={enrichedHaeuser} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} /></Suspense>;
 }

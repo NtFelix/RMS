@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { Suspense } from "react";
+import Loading from "./loading";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -84,7 +85,7 @@ export default async function OrganisationPage() {
   const initialHaeuser = housesResult.data ?? [];
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<Loading />}>
       <OrganisationClientView
         org={org}
         initialMembers={members}
