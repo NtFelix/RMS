@@ -612,7 +612,7 @@ export function CloudStorage({
     const displayError = navigationError
 
     return (
-        <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden gap-6">
+        <div className="h-full w-full flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden gap-6">
             
             {/* Top Row: Full-width Summary Cards Container */}
             <div className="shrink-0">

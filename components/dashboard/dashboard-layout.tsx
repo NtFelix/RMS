@@ -135,12 +135,12 @@ export function DashboardLayout({
           isPushMode && "md:mr-[450px]"
         )}>
           <div className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden",
+            "flex-1 flex flex-col min-h-0 h-full overflow-y-auto overflow-x-hidden",
             "mb-4 md:mb-0",
             "responsive-transition"
           )}>
             <div className={cn(
-              "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
+              "flex-1 flex flex-col min-h-0 h-full border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
               "rounded-[2rem] md:rounded-[2.5rem]",
               "responsive-transition",
               "prevent-layout-shift",

@@ -549,7 +549,7 @@ export default function TodosClientWrapper({ tasks: initialTasks, canCreate = tr
   }, []);
 
   return (
-    <div className="absolute inset-0 flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden">
+    <div className="h-full w-full flex flex-col p-4 sm:p-6 min-h-0 overflow-hidden">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch h-full min-h-0">
         <Card className="lg:col-span-3 bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem] overflow-hidden flex flex-col h-full min-h-0">
           <CardHeader className="pb-3 shrink-0">
