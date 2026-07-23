@@ -113,6 +113,25 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   revalidatePath("/dashboard/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: data?.id, house_id: formData.haeuser_id });
 
+  try {
+    const posthog = getPostHogServer();
+    await posthog.capture({
+      distinctId: user.id,
+      event: 'betriebskosten_created',
+      properties: {
+        nebenkosten_id: data?.id,
+        house_id: formData.haeuser_id,
+        start_date: formData.startdatum,
+        end_date: formData.enddatum,
+        cost_types_count: formData.nebenkostenart?.length ?? 0,
+        source: 'server_action',
+      },
+    });
+    await posthog.flush();
+  } catch (phError) {
+    logger.error('[PostHog] Failed to capture betriebskosten_created:', phError instanceof Error ? phError : new Error(String(phError)));
+  }
+
   // Return optimized data for the UI
   const { data: optimizedData } = await fetchOptimizedNebenkostenById(data.id);
   return { success: true, data: optimizedData || data };
@@ -2561,6 +2580,24 @@ export async function createAbrechnungCalculationAction(
       totalSettlements: summary.totalSettlements,
       averageSettlement: summary.averageSettlement
     });
+
+    try {
+      const posthog = getPostHogServer();
+      await posthog.capture({
+        distinctId: user.id,
+        event: 'abrechnung_created',
+        properties: {
+          nebenkosten_id: nebenkostenId,
+          tenant_count: tenantCalculations.length,
+          total_settlements: summary.totalSettlements,
+          apartment_count: nebenkosten_data.anzahlWohnungen || 0,
+          source: 'server_action',
+        },
+      });
+      await posthog.flush();
+    } catch (phError) {
+      logger.error('[PostHog] Failed to capture abrechnung_created:', phError instanceof Error ? phError : new Error(String(phError)));
+    }
 
     return { success: true, data: result, message: calculationWarning };
 
