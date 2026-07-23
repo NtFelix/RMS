@@ -102,7 +102,7 @@
     "react-hook-form": "^7.71.2",
     "react-is": "^19.2.7",
     "react-markdown": "^10.1.0",
-    "react-resizable-panels": "^3.0.6",
+    "react-resizable-panels": "^4.12.2",
     "recharts": "3.5.1",
     "remark-gfm": "^4.0.1",
     "stripe": "^22.2.2",
