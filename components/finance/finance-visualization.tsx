@@ -364,7 +364,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
+                          formatter={(value: any) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                           {...chartTooltipStyles}
                         />
                       </PieChart>
@@ -485,7 +485,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears, in
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
+                          formatter={(value: any) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                           {...chartTooltipStyles}
                         />
                       </PieChart>
