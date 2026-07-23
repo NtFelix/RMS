@@ -31,7 +31,7 @@
     "@opentelemetry/instrumentation-http": "^0.218.0",
     "@opentelemetry/resources": "^2.8.0",
     "@opentelemetry/sdk-logs": "^0.219.0",
-    "@opentelemetry/sdk-node": "^0.219.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
     "@opentelemetry/sdk-trace-node": "^2.8.0",
     "@posthog/cli": "^0.7.22",
     "@posthog/nextjs-config": "^1.9.68",
