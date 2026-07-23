@@ -3,8 +3,11 @@ import { Page, expect } from '@playwright/test';
 export const TEST_EMAIL = process.env.TEST_EMAIL;
 export const TEST_PASSWORD = process.env.TEST_PASSWORD;
 
-export const hasTestCredentials = () => {
-  return !!TEST_EMAIL && !!TEST_PASSWORD;
+export const VISUAL_TEST_EMAIL = process.env.VISUAL_TEST_EMAIL || process.env.TEST_EMAIL;
+export const VISUAL_TEST_PASSWORD = process.env.VISUAL_TEST_PASSWORD || process.env.TEST_PASSWORD;
+
+export const hasTestCredentials = (email = TEST_EMAIL, password = TEST_PASSWORD) => {
+  return !!email && !!password;
 };
 
 export const generateRandomString = (length: number = 8): string => {
@@ -16,8 +19,12 @@ export const generateRandomString = (length: number = 8): string => {
   return result;
 };
 
-export const login = async (page: Page) => {
-  if (!hasTestCredentials()) {
+export const login = async (
+  page: Page,
+  email = TEST_EMAIL,
+  password = TEST_PASSWORD
+) => {
+  if (!hasTestCredentials(email, password)) {
     throw new Error('Cannot log in: TEST_EMAIL or TEST_PASSWORD not set');
   }
 
@@ -33,8 +40,8 @@ export const login = async (page: Page) => {
 
   // Fill in credentials using IDs with form context to avoid potential duplicates
   const form = page.locator('form').first();
-  await form.locator('#email').first().fill(TEST_EMAIL!);
-  await form.locator('#password').first().fill(TEST_PASSWORD!);
+  await form.locator('#email').first().fill(email!);
+  await form.locator('#password').first().fill(password!);
 
   // Ensure button is ready to receive clicks
   const loginBtn = page.getByRole('button', { name: /anmelden/i }).first();

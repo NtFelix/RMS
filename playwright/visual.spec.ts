@@ -1,5 +1,5 @@
 import { test, type Page } from '@playwright/test';
-import { login, acceptCookieConsent } from '../e2e/utils';
+import { login, acceptCookieConsent, VISUAL_TEST_EMAIL, VISUAL_TEST_PASSWORD } from '../e2e/utils';
 import path from 'path';
 import fs from 'fs';
 
@@ -129,7 +129,7 @@ for (const theme of themes) {
     test.use({ colorScheme: theme });
 
     test.beforeEach(async ({ page }) => {
-      await login(page);
+      await login(page, VISUAL_TEST_EMAIL, VISUAL_TEST_PASSWORD);
       await acceptCookieConsent(page);
     });
 
