@@ -41,6 +41,8 @@ jest.mock('@/hooks/use-toast', () => ({
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
 }));
 
 jest.mock('@/app/mieter-actions', () => ({

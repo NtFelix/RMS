@@ -21,6 +21,7 @@ import { StatCard } from "@/components/common/stat-card";
 import { toast } from "@/hooks/use-toast";
 import { LazyMotion, domAnimation } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import {
   Users,
@@ -77,7 +78,6 @@ interface OrganisationClientViewProps {
 }
 
 type UiState = {
-  currentTab: "overview" | "members" | "policies" | "audit_log";
   searchQuery: string;
   inviteEmail: string;
   inviteRole: "admin" | "mitarbeiter";
@@ -92,7 +92,6 @@ type UiState = {
 };
 
 type UiAction =
-  | { type: 'SET_TAB'; payload: "overview" | "members" | "policies" | "audit_log" }
   | { type: 'SET_SEARCH_QUERY'; payload: string }
   | { type: 'SET_INVITE_EMAIL'; payload: string }
   | { type: 'SET_INVITE_ROLE'; payload: "admin" | "mitarbeiter" }
@@ -102,7 +101,6 @@ type UiAction =
   | { type: 'RESET_FILTERS' };
 
 const initialUiState: UiState = {
-  currentTab: "overview",
   searchQuery: "",
   inviteEmail: "",
   inviteRole: "mitarbeiter",
@@ -112,8 +110,6 @@ const initialUiState: UiState = {
 
 function uiReducer(state: UiState, action: UiAction): UiState {
   switch (action.type) {
-    case 'SET_TAB':
-      return { ...state, currentTab: action.payload };
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.payload };
     case 'SET_INVITE_EMAIL':
@@ -800,7 +796,10 @@ function useOrganisationActions({
   };
 }
 
+const VALID_ORGANISATION_TABS = ["overview", "members", "policies", "audit_log"] as const;
+
 export default function OrganisationClientView({
+  org,
   initialMembers,
   initialInvitations,
   initialPolicies,
@@ -809,6 +808,7 @@ export default function OrganisationClientView({
   canManage = false,
   rpcError = null
 }: OrganisationClientViewProps) {
+  const [currentTab, setCurrentTab] = useTabParams<"overview" | "members" | "policies" | "audit_log">("overview", VALID_ORGANISATION_TABS);
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [members, setMembers] = useState<OrganisationMember[]>(initialMembers);
   const [invitations, setInvitations] = useState<OrganisationInvitation[]>(initialInvitations);
@@ -901,14 +901,14 @@ export default function OrganisationClientView({
 
       <AnimatedPillToggle
         tabs={orgTabs}
-        activeTab={uiState.currentTab}
-        onTabChange={(tab) => dispatch({ type: 'SET_TAB', payload: tab })}
+        activeTab={currentTab}
+        onTabChange={setCurrentTab}
         layoutId="active-org-tab-pill"
       />
 
-      {uiState.currentTab === "overview" && <OrganisationOverviewTab stats={stats} />}
+      {currentTab === "overview" && <OrganisationOverviewTab stats={stats} />}
 
-      {uiState.currentTab === "members" && (
+      {currentTab === "members" && (
         <OrganisationMembersTab
           searchQuery={uiState.searchQuery}
           inviteEmail={uiState.inviteEmail}
@@ -933,7 +933,7 @@ export default function OrganisationClientView({
         />
       )}
 
-      {uiState.currentTab === "policies" && (
+      {currentTab === "policies" && (
         <OrganisationPoliciesTab
           hasVerwaltenPermission={hasVerwaltenPermission}
           initialPolicies={initialPolicies}
@@ -941,7 +941,7 @@ export default function OrganisationClientView({
         />
       )}
 
-      {uiState.currentTab === "audit_log" && isOwnerOrAdmin && (
+      {currentTab === "audit_log" && isOwnerOrAdmin && (
         <OrganisationAuditLogTab />
       )}
 

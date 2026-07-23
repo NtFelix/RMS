@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useReducer } from "react";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
@@ -661,9 +662,11 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
   );
 }
 
+const VALID_HAEUSER_TABS = ["houses", "overview"] as const;
+
 export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, canEdit = true, canDelete = true }: HaeuserClientViewProps) {
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useState<Tab>("houses");
+  const [currentTab, setCurrentTab] = useTabParams<Tab>("houses", VALID_HAEUSER_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [{ selectedHouses, showBulkDeleteConfirm, isBulkDeleting }, dispatchBulk] = useReducer(bulkReducer, {
