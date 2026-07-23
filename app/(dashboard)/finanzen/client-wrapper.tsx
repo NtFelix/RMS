@@ -668,9 +668,15 @@ export default function FinanzenClientWrapper({
 
   const handleSuccess = useCallback((data: any) => {
     if (data) {
-      handleAddFinance(data);
+      if (data.deleted) {
+        setFinData(prev => prev.filter(item => item.id !== data.id));
+        refreshSummaryData();
+        fetchBalance();
+      } else {
+        handleAddFinance(data);
+      }
     }
-  }, [handleAddFinance]);
+  }, [handleAddFinance, refreshSummaryData, fetchBalance]);
 
   // Use server-provided summary data or fallback to default values
   const averageMonthlyIncome = summaryData?.averageMonthlyIncome ?? 0;
