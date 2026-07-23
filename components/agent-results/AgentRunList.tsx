@@ -26,6 +26,26 @@ interface AgentRunListProps {
   isLoading?: boolean;
 }
 
+const calculateDuration = (start?: string, end?: string) => {
+  if (!start || !end) return '-';
+  const durationMs = new Date(end).getTime() - new Date(start).getTime();
+  if (durationMs < 1000) return `${durationMs}ms`;
+  return `${(durationMs / 1000).toFixed(1)}s`;
+};
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+};
+
 export function AgentRunList({
   runs = [],
   selectedRunId,
@@ -34,25 +54,6 @@ export function AgentRunList({
   onStatusFilterChange,
   isLoading,
 }: AgentRunListProps) {
-  const calculateDuration = (start?: string, end?: string) => {
-    if (!start || !end) return '-';
-    const durationMs = new Date(end).getTime() - new Date(start).getTime();
-    if (durationMs < 1000) return `${durationMs}ms`;
-    return `${(durationMs / 1000).toFixed(1)}s`;
-  };
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
@@ -90,10 +91,11 @@ export function AgentRunList({
           {runs.map((run) => {
             const isSelected = run.id === selectedRunId;
             return (
-              <div
+              <button
+                type="button"
                 key={run.id}
                 onClick={() => onSelectRun(run.id)}
-                className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                className={`w-full text-left p-3 border rounded-lg cursor-pointer transition-all ${
                   isSelected ? 'bg-accent/60 border-primary ring-1 ring-primary' : 'bg-card hover:bg-muted/40'
                 }`}
               >
@@ -107,7 +109,7 @@ export function AgentRunList({
                   <span className="truncate">Modus: {run.auth_mode}</span>
                   <span className="text-[11px]">{formatDate(run.gestartet_am)}</span>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

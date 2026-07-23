@@ -13,23 +13,31 @@ export function AgentsPageClient() {
   const [agents, setAgents] = useState<AgentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchAgents = async () => {
+  const fetchAgents = async (signal?: AbortSignal) => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/agents');
+      const res = await fetch('/api/agents', { signal });
       if (res.ok) {
         const data = await res.json();
         setAgents(Array.isArray(data) ? data : []);
       }
-    } catch (err) {
-      console.error('Failed to fetch agents:', err);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Failed to fetch agents:', err);
+      }
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchAgents();
+    const controller = new AbortController();
+    fetchAgents(controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const handleCreateNew = () => {

@@ -39,12 +39,13 @@ export function AgentBuilder({ agentId, onClose, onSuccess }: AgentBuilderProps)
 
   // Load existing agent details if editing
   useEffect(() => {
+    let active = true;
     async function loadData() {
       try {
         if (agentId) {
-          setIsLoadingDetails(true);
+          if (active) setIsLoadingDetails(true);
           const res = await fetch(`/api/agents/${agentId}`);
-          if (res.ok) {
+          if (res.ok && active) {
             const data = await res.json();
             setName(data.name || '');
             setBeschreibung(data.beschreibung || '');
@@ -58,24 +59,31 @@ export function AgentBuilder({ agentId, onClose, onSuccess }: AgentBuilderProps)
 
         // Fetch organization members for step 7
         const membersRes = await fetch('/api/organisation/mitglieder');
-        if (membersRes.ok) {
+        if (membersRes.ok && active) {
           const membersData = await membersRes.json();
           setMitglieder(Array.isArray(membersData) ? membersData : []);
         }
 
         // Fetch houses for step 3
         const housesRes = await fetch('/api/haeuser');
-        if (housesRes.ok) {
+        if (housesRes.ok && active) {
           const housesData = await housesRes.json();
           setHaeuser(Array.isArray(housesData) ? housesData : []);
         }
       } catch (err) {
-        console.error('Failed to load agent/org details:', err);
+        if (active) {
+          console.error('Failed to load agent/org details:', err);
+        }
       } finally {
-        setIsLoadingDetails(false);
+        if (active) {
+          setIsLoadingDetails(false);
+        }
       }
     }
     loadData();
+    return () => {
+      active = false;
+    };
   }, [agentId]);
 
   const canProceed = () => {
@@ -142,15 +150,16 @@ export function AgentBuilder({ agentId, onClose, onSuccess }: AgentBuilderProps)
 
       // Save access rights if any specified
       if (targetAgentId && Object.keys(accessRights).length > 0) {
-        for (const [mitgliedId, level] of Object.entries(accessRights)) {
-          if (level !== 'none') {
-            await fetch(`/api/agents/${targetAgentId}/access`, {
+        const accessPromises = Object.entries(accessRights)
+          .filter(([_, level]) => level !== 'none')
+          .map(([mitgliedId, level]) =>
+            fetch(`/api/agents/${targetAgentId}/access`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ mitgliedId, zugriffsLevel: level }),
-            });
-          }
-        }
+            })
+          );
+        await Promise.all(accessPromises);
       }
 
       toast({

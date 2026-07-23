@@ -16,7 +16,7 @@ export async function sendNotifications(
 ): Promise<void> {
   if (!channels || !Array.isArray(channels)) return;
 
-  for (const channel of channels) {
+  const tasks = channels.map(async (channel) => {
     try {
       switch (channel.type) {
         case 'email':
@@ -40,5 +40,7 @@ export async function sendNotifications(
     } catch (err) {
       console.error(`[Notify] Error delivering notification for channel ${channel.type}:`, err);
     }
-  }
+  });
+
+  await Promise.allSettled(tasks);
 }

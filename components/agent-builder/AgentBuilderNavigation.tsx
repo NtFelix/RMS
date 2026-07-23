@@ -38,7 +38,7 @@ export function AgentBuilderNavigation({
       {/* Progress bar */}
       <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
         <div
-          className="bg-primary h-full transition-all duration-300 ease-in-out"
+          className="bg-primary h-full transition-[width] duration-300 ease-in-out"
           style={{ width: `${(currentStep / totalSteps) * 100}%` }}
         />
       </div>
