@@ -110,7 +110,7 @@ const sidebarNavGroups: SidebarNavGroupType[] = [
       },
       {
         title: "KI-Agenten",
-        href: "/agents",
+        href: "/agenten",
         icon: Bot,
       },
     ]
@@ -126,6 +126,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   '/todos': 'aufgaben',
   '/dateien': 'dokumente',
   '/organisation': 'organisation',
+  '/agenten': 'agenten',
 };
 
 const layoutTransition = {
@@ -248,7 +249,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const featureFlags = useMemo(() => new Map([
     ['/dateien', !!documentsEnabled],
     ['/mails', !!mailsEnabled],
-    ['/agents', !!agentBuilderEnabled],
+    ['/agenten', !!agentBuilderEnabled],
   ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled]);
 
   useEffect(() => {
