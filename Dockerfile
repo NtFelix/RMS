@@ -46,17 +46,13 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Use a secret mount for the PostHog API key (optional for local builds)
-# We rely on the .next/cache copied from the build context for incremental builds
-# in CI. GitHub Actions caches the .next folder and restores it before docker build.
-# This allows incremental Next.js compilation without Docker's native cache mounts.
 RUN --mount=type=secret,id=POSTHOG_PERSONAL_API_KEY \
     POSTHOG_PERSONAL_API_KEY=$(cat /run/secrets/POSTHOG_PERSONAL_API_KEY 2>/dev/null || echo "") \
     npm run build
 
 # Stage 3: Production image
 FROM node:22-alpine AS runner
-RUN apk upgrade --no-cache && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+RUN apk upgrade --no-cache
 WORKDIR /app
 
 # Runtime environment variables
@@ -64,12 +60,10 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-# Optional: PostHog server-side logging (not required for build)
 ARG POSTHOG_HOST
 ENV POSTHOG_HOST=$POSTHOG_HOST
 ARG ROBOTS_INDEXING=true
 ENV ROBOTS_INDEXING=$ROBOTS_INDEXING
-# Gemini AI API key — injected at Cloud Run runtime; included here for documentation
 ARG GEMINI_API_KEY
 ENV GEMINI_API_KEY=$GEMINI_API_KEY
 
@@ -79,13 +73,13 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 USER nextjs
 
 EXPOSE 3000
 
-# Healthcheck that respects the dynamic PORT environment variable
-# Simple Node.js HTTP check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "require('http').get({hostname:'localhost',port:process.env.PORT||3000,path:'/',timeout:2000},(res)=>{process.exit(res.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 

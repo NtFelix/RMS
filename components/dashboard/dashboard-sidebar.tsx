@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network
+  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network, Bot
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
@@ -108,6 +108,11 @@ const sidebarNavGroups: SidebarNavGroupType[] = [
         href: "/mails",
         icon: Mail,
       },
+      {
+        title: "KI-Agenten",
+        href: "/agenten",
+        icon: Bot,
+      },
     ]
   }
 ];
@@ -121,6 +126,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   '/todos': 'aufgaben',
   '/dateien': 'dokumente',
   '/organisation': 'organisation',
+  '/agenten': 'agenten',
 };
 
 const layoutTransition = {
@@ -238,11 +244,13 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const { setOpen } = useCommandMenu()
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
   const mailsEnabled = useFeatureFlagEnabled('mails-tab')
+  const agentBuilderEnabled = useFeatureFlagEnabled('mietevo-agent-builder')
 
   const featureFlags = useMemo(() => new Map([
     ['/dateien', !!documentsEnabled],
     ['/mails', !!mailsEnabled],
-  ]), [documentsEnabled, mailsEnabled]);
+    ['/agenten', !!agentBuilderEnabled],
+  ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 1023px)');
