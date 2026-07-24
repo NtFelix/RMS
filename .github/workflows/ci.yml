@@ -1934,8 +1934,10 @@ jobs:
         run: npx playwright test --project=chromium --grep @visual --reporter=list
         env:
           BASE_URL: http://localhost:3000
-          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          VISUAL_TEST_EMAIL: ${{ secrets.VISUAL_TEST_EMAIL || secrets.TEST_EMAIL }}
+          VISUAL_TEST_PASSWORD: ${{ secrets.VISUAL_TEST_PASSWORD || secrets.TEST_PASSWORD }}
+          TEST_EMAIL: ${{ secrets.VISUAL_TEST_EMAIL || secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.VISUAL_TEST_PASSWORD || secrets.TEST_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
