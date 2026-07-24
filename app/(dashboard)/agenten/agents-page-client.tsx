@@ -82,8 +82,14 @@ export function AgentsPageClient() {
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Fehler beim Starten des Agenten');
+        let errorMsg = 'Fehler beim Starten des Agenten';
+        try {
+          const errData = await res.json();
+          errorMsg = errData.error || errorMsg;
+        } catch {
+          errorMsg = `Fehler (${res.status})`;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await res.json();

@@ -30,12 +30,14 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase.rpc('get_ki_agenten');
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[GET /api/agents] RPC error:', error);
+      return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 });
     }
 
     return NextResponse.json(data || []);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[GET /api/agents] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -68,7 +70,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (createError) {
-      return NextResponse.json({ error: createError.message }, { status: 500 });
+      console.error('[POST /api/agents] RPC error:', createError);
+      return NextResponse.json({ error: 'Failed to create agent' }, { status: 500 });
     }
 
     if (berechtigungen) {
@@ -78,12 +81,14 @@ export async function POST(req: NextRequest) {
       });
 
       if (overrideError) {
-        console.error('Failed to set agent overrides:', overrideError.message);
+        console.error('[POST /api/agents] Failed to set agent overrides:', overrideError);
+        return NextResponse.json({ error: 'Agent created but permissions setup failed' }, { status: 500 });
       }
     }
 
     return NextResponse.json({ id: agentId }, { status: 201 });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[POST /api/agents] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

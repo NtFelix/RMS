@@ -86,7 +86,25 @@ async function main() {
       runId,
     });
 
+    try {
+      await supabase.rpc('set_agent_context', {
+        p_organisation_id: null,
+        p_agent_mitglied_id: null,
+      });
+    } catch {
+      // Best-effort context reset
+    }
+
     process.exit(1);
+  }
+
+  try {
+    await supabase.rpc('set_agent_context', {
+      p_organisation_id: null,
+      p_agent_mitglied_id: null,
+    });
+  } catch {
+    // Best-effort context reset
   }
 
   process.exit(0);

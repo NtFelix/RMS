@@ -16,11 +16,13 @@ export async function GET(
 
     const { data, error } = await supabase.rpc('get_ki_agent_run_details', { p_run_id: id });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: error.message.includes('not found') ? 404 : 500 });
+      console.error('[GET /api/agents/runs/[id]] RPC error:', error);
+      return NextResponse.json({ error: 'Run not found' }, { status: 404 });
     }
 
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[GET /api/agents/runs/[id]] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -35,12 +35,14 @@ export async function GET(
 
     const { data, error } = await supabase.rpc('get_ki_agent_details', { p_agent_id: id });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: error.message.includes('not found') ? 404 : 500 });
+      console.error('[GET /api/agents/[id]] RPC error:', error);
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[GET /api/agents/[id]] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -79,7 +81,8 @@ export async function PATCH(
     });
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      console.error('[PATCH /api/agents/[id]] RPC error:', updateError);
+      return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 });
     }
 
     if (berechtigungen) {
@@ -89,13 +92,15 @@ export async function PATCH(
       });
 
       if (overrideError) {
-        console.error('Failed to update agent overrides:', overrideError.message);
+        console.error('[PATCH /api/agents/[id]] Failed to update agent overrides:', overrideError);
+        return NextResponse.json({ error: 'Agent updated but permissions update failed' }, { status: 500 });
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[PATCH /api/agents/[id]] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -114,11 +119,13 @@ export async function DELETE(
 
     const { error } = await supabase.rpc('delete_ki_agent', { p_agent_id: id });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[DELETE /api/agents/[id]] RPC error:', error);
+      return NextResponse.json({ error: 'Failed to delete agent' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[DELETE /api/agents/[id]] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

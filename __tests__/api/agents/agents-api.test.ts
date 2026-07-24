@@ -149,10 +149,29 @@ describe('Agents API Endpoints', () => {
         error: null,
       });
 
-      const mockSingle = jest.fn().mockResolvedValue({ data: { id: 'run-999' }, error: null });
-      const mockSelect = jest.fn().mockReturnValue({ single: mockSingle });
-      const mockInsert = jest.fn().mockReturnValue({ select: mockSelect });
-      mockFrom.mockReturnValue({ insert: mockInsert });
+      const buildQuery = (resolveValue: any) => {
+        const q = jest.fn(() => q) as any;
+        q.select = jest.fn(() => q);
+        q.eq = jest.fn(() => q);
+        q.is = jest.fn(() => q);
+        q.single = jest.fn().mockResolvedValue(resolveValue);
+        q.maybeSingle = jest.fn().mockResolvedValue(resolveValue);
+        q.insert = jest.fn(() => q);
+        return q;
+      };
+
+      const memberQuery = buildQuery({ data: { id: 'member-1', rolle: 'mitarbeiter' }, error: null });
+      const accessQuery = buildQuery({ data: { zugriffs_level: 'view' }, error: null });
+      const runInsertQuery = buildQuery(null);
+      runInsertQuery.select = jest.fn(() => runInsertQuery);
+      const runSingleResolve = { data: { id: 'run-999' }, error: null };
+      runInsertQuery.single = jest.fn().mockResolvedValue(runSingleResolve);
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'Organisation_Mitglieder') return memberQuery;
+        if (table === 'KI_Agenten_Zugriffsrechte') return accessQuery;
+        return runInsertQuery;
+      });
 
       const req = createMockRequest('http://localhost/api/agents/agent-123/run', { method: 'POST' });
       const res = await POST_RUN(req, { params });

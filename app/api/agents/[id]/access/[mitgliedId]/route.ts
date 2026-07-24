@@ -41,11 +41,13 @@ export async function DELETE(
     });
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      console.error('[DELETE /api/agents/[id]/access/[mitgliedId]] RPC error:', deleteError);
+      return NextResponse.json({ error: 'Failed to delete access right' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[DELETE /api/agents/[id]/access/[mitgliedId]] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -22,12 +22,14 @@ export async function GET(
 
     const { data, error } = await supabase.rpc('get_ki_agent_zugriffsrechte', { p_agent_id: id });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[GET /api/agents/[id]/access] RPC error:', error);
+      return NextResponse.json({ error: 'Failed to fetch access rights' }, { status: 500 });
     }
 
     return NextResponse.json(data || []);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[GET /api/agents/[id]/access] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -60,11 +62,13 @@ export async function POST(
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[POST /api/agents/[id]/access] RPC error:', error);
+      return NextResponse.json({ error: 'Failed to set access right' }, { status: 500 });
     }
 
     return NextResponse.json({ id: accessId }, { status: 201 });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[POST /api/agents/[id]/access] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

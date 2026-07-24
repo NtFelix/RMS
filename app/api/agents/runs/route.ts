@@ -24,11 +24,13 @@ export async function GET(req: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('[GET /api/agents/runs] RPC error:', error);
+      return NextResponse.json({ error: 'Failed to fetch agent runs' }, { status: 500 });
     }
 
     return NextResponse.json(data || []);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    console.error('[GET /api/agents/runs] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
