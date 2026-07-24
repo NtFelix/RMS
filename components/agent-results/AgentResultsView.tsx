@@ -21,31 +21,36 @@ export function AgentResultsView({ initialAgentId }: AgentResultsViewProps) {
 
   // Fetch agent list for filter dropdown
   useEffect(() => {
+    let active = true;
     async function loadAgents() {
       try {
         const res = await fetch('/api/agents');
-        if (res.ok) {
+        if (res.ok && active) {
           const data = await res.json();
           setAgents(Array.isArray(data) ? data : []);
         }
       } catch (err) {
-        console.error('Failed to fetch agents:', err);
+        if (active) console.error('Failed to fetch agents:', err);
       }
     }
     loadAgents();
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Fetch runs when agent or status filter changes
   useEffect(() => {
+    let active = true;
     async function fetchRuns() {
       try {
-        setIsLoadingRuns(true);
+        if (active) setIsLoadingRuns(true);
         const params = new URLSearchParams();
         if (selectedAgentId) params.set('agent_id', selectedAgentId);
         if (statusFilter) params.set('status', statusFilter);
 
         const res = await fetch(`/api/agents/runs?${params.toString()}`);
-        if (res.ok) {
+        if (res.ok && active) {
           const data = await res.json();
           const runArray = Array.isArray(data) ? data : [];
           setRuns(runArray);
@@ -54,12 +59,15 @@ export function AgentResultsView({ initialAgentId }: AgentResultsViewProps) {
           }
         }
       } catch (err) {
-        console.error('Failed to fetch runs:', err);
+        if (active) console.error('Failed to fetch runs:', err);
       } finally {
-        setIsLoadingRuns(false);
+        if (active) setIsLoadingRuns(false);
       }
     }
     fetchRuns();
+    return () => {
+      active = false;
+    };
   }, [selectedAgentId, statusFilter]);
 
   // Fetch run details when selectedRunId changes
@@ -69,21 +77,25 @@ export function AgentResultsView({ initialAgentId }: AgentResultsViewProps) {
       return;
     }
 
+    let active = true;
     async function fetchRunDetails() {
       try {
-        setIsLoadingDetails(true);
+        if (active) setIsLoadingDetails(true);
         const res = await fetch(`/api/agents/runs/${selectedRunId}`);
-        if (res.ok) {
+        if (res.ok && active) {
           const data = await res.json();
           setSelectedRunDetails(data);
         }
       } catch (err) {
-        console.error('Failed to fetch run details:', err);
+        if (active) console.error('Failed to fetch run details:', err);
       } finally {
-        setIsLoadingDetails(false);
+        if (active) setIsLoadingDetails(false);
       }
     }
     fetchRunDetails();
+    return () => {
+      active = false;
+    };
   }, [selectedRunId]);
 
   return (

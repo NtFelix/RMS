@@ -3,6 +3,8 @@ import { join } from 'path';
 import { mkdirSync, rmSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 
+import { agentRuntimeLocalStorage } from '@/lib/agents/mietevo-agent';
+
 const WHITELIST = ['fetch_mieter_list', 'fetch_finanzen_summary', 'create_aufgabe', 'get_haeuser_list'];
 
 export function createSupabaseServiceClient() {
@@ -42,8 +44,11 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
     throw new Error(`RPC ${rpcName} is not whitelisted`);
   }
 
+  const store = agentRuntimeLocalStorage.getStore();
+  const orgId = store?.orgId;
+
   const supabase = userJwt 
-    ? createSupabaseUserClient(userJwt) 
+    ? createSupabaseUserClient(userJwt, orgId) 
     : createSupabaseServiceClient();
 
   const { data, error } = await supabase.rpc(rpcName, params);

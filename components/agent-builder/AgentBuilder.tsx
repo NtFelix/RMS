@@ -55,6 +55,21 @@ export function AgentBuilder({ agentId, onClose, onSuccess }: AgentBuilderProps)
             if (data.aktionen) setAktionen(data.aktionen);
             if (data.benachrichtigungs_kanaele) setBenachrichtigungsKanaele(data.benachrichtigungs_kanaele);
           }
+
+          // Fetch existing access rights
+          const accessRes = await fetch(`/api/agents/${agentId}/access`);
+          if (accessRes.ok && active) {
+            const accessData = await accessRes.json();
+            if (Array.isArray(accessData)) {
+              const rightsMap: Record<string, 'view' | 'manage' | 'results_only' | 'none'> = {};
+              accessData.forEach((item: any) => {
+                if (item.mitglied_id && item.zugriffs_level) {
+                  rightsMap[item.mitglied_id] = item.zugriffs_level;
+                }
+              });
+              setAccessRights(rightsMap);
+            }
+          }
         }
 
         // Fetch organization members for step 7
@@ -150,15 +165,28 @@ export function AgentBuilder({ agentId, onClose, onSuccess }: AgentBuilderProps)
 
       // Save access rights if any specified
       if (targetAgentId && Object.keys(accessRights).length > 0) {
-        const accessPromises = Object.entries(accessRights)
-          .filter(([_, level]) => level !== 'none')
-          .map(([mitgliedId, level]) =>
-            fetch(`/api/agents/${targetAgentId}/access`, {
+        const accessPromises = Object.entries(accessRights).map(async ([mitgliedId, level]) => {
+          if (level !== 'none') {
+            const accessRes = await fetch(`/api/agents/${targetAgentId}/access`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ mitgliedId, zugriffsLevel: level }),
-            })
-          );
+            });
+            if (!accessRes.ok) {
+              const errData = await accessRes.json().catch(() => ({}));
+              throw new Error(errData.error || 'Fehler beim Speichern der Zugriffsrechte');
+            }
+          } else if (agentId) {
+            // Delete access right if revoked (only relevant when updating an existing agent)
+            const deleteRes = await fetch(`/api/agents/${targetAgentId}/access/${mitgliedId}`, {
+              method: 'DELETE',
+            });
+            if (!deleteRes.ok && deleteRes.status !== 404) {
+              const errData = await deleteRes.json().catch(() => ({}));
+              throw new Error(errData.error || 'Fehler beim Entfernen der Zugriffsrechte');
+            }
+          }
+        });
         await Promise.all(accessPromises);
       }
 

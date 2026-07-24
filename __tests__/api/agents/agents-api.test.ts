@@ -11,6 +11,9 @@ let DELETE_AGENT_ID: any;
 let POST_RUN: any;
 let GET_RUNS: any;
 let GET_RUN_ID: any;
+let GET_ACCESS: any;
+let POST_ACCESS: any;
+let DELETE_ACCESS_MEMBER: any;
 
 const mockRpc = jest.fn();
 const mockAuthGetUser = jest.fn();
@@ -32,6 +35,8 @@ beforeAll(async () => {
   const routeRun = await import('@/app/api/agents/[id]/run/route');
   const routeRuns = await import('@/app/api/agents/runs/route');
   const routeRunId = await import('@/app/api/agents/runs/[id]/route');
+  const routeAccess = await import('@/app/api/agents/[id]/access/route');
+  const routeAccessMember = await import('@/app/api/agents/[id]/access/[mitgliedId]/route');
 
   GET_AGENTS = routeAgents.GET;
   POST_AGENTS = routeAgents.POST;
@@ -41,6 +46,9 @@ beforeAll(async () => {
   POST_RUN = routeRun.POST;
   GET_RUNS = routeRuns.GET;
   GET_RUN_ID = routeRunId.GET;
+  GET_ACCESS = routeAccess.GET;
+  POST_ACCESS = routeAccess.POST;
+  DELETE_ACCESS_MEMBER = routeAccessMember.DELETE;
 });
 
 beforeEach(() => {
@@ -168,6 +176,39 @@ describe('Agents API Endpoints', () => {
       const req = createMockRequest('http://localhost/api/agents/runs/run-1');
       const res = await GET_RUN_ID(req, { params });
       expect(res.status).toBe(200);
+    });
+  });
+
+  describe('Access Rights Endpoints /api/agents/[id]/access', () => {
+    const params = Promise.resolve({ id: 'agent-123' });
+
+    it('GET returns list of access rights', async () => {
+      mockRpc.mockResolvedValueOnce({ data: [{ id: 'acc-1', mitglied_id: 'm-1', zugriffs_level: 'view' }], error: null });
+      const req = createMockRequest('http://localhost/api/agents/agent-123/access');
+      const res = await GET_ACCESS(req, { params });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json).toHaveLength(1);
+    });
+
+    it('POST creates or updates access right', async () => {
+      mockRpc.mockResolvedValueOnce({ data: 'acc-123', error: null });
+      const payload = { mitgliedId: '550e8400-e29b-41d4-a716-446655440000', zugriffsLevel: 'manage' };
+      const req = createMockRequest('http://localhost/api/agents/agent-123/access', { method: 'POST', body: payload });
+      const res = await POST_ACCESS(req, { params });
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.id).toBe('acc-123');
+    });
+
+    it('DELETE /api/agents/[id]/access/[mitgliedId] deletes access right', async () => {
+      const memberParams = Promise.resolve({ id: 'agent-123', mitgliedId: 'acc-123' });
+      mockRpc.mockResolvedValueOnce({ data: null, error: null });
+      const req = createMockRequest('http://localhost/api/agents/agent-123/access/acc-123', { method: 'DELETE' });
+      const res = await DELETE_ACCESS_MEMBER(req, { params: memberParams });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
     });
   });
 });
