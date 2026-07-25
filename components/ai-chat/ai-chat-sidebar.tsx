@@ -403,9 +403,14 @@ export function AIChatSidebar() {
         buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          if (!line.trim()) continue;
+          let cleanLine = line.trim();
+          if (cleanLine.startsWith("data: ")) {
+            cleanLine = cleanLine.slice(6).trim();
+          }
+          if (!cleanLine || cleanLine === "[DONE]") continue;
+
           try {
-            const data = JSON.parse(line);
+            const data = JSON.parse(cleanLine);
             
             if (data.type === "step_start") {
               if (currentStepId) {
@@ -426,14 +431,15 @@ export function AIChatSidebar() {
                 updateStep(currentStepId, { toolResult: data.toolCall });
               }
             } 
-            else if (data.type === "content") {
+            else if (data.type === "content" || data.type === "token") {
+              const textContent = data.content ?? data.text ?? "";
               setMessages(prev => prev.map(m => 
-                m.id === aiMessageId ? { ...m, content: m.content + data.content } : m
+                m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
               ));
             }
-            else if (data.type === "final_reply") {
-              finalReply = data.reply;
-              traceId = data.traceId;
+            else if (data.type === "final_reply" || data.type === "done") {
+              finalReply = data.reply || data.text || "";
+              traceId = data.traceId || "";
               toolResults = data.toolCalls || toolResults;
               receivedDone = true;
             }
@@ -441,7 +447,7 @@ export function AIChatSidebar() {
               throw new Error(data.message);
             }
           } catch (e) {
-            console.error("Error parsing stream line:", e, line);
+            console.error("Error parsing stream line:", e, cleanLine);
           }
         }
       }
