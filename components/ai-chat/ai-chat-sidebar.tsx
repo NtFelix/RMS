@@ -394,6 +394,51 @@ export function AIChatSidebar() {
       let toolResults: ToolCallRecord[] = [];
       let receivedDone = false;
 
+      function processStreamLine(raw: string) {
+        let clean = raw.trim();
+        if (clean.startsWith("data: ")) {
+          clean = clean.slice(6).trim();
+        }
+        if (!clean || clean === "[DONE]") return;
+
+        let data: any;
+        try {
+          data = JSON.parse(clean);
+        } catch (e) {
+          return;
+        }
+
+        if (data.type === "step_start") {
+          if (currentStepId) {
+            updateStep(currentStepId, { status: "done" });
+            currentStepId = null;
+          }
+          currentStepId = addStep(data.stepType, data.label, "loading", data.detail);
+        } else if (data.type === "step_done") {
+          if (currentStepId) {
+            updateStep(currentStepId, { status: "done" });
+            currentStepId = null;
+          }
+        } else if (data.type === "tool_result") {
+          toolResults.push(data.toolCall);
+          if (currentStepId) {
+            updateStep(currentStepId, { toolResult: data.toolCall });
+          }
+        } else if (data.type === "content" || data.type === "token") {
+          const textContent = data.content ?? data.text ?? "";
+          setMessages(prev => prev.map(m =>
+            m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
+          ));
+        } else if (data.type === "final_reply" || data.type === "done") {
+          finalReply = data.reply || data.text || "";
+          traceId = data.traceId || "";
+          toolResults = data.toolCalls || toolResults;
+          receivedDone = true;
+        } else if (data.type === "error") {
+          throw new Error(data.message);
+        }
+      }
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -403,78 +448,20 @@ export function AIChatSidebar() {
         buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          let cleanLine = line.trim();
-          if (cleanLine.startsWith("data: ")) {
-            cleanLine = cleanLine.slice(6).trim();
-          }
-          if (!cleanLine || cleanLine === "[DONE]") continue;
-
           try {
-            const data = JSON.parse(cleanLine);
-            
-            if (data.type === "step_start") {
-              if (currentStepId) {
-                updateStep(currentStepId, { status: "done" });
-                currentStepId = null;
-              }
-              currentStepId = addStep(data.stepType, data.label, "loading", data.detail);
-            } 
-            else if (data.type === "step_done") {
-              if (currentStepId) {
-                updateStep(currentStepId, { status: "done" });
-                currentStepId = null;
-              }
-            } 
-            else if (data.type === "tool_result") {
-              toolResults.push(data.toolCall);
-              if (currentStepId) {
-                updateStep(currentStepId, { toolResult: data.toolCall });
-              }
-            } 
-            else if (data.type === "content" || data.type === "token") {
-              const textContent = data.content ?? data.text ?? "";
-              setMessages(prev => prev.map(m => 
-                m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
-              ));
-            }
-            else if (data.type === "final_reply" || data.type === "done") {
-              finalReply = data.reply || data.text || "";
-              traceId = data.traceId || "";
-              toolResults = data.toolCalls || toolResults;
-              receivedDone = true;
-            }
-            else if (data.type === "error") {
-              throw new Error(data.message);
-            }
+            processStreamLine(line);
           } catch (e) {
-            console.error("Error parsing stream line:", e, cleanLine);
+            console.error("Error parsing stream line:", e, line);
           }
         }
       }
 
       // Process any remaining content left in buffer when stream ends
       if (buffer.trim()) {
-        let cleanLine = buffer.trim();
-        if (cleanLine.startsWith("data: ")) {
-          cleanLine = cleanLine.slice(6).trim();
-        }
-        if (cleanLine && cleanLine !== "[DONE]") {
-          try {
-            const data = JSON.parse(cleanLine);
-            if (data.type === "content" || data.type === "token") {
-              const textContent = data.content ?? data.text ?? "";
-              setMessages(prev => prev.map(m => 
-                m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
-              ));
-            } else if (data.type === "final_reply" || data.type === "done") {
-              finalReply = data.reply || data.text || "";
-              traceId = data.traceId || "";
-              toolResults = data.toolCalls || toolResults;
-              receivedDone = true;
-            }
-          } catch (e) {
-            console.error("Error parsing trailing stream line:", e, cleanLine);
-          }
+        try {
+          processStreamLine(buffer);
+        } catch (e) {
+          console.error("Error parsing trailing stream line:", e, buffer);
         }
       }
 

@@ -6,7 +6,9 @@ function getAiServiceUrl(): string {
   return process.env.AI_SERVICE_URL || 'https://ai.mietevo.de';
 }
 
-const AI_SERVICE_SECRET = process.env.AI_SERVICE_AUTH_SECRET;
+function getAiServiceSecret(): string | undefined {
+  return process.env.AI_SERVICE_AUTH_SECRET;
+}
 
 export async function proxyToAiService(
   path: string,
@@ -20,8 +22,9 @@ export async function proxyToAiService(
   console.log(`[AI Proxy] Proxying ${request.method} ${path} to ${baseUrl}${path} (user: ${userId}, org: ${orgId})`);
   const headers = new Headers(request.headers);
 
-  if (AI_SERVICE_SECRET) {
-    headers.set('X-AI-Service-Auth', AI_SERVICE_SECRET);
+  const secret = getAiServiceSecret();
+  if (secret) {
+    headers.set('X-AI-Service-Auth', secret);
   }
   headers.set('X-User-Id', userId);
   headers.set('X-Org-Id', orgId);
@@ -51,9 +54,15 @@ export async function proxyToAiService(
   try {
     const response = await fetch(targetUrl, fetchOptions);
 
+    const filteredHeaders = new Headers(response.headers);
+    filteredHeaders.delete('transfer-encoding');
+    filteredHeaders.delete('connection');
+    filteredHeaders.delete('content-encoding');
+    filteredHeaders.delete('content-length');
+
     return new Response(response.body, {
       status: response.status,
-      headers: response.headers,
+      headers: filteredHeaders,
     });
   } catch (err: any) {
     console.error(`[AI Proxy] Failed to proxy request to ${targetUrl}:`, err);

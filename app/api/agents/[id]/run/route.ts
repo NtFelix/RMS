@@ -35,7 +35,7 @@ export async function POST(
 
     return proxyToAiService(`/api/agents/${id}/run`, req, user.id, orgId);
   } catch (err: any) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[POST /api/agents/[id]/run] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

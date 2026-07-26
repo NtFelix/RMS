@@ -14,6 +14,10 @@ export async function POST(req: NextRequest) {
     const { data: { session } } = await userSupabase.auth.getSession();
     const userJwt = session?.access_token;
 
+    if (!userJwt) {
+      return NextResponse.json({ error: 'Session token not found' }, { status: 401 });
+    }
+
     let orgId = req.headers.get('X-Org-Id');
     if (!orgId) {
       const { data: rpcOrgId } = await userSupabase.rpc('current_organisation_id');
@@ -37,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     return proxyToAiService('/api/chat', req, user.id, orgId, userJwt);
   } catch (err: any) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[POST /api/chat] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

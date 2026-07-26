@@ -34,7 +34,7 @@ export async function GET(
 
     return proxyToAiService(`/api/agents/runs/${id}`, req, user.id, orgId);
   } catch (err: any) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[GET /api/agents/runs/[id]] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

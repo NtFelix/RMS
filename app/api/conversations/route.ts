@@ -1,8 +1,11 @@
+import { type User } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { proxyToAiService } from '@/lib/ai-service-proxy';
 
-async function resolveUserAndOrg(req: NextRequest): Promise<{ user: any; orgId: string; errorResponse: Response | null }> {
+type ResolveResult = { user: User; orgId: string; errorResponse: null } | { user: null; orgId: ''; errorResponse: Response };
+
+async function resolveUserAndOrg(req: NextRequest): Promise<ResolveResult> {
   const authClient = await createClient();
   const { data: { user }, error: authError } = await authClient.auth.getUser();
 
@@ -12,7 +15,7 @@ async function resolveUserAndOrg(req: NextRequest): Promise<{ user: any; orgId: 
       hasUser: !!user,
       cookies: req.cookies.getAll().map(c => c.name),
     });
-    return { user: null, orgId: '', errorResponse: NextResponse.json({ error: 'Unauthorized', detail: authError?.message }, { status: 401 }) };
+    return { user: null, orgId: '', errorResponse: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
 
   const { searchParams } = new URL(req.url);
@@ -41,16 +44,27 @@ async function resolveUserAndOrg(req: NextRequest): Promise<{ user: any; orgId: 
   return { user, orgId, errorResponse: null };
 }
 
-export async function GET(req: NextRequest): Promise<Response> {
+async function handleRequest(req: NextRequest): Promise<Response> {
   const { user, orgId, errorResponse } = await resolveUserAndOrg(req);
   if (errorResponse) return errorResponse;
 
   return proxyToAiService('/api/conversations', req, user.id, orgId);
 }
 
-export async function POST(req: NextRequest): Promise<Response> {
-  const { user, orgId, errorResponse } = await resolveUserAndOrg(req);
-  if (errorResponse) return errorResponse;
+export async function GET(req: NextRequest): Promise<Response> {
+  try {
+    return await handleRequest(req);
+  } catch (err: any) {
+    console.error('[GET /api/conversations] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
-  return proxyToAiService('/api/conversations', req, user.id, orgId);
+export async function POST(req: NextRequest): Promise<Response> {
+  try {
+    return await handleRequest(req);
+  } catch (err: any) {
+    console.error('[POST /api/conversations] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

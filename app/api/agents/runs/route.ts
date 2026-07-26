@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     return proxyToAiService('/api/agents/runs', req, user.id, orgId);
   } catch (err: any) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[GET /api/agents/runs] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
