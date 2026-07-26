@@ -452,6 +452,32 @@ export function AIChatSidebar() {
         }
       }
 
+      // Process any remaining content left in buffer when stream ends
+      if (buffer.trim()) {
+        let cleanLine = buffer.trim();
+        if (cleanLine.startsWith("data: ")) {
+          cleanLine = cleanLine.slice(6).trim();
+        }
+        if (cleanLine && cleanLine !== "[DONE]") {
+          try {
+            const data = JSON.parse(cleanLine);
+            if (data.type === "content" || data.type === "token") {
+              const textContent = data.content ?? data.text ?? "";
+              setMessages(prev => prev.map(m => 
+                m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
+              ));
+            } else if (data.type === "final_reply" || data.type === "done") {
+              finalReply = data.reply || data.text || "";
+              traceId = data.traceId || "";
+              toolResults = data.toolCalls || toolResults;
+              receivedDone = true;
+            }
+          } catch (e) {
+            console.error("Error parsing trailing stream line:", e, cleanLine);
+          }
+        }
+      }
+
       // If stream ended early without final reply payload, fall back to realtime tracking
       if (!receivedDone && currentConvId) {
         console.log('[AIChatSidebar] Stream disconnected early. Activating Realtime fallback...');

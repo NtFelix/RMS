@@ -7,7 +7,12 @@ async function resolveUserAndOrg(req: NextRequest): Promise<{ user: any; orgId: 
   const { data: { user }, error: authError } = await authClient.auth.getUser();
 
   if (authError || !user) {
-    return { user: null, orgId: '', errorResponse: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+    console.error('[resolveUserAndOrg] Auth failed:', {
+      authError: authError?.message || authError,
+      hasUser: !!user,
+      cookies: req.cookies.getAll().map(c => c.name),
+    });
+    return { user: null, orgId: '', errorResponse: NextResponse.json({ error: 'Unauthorized', detail: authError?.message }, { status: 401 }) };
   }
 
   const { searchParams } = new URL(req.url);

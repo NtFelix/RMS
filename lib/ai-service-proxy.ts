@@ -17,6 +17,7 @@ export async function proxyToAiService(
   body?: unknown
 ): Promise<Response> {
   const baseUrl = getAiServiceUrl();
+  console.log(`[AI Proxy] Proxying ${request.method} ${path} to ${baseUrl}${path} (user: ${userId}, org: ${orgId})`);
   const headers = new Headers(request.headers);
 
   if (AI_SERVICE_SECRET) {
