@@ -18,7 +18,8 @@ export async function proxyToAiService(
   userId: string,
   orgId: string,
   userJwt?: string,
-  body?: unknown
+  body?: unknown,
+  timeoutMs: number = 120000
 ): Promise<Response> {
   const baseUrl = getAiServiceUrl();
   console.log(`[AI Proxy] Proxying ${request.method} ${path} to ${baseUrl}${path} (user: ${userId}, org: ${orgId})`);
@@ -58,7 +59,7 @@ export async function proxyToAiService(
 
   const targetUrl = `${baseUrl}${path}`;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   fetchOptions.signal = controller.signal;
 
   try {

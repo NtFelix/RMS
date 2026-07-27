@@ -59,8 +59,17 @@ export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserA
     };
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const userJwt = session?.access_token;
+  let userJwt: string | undefined = undefined;
+  if (req) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      userJwt = authHeader.substring(7).trim();
+    }
+  }
+  if (!userJwt) {
+    const { data: { session } } = await supabase.auth.getSession();
+    userJwt = session?.access_token;
+  }
 
   let requestedOrgId: string | null = null;
   if (req) {

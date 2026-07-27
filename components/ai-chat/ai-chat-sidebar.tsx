@@ -52,10 +52,13 @@ export function AIChatSidebar() {
   useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
   useEffect(() => {
-    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
 
@@ -366,9 +369,16 @@ export function AIChatSidebar() {
     });
 
     try {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       const clientNachrichtId = uuidv4();
       const res = await fetch("/api/chat", {
         method: "POST",
+        signal: controller.signal,
         headers: { 
           "Content-Type": "application/json",
           "X-Idempotency-Key": clientNachrichtId
