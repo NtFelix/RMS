@@ -538,16 +538,21 @@ export async function deleteAllApplicantsAction(): Promise<{ success: boolean; e
     }
     
     const wohnungIds = await getAccessibleWohnungIds();
-    let query = supabase.from('Mieter').delete().eq('status', 'bewerber');
+    let fetchQuery = supabase.from('Mieter').select('id').eq('status', 'bewerber');
     if (wohnungIds !== null) {
-      query = query.in('wohnung_id', wohnungIds);
+      fetchQuery = fetchQuery.in('wohnung_id', wohnungIds);
     }
 
-    const { error } = await query;
+    const { data: applicants, error: fetchError } = await fetchQuery;
 
-    if (error) {
-      console.error('Error deleting all applicants:', error);
-      return { success: false, error: { message: error.message } };
+    if (fetchError) {
+      console.error('Error fetching applicants for deletion:', fetchError);
+      return { success: false, error: { message: fetchError.message } };
+    }
+
+    if (applicants && applicants.length > 0) {
+      const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+      await Promise.all(applicants.map(applicant => softDeleteEntryAction("Mieter", applicant.id)));
     }
 
     revalidatePath('/mieter');

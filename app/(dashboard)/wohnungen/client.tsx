@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 
@@ -44,6 +45,8 @@ const currencyFormatter = new Intl.NumberFormat("de-DE", {
 });
 
 // This is the new main client component, previously WohnungenPageClientComponent in page.tsx
+const VALID_WOHNUNGEN_TABS = ["apartments", "overview"] as const;
+
 export default function WohnungenClientView({
   initialWohnungenData,
   housesData,
@@ -57,7 +60,7 @@ export default function WohnungenClientView({
   canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
-  const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
+  const [currentTab, setCurrentTab] = useTabParams<"apartments" | "overview">("apartments", VALID_WOHNUNGEN_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);

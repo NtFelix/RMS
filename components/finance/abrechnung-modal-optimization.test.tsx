@@ -17,9 +17,13 @@ jest.mock('@/hooks/use-toast', () => ({
   }),
 }));
 
-jest.mock('@/utils/date-calculations', () => ({
-  isoToGermanDate: (date: string) => date,
-}));
+jest.mock('@/utils/date-calculations', () => {
+  const actual = jest.requireActual('@/utils/date-calculations');
+  return {
+    ...actual,
+    isoToGermanDate: (date: string) => date,
+  };
+});
 
 jest.mock('@/utils/wg-cost-calculations', () => ({
   computeWgFactorsByTenant: () => ({}),

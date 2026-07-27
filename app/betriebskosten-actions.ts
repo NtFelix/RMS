@@ -213,12 +213,10 @@ export async function deleteNebenkosten(id: string) {
     }
   }
 
-  const { error } = await supabase
-    .from("Nebenkosten")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
+  try {
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await softDeleteEntryAction("Nebenkosten", id);
+  } catch (error: any) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: error.message });
     return { success: false, message: error.message };
   }
@@ -268,21 +266,16 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
 
 
   try {
-    // Use in_ operator to delete multiple records in a single query
-    const { count, error } = await supabase
-      .from("Nebenkosten")
-      .delete()
-      .in("id", ids);
-
-    if (error) throw error;
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await Promise.all(ids.map(id => softDeleteEntryAction("Nebenkosten", id)));
 
     // Invalidate cache and refresh data
     revalidatePath("/dashboard/betriebskosten");
 
     return {
       success: true,
-      count: count || 0,
-      message: `${count} Betriebskostenabrechnung${count !== 1 ? 'en' : ''} erfolgreich gelöscht`
+      count: ids.length,
+      message: `${ids.length} Betriebskostenabrechnung${ids.length !== 1 ? 'en' : ''} erfolgreich gelöscht`
     };
   } catch (error) {
     console.error("Error bulk deleting Nebenkosten:", error);
@@ -408,14 +401,25 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
     }
   }
 
-  const { error } = await supabase
+  // Fetch Rechnungen for this Nebenkosten ID
+  const { data: rechnungen, error: fetchError } = await supabase
     .from("Rechnungen")
-    .delete()
+    .select("id")
     .eq("nebenkosten_id", nebenkostenId);
 
-  if (error) {
-    console.error('Error deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
-    return { success: false, message: error.message };
+  if (fetchError) {
+    console.error('Error fetching Rechnungen for deletion:', fetchError);
+    return { success: false, message: fetchError.message };
+  }
+
+  if (rechnungen && rechnungen.length > 0) {
+    try {
+      const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+      await Promise.all(rechnungen.map(r => softDeleteEntryAction("Rechnungen", r.id)));
+    } catch (err: any) {
+      console.error('Error soft deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, err);
+      return { success: false, message: err.message };
+    }
   }
 
   console.log(`[Server Action] Successfully deleted Rechnungen for nebenkosten_id ${nebenkostenId}`);
@@ -1888,9 +1892,9 @@ async function resolveActualPaymentsData(
   options: { prepaymentMode?: 'scheduled' | 'actual' } = {},
   nebenkostenId: string
 ): Promise<Finanzen[]> {
-  const dbPrepaymentMode = (nebenkosten_data as any).vorauszahlungs_art;
-  const effectivePrepaymentMode = options.prepaymentMode ||
-    (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
+    const dbPrepaymentMode = nebenkosten_data?.vorauszahlungs_art;
+    const effectivePrepaymentMode = options.prepaymentMode ||
+      (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
 
   if (effectivePrepaymentMode === 'actual') {
     const apartmentIds = tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
@@ -2707,7 +2711,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     }
 
     // Parse the structured data from the database function
-    const nebenkosten_data = dbResult.nebenkosten_data;
+    const nebenkosten_data = dbResult.nebenkosten_data as Nebenkosten;
     const tenants_with_occupancy = dbResult.tenants_with_occupancy || [];
 
     // Workaround for vorauszahlungs_art removed - database function now includes it.
@@ -2716,6 +2720,11 @@ export async function createAbrechnungCalculationOptimizedAction(
     const wasserzaehler_meters = dbResult.wasserzaehler_meters || [];
     const house_metrics = dbResult.house_metrics || {};
     const calculation_metadata = dbResult.calculation_metadata || {};
+
+    // Ensure gesamtFlaeche is set on nebenkosten_data for calculations to use
+    if (nebenkosten_data && house_metrics) {
+      nebenkosten_data.gesamtFlaeche = house_metrics.totalArea;
+    }
 
     // Validate that we have the necessary data
     if (!tenants_with_occupancy || tenants_with_occupancy.length === 0) {

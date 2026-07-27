@@ -9,17 +9,24 @@ import { FinanceDonutChart, BaseDonutChart } from "@/components/dashboard/dashbo
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 import dynamic from "next/dynamic";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info, Building2, Coins, Clock, Percent, Activity } from "lucide-react";
 
 // Dynamically import heavy components
 const FinanceVisualization = dynamic(
   () => import("@/components/finance/finance-visualization").then((mod) => mod.FinanceVisualization),
-  { ssr: false } // Charts are client-side only
+  {
+    ssr: false,
+    loading: () => <div className="h-[300px] w-full bg-gray-100 dark:bg-zinc-800/40 rounded-2xl animate-pulse" />
+  }
 );
 
 const FinanceTable = dynamic(
   () => import("@/components/tables/finance-table").then((mod) => mod.FinanceTable),
-  { ssr: true } // Table benefits from SSR for SEO/initial paint
+  {
+    ssr: true,
+    loading: () => <div className="h-[400px] w-full bg-gray-100 dark:bg-zinc-800/40 rounded-2xl animate-pulse" />
+  }
 );
 
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
@@ -103,6 +110,8 @@ const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 2
 });
 
+const VALID_FINANZEN_TABS = ["finance", "overview"] as const;
+
 export default function FinanzenClientWrapper({
   finances: initialFinances,
   wohnungen = [],
@@ -115,7 +124,7 @@ export default function FinanzenClientWrapper({
   canEdit = true,
   canDelete = true,
 }: FinanzenClientWrapperProps) {
-  const [currentTab, setCurrentTab] = useState<"finance" | "overview">("finance");
+  const [currentTab, setCurrentTab] = useTabParams<"finance" | "overview">("finance", VALID_FINANZEN_TABS);
   const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [unitSearch, setUnitSearch] = useState<string>("");
@@ -125,6 +134,9 @@ export default function FinanzenClientWrapper({
   const [financeTimeframe, setFinanceTimeframe] = useState<"1" | "2" | "5">("1");
   const [chartFinances, setChartFinances] = useState<Finanz[]>([]);
   const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
+
+  const effectiveIsChartLoading = isChartLoading || (currentTab === "overview" && chartFinances.length === 0);
+  const effectiveIsTenantPaymentsLoading = isTenantPaymentsLoading || (currentTab === "overview" && tenantPaymentsData.length === 0);
 
   // ... (useEffect for chartFinances remains same)
   useEffect(() => {
@@ -476,8 +488,9 @@ export default function FinanzenClientWrapper({
   const [totalBalance, setTotalBalance] = useState(0);
   const [filteredIncome, setFilteredIncome] = useState(0);
   const [filteredExpenses, setFilteredExpenses] = useState(0);
-  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
+  const isInitialMountRef = useRef(true);
   const reloadRef = useRef<(() => void) | null>(null);
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
   const filtersRef = useRef(filters);
@@ -868,6 +881,11 @@ export default function FinanzenClientWrapper({
   }, []); // Only run once on mount
 
   useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
     setIsFilterLoading(true);
     const timer = setTimeout(() => {
       loadMoreTransactions(true).finally(() => setIsFilterLoading(false));
@@ -1228,7 +1246,7 @@ export default function FinanzenClientWrapper({
                 <div className="w-full max-w-[340px] h-[280px]">
                   <FinanceDonutChart 
                     finanzen={monthlyChartSource} 
-                    isLoading={isChartLoading}
+                    isLoading={effectiveIsChartLoading}
                   />
                 </div>
               </div>
@@ -1276,7 +1294,7 @@ export default function FinanzenClientWrapper({
               </div>
             </CardHeader>
             <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 relative">
-              {isChartLoading ? (
+              {effectiveIsChartLoading ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-8 text-center animate-pulse h-full min-h-[280px]">
                   <Activity className="size-6 text-accent/50 animate-bounce mb-2" />
                   <span className="text-xs text-muted-foreground">Lade Transaktionshistorie (5 Jahre)...</span>
@@ -1440,7 +1458,12 @@ export default function FinanzenClientWrapper({
                       
                       {/* Interactive Center Label */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center mt-0.5 px-3">
-                        {hoveredPieIndex === null ? (
+                        {effectiveIsTenantPaymentsLoading ? (
+                          <div className="flex flex-col items-center justify-center animate-pulse">
+                            <div className="h-5 w-20 bg-zinc-200 dark:bg-zinc-700 rounded-md mb-1.5" />
+                            <div className="h-3 w-14 bg-zinc-200 dark:bg-zinc-700 rounded-md" />
+                          </div>
+                        ) : hoveredPieIndex === null ? (
                           <>
                             <span className={cn(
                               "font-black tracking-tight leading-none transition-all duration-200",
@@ -1485,35 +1508,43 @@ export default function FinanzenClientWrapper({
                   </div>
 
                   {/* Spacious 3-Column Statistics Bar */}
-                  <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0">
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <div className="flex items-center gap-1">
-                        <Coins className="size-3.5 text-muted-foreground" />
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Soll-Ertrag</span>
-                      </div>
-                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                        {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthExpected)}
-                      </span>
+                  {effectiveIsTenantPaymentsLoading ? (
+                    <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0 animate-pulse">
+                      <div className="h-8 bg-zinc-200 dark:bg-zinc-700/50 rounded-xl" />
+                      <div className="h-8 bg-zinc-200 dark:bg-zinc-700/50 rounded-xl" />
+                      <div className="h-8 bg-zinc-200 dark:bg-zinc-700/50 rounded-xl" />
                     </div>
-                    <div className="flex flex-col items-center justify-center gap-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
-                      <div className="flex items-center gap-1">
-                        <ArrowUpCircle className="size-3.5 text-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Ist-Miete</span>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <Coins className="size-3.5 text-muted-foreground" />
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Soll-Ertrag</span>
+                        </div>
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                          {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthExpected)}
+                        </span>
                       </div>
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-500">
-                        {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthCollected)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <div className="flex items-center gap-1">
-                        <Activity className="size-3.5 text-accent" />
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
+                      <div className="flex flex-col items-center justify-center gap-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
+                        <div className="flex items-center gap-1">
+                          <ArrowUpCircle className="size-3.5 text-emerald-500 animate-pulse" />
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Ist-Miete</span>
+                        </div>
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-500">
+                          {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthCollected)}
+                        </span>
                       </div>
-                      <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5 truncate">
-                        {collectionMetrics.paidCount} / {collectionMetrics.currentMonthRentStatus.length} Bezahlt
-                      </span>
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <Activity className="size-3.5 text-accent" />
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5 truncate">
+                          {collectionMetrics.paidCount} / {collectionMetrics.currentMonthRentStatus.length} Bezahlt
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
 

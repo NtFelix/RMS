@@ -11,6 +11,8 @@ jest.mock('@/hooks/use-modal-store');
 jest.mock('@/hooks/use-toast');
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
 }));
 jest.mock('@/app/betriebskosten-actions', () => ({
   deleteNebenkosten: jest.fn(),

@@ -40,7 +40,6 @@ const ShareDocumentModal = dynamic(() => import('@/components/cloud-storage/shar
 const MarkdownEditorModal = dynamic(() => import('@/components/cloud-storage/markdown-editor-modal').then(mod => mod.MarkdownEditorModal), { ssr: false })
 const TemplatesModal = dynamic(() => import('@/components/templates/templates-modal').then(mod => mod.TemplatesModal), { ssr: false })
 const TenantMailTemplatesModal = dynamic(() => import('@/components/tenants/tenant-mail-templates-modal').then(mod => mod.TenantMailTemplatesModal), { ssr: false })
-const AIAssistantModal = dynamic(() => import('@/components/ai/ai-assistant-modal').then(mod => mod.AIAssistantModal), { ssr: false })
 const OperatingCostsOverviewModal = dynamic(() => import('@/components/finance/operating-costs-overview-modal').then(mod => mod.OperatingCostsOverviewModal), { ssr: false })
 const TrashBinModal = dynamic(() => import('@/components/trash-bin/trash-bin-modal').then(mod => mod.TrashBinModal), { ssr: false })
 // Default exports
@@ -48,9 +47,10 @@ const TenantPaymentEditModal = dynamic(() => import('@/components/tenants/tenant
 const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenants/tenant-payment-overview-modal'), { ssr: false })
 
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
-import { GlobalDragDropProvider } from "@/components/cloud-storage/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
-import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
+const OnboardingTour = dynamic(() => import('@/components/onboarding/onboarding-tour').then(mod => mod.OnboardingTour), { ssr: false })
+const AIChatSidebar = dynamic(() => import('@/components/ai-chat/ai-chat-sidebar').then(mod => mod.AIChatSidebar), { ssr: false })
+
 
 export default function DashboardInnerLayout({
   children,
@@ -59,44 +59,12 @@ export default function DashboardInnerLayout({
   children: React.ReactNode
   sidebarData: SidebarUserData
 }>) {
+  
   const {
-    // Tenant modal state and actions
-    isTenantModalOpen,
-    closeTenantModal,
-    tenantInitialData,
-    tenantModalWohnungen,
-    openTenantModal,
-    // House modal state and actions
-    isHouseModalOpen,
-    houseInitialData,
-    houseModalOnSuccess,
-    openHouseModal,
-    closeHouseModal,
-    // Finance modal state and actions
-    isFinanceModalOpen,
-    financeInitialData,
-    financeModalWohnungen,
-    financeModalOnSuccess,
-    openFinanceModal,
-    closeFinanceModal,
-    // Wohnung modal state and actions
-    isWohnungModalOpen,
-    wohnungInitialData,
-    wohnungModalHaeuser,
-    wohnungModalOnSuccess,
-    openWohnungModal,
-    closeWohnungModal,
     // Additions for Wohnung modal props
     wohnungApartmentLimit,
     wohnungIsActiveSubscription,
-    wohnungApartmentCount, // Added
-    // Aufgabe modal state and actions
-    isAufgabeModalOpen,
-    // ... (aufgabeInitialData, aufgabeModalOnSuccess are used internally by AufgabeEditModal)
-    // closeAufgabeModal, // Also internal
-    // openAufgabeModal, // Used by other components to open
-    // Betriebskosten modal state (only need isBetriebskostenModalOpen for conditional rendering if any)
-    isBetriebskostenModalOpen,
+    wohnungApartmentCount,
     // Confirmation Modal state
     isConfirmationModalOpen,
     confirmationModalConfig,
@@ -137,9 +105,6 @@ export default function DashboardInnerLayout({
     isTenantMailTemplatesModalOpen,
     tenantMailTemplatesModalData,
     closeTenantMailTemplatesModal,
-    // AI Assistant Modal state
-    isAIAssistantModalOpen,
-
     // Operating Costs Overview Modal state
     isOperatingCostsOverviewModalOpen,
     operatingCostsOverviewData,
@@ -275,8 +240,6 @@ export default function DashboardInnerLayout({
           tenantName={tenantMailTemplatesModalData?.tenantName}
           tenantEmail={tenantMailTemplatesModalData?.tenantEmail}
         />
-        {/* AI Assistant Modal - Global AI assistant modal */}
-        <AIAssistantModal />
         {/* Tenant Payment Edit Modal */}
         <TenantPaymentEditModal />
         {/* Tenant Payment Overview Modal */}
@@ -309,9 +272,10 @@ export default function DashboardInnerLayout({
             variant={confirmationModalConfig.variant}
           />
         )}
-        {/* </GlobalDragDropProvider> */}
+
       </NestedDialogProvider>
       <OnboardingTour />
+      <AIChatSidebar />
     </AuthProvider>
   )
 }

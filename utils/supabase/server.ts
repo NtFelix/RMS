@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
-export async function createClient() {
+export async function createClient(orgIdOverride?: string) {
   const cookieStore = await cookies()
-  const currentOrgId = cookieStore.get('current_organisation_id')?.value
+  const currentOrgId = orgIdOverride || cookieStore.get('current_organisation_id')?.value
 
   const globalHeaders: Record<string, string> = {}
   if (currentOrgId) {
