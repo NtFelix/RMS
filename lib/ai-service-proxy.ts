@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+
 function getAiServiceUrl(): string {
   const isDev = process.env.DEV === 'true';
   if (isDev) {
@@ -72,7 +74,7 @@ export async function proxyToAiService(
     });
   } catch (err: any) {
     console.error(`[AI Proxy] Failed to proxy request to ${targetUrl}:`, err);
-    return Response.json(
+    return NextResponse.json(
       { error: 'AI Service unavailable' },
       { status: 502 }
     );

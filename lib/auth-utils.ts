@@ -85,10 +85,22 @@ export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserA
     }
   }
 
-  // 2. Fallback to RPC current_organisation_id
+  // 2. Fallback to RPC current_organisation_id (verified against active user memberships)
   if (!orgId) {
     const { data: rpcOrgId } = await supabase.rpc('current_organisation_id');
-    if (rpcOrgId) orgId = rpcOrgId;
+    if (rpcOrgId) {
+      const { data: rpcMembership } = await supabase
+        .from('Organisation_Mitglieder')
+        .select('organisation_id')
+        .eq('user_id', user.id)
+        .eq('organisation_id', rpcOrgId)
+        .eq('status', 'aktiv')
+        .maybeSingle();
+
+      if (rpcMembership) {
+        orgId = rpcMembership.organisation_id;
+      }
+    }
   }
 
   // 3. Fallback to first active membership

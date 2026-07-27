@@ -4,7 +4,7 @@ import { waitUntil } from '@vercel/functions';
 import { createSupabaseUserClient } from '@/lib/sandbox/runner';
 import { runAgent } from '@/lib/agents/mietevo-agent';
 
-function timingSafeCompare(a: string | null, b: string): boolean {
+function timingSafeCompare(a: string | null, b: string | undefined): boolean {
   if (!a || !b) {
     return false;
   }
@@ -271,7 +271,7 @@ export async function POST(req: NextRequest) {
       }
     });
   } catch (err: any) {
-    const message = err instanceof Error ? err.message : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[POST /api/chat/engine] Internal error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
