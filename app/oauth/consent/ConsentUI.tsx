@@ -294,6 +294,10 @@ export default function ConsentUI({
     );
     const [loadError, setLoadError] = useState<string | null>(initialError || null);
     const [countdown, setCountdown] = useState(5);
+    // Side-channel scopes fetched directly from the Mietevo Worker (see effect below).
+    // Declared here with the other state so the minifier never reorders its binding
+    // ahead of its use in `mergedScopes` (guards against a TDZ hoisting bug).
+    const [customScopes, setCustomScopes] = useState<string[]>([]);
 
     // Auto-close success window after a delay with visible countdown
     useEffect(() => {
@@ -354,9 +358,9 @@ export default function ConsentUI({
         fetchDetails();
     }, [authorizationId, type, isDemo, initialData, initialError]);
 
-    // Side-channel: Fetch requested scopes directly from the Mietevo Worker 
+    // Side-channel: Fetch requested scopes directly from the Mietevo Worker
     // because Supabase filters out any scopes it doesn't officially support.
-    const [customScopes, setCustomScopes] = useState<string[]>([]);
+    // (State declared above with the other useState hooks.)
     useEffect(() => {
         const state = authDetails?.state;
         if (!state) return;
@@ -432,8 +436,8 @@ export default function ConsentUI({
             // For auto-approved authorizations, Supabase has already granted access.
             // POSTing a decision to the endpoint returns 405 Method Not Allowed.
             // Instead, use the redirect_url from the initial GET details response directly.
-            const autoRedirectUrl = (authDetails as any)?.redirect_url || (authDetails as any)?.redirect_to;
-            const isAutoApproved = autoRedirectUrl && !authDetails?.client;
+            const autoApprovedRedirectUrl = (authDetails as any)?.redirect_url || (authDetails as any)?.redirect_to;
+            const isAutoApproved = autoApprovedRedirectUrl && !authDetails?.client;
 
             if (isAutoApproved) {
                 if (decision === 'deny') {
@@ -444,14 +448,14 @@ export default function ConsentUI({
                     return;
                 }
 
-                if (!autoRedirectUrl) {
+                if (!autoApprovedRedirectUrl) {
                     setProcessError('Automatically approved authorization has no redirect URL. Please try again.');
                     setIsProcessing(false);
                     return;
                 }
 
                 setIsProcessing(false); // defensive reset before navigation
-                safeRedirect(autoRedirectUrl);
+                safeRedirect(autoApprovedRedirectUrl);
                 return;
             }
 
