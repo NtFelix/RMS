@@ -73,7 +73,7 @@ export async function proxyToAiService(
   } catch (err: any) {
     console.error(`[AI Proxy] Failed to proxy request to ${targetUrl}:`, err);
     return Response.json(
-      { error: `AI Service proxy failed: ${err?.message || 'Network error'}` },
+      { error: 'AI Service unavailable' },
       { status: 502 }
     );
   }
