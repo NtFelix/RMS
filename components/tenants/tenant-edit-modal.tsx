@@ -1035,6 +1035,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         closeTenantModal({ force: true })
         router.refresh()
       } else {
+        setTenantModalDirty(true)
         toast({
           title: "Fehler",
           description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
@@ -1042,6 +1043,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         })
       }
     } catch (error: any) {
+      setTenantModalDirty(true)
       toast({
         title: "Unerwarteter Fehler",
         description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
