@@ -31,6 +31,11 @@ export async function proxyToAiService(
   if (userJwt) {
     headers.set('X-User-Jwt', userJwt);
   }
+
+  const existingTraceId = headers.get('x-trace-id') || headers.get('x-posthog-trace-id') || headers.get('x-request-id');
+  const traceId = existingTraceId || crypto.randomUUID();
+  headers.set('X-Trace-Id', traceId);
+
   // Remove original auth headers (JWT/Cookie)
   headers.delete('authorization');
   headers.delete('cookie');
@@ -59,6 +64,7 @@ export async function proxyToAiService(
     filteredHeaders.delete('connection');
     filteredHeaders.delete('content-encoding');
     filteredHeaders.delete('content-length');
+    filteredHeaders.set('X-Trace-Id', traceId);
 
     return new Response(response.body, {
       status: response.status,
