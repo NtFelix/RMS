@@ -3,10 +3,10 @@ import { resolveUserAndOrg } from '@/lib/auth-utils';
 import { proxyToAiService } from '@/lib/ai-service-proxy';
 
 async function handleRequest(req: NextRequest): Promise<Response> {
-  const { user, orgId, errorResponse } = await resolveUserAndOrg(req);
+  const { user, orgId, userJwt, errorResponse } = await resolveUserAndOrg(req);
   if (errorResponse) return errorResponse;
 
-  return proxyToAiService('/api/conversations', req, user.id, orgId);
+  return proxyToAiService('/api/conversations', req, user.id, orgId, userJwt);
 }
 
 export async function GET(req: NextRequest): Promise<Response> {

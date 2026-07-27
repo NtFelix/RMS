@@ -3,7 +3,7 @@ import { proxyToAiService } from '@/lib/ai-service-proxy';
 
 function isCronAuthorized(req: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return true;
+  if (!cronSecret) return false;
   const authHeader = req.headers.get('authorization');
   return authHeader === `Bearer ${cronSecret}`;
 }

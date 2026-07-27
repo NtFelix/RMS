@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { resolveUserAndOrg } from '@/lib/auth-utils';
 import { proxyToAiService } from '@/lib/ai-service-proxy';
 
 export async function GET(
@@ -8,31 +8,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { user, orgId, userJwt, errorResponse } = await resolveUserAndOrg(req);
+    if (errorResponse) return errorResponse;
 
-    const { data: rpcOrgId } = await supabase.rpc('current_organisation_id');
-    let orgId = rpcOrgId;
-
-    if (!orgId) {
-      const { data: membership } = await supabase
-        .from('Organisation_Mitglieder')
-        .select('organisation_id')
-        .eq('user_id', user.id)
-        .eq('status', 'aktiv')
-        .limit(1)
-        .maybeSingle();
-      orgId = membership?.organisation_id || null;
-    }
-
-    if (!orgId) {
-      return NextResponse.json({ error: 'No active organization found' }, { status: 400 });
-    }
-
-    return proxyToAiService(`/api/agents/runs/${id}`, req, user.id, orgId);
+    return proxyToAiService(`/api/agents/runs/${id}`, req, user.id, orgId, userJwt);
   } catch (err: any) {
     console.error('[GET /api/agents/runs/[id]] Internal error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

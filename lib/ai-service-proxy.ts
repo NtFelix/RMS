@@ -57,6 +57,9 @@ export async function proxyToAiService(
   }
 
   const targetUrl = `${baseUrl}${path}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  fetchOptions.signal = controller.signal;
 
   try {
     const response = await fetch(targetUrl, fetchOptions);
@@ -73,10 +76,19 @@ export async function proxyToAiService(
       headers: filteredHeaders,
     });
   } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.error(`[AI Proxy] Request timed out for ${targetUrl}`);
+      return NextResponse.json(
+        { error: 'AI Service request timed out' },
+        { status: 504 }
+      );
+    }
     console.error(`[AI Proxy] Failed to proxy request to ${targetUrl}:`, err);
     return NextResponse.json(
       { error: 'AI Service unavailable' },
       { status: 502 }
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

@@ -8,10 +8,10 @@ async function handleRequest(
   pathSuffix: string
 ): Promise<Response> {
   const { id } = await params;
-  const { user, orgId, errorResponse } = await resolveUserAndOrg(req);
+  const { user, orgId, userJwt, errorResponse } = await resolveUserAndOrg(req);
   if (errorResponse) return errorResponse;
 
-  return proxyToAiService(`/api/conversations/${id}${pathSuffix}`, req, user.id, orgId);
+  return proxyToAiService(`/api/conversations/${id}${pathSuffix}`, req, user.id, orgId, userJwt);
 }
 
 export async function GET(

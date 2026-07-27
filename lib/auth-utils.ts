@@ -80,9 +80,14 @@ export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserA
       .eq('status', 'aktiv')
       .maybeSingle();
 
-    if (requestedMembership) {
-      orgId = requestedMembership.organisation_id;
+    if (!requestedMembership) {
+      return {
+        user: null,
+        orgId: '',
+        errorResponse: NextResponse.json({ error: 'Forbidden: Access to requested organization denied' }, { status: 403 }),
+      };
     }
+    orgId = requestedMembership.organisation_id;
   }
 
   // 2. Fallback to RPC current_organisation_id (verified against active user memberships)

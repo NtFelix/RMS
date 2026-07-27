@@ -50,6 +50,15 @@ export function AIChatSidebar() {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef(messages);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
@@ -426,9 +435,11 @@ export function AIChatSidebar() {
           }
         } else if (data.type === "content" || data.type === "token") {
           const textContent = data.content ?? data.text ?? "";
-          setMessages(prev => prev.map(m =>
-            m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
-          ));
+          if (isMountedRef.current) {
+            setMessages(prev => prev.map(m =>
+              m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
+            ));
+          }
         } else if (data.type === "final_reply" || data.type === "done") {
           finalReply = data.reply || data.text || "";
           traceId = data.traceId || "";
@@ -440,6 +451,7 @@ export function AIChatSidebar() {
       }
 
       while (true) {
+        if (!isMountedRef.current) break;
         const { done, value } = await reader.read();
         if (done) break;
 
