@@ -14,7 +14,7 @@ export async function resolveMitgliedId(
     .eq('user_id', userId)
     .eq('status', 'aktiv')
     .is('geloescht_am', null)
-    .single();
+    .maybeSingle();
 
   if (!member) return null;
   return member.id;
