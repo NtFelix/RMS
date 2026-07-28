@@ -12,6 +12,7 @@ export async function resolveMitgliedId(
     .select('id, rolle')
     .eq('organisation_id', orgId)
     .eq('user_id', userId)
+    .eq('status', 'aktiv')
     .is('geloescht_am', null)
     .single();
 
