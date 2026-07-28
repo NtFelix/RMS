@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import type { User } from "@supabase/supabase-js"
-
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import { getSupabasePublicEnv } from "@/lib/supabase-env"
 
 export async function updateSession(request: NextRequest, response: NextResponse): Promise<User | null> {
   const currentOrgId = request.cookies.get('current_organisation_id')?.value
@@ -10,16 +10,17 @@ export async function updateSession(request: NextRequest, response: NextResponse
     globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
   }
 
+  const { url, anonKey } = getSupabasePublicEnv()
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       global: {
         headers: globalHeaders
       },
       cookies: {
         getAll() {
-
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {

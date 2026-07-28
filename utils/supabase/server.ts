@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { getSupabasePublicEnv } from "@/lib/supabase-env"
 
 export async function createClient(orgIdOverride?: string) {
   const cookieStore = await cookies()
@@ -10,7 +11,9 @@ export async function createClient(orgIdOverride?: string) {
     globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
   }
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const { url, anonKey } = getSupabasePublicEnv()
+
+  return createServerClient(url, anonKey, {
     global: {
       headers: globalHeaders
     },
@@ -32,4 +35,3 @@ export async function createClient(orgIdOverride?: string) {
     },
   })
 }
-

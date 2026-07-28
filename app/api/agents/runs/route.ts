@@ -1,34 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { resolveUserAndOrg } from '@/lib/auth-utils';
+import { proxyToAiService } from '@/lib/ai-service-proxy';
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user, orgId, userJwt, errorResponse } = await resolveUserAndOrg(req);
+    if (errorResponse) return errorResponse;
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const agentId = searchParams.get('agent_id') || searchParams.get('agentId') || null;
-    const status = searchParams.get('status') || null;
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
-
-    const { data, error } = await supabase.rpc('get_ki_agenten_runs', {
-      p_agent_id: agentId,
-      p_status: status,
-      p_limit: limit,
-      p_offset: offset,
-    });
-
-    if (error) {
-      console.error('[GET /api/agents/runs] RPC error:', error);
-      return NextResponse.json({ error: 'Failed to fetch agent runs' }, { status: 500 });
-    }
-
-    return NextResponse.json(data || []);
+    return proxyToAiService('/api/agents/runs', req, user.id, orgId, userJwt);
   } catch (err: any) {
     console.error('[GET /api/agents/runs] Internal error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -50,6 +50,18 @@ export function AIChatSidebar() {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesRef = useRef(messages);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
@@ -357,9 +369,16 @@ export function AIChatSidebar() {
     });
 
     try {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       const clientNachrichtId = uuidv4();
       const res = await fetch("/api/chat", {
         method: "POST",
+        signal: controller.signal,
         headers: { 
           "Content-Type": "application/json",
           "X-Idempotency-Key": clientNachrichtId
@@ -394,7 +413,55 @@ export function AIChatSidebar() {
       let toolResults: ToolCallRecord[] = [];
       let receivedDone = false;
 
+      function processStreamLine(raw: string) {
+        let clean = raw.trim();
+        if (clean.startsWith("data: ")) {
+          clean = clean.slice(6).trim();
+        }
+        if (!clean || clean === "[DONE]") return;
+
+        let data: any;
+        try {
+          data = JSON.parse(clean);
+        } catch (e) {
+          return;
+        }
+
+        if (data.type === "step_start") {
+          if (currentStepId) {
+            updateStep(currentStepId, { status: "done" });
+            currentStepId = null;
+          }
+          currentStepId = addStep(data.stepType, data.label, "loading", data.detail);
+        } else if (data.type === "step_done") {
+          if (currentStepId) {
+            updateStep(currentStepId, { status: "done" });
+            currentStepId = null;
+          }
+        } else if (data.type === "tool_result") {
+          toolResults.push(data.toolCall);
+          if (currentStepId) {
+            updateStep(currentStepId, { toolResult: data.toolCall });
+          }
+        } else if (data.type === "content" || data.type === "token") {
+          const textContent = data.content ?? data.text ?? "";
+          if (isMountedRef.current) {
+            setMessages(prev => prev.map(m =>
+              m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
+            ));
+          }
+        } else if (data.type === "final_reply" || data.type === "done") {
+          finalReply = data.reply || data.text || "";
+          traceId = data.traceId || "";
+          toolResults = data.toolCalls || toolResults;
+          receivedDone = true;
+        } else if (data.type === "error") {
+          throw new Error(data.message);
+        }
+      }
+
       while (true) {
+        if (!isMountedRef.current) break;
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -403,46 +470,20 @@ export function AIChatSidebar() {
         buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          if (!line.trim()) continue;
           try {
-            const data = JSON.parse(line);
-            
-            if (data.type === "step_start") {
-              if (currentStepId) {
-                updateStep(currentStepId, { status: "done" });
-                currentStepId = null;
-              }
-              currentStepId = addStep(data.stepType, data.label, "loading", data.detail);
-            } 
-            else if (data.type === "step_done") {
-              if (currentStepId) {
-                updateStep(currentStepId, { status: "done" });
-                currentStepId = null;
-              }
-            } 
-            else if (data.type === "tool_result") {
-              toolResults.push(data.toolCall);
-              if (currentStepId) {
-                updateStep(currentStepId, { toolResult: data.toolCall });
-              }
-            } 
-            else if (data.type === "content") {
-              setMessages(prev => prev.map(m => 
-                m.id === aiMessageId ? { ...m, content: m.content + data.content } : m
-              ));
-            }
-            else if (data.type === "final_reply") {
-              finalReply = data.reply;
-              traceId = data.traceId;
-              toolResults = data.toolCalls || toolResults;
-              receivedDone = true;
-            }
-            else if (data.type === "error") {
-              throw new Error(data.message);
-            }
+            processStreamLine(line);
           } catch (e) {
             console.error("Error parsing stream line:", e, line);
           }
+        }
+      }
+
+      // Process any remaining content left in buffer when stream ends
+      if (buffer.trim()) {
+        try {
+          processStreamLine(buffer);
+        } catch (e) {
+          console.error("Error parsing trailing stream line:", e, buffer);
         }
       }
 
