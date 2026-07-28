@@ -3,7 +3,6 @@ import { createClient } from "@/utils/supabase/server"
 import { ROUTES } from "@/lib/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()

@@ -1,7 +1,6 @@
 // "use client" directive removed from the top of this file.
 // This file now exports a Server Component by default.
 
-export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";

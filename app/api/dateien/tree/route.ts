@@ -2,7 +2,6 @@ import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 interface TreeNode {
   id: string

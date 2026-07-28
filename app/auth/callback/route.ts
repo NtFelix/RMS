@@ -5,7 +5,6 @@ import { capturePostHogEvent } from "@/lib/posthog-helpers"
 import { ROUTES, BASE_URL } from "@/lib/constants"
 import { getSafeAuthRedirect } from "@/lib/auth-redirects"
 
-export const runtime = 'edge'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)

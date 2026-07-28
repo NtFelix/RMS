@@ -1,6 +1,5 @@
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
 
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { requirePermission } from "@/lib/permissions";

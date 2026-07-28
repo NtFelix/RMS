@@ -5,7 +5,6 @@ import ConsentUI from './ConsentUI';
 import { getAuthorizationDetailsAction, type AuthorizationDetails } from './actions';
 
 
-export const runtime = 'edge';
 
 interface PageProps {
     searchParams: Promise<{

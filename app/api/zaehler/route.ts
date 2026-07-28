@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 export async function GET(request: NextRequest) {
   try {

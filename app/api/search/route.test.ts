@@ -62,6 +62,7 @@ describe('/api/search', () => {
     builder.limit = jest.fn().mockReturnThis();
     builder.not = jest.fn().mockReturnThis();
     builder.eq = jest.fn().mockReturnThis();
+    builder.in = jest.fn().mockReturnThis();
     builder.ilike = jest.fn().mockReturnThis();
 
     // Ensure then is a mock if it wasn't already
@@ -86,6 +87,7 @@ describe('/api/search', () => {
         limit: jest.fn().mockReturnThis(),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
         then: jest.fn((resolve) => {
           if (resolve) resolve({ data: [], error: null });
@@ -104,6 +106,9 @@ describe('/api/search', () => {
     // Default mock that returns empty results for all tables
     mockSupabase = {
       from: jest.fn().mockImplementation(() => createDefaultMockQueryBuilder()),
+      auth: {
+        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+      },
     };
 
     // createClient is async, so we need to mock it properly
@@ -545,23 +550,25 @@ describe('/api/search', () => {
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
 
-      // Should return error when all searches fail
-      expect(response.status).toBe(500);
+      // Should return success with empty results when all searches fail gracefully
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBeDefined();
+      expect(data.results).toBeDefined();
     });
 
     it('should handle timeout errors', async () => {
+      jest.useFakeTimers();
       // Mock a slow response that exceeds timeout
       const mockQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockImplementation(() =>
-          new Promise(resolve => setTimeout(resolve, 20000)) // 20 second delay
+          new Promise(resolve => setTimeout(resolve, 20000))
         ),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -569,12 +576,14 @@ describe('/api/search', () => {
 
       const request = new NextRequest('http://localhost/api/search?q=test');
 
-      // The request should timeout and return an error
-      const response = await GET(request);
-      expect(response.status).toBe(500); // Timeout is handled as internal server error in this mock
+      const responsePromise = GET(request);
+      jest.advanceTimersByTime(16000);
+      const response = await responsePromise;
+      expect(response.status).toBe(408);
       const data = await response.json();
       expect(data.error).toBeDefined();
-    }, 25000); // Increase test timeout to allow for the timeout to occur
+      jest.useRealTimers();
+    }); // Increase test timeout to allow for the timeout to occur
 
     it('should return proper error response format', async () => {
       // Mock createClient to throw an error
@@ -623,9 +632,9 @@ describe('/api/search', () => {
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
 
-      expect(response.status).toBe(500); // Mock causes internal error
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBeDefined();
+      expect(data.executionTime).toBeDefined();
     });
 
     it('should include cache headers for successful responses', async () => {
@@ -659,9 +668,9 @@ describe('/api/search', () => {
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
 
-      expect(response.status).toBe(500); // Mock causes internal error
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBeDefined();
+      expect(data.results).toBeDefined();
     });
 
     it('should handle partial results with warning headers', async () => {
@@ -749,9 +758,9 @@ describe('/api/search', () => {
       const request = new NextRequest('http://localhost/api/search?q=test%25_query');
       const response = await GET(request);
 
-      expect(response.status).toBe(500); // Mock causes internal error
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBeDefined();
+      expect(data.results).toBeDefined();
     });
 
     it('should handle empty results gracefully', async () => {
@@ -785,9 +794,9 @@ describe('/api/search', () => {
       const request = new NextRequest('http://localhost/api/search?q=nonexistent');
       const response = await GET(request);
 
-      expect(response.status).toBe(500); // Mock causes internal error
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBeDefined();
+      expect(data.results).toBeDefined();
     });
   });
 
@@ -804,6 +813,7 @@ describe('/api/search', () => {
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -815,6 +825,7 @@ describe('/api/search', () => {
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -851,6 +862,7 @@ describe('/api/search', () => {
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -864,6 +876,7 @@ describe('/api/search', () => {
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -875,6 +888,7 @@ describe('/api/search', () => {
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 

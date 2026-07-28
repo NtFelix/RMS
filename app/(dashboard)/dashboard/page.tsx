@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { requireAuthenticatedUser } from '@/lib/server/route-access';
 
-export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 // Prevent this private dashboard page from being indexed by search engines

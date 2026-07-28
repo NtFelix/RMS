@@ -2,7 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSearch } from './use-search';
 
 // Mock the useDebounce hook
-jest.mock('../use-debounce', () => ({
+jest.mock('./use-debounce', () => ({
   useDebounce: jest.fn()
 }));
 

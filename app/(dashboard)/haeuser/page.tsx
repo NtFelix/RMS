@@ -1,6 +1,5 @@
 // "use client" directive removed. This file is now a pure Server Component.
 
-export const runtime = 'edge';
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";

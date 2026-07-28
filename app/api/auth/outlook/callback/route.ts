@@ -3,7 +3,6 @@ import { createClient } from "@/utils/supabase/server"
 import { encryptToken } from "@/lib/encryption"
 import { ROUTES } from "@/lib/constants"
 
-export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams

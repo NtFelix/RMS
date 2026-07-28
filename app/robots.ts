@@ -1,8 +1,6 @@
 import { MetadataRoute } from 'next'
 import { ROUTES } from '@/lib/constants'
 
-// Required for Cloudflare Pages deployment
-export const runtime = 'edge'
 
 export default function robots(): MetadataRoute.Robots {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'

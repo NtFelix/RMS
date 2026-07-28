@@ -5,7 +5,6 @@ import { requireAuthenticatedUserForApi } from "@/lib/server/route-access";
 import { z } from "zod";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-export const runtime = 'edge';
 
 // Zod schema for request body validation with conditional validation
 const setupBodySchema = z.object({
