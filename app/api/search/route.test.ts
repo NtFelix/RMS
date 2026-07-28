@@ -43,12 +43,16 @@ describe('/api/search', () => {
     limit: jest.Mock<MockQueryBuilder | Promise<MockQueryResult>>;
     not: jest.Mock<MockQueryBuilder>;
     eq: jest.Mock<MockQueryBuilder>;
+    in: jest.Mock<MockQueryBuilder>;
     ilike: jest.Mock<MockQueryBuilder>;
     then: jest.Mock<any>;
   }
 
   let mockSupabase: {
     from: jest.Mock;
+    auth: {
+      getUser: jest.Mock;
+    };
   };
 
   /**
