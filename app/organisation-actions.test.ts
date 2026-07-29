@@ -40,7 +40,7 @@ describe('organisation-actions', () => {
   describe('createEinladungAction', () => {
     it('should successfully invite a user', async () => {
       const result = await createEinladungAction('test@example.com', 'mitarbeiter');
-      expect(result).toEqual({ success: true, data: 'success' });
+      expect(result).toEqual({ success: true, data: 'success', email: { sent: false } });
       expect(mockSupabase.rpc).toHaveBeenCalledWith('create_einladung', {
         p_email: 'test@example.com',
         p_rolle: 'mitarbeiter',

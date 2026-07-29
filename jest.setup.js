@@ -156,6 +156,38 @@ jest.mock('@/lib/auth-utils', () => ({
       supabase,
     };
   }),
+  resolveUserAndOrg: jest.fn().mockImplementation(async (req) => {
+    const { createClient } = require('@/utils/supabase/server');
+    const supabase = await createClient();
+    if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
+      try {
+        const res = await supabase.auth.getUser();
+        if (res && (res.error || (res.data && res.data.user === null))) {
+          return { errorResponse: new Response(JSON.stringify({ error: 'Nicht authentifiziert' }), { status: 401 }) };
+        }
+        if (res && res.data && res.data.user) {
+          return {
+            user: res.data.user,
+            supabase,
+            orgId: 'test-org-id',
+            userJwt: 'test-jwt',
+          };
+        }
+      } catch (e) {
+        // fall through to default
+      }
+    }
+    return {
+      user: { id: 'test-user-id', email: 'test@example.com' },
+      orgId: 'test-org-id',
+      userJwt: 'test-jwt',
+      supabase,
+    };
+  }),
+}));
+
+jest.mock('@/lib/ai-service-proxy', () => ({
+  proxyToAiService: jest.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 })),
 }));
 
 jest.mock('next/server', () => ({

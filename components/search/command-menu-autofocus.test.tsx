@@ -13,25 +13,77 @@ jest.mock('next/navigation')
 
 const mockUseCommandMenu = useCommandMenu as jest.MockedFunction<typeof useCommandMenu>
 
-// Mock other dependencies
-jest.mock('@/hooks/use-search', () => ({
-  useSearch: () => ({
-    query: '',
-    setQuery: jest.fn(),
-    results: [],
-    isLoading: false,
-    error: null,
-    totalCount: 0,
-    executionTime: 0,
-    clearSearch: jest.fn(),
-    retry: jest.fn(),
-    retryCount: 0,
-    isOffline: false,
-    lastSuccessfulQuery: '',
-    suggestions: [],
-    recentSearches: [],
-    addToRecentSearches: jest.fn()
-  })
+// Mock the command components
+jest.mock('@/components/ui/command', () => ({
+  Command: ({ children, shouldFilter, ...props }: any) => (
+    <div data-testid="command" {...props}>{children}</div>
+  ),
+  CommandDialog: ({ children, open, onOpenChange }: any) => {
+    React.useEffect(() => {
+      const handler = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault();
+          onOpenChange(true);
+        }
+      };
+      document.addEventListener('keydown', handler);
+      return () => document.removeEventListener('keydown', handler);
+    }, [onOpenChange]);
+
+    if (!open) return null;
+    return (
+      <div data-testid="command-dialog" data-open={open}>
+        {children}
+      </div>
+    );
+  },
+  CommandInput: React.forwardRef(({ placeholder, value, onValueChange, ...props }: any, ref: any) => (
+    <div cmdk-input-wrapper="">
+      <input
+        ref={ref}
+        data-testid="command-input"
+        role="combobox"
+        cmdk-input=""
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onValueChange?.(e.target.value)}
+        {...props}
+      />
+    </div>
+  )),
+  CommandList: ({ children }: any) => <div data-testid="command-list" role="listbox">{children}</div>,
+  CommandEmpty: ({ children }: any) => <div data-testid="command-empty">{children}</div>,
+  CommandGroup: ({ children, heading }: any) => (
+    <div data-testid="command-group" role="group" aria-label={heading}>
+      {heading && <div data-testid="command-group-heading">{heading}</div>}
+      {children}
+    </div>
+  ),
+  CommandItem: ({ children, onSelect, ...props }: any) => (
+    <div
+      data-testid="command-item"
+      role="option"
+      tabIndex={0}
+      onClick={() => onSelect?.()}
+      {...props}
+    >
+      {children}
+    </div>
+  ),
+  CommandShortcut: ({ children, ...props }: any) => (
+    <span data-testid="command-shortcut" {...props}>{children}</span>
+  ),
+}))
+
+jest.mock('@/components/search/search-error-boundary', () => ({
+  SearchErrorBoundary: ({ children }: any) => <div>{children}</div>,
+}))
+
+jest.mock('@/components/search/search-loading-states', () => ({
+  SearchLoadingIndicator: () => <div data-testid="search-loading" />,
+  SearchEmptyState: () => <div data-testid="search-empty" />,
+  SearchStatusBar: () => <div data-testid="search-status" />,
+  NetworkStatusIndicator: () => <div data-testid="network-status" />,
 }))
 
 jest.mock('@/hooks/use-modal-store', () => ({
@@ -57,6 +109,8 @@ jest.mock('next/navigation', () => ({
   })
 }))
 
+const mockUseSearch = require('@/hooks/use-search').useSearch as jest.MockedFunction<any>
+
 describe('CommandMenu Auto-Focus', () => {
   const mockSetOpen = jest.fn()
 
@@ -65,6 +119,23 @@ describe('CommandMenu Auto-Focus', () => {
     mockUseCommandMenu.mockReturnValue({
       open: false,
       setOpen: mockSetOpen
+    })
+    mockUseSearch.mockReturnValue({
+      query: '',
+      setQuery: jest.fn(),
+      results: [],
+      isLoading: false,
+      error: null,
+      totalCount: 0,
+      executionTime: 0,
+      clearSearch: jest.fn(),
+      retry: jest.fn(),
+      retryCount: 0,
+      isOffline: false,
+      lastSuccessfulQuery: '',
+      suggestions: [],
+      recentSearches: [],
+      addToRecentSearches: jest.fn()
     })
   })
 
@@ -150,26 +221,23 @@ describe('CommandMenu Auto-Focus', () => {
   it('should clear search when menu is closed', async () => {
     const mockClearSearch = jest.fn()
     
-    // Mock useSearch to return a query and clearSearch function
-    jest.doMock('@/hooks/use-search', () => ({
-      useSearch: () => ({
-        query: 'test query',
-        setQuery: jest.fn(),
-        results: [],
-        isLoading: false,
-        error: null,
-        totalCount: 0,
-        executionTime: 0,
-        clearSearch: mockClearSearch,
-        retry: jest.fn(),
-        retryCount: 0,
-        isOffline: false,
-        lastSuccessfulQuery: '',
-        suggestions: [],
-        recentSearches: [],
-        addToRecentSearches: jest.fn()
-      })
-    }))
+    mockUseSearch.mockReturnValue({
+      query: 'test query',
+      setQuery: jest.fn(),
+      results: [],
+      isLoading: false,
+      error: null,
+      totalCount: 0,
+      executionTime: 0,
+      clearSearch: mockClearSearch,
+      retry: jest.fn(),
+      retryCount: 0,
+      isOffline: false,
+      lastSuccessfulQuery: '',
+      suggestions: [],
+      recentSearches: [],
+      addToRecentSearches: jest.fn()
+    })
     
     // Start with open menu
     mockUseCommandMenu.mockReturnValue({

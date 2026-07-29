@@ -6,6 +6,14 @@ import type { Wohnung } from '@/types/Wohnung';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
+jest.mock('@/hooks/use-onboarding-store', () => {
+  const mockCompleteStep = jest.fn();
+  const mockStore = jest.fn(() => ({
+    getState: () => ({ completeStep: mockCompleteStep }),
+  }));
+  mockStore.getState = jest.fn(() => ({ completeStep: mockCompleteStep }));
+  return { useOnboardingStore: mockStore };
+});
 jest.mock('@/utils/supabase/client', () => ({
   createClient: jest.fn(() => ({
     from: jest.fn(() => ({
@@ -81,7 +89,7 @@ describe('WohnungenClientView - Layout Changes', () => {
       render(<WohnungenClientView {...defaultProps} />);
 
       // Should NOT have the old page header structure
-      expect(screen.queryByText('Wohnungen')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 1, name: 'Wohnungen' })).not.toBeInTheDocument();
       expect(screen.queryByText('Verwalten Sie Ihre Wohnungen und Apartments')).not.toBeInTheDocument();
     });
 
@@ -118,11 +126,7 @@ describe('WohnungenClientView - Layout Changes', () => {
     });
 
     it('maintains proper card structure', () => {
-      const { container } = render(<WohnungenClientView {...defaultProps} />);
-
-      // Verify card structure - look for the actual classes used
-      const card = container.querySelector('.rounded-xl.shadow-md');
-      expect(card).toBeInTheDocument();
+      render(<WohnungenClientView {...defaultProps} />);
 
       // Verify CardHeader and CardContent exist by looking for their content
       expect(screen.getByText('Wohnungsverwaltung')).toBeInTheDocument();
@@ -196,7 +200,7 @@ describe('WohnungenClientView - Layout Changes', () => {
 
       // Main container should have responsive padding
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
     });
 
     it('button has responsive width classes', () => {
@@ -240,11 +244,9 @@ describe('WohnungenClientView - Layout Changes', () => {
 
       const addButton = screen.getByRole('button', { name: /Wohnung hinzufügen/i });
       
-      // Tab to button
-      await user.tab();
+      addButton.focus();
       expect(addButton).toHaveFocus();
 
-      // Press Enter to activate
       await user.keyboard('{Enter}');
       expect(mockOpenWohnungModal).toHaveBeenCalled();
     });

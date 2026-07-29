@@ -17,6 +17,7 @@ const mockUpdateEq = jest.fn();
 const mockDeleteEq = jest.fn();
 const mockUpdateIn = jest.fn();
 const mockDeleteIn = jest.fn();
+const mockRpc = jest.fn();
 
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
@@ -32,6 +33,7 @@ const mockSupabase = {
     update: mockUpdate,
     delete: mockDelete,
   })),
+  rpc: mockRpc,
 };
 
 jest.mock('@/utils/supabase/server', () => ({
@@ -88,6 +90,7 @@ describe('Todos Server Actions', () => {
     mockSingle.mockResolvedValue({ data: { id: 'task-1', name: 'Task 1' }, error: null });
     mockDeleteEq.mockResolvedValue({ data: null, error: null });
     mockDeleteIn.mockResolvedValue({ count: 2, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: null });
   });
 
   describe('aufgabeServerAction', () => {
@@ -168,8 +171,15 @@ describe('Todos Server Actions', () => {
       it('should delete multiple tasks', async () => {
           const result = await bulkDeleteTasksAction(['t1', 't2']);
 
-          expect(mockDelete).toHaveBeenCalled();
-          expect(mockDeleteIn).toHaveBeenCalledWith('id', ['t1', 't2']);
+          expect(mockSupabase.rpc).toHaveBeenCalledTimes(2);
+          expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+            p_table_name: 'Aufgaben',
+            p_record_id: 't1',
+          });
+          expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+            p_table_name: 'Aufgaben',
+            p_record_id: 't2',
+          });
           expect(result.success).toBe(true);
           expect(result.deletedCount).toBe(2);
       });
@@ -179,8 +189,10 @@ describe('Todos Server Actions', () => {
       it('should delete a task', async () => {
           const result = await deleteTaskAction('task-1');
 
-          expect(mockDelete).toHaveBeenCalled();
-          expect(mockDeleteEq).toHaveBeenCalledWith('id', 'task-1');
+          expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+            p_table_name: 'Aufgaben',
+            p_record_id: 'task-1',
+          });
           expect(result.success).toBe(true);
       });
   });

@@ -157,18 +157,20 @@ describe('meter-actions', () => {
   describe('deleteZaehler', () => {
     it('deletes a meter successfully', async () => {
       const chain = {
-        delete: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: { id: 'm1' }, error: null })
       };
       mockSupabase.from.mockReturnValue(chain);
-      mockSupabase.delete.mockResolvedValue({ error: null });
+      mockSupabase.rpc.mockResolvedValue({ error: null });
 
       const result = await deleteZaehler('m1');
 
       expect(result.success).toBe(true);
-      expect(chain.delete).toHaveBeenCalled();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Zaehler',
+        p_record_id: 'm1',
+      });
     });
   });
 });
