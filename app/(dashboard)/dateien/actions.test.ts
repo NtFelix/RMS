@@ -45,8 +45,8 @@ describe('dateien/actions', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(), // mockResolvedValue will be used on this
       maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }), // used by house/apartment/tenant checks
-      then: jest.fn((resolve) => resolve({ data: [], error: null })), // Default resolution for await builder
-    };
+      then: jest.fn((resolve: any) => resolve({ data: [], error: null })), // Default resolution for await builder
+    } as any;
 
     mockStorageBuilder = {
       createSignedUrl: jest.fn(),

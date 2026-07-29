@@ -107,7 +107,7 @@ describe('/api/search', () => {
       auth: {
         getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user' } }, error: null }),
       },
-    };
+    } as any;
 
     // createClient is async, so we need to mock it properly
     mockCreateClient.mockResolvedValue(mockSupabase as unknown as SupabaseClient<any, "public", any>);

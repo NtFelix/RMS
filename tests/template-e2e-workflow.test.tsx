@@ -412,7 +412,7 @@ describe('Template Management E2E Workflow', () => {
       mockDeleteTemplate.mockRejectedValue(new Error('Cannot delete template'));
 
       let onConfirmCallback: (() => Promise<void>) | null = null;
-      const mockOpenConfirmationModal = jest.fn((config) => {
+      const mockOpenConfirmationModal = jest.fn((config: any) => {
         onConfirmCallback = config.onConfirm;
       });
 
@@ -431,7 +431,7 @@ describe('Template Management E2E Workflow', () => {
 
       // Trigger the confirmation callback
       if (onConfirmCallback) {
-        await onConfirmCallback();
+        await (onConfirmCallback as () => Promise<void>)();
       }
 
       expect(mockDeleteTemplate).toHaveBeenCalledWith('1');
