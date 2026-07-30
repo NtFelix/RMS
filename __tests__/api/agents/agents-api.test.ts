@@ -141,37 +141,11 @@ describe('Agents API Endpoints', () => {
     });
   });
 
-  describe('POST /api/agents/[id]/run', () => {
-    it('creates run record for active agent', async () => {
+  describe('POST /api/agents/[id]/run (proxied to AI service)', () => {
+    it('proxies run request to AI service', async () => {
       const params = Promise.resolve({ id: 'agent-123' });
-      mockRpc.mockResolvedValueOnce({
-        data: { id: 'agent-123', status: 'aktiv', organisation_id: 'org-1', trigger: { type: 'manual' } },
-        error: null,
-      });
-
-      const buildQuery = (resolveValue: any) => {
-        const q = jest.fn(() => q) as any;
-        q.select = jest.fn(() => q);
-        q.eq = jest.fn(() => q);
-        q.is = jest.fn(() => q);
-        q.single = jest.fn().mockResolvedValue(resolveValue);
-        q.maybeSingle = jest.fn().mockResolvedValue(resolveValue);
-        q.insert = jest.fn(() => q);
-        return q;
-      };
-
-      const memberQuery = buildQuery({ data: { id: 'member-1', rolle: 'mitarbeiter' }, error: null });
-      const accessQuery = buildQuery({ data: { zugriffs_level: 'view' }, error: null });
-      const runInsertQuery = buildQuery(null);
-      runInsertQuery.select = jest.fn(() => runInsertQuery);
-      const runSingleResolve = { data: { id: 'run-999' }, error: null };
-      runInsertQuery.single = jest.fn().mockResolvedValue(runSingleResolve);
-
-      mockFrom.mockImplementation((table: string) => {
-        if (table === 'Organisation_Mitglieder') return memberQuery;
-        if (table === 'KI_Agenten_Zugriffsrechte') return accessQuery;
-        return runInsertQuery;
-      });
+      const { proxyToAiService } = require('@/lib/ai-service-proxy');
+      proxyToAiService.mockResolvedValue(new Response(JSON.stringify({ runId: 'run-999' }), { status: 202 }));
 
       const req = createMockRequest('http://localhost/api/agents/agent-123/run', { method: 'POST' });
       const res = await POST_RUN(req, { params });
@@ -181,9 +155,11 @@ describe('Agents API Endpoints', () => {
     });
   });
 
-  describe('GET /api/agents/runs and /api/agents/runs/[id]', () => {
+  describe('GET /api/agents/runs and /api/agents/runs/[id] (proxied to AI service)', () => {
     it('GET /api/agents/runs returns list of runs', async () => {
-      mockRpc.mockResolvedValueOnce({ data: [{ id: 'run-1' }], error: null });
+      const { proxyToAiService } = require('@/lib/ai-service-proxy');
+      proxyToAiService.mockResolvedValue(new Response(JSON.stringify([{ id: 'run-1' }]), { status: 200 }));
+
       const req = createMockRequest('http://localhost/api/agents/runs');
       const res = await GET_RUNS(req);
       expect(res.status).toBe(200);
@@ -191,7 +167,9 @@ describe('Agents API Endpoints', () => {
 
     it('GET /api/agents/runs/[id] returns run details', async () => {
       const params = Promise.resolve({ id: 'run-1' });
-      mockRpc.mockResolvedValueOnce({ data: { id: 'run-1', nachrichten: [] }, error: null });
+      const { proxyToAiService } = require('@/lib/ai-service-proxy');
+      proxyToAiService.mockResolvedValue(new Response(JSON.stringify({ id: 'run-1', nachrichten: [] }), { status: 200 }));
+
       const req = createMockRequest('http://localhost/api/agents/runs/run-1');
       const res = await GET_RUN_ID(req, { params });
       expect(res.status).toBe(200);

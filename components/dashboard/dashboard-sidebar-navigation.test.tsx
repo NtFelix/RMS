@@ -105,7 +105,8 @@ describe('DashboardSidebar Navigation', () => {
       '/betriebskosten',
       '/todos',
       '/dateien',
-      '/mails'
+      '/mails',
+      '/agenten'
     ])
   })
 })
