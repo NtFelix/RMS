@@ -114,7 +114,7 @@ interface TenantSimple {
   wohnung_id?: string | null;
   einzug?: string | null;
   auszug?: string | null;
-  nebenkosten?: any[];
+  nebenkosten?: Array<{ amount?: number | string; date?: string | number | Date }> | null;
 }
 
 interface FinanceSimple {

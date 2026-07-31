@@ -24,7 +24,6 @@ import { LastTransactionsContainer } from "@/components/finance/last-transaction
 import {
   RevenueExpensesChart,
   OccupancyChart,
-  MaintenanceDonutChart,
   NebenkostenChart
 } from "@/components/dashboard/dashboard-charts-wrapper"
 

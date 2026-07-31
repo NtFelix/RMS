@@ -7,7 +7,6 @@ import { fetchNebenkostenListOptimized } from "@/app/betriebskosten-actions";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import BetriebskostenClientView from "./client-wrapper"; // Import the default export
 // Types are still needed for data fetching
-import { Haus } from "../../../lib/data-fetching";
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -16,15 +15,13 @@ export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
   // Permission check.
-  const [canView, canCreate, canEdit, canDelete, canViewMeters, accessibleHaeuserResult] = await Promise.all([
+  const [canView, canCreate, canEdit, canDelete, canViewMeters] = await Promise.all([
     hasPermission('betriebskosten', 'ansehen'),
     hasPermission('betriebskosten', 'erstellen'),
     hasPermission('betriebskosten', 'bearbeiten'),
     hasPermission('betriebskosten', 'loeschen'),
     hasPermission('zaehler', 'ansehen'),
-    supabase.rpc('get_accessible_haeuser_ids'),
   ]);
-  const accessibleIds = accessibleHaeuserResult.data;
   if (!canView) {
     redirect('/unauthorized');
   }

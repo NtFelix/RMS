@@ -771,7 +771,7 @@ jobs:
           scanners: vuln,secret
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3
+        uses: github/codeql-action/upload-sarif@babb0d65b7501a3cf8d45ec19890a5089f7f4a21 # v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -790,6 +790,7 @@ jobs:
         with:
           name: sbom
           path: sbom.spdx.json
+          if-no-files-found: ignore
           retention-days: 90
 
       - name: Dive image layer analysis
