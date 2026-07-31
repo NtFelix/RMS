@@ -17,6 +17,14 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+// Mock ResizeObserver for JSDOM environments using Radix UI components
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+global.ResizeObserver = MockResizeObserver;
+
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 const mockToast = toast as jest.MockedFunction<typeof toast>;
 
@@ -70,8 +78,8 @@ describe('FinanceEditModal', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
 
       expect(screen.getByText('Transaktion hinzufügen')).toBeInTheDocument();
-      expect(screen.getByText('Füllen Sie die erforderlichen Felder aus.')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Speichern' })).toBeInTheDocument();
+      expect(screen.getByText('Fügen Sie eine neue Einnahme oder Ausgabe hinzu.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Transaktion anlegen' })).toBeInTheDocument();
     });
 
     it('renders edit modal when initial data is provided', () => {
@@ -93,7 +101,7 @@ describe('FinanceEditModal', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
 
       expect(screen.getByText('Transaktion bearbeiten')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Aktualisieren' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Änderungen speichern' })).toBeInTheDocument();
     });
 
     it('does not render when modal is closed', () => {
@@ -200,7 +208,7 @@ describe('FinanceEditModal', () => {
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -238,7 +246,7 @@ describe('FinanceEditModal', () => {
 
       render(<FinanceEditModal serverAction={mockServerAction} />);
 
-      const submitButton = screen.getByRole('button', { name: 'Aktualisieren' });
+      const submitButton = screen.getByRole('button', { name: 'Änderungen speichern' });
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -266,7 +274,7 @@ describe('FinanceEditModal', () => {
       nameInput.removeAttribute('required');
       betragInput.removeAttribute('required');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -289,7 +297,7 @@ describe('FinanceEditModal', () => {
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -313,7 +321,7 @@ describe('FinanceEditModal', () => {
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -338,7 +346,7 @@ describe('FinanceEditModal', () => {
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       expect(screen.getByRole('button', { name: 'Wird gespeichert...' })).toBeDisabled();
@@ -368,7 +376,7 @@ describe('FinanceEditModal', () => {
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -386,7 +394,7 @@ describe('FinanceEditModal', () => {
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       await waitFor(() => {
@@ -421,7 +429,7 @@ describe('FinanceEditModal', () => {
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
 
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      const submitButton = screen.getByRole('button', { name: 'Transaktion anlegen' });
       await user.click(submitButton);
 
       await waitFor(() => {
