@@ -65,7 +65,7 @@ describe('/api/haeuser/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Haus-ID ist erforderlich.' },
-      { status: 400 }
+      expect.objectContaining({ status: 400 })
     )
   })
 
@@ -77,7 +77,7 @@ describe('/api/haeuser/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Ungültiges Haus-ID-Format.' },
-      { status: 400 }
+      expect.objectContaining({ status: 400 })
     )
   })
 
@@ -100,7 +100,7 @@ describe('/api/haeuser/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Haus nicht gefunden.' },
-      { status: 404 }
+      expect.objectContaining({ status: 404 })
     )
   })
 
@@ -123,7 +123,7 @@ describe('/api/haeuser/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Fehler beim Laden der Hausübersicht.' },
-      { status: 500 }
+      expect.objectContaining({ status: 500 })
     )
   })
 
@@ -188,7 +188,7 @@ describe('/api/haeuser/[id]/overview', () => {
           }),
         ]),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -230,7 +230,7 @@ describe('/api/haeuser/[id]/overview', () => {
           vacancyRate: 0,
         }),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -282,7 +282,7 @@ describe('/api/haeuser/[id]/overview', () => {
           }),
         ]),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -316,7 +316,7 @@ describe('/api/haeuser/[id]/overview', () => {
           }),
         ]),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 })

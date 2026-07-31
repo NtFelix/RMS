@@ -66,6 +66,7 @@ describe('mieter-actions', () => {
       in: jest.fn().mockReturnThis(),
       or: jest.fn().mockReturnThis(),
       single: jest.fn(),
+      rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
       auth: mockAuth,
     };
 
@@ -135,22 +136,21 @@ describe('mieter-actions', () => {
   });
 
   describe('deleteTenantAction', () => {
-    it('deletes tenant successfully', async () => {
-      mockSupabase.delete.mockReturnThis();
-      mockSupabase.eq.mockResolvedValue({ error: null });
+    it('deletes tenant successfully via soft delete', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
       const result = await deleteTenantAction('t1');
 
       expect(result.success).toBe(true);
-      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', 't1');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Mieter',
+        p_record_id: 't1',
+      });
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
     });
 
     it('handles deletion error', async () => {
-      mockSupabase.delete.mockReturnThis();
-      mockSupabase.eq.mockResolvedValue({ error: { message: 'Delete failed' } });
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'Delete failed' } });
 
       const result = await deleteTenantAction('t1');
 

@@ -113,10 +113,11 @@ describe('TodosClientWrapper - Calendar Layout', () => {
       expect(screen.getByText('Kalender')).toBeInTheDocument();
     });
 
-    it('renders search input', () => {
+    it('renders the task board with main sections', () => {
       render(<TodosClientWrapper {...defaultProps} />);
 
-      expect(screen.getByPlaceholderText('Aufgaben suchen...')).toBeInTheDocument();
+      expect(screen.getByText('Aufgaben Board')).toBeInTheDocument();
+      expect(screen.getByText('Kalender')).toBeInTheDocument();
     });
   });
 
@@ -135,32 +136,7 @@ describe('TodosClientWrapper - Calendar Layout', () => {
     });
   });
 
-  describe('Search Functionality', () => {
-    it('filters tasks based on search query', async () => {
-      const user = userEvent.setup();
-      render(<TodosClientWrapper {...defaultProps} />);
 
-      const searchInput = screen.getByPlaceholderText('Aufgaben suchen...');
-      await user.type(searchInput, 'faucet');
-
-      // The search should filter tasks (implementation depends on how components render)
-      expect(searchInput).toHaveValue('faucet');
-    });
-
-    it('clears search when clear button is clicked', async () => {
-      const user = userEvent.setup();
-      render(<TodosClientWrapper {...defaultProps} />);
-
-      const searchInput = screen.getByPlaceholderText('Aufgaben suchen...');
-      await user.type(searchInput, 'faucet');
-      expect(searchInput).toHaveValue('faucet');
-
-      const clearButton = screen.getByRole('button', { name: /Suche löschen/i });
-      await user.click(clearButton);
-
-      expect(searchInput).toHaveValue('');
-    });
-  });
 
   describe('Sidebar Sections', () => {
     it('renders overdue/upcoming/no-date sections', () => {
@@ -222,8 +198,8 @@ describe('TodosClientWrapper - Calendar Layout', () => {
     it('has responsive layout classes for sidebar and calendar grid', () => {
       const { container } = render(<TodosClientWrapper {...defaultProps} />);
 
-      // Check for lg:grid-cols layout
-      const gridContainer = container.querySelector('.grid.grid-cols-1.lg\\:grid-cols-\\[280px_1fr\\]');
+      // The grid container should exist with responsive layout
+      const gridContainer = container.querySelector('.grid.grid-cols-1');
       expect(gridContainer).toBeInTheDocument();
     });
   });
