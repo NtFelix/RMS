@@ -1960,8 +1960,9 @@ jobs:
           BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.ref_name }}
           PR_ARGS: ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          NODE_PATH: /tmp/posthog/products/visual_review/cli/node_modules
         run: |
-          RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
+          RUN_ID=$(npx --prefix /tmp/posthog/products/visual_review/cli tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
             --type playwright \
             --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
@@ -1973,8 +1974,10 @@ jobs:
 
       - name: Upload snapshots to PostHog Visual Review
         if: always() && steps.vr-run.outputs.run-id != ''
+        env:
+          NODE_PATH: /tmp/posthog/products/visual_review/cli/node_modules
         run: |
-          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run upload \
+          npx --prefix /tmp/posthog/products/visual_review/cli tsx /tmp/posthog/products/visual_review/cli/src/index.ts run upload \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
             --dir playwright/__snapshots__ \
             --baseline playwright/snapshots.yml \
@@ -1983,8 +1986,10 @@ jobs:
       - name: Wait for PostHog diff processing
         if: always() && steps.vr-run.outputs.run-id != ''
         id: vr-complete
+        env:
+          NODE_PATH: /tmp/posthog/products/visual_review/cli/node_modules
         run: |
-          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
+          npx --prefix /tmp/posthog/products/visual_review/cli tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
             --baseline playwright/snapshots.yml \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee vr-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
