@@ -102,12 +102,18 @@ const CustomDevelopmentTooltip = ({ active, payload, label }: CustomDevelopmentT
   }
   return null;
 };
+interface WohnungSimple {
+  id: string;
+  haus_id?: string | null;
+  groesse?: number | null;
+}
+
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
   initialNebenkosten: OptimizedNebenkosten[];
   initialHaeuser: Haus[];
-  initialTenants?: any[];
-  initialFinances?: any[];
+  initialTenants?: unknown[];
+  initialFinances?: unknown[];
   ownerName: string;
   canCreate?: boolean;
   canEdit?: boolean;
@@ -250,7 +256,7 @@ export default function BetriebskostenClientView({
   }, [energyTrendData]);
 // ... rest of state stays same ...
   const [searchQuery, setSearchQuery] = useState("");
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [deletedIds] = useState<Set<string>>(new Set());
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
   // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -264,10 +270,8 @@ export default function BetriebskostenClientView({
   const [hoveredHouseIndex, setHoveredHouseIndex] = useState<number | null>(null);
   const [hoveredCategoryIndex, setHoveredCategoryIndex] = useState<number | null>(null);
   const [developmentTimeframe, setDevelopmentTimeframe] = useState<5 | 10 | 25>(5);
-  const [showPrognosisInfo, setShowPrognosisInfo] = useState(false);
   const [showDetailedPrognosis, setShowDetailedPrognosis] = useState(false);
-  const [hoveredSegmentHouse, setHoveredSegmentHouse] = useState<string | null>(null);
-  const [wohnungen, setWohnungen] = useState<any[]>([]);
+  const [wohnungen, setWohnungen] = useState<WohnungSimple[]>([]);
 
   useEffect(() => {
     const fetchAllWohnungen = async () => {
@@ -276,7 +280,7 @@ export default function BetriebskostenClientView({
         .from("Wohnungen")
         .select("id, haus_id, groesse");
       if (!error && data) {
-        setWohnungen(data);
+        setWohnungen(data as WohnungSimple[]);
       }
     };
     fetchAllWohnungen();
@@ -311,7 +315,7 @@ export default function BetriebskostenClientView({
 
       let totalItemCost = billSum;
       if (item.zaehlerkosten) {
-        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+        Object.values(item.zaehlerkosten).forEach((val) => {
           const amount = Number(val || 0);
           if (amount > 0) totalItemCost += amount;
         });
@@ -334,16 +338,6 @@ export default function BetriebskostenClientView({
       houseAdjustedCosts
     };
   }, [initialNebenkosten, houseApartmentSizes]);
-
-  const horizontalChartData = useMemo(() => {
-    const dataPoint: Record<string, any> = { name: "Nebenkosten" };
-    let hasData = false;
-    Object.entries(adjustedHouseCosts.houseAdjustedCosts).forEach(([houseName, val]) => {
-      dataPoint[houseName] = Number(val.toFixed(2));
-      hasData = true;
-    });
-    return hasData ? [dataPoint] : [];
-  }, [adjustedHouseCosts]);
 
   // Compute stats for operating costs dashboard
   const nebenkostenStats = useMemo(() => {
@@ -468,7 +462,7 @@ export default function BetriebskostenClientView({
 
       let totalItemCost = billSum;
       if (item.zaehlerkosten) {
-        Object.entries(item.zaehlerkosten).forEach(([key, val]) => {
+        Object.values(item.zaehlerkosten).forEach((val) => {
           const amount = Number(val || 0);
           if (amount > 0) {
             totalItemCost += amount;
@@ -510,7 +504,7 @@ export default function BetriebskostenClientView({
     }
     years.sort((a, b) => a - b);
     const yearlyDevelopment = years.map(year => {
-      const dataPoint: Record<string, any> = { year: String(year) };
+      const dataPoint: Record<string, string | number> = { year: String(year) };
       let yearTotal = 0;
       Array.from(allHouses).forEach(houseName => {
         const cost = yearlyHouseMap[year]?.[houseName] || 0;
@@ -1358,7 +1352,7 @@ export default function BetriebskostenClientView({
                         <button
                           type="button"
                           key={mode}
-                          onClick={() => setAuditTimeframe(mode as any)}
+                          onClick={() => setAuditTimeframe(mode as "this" | "last" | "5y")}
                           className={cn(
                             "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[45px] z-10",
                             auditTimeframe === mode ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
@@ -1469,7 +1463,7 @@ export default function BetriebskostenClientView({
                       <button
                         type="button"
                         key={years}
-                        onClick={() => setEnergyTimeframe(years as any)}
+                        onClick={() => setEnergyTimeframe(years as 5 | 10 | 25)}
                         className={cn(
                           "px-3 py-1 rounded-full text-[10px] font-bold transition-all duration-300 relative cursor-pointer min-w-[45px] z-10",
                           energyTimeframe === years ? "text-zinc-900 dark:text-zinc-50" : "text-muted-foreground hover:text-foreground"
