@@ -108,12 +108,26 @@ interface WohnungSimple {
   groesse?: number | null;
 }
 
+interface TenantSimple {
+  id?: string;
+  name?: string;
+  wohnung_id?: string | null;
+  einzug?: string | null;
+  auszug?: string | null;
+  nebenkosten?: any[];
+}
+
+interface FinanceSimple {
+  datum?: string | number | Date | null;
+  betrag?: number | string | null;
+}
+
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
   initialNebenkosten: OptimizedNebenkosten[];
   initialHaeuser: Haus[];
-  initialTenants?: unknown[];
-  initialFinances?: unknown[];
+  initialTenants?: TenantSimple[];
+  initialFinances?: FinanceSimple[];
   ownerName: string;
   canCreate?: boolean;
   canEdit?: boolean;
