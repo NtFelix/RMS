@@ -4,12 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTabParams } from "@/hooks/use-tab-params";
-import { Droplets, X, FileSpreadsheet, Building2, Euro, Ruler, Percent, Activity, BarChart3, TrendingUp, TrendingDown, Info, HelpCircle, Target, Coins } from "lucide-react";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { X, FileSpreadsheet, Building2, Euro, Ruler, Activity, BarChart3, TrendingUp, Info, Target, Coins } from "lucide-react";
 import { CreateAbrechnungDropdown } from "@/components/abrechnung/create-abrechnung-dropdown";
 import { OperatingCostsFilters } from "@/components/finance/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/tables/operating-costs-table";

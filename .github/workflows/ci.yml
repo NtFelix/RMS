@@ -1421,14 +1421,9 @@ jobs:
             exit 1
           fi
 
-      - name: Install dependencies (if not cached)
-        run: |
-          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
-            echo "Installing dependencies..."
-            npm ci --prefer-offline
-          else
-            echo "✓ node_modules exists and appears complete - skipping npm ci"
-          fi
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
 
       - name: Restore LHCI tools cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
