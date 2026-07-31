@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
@@ -201,7 +200,7 @@ export async function GET(request: Request) {
     // Search tenants (Mieter) - Enhanced with fuzzy matching and multi-word search
     if (categories.includes('tenant')) {
       if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
-        results.tenant = [];
+        searchPromises.push(Promise.resolve({ type: 'tenant' as const, data: [] }));
       } else {
         if (process.env.NODE_ENV === 'development') {
           console.log('Adding tenant search promise');
@@ -321,7 +320,7 @@ export async function GET(request: Request) {
     // Search houses (Haeuser) - Enhanced with better address matching
     if (categories.includes('house')) {
       if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
-        results.house = [];
+        searchPromises.push(Promise.resolve({ type: 'house' as const, data: [] }));
       } else {
         searchPromises.push(
           (async () => {
@@ -431,7 +430,7 @@ export async function GET(request: Request) {
     // Search apartments (Wohnungen) - Enhanced with house name search
     if (categories.includes('apartment')) {
       if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
-        results.apartment = [];
+        searchPromises.push(Promise.resolve({ type: 'apartment' as const, data: [] }));
       } else {
         searchPromises.push(
           (async () => {
@@ -551,7 +550,7 @@ export async function GET(request: Request) {
     // Search finances (Finanzen) - Optimized with conditional numeric search
     if (categories.includes('finance')) {
       if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
-        results.finance = [];
+        searchPromises.push(Promise.resolve({ type: 'finance' as const, data: [] }));
       } else {
         const isNumericQuery = !isShowAllQuery && !isNaN(parseFloat(query));
         

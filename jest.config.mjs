@@ -17,6 +17,7 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  modulePathIgnorePatterns: ['<rootDir>/.next/'],
   moduleNameMapper: {
     // Handle CSS imports (if you use CSS modules)
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",

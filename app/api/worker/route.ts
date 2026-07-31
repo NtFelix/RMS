@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from "@/utils/supabase/server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
-export const runtime = 'edge';
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second

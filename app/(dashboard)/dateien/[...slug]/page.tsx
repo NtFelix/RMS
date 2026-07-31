@@ -3,7 +3,6 @@ import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { getFolderContents } from "../actions"
 
-export const runtime = 'edge'
 
 export default async function DateienPathPage({ params }: { params: Promise<{ slug: string[] }> }) {
     const supabase = await createClient()

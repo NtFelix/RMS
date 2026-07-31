@@ -42,7 +42,7 @@ function matchesRoutePrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Skip PostHog proxy traffic entirely (no auth, no CSP, no redirects)
@@ -156,7 +156,7 @@ export async function middleware(request: NextRequest) {
             return redirectResponse
           }
         } catch (e) {
-          console.error(`[Middleware] Exception checking permission for ${modul}:`, e)
+          console.error(`[Proxy] Exception checking permission for ${modul}:`, e)
           const redirectUrl = request.nextUrl.clone()
           redirectUrl.pathname = '/unauthorized'
           const redirectResponse = NextResponse.redirect(redirectUrl)

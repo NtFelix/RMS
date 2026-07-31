@@ -10,7 +10,6 @@ import {
 } from "@/lib/finance-file-constants";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
     try {

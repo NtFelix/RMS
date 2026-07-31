@@ -43,12 +43,16 @@ describe('/api/search', () => {
     limit: jest.Mock<MockQueryBuilder | Promise<MockQueryResult>>;
     not: jest.Mock<MockQueryBuilder>;
     eq: jest.Mock<MockQueryBuilder>;
+    in: jest.Mock<MockQueryBuilder>;
     ilike: jest.Mock<MockQueryBuilder>;
     then: jest.Mock<any>;
   }
 
   let mockSupabase: {
     from: jest.Mock;
+    auth: {
+      getUser: jest.Mock;
+    };
   };
 
   /**
@@ -62,6 +66,7 @@ describe('/api/search', () => {
     builder.limit = jest.fn().mockReturnThis();
     builder.not = jest.fn().mockReturnThis();
     builder.eq = jest.fn().mockReturnThis();
+    builder.in = jest.fn().mockReturnThis();
     builder.ilike = jest.fn().mockReturnThis();
 
     // Ensure then is a mock if it wasn't already
@@ -86,6 +91,7 @@ describe('/api/search', () => {
         limit: jest.fn().mockReturnThis(),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
         then: jest.fn((resolve) => {
           if (resolve) resolve({ data: [], error: null });
@@ -105,7 +111,7 @@ describe('/api/search', () => {
     mockSupabase = {
       from: jest.fn().mockImplementation(() => createDefaultMockQueryBuilder()),
       auth: {
-        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user' } }, error: null }),
+        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
       },
     } as any;
 
@@ -548,8 +554,8 @@ describe('/api/search', () => {
         order: jest.fn().mockReturnThis(),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        ilike: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnValue(new Promise(() => {})),
       }));
 
@@ -615,6 +621,7 @@ describe('/api/search', () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
+      expect(data.results).toBeDefined();
       expect(data.totalCount).toBeDefined();
     });
 
@@ -689,6 +696,7 @@ describe('/api/search', () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
+      expect(data.results).toBeDefined();
       expect(data.totalCount).toBe(0);
     });
 
@@ -709,6 +717,7 @@ describe('/api/search', () => {
 
       expect(response.status).toBe(200);
       const data = await response.json();
+      expect(data.results).toBeDefined();
       expect(data.totalCount).toBe(0);
     });
   });
@@ -726,6 +735,7 @@ describe('/api/search', () => {
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -737,6 +747,7 @@ describe('/api/search', () => {
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -773,6 +784,7 @@ describe('/api/search', () => {
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -786,6 +798,7 @@ describe('/api/search', () => {
         }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 
@@ -797,6 +810,7 @@ describe('/api/search', () => {
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
         not: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
       };
 

@@ -5,7 +5,6 @@ import { requirePermission } from "@/lib/permissions"
 import { getFolderContents } from "./actions"
 import DateienLoading from './loading'
 
-export const runtime = 'edge'
 
 async function CloudStorageContent({ userId }: { userId: string }) {
     // Load initial files, folders and breadcrumbs on the server using unified RPC

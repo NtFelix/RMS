@@ -13,9 +13,9 @@ snapshots:
     chromium-dashboard-betriebskosten-light:
         hash: v1.k04ffa068.533c5254c4468f00d50b2e1a6521f614d36e8a61df16b25b878b9876440f3bc2.-JcBtpsuh-TJ4Lu0Wf9qTl2UUIbHyR9AYe6NGtRciTc
     chromium-dashboard-dashboard-dark:
-        hash: v1.k04ffa068.d886be629df0599214ee5edeeaa53424e9e31d44f02177887e773ec93443bf19.ThBw5khgj7bD67B-Oj5rEGHJk8Z7BhK-CRN3eg2VygQ
+        hash: v1.k04ffa068.7b82c88d3aeaa9a7aea1105a1cccc8c8fdf3e6e69d8cbfdf826aa74e25cea431.t-T6yB55f79mK1Rvfc1QtO_aI_DiM8K4XUWjEYgfhfs
     chromium-dashboard-dashboard-light:
-        hash: v1.k04ffa068.854b2514d8cd7f06e93604af968efbe66a9b5f3198bb73d1a79615f34963ebda.AO2bJJb7x9Srt1Dn_9Yw_gOWrrhQ-CW9TplG1gE2ebk
+        hash: v1.k04ffa068.62bf9ca1a53fd0c5a1769ad18efdc14d7806895d9bf37d922c0bb7d558c9c666.Inr8qJgOB-5UkudjZ-q0DtkbivpqLqsAgve6ugIZ6pU
     chromium-dashboard-dateien-dark:
         hash: v1.k04ffa068.d58e4232178508d8b429ab73102e7ea58f760e1d49a4e0c9b368202b822ed88a.nZTjZwCPMHo7AgyqzlunlGz0Ani5GGHchtL2Pg1StgE
     chromium-dashboard-dateien-light:
@@ -68,11 +68,27 @@ snapshots:
         hash: v1.k04ffa068.60f0621d78f57b7a0f5a2c18bfb867aaa1d8b8c236d1a6f92f405847c70df2b7.5bPA0W7LCEllMFEj8Km_-24oYHGbwsQM0zzT-SzPB1k
     chromium-landing-light:
         hash: v1.k04ffa068.f44e878d95237fb06e4af662759c977dc23c3a17eb0e6362ab70472f89c1e830.jWFJ96GddKe8pS7mABf41DAyJDPAubssb5G0bu21uE4
+    chromium-loesungen-grosse-hausverwaltungen-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.KB6jWRNuZk-mgiYAzquElIe5Di5WkewGkIeEw-jXwBw
+    chromium-loesungen-grosse-hausverwaltungen-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.75J83na5QwfvKWr8K2_nKKBOH6Bk1Aa4v95mNyS7Pgw
+    chromium-loesungen-kleine-mittlere-hausverwaltungen-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.Z2h-J0oorVDO0OGglSddu8myThdcHexyDXhyJ_gXi1w
     chromium-loesungen-kleine-mittlere-hausverwaltungen-light:
         hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.GgRCVH0y3HcpoBMB9feQLqX50pDxZz80-gnNIJd-Rf8
+    chromium-loesungen-privatvermieter-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.ajsessN7jK7rBYMyj7OlOxHD8ZREjyB8YhAVWRzM25k
+    chromium-loesungen-privatvermieter-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.cToRvKUeXUgYxGtA37BI-jqL8LEB_vmXnbKrI4J8n9Y
     chromium-preise-dark:
         hash: v1.k04ffa068.c3b773d69dcb7abb81750c4a91610a231765554e1f441cd07beaf1e96fad0504.fHwd0PnkyPkthGtoxqR2bxFf1R3zyq5_Va2hJMuO4D0
     chromium-preise-light:
         hash: v1.k04ffa068.3b4c3588e0128793e42b43a7b89f9e341195902109990d1c0371606db97905aa.Aa4wp0SQq49DTc4qpwdP-t3Jq2SAcMx8zOQuk9-WqII
     chromium-warteliste-browser-erweiterung-dark:
         hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.30QNk91198dg0szqCq4YmmJlWzdtV3L_65-tFSxQbMw
+    chromium-warteliste-browser-erweiterung-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.NCsOfzvIgrKKoWe2w3rR4NXA4t0OMhv01jggL8lGAe0
+    chromium-warteliste-mobile-app-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.GzRIOTwjuRWAXUSbxBwSOsZNHpY2ri__GcHQO6jlngk
+    chromium-warteliste-mobile-app-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.kBTiZYvtrPjOe8h9O00fMwI-fOL6lJhjAePl5mzeS-c

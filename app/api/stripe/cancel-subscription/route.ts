@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import StripeNode from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';

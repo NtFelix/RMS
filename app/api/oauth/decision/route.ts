@@ -3,7 +3,6 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
-export const runtime = 'edge';
 
 export async function POST(request: Request) {
     const formData = await request.formData();

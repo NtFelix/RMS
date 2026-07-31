@@ -3,7 +3,6 @@ import { createClient } from '@/utils/supabase/server'
 import { PAGINATION } from '@/constants'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 export async function GET(request: NextRequest) {
   try {

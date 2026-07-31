@@ -5,7 +5,6 @@ import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
 import { redirectAuthenticatedAuthRoute } from "@/lib/server/route-access"
 
 // Cloudflare Pages requires dynamic routes to be marked as edge
-export const runtime = 'edge'
 
 // Auth layout metadata - common settings for all auth pages
 export const metadata: Metadata = {
