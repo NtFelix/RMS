@@ -1951,20 +1951,20 @@ jobs:
           cd /tmp/posthog
           git sparse-checkout set products/visual_review/cli
           cd products/visual_review/cli
-          npm ci
+          npm install --no-audit
 
       - name: Create PostHog Visual Review run
         if: always()
         id: vr-run
+        working-directory: /tmp/posthog/products/visual_review/cli
         env:
           BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.ref_name }}
           PR_ARGS: ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          NODE_PATH: /tmp/posthog/products/visual_review/cli/node_modules
         run: |
-          RUN_ID=$(npx --prefix /tmp/posthog/products/visual_review/cli tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
+          RUN_ID=$(npx tsx src/index.ts run create \
             --type playwright \
-            --baseline playwright/snapshots.yml \
+            --baseline "$GITHUB_WORKSPACE/playwright/snapshots.yml" \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
             --branch "$BRANCH_NAME" \
             --commit "$COMMIT_SHA" \
@@ -1974,25 +1974,23 @@ jobs:
 
       - name: Upload snapshots to PostHog Visual Review
         if: always() && steps.vr-run.outputs.run-id != ''
-        env:
-          NODE_PATH: /tmp/posthog/products/visual_review/cli/node_modules
+        working-directory: /tmp/posthog/products/visual_review/cli
         run: |
-          npx --prefix /tmp/posthog/products/visual_review/cli tsx /tmp/posthog/products/visual_review/cli/src/index.ts run upload \
+          npx tsx src/index.ts run upload \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
-            --dir playwright/__snapshots__ \
-            --baseline playwright/snapshots.yml \
+            --dir "$GITHUB_WORKSPACE/playwright/__snapshots__" \
+            --baseline "$GITHUB_WORKSPACE/playwright/snapshots.yml" \
             --token ${{ secrets.POSTHOG_VR_TOKEN }}
 
       - name: Wait for PostHog diff processing
         if: always() && steps.vr-run.outputs.run-id != ''
         id: vr-complete
-        env:
-          NODE_PATH: /tmp/posthog/products/visual_review/cli/node_modules
+        working-directory: /tmp/posthog/products/visual_review/cli
         run: |
-          npx --prefix /tmp/posthog/products/visual_review/cli tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
+          npx tsx src/index.ts run complete \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
-            --baseline playwright/snapshots.yml \
-            --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee vr-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
+            --baseline "$GITHUB_WORKSPACE/playwright/snapshots.yml" \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee "$GITHUB_WORKSPACE/vr-output.txt" || echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Generate PostHog Visual Review Summary
         if: always() && steps.vr-run.outputs.run-id != ''
