@@ -10,7 +10,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend, Tooltip as Rechar
 
 import dynamic from "next/dynamic";
 import { useTabParams } from "@/hooks/use-tab-params";
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info, Building2, Coins, Clock, Percent, Activity } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Euro, Info, Building2, Coins, Activity } from "lucide-react";
 
 // Dynamically import heavy components
 const FinanceVisualization = dynamic(
@@ -33,12 +33,11 @@ import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-b
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
 import { SummaryCard } from "@/components/common/summary-card";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
-import { TagInput, ALL_FINANCE_TAGS } from "@/components/ui/tag-input";
+import { TagInput } from "@/components/ui/tag-input";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -58,6 +57,17 @@ interface Finanz {
 }
 
 interface Wohnung { id: string; name: string; miete?: number; }
+
+interface TenantPaymentRecord {
+  id?: string;
+  status?: string;
+  wohnung_id?: string | null;
+  einzug?: string | null;
+  auszug?: string | null;
+  actualRent?: number | string;
+  Wohnungen?: { id?: string; miete?: number | string };
+  [key: string]: unknown;
+}
 
 interface SummaryData {
   year: number;
@@ -103,13 +113,6 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 0 
 });
 
-const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
-
 const VALID_FINANZEN_TABS = ["finance", "overview"] as const;
 
 export default function FinanzenClientWrapper({
@@ -129,7 +132,7 @@ export default function FinanzenClientWrapper({
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [unitSearch, setUnitSearch] = useState<string>("");
   const [hoveredPieIndex, setHoveredPieIndex] = useState<number | null>(null);
-  const [tenantPaymentsData, setTenantPaymentsData] = useState<any[]>([]);
+  const [tenantPaymentsData, setTenantPaymentsData] = useState<TenantPaymentRecord[]>([]);
   const [isTenantPaymentsLoading, setIsTenantPaymentsLoading] = useState<boolean>(false);
   const [financeTimeframe, setFinanceTimeframe] = useState<"1" | "2" | "5">("1");
   const [chartFinances, setChartFinances] = useState<Finanz[]>([]);
