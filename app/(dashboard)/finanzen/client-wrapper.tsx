@@ -276,7 +276,7 @@ export default function FinanzenClientWrapper({
       paidCount: 0,
       unpaidCount: 0,
       activeTenantsCount: 0,
-      activeTenants: [] as any[]
+      activeTenants: [] as TenantPaymentRecord[]
     };
 
     const metrics = tenantPaymentsData.reduce((acc, t) => {
@@ -325,7 +325,7 @@ export default function FinanzenClientWrapper({
       return acc;
     }, initialMetrics);
 
-    const { totalCurrentMonthExpected, totalCurrentMonthCollected, currentMonthRentStatus, paidCount, unpaidCount, activeTenantsCount } = {
+    const { totalCurrentMonthExpected, totalCurrentMonthCollected, currentMonthRentStatus, paidCount, unpaidCount } = {
       ...metrics,
       currentMonthRentStatus: metrics.activeTenants
     };
@@ -465,11 +465,6 @@ export default function FinanzenClientWrapper({
       .sort((a, b) => b.netProfit - a.netProfit);
   }, [monthlyChartSource, wohnungen]);
 
-  // Compute annualized operating income and rental yields
-  const annualizedIncome = useMemo(() => financeStats.totalIncome, [financeStats.totalIncome]);
-  const annualizedExpenses = useMemo(() => financeStats.totalExpenses, [financeStats.totalExpenses]);
-  const netAnnualOperatingIncome = useMemo(() => annualizedIncome - annualizedExpenses, [annualizedIncome, annualizedExpenses]);
-
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
   const [page, setPage] = useState(1);
@@ -494,7 +489,6 @@ export default function FinanzenClientWrapper({
   const [balanceLoading, setBalanceLoading] = useState(true);
 
   const isInitialMountRef = useRef(true);
-  const reloadRef = useRef<(() => void) | null>(null);
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
   const filtersRef = useRef(filters);
   const debouncedSearchQueryRef = useRef(debouncedSearchQuery);
@@ -669,9 +663,9 @@ export default function FinanzenClientWrapper({
     fetchBalance();
   }, [refreshSummaryData, fetchBalance]);
 
-  const handleSuccess = useCallback((data: any) => {
+  const handleSuccess = useCallback((data: Finanz | Finanz[]) => {
     if (data) {
-      handleAddFinance(data);
+      handleAddFinance(data as Finanz);
     }
   }, [handleAddFinance]);
 
@@ -680,8 +674,6 @@ export default function FinanzenClientWrapper({
   const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
   const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
   const yearlyProjection = summaryData?.yearlyProjection ?? 0;
-  const totalIncome = summaryData?.totalIncome ?? 0;
-  const totalExpenses = summaryData?.totalExpenses ?? 0;
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -718,41 +710,6 @@ export default function FinanzenClientWrapper({
       [key]: value
     });
   };
-
-  // Summary calculation for StatCards
-  const summary = useMemo(() => {
-    const totalTransactions = finData.length;
-    const initialSummary = {
-      incomeCount: 0,
-      expenseCount: 0,
-      totalAmountForAvg: 0,
-      countForAvg: 0
-    };
-
-    const result = finData.reduce((acc, f) => {
-      if (f.ist_einnahmen) {
-        acc.incomeCount++;
-      } else {
-        acc.expenseCount++;
-      }
-      
-      const amount = Number(f.betrag || 0);
-      if (amount > 0) {
-        acc.totalAmountForAvg += amount;
-        acc.countForAvg++;
-      }
-      return acc;
-    }, initialSummary);
-
-    const avgTransaction = result.countForAvg > 0 ? result.totalAmountForAvg / result.countForAvg : 0;
-
-    return { 
-      totalTransactions, 
-      incomeCount: result.incomeCount, 
-      expenseCount: result.expenseCount, 
-      avgTransaction 
-    };
-  }, [finData]);
 
   // Wohnungen map for bulk actions
   const wohnungsMap = useMemo(() => {
@@ -841,17 +798,6 @@ export default function FinanzenClientWrapper({
     link.download = `finanzen_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
   }, [selectedFinances, finData, escapeCsvValue]);
-
-  const handleExportCsv = () => {
-    const params = new URLSearchParams();
-    if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
-    if (filters.selectedApartment) params.append('selectedApartment', filters.selectedApartment);
-    if (filters.selectedYear) params.append('selectedYear', filters.selectedYear);
-    if (filters.selectedType) params.append('selectedType', filters.selectedType);
-
-    const url = `/api/finanzen/export?${params.toString()}`;
-    window.open(url, '_blank');
-  };
 
   const fetchAvailableYears = useCallback(async () => {
     try {
@@ -1338,7 +1284,7 @@ export default function FinanzenClientWrapper({
                           }
                           return label;
                         }}
-                        formatter={(value: any) => [`${value.toLocaleString('de-DE')} €`]}
+                        formatter={(value: unknown) => [`${Number(value).toLocaleString('de-DE')} €`]}
                         contentStyle={{
                           backgroundColor: 'rgba(255, 255, 255, 0.95)',
                           border: '1px solid #e4e4e7',
