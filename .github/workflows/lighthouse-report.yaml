@@ -110,15 +110,8 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Install dependencies
-        if: steps.restore-build-cache.outputs.cache-hit != 'true'
-        run: |
-          # Only run npm ci if node_modules doesn't exist or is incomplete
-          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
-            echo "Installing dependencies..."
-            npm ci --prefer-offline
-          else
-            echo "✓ node_modules exists and appears complete - skipping npm ci"
-          fi
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
 
       - name: Build application
         if: steps.restore-build-cache.outputs.cache-hit != 'true'
@@ -232,15 +225,9 @@ jobs:
             build-
           fail-on-cache-miss: true
 
-      - name: Install dependencies (if not cached)
-        run: |
-          # Only run npm ci if node_modules doesn't exist or is incomplete
-          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
-            echo "Installing dependencies..."
-            npm ci --prefer-offline
-          else
-            echo "✓ node_modules exists and appears complete - skipping npm ci"
-          fi
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
 
       - name: Restore LHCI tools cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5

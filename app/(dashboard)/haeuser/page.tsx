@@ -8,7 +8,7 @@ import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
 export default async function HaeuserPage() {
-  const { supabase, user } = await requireAuthenticatedUser();
+  const { supabase } = await requireAuthenticatedUser();
 
   const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
     hasPermission('haeuser', 'ansehen'),

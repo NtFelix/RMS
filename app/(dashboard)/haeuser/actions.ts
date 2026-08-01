@@ -19,9 +19,9 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
   logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
 
-  let user, supabase;
+  let supabase;
   try {
-    ({ user, supabase } = await ensureAuth());
+    ({ supabase } = await ensureAuth());
   } catch (authError: unknown) {
     const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
     logAction(actionName, 'error', { error_message: errorMessage });
@@ -128,7 +128,7 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   logAction(actionName, 'start', { house_id: houseId });
 
   try {
-    const { user, supabase } = await ensureAuth();
+    await ensureAuth();
 
     // Permission & scope checks
     const { hasPermission } = await import("@/lib/permissions");
@@ -145,9 +145,10 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
     const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
       await softDeleteEntryAction("Haeuser", houseId);
-    } catch (err: any) {
-      logAction(actionName, 'error', { house_id: houseId, error_message: err.message });
-      return { success: false, error: { message: err.message } };
+    } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logAction(actionName, 'error', { house_id: houseId, error_message: errMessage });
+      return { success: false, error: { message: errMessage } };
     }
 
     revalidatePath('/haeuser');

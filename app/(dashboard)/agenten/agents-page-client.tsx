@@ -21,8 +21,8 @@ export function AgentsPageClient() {
         const data = await res.json();
         setAgents(Array.isArray(data) ? data : []);
       }
-    } catch (err: any) {
-      if (err?.name !== 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Failed to fetch agents:', err);
       }
     } finally {
@@ -64,10 +64,10 @@ export function AgentsPageClient() {
         description: 'Der Agent wurde pausiert und in den Papierkorb verschoben.',
       });
       fetchAgents();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Fehler',
-        description: err?.message || String(err),
+        description: err instanceof Error ? err.message : String(err),
         variant: 'destructive',
       });
     }
@@ -97,10 +97,10 @@ export function AgentsPageClient() {
         title: 'Agent gestartet',
         description: `Run-ID: ${data.runId}. Du kannst den Status in der Results View verfolgen.`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Fehler beim Ausführen',
-        description: err?.message || String(err),
+        description: err instanceof Error ? err.message : String(err),
         variant: 'destructive',
       });
     }

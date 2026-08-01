@@ -6,11 +6,11 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { FinanceDonutChart, BaseDonutChart } from "@/components/dashboard/dashboard-charts";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 import dynamic from "next/dynamic";
 import { useTabParams } from "@/hooks/use-tab-params";
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info, Building2, Coins, Clock, Percent, Activity } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Euro, Info, Building2, Coins, Activity } from "lucide-react";
 
 // Dynamically import heavy components
 const FinanceVisualization = dynamic(
@@ -33,12 +33,11 @@ import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-b
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
 import { SummaryCard } from "@/components/common/summary-card";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
-import { TagInput, ALL_FINANCE_TAGS } from "@/components/ui/tag-input";
+import { TagInput } from "@/components/ui/tag-input";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -58,6 +57,17 @@ interface Finanz {
 }
 
 interface Wohnung { id: string; name: string; miete?: number; }
+
+interface TenantPaymentRecord {
+  id?: string;
+  status?: string;
+  wohnung_id?: string | null;
+  einzug?: string | null;
+  auszug?: string | null;
+  actualRent?: number | string;
+  Wohnungen?: { id?: string; miete?: number | string };
+  [key: string]: unknown;
+}
 
 interface SummaryData {
   year: number;
@@ -103,13 +113,6 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 0 
 });
 
-const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
-
 const VALID_FINANZEN_TABS = ["finance", "overview"] as const;
 
 export default function FinanzenClientWrapper({
@@ -129,7 +132,7 @@ export default function FinanzenClientWrapper({
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [unitSearch, setUnitSearch] = useState<string>("");
   const [hoveredPieIndex, setHoveredPieIndex] = useState<number | null>(null);
-  const [tenantPaymentsData, setTenantPaymentsData] = useState<any[]>([]);
+  const [tenantPaymentsData, setTenantPaymentsData] = useState<TenantPaymentRecord[]>([]);
   const [isTenantPaymentsLoading, setIsTenantPaymentsLoading] = useState<boolean>(false);
   const [financeTimeframe, setFinanceTimeframe] = useState<"1" | "2" | "5">("1");
   const [chartFinances, setChartFinances] = useState<Finanz[]>([]);
@@ -273,7 +276,7 @@ export default function FinanzenClientWrapper({
       paidCount: 0,
       unpaidCount: 0,
       activeTenantsCount: 0,
-      activeTenants: [] as any[]
+      activeTenants: [] as TenantPaymentRecord[]
     };
 
     const metrics = tenantPaymentsData.reduce((acc, t) => {
@@ -322,7 +325,7 @@ export default function FinanzenClientWrapper({
       return acc;
     }, initialMetrics);
 
-    const { totalCurrentMonthExpected, totalCurrentMonthCollected, currentMonthRentStatus, paidCount, unpaidCount, activeTenantsCount } = {
+    const { totalCurrentMonthExpected, totalCurrentMonthCollected, currentMonthRentStatus, paidCount, unpaidCount } = {
       ...metrics,
       currentMonthRentStatus: metrics.activeTenants
     };
@@ -462,11 +465,6 @@ export default function FinanzenClientWrapper({
       .sort((a, b) => b.netProfit - a.netProfit);
   }, [monthlyChartSource, wohnungen]);
 
-  // Compute annualized operating income and rental yields
-  const annualizedIncome = useMemo(() => financeStats.totalIncome, [financeStats.totalIncome]);
-  const annualizedExpenses = useMemo(() => financeStats.totalExpenses, [financeStats.totalExpenses]);
-  const netAnnualOperatingIncome = useMemo(() => annualizedIncome - annualizedExpenses, [annualizedIncome, annualizedExpenses]);
-
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
   const [page, setPage] = useState(1);
@@ -491,7 +489,6 @@ export default function FinanzenClientWrapper({
   const [balanceLoading, setBalanceLoading] = useState(true);
 
   const isInitialMountRef = useRef(true);
-  const reloadRef = useRef<(() => void) | null>(null);
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
   const filtersRef = useRef(filters);
   const debouncedSearchQueryRef = useRef(debouncedSearchQuery);
@@ -666,9 +663,9 @@ export default function FinanzenClientWrapper({
     fetchBalance();
   }, [refreshSummaryData, fetchBalance]);
 
-  const handleSuccess = useCallback((data: any) => {
+  const handleSuccess = useCallback((data: Finanz | Finanz[]) => {
     if (data) {
-      handleAddFinance(data);
+      handleAddFinance(data as Finanz);
     }
   }, [handleAddFinance]);
 
@@ -677,8 +674,6 @@ export default function FinanzenClientWrapper({
   const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
   const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
   const yearlyProjection = summaryData?.yearlyProjection ?? 0;
-  const totalIncome = summaryData?.totalIncome ?? 0;
-  const totalExpenses = summaryData?.totalExpenses ?? 0;
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -715,41 +710,6 @@ export default function FinanzenClientWrapper({
       [key]: value
     });
   };
-
-  // Summary calculation for StatCards
-  const summary = useMemo(() => {
-    const totalTransactions = finData.length;
-    const initialSummary = {
-      incomeCount: 0,
-      expenseCount: 0,
-      totalAmountForAvg: 0,
-      countForAvg: 0
-    };
-
-    const result = finData.reduce((acc, f) => {
-      if (f.ist_einnahmen) {
-        acc.incomeCount++;
-      } else {
-        acc.expenseCount++;
-      }
-      
-      const amount = Number(f.betrag || 0);
-      if (amount > 0) {
-        acc.totalAmountForAvg += amount;
-        acc.countForAvg++;
-      }
-      return acc;
-    }, initialSummary);
-
-    const avgTransaction = result.countForAvg > 0 ? result.totalAmountForAvg / result.countForAvg : 0;
-
-    return { 
-      totalTransactions, 
-      incomeCount: result.incomeCount, 
-      expenseCount: result.expenseCount, 
-      avgTransaction 
-    };
-  }, [finData]);
 
   // Wohnungen map for bulk actions
   const wohnungsMap = useMemo(() => {
@@ -838,17 +798,6 @@ export default function FinanzenClientWrapper({
     link.download = `finanzen_export_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
   }, [selectedFinances, finData, escapeCsvValue]);
-
-  const handleExportCsv = () => {
-    const params = new URLSearchParams();
-    if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
-    if (filters.selectedApartment) params.append('selectedApartment', filters.selectedApartment);
-    if (filters.selectedYear) params.append('selectedYear', filters.selectedYear);
-    if (filters.selectedType) params.append('selectedType', filters.selectedType);
-
-    const url = `/api/finanzen/export?${params.toString()}`;
-    window.open(url, '_blank');
-  };
 
   const fetchAvailableYears = useCallback(async () => {
     try {
@@ -1335,7 +1284,7 @@ export default function FinanzenClientWrapper({
                           }
                           return label;
                         }}
-                        formatter={(value: any) => [`${value.toLocaleString('de-DE')} €`]}
+                        formatter={(value: unknown) => [`${Number(value).toLocaleString('de-DE')} €`]}
                         contentStyle={{
                           backgroundColor: 'rgba(255, 255, 255, 0.95)',
                           border: '1px solid #e4e4e7',
