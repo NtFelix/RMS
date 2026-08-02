@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network, Bot, ChevronDown
+  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network, Bot, ChevronDown, Check
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
@@ -22,6 +22,14 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
+import { useToast } from "@/hooks/use-toast"
+import {
+  CustomDropdown,
+  CustomDropdownItem,
+  CustomDropdownLabel,
+  CustomDropdownSeparator,
+} from "@/components/ui/custom-dropdown"
 
 type SidebarNavItemType = {
   title: string;
@@ -395,6 +403,13 @@ function SidebarContent({
   )
 }
 
+interface OrganisationItem {
+  organisation_id: string;
+  owner_id: string;
+  rolle: 'owner' | 'admin' | 'mitarbeiter';
+  name: string;
+}
+
 // Brand Logo & Collapse Toggle Subcomponent
 function SidebarHeader({
   isCollapsed,
@@ -407,123 +422,236 @@ function SidebarHeader({
   toggleCollapse?: () => void
   setIsOpen: (open: boolean) => void
 }) {
+  const { toast } = useToast() || {}
+  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
+  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
+
+  useEffect(() => {
+    const loadOrganisations = async () => {
+      try {
+        const res = await getMyOrganisationsAction()
+        if (res.success && res.data) {
+          setOrganisations(res.data)
+          setCurrentOrgId(res.currentOrgId ?? null)
+          sessionStorage.setItem("cached_organisations:v1", JSON.stringify({
+            orgs: res.data,
+            currentOrgId: res.currentOrgId
+          }))
+        }
+      } catch (e) {
+        console.error("Failed to load organisations:", e)
+      }
+    }
+
+    const cached = sessionStorage.getItem("cached_organisations:v1")
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        setOrganisations(parsed.orgs)
+        if (parsed.currentOrgId !== undefined) {
+          setCurrentOrgId(parsed.currentOrgId ?? null)
+        }
+      } catch {
+        sessionStorage.removeItem("cached_organisations:v1")
+      }
+    }
+
+    loadOrganisations()
+  }, [])
+
+  const handleSwitchOrg = async (orgId: string | null) => {
+    if (orgId === currentOrgId) return;
+    setIsSwitchingOrg(true);
+    try {
+      const res = await switchOrganisationAction(orgId);
+      if (res.success) {
+        window.location.reload();
+      } else {
+        console.error("Failed to switch organisation:", res.error?.message);
+        toast({
+          variant: "destructive",
+          title: "Fehler beim Wechseln",
+          description: res.error?.message || "Die Organisation konnte nicht gewechselt werden.",
+        });
+      }
+    } catch (e) {
+      console.error("Exception switching organisation:", e);
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+      });
+    } finally {
+      setIsSwitchingOrg(false);
+    }
+  };
+
+  const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
+  const activeName = currentOrgId === null ? "Mietevo" : (activeOrg?.name || "Mietevo");
+  const activeSubtitle = currentOrgId === null ? "Immobilienverwaltung" : `${activeOrg?.rolle === 'owner' ? 'Owner' : activeOrg?.rolle === 'admin' ? 'Admin' : 'Mitarbeiter'}`;
+
+  const triggerPill = (
+    <m.div 
+      variants={logoVariants}
+      animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+      className={cn(
+        "flex items-center justify-between gap-2 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150 group/logo select-none border-2 border-pink-500 min-h-[40px] cursor-pointer outline-none",
+        isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10 mx-auto" : "w-full pl-1 pr-0.5"
+      )}
+    >
+      {/* Workspace Click Target */}
+      <div
+        className={cn(
+          "flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden",
+          isCollapsed && !isMobile ? "justify-center p-0" : ""
+        )}
+        title={isCollapsed && !isMobile ? "Organisationen wechseln" : undefined}
+      >
+        <m.div 
+          layout={false}
+          className="relative size-8 min-w-8 min-h-8 rounded-lg overflow-hidden shadow-2xs shrink-0 flex items-center justify-center"
+        >
+          {/* Logo Image */}
+          <div className={cn(
+            "absolute inset-0 transition-opacity duration-200",
+            isCollapsed && !isMobile ? "group-hover/logo:opacity-0" : ""
+          )}>
+            <Image
+              src={LOGO_URL}
+              alt="Mietevo Logo"
+              fill
+              className="object-cover rounded-lg"
+              sizes="32px"
+              unoptimized
+            />
+          </div>
+          {/* Hover Collapse Icon (only when collapsed) */}
+          {isCollapsed && !isMobile && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200 pointer-events-none">
+              <ChevronDown className="size-4 text-zinc-900 dark:text-zinc-50" />
+            </div>
+          )}
+        </m.div>
+
+        {!isMobile && !isCollapsed && (
+          <div className="flex flex-col flex-1 min-w-0 text-left overflow-hidden">
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+                {activeName}
+              </span>
+              <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
+            </div>
+            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+              {activeSubtitle}
+            </span>
+          </div>
+        )}
+        {isMobile && (
+          <div className="flex flex-col flex-1 min-w-0 text-left">
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+                {activeName}
+              </span>
+              <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
+            </div>
+            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+              {activeSubtitle}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Collapse Button inside the container (Purple Border) */}
+      {!isMobile && (
+        <m.button
+          variants={{
+            expanded: {
+              opacity: 1,
+              scale: 1,
+              display: "flex",
+              transition: { duration: 0 }
+            },
+            collapsed: {
+              opacity: 0,
+              scale: 0.8,
+              transition: { duration: 0 },
+              transitionEnd: { display: "none" }
+            }
+          }}
+          animate={isCollapsed ? "collapsed" : "expanded"}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            toggleCollapse?.();
+          }}
+          type="button"
+          className="size-8 min-w-[32px] mr-0 rounded-lg border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-2xs hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center justify-center transition-colors shrink-0 cursor-pointer border-2 border-purple-500"
+          title="Menü einklappen"
+        >
+          <PanelLeft className="size-4" />
+        </m.button>
+      )}
+    </m.div>
+  );
+
   return (
     <div className={cn(
       "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 px-1.5 shrink-0 border-2 border-blue-500",
       isCollapsed && !isMobile ? "justify-center" : ""
     )}>
-      {/* Workspace / Brand Pill Container (Pink Border) */}
-      <m.div 
-        variants={logoVariants}
-        animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
-        className={cn(
-          "flex items-center justify-between gap-2 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150 group/logo select-none border-2 border-pink-500 min-h-[40px]",
-          isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10 mx-auto" : "w-full pl-1 pr-0.5"
-        )}
+      <CustomDropdown
+        align="start"
+        className="w-60"
+        trigger={triggerPill}
       >
-        {/* Brand Link (Logo + Name + Subtitle) */}
-        <Link
-          href="/"
-          onClick={(e) => {
-            if (isCollapsed && !isMobile) {
-              e.preventDefault();
-              toggleCollapse?.();
-            }
-          }}
-          className={cn(
-            "flex items-center gap-2.5 min-w-0 cursor-pointer overflow-hidden",
-            isCollapsed && !isMobile ? "justify-center p-0" : "flex-1"
-          )}
-          title={isCollapsed && !isMobile ? "Menü ausklappen" : undefined}
+        <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
+          Organisationen:
+        </CustomDropdownLabel>
+        <CustomDropdownSeparator />
+        <CustomDropdownItem
+          onClick={() => handleSwitchOrg(null)}
+          disabled={isSwitchingOrg}
+          className="flex items-center cursor-pointer"
         >
-          <m.div 
-            layout={false}
-            className="relative size-8 min-w-8 min-h-8 rounded-lg overflow-hidden shadow-2xs shrink-0 flex items-center justify-center"
-          >
-            {/* Logo Image */}
-            <div className={cn(
-              "absolute inset-0 transition-opacity duration-200",
-              isCollapsed && !isMobile ? "group-hover/logo:opacity-0" : ""
-            )}>
-              <Image
-                src={LOGO_URL}
-                alt="Mietevo Logo"
-                fill
-                className="object-cover rounded-lg"
-                sizes="32px"
-                unoptimized
-              />
-            </div>
-            {/* Hover Collapse Icon (only when collapsed) */}
-            {isCollapsed && !isMobile && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200 pointer-events-none">
-                <PanelLeft className="size-4 text-zinc-900 dark:text-zinc-50" />
-              </div>
-            )}
-          </m.div>
-
-          {!isMobile && !isCollapsed && (
-            <div className="flex flex-col flex-1 min-w-0 text-left overflow-hidden">
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
-                  Mietevo
-                </span>
-                <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
-              </div>
-              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
-                Immobilienverwaltung
-              </span>
-            </div>
+          {currentOrgId === null ? (
+            <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+          ) : (
+            <div className="mr-2 size-4 shrink-0" />
           )}
-          {isMobile && (
-            <div className="flex flex-col flex-1 min-w-0 text-left">
-              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
-                Mietevo
-              </span>
-              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate">
-                Immobilienverwaltung
-              </span>
-            </div>
-          )}
-        </Link>
+          <span className={cn(currentOrgId === null && "font-medium text-emerald-600 dark:text-emerald-400")}>
+            Privat
+          </span>
+        </CustomDropdownItem>
+        {organisations.map((org) => {
+          const isActive = currentOrgId === org.organisation_id;
+          const roleLabel =
+            org.rolle === 'owner' ? 'Owner' :
+            org.rolle === 'admin' ? 'Admin' :
+            'Mitarbeiter';
 
-        {/* Collapse Button inside the container (Purple Border) */}
-        {!isMobile && (
-          <m.button
-            variants={{
-              expanded: {
-                opacity: 1,
-                scale: 1,
-                display: "flex",
-                transition: {
-                  duration: 0.2,
-                  ease: [0.2, 0.8, 0.2, 1]
-                }
-              },
-              collapsed: {
-                opacity: 0,
-                scale: 0.8,
-                transition: {
-                  duration: 0.15,
-                  ease: [0.2, 0.8, 0.2, 1]
-                },
-                transitionEnd: { display: "none" }
-              }
-            }}
-            animate={isCollapsed ? "collapsed" : "expanded"}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              toggleCollapse?.();
-            }}
-            type="button"
-            className="size-8 min-w-[32px] mr-0 rounded-lg border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-2xs hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center justify-center transition-colors shrink-0 cursor-pointer border-2 border-purple-500"
-            title="Menü einklappen"
-          >
-            <PanelLeft className="size-4" />
-          </m.button>
-        )}
-      </m.div>
+          return (
+            <CustomDropdownItem
+              key={org.organisation_id}
+              onClick={() => handleSwitchOrg(org.organisation_id)}
+              disabled={isSwitchingOrg}
+              className="flex items-center cursor-pointer"
+            >
+              {isActive ? (
+                <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+              ) : (
+                <div className="mr-2 size-4 shrink-0" />
+              )}
+              <span className={cn(
+                "truncate",
+                isActive && "font-medium text-emerald-600 dark:text-emerald-400"
+              )}>
+                {org.name} <span className="text-xs text-gray-400 font-normal">({roleLabel})</span>
+              </span>
+            </CustomDropdownItem>
+          )
+        })}
+      </CustomDropdown>
     </div>
   )
 }
