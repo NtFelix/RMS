@@ -354,21 +354,20 @@ function SidebarContent({
   }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
 
   return (
-    <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible border-2 border-red-500">
-      {/* Header / Brand Logo */}
-      <SidebarHeader
-        isCollapsed={isCollapsed}
-        isMobile={isMobile}
-        toggleCollapse={toggleCollapse}
-        setIsOpen={setIsOpen}
-      />
+    <TooltipProvider delayDuration={100} skipDelayDuration={300}>
+      <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible border-2 border-red-500">
+        {/* Header / Brand Logo */}
+        <SidebarHeader
+          isCollapsed={isCollapsed}
+          isMobile={isMobile}
+          setIsOpen={setIsOpen}
+        />
 
-      <div className={cn(
-        "flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar border-2 border-cyan-500",
-        isCollapsed && !isMobile ? "flex flex-col items-center" : ""
-      )}>
-        <nav className="grid gap-1.5 w-full">
-          <TooltipProvider delayDuration={100} skipDelayDuration={300}>
+        <div className={cn(
+          "flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar border-2 border-cyan-500",
+          isCollapsed && !isMobile ? "flex flex-col items-center" : ""
+        )}>
+          <nav className="grid gap-1.5 w-full">
             {visibleNavItems.map((item) => (
               <SidebarNavLink
                 key={item.href}
@@ -381,25 +380,25 @@ function SidebarContent({
                 getActiveStateClasses={getActiveStateClasses}
               />
             ))}
-          </TooltipProvider>
-        </nav>
-      </div>
+          </nav>
+        </div>
 
-      {/* Popover Actions */}
-      <SidebarActions
-        isCollapsed={isCollapsed}
-        supportButtonEnabled={!!supportButtonEnabled}
-        notificationCenterFeatureEnabled={!!notificationCenterFeatureEnabled}
-      />
-      
-      {/* User profile / settings */}
-      <div className={cn(
-        "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible border-2 border-orange-500 p-0.5",
-        isCollapsed && !isMobile ? "items-center justify-center" : ""
-      )}>
-        <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
+        {/* Popover Actions */}
+        <SidebarActions
+          isCollapsed={isCollapsed}
+          supportButtonEnabled={!!supportButtonEnabled}
+          notificationCenterFeatureEnabled={!!notificationCenterFeatureEnabled}
+        />
+        
+        {/* User profile / settings */}
+        <div className={cn(
+          "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible border-2 border-orange-500 p-0.5",
+          isCollapsed && !isMobile ? "items-center justify-center" : ""
+        )}>
+          <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
 
@@ -410,16 +409,14 @@ interface OrganisationItem {
   name: string;
 }
 
-// Brand Logo & Collapse Toggle Subcomponent
+// Brand Logo & Header Subcomponent
 function SidebarHeader({
   isCollapsed,
   isMobile,
-  toggleCollapse,
   setIsOpen
 }: {
   isCollapsed: boolean
   isMobile: boolean
-  toggleCollapse?: () => void
   setIsOpen: (open: boolean) => void
 }) {
   const { toast } = useToast() || {}
@@ -489,108 +486,60 @@ function SidebarHeader({
 
   const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
   const activeName = currentOrgId === null ? "Mietevo" : (activeOrg?.name || "Mietevo");
-  const activeSubtitle = currentOrgId === null ? "Immobilienverwaltung" : `${activeOrg?.rolle === 'owner' ? 'Owner' : activeOrg?.rolle === 'admin' ? 'Admin' : 'Mitarbeiter'}`;
+  const activeSubtitle = currentOrgId === null ? "Immobilienverwaltung" : (activeOrg?.rolle === 'owner' ? 'Eigentümer' : activeOrg?.rolle === 'admin' ? 'Admin' : 'Mitarbeiter');
 
   const triggerPill = (
     <m.div 
       variants={logoVariants}
       animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
       className={cn(
-        "flex items-center justify-between gap-2 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150 group/logo select-none border-2 border-pink-500 min-h-[40px] cursor-pointer outline-none",
-        isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10 mx-auto" : "w-full pl-1 pr-0.5"
+        "flex items-center gap-2.5 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150 group/logo select-none border-2 border-pink-500 min-h-[40px] cursor-pointer outline-none w-full",
+        isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10 mx-auto" : "pl-1 pr-2"
       )}
+      title={isCollapsed && !isMobile ? "Organisationen wechseln" : undefined}
     >
-      {/* Workspace Click Target */}
-      <div
-        className={cn(
-          "flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden",
-          isCollapsed && !isMobile ? "justify-center p-0" : ""
-        )}
-        title={isCollapsed && !isMobile ? "Organisationen wechseln" : undefined}
+      <m.div 
+        layout={false}
+        className="relative size-8 min-w-8 min-h-8 rounded-lg overflow-hidden shadow-2xs shrink-0 flex items-center justify-center"
       >
-        <m.div 
-          layout={false}
-          className="relative size-8 min-w-8 min-h-8 rounded-lg overflow-hidden shadow-2xs shrink-0 flex items-center justify-center"
-        >
-          {/* Logo Image */}
-          <div className={cn(
-            "absolute inset-0 transition-opacity duration-200",
-            isCollapsed && !isMobile ? "group-hover/logo:opacity-0" : ""
-          )}>
-            <Image
-              src={LOGO_URL}
-              alt="Mietevo Logo"
-              fill
-              className="object-cover rounded-lg"
-              sizes="32px"
-              unoptimized
-            />
-          </div>
-          {/* Hover Collapse Icon (only when collapsed) */}
-          {isCollapsed && !isMobile && (
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <ChevronDown className="size-4 text-zinc-900 dark:text-zinc-50" />
-            </div>
-          )}
-        </m.div>
+        {/* Logo Image */}
+        <div className="absolute inset-0 transition-opacity duration-200">
+          <Image
+            src={LOGO_URL}
+            alt="Mietevo Logo"
+            fill
+            className="object-cover rounded-lg"
+            sizes="32px"
+            unoptimized
+          />
+        </div>
+      </m.div>
 
-        {!isMobile && !isCollapsed && (
-          <div className="flex flex-col flex-1 min-w-0 text-left overflow-hidden">
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
-                {activeName}
-              </span>
-              <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
-            </div>
-            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
-              {activeSubtitle}
+      {!isMobile && !isCollapsed && (
+        <div className="flex flex-col flex-1 min-w-0 text-left overflow-hidden">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+              {activeName}
             </span>
+            <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
           </div>
-        )}
-        {isMobile && (
-          <div className="flex flex-col flex-1 min-w-0 text-left">
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
-                {activeName}
-              </span>
-              <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
-            </div>
-            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
-              {activeSubtitle}
+          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+            {activeSubtitle}
+          </span>
+        </div>
+      )}
+      {isMobile && (
+        <div className="flex flex-col flex-1 min-w-0 text-left">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+              {activeName}
             </span>
+            <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
           </div>
-        )}
-      </div>
-
-      {/* Collapse Button inside the container (Purple Border) */}
-      {!isMobile && (
-        <m.button
-          variants={{
-            expanded: {
-              opacity: 1,
-              scale: 1,
-              display: "flex",
-              transition: { duration: 0 }
-            },
-            collapsed: {
-              opacity: 0,
-              scale: 0.8,
-              transition: { duration: 0 },
-              transitionEnd: { display: "none" }
-            }
-          }}
-          animate={isCollapsed ? "collapsed" : "expanded"}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            toggleCollapse?.();
-          }}
-          type="button"
-          className="size-8 min-w-[32px] mr-0 rounded-lg border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-2xs hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center justify-center transition-colors shrink-0 cursor-pointer border-2 border-purple-500"
-          title="Menü einklappen"
-        >
-          <PanelLeft className="size-4" />
-        </m.button>
+          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+            {activeSubtitle}
+          </span>
+        </div>
       )}
     </m.div>
   );
@@ -600,6 +549,7 @@ function SidebarHeader({
       "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 px-1.5 shrink-0 border-2 border-blue-500",
       isCollapsed && !isMobile ? "justify-center" : ""
     )}>
+      {/* Organisation Switcher Dropdown (Pink Border) */}
       <CustomDropdown
         align="start"
         className="w-60"
@@ -615,14 +565,14 @@ function SidebarHeader({
           className="flex items-center cursor-pointer"
         >
           {currentOrgId === null ? (
-            <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+            <Check className="mr-2 size-4 text-primary shrink-0" />
           ) : (
             <div className="mr-2 size-4 shrink-0" />
           )}
           <div className="flex flex-col text-left min-w-0">
             <span className={cn(
               "truncate font-semibold text-sm leading-snug",
-              currentOrgId === null && "text-emerald-600 dark:text-emerald-400"
+              currentOrgId === null && "text-primary font-bold"
             )}>
               Privat
             </span>
@@ -634,7 +584,7 @@ function SidebarHeader({
         {organisations.map((org) => {
           const isActive = currentOrgId === org.organisation_id;
           const roleLabel =
-            org.rolle === 'owner' ? 'Owner' :
+            org.rolle === 'owner' ? 'Eigentümer' :
             org.rolle === 'admin' ? 'Admin' :
             'Mitarbeiter';
 
@@ -646,14 +596,14 @@ function SidebarHeader({
               className="flex items-center cursor-pointer"
             >
               {isActive ? (
-                <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
+                <Check className="mr-2 size-4 text-primary shrink-0" />
               ) : (
                 <div className="mr-2 size-4 shrink-0" />
               )}
               <div className="flex flex-col text-left min-w-0">
                 <span className={cn(
                   "truncate font-semibold text-sm leading-snug",
-                  isActive && "text-emerald-600 dark:text-emerald-400"
+                  isActive && "text-primary font-bold"
                 )}>
                   {org.name}
                 </span>
