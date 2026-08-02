@@ -409,7 +409,7 @@ function SidebarHeader({
 }) {
   return (
     <div className={cn(
-      "flex items-center justify-between gap-2 w-full mb-2.5 p-1.5 shrink-0 border-2 border-blue-500",
+      "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 px-1.5 shrink-0 border-2 border-blue-500",
       isCollapsed && !isMobile ? "justify-center" : ""
     )}>
       {/* Workspace / Brand Pill Container (Pink Border) */}
