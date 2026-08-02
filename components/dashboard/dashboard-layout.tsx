@@ -111,7 +111,7 @@ export function DashboardLayout({
       <div className="flex min-h-screen bg-background w-full max-w-full">
         {/* Desktop sidebar */}
         <div
-          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
+          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0"
           style={{
             width: preference === 'expanded' ? "16rem" : "5rem"
           }}
@@ -119,40 +119,30 @@ export function DashboardLayout({
           <DashboardSidebar sidebarData={sidebarData} />
         </div>
 
-        <div className="flex flex-1 flex-col overflow-hidden">
-
         <main className={cn(
-          "flex flex-1 flex-col min-h-0",
+          "flex flex-1 flex-col min-h-0 overflow-hidden border-2 border-fuchsia-500",
           // Enhanced responsive padding with CSS-only fallbacks
           "main-content-responsive",
           "responsive-transition",
-          // Responsive padding: no top padding on mobile since header is hidden
-          "p-6 md:p-6",
-          "pt-6 md:pt-6",
+          // Responsive padding matching sidebar p-3 (12px)
+          "p-3 md:p-3",
           // JavaScript-enhanced responsive padding
-          isMobile ? "pb-20 pt-6" : "pb-6 pt-6",
+          isMobile ? "pb-20 pt-3" : "p-3",
           // Push mode: shift content by adding right margin matching sidebar width
           isPushMode && "md:mr-[450px]"
         )}>
           <div className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden",
-            "mb-4 md:mb-0",
-            "responsive-transition"
+            "flex-1 border-2 border-green-500 shadow-xs bg-white dark:bg-[#181818] relative overflow-y-auto overflow-x-hidden",
+            "rounded-[2rem] md:rounded-[2.5rem]",
+            "responsive-transition",
+            "prevent-layout-shift",
+            "mobile-smooth-scroll",
+            "mb-0",
+            isMobile && "pb-20"
           )}>
-            <div className={cn(
-              "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
-              "rounded-[2rem] md:rounded-[2.5rem]",
-              "responsive-transition",
-              "prevent-layout-shift",
-              "mobile-smooth-scroll",
-              "mb-0",
-              isMobile && "pb-20"
-            )}>
-              {children}
-            </div>
+            {children}
           </div>
         </main>
-      </div>
 
         {mounted && isMobile && <MobileBottomNavigation sidebarData={sidebarData} />}
       </div>

@@ -12,10 +12,7 @@ import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organi
 import { useToast } from "@/hooks/use-toast"
 
 const layoutTransition = {
-  type: "spring",
-  stiffness: 400,
-  damping: 38,
-  mass: 0.8
+  duration: 0
 } as const;
 
 const triggerVariants = {
@@ -27,12 +24,7 @@ const triggerVariants = {
     paddingRight: "12px",
     paddingTop: "10px",
     paddingBottom: "10px",
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     width: "40px",
@@ -42,12 +34,7 @@ const triggerVariants = {
     paddingRight: "0px",
     paddingTop: "0px",
     paddingBottom: "0px",
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   }
 } as const;
 
@@ -224,7 +211,10 @@ export function UserSettings({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="flex items-center cursor-pointer transition-all duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-md bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 rounded-2xl"
+            className={cn(
+              "flex items-center cursor-pointer transition-all duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-md bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 rounded-2xl",
+              collapsed ? "justify-center p-1.5" : "px-3 py-2.5"
+            )}
             aria-label="User menu"
           >
             <m.div 

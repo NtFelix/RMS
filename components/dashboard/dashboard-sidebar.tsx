@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network, Bot
+  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network, Bot, ChevronDown
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
@@ -130,10 +130,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
 };
 
 const layoutTransition = {
-  type: "spring",
-  stiffness: 400,
-  damping: 38,
-  mass: 0.8
+  duration: 0
 } as const;
 
 const MotionLink = m(Link);
@@ -145,43 +142,25 @@ const textVariants: Variants = {
     width: "auto",
     marginLeft: "12px",
     display: "block",
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     opacity: 0,
     width: 0,
     marginLeft: "0px",
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    },
-    transitionEnd: {
-      display: "none"
-    }
+    transition: { duration: 0 },
+    transitionEnd: { display: "none" }
   }
 };
 
 const iconVariants: Variants = {
   expanded: {
     scale: 1,
-    transition: {
-      duration: 0.2,
-      ease: [0.2, 0.8, 0.2, 1]
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     scale: 1.1,
-    transition: {
-      duration: 0.2,
-      ease: [0.2, 0.8, 0.2, 1]
-    }
+    transition: { duration: 0 }
   }
 };
 
@@ -189,45 +168,27 @@ const linkVariants: Variants = {
   expanded: {
     width: "100%",
     borderRadius: "20px", // rounded-xl
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     width: "40px",
     borderRadius: "9999px", // rounded-full
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   }
 };
 
 const logoVariants: Variants = {
   expanded: {
     width: "100%",
+    height: "40px",
     borderRadius: "20px", // rounded-xl
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     width: "40px",
+    height: "40px",
     borderRadius: "9999px", // rounded-full
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   }
 };
 
@@ -294,7 +255,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-4 w-full overflow-visible">
+      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-0 w-full overflow-visible">
         <div className="hidden md:flex flex-col h-full w-full overflow-visible">
           <SidebarContent
             isCollapsed={isCollapsed}
@@ -385,7 +346,7 @@ function SidebarContent({
   }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
 
   return (
-    <div className="h-full w-full flex flex-col relative pl-4 pr-4 md:pr-0 overflow-visible">
+    <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible border-2 border-red-500">
       {/* Header / Brand Logo */}
       <SidebarHeader
         isCollapsed={isCollapsed}
@@ -394,8 +355,11 @@ function SidebarContent({
         setIsOpen={setIsOpen}
       />
 
-      <div className="flex-1 overflow-y-auto min-h-0 py-2 custom-scrollbar">
-        <nav className="grid gap-1">
+      <div className={cn(
+        "flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar border-2 border-cyan-500",
+        isCollapsed && !isMobile ? "flex flex-col items-center" : ""
+      )}>
+        <nav className="grid gap-1.5 w-full">
           <TooltipProvider delayDuration={100} skipDelayDuration={300}>
             {visibleNavItems.map((item) => (
               <SidebarNavLink
@@ -421,7 +385,10 @@ function SidebarContent({
       />
       
       {/* User profile / settings */}
-      <div className="pt-2 pb-4 md:pb-0 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible">
+      <div className={cn(
+        "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible border-2 border-orange-500 p-0.5",
+        isCollapsed && !isMobile ? "items-center justify-center" : ""
+      )}>
         <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
       </div>
     </div>
@@ -441,11 +408,21 @@ function SidebarHeader({
   setIsOpen: (open: boolean) => void
 }) {
   return (
-    <div className="flex items-center h-14 justify-between w-full pb-4 relative overflow-hidden shrink-0">
-      <div className="flex items-center overflow-hidden flex-1 min-w-0">
-        <MotionLink 
-          variants={logoVariants}
-          animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+    <div className={cn(
+      "flex items-center justify-between gap-2 w-full mb-2.5 p-1.5 shrink-0 border-2 border-blue-500",
+      isCollapsed && !isMobile ? "justify-center" : ""
+    )}>
+      {/* Workspace / Brand Pill Container (Pink Border) */}
+      <m.div 
+        variants={logoVariants}
+        animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+        className={cn(
+          "flex items-center justify-between gap-2 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150 group/logo select-none border-2 border-pink-500 min-h-[40px]",
+          isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10 mx-auto" : "w-full pl-1 pr-0.5"
+        )}
+      >
+        {/* Brand Link (Logo + Name + Subtitle) */}
+        <Link
           href="/"
           onClick={(e) => {
             if (isCollapsed && !isMobile) {
@@ -453,89 +430,100 @@ function SidebarHeader({
               toggleCollapse?.();
             }
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              if (isCollapsed && !isMobile) {
-                e.preventDefault();
-                toggleCollapse?.();
-              }
-            }
-          }}
-          role={isCollapsed && !isMobile ? "button" : undefined}
-          tabIndex={isCollapsed && !isMobile ? 0 : undefined}
-          className="flex items-center font-semibold overflow-hidden group/logo relative select-none shrink-0 cursor-pointer pl-1 transition-colors duration-200 gap-3 rounded-xl"
+          className={cn(
+            "flex items-center gap-2.5 min-w-0 cursor-pointer overflow-hidden",
+            isCollapsed && !isMobile ? "justify-center p-0" : "flex-1"
+          )}
           title={isCollapsed && !isMobile ? "Menü ausklappen" : undefined}
         >
           <m.div 
-            layout
-            transition={layoutTransition}
-            className="relative size-8 min-w-8 rounded-full overflow-hidden shadow-xs shrink-0 flex items-center justify-center"
+            layout={false}
+            className="relative size-8 min-w-8 min-h-8 rounded-lg overflow-hidden shadow-2xs shrink-0 flex items-center justify-center"
           >
             {/* Logo Image */}
             <div className={cn(
-              "absolute inset-0 transition-[opacity,transform] duration-300",
-              isCollapsed && !isMobile ? "group-hover/logo:opacity-0 group-hover/logo:scale-90" : ""
+              "absolute inset-0 transition-opacity duration-200",
+              isCollapsed && !isMobile ? "group-hover/logo:opacity-0" : ""
             )}>
               <Image
                 src={LOGO_URL}
-                alt="IV Logo"
+                alt="Mietevo Logo"
                 fill
-                className="object-cover rounded-full"
+                className="object-cover rounded-lg"
                 sizes="32px"
                 unoptimized
               />
             </div>
             {/* Hover Collapse Icon (only when collapsed) */}
             {isCollapsed && !isMobile && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 scale-75 group-hover/logo:scale-100 group-hover/logo:opacity-100 transition-[opacity,transform] duration-300 pointer-events-none">
-                <PanelLeft className="size-5 text-zinc-900 dark:text-zinc-50" />
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity duration-200 pointer-events-none">
+                <PanelLeft className="size-4 text-zinc-900 dark:text-zinc-50" />
               </div>
             )}
           </m.div>
-          {!isMobile && (
-            <m.span
-              variants={textVariants}
-              animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
-              className="text-lg whitespace-nowrap overflow-hidden font-bold"
-            >
-              Mietevo
-            </m.span>
-          )}
-          {isMobile && <span className="text-lg font-bold">Mietevo</span>}
-        </MotionLink>
-      </div>
 
-      {!isMobile && (
-        <m.button
-          variants={{
-            expanded: {
-              opacity: 1,
-              scale: 1,
-              display: "flex",
-              transition: {
-                duration: 0.2,
-                ease: [0.2, 0.8, 0.2, 1]
-              }
-            },
-            collapsed: {
-              opacity: 0,
-              scale: 0.8,
-              transition: {
-                duration: 0.15,
-                ease: [0.2, 0.8, 0.2, 1]
+          {!isMobile && !isCollapsed && (
+            <div className="flex flex-col flex-1 min-w-0 text-left overflow-hidden">
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+                  Mietevo
+                </span>
+                <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
+              </div>
+              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+                Immobilienverwaltung
+              </span>
+            </div>
+          )}
+          {isMobile && (
+            <div className="flex flex-col flex-1 min-w-0 text-left">
+              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                Mietevo
+              </span>
+              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate">
+                Immobilienverwaltung
+              </span>
+            </div>
+          )}
+        </Link>
+
+        {/* Collapse Button inside the container (Purple Border) */}
+        {!isMobile && (
+          <m.button
+            variants={{
+              expanded: {
+                opacity: 1,
+                scale: 1,
+                display: "flex",
+                transition: {
+                  duration: 0.2,
+                  ease: [0.2, 0.8, 0.2, 1]
+                }
               },
-              transitionEnd: { display: "none" }
-            }
-          }}
-          animate={isCollapsed ? "collapsed" : "expanded"}
-          onClick={toggleCollapse}
-          type="button"
-          className="flex items-center justify-center rounded-xl size-10 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-colors duration-200 shrink-0 z-50 focus:outline-none cursor-pointer hover:scale-105 active:scale-95"
-          title="Menü einklappen"
-        >
-          <PanelLeft className="size-5" />
-        </m.button>
-      )}
+              collapsed: {
+                opacity: 0,
+                scale: 0.8,
+                transition: {
+                  duration: 0.15,
+                  ease: [0.2, 0.8, 0.2, 1]
+                },
+                transitionEnd: { display: "none" }
+              }
+            }}
+            animate={isCollapsed ? "collapsed" : "expanded"}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              toggleCollapse?.();
+            }}
+            type="button"
+            className="size-8 min-w-[32px] mr-0 rounded-lg border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 shadow-2xs hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center justify-center transition-colors shrink-0 cursor-pointer border-2 border-purple-500"
+            title="Menü einklappen"
+          >
+            <PanelLeft className="size-4" />
+          </m.button>
+        )}
+      </m.div>
     </div>
   )
 }
@@ -609,7 +597,8 @@ function SidebarNavLink({
         }
       }}
       className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 px-3 justify-start rounded-xl isolate",
+        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
+        isCollapsed && !isMobile ? "px-0 justify-center mx-auto" : "px-3 justify-start w-full",
         !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),
       )}
@@ -689,7 +678,7 @@ function SidebarActions({
       transition={layoutTransition}
       className={cn(
         "flex gap-3 w-full pb-4 shrink-0 transition-colors duration-200",
-        isCollapsed ? "flex-col items-start" : "flex-row justify-start"
+        isCollapsed ? "flex-col items-center justify-center" : "flex-row justify-start"
       )}
     >
       {/* Support Popover */}
