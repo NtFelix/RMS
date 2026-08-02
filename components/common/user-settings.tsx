@@ -309,52 +309,6 @@ export function UserSettings({
           </CustomDropdownItem>
         )}
         <CustomDropdownSeparator />
-        <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
-          Organisationen:
-        </CustomDropdownLabel>
-        <CustomDropdownItem
-          onClick={() => handleSwitchOrg(null)}
-          disabled={isSwitchingOrg}
-          className="flex items-center cursor-pointer"
-        >
-          {currentOrgId === null ? (
-            <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
-          ) : (
-            <div className="mr-2 size-4 shrink-0" />
-          )}
-          <span className={cn(currentOrgId === null && "font-medium text-emerald-600 dark:text-emerald-400")}>
-            Privat
-          </span>
-        </CustomDropdownItem>
-        {organisations.map((org) => {
-          const isActive = currentOrgId === org.organisation_id;
-          const roleLabel =
-            org.rolle === 'owner' ? 'Owner' :
-            org.rolle === 'admin' ? 'Admin' :
-            'Mitarbeiter';
-
-          return (
-            <CustomDropdownItem
-              key={org.organisation_id}
-              onClick={() => handleSwitchOrg(org.organisation_id)}
-              disabled={isSwitchingOrg}
-              className="flex items-center cursor-pointer"
-            >
-              {isActive ? (
-                <Check className="mr-2 size-4 text-emerald-500 shrink-0" />
-              ) : (
-                <div className="mr-2 size-4 shrink-0" />
-              )}
-              <span className={cn(
-                "truncate",
-                isActive && "font-medium text-emerald-600 dark:text-emerald-400"
-              )}>
-                {org.name} <span className="text-xs text-gray-400 font-normal">({roleLabel})</span>
-              </span>
-            </CustomDropdownItem>
-          )
-        })}
-        <CustomDropdownSeparator />
         <CustomDropdownItem
           onClick={handleLogout}
           disabled={isLoadingLogout}

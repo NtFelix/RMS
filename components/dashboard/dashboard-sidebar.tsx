@@ -619,9 +619,17 @@ function SidebarHeader({
           ) : (
             <div className="mr-2 size-4 shrink-0" />
           )}
-          <span className={cn(currentOrgId === null && "font-medium text-emerald-600 dark:text-emerald-400")}>
-            Privat
-          </span>
+          <div className="flex flex-col text-left min-w-0">
+            <span className={cn(
+              "truncate font-semibold text-sm leading-snug",
+              currentOrgId === null && "text-emerald-600 dark:text-emerald-400"
+            )}>
+              Privat
+            </span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight">
+              Persönlicher Bereich
+            </span>
+          </div>
         </CustomDropdownItem>
         {organisations.map((org) => {
           const isActive = currentOrgId === org.organisation_id;
@@ -642,12 +650,17 @@ function SidebarHeader({
               ) : (
                 <div className="mr-2 size-4 shrink-0" />
               )}
-              <span className={cn(
-                "truncate",
-                isActive && "font-medium text-emerald-600 dark:text-emerald-400"
-              )}>
-                {org.name} <span className="text-xs text-gray-400 font-normal">({roleLabel})</span>
-              </span>
+              <div className="flex flex-col text-left min-w-0">
+                <span className={cn(
+                  "truncate font-semibold text-sm leading-snug",
+                  isActive && "text-emerald-600 dark:text-emerald-400"
+                )}>
+                  {org.name}
+                </span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight">
+                  {roleLabel}
+                </span>
+              </div>
             </CustomDropdownItem>
           )
         })}
