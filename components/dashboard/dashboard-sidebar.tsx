@@ -355,7 +355,7 @@ function SidebarContent({
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={300}>
-      <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible border-2 border-red-500">
+      <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible">
         {/* Header / Brand Logo */}
         <SidebarHeader
           isCollapsed={isCollapsed}
@@ -364,7 +364,7 @@ function SidebarContent({
         />
 
         <div className={cn(
-          "flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar border-2 border-cyan-500",
+          "flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar",
           isCollapsed && !isMobile ? "flex flex-col items-center" : ""
         )}>
           <nav className="grid gap-1.5 w-full">
@@ -392,7 +392,7 @@ function SidebarContent({
         
         {/* User profile / settings */}
         <div className={cn(
-          "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible border-2 border-orange-500 p-0.5",
+          "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible",
           isCollapsed && !isMobile ? "items-center justify-center" : ""
         )}>
           <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
@@ -493,7 +493,7 @@ function SidebarHeader({
       variants={logoVariants}
       animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
       className={cn(
-        "flex items-center gap-2.5 p-1 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150 group/logo select-none border-2 border-pink-500 min-h-[40px] cursor-pointer outline-none w-full",
+        "flex items-center gap-2.5 p-1 rounded-xl hover:bg-hover-bg data-[state=open]:bg-hover-bg transition-colors duration-200 group/logo select-none min-h-[40px] cursor-pointer outline-none w-full",
         isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10 mx-auto" : "pl-1 pr-2"
       )}
       title={isCollapsed && !isMobile ? "Organisationen wechseln" : undefined}
@@ -546,10 +546,10 @@ function SidebarHeader({
 
   return (
     <div className={cn(
-      "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 px-1.5 shrink-0 border-2 border-blue-500",
+      "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 px-1.5 shrink-0",
       isCollapsed && !isMobile ? "justify-center" : ""
     )}>
-      {/* Organisation Switcher Dropdown (Pink Border) */}
+      {/* Organisation Switcher Dropdown */}
       <CustomDropdown
         align="start"
         className="w-60"

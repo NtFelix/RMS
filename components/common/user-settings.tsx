@@ -208,12 +208,10 @@ export function UserSettings({
           <m.div
             variants={triggerVariants}
             animate={collapsed ? "collapsed" : "expanded"}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className={cn(
-              "flex items-center cursor-pointer transition-all duration-200 select-none outline-none border border-zinc-200/20 dark:border-zinc-800/30 hover:border-zinc-200/50 dark:hover:border-zinc-800/50 hover:shadow-md bg-zinc-100/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 rounded-2xl",
-              collapsed ? "justify-center p-1.5" : "px-3 py-2.5"
+              "flex items-center cursor-pointer transition-colors duration-200 select-none outline-none hover:bg-hover-bg data-[state=open]:bg-hover-bg rounded-xl",
+              collapsed ? "justify-center p-1" : "pl-1 pr-2 p-1"
             )}
             aria-label="User menu"
           >
