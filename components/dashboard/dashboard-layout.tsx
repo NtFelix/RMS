@@ -19,9 +19,13 @@ export function DashboardLayout({
 }) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [isTabletCollapsed, setIsTabletCollapsed] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia('(max-width: 1023px)').matches : false
+  )
   const { preference } = useSidebarStore()
   const { isOpen, displayMode } = useAIChatStore()
   const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
+  const isCollapsed = isTabletCollapsed || preference === 'collapsed'
 
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
@@ -30,7 +34,9 @@ export function DashboardLayout({
     // Check initial screen size with proper breakpoint detection
     const checkScreenSize = () => {
       const newIsMobile = window.innerWidth < 768
+      const newIsTablet = window.innerWidth <= 1023
       setIsMobile(newIsMobile)
+      setIsTabletCollapsed(newIsTablet)
       return newIsMobile
     }
 
@@ -113,7 +119,7 @@ export function DashboardLayout({
         <div
           className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0"
           style={{
-            width: preference === 'expanded' ? "16rem" : "5rem"
+            width: isCollapsed ? "4.25rem" : "16rem"
           }}
         >
           <DashboardSidebar sidebarData={sidebarData} />

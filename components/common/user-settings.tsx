@@ -29,7 +29,7 @@ const triggerVariants = {
   collapsed: {
     width: "40px",
     height: "40px",
-    borderRadius: "9999px", // rounded-full
+    borderRadius: "24px", // rounded-2xl
     paddingLeft: "0px",
     paddingRight: "0px",
     paddingTop: "0px",
@@ -211,7 +211,7 @@ export function UserSettings({
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className={cn(
               "flex items-center cursor-pointer transition-colors duration-200 select-none outline-none hover:bg-hover-bg data-[state=open]:bg-hover-bg rounded-xl",
-              collapsed ? "justify-center p-1" : "pl-1 pr-2 p-1"
+              collapsed ? "justify-center p-0" : "pl-1 pr-2 p-1 w-full justify-start"
             )}
             aria-label="User menu"
           >

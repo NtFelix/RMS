@@ -179,8 +179,8 @@ const linkVariants: Variants = {
     transition: { duration: 0 }
   },
   collapsed: {
-    width: "40px",
-    borderRadius: "9999px", // rounded-full
+    width: "100%",
+    borderRadius: "20px", // rounded-xl
     transition: { duration: 0 }
   }
 };
@@ -195,7 +195,7 @@ const logoVariants: Variants = {
   collapsed: {
     width: "40px",
     height: "40px",
-    borderRadius: "9999px", // rounded-full
+    borderRadius: "20px", // rounded-xl
     transition: { duration: 0 }
   }
 };
@@ -363,10 +363,7 @@ function SidebarContent({
           setIsOpen={setIsOpen}
         />
 
-        <div className={cn(
-          "flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar",
-          isCollapsed && !isMobile ? "flex flex-col items-center" : ""
-        )}>
+        <div className="flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar">
           <nav className="grid gap-1.5 w-full">
             {visibleNavItems.map((item) => (
               <SidebarNavLink
@@ -391,10 +388,7 @@ function SidebarContent({
         />
         
         {/* User profile / settings */}
-        <div className={cn(
-          "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible",
-          isCollapsed && !isMobile ? "items-center justify-center" : ""
-        )}>
+        <div className="pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible">
           <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
         </div>
       </div>
@@ -493,8 +487,8 @@ function SidebarHeader({
       variants={logoVariants}
       animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
       className={cn(
-        "flex items-center gap-2.5 p-1 rounded-xl hover:bg-hover-bg data-[state=open]:bg-hover-bg transition-colors duration-200 group/logo select-none min-h-[40px] cursor-pointer outline-none w-full",
-        isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10 mx-auto" : "pl-1 pr-2"
+        "flex items-center gap-2.5 rounded-xl hover:bg-hover-bg data-[state=open]:bg-hover-bg transition-colors duration-200 group/logo select-none min-h-[40px] cursor-pointer outline-none",
+        isCollapsed && !isMobile ? "justify-center p-1" : "w-full pl-1 pr-2 p-1 justify-start"
       )}
       title={isCollapsed && !isMobile ? "Organisationen wechseln" : undefined}
     >
@@ -688,8 +682,7 @@ function SidebarNavLink({
         }
       }}
       className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
-        isCollapsed && !isMobile ? "px-0 justify-center mx-auto" : "px-3 justify-start w-full",
+        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate px-3 justify-start w-full",
         !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),
       )}
@@ -769,7 +762,7 @@ function SidebarActions({
       transition={layoutTransition}
       className={cn(
         "flex gap-3 w-full pb-4 shrink-0 transition-colors duration-200",
-        isCollapsed ? "flex-col items-center justify-center" : "flex-row justify-start"
+        isCollapsed ? "flex-col items-start justify-start px-1" : "flex-row justify-start"
       )}
     >
       {/* Support Popover */}
