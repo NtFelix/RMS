@@ -179,8 +179,8 @@ const linkVariants: Variants = {
     transition: { duration: 0 }
   },
   collapsed: {
-    width: "100%",
-    borderRadius: "20px", // rounded-xl
+    width: "40px",
+    borderRadius: "9999px", // rounded-full
     transition: { duration: 0 }
   }
 };
@@ -195,7 +195,7 @@ const logoVariants: Variants = {
   collapsed: {
     width: "40px",
     height: "40px",
-    borderRadius: "20px", // rounded-xl
+    borderRadius: "9999px", // rounded-full
     transition: { duration: 0 }
   }
 };
@@ -387,7 +387,7 @@ function SidebarContent({
         />
         
         {/* User profile / settings */}
-        <div className="pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible">
+        <div className="pt-2.5 pb-2.5 px-1.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible">
           <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
         </div>
       </div>
@@ -487,7 +487,7 @@ function SidebarHeader({
       animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
       className={cn(
         "flex items-center gap-2.5 rounded-xl hover:bg-hover-bg data-[state=open]:bg-hover-bg transition-colors duration-200 group/logo select-none min-h-[40px] cursor-pointer outline-none",
-        isCollapsed && !isMobile ? "justify-center p-1" : "w-full pl-1 pr-2 p-1 justify-start"
+        isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10" : "w-full pl-1 pr-2 p-1 justify-start"
       )}
       title={isCollapsed && !isMobile ? "Organisationen wechseln" : undefined}
     >
@@ -681,7 +681,8 @@ function SidebarNavLink({
         }
       }}
       className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate px-3 justify-start w-full",
+        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
+        isCollapsed && !isMobile ? "w-10 h-10 justify-center px-0 mx-auto" : "w-full px-3 justify-start",
         !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),
       )}

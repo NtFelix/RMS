@@ -29,7 +29,7 @@ const triggerVariants = {
   collapsed: {
     width: "40px",
     height: "40px",
-    borderRadius: "24px", // rounded-2xl
+    borderRadius: "9999px", // rounded-full
     paddingLeft: "0px",
     paddingRight: "0px",
     paddingTop: "0px",

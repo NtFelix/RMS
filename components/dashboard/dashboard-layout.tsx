@@ -117,7 +117,7 @@ export function DashboardLayout({
         <div
           className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0"
           style={{
-            width: isCollapsed ? "4.25rem" : "16rem"
+            width: isCollapsed ? "4.5rem" : "16rem"
           }}
         >
           <DashboardSidebar sidebarData={sidebarData} />
