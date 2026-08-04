@@ -126,7 +126,7 @@ export function DashboardLayout({
         </div>
 
         <main className={cn(
-          "flex flex-1 flex-col min-h-0 overflow-hidden border-2 border-fuchsia-500",
+          "flex flex-1 flex-col min-h-0 overflow-hidden",
           // Enhanced responsive padding with CSS-only fallbacks
           "main-content-responsive",
           "responsive-transition",
@@ -138,7 +138,7 @@ export function DashboardLayout({
           isPushMode && "md:mr-[450px]"
         )}>
           <div className={cn(
-            "flex-1 border-2 border-green-500 shadow-xs bg-white dark:bg-[#181818] relative overflow-y-auto overflow-x-hidden",
+            "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-y-auto overflow-x-hidden",
             "rounded-[2rem] md:rounded-[2.5rem]",
             "responsive-transition",
             "prevent-layout-shift",
