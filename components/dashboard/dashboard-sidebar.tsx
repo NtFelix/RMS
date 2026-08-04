@@ -204,9 +204,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const { preference, setPreference } = useSidebarStore()
-  const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(() => 
-    typeof window !== "undefined" ? window.matchMedia('(max-width: 1023px)').matches : false
-  )
+  const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(false)
   
   const isCollapsed = isResponsiveCollapsed || preference === 'collapsed'
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
@@ -223,6 +221,7 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 1023px)');
+    setIsResponsiveCollapsed(mediaQuery.matches);
     const handleMediaChange = (e: MediaQueryListEvent) => {
       setIsResponsiveCollapsed(e.matches);
     };

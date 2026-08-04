@@ -19,9 +19,7 @@ export function DashboardLayout({
 }) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [isTabletCollapsed, setIsTabletCollapsed] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia('(max-width: 1023px)').matches : false
-  )
+  const [isTabletCollapsed, setIsTabletCollapsed] = useState(false)
   const { preference } = useSidebarStore()
   const { isOpen, displayMode } = useAIChatStore()
   const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile

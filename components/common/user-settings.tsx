@@ -76,7 +76,6 @@ export function UserSettings({
 
   const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
-  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
 
   useEffect(() => {
     const loadOrganisations = async () => {
@@ -110,33 +109,6 @@ export function UserSettings({
 
     loadOrganisations()
   }, [])
-
-  const handleSwitchOrg = async (orgId: string | null) => {
-    if (orgId === currentOrgId) return;
-    setIsSwitchingOrg(true);
-    try {
-      const res = await switchOrganisationAction(orgId);
-      if (res.success) {
-        window.location.reload();
-      } else {
-        console.error("Failed to switch organisation:", res.error?.message);
-        toast({
-          variant: "destructive",
-          title: "Fehler beim Wechseln",
-          description: res.error?.message || "Die Organisation konnte nicht gewechselt werden.",
-        });
-      }
-    } catch (e) {
-      console.error("Exception switching organisation:", e);
-      toast({
-        variant: "destructive",
-        title: "Fehler",
-        description: "Ein unerwarteter Fehler ist aufgetreten.",
-      });
-    } finally {
-      setIsSwitchingOrg(false);
-    }
-  };
 
 
   // Use custom hooks for data fetching
