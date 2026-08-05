@@ -350,6 +350,42 @@ function SidebarContent({
     }, []);
   }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
 
+  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadOrganisations = async () => {
+      try {
+        const res = await getMyOrganisationsAction()
+        if (res.success && res.data) {
+          setOrganisations(res.data)
+          setCurrentOrgId(res.currentOrgId ?? null)
+          sessionStorage.setItem("cached_organisations:v1", JSON.stringify({
+            orgs: res.data,
+            currentOrgId: res.currentOrgId
+          }))
+        }
+      } catch (e) {
+        console.error("Failed to load organisations:", e)
+      }
+    }
+
+    const cached = sessionStorage.getItem("cached_organisations:v1")
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        setOrganisations(parsed.orgs)
+        if (parsed.currentOrgId !== undefined) {
+          setCurrentOrgId(parsed.currentOrgId ?? null)
+        }
+      } catch {
+        sessionStorage.removeItem("cached_organisations:v1")
+      }
+    }
+
+    loadOrganisations()
+  }, [])
+
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={300}>
       <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible">
@@ -357,6 +393,9 @@ function SidebarContent({
         <SidebarHeader
           isCollapsed={isCollapsed}
           isMobile={isMobile}
+          organisations={organisations}
+          currentOrgId={currentOrgId}
+          setCurrentOrgId={setCurrentOrgId}
         />
 
         <div className={cn(
@@ -394,7 +433,12 @@ function SidebarContent({
           "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible",
           isCollapsed && !isMobile ? "items-center justify-center px-0" : "px-1.5"
         )}>
-          <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
+          <UserSettings 
+            collapsed={isCollapsed && !isMobile} 
+            initialData={sidebarData}
+            organisations={organisations}
+            currentOrgId={currentOrgId}
+          />
         </div>
       </div>
     </TooltipProvider>
@@ -412,47 +456,18 @@ interface OrganisationItem {
 function SidebarHeader({
   isCollapsed,
   isMobile,
+  organisations,
+  currentOrgId,
+  setCurrentOrgId
 }: {
   isCollapsed: boolean
   isMobile: boolean
+  organisations: OrganisationItem[]
+  currentOrgId: string | null
+  setCurrentOrgId: (id: string | null) => void
 }) {
   const { toast } = useToast()
-  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
-  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
-
-  useEffect(() => {
-    const loadOrganisations = async () => {
-      try {
-        const res = await getMyOrganisationsAction()
-        if (res.success && res.data) {
-          setOrganisations(res.data)
-          setCurrentOrgId(res.currentOrgId ?? null)
-          sessionStorage.setItem("cached_organisations:v1", JSON.stringify({
-            orgs: res.data,
-            currentOrgId: res.currentOrgId
-          }))
-        }
-      } catch (e) {
-        console.error("Failed to load organisations:", e)
-      }
-    }
-
-    const cached = sessionStorage.getItem("cached_organisations:v1")
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached)
-        setOrganisations(parsed.orgs)
-        if (parsed.currentOrgId !== undefined) {
-          setCurrentOrgId(parsed.currentOrgId ?? null)
-        }
-      } catch {
-        sessionStorage.removeItem("cached_organisations:v1")
-      }
-    }
-
-    loadOrganisations()
-  }, [])
 
   const handleSwitchOrg = async (orgId: string | null) => {
     if (orgId === currentOrgId) return;
@@ -460,6 +475,9 @@ function SidebarHeader({
     try {
       const res = await switchOrganisationAction(orgId);
       if (res.success) {
+        // Clear cached organisations to prevent stale cache flash on reload
+        sessionStorage.removeItem("cached_organisations:v1");
+        setCurrentOrgId(orgId);
         window.location.reload();
       } else {
         console.error("Failed to switch organisation:", res.error?.message);
@@ -483,7 +501,11 @@ function SidebarHeader({
 
   const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
   const activeName = currentOrgId === null ? "Mietevo" : (activeOrg?.name || "Mietevo");
-  const activeSubtitle = currentOrgId === null ? "Immobilienverwaltung" : (activeOrg?.rolle === 'owner' ? 'Eigentümer' : activeOrg?.rolle === 'admin' ? 'Admin' : 'Mitarbeiter');
+  const activeSubtitle = currentOrgId === null 
+    ? "Immobilienverwaltung" 
+    : activeOrg 
+    ? (activeOrg.rolle === 'owner' ? 'Eigentümer' : activeOrg.rolle === 'admin' ? 'Admin' : 'Mitarbeiter')
+    : "Organisation";
 
   const triggerPill = (
     <m.div 

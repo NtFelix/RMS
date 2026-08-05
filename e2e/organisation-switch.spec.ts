@@ -40,10 +40,8 @@ test.describe('Organisation Switcher E2E', () => {
 
     console.log(`Clicking target item: "${targetName}"...`);
 
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'load' }),
-      targetItem.click(),
-    ]);
+    await targetItem.click();
+    await page.waitForLoadState('load');
 
     console.log("Page reloaded. Verifying new context...");
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { LogOut, Settings, FileText, Trash2 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
-import { getMyOrganisationsAction } from "@/app/organisation-actions"
 
 const layoutTransition = {
   duration: 0
@@ -52,61 +51,29 @@ import {
   CustomDropdownSeparator,
 } from "@/components/ui/custom-dropdown"
 
+export interface OrganisationItem {
+  organisation_id: string;
+  owner_id: string;
+  rolle: 'owner' | 'admin' | 'mitarbeiter';
+  name: string;
+}
+
 export function UserSettings({ 
   collapsed,
-  initialData 
+  initialData,
+  organisations = [],
+  currentOrgId = null
 }: { 
   collapsed?: boolean;
   initialData: SidebarUserData;
+  organisations?: OrganisationItem[];
+  currentOrgId?: string | null;
 }) {
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
   const { openTemplatesModal, openTrashBinModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
-
-  interface OrganisationItem {
-    organisation_id: string;
-    owner_id: string;
-    rolle: 'owner' | 'admin' | 'mitarbeiter';
-    name: string;
-  }
-
-  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
-  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const loadOrganisations = async () => {
-      try {
-        const res = await getMyOrganisationsAction()
-        if (res.success && res.data) {
-          setOrganisations(res.data)
-          setCurrentOrgId(res.currentOrgId ?? null)
-          sessionStorage.setItem("cached_organisations:v1", JSON.stringify({
-            orgs: res.data,
-            currentOrgId: res.currentOrgId
-          }))
-        }
-      } catch (e) {
-        console.error("Failed to load organisations:", e)
-      }
-    }
-
-    const cached = sessionStorage.getItem("cached_organisations:v1")
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached)
-        setOrganisations(parsed.orgs)
-        if (parsed.currentOrgId !== undefined) {
-          setCurrentOrgId(parsed.currentOrgId ?? null)
-        }
-      } catch {
-        sessionStorage.removeItem("cached_organisations:v1")
-      }
-    }
-
-    loadOrganisations()
-  }, [])
 
 
   // Use custom hooks for data fetching

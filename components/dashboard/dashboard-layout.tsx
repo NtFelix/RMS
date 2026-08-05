@@ -38,22 +38,28 @@ export function DashboardLayout({
       return newIsMobile
     }
 
-    // Set initial state
     checkScreenSize()
 
-    // Add resize listener for responsive behavior with debouncing
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      setIsTabletCollapsed(e.matches)
+    }
+    mediaQuery.addEventListener('change', handleMediaChange)
+
     let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
+      setIsTabletCollapsed(window.innerWidth <= 1023)
       clearTimeout(resizeTimeout)
       resizeTimeout = setTimeout(() => {
-        checkScreenSize()
-      }, 150) // Debounce resize events to prevent excessive re-renders
+        setIsMobile(window.innerWidth < 768)
+      }, 150)
     }
 
     window.addEventListener('resize', handleResize, { passive: true })
 
     return () => {
       window.removeEventListener('resize', handleResize)
+      mediaQuery.removeEventListener('change', handleMediaChange)
       clearTimeout(resizeTimeout)
     }
   }, [])
