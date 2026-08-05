@@ -128,10 +128,10 @@ export function DashboardLayout({
           // Enhanced responsive padding with CSS-only fallbacks
           "main-content-responsive",
           "responsive-transition",
-          // Responsive padding matching sidebar p-3 (12px)
-          "p-3 md:p-3",
+          // Responsive padding: 0px on left, 12px on top, bottom, right
+          "py-3 pr-3 pl-0",
           // JavaScript-enhanced responsive padding
-          isMobile ? "pb-20 pt-3" : "p-3",
+          isMobile ? "pb-20 pt-3 px-3" : "py-3 pr-3 pl-0",
           // Push mode: shift content by adding right margin matching sidebar width
           isPushMode && "md:mr-[450px]"
         )}>

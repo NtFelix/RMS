@@ -362,8 +362,14 @@ function SidebarContent({
           setIsOpen={setIsOpen}
         />
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-1.5 custom-scrollbar">
-          <nav className="grid gap-1.5 w-full">
+        <div className={cn(
+          "flex-1 overflow-y-auto min-h-0 custom-scrollbar",
+          isCollapsed && !isMobile ? "flex flex-col items-center px-0 py-1.5" : "p-1.5"
+        )}>
+          <nav className={cn(
+            "grid gap-1.5 w-full",
+            isCollapsed && !isMobile ? "justify-items-center" : ""
+          )}>
             {visibleNavItems.map((item) => (
               <SidebarNavLink
                 key={item.href}
@@ -387,7 +393,10 @@ function SidebarContent({
         />
         
         {/* User profile / settings */}
-        <div className="pt-2.5 pb-2.5 px-1.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible">
+        <div className={cn(
+          "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible",
+          isCollapsed && !isMobile ? "items-center justify-center px-0" : "px-1.5"
+        )}>
           <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
         </div>
       </div>
@@ -539,8 +548,8 @@ function SidebarHeader({
 
   return (
     <div className={cn(
-      "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 px-1.5 shrink-0",
-      isCollapsed && !isMobile ? "justify-center" : ""
+      "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 shrink-0",
+      isCollapsed && !isMobile ? "justify-center px-0" : "px-1.5"
     )}>
       {/* Organisation Switcher Dropdown */}
       <CustomDropdown
@@ -682,7 +691,7 @@ function SidebarNavLink({
       }}
       className={cn(
         "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
-        isCollapsed && !isMobile ? "w-10 h-10 justify-center px-0 mx-auto" : "w-full px-3 justify-start",
+        isCollapsed && !isMobile ? "w-10 h-10 justify-center items-center px-0 mx-auto" : "w-full px-3 justify-start",
         !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),
       )}
@@ -702,10 +711,10 @@ function SidebarNavLink({
       ) : (
         <item.icon className={cn(getIconClassName(item.href), "shrink-0")} />
       )}
-      {!isMobile && (
+      {!isMobile && !isCollapsed && (
         <m.span
           variants={textVariants}
-          animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+          animate="expanded"
           className="whitespace-nowrap truncate flex-1 overflow-hidden"
         >
           {item.title}

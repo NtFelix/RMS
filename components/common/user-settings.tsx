@@ -198,62 +198,38 @@ export function UserSettings({
                 </AvatarFallback>
               </Avatar>
             </m.div>
-            <m.div
-              initial={false}
-              variants={{
-                expanded: {
-                  opacity: 1,
-                  width: "auto",
-                  marginLeft: "12px",
-                  display: "flex",
-                  transition: {
-                    type: "spring",
-                    stiffness: 400,
-                    damping: 38,
-                    mass: 0.8
-                  }
-                },
-                collapsed: {
-                  opacity: 0,
-                  width: 0,
-                  marginLeft: "0px",
-                  transition: {
-                    type: "spring",
-                    stiffness: 400,
-                    damping: 38,
-                    mass: 0.8
-                  },
-                  transitionEnd: { display: "none" }
-                }
-              }}
-              animate={collapsed ? "collapsed" : "expanded"}
-              className="flex flex-col flex-1 text-left min-w-0 overflow-hidden shrink-0"
-            >
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                {isLoadingUser ? "Lade..." : userName}
-              </span>
-              {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && apartmentLimit !== Infinity && (
-                <div className="flex flex-col gap-1 mt-1 w-full">
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                    <span className="truncate">{apartmentCount} / {apartmentLimit} Wohnungen</span>
-                  </div>
-                  <Progress
-                    value={progressPercentage}
-                    className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent"
-                  />
-                </div>
-              )}
-              {!isLoadingUser && !isLoadingApartmentData && (apartmentLimit === null || apartmentLimit === Infinity) && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  Unbegrenzte Wohnungen
+            {!collapsed && (
+              <m.div
+                initial={false}
+                animate="expanded"
+                className="flex flex-col flex-1 text-left min-w-0 overflow-hidden shrink-0 ml-3"
+              >
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {isLoadingUser ? "Lade..." : userName}
                 </span>
-              )}
-              {(isLoadingUser || isLoadingApartmentData) && (
-                <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1.5 w-full">
-                  <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
-                </div>
-              )}
-            </m.div>
+                {!isLoadingUser && !isLoadingApartmentData && apartmentLimit !== null && apartmentLimit !== Infinity && (
+                  <div className="flex flex-col gap-1 mt-1 w-full">
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <span className="truncate">{apartmentCount} / {apartmentLimit} Wohnungen</span>
+                    </div>
+                    <Progress
+                      value={progressPercentage}
+                      className="h-1.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-accent"
+                    />
+                  </div>
+                )}
+                {!isLoadingUser && !isLoadingApartmentData && (apartmentLimit === null || apartmentLimit === Infinity) && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    Unbegrenzte Wohnungen
+                  </span>
+                )}
+                {(isLoadingUser || isLoadingApartmentData) && (
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mt-1.5 w-full">
+                    <div className="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse w-1/2"></div>
+                  </div>
+                )}
+              </m.div>
+            )}
           </m.div>
         }
       >
