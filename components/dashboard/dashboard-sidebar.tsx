@@ -494,6 +494,8 @@ function SidebarHeader({
     <m.div 
       variants={logoVariants}
       animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+      aria-label="Organisation menu"
+      data-org-switcher-trigger
       className={cn(
         "flex items-center gap-2.5 rounded-xl hover:bg-hover-bg data-[state=open]:bg-hover-bg transition-colors duration-200 group/logo select-none min-h-[40px] cursor-pointer outline-none",
         isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10" : "w-full pl-1 pr-2 p-1 justify-start"
