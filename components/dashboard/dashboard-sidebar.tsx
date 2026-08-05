@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network, Bot, ChevronDown, Check
+  Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
@@ -317,14 +317,12 @@ interface SidebarContentProps {
 
 function SidebarContent({
   isCollapsed,
-  pathname,
   setOpen,
   featureFlags,
   isRouteActive,
   getActiveStateClasses,
   isMobile,
   setIsOpen,
-  toggleCollapse,
   sidebarData
 }: SidebarContentProps) {
   const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
@@ -359,7 +357,6 @@ function SidebarContent({
         <SidebarHeader
           isCollapsed={isCollapsed}
           isMobile={isMobile}
-          setIsOpen={setIsOpen}
         />
 
         <div className={cn(
@@ -415,13 +412,11 @@ interface OrganisationItem {
 function SidebarHeader({
   isCollapsed,
   isMobile,
-  setIsOpen
 }: {
   isCollapsed: boolean
   isMobile: boolean
-  setIsOpen: (open: boolean) => void
 }) {
-  const { toast } = useToast() || {}
+  const { toast } = useToast()
   const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)

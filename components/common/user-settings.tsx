@@ -1,15 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LogOut, Settings, FileText, Check, Trash2 } from "lucide-react"
+import { LogOut, Settings, FileText, Trash2 } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
-import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
-import { useToast } from "@/hooks/use-toast"
+import { getMyOrganisationsAction } from "@/app/organisation-actions"
 
 const layoutTransition = {
   duration: 0
@@ -60,7 +59,6 @@ export function UserSettings({
   collapsed?: boolean;
   initialData: SidebarUserData;
 }) {
-  const { toast } = useToast()
   const router = useRouter()
   const [isLoadingLogout, setIsLoadingLogout] = useState(false)
   const supabase = createClient()
