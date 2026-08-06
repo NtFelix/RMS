@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 function getAiServiceUrl(): string {
-  const isDev = process.env.DEV === 'true';
+  const isDev = process.env.NEXT_PUBLIC_DEV === 'true' || process.env.DEV === 'true';
   if (isDev) {
     return process.env.DEV_AI_SERVICE_URL || process.env.AI_SERVICE_URL || 'http://localhost:8080';
   }
