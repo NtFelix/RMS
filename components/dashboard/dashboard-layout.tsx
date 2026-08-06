@@ -9,6 +9,7 @@ import type { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
 import { useAIChatStore } from "@/hooks/use-ai-chat-store"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 export function DashboardLayout({
   children,
@@ -19,7 +20,7 @@ export function DashboardLayout({
 }) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [isTabletCollapsed, setIsTabletCollapsed] = useState(false)
+  const isTabletCollapsed = useMediaQuery('(max-width: 1023px)')
   const { preference } = useSidebarStore()
   const { isOpen, displayMode } = useAIChatStore()
   const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
@@ -31,20 +32,10 @@ export function DashboardLayout({
 
     // Check initial screen size with proper breakpoint detection
     const checkScreenSize = () => {
-      const newIsMobile = window.innerWidth < 768
-      const newIsTablet = window.innerWidth <= 1023
-      setIsMobile(newIsMobile)
-      setIsTabletCollapsed(newIsTablet)
-      return newIsMobile
+      setIsMobile(window.innerWidth < 768)
     }
 
     checkScreenSize()
-
-    const mediaQuery = window.matchMedia('(max-width: 1023px)')
-    const handleMediaChange = (e: MediaQueryListEvent) => {
-      setIsTabletCollapsed(e.matches)
-    }
-    mediaQuery.addEventListener('change', handleMediaChange)
 
     let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
@@ -58,7 +49,6 @@ export function DashboardLayout({
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      mediaQuery.removeEventListener('change', handleMediaChange)
       clearTimeout(resizeTimeout)
     }
   }, [])

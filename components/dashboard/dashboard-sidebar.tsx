@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
   Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check
@@ -12,7 +11,7 @@ import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { UserSettings } from "@/components/common/user-settings"
+import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
@@ -21,6 +20,7 @@ import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
+import { useMediaQuery } from "@/hooks/use-media-query"
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
 import { useToast } from "@/hooks/use-toast"
@@ -201,10 +201,9 @@ const logoVariants: Variants = {
 };
 
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
-  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const { preference, setPreference } = useSidebarStore()
-  const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(false)
+  const { preference } = useSidebarStore()
+  const isResponsiveCollapsed = useMediaQuery('(max-width: 1023px)')
   
   const isCollapsed = isResponsiveCollapsed || preference === 'collapsed'
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
@@ -218,137 +217,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
     ['/mails', !!mailsEnabled],
     ['/agenten', !!agentBuilderEnabled],
   ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 1023px)');
-    setIsResponsiveCollapsed(mediaQuery.matches);
-    const handleMediaChange = (e: MediaQueryListEvent) => {
-      setIsResponsiveCollapsed(e.matches);
-    };
-    mediaQuery.addEventListener('change', handleMediaChange);
-    return () => mediaQuery.removeEventListener('change', handleMediaChange);
-  }, [])
-
-  const toggleCollapse = () => {
-    if (preference === 'expanded') {
-      setPreference('collapsed');
-    } else if (preference === 'collapsed') {
-      setPreference('expanded');
-    } else {
-      setPreference(isCollapsed ? 'expanded' : 'collapsed');
-    }
-  }
-
-  return (
-    <LazyMotion features={domAnimation}>
-      {/* Mobile Menu Button */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed left-4 top-4 z-40 md:hidden"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {isOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-        <span className="sr-only">Toggle menu</span>
-      </Button>
-
-      {/* Backdrop */}
-      <div
-        className={cn(
-          "fixed inset-0 z-30 bg-background/80 backdrop-blur-xs transition-all duration-100 md:hidden",
-          isOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-        onClick={() => setIsOpen(false)}
-      />
-
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-0 w-full overflow-visible">
-        <div className="hidden md:flex flex-col h-full w-full overflow-visible">
-          <SidebarContent
-            isCollapsed={isCollapsed}
-            pathname={pathname}
-            setOpen={setOpen}
-            featureFlags={featureFlags}
-            isRouteActive={isRouteActive}
-            getActiveStateClasses={getActiveStateClasses}
-            isMobile={false}
-            setIsOpen={setIsOpen}
-            toggleCollapse={toggleCollapse}
-            sidebarData={sidebarData}
-          />
-        </div>
-      </aside>
-
-      {/* Mobile Drawer */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-49 flex flex-col bg-background border-r transition-transform duration-300 ease-in-out w-72 md:hidden",
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <SidebarContent
-          isCollapsed={false}
-          pathname={pathname}
-          setOpen={setOpen}
-          featureFlags={featureFlags}
-          isRouteActive={isRouteActive}
-          getActiveStateClasses={getActiveStateClasses}
-          isMobile={true}
-          setIsOpen={setIsOpen}
-          sidebarData={sidebarData}
-        />
-      </aside>
-    </LazyMotion>
-  )
-}
-
-interface SidebarContentProps {
-  isCollapsed: boolean
-  pathname: string
-  setOpen: (open: boolean) => void
-  featureFlags: Map<string, boolean>
-  isRouteActive: (href: string) => boolean
-  getActiveStateClasses: (href: string) => string
-  isMobile: boolean
-  setIsOpen: (open: boolean) => void
-  toggleCollapse?: () => void
-  sidebarData: SidebarUserData
-}
-
-function SidebarContent({
-  isCollapsed,
-  setOpen,
-  featureFlags,
-  isRouteActive,
-  getActiveStateClasses,
-  isMobile,
-  setIsOpen,
-  sidebarData
-}: SidebarContentProps) {
-  const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
-  const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
-
-  // Combined loop iteration (flatMap/filter optimized into a single pass using reduce)
-  const visibleNavItems = useMemo(() => {
-    return sidebarNavGroups.reduce<SidebarNavItemType[]>((acc, group) => {
-      for (const item of group.items) {
-        if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
-          continue;
-        }
-        if (item.href === '/organisation' && sidebarData.isOrganisationHidden) {
-          continue;
-        }
-        const requiredModule = SIDEBAR_MODULE_MAP[item.href];
-        if (requiredModule && sidebarData.modulePermissions !== null) {
-          if (!sidebarData.modulePermissions.has(requiredModule)) {
-            continue;
-          }
-        }
-        acc.push(item);
-      }
-      return acc;
-    }, []);
-  }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
 
   const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
@@ -389,6 +257,124 @@ function SidebarContent({
   }, [sidebarData.user?.id])
 
   return (
+    <LazyMotion features={domAnimation}>
+      {/* Mobile Menu Button */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed left-4 top-4 z-40 md:hidden"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {isOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+        <span className="sr-only">Toggle menu</span>
+      </Button>
+
+      {/* Backdrop */}
+      <div
+        className={cn(
+          "fixed inset-0 z-30 bg-background/80 backdrop-blur-xs transition-all duration-100 md:hidden",
+          isOpen ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        onClick={() => setIsOpen(false)}
+      />
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-0 w-full overflow-visible">
+        <div className="hidden md:flex flex-col h-full w-full overflow-visible">
+          <SidebarContent
+            isCollapsed={isCollapsed}
+            setOpen={setOpen}
+            featureFlags={featureFlags}
+            isRouteActive={isRouteActive}
+            getActiveStateClasses={getActiveStateClasses}
+            isMobile={false}
+            setIsOpen={setIsOpen}
+            sidebarData={sidebarData}
+            organisations={organisations}
+            currentOrgId={currentOrgId}
+            setCurrentOrgId={setCurrentOrgId}
+          />
+        </div>
+      </aside>
+
+      {/* Mobile Drawer */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-49 flex flex-col bg-background border-r transition-transform duration-300 ease-in-out w-72 md:hidden",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <SidebarContent
+          isCollapsed={false}
+          setOpen={setOpen}
+          featureFlags={featureFlags}
+          isRouteActive={isRouteActive}
+          getActiveStateClasses={getActiveStateClasses}
+          isMobile={true}
+          setIsOpen={setIsOpen}
+          sidebarData={sidebarData}
+          organisations={organisations}
+          currentOrgId={currentOrgId}
+          setCurrentOrgId={setCurrentOrgId}
+        />
+      </aside>
+    </LazyMotion>
+  )
+}
+
+interface SidebarContentProps {
+  isCollapsed: boolean
+  setOpen: (open: boolean) => void
+  featureFlags: Map<string, boolean>
+  isRouteActive: (href: string) => boolean
+  getActiveStateClasses: (href: string) => string
+  isMobile: boolean
+  setIsOpen: (open: boolean) => void
+  sidebarData: SidebarUserData
+  organisations: OrganisationItem[]
+  currentOrgId: string | null
+  setCurrentOrgId: (id: string | null) => void
+}
+
+function SidebarContent({
+  isCollapsed,
+  setOpen,
+  featureFlags,
+  isRouteActive,
+  getActiveStateClasses,
+  isMobile,
+  setIsOpen,
+  sidebarData,
+  organisations,
+  currentOrgId,
+  setCurrentOrgId
+}: SidebarContentProps) {
+  const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
+  const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
+
+  // Combined loop iteration (flatMap/filter optimized into a single pass using reduce)
+  const visibleNavItems = useMemo(() => {
+    return sidebarNavGroups.reduce<SidebarNavItemType[]>((acc, group) => {
+      for (const item of group.items) {
+        if (featureFlags.has(item.href) && !featureFlags.get(item.href)) {
+          continue;
+        }
+        if (item.href === '/organisation' && sidebarData.isOrganisationHidden) {
+          continue;
+        }
+        const requiredModule = SIDEBAR_MODULE_MAP[item.href];
+        if (requiredModule && sidebarData.modulePermissions !== null) {
+          if (!sidebarData.modulePermissions.has(requiredModule)) {
+            continue;
+          }
+        }
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+  }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
+
+  return (
     <TooltipProvider delayDuration={100} skipDelayDuration={300}>
       <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible">
         {/* Header / Brand Logo */}
@@ -398,6 +384,7 @@ function SidebarContent({
           organisations={organisations}
           currentOrgId={currentOrgId}
           setCurrentOrgId={setCurrentOrgId}
+          userId={sidebarData.user?.id}
         />
 
         <div className={cn(
@@ -447,13 +434,6 @@ function SidebarContent({
   )
 }
 
-interface OrganisationItem {
-  organisation_id: string;
-  owner_id: string;
-  rolle: 'owner' | 'admin' | 'mitarbeiter';
-  name: string;
-}
-
 function getRoleLabel(role?: string): string {
   if (role === 'owner') return 'Eigentümer';
   if (role === 'admin') return 'Admin';
@@ -466,13 +446,15 @@ function SidebarHeader({
   isMobile,
   organisations,
   currentOrgId,
-  setCurrentOrgId
+  setCurrentOrgId,
+  userId
 }: {
   isCollapsed: boolean
   isMobile: boolean
   organisations: OrganisationItem[]
   currentOrgId: string | null
   setCurrentOrgId: (id: string | null) => void
+  userId?: string
 }) {
   const { toast } = useToast()
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
@@ -483,9 +465,9 @@ function SidebarHeader({
     try {
       const res = await switchOrganisationAction(orgId);
       if (res.success) {
-        // Clear cached organisations to prevent stale cache flash on reload
-        sessionStorage.removeItem("cached_organisations:v1");
-        setCurrentOrgId(orgId);
+        // Clear cached organisations under the proper user-specific key to prevent stale cache flash on reload
+        const cacheKey = userId ? `cached_organisations:${userId}` : "cached_organisations:v1";
+        sessionStorage.removeItem(cacheKey);
         window.location.reload();
       } else {
         console.error("Failed to switch organisation:", res.error?.message);
