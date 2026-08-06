@@ -39,9 +39,12 @@ export async function proxyToAiService(
   const traceId = existingTraceId || crypto.randomUUID();
   headers.set('X-Trace-Id', traceId);
 
-  // Remove original auth headers (JWT/Cookie)
+  // Remove headers that shouldn't be forwarded to upstream AI microservice
   headers.delete('authorization');
   headers.delete('cookie');
+  headers.delete('host');
+  headers.delete('connection');
+  headers.delete('content-length');
 
   const fetchOptions: RequestInit = {
     method: request.method,
