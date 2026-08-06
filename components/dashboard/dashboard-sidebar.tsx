@@ -354,13 +354,15 @@ function SidebarContent({
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
 
   useEffect(() => {
+    const cacheKey = sidebarData.user?.id ? `cached_organisations:${sidebarData.user.id}` : "cached_organisations:v1"
+
     const loadOrganisations = async () => {
       try {
         const res = await getMyOrganisationsAction()
         if (res.success && res.data) {
           setOrganisations(res.data)
           setCurrentOrgId(res.currentOrgId ?? null)
-          sessionStorage.setItem("cached_organisations:v1", JSON.stringify({
+          sessionStorage.setItem(cacheKey, JSON.stringify({
             orgs: res.data,
             currentOrgId: res.currentOrgId
           }))
@@ -370,7 +372,7 @@ function SidebarContent({
       }
     }
 
-    const cached = sessionStorage.getItem("cached_organisations:v1")
+    const cached = sessionStorage.getItem(cacheKey)
     if (cached) {
       try {
         const parsed = JSON.parse(cached)
@@ -379,12 +381,12 @@ function SidebarContent({
           setCurrentOrgId(parsed.currentOrgId ?? null)
         }
       } catch {
-        sessionStorage.removeItem("cached_organisations:v1")
+        sessionStorage.removeItem(cacheKey)
       }
     }
 
     loadOrganisations()
-  }, [])
+  }, [sidebarData.user?.id])
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={300}>
@@ -452,6 +454,12 @@ interface OrganisationItem {
   name: string;
 }
 
+function getRoleLabel(role?: string): string {
+  if (role === 'owner') return 'Eigentümer';
+  if (role === 'admin') return 'Admin';
+  return 'Mitarbeiter';
+}
+
 // Brand Logo & Header Subcomponent
 function SidebarHeader({
   isCollapsed,
@@ -504,7 +512,7 @@ function SidebarHeader({
   const activeSubtitle = currentOrgId === null 
     ? "Immobilienverwaltung" 
     : activeOrg 
-    ? (activeOrg.rolle === 'owner' ? 'Eigentümer' : activeOrg.rolle === 'admin' ? 'Admin' : 'Mitarbeiter')
+    ? getRoleLabel(activeOrg.rolle)
     : "Organisation";
 
   const triggerPill = (
@@ -604,10 +612,7 @@ function SidebarHeader({
         </CustomDropdownItem>
         {organisations.map((org) => {
           const isActive = currentOrgId === org.organisation_id;
-          const roleLabel =
-            org.rolle === 'owner' ? 'Eigentümer' :
-            org.rolle === 'admin' ? 'Admin' :
-            'Mitarbeiter';
+          const roleLabel = getRoleLabel(org.rolle);
 
           return (
             <CustomDropdownItem

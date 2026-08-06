@@ -84,8 +84,12 @@ export function UserSettings({
     isLoading: isLoadingUser
   } = useUserProfile(initialData)
 
-  const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
-  const isOrgAdminOrOwner = currentOrgId === null || (activeOrg && (activeOrg.rolle === 'owner' || activeOrg.rolle === 'admin'));
+  const activeOrg = currentOrgId ? organisations.find(o => o.organisation_id === currentOrgId) : null;
+  const isOrgAdminOrOwner = currentOrgId === null 
+    ? true 
+    : activeOrg 
+    ? (activeOrg.rolle === 'owner' || activeOrg.rolle === 'admin') 
+    : initialData.hasOrganisationPermission;
 
   const {
     count: apartmentCount,

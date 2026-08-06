@@ -48,7 +48,6 @@ export function DashboardLayout({
 
     let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
-      setIsTabletCollapsed(window.innerWidth <= 1023)
       clearTimeout(resizeTimeout)
       resizeTimeout = setTimeout(() => {
         setIsMobile(window.innerWidth < 768)
