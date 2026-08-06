@@ -10,6 +10,7 @@ import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
 import { useAIChatStore } from "@/hooks/use-ai-chat-store"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { TABLET_BREAKPOINT } from "@/lib/constants"
 
 export function DashboardLayout({
   children,
@@ -20,7 +21,7 @@ export function DashboardLayout({
 }) {
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const isTabletCollapsed = useMediaQuery('(max-width: 1023px)')
+  const isTabletCollapsed = useMediaQuery(TABLET_BREAKPOINT)
   const { preference } = useSidebarStore()
   const { isOpen, displayMode } = useAIChatStore()
   const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile

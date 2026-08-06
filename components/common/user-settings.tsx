@@ -89,7 +89,7 @@ export function UserSettings({
     ? true 
     : activeOrg 
     ? (activeOrg.rolle === 'owner' || activeOrg.rolle === 'admin') 
-    : initialData.hasOrganisationPermission;
+    : (organisations.length > 0 ? false : initialData.hasOrganisationPermission);
 
   const {
     count: apartmentCount,

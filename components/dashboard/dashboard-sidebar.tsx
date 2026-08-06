@@ -8,7 +8,7 @@ import {
   Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
-import { LOGO_URL, ROUTES } from "@/lib/constants"
+import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
@@ -21,7 +21,6 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -203,7 +202,7 @@ const logoVariants: Variants = {
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
   const [isOpen, setIsOpen] = useState(false)
   const { preference } = useSidebarStore()
-  const isResponsiveCollapsed = useMediaQuery('(max-width: 1023px)')
+  const isResponsiveCollapsed = useMediaQuery(TABLET_BREAKPOINT)
   
   const isCollapsed = isResponsiveCollapsed || preference === 'collapsed'
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
@@ -292,7 +291,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
             sidebarData={sidebarData}
             organisations={organisations}
             currentOrgId={currentOrgId}
-            setCurrentOrgId={setCurrentOrgId}
           />
         </div>
       </aside>
@@ -315,7 +313,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
           sidebarData={sidebarData}
           organisations={organisations}
           currentOrgId={currentOrgId}
-          setCurrentOrgId={setCurrentOrgId}
         />
       </aside>
     </LazyMotion>
@@ -333,7 +330,6 @@ interface SidebarContentProps {
   sidebarData: SidebarUserData
   organisations: OrganisationItem[]
   currentOrgId: string | null
-  setCurrentOrgId: (id: string | null) => void
 }
 
 function SidebarContent({
@@ -346,8 +342,7 @@ function SidebarContent({
   setIsOpen,
   sidebarData,
   organisations,
-  currentOrgId,
-  setCurrentOrgId
+  currentOrgId
 }: SidebarContentProps) {
   const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
   const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
@@ -383,7 +378,6 @@ function SidebarContent({
           isMobile={isMobile}
           organisations={organisations}
           currentOrgId={currentOrgId}
-          setCurrentOrgId={setCurrentOrgId}
           userId={sidebarData.user?.id}
         />
 
@@ -446,14 +440,12 @@ function SidebarHeader({
   isMobile,
   organisations,
   currentOrgId,
-  setCurrentOrgId,
   userId
 }: {
   isCollapsed: boolean
   isMobile: boolean
   organisations: OrganisationItem[]
   currentOrgId: string | null
-  setCurrentOrgId: (id: string | null) => void
   userId?: string
 }) {
   const { toast } = useToast()
@@ -474,7 +466,7 @@ function SidebarHeader({
         toast({
           variant: "destructive",
           title: "Fehler beim Wechseln",
-          description: res.error?.message || "Die Organisation konnte nicht gewechselt werden.",
+          description: "Die Organisation konnte nicht gewechselt werden. Bitte versuche es später erneut.",
         });
       }
     } catch (e) {
