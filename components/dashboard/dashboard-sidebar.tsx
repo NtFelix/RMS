@@ -221,23 +221,8 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
 
   useEffect(() => {
+    let ignore = false
     const cacheKey = sidebarData.user?.id ? `cached_organisations:${sidebarData.user.id}` : "cached_organisations:v1"
-
-    const loadOrganisations = async () => {
-      try {
-        const res = await getMyOrganisationsAction()
-        if (res.success && res.data) {
-          setOrganisations(res.data)
-          setCurrentOrgId(res.currentOrgId ?? null)
-          sessionStorage.setItem(cacheKey, JSON.stringify({
-            orgs: res.data,
-            currentOrgId: res.currentOrgId
-          }))
-        }
-      } catch (e) {
-        console.error("Failed to load organisations:", e)
-      }
-    }
 
     const cached = sessionStorage.getItem(cacheKey)
     if (cached) {
@@ -252,7 +237,26 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       }
     }
 
-    loadOrganisations()
+    getMyOrganisationsAction()
+      .then((res) => {
+        if (!ignore && res.success && res.data) {
+          setOrganisations(res.data)
+          setCurrentOrgId(res.currentOrgId ?? null)
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            orgs: res.data,
+            currentOrgId: res.currentOrgId
+          }))
+        }
+      })
+      .catch((e) => {
+        if (!ignore) {
+          console.error("Failed to load organisations:", e)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
   }, [sidebarData.user?.id])
 
   return (
