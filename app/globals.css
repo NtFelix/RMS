@@ -99,6 +99,8 @@
   --animate-scale-in: scale-in 0.2s ease-out;
   --animate-slide-up: slide-up 0.3s ease-out;
   --animate-bounce-subtle: bounce-subtle 0.6s ease-in-out;
+  --animate-gradient-x: gradient-x 15s ease infinite;
+  --animate-float: float 6s ease-in-out infinite;
 
   --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
 
@@ -169,6 +171,27 @@
     }
     50% {
       transform: translateY(-2px);
+    }
+  }
+  @keyframes gradient-x {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+    33% {
+      transform: translateY(-10px) rotate(2deg);
+    }
+    66% {
+      transform: translateY(5px) rotate(-1deg);
     }
   }
 }
@@ -543,6 +566,37 @@
 @utility hover-desktop {
   /* Table row hover effect - matches TenantTable */
   @apply transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998];
+}
+
+@utility glass {
+  background-color: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  .dark & {
+    background-color: rgba(17, 24, 39, 0.4);
+    border-color: rgba(55, 65, 81, 0.3);
+  }
+}
+
+@utility interactive-element {
+  transition: all 0.2s ease-out;
+  &:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+@utility card-hover {
+  transition: all 0.3s ease-out;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
 }
 
 @layer utilities {
