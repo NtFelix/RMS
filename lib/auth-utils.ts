@@ -74,7 +74,18 @@ export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserA
   let requestedOrgId: string | null = null;
   if (req) {
     const { searchParams } = new URL(req.url);
-    requestedOrgId = searchParams.get('orgId');
+    requestedOrgId = searchParams.get('orgId') || req.headers.get('x-org-id') || req.headers.get('X-Org-Id');
+    if (!requestedOrgId && req.method !== 'GET' && req.method !== 'HEAD') {
+      try {
+        const clonedReq = req.clone();
+        const body = await clonedReq.json().catch(() => ({}));
+        if (body && typeof body.orgId === 'string') {
+          requestedOrgId = body.orgId;
+        }
+      } catch (e) {
+        // Ignore parse error if body is not JSON or unavailable
+      }
+    }
   }
 
   let orgId: string | null = null;

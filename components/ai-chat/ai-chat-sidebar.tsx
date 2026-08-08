@@ -200,7 +200,8 @@ export function AIChatSidebar() {
           const details = await detailsRes.json();
           if (cancelled) return;
 
-          const mapped = (details.messages || []).map((m: any) => ({
+          const rawMessages = details.nachrichten || details.messages || [];
+          const mapped = rawMessages.map((m: any) => ({
             id: m.id,
             role: m.rolle === 'assistant' ? 'model' : m.rolle,
             content: m.inhalt || '',
@@ -210,7 +211,7 @@ export function AIChatSidebar() {
           }));
           setMessages(mapped);
 
-          const lastMsg = details.messages?.[details.messages.length - 1];
+          const lastMsg = rawMessages[rawMessages.length - 1];
           if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
             setIsLoading(true);
             setActiveId(lastMsg.id);
@@ -654,7 +655,8 @@ export function AIChatSidebar() {
                       if (detailsRes.ok) {
                         const data = await detailsRes.json();
                         if (selectedConvRef.current !== id) return; // stale
-                        const mapped = (data.messages || []).map((m: any) => ({
+                        const rawMessages = data.nachrichten || data.messages || [];
+                        const mapped = rawMessages.map((m: any) => ({
                           id: m.id,
                           role: m.rolle === 'assistant' ? 'model' : m.rolle,
                           content: m.inhalt || '',
@@ -664,7 +666,7 @@ export function AIChatSidebar() {
                         }));
                         setMessages(mapped);
                         
-                        const lastMsg = data.messages?.[data.messages.length - 1];
+                        const lastMsg = rawMessages[rawMessages.length - 1];
                         if (selectedConvRef.current !== id) return; // stale
                         if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
                           setIsLoading(true);
