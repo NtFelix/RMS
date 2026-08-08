@@ -470,12 +470,20 @@ export function AIChatSidebar() {
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
 
+        let hasTokens = false;
         for (const line of lines) {
           try {
+            if (line.includes('"type":"token"') || line.includes('"type":"content"')) {
+              hasTokens = true;
+            }
             processStreamLine(line);
           } catch (e) {
             console.error("Error parsing stream line:", e, line);
           }
+        }
+
+        if (hasTokens) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
       }
 
