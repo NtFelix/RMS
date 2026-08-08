@@ -170,7 +170,7 @@ export function AIChatSidebar() {
 
   // Load latest active conversation on sidebar open
   useEffect(() => {
-    if (!isOpen || !activeOrgId) {
+    if (!isOpen || !activeOrgId || isLoading) {
       if (!isOpen) unsubscribeFromRealtime();
       return;
     }
