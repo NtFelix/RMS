@@ -193,7 +193,7 @@ export function AIChatSidebar() {
           if (cancelled) return;
           setActiveConversationId(latest.id);
 
-          const detailsRes = await fetch(`/api/conversations/${latest.id}`, {
+          const detailsRes = await fetch(`/api/conversations/${latest.id}?orgId=${activeOrgId}`, {
             signal: abortController.signal,
           });
           if (cancelled || !detailsRes.ok) return;
@@ -650,7 +650,7 @@ export function AIChatSidebar() {
                     }
 
                     try {
-                      const detailsRes = await fetch(`/api/conversations/${id}`);
+                      const detailsRes = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`);
                       if (selectedConvRef.current !== id) return; // stale
                       if (detailsRes.ok) {
                         const data = await detailsRes.json();

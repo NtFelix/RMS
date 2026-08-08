@@ -75,6 +75,13 @@ export async function proxyToAiService(
     filteredHeaders.delete('content-length');
     filteredHeaders.set('X-Trace-Id', traceId);
 
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/event-stream')) {
+      filteredHeaders.set('Cache-Control', 'no-cache, no-transform');
+      filteredHeaders.set('Connection', 'keep-alive');
+      filteredHeaders.set('X-Accel-Buffering', 'no');
+    }
+
     return new Response(response.body, {
       status: response.status,
       headers: filteredHeaders,
