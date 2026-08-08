@@ -129,7 +129,7 @@ export default function BottomCTA({
                     asChild
                     size="lg"
                     variant="outline"
-                    className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
+                    className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors transition-transform transition-shadow duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
                   >
                     {isMailto ? (
                       <a href={secondaryButtonHref} onClick={handleSecondaryClick}>
