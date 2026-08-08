@@ -446,6 +446,7 @@ export function AIChatSidebar() {
           }
         } else if (data.type === "content" || data.type === "token") {
           const textContent = data.content ?? data.text ?? "";
+          console.log("[AIChatSidebar] Token received:", textContent);
           if (isMountedRef.current) {
             setMessages(prev => prev.map(m =>
               m.id === aiMessageId ? { ...m, content: m.content + textContent } : m

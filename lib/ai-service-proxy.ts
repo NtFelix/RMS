@@ -80,6 +80,20 @@ export async function proxyToAiService(
       filteredHeaders.set('Cache-Control', 'no-cache, no-transform');
       filteredHeaders.set('Connection', 'keep-alive');
       filteredHeaders.set('X-Accel-Buffering', 'no');
+      filteredHeaders.set('Content-Type', 'text/event-stream');
+
+      if (response.body) {
+        console.log(`[AI Proxy] Piping SSE stream for ${targetUrl}`);
+        const { readable, writable } = new TransformStream();
+        response.body.pipeTo(writable).catch((err) => {
+          console.error('[AI Proxy] SSE Stream pipe error:', err);
+        });
+
+        return new Response(readable, {
+          status: response.status,
+          headers: filteredHeaders,
+        });
+      }
     }
 
     return new Response(response.body, {
