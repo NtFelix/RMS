@@ -72,6 +72,10 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
 
   console.warn(`[sandboxRpc] RPC function '${rpcName}' not found in database. Executing direct table fallback...`, { rpcName, orgId });
 
+  if (!userJwt && !orgId) {
+    throw new Error(`[sandboxRpc] Cannot execute table fallback for '${rpcName}' without active orgId when using service role client`);
+  }
+
   // 2. Direct table fallbacks
   if (rpcName === 'fetch_mieter_list') {
     const limit = (params.p_limit as number) || 50;
@@ -82,6 +86,7 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       .from('Mieter')
       .select('id, name, email, telefonnummer, status, einzug, auszug, wohnung_id, Wohnungen!inner(haus_id)')
       .is('geloescht_am', null)
+      .is('Wohnungen.geloescht_am', null)
       .limit(limit);
 
     if (orgId) {
@@ -111,6 +116,7 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       .from('Finanzen')
       .select('id, name, betrag, ist_einnahmen, datum, notiz, tags, wohnung_id, Wohnungen(haus_id)')
       .is('geloescht_am', null)
+      .is('Wohnungen.geloescht_am', null)
       .order('datum', { ascending: false })
       .limit(limit);
 
