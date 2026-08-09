@@ -82,6 +82,17 @@ export async function proxyToAiService(
       filteredHeaders.set('Connection', 'keep-alive');
       filteredHeaders.set('X-Accel-Buffering', 'no');
       filteredHeaders.set('Content-Type', 'text/event-stream');
+
+      const transformStream = new TransformStream();
+      if (response.body) {
+        response.body.pipeTo(transformStream.writable).catch((err) => {
+          console.error('[AI Proxy] SSE pipe error:', err);
+        });
+      }
+      return new Response(transformStream.readable, {
+        status: response.status,
+        headers: filteredHeaders,
+      });
     }
 
     return new Response(response.body, {
