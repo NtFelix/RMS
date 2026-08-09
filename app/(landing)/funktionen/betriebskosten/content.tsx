@@ -423,7 +423,6 @@ export default function UtilityCostPage() {
         description="Sparen Sie Zeit und Nerven bei der jährlichen Abrechnung. Testen Sie jetzt kostenlos."
         badgeText="Einfach & Schnell"
         primaryButtonText="14 Tage kostenlos testen"
-        secondaryButtonText="Demo anfordern"
       />
     </div>
   );
