@@ -502,11 +502,20 @@ export function AIChatSidebar() {
           console.log(`[AIChatSidebar] Token (length=${textContent.length}, totalLength=${accumulatedText.length}):`, textContent);
           if (isMountedRef.current) {
             setMessages(prev => {
-              const targetId = prev.some(m => m.id === aiMessageId)
-                ? aiMessageId
-                : [...prev].reverse().find(m => m.role === "model")?.id || aiMessageId;
+              const exists = prev.some(m => m.id === aiMessageId);
+              if (!exists) {
+                const initialMsg: Message = {
+                  id: aiMessageId,
+                  role: "model",
+                  content: accumulatedText,
+                  steps: [],
+                  currentVersionIndex: 0,
+                  versions: []
+                };
+                return [...prev, initialMsg];
+              }
               return prev.map(m =>
-                m.id === targetId ? { ...m, content: accumulatedText } : m
+                m.id === aiMessageId ? { ...m, content: accumulatedText } : m
               );
             });
           }
@@ -607,10 +616,21 @@ export function AIChatSidebar() {
 
       // Update the message with final details and versioning
       setMessages(prev => {
-        const targetId = prev.some(m => m.id === aiMessageId)
-          ? aiMessageId
-          : [...prev].reverse().find(m => m.role === "model")?.id || aiMessageId;
-        return prev.map(m => m.id === targetId ? {
+        const exists = prev.some(m => m.id === aiMessageId);
+        if (!exists) {
+          const finalMsgCard: Message = {
+            id: aiMessageId,
+            role: "model",
+            content: finalReply || accumulatedText,
+            traceId,
+            toolCalls: toolResults.length > 0 ? toolResults : undefined,
+            steps: finalStepsList,
+            versions: finalVersions,
+            currentVersionIndex: finalVersions.length - 1
+          };
+          return [...prev, finalMsgCard];
+        }
+        return prev.map(m => m.id === aiMessageId ? {
           ...m,
           content: finalReply || accumulatedText || m.content, 
           traceId,
@@ -641,11 +661,20 @@ export function AIChatSidebar() {
       setError(displayErrMsg);
       finishSteps(false);
       setMessages((prev) => {
-        const targetId = prev.some(m => m.id === aiMessageId)
-          ? aiMessageId
-          : [...prev].reverse().find(m => m.role === "model")?.id || aiMessageId;
+        const exists = prev.some(m => m.id === aiMessageId);
+        if (!exists) {
+          const errorMsgCard: Message = {
+            id: aiMessageId,
+            role: "model",
+            content: `⚠️ ${displayErrMsg}`,
+            steps: [],
+            currentVersionIndex: 0,
+            versions: []
+          };
+          return [...prev, errorMsgCard];
+        }
         return prev.map(m =>
-          m.id === targetId
+          m.id === aiMessageId
             ? { ...m, role: "model" as const, content: `⚠️ ${displayErrMsg}` }
             : m
         );
