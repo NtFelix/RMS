@@ -78,18 +78,56 @@ export async function proxyToAiService(
     filteredHeaders.set('X-Trace-Id', traceId);
 
     if (contentType.includes('text/event-stream')) {
+      // Clear the timeout NOW — once we have the headers, we don't want
+      // the AbortController to fire mid-stream during long AI generations.
+      clearTimeout(timeoutId);
+
       filteredHeaders.set('Cache-Control', 'no-cache, no-transform');
       filteredHeaders.set('Connection', 'keep-alive');
       filteredHeaders.set('X-Accel-Buffering', 'no');
       filteredHeaders.set('Content-Type', 'text/event-stream');
 
-      const transformStream = new TransformStream();
-      if (response.body) {
-        response.body.pipeTo(transformStream.writable).catch((err) => {
-          console.error('[AI Proxy] SSE pipe error:', err);
+      // Use an active-reader pattern instead of pipeTo/TransformStream.
+      // pipeTo + TransformStream has a known race condition in Next.js
+      // App Router where the response can finalize before the async pipe
+      // has connected, resulting in an immediately-closed stream on the
+      // client side.
+      const upstream = response.body;
+      if (!upstream) {
+        console.error('[AI Proxy] SSE response has no body');
+        return new Response('data: {"type":"error","message":"No upstream body"}\n\n', {
+          status: 200,
+          headers: filteredHeaders,
         });
       }
-      return new Response(transformStream.readable, {
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          const reader = upstream.getReader();
+          let chunkCount = 0;
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                console.log(`[AI Proxy] Upstream stream finished after ${chunkCount} chunks`);
+                controller.close();
+                break;
+              }
+              chunkCount++;
+              controller.enqueue(value);
+            }
+          } catch (err) {
+            console.error('[AI Proxy] SSE reader error:', err);
+            controller.error(err);
+          }
+        },
+        cancel(reason) {
+          console.log('[AI Proxy] Downstream cancelled SSE stream:', reason);
+          upstream.cancel(reason);
+        },
+      });
+
+      return new Response(stream, {
         status: response.status,
         headers: filteredHeaders,
       });

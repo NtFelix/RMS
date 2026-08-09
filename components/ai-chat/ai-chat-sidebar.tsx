@@ -55,6 +55,11 @@ export function AIChatSidebar() {
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   useEffect(() => {
+    // Explicitly set to true on every mount. This is critical for React
+    // Strict Mode in development, which unmounts and remounts components.
+    // Without this, the cleanup sets it to false, and useRef's initial
+    // value is NOT re-applied on remount, leaving it permanently false.
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       if (abortControllerRef.current) {
