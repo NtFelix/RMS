@@ -556,11 +556,21 @@ export function AIChatSidebar() {
         }
       }
 
-      // If stream ended early without final reply payload, fall back to realtime tracking
-      if (!receivedDone && currentConvId) {
-        console.log('[AIChatSidebar] Stream disconnected early. Activating Realtime fallback...');
+      // Only fallback to realtime if NO text was received at all and no done signal arrived
+      if (!receivedDone && !accumulatedText && currentConvId) {
+        console.warn('[AIChatSidebar] Stream disconnected early without text. Activating Realtime fallback...');
+        posthogLogger.warn('[AIChatSidebar] Stream disconnected early without text', {
+          conversation_id: currentConvId,
+          message_id: aiMessageId,
+        });
         subscribeToRealtime(currentConvId, aiMessageId);
-        return; // Don't finalize state yet
+        return;
+      }
+
+      finalReply = finalReply || accumulatedText;
+
+      if (!finalReply) {
+        throw new Error("Antwort der KI ist leer oder der Stream wurde vorzeitig unterbrochen.");
       }
 
       setAllDone();
