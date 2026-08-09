@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import posthog from "posthog-js";
+import { posthogLogger } from "@/lib/posthog-logger";
 import { v4 as uuidv4 } from "uuid";
 import { usePathname } from "next/navigation";
 import { useFeatureFlagEnabled } from "@posthog/react";
@@ -395,6 +396,14 @@ export function AIChatSidebar() {
         has_attachment: !!messageAttachment,
       });
 
+      posthogLogger.info("[AIChatSidebar] Stream requested", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        has_attachment: !!messageAttachment,
+      });
+
       const res = await fetch("/api/chat", {
         method: "POST",
         signal: controller.signal,
@@ -484,6 +493,11 @@ export function AIChatSidebar() {
               time_to_first_token_ms: Date.now() - exchangeStartTime,
               model: selectedModel,
             });
+            posthogLogger.info("[AIChatSidebar] First token received", {
+              message_id: aiMessageId,
+              time_to_first_token_ms: Date.now() - exchangeStartTime,
+              model: selectedModel,
+            });
           }
           console.log(`[AIChatSidebar] Token (length=${textContent.length}, totalLength=${accumulatedText.length}):`, textContent);
           if (isMountedRef.current) {
@@ -562,6 +576,15 @@ export function AIChatSidebar() {
         text_length: (finalReply || accumulatedText).length,
       });
 
+      posthogLogger.info("[AIChatSidebar] Stream completed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        duration_ms: totalDurationMs,
+        text_length: (finalReply || accumulatedText).length,
+      });
+
       const finalStepsList = [...stepsRef.current];
       const newVersion: MessageVersion = {
         content: finalReply,
@@ -592,6 +615,13 @@ export function AIChatSidebar() {
       console.error("AI Chat Error:", error);
       const displayErrMsg = error?.message || "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal.";
       posthog.capture("ai_stream_failed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        error: displayErrMsg,
+      });
+      posthogLogger.error("[AIChatSidebar] Stream failed", {
         message_id: aiMessageId,
         conversation_id: currentConvId,
         org_id: activeOrgId,
