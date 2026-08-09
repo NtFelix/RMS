@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveUserAndOrg } from '@/lib/auth-utils';
 import { proxyToAiService } from '@/lib/ai-service-proxy';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   try {
     const { user, orgId, userJwt, errorResponse } = await resolveUserAndOrg(req);

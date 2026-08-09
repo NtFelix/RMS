@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 function getAiServiceUrl(): string {
-  const isDev = process.env.NEXT_PUBLIC_DEV === 'true' || process.env.DEV === 'true';
+  const isDev = process.env.NEXT_PUBLIC_DEV === 'true' || process.env.DEV === 'true' || process.env.NODE_ENV === 'development';
   if (isDev) {
     return process.env.DEV_AI_SERVICE_URL || process.env.AI_SERVICE_URL || 'http://localhost:8080';
   }
@@ -67,6 +67,8 @@ export async function proxyToAiService(
 
   try {
     const response = await fetch(targetUrl, fetchOptions);
+    const contentType = response.headers.get('content-type') || '';
+    console.log(`[AI Proxy] Upstream ${targetUrl} responded: status=${response.status}, contentType=${contentType}`);
 
     const filteredHeaders = new Headers(response.headers);
     filteredHeaders.delete('transfer-encoding');
@@ -75,25 +77,11 @@ export async function proxyToAiService(
     filteredHeaders.delete('content-length');
     filteredHeaders.set('X-Trace-Id', traceId);
 
-    const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('text/event-stream')) {
       filteredHeaders.set('Cache-Control', 'no-cache, no-transform');
       filteredHeaders.set('Connection', 'keep-alive');
       filteredHeaders.set('X-Accel-Buffering', 'no');
       filteredHeaders.set('Content-Type', 'text/event-stream');
-
-      if (response.body) {
-        console.log(`[AI Proxy] Piping SSE stream for ${targetUrl}`);
-        const { readable, writable } = new TransformStream();
-        response.body.pipeTo(writable).catch((err) => {
-          console.error('[AI Proxy] SSE Stream pipe error:', err);
-        });
-
-        return new Response(readable, {
-          status: response.status,
-          headers: filteredHeaders,
-        });
-      }
     }
 
     return new Response(response.body, {

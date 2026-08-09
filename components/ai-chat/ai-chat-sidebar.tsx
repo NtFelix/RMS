@@ -67,7 +67,7 @@ export function AIChatSidebar() {
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   if (sessionIdRef.current === null) sessionIdRef.current = uuidv4();
-  const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite-preview");
+  const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite");
   const [activeId, setActiveId] = useState<string | null>(null);
   const { theme, resolvedTheme } = useTheme();
   
@@ -377,6 +377,13 @@ export function AIChatSidebar() {
       abortControllerRef.current = controller;
 
       const clientNachrichtId = uuidv4();
+      console.log("[AIChatSidebar] Sending POST /api/chat request:", {
+        aiMessageId,
+        conversationId: currentConvId,
+        orgId: activeOrgId,
+        model: selectedModel,
+      });
+
       const res = await fetch("/api/chat", {
         method: "POST",
         signal: controller.signal,
@@ -388,14 +395,22 @@ export function AIChatSidebar() {
           message: messageContent || "Hier ist eine Datei zur Analyse.",
           attachment: messageAttachment,
           conversationId: currentConvId,
+          messageId: aiMessageId,
           orgId: activeOrgId,
           model: selectedModel,
           enabledToolIds,
         }),
       });
 
+      console.log("[AIChatSidebar] Received response headers:", {
+        status: res.status,
+        statusText: res.statusText,
+        contentType: res.headers.get("content-type"),
+      });
+
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
+        console.error("[AIChatSidebar] API response error:", res.status, errText);
         let errBody: any = {};
         try {
           errBody = JSON.parse(errText);
@@ -408,6 +423,7 @@ export function AIChatSidebar() {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let accumulatedText = "";
       let currentStepId: string | null = null;
       let finalReply = "";
       let traceId = "";
@@ -425,8 +441,11 @@ export function AIChatSidebar() {
         try {
           data = JSON.parse(clean);
         } catch (e) {
+          console.warn("[AIChatSidebar] Failed to parse JSON line:", clean, e);
           return;
         }
+
+        console.log("[AIChatSidebar] SSE Event:", data.type, data);
 
         if (data.type === "step_start") {
           if (currentStepId) {
@@ -446,45 +465,52 @@ export function AIChatSidebar() {
           }
         } else if (data.type === "content" || data.type === "token") {
           const textContent = data.content ?? data.text ?? "";
-          console.log("[AIChatSidebar] Token received:", textContent);
+          accumulatedText += textContent;
+          console.log(`[AIChatSidebar] Token (length=${textContent.length}, totalLength=${accumulatedText.length}):`, textContent);
           if (isMountedRef.current) {
-            setMessages(prev => prev.map(m =>
-              m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
-            ));
+            setMessages(prev => {
+              const targetId = prev.some(m => m.id === aiMessageId)
+                ? aiMessageId
+                : [...prev].reverse().find(m => m.role === "model")?.id || aiMessageId;
+              return prev.map(m =>
+                m.id === targetId ? { ...m, content: accumulatedText } : m
+              );
+            });
           }
         } else if (data.type === "final_reply" || data.type === "done") {
-          finalReply = data.reply || data.text || "";
+          finalReply = data.reply || data.text || accumulatedText;
           traceId = data.traceId || "";
           toolResults = data.toolCalls || toolResults;
           receivedDone = true;
+          console.log("[AIChatSidebar] Stream done received:", { finalReplyLength: finalReply.length, traceId });
         } else if (data.type === "error") {
+          console.error("[AIChatSidebar] Error event received from stream:", data.message);
           throw new Error(data.message);
         }
       }
 
+      let chunkIndex = 0;
       while (true) {
         if (!isMountedRef.current) break;
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log("[AIChatSidebar] Reader done (stream finished)");
+          break;
+        }
+
+        chunkIndex++;
+        console.log(`[AIChatSidebar] Read chunk #${chunkIndex} (${value?.length || 0} bytes)`);
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
 
-        let hasTokens = false;
         for (const line of lines) {
-          try {
-            if (line.includes('"type":"token"') || line.includes('"type":"content"')) {
-              hasTokens = true;
-            }
-            processStreamLine(line);
-          } catch (e) {
-            console.error("Error parsing stream line:", e, line);
+          const isTokenLine = line.includes('"type":"token"') || line.includes('"type":"content"');
+          processStreamLine(line);
+          if (isTokenLine) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
-        }
-
-        if (hasTokens) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
         }
       }
 
@@ -518,25 +544,36 @@ export function AIChatSidebar() {
       const finalVersions = [...(existingVersions || []), newVersion];
 
       // Update the message with final details and versioning
-      setMessages(prev => prev.map(m => m.id === aiMessageId ? {
-        ...m,
-        content: finalReply || m.content, 
-        traceId,
-        toolCalls: toolResults.length > 0 ? toolResults : undefined,
-        steps: finalStepsList,
-        versions: finalVersions,
-        currentVersionIndex: finalVersions.length - 1
-      } : m));
+      setMessages(prev => {
+        const targetId = prev.some(m => m.id === aiMessageId)
+          ? aiMessageId
+          : [...prev].reverse().find(m => m.role === "model")?.id || aiMessageId;
+        return prev.map(m => m.id === targetId ? {
+          ...m,
+          content: finalReply || accumulatedText || m.content, 
+          traceId,
+          toolCalls: toolResults.length > 0 ? toolResults : undefined,
+          steps: finalStepsList,
+          versions: finalVersions,
+          currentVersionIndex: finalVersions.length - 1
+        } : m);
+      });
 
     } catch (error: any) {
       console.error("AI Chat Error:", error);
-      setError(error.message || "Kommunikationsfehler");
+      const displayErrMsg = error?.message || "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal.";
+      setError(displayErrMsg);
       finishSteps(false);
-      setMessages((prev) => prev.map(m =>
-        m.id === aiMessageId
-          ? { ...m, role: "model" as const, content: "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal." }
-          : m
-      ));
+      setMessages((prev) => {
+        const targetId = prev.some(m => m.id === aiMessageId)
+          ? aiMessageId
+          : [...prev].reverse().find(m => m.role === "model")?.id || aiMessageId;
+        return prev.map(m =>
+          m.id === targetId
+            ? { ...m, role: "model" as const, content: `⚠️ ${displayErrMsg}` }
+            : m
+        );
+      });
     } finally {
       setIsLoading(false);
       setActiveId(null);
