@@ -116,7 +116,7 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
       .from('Finanzen')
       .select('id, name, betrag, ist_einnahmen, datum, notiz, tags, wohnung_id, Wohnungen(haus_id)')
       .is('geloescht_am', null)
-      .is('Wohnungen.geloescht_am', null)
+      .or('wohnung_id.is.null,Wohnungen.geloescht_am.is.null')
       .order('datum', { ascending: false })
       .limit(limit);
 

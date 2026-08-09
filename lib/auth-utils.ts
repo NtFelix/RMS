@@ -75,7 +75,7 @@ export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserA
   if (req) {
     const { searchParams } = new URL(req.url);
     requestedOrgId = searchParams.get('orgId') || req.headers.get('x-org-id') || req.headers.get('X-Org-Id');
-    if (!requestedOrgId && req.method !== 'GET' && req.method !== 'HEAD') {
+    if (!requestedOrgId && req.method !== 'GET' && req.method !== 'HEAD' && !req.bodyUsed) {
       const contentType = req.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         try {
