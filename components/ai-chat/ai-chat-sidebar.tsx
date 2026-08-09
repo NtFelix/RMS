@@ -377,11 +377,22 @@ export function AIChatSidebar() {
       abortControllerRef.current = controller;
 
       const clientNachrichtId = uuidv4();
+      const exchangeStartTime = Date.now();
+      let hasCapturedFirstToken = false;
+
       console.log("[AIChatSidebar] Sending POST /api/chat request:", {
         aiMessageId,
         conversationId: currentConvId,
         orgId: activeOrgId,
         model: selectedModel,
+      });
+
+      posthog.capture("ai_stream_requested", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        has_attachment: !!messageAttachment,
       });
 
       const res = await fetch("/api/chat", {
@@ -466,6 +477,14 @@ export function AIChatSidebar() {
         } else if (data.type === "content" || data.type === "token") {
           const textContent = data.content ?? data.text ?? "";
           accumulatedText += textContent;
+          if (!hasCapturedFirstToken && textContent) {
+            hasCapturedFirstToken = true;
+            posthog.capture("ai_stream_first_token", {
+              message_id: aiMessageId,
+              time_to_first_token_ms: Date.now() - exchangeStartTime,
+              model: selectedModel,
+            });
+          }
           console.log(`[AIChatSidebar] Token (length=${textContent.length}, totalLength=${accumulatedText.length}):`, textContent);
           if (isMountedRef.current) {
             setMessages(prev => {
@@ -533,6 +552,16 @@ export function AIChatSidebar() {
       setAllDone();
       finishSteps(true);
 
+      const totalDurationMs = Date.now() - exchangeStartTime;
+      posthog.capture("ai_stream_completed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        duration_ms: totalDurationMs,
+        text_length: (finalReply || accumulatedText).length,
+      });
+
       const finalStepsList = [...stepsRef.current];
       const newVersion: MessageVersion = {
         content: finalReply,
@@ -562,6 +591,13 @@ export function AIChatSidebar() {
     } catch (error: any) {
       console.error("AI Chat Error:", error);
       const displayErrMsg = error?.message || "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal.";
+      posthog.capture("ai_stream_failed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        error: displayErrMsg,
+      });
       setError(displayErrMsg);
       finishSteps(false);
       setMessages((prev) => {
