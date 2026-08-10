@@ -107,7 +107,6 @@ const SuccessStep = ({ data, onClose, onOverview }: { data: OptimizedNebenkosten
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 const METER_ICON_MAP = {
   droplet: Droplets,
@@ -1049,7 +1048,6 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       if (betriebskostenModalOnSuccess) {
         betriebskostenModalOnSuccess();
       }
-      useOnboardingStore.getState().completeStep('create-bill-form');
       // No longer close modal immediately - wait for Step 3
     } else {
       toast({ title: "Fehler beim Speichern", description: response.message, variant: "destructive" });

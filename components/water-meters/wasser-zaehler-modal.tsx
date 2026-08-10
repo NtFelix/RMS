@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import {
   Dialog,
   DialogContent,
@@ -142,8 +141,6 @@ export function WasserZaehlerModal() {
       setZaehlerList((prev) => [...prev, newZaehler])
       setNewCustomId("")
       setNewEichungsdatum(undefined)
-
-      useOnboardingStore.getState().completeStep('create-meter-form');
 
       // The useEffect with hasUnsavedChanges will automatically update the dirty state
       // when the form state is cleared above

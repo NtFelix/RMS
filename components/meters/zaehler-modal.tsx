@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import {
     Dialog,
     DialogContent,
@@ -171,8 +170,6 @@ export function ZaehlerModal() {
                 einheit: newZaehler.einheit || config.einheit,
             }])
             setNewMeter(INITIAL_NEW_METER_STATE)
-
-            useOnboardingStore.getState().completeStep('create-meter-form')
 
             toast({
                 title: "Erfolg",

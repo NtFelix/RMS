@@ -6,13 +6,6 @@ import type { Wohnung } from '@/types/Wohnung';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
-const mockCompleteStep = jest.fn();
-jest.mock('@/hooks/use-onboarding-store', () => ({
-  useOnboardingStore: Object.assign(
-    jest.fn(() => ({ getState: () => ({ completeStep: mockCompleteStep }) })),
-    { getState: jest.fn(() => ({ completeStep: mockCompleteStep })) }
-  ),
-}));
 jest.mock('@/utils/supabase/client', () => ({
   createClient: jest.fn(() => ({
     from: jest.fn(() => ({

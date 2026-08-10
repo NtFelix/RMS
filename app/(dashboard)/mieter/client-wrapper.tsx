@@ -19,7 +19,6 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { deleteTenantAction, deleteAllApplicantsAction } from "@/app/mieter-actions";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

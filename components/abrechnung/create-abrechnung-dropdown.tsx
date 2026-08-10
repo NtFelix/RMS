@@ -8,7 +8,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 
 interface CreateAbrechnungDropdownProps {
   onBlankClick: () => void;
@@ -36,7 +35,6 @@ export function CreateAbrechnungDropdown({
       <DropdownMenuTrigger asChild>
         <ButtonWithTooltip
           id="create-utility-bill-btn"
-          onClick={() => useOnboardingStore.getState().completeStep('create-bill-start')}
           className={className}
           variant={buttonVariant}
           disabled={!canCreate}
@@ -50,10 +48,7 @@ export function CreateAbrechnungDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent id="utility-bill-dropdown-content" align={align} className="w-[280px]">
         <DropdownMenuItem
-          onClick={() => {
-            useOnboardingStore.getState().completeStep('create-bill-select');
-            onBlankClick();
-          }}
+          onClick={onBlankClick}
           className="flex items-start py-3"
         >
           <FileText className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
@@ -63,10 +58,7 @@ export function CreateAbrechnungDropdown({
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => {
-            useOnboardingStore.getState().completeStep('create-bill-select');
-            onPreviousClick();
-          }}
+          onClick={onPreviousClick}
           className="flex items-start py-3"
         >
           <FileInput className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />
@@ -77,10 +69,7 @@ export function CreateAbrechnungDropdown({
         </DropdownMenuItem>
         <DropdownMenuItem
           id="utility-bill-template-option"
-          onClick={() => {
-            useOnboardingStore.getState().completeStep('create-bill-select');
-            onTemplateClick();
-          }}
+          onClick={onTemplateClick}
           className="flex items-start py-3"
         >
           <BookDashed className="mr-3 h-5 w-5 mt-0.5 text-muted-foreground" />

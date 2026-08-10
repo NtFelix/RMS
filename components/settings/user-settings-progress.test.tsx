@@ -68,6 +68,7 @@ describe('UserSettings with Progress Bar', () => {
     hasOrganisationPermission: true,
     isOrganisationHidden: false,
     modulePermissions: null,
+    checklist: { hasHouse: false, hasApartment: false, hasMeter: false, hasTenant: false, hasBill: false },
   }
 
   const setupMocks = (apartmentCount: number, apartmentLimit: number | null) => {

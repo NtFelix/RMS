@@ -84,7 +84,6 @@
     "date-fns": "^2.30.0",
     "dompurify": "^3.4.12",
     "dotenv": "^17.2.3",
-    "driver.js": "^1.4.0",
     "embla-carousel-react": "8.6.0",
     "framer-motion": "^12.36.0",
     "immer": "^10.2.0",

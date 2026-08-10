@@ -21,7 +21,6 @@ import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, Home, Ruler, Euro, Building2, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Gauge } from "lucide-react"
 import { formatNumber } from "@/utils/format"
-import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { cn } from "@/lib/utils"
@@ -243,7 +242,6 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
               icon: Gauge,
               label: "Zähler verwalten",
               onClick: () => {
-                useOnboardingStore.getState().completeStep('create-meter-select');
                 useModalStore.getState().openZaehlerModal(apt.id, apt.name);
               },
               variant: 'default' as const,
@@ -253,9 +251,6 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
               icon: MoreVertical,
               label: "Mehr Optionen",
               onClick: (e) => {
-                if (index === 0) {
-                  useOnboardingStore.getState().completeStep('create-meter-open-menu');
-                }
                 if (!e) return;
                 const rowElement = contextMenuRefs.current.get(apt.id)
                 if (rowElement) {

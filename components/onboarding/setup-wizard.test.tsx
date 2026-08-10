@@ -48,7 +48,7 @@ describe('SetupWizard', () => {
         jest.clearAllMocks();
     });
 
-    it('calls /api/user/onboarding when skipping the product tour', async () => {
+    it('finalizes and calls onComplete after saving the name step', async () => {
         const onCompleteMock = jest.fn();
 
         render(<SetupWizard isOpen={true} onComplete={onCompleteMock} />);
@@ -81,27 +81,7 @@ describe('SetupWizard', () => {
         const saveNameButton = await screen.findByRole('button', { name: /Einrichtung abschließen/i });
         fireEvent.click(saveNameButton);
 
-        act(() => {
-            jest.advanceTimersByTime(100);
-        });
-
-        // Wait for the 'tour_prompt' step which says "Selbst entdecken"
-        const skipTourButton = await screen.findByRole('button', { name: /Selbst entdecken/i });
-        expect(skipTourButton).toBeInTheDocument();
-
-        // Re-mock fetch for saving onboarding status
-        mockFetch.mockResolvedValue({
-            ok: true,
-            json: async () => ({ success: true }),
-        });
-
-        // Click skip tour
-        fireEvent.click(skipTourButton);
-
-        // Verify the API was called to mark onboarding as completed
-        expect(mockFetch).toHaveBeenCalledWith('/api/user/onboarding', { method: 'POST' });
-
-        // Verify that it transitions to finalizing
+        // Verify that it transitions directly to finalizing (no tour prompt anymore)
         const finalizingText = await screen.findByText(/Wir bereiten Ihr Dashboard vor/i);
         expect(finalizingText).toBeInTheDocument();
 

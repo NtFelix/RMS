@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/hover-card";
 import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb, Eye, Trash2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -639,7 +638,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
         }
 
         setHouseModalDirty(false);
-        useOnboardingStore.getState().completeStep('create-house-form');
         closeHouseModal();
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");

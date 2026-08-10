@@ -20,7 +20,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
@@ -422,10 +421,7 @@ export default function WohnungenClientView({
                 <div className="mt-0 sm:mt-1">
                   <ResponsiveButtonWithHoverCard
                     id="create-unit-btn"
-                    onClick={() => {
-                      useOnboardingStore.getState().completeStep('create-apartment-start');
-                      handleAddWohnung();
-                    }}
+                    onClick={handleAddWohnung}
                     disabled={isAddButtonDisabled}
                     tooltip={buttonTooltipMessage}
                     showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}

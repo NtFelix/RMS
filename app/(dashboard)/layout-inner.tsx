@@ -48,7 +48,7 @@ const TenantPaymentOverviewModal = dynamic(() => import('@/components/tenants/te
 
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
-const OnboardingTour = dynamic(() => import('@/components/onboarding/onboarding-tour').then(mod => mod.OnboardingTour), { ssr: false })
+const OnboardingController = dynamic(() => import('@/components/onboarding/onboarding-controller').then(mod => mod.OnboardingController), { ssr: false })
 const AIChatSidebar = dynamic(() => import('@/components/ai-chat/ai-chat-sidebar').then(mod => mod.AIChatSidebar), { ssr: false })
 
 
@@ -274,7 +274,7 @@ export default function DashboardInnerLayout({
         )}
 
       </NestedDialogProvider>
-      <OnboardingTour />
+      <OnboardingController checklist={sidebarData.checklist} />
       <AIChatSidebar />
     </AuthProvider>
   )

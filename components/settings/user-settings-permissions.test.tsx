@@ -75,6 +75,7 @@ describe('UserSettings Organisation Permissions (isOrgAdminOrOwner)', () => {
     hasOrganisationPermission: true,
     isOrganisationHidden: false,
     modulePermissions: null,
+    checklist: { hasHouse: false, hasApartment: false, hasMeter: false, hasTenant: false, hasBill: false },
   }
 
   const sampleOrgs: OrganisationItem[] = [

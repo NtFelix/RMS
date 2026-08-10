@@ -21,7 +21,6 @@ import {
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Home, Ruler, Coins, Building2, MoreHorizontal, Lightbulb, Eye, Trash2, Info, Gauge, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -427,7 +426,6 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           };
           wohnungModalOnSuccess(successData);
         }
-        useOnboardingStore.getState().completeStep('create-apartment-form');
         closeWohnungModal();
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
@@ -465,7 +463,6 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           wohnungInitialData={wohnungInitialData}
           onMeterClick={() => {
             if (wohnungInitialData) {
-              useOnboardingStore.getState().completeStep('create-meter-select');
               openZaehlerModal(wohnungInitialData.id, wohnungInitialData.name);
             }
           }}

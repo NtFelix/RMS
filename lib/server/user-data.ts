@@ -11,6 +11,14 @@ import { evaluatePermission } from "@/lib/permissions-core"
  */
 export type SidebarModulePermissions = Set<string> | null;
 
+export interface OnboardingChecklistStatus {
+  hasHouse: boolean;
+  hasApartment: boolean;
+  hasMeter: boolean;
+  hasTenant: boolean;
+  hasBill: boolean;
+}
+
 export interface SidebarUserData {
   user: User | null;
   userName: string;
@@ -22,6 +30,70 @@ export interface SidebarUserData {
   isOrganisationHidden: boolean;
   /** null = no restrictions (personal account or owner/admin). Set = allowed modules. */
   modulePermissions: SidebarModulePermissions;
+  checklist: OnboardingChecklistStatus;
+}
+
+const EMPTY_CHECKLIST: OnboardingChecklistStatus = {
+  hasHouse: false,
+  hasApartment: false,
+  hasMeter: false,
+  hasTenant: false,
+  hasBill: false,
+};
+
+/**
+ * Computes the "getting started" checklist status for a user, respecting the
+ * same house/apartment access scoping used elsewhere (RLS for personal accounts,
+ * explicit id lists for restricted org members).
+ */
+async function getOnboardingChecklistStatus(
+  supabase: SupabaseClient,
+  apartmentCount: number
+): Promise<OnboardingChecklistStatus> {
+  try {
+    const { data: haeuserIds } = await supabase.rpc('get_accessible_haeuser_ids') as { data: string[] | null };
+
+    const [hasHouse, wohnungIds] = await (async (): Promise<[boolean, string[] | null]> => {
+      if (haeuserIds === null) {
+        const { count } = await supabase.from('Haeuser').select('id', { count: 'exact', head: true });
+        return [(count ?? 0) > 0, null];
+      }
+      if (haeuserIds.length === 0) {
+        return [false, []];
+      }
+      const { data } = await supabase.from('Wohnungen').select('id').in('haus_id', haeuserIds);
+      return [true, data ? data.map((w: { id: string }) => w.id) : []];
+    })();
+
+    const [meterResult, tenantResult, billResult] = await Promise.all([
+      wohnungIds === null
+        ? supabase.from('Zaehler').select('id', { count: 'exact', head: true })
+        : wohnungIds.length === 0
+          ? Promise.resolve({ count: 0 })
+          : supabase.from('Zaehler').select('id', { count: 'exact', head: true }).in('wohnung_id', wohnungIds),
+      wohnungIds === null
+        ? supabase.from('Mieter').select('id', { count: 'exact', head: true })
+        : wohnungIds.length === 0
+          ? Promise.resolve({ count: 0 })
+          : supabase.from('Mieter').select('id', { count: 'exact', head: true }).in('wohnung_id', wohnungIds),
+      haeuserIds === null
+        ? supabase.from('Nebenkosten').select('id', { count: 'exact', head: true })
+        : haeuserIds.length === 0
+          ? Promise.resolve({ count: 0 })
+          : supabase.from('Nebenkosten').select('id', { count: 'exact', head: true }).in('haeuser_id', haeuserIds),
+    ]);
+
+    return {
+      hasHouse,
+      hasApartment: apartmentCount > 0,
+      hasMeter: (meterResult.count ?? 0) > 0,
+      hasTenant: (tenantResult.count ?? 0) > 0,
+      hasBill: (billResult.count ?? 0) > 0,
+    };
+  } catch (e) {
+    console.error("[getOnboardingChecklistStatus] Failed to compute checklist:", e);
+    return EMPTY_CHECKLIST;
+  }
 }
 
 /**
@@ -43,6 +115,7 @@ export async function getSidebarUserData(
       hasOrganisationPermission: false,
       isOrganisationHidden: false,
       modulePermissions: null,
+      checklist: EMPTY_CHECKLIST,
     }
   }
 
@@ -127,13 +200,17 @@ export async function getSidebarUserData(
     }
   }
 
+  const apartmentCount = countResult.count || 0;
+  const checklist = await getOnboardingChecklistStatus(supabase, apartmentCount);
+
   return {
     user,
     ...displayData,
-    apartmentCount: countResult.count || 0,
+    apartmentCount,
     apartmentLimit,
     hasOrganisationPermission,
     isOrganisationHidden,
     modulePermissions,
+    checklist,
   }
 }

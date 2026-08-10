@@ -16,7 +16,6 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
@@ -295,10 +294,7 @@ function HousesTab({
             <div className="mt-0 sm:mt-1">
               <ResponsiveButtonWithTooltip
                 id="create-object-btn"
-                onClick={() => {
-                  useOnboardingStore.getState().completeStep('create-house-start');
-                  onAdd();
-                }}
+                onClick={onAdd}
                 icon={<PlusCircle className="size-4" />}
                 shortText="Hinzufügen"
                 disabled={!flags.canCreate}

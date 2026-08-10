@@ -17,7 +17,6 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { useMediaQuery } from "@/hooks/use-media-query"
@@ -687,9 +686,6 @@ function SidebarNavLink({
           return;
         }
         setIsOpen(false)
-        if (item.href === ROUTES.HOME) {
-          useOnboardingStore.getState().completeStep('overview-open')
-        }
       }}
       className={cn(
         "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",

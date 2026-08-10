@@ -17,13 +17,6 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/app/betriebskosten-actions', () => ({
   deleteNebenkosten: jest.fn(),
 }));
-const mockCompleteStep = jest.fn();
-jest.mock('@/hooks/use-onboarding-store', () => ({
-  useOnboardingStore: Object.assign(
-    jest.fn(() => ({ getState: () => ({ completeStep: mockCompleteStep }) })),
-    { getState: jest.fn(() => ({ completeStep: mockCompleteStep })) }
-  ),
-}));
 
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 const mockUseToast = useToast as jest.MockedFunction<typeof useToast>;

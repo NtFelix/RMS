@@ -25,7 +25,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { cn } from "@/lib/utils"
 import { Tenant, NebenkostenEntry, TenantStatus } from "@/types/Tenant"
 import { useFeatureFlagEnabled } from "posthog-js/react"
@@ -1027,7 +1026,6 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           variant: "success",
         })
         setTenantModalDirty(false)
-        useOnboardingStore.getState().completeStep('assign-tenant-form')
         closeTenantModal()
         router.refresh()
       } else {

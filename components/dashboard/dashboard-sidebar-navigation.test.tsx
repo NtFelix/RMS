@@ -39,6 +39,7 @@ const mockSidebarData: SidebarUserData = {
   hasOrganisationPermission: true,
   isOrganisationHidden: false,
   modulePermissions: null,
+  checklist: { hasHouse: false, hasApartment: false, hasMeter: false, hasTenant: false, hasBill: false },
 }
 
 describe('DashboardSidebar Navigation', () => {

@@ -23,7 +23,6 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
 import type { Apartment } from "@/components/tables/apartment-table"; // Import the shared type
-import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 // Remove local Apartment interface definition
 
 interface ApartmentContextMenuProps {
@@ -104,7 +103,6 @@ export function ApartmentContextMenu({
             <ContextMenuItem
               id="context-menu-meter-item"
               onClick={() => {
-                useOnboardingStore.getState().completeStep('create-meter-select');
                 setTimeout(() => {
                   openZaehlerModal(apartment.id, apartment.name);
                 }, 0);

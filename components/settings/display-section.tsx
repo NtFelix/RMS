@@ -97,15 +97,15 @@ const DisplaySection = () => {
               <div className="flex items-center gap-2">
                 <Play className="size-4 text-muted-foreground" />
                 <span className="text-sm font-medium leading-none">
-                  Tutorial neu starten
+                  Checkliste einblenden
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Startet die interaktive Einführungstour erneut.
+                Zeigt die Checkliste für die ersten Schritte wieder an.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => useOnboardingStore.getState().resetTour()}>
-              Neustart
+            <Button variant="outline" size="sm" onClick={() => useOnboardingStore.getState().show()}>
+              Einblenden
             </Button>
           </div>
         </SettingsCard>
