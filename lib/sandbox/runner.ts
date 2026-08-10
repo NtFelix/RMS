@@ -44,7 +44,7 @@ export async function sandboxRpc(rpcName: string, params: Record<string, unknown
     throw new Error(`RPC ${rpcName} is not whitelisted`);
   }
 
-  const store = agentRuntimeLocalStorage.getStore();
+  const store = agentRuntimeLocalStorage?.getStore?.();
   const orgId = (params.p_org_id as string) || store?.orgId;
 
   const supabase = userJwt 
