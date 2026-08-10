@@ -11,6 +11,7 @@ export default tseslint.config(
       "build/**",
       "dist/**",
       "node_modules/**",
+      "workers/**",
       "**/*.test.ts",
       "**/*.test.tsx",
       "**/*.spec.ts",
