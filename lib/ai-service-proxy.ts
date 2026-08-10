@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 function getAiServiceUrl(): string {
-  const isDev = process.env.DEV === 'true';
+  const isDev = process.env.NEXT_PUBLIC_DEV === 'true' || process.env.DEV === 'true' || process.env.NODE_ENV === 'development';
   if (isDev) {
     return process.env.DEV_AI_SERVICE_URL || process.env.AI_SERVICE_URL || 'http://localhost:8080';
   }
@@ -39,9 +39,12 @@ export async function proxyToAiService(
   const traceId = existingTraceId || crypto.randomUUID();
   headers.set('X-Trace-Id', traceId);
 
-  // Remove original auth headers (JWT/Cookie)
+  // Remove headers that shouldn't be forwarded to upstream AI microservice
   headers.delete('authorization');
   headers.delete('cookie');
+  headers.delete('host');
+  headers.delete('connection');
+  headers.delete('content-length');
 
   const fetchOptions: RequestInit = {
     method: request.method,
@@ -64,6 +67,8 @@ export async function proxyToAiService(
 
   try {
     const response = await fetch(targetUrl, fetchOptions);
+    const contentType = response.headers.get('content-type') || '';
+    console.log(`[AI Proxy] Upstream ${targetUrl} responded: status=${response.status}, contentType=${contentType}`);
 
     const filteredHeaders = new Headers(response.headers);
     filteredHeaders.delete('transfer-encoding');
@@ -71,6 +76,62 @@ export async function proxyToAiService(
     filteredHeaders.delete('content-encoding');
     filteredHeaders.delete('content-length');
     filteredHeaders.set('X-Trace-Id', traceId);
+
+    if (contentType.includes('text/event-stream')) {
+      // Clear the timeout NOW — once we have the headers, we don't want
+      // the AbortController to fire mid-stream during long AI generations.
+      clearTimeout(timeoutId);
+
+      filteredHeaders.set('Cache-Control', 'no-cache, no-transform');
+      filteredHeaders.set('Connection', 'keep-alive');
+      filteredHeaders.set('X-Accel-Buffering', 'no');
+      filteredHeaders.set('Content-Type', 'text/event-stream');
+
+      // Use an active-reader pattern instead of pipeTo/TransformStream.
+      // pipeTo + TransformStream has a known race condition in Next.js
+      // App Router where the response can finalize before the async pipe
+      // has connected, resulting in an immediately-closed stream on the
+      // client side.
+      const upstream = response.body;
+      if (!upstream) {
+        console.error('[AI Proxy] SSE response has no body');
+        return new Response('data: {"type":"error","message":"No upstream body"}\n\n', {
+          status: 200,
+          headers: filteredHeaders,
+        });
+      }
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          const reader = upstream.getReader();
+          let chunkCount = 0;
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                console.log(`[AI Proxy] Upstream stream finished after ${chunkCount} chunks`);
+                controller.close();
+                break;
+              }
+              chunkCount++;
+              controller.enqueue(value);
+            }
+          } catch (err) {
+            console.error('[AI Proxy] SSE reader error:', err);
+            controller.error(err);
+          }
+        },
+        cancel(reason) {
+          console.log('[AI Proxy] Downstream cancelled SSE stream:', reason);
+          upstream.cancel(reason);
+        },
+      });
+
+      return new Response(stream, {
+        status: response.status,
+        headers: filteredHeaders,
+      });
+    }
 
     return new Response(response.body, {
       status: response.status,

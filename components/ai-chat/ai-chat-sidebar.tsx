@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import posthog from "posthog-js";
+import { posthogLogger } from "@/lib/posthog-logger";
 import { v4 as uuidv4 } from "uuid";
 import { usePathname } from "next/navigation";
 import { useFeatureFlagEnabled } from "@posthog/react";
@@ -54,6 +55,11 @@ export function AIChatSidebar() {
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   useEffect(() => {
+    // Explicitly set to true on every mount. This is critical for React
+    // Strict Mode in development, which unmounts and remounts components.
+    // Without this, the cleanup sets it to false, and useRef's initial
+    // value is NOT re-applied on remount, leaving it permanently false.
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       if (abortControllerRef.current) {
@@ -67,7 +73,7 @@ export function AIChatSidebar() {
   const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   if (sessionIdRef.current === null) sessionIdRef.current = uuidv4();
-  const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite-preview");
+  const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite");
   const [activeId, setActiveId] = useState<string | null>(null);
   const { theme, resolvedTheme } = useTheme();
   
@@ -170,7 +176,7 @@ export function AIChatSidebar() {
 
   // Load latest active conversation on sidebar open
   useEffect(() => {
-    if (!isOpen || !activeOrgId) {
+    if (!isOpen || !activeOrgId || isLoading) {
       if (!isOpen) unsubscribeFromRealtime();
       return;
     }
@@ -193,14 +199,15 @@ export function AIChatSidebar() {
           if (cancelled) return;
           setActiveConversationId(latest.id);
 
-          const detailsRes = await fetch(`/api/conversations/${latest.id}`, {
+          const detailsRes = await fetch(`/api/conversations/${latest.id}?orgId=${activeOrgId}`, {
             signal: abortController.signal,
           });
           if (cancelled || !detailsRes.ok) return;
           const details = await detailsRes.json();
           if (cancelled) return;
 
-          const mapped = (details.messages || []).map((m: any) => ({
+          const rawMessages = details.nachrichten || details.messages || [];
+          const mapped = rawMessages.map((m: any) => ({
             id: m.id,
             role: m.rolle === 'assistant' ? 'model' : m.rolle,
             content: m.inhalt || '',
@@ -210,7 +217,7 @@ export function AIChatSidebar() {
           }));
           setMessages(mapped);
 
-          const lastMsg = details.messages?.[details.messages.length - 1];
+          const lastMsg = rawMessages[rawMessages.length - 1];
           if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
             setIsLoading(true);
             setActiveId(lastMsg.id);
@@ -376,6 +383,32 @@ export function AIChatSidebar() {
       abortControllerRef.current = controller;
 
       const clientNachrichtId = uuidv4();
+      const exchangeStartTime = Date.now();
+      let hasCapturedFirstToken = false;
+
+      console.log("[AIChatSidebar] Sending POST /api/chat request:", {
+        aiMessageId,
+        conversationId: currentConvId,
+        orgId: activeOrgId,
+        model: selectedModel,
+      });
+
+      posthog.capture("ai_stream_requested", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        has_attachment: !!messageAttachment,
+      });
+
+      posthogLogger.info("[AIChatSidebar] Stream requested", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        has_attachment: !!messageAttachment,
+      });
+
       const res = await fetch("/api/chat", {
         method: "POST",
         signal: controller.signal,
@@ -387,14 +420,22 @@ export function AIChatSidebar() {
           message: messageContent || "Hier ist eine Datei zur Analyse.",
           attachment: messageAttachment,
           conversationId: currentConvId,
+          messageId: aiMessageId,
           orgId: activeOrgId,
           model: selectedModel,
           enabledToolIds,
         }),
       });
 
+      console.log("[AIChatSidebar] Received response headers:", {
+        status: res.status,
+        statusText: res.statusText,
+        contentType: res.headers.get("content-type"),
+      });
+
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
+        console.error("[AIChatSidebar] API response error:", res.status, errText);
         let errBody: any = {};
         try {
           errBody = JSON.parse(errText);
@@ -407,6 +448,7 @@ export function AIChatSidebar() {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let accumulatedText = "";
       let currentStepId: string | null = null;
       let finalReply = "";
       let traceId = "";
@@ -424,8 +466,11 @@ export function AIChatSidebar() {
         try {
           data = JSON.parse(clean);
         } catch (e) {
+          console.warn("[AIChatSidebar] Failed to parse JSON line:", clean, e);
           return;
         }
+
+        console.log("[AIChatSidebar] SSE Event:", data.type, data);
 
         if (data.type === "step_start") {
           if (currentStepId) {
@@ -445,35 +490,73 @@ export function AIChatSidebar() {
           }
         } else if (data.type === "content" || data.type === "token") {
           const textContent = data.content ?? data.text ?? "";
+          accumulatedText += textContent;
+          if (!hasCapturedFirstToken && textContent) {
+            hasCapturedFirstToken = true;
+            posthog.capture("ai_stream_first_token", {
+              message_id: aiMessageId,
+              time_to_first_token_ms: Date.now() - exchangeStartTime,
+              model: selectedModel,
+            });
+            posthogLogger.info("[AIChatSidebar] First token received", {
+              message_id: aiMessageId,
+              time_to_first_token_ms: Date.now() - exchangeStartTime,
+              model: selectedModel,
+            });
+          }
+          console.log(`[AIChatSidebar] Token (length=${textContent.length}, totalLength=${accumulatedText.length}):`, textContent);
           if (isMountedRef.current) {
-            setMessages(prev => prev.map(m =>
-              m.id === aiMessageId ? { ...m, content: m.content + textContent } : m
-            ));
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === aiMessageId);
+              if (!exists) {
+                const initialMsg: Message = {
+                  id: aiMessageId,
+                  role: "model",
+                  content: accumulatedText,
+                  steps: [],
+                  currentVersionIndex: 0,
+                  versions: []
+                };
+                return [...prev, initialMsg];
+              }
+              return prev.map(m =>
+                m.id === aiMessageId ? { ...m, content: accumulatedText } : m
+              );
+            });
           }
         } else if (data.type === "final_reply" || data.type === "done") {
-          finalReply = data.reply || data.text || "";
+          finalReply = data.reply || data.text || accumulatedText;
           traceId = data.traceId || "";
           toolResults = data.toolCalls || toolResults;
           receivedDone = true;
+          console.log("[AIChatSidebar] Stream done received:", { finalReplyLength: finalReply.length, traceId });
         } else if (data.type === "error") {
+          console.error("[AIChatSidebar] Error event received from stream:", data.message);
           throw new Error(data.message);
         }
       }
 
+      let chunkIndex = 0;
       while (true) {
         if (!isMountedRef.current) break;
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log("[AIChatSidebar] Reader done (stream finished)");
+          break;
+        }
+
+        chunkIndex++;
+        console.log(`[AIChatSidebar] Read chunk #${chunkIndex} (${value?.length || 0} bytes)`);
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          try {
-            processStreamLine(line);
-          } catch (e) {
-            console.error("Error parsing stream line:", e, line);
+          const isTokenLine = line.includes('"type":"token"') || line.includes('"type":"content"');
+          processStreamLine(line);
+          if (isTokenLine) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
         }
       }
@@ -487,15 +570,44 @@ export function AIChatSidebar() {
         }
       }
 
-      // If stream ended early without final reply payload, fall back to realtime tracking
-      if (!receivedDone && currentConvId) {
-        console.log('[AIChatSidebar] Stream disconnected early. Activating Realtime fallback...');
+      // Only fallback to realtime if NO text was received at all and no done signal arrived
+      if (!receivedDone && !accumulatedText && currentConvId) {
+        console.warn('[AIChatSidebar] Stream disconnected early without text. Activating Realtime fallback...');
+        posthogLogger.warn('[AIChatSidebar] Stream disconnected early without text', {
+          conversation_id: currentConvId,
+          message_id: aiMessageId,
+        });
         subscribeToRealtime(currentConvId, aiMessageId);
-        return; // Don't finalize state yet
+        return;
+      }
+
+      finalReply = finalReply || accumulatedText;
+
+      if (!finalReply) {
+        throw new Error("Antwort der KI ist leer oder der Stream wurde vorzeitig unterbrochen.");
       }
 
       setAllDone();
       finishSteps(true);
+
+      const totalDurationMs = Date.now() - exchangeStartTime;
+      posthog.capture("ai_stream_completed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        duration_ms: totalDurationMs,
+        text_length: (finalReply || accumulatedText).length,
+      });
+
+      posthogLogger.info("[AIChatSidebar] Stream completed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        duration_ms: totalDurationMs,
+        text_length: (finalReply || accumulatedText).length,
+      });
 
       const finalStepsList = [...stepsRef.current];
       const newVersion: MessageVersion = {
@@ -508,25 +620,70 @@ export function AIChatSidebar() {
       const finalVersions = [...(existingVersions || []), newVersion];
 
       // Update the message with final details and versioning
-      setMessages(prev => prev.map(m => m.id === aiMessageId ? {
-        ...m,
-        content: finalReply || m.content, 
-        traceId,
-        toolCalls: toolResults.length > 0 ? toolResults : undefined,
-        steps: finalStepsList,
-        versions: finalVersions,
-        currentVersionIndex: finalVersions.length - 1
-      } : m));
+      setMessages(prev => {
+        const exists = prev.some(m => m.id === aiMessageId);
+        if (!exists) {
+          const finalMsgCard: Message = {
+            id: aiMessageId,
+            role: "model",
+            content: finalReply || accumulatedText,
+            traceId,
+            toolCalls: toolResults.length > 0 ? toolResults : undefined,
+            steps: finalStepsList,
+            versions: finalVersions,
+            currentVersionIndex: finalVersions.length - 1
+          };
+          return [...prev, finalMsgCard];
+        }
+        return prev.map(m => m.id === aiMessageId ? {
+          ...m,
+          content: finalReply || accumulatedText || m.content, 
+          traceId,
+          toolCalls: toolResults.length > 0 ? toolResults : undefined,
+          steps: finalStepsList,
+          versions: finalVersions,
+          currentVersionIndex: finalVersions.length - 1
+        } : m);
+      });
 
     } catch (error: any) {
       console.error("AI Chat Error:", error);
-      setError(error.message || "Kommunikationsfehler");
+      const displayErrMsg = error?.message || "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal.";
+      posthog.capture("ai_stream_failed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        error: displayErrMsg,
+      });
+      posthogLogger.error("[AIChatSidebar] Stream failed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        error: displayErrMsg,
+      });
+      setError(displayErrMsg);
       finishSteps(false);
-      setMessages((prev) => prev.map(m =>
-        m.id === aiMessageId
-          ? { ...m, role: "model" as const, content: "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal." }
-          : m
-      ));
+      setMessages((prev) => {
+        const exists = prev.some(m => m.id === aiMessageId);
+        if (!exists) {
+          const errorMsgCard: Message = {
+            id: aiMessageId,
+            role: "model",
+            content: `⚠️ ${displayErrMsg}`,
+            steps: [],
+            currentVersionIndex: 0,
+            versions: []
+          };
+          return [...prev, errorMsgCard];
+        }
+        return prev.map(m =>
+          m.id === aiMessageId
+            ? { ...m, role: "model" as const, content: `⚠️ ${displayErrMsg}` }
+            : m
+        );
+      });
     } finally {
       setIsLoading(false);
       setActiveId(null);
@@ -649,12 +806,13 @@ export function AIChatSidebar() {
                     }
 
                     try {
-                      const detailsRes = await fetch(`/api/conversations/${id}`);
+                      const detailsRes = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`);
                       if (selectedConvRef.current !== id) return; // stale
                       if (detailsRes.ok) {
                         const data = await detailsRes.json();
                         if (selectedConvRef.current !== id) return; // stale
-                        const mapped = (data.messages || []).map((m: any) => ({
+                        const rawMessages = data.nachrichten || data.messages || [];
+                        const mapped = rawMessages.map((m: any) => ({
                           id: m.id,
                           role: m.rolle === 'assistant' ? 'model' : m.rolle,
                           content: m.inhalt || '',
@@ -664,7 +822,7 @@ export function AIChatSidebar() {
                         }));
                         setMessages(mapped);
                         
-                        const lastMsg = data.messages?.[data.messages.length - 1];
+                        const lastMsg = rawMessages[rawMessages.length - 1];
                         if (selectedConvRef.current !== id) return; // stale
                         if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
                           setIsLoading(true);
