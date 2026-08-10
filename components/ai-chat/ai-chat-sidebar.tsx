@@ -796,17 +796,17 @@ export function AIChatSidebar() {
                     // If the conversation is archived, restore it first via PATCH
                     const conv = conversations.find(c => c.id === id);
                     if (conv?.status === 'archiviert') {
-                      const restoreRes = await fetch(`/api/conversations/${id}`, {
+                      const restoreRes = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: 'aktiv' }),
+                        body: JSON.stringify({ status: 'aktiv', orgId: activeOrgId }),
                       });
                       if (!restoreRes.ok) {
                         const errBody = await restoreRes.json().catch(() => ({}));
                         setError(errBody.error || 'Konnte archivierte Konversation nicht wiederherstellen.');
                         return;
                       }
-                      loadConversationsList();
+                      await loadConversationsList();
                     }
 
                     try {
@@ -850,17 +850,17 @@ export function AIChatSidebar() {
                   onArchive={async (id, e) => {
                     e.stopPropagation();
                     try {
-                      const response = await fetch(`/api/conversations/${id}`, {
+                      const response = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: 'archiviert' }),
+                        body: JSON.stringify({ status: 'archiviert', orgId: activeOrgId }),
                       });
                       if (response.ok) {
                         if (activeConversationId === id) {
                           setActiveConversationId(null);
                           setMessages([]);
                         }
-                        loadConversationsList();
+                        await loadConversationsList();
                       } else {
                         setError('Archivieren fehlgeschlagen.');
                       }
@@ -871,13 +871,13 @@ export function AIChatSidebar() {
                   onRestore={async (id, e) => {
                     e.stopPropagation();
                     try {
-                      const response = await fetch(`/api/conversations/${id}`, {
+                      const response = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: 'aktiv' }),
+                        body: JSON.stringify({ status: 'aktiv', orgId: activeOrgId }),
                       });
                       if (response.ok) {
-                        loadConversationsList();
+                        await loadConversationsList();
                       } else {
                         const body = await response.json().catch(() => null);
                         console.error('[restore] Server error:', body?.error || response.statusText);
@@ -891,7 +891,7 @@ export function AIChatSidebar() {
                     e.stopPropagation();
                     if (!confirm('Möchtest du diese Konversation wirklich löschen?')) return;
                     try {
-                      const response = await fetch(`/api/conversations/${id}`, {
+                      const response = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
                         method: 'DELETE',
                       });
                       if (response.ok) {
@@ -899,7 +899,7 @@ export function AIChatSidebar() {
                           setActiveConversationId(null);
                           setMessages([]);
                         }
-                        loadConversationsList();
+                        await loadConversationsList();
                       } else {
                         setError('Löschen fehlgeschlagen.');
                       }
