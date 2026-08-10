@@ -793,10 +793,14 @@ export function AIChatSidebar() {
                     setShowHistory(false);
                     setError(null);
 
-                    // If the conversation is archived, restore it first via POST
+                    // If the conversation is archived, restore it first via PATCH
                     const conv = conversations.find(c => c.id === id);
                     if (conv?.status === 'archiviert') {
-                      const restoreRes = await fetch(`/api/conversations/${id}`, { method: 'POST' });
+                      const restoreRes = await fetch(`/api/conversations/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'aktiv' }),
+                      });
                       if (!restoreRes.ok) {
                         const errBody = await restoreRes.json().catch(() => ({}));
                         setError(errBody.error || 'Konnte archivierte Konversation nicht wiederherstellen.');
