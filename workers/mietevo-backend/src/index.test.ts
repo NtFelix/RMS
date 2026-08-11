@@ -172,20 +172,22 @@ describe('Backend Worker Tests', () => {
         });
 
         it('should route to /ai correctly', async () => {
-            // Mocking handleAIRequest indirectly by checking the response or using spies
-            // Since we export 'default', we can test that.
-            const request = new Request('https://worker.com/ai', {
-                method: 'POST',
-                body: JSON.stringify({ message: 'Hello' })
-            });
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+            try {
+                const request = new Request('https://worker.com/ai', {
+                    method: 'POST',
+                    body: JSON.stringify({ message: 'Hello' })
+                });
 
-            // We expect this to fail with 500 or similar because Gemini key is test-key
-            // but it proves it hit the AI handler rather than file generation.
-            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
-            
-            // handleAIRequest returns 500 if Gemini fails, or starts a stream.
-            // File generation would return 400 for this body because 'type' is missing.
-            expect(response.status).not.toBe(400);
+                const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+                
+                // handleAIRequest returns 500 if Gemini fails, or starts a stream.
+                // File generation would return 400 for this body because 'type' is missing.
+                expect(response.status).not.toBe(400);
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
         });
 
         it('should route to /process-queue correctly', async () => {
