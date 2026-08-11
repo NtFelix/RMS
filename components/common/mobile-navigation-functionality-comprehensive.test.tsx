@@ -6,6 +6,7 @@ import MobileBottomNavigation from '@/components/common/mobile-bottom-navigation
 import { useCommandMenu } from '@/hooks/use-command-menu'
 import { useSidebarActiveState } from '@/hooks/use-active-state-manager'
 import { useFeatureFlagEnabled } from 'posthog-js/react'
+import { createMockRouter } from '@/__tests__/utils/mock-router'
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
@@ -62,14 +63,9 @@ describe('MobileBottomNavigation - Comprehensive Functionality Tests', () => {
     mockUseFeatureFlagEnabled.mockReturnValue(true)
 
     // Mock router
-    mockUseRouter.mockReturnValue({
+    mockUseRouter.mockReturnValue(createMockRouter({
       push: mockPush,
-      replace: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      refresh: jest.fn(),
-      prefetch: jest.fn(),
-    } as unknown as ReturnType<typeof useRouter>)
+    }))
 
     // Mock route active state - default to home active
     mockIsRouteActive.mockImplementation((route: string) => route === '/dashboard')

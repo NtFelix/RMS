@@ -5,6 +5,7 @@ import { useModalStore } from '@/hooks/use-modal-store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { deleteNebenkosten } from '@/app/betriebskosten-actions';
+import { createMockRouter } from '@/__tests__/utils/mock-router';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
@@ -102,14 +103,9 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       toasts: []
     });
 
-    mockUseRouter.mockReturnValue({
+    mockUseRouter.mockReturnValue(createMockRouter({
       refresh: mockRouterRefresh,
-      push: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      prefetch: jest.fn(),
-      replace: jest.fn()
-    } as unknown as ReturnType<typeof useRouter>);
+    }));
 
     mockDeleteNebenkosten.mockResolvedValue({
       success: true,
