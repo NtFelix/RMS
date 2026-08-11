@@ -69,7 +69,7 @@ describe('MobileBottomNavigation - Comprehensive Functionality Tests', () => {
       forward: jest.fn(),
       refresh: jest.fn(),
       prefetch: jest.fn(),
-    })
+    } as unknown as ReturnType<typeof useRouter>)
 
     // Mock route active state - default to home active
     mockIsRouteActive.mockImplementation((route: string) => route === '/dashboard')

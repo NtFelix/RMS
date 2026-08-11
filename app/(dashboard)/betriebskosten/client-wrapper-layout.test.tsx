@@ -109,7 +109,7 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       forward: jest.fn(),
       prefetch: jest.fn(),
       replace: jest.fn()
-    });
+    } as unknown as ReturnType<typeof useRouter>);
 
     mockDeleteNebenkosten.mockResolvedValue({
       success: true,
