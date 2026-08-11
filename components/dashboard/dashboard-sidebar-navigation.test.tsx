@@ -27,10 +27,10 @@ jest.mock('@/utils/supabase/client', () => ({
   })),
 }))
 
-// Mock useToast hook
+const mockToast = jest.fn()
 jest.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
-    toast: jest.fn(),
+    toast: mockToast,
   }),
 }))
 
