@@ -44,6 +44,8 @@ const nextConfig = {
   },
   outputFileTracingRoot: projectRoot,
   reactStrictMode: true,
+  cacheComponents: true,
+  partialPrefetching: true,
   // swcMinify is now enabled by default in Next.js 15
   productionBrowserSourceMaps: true,
   compress: true,

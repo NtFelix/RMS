@@ -59,6 +59,7 @@ export function SettingsSidebar({ tabs }: SettingsSidebarProps) {
               <Link
                 key={tab.value}
                 href={`/einstellungen/${tab.value}`}
+                prefetch={true}
                 className={cn(
                   "flex items-center gap-2.5 w-full h-9 rounded-lg px-2.5 text-sm font-medium no-underline transition-all duration-150 active:scale-[0.98]",
                   "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",

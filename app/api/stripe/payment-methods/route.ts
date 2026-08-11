@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
+export const instant = false;
+
 export async function GET() {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500, headers: NO_CACHE_HEADERS });

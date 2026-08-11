@@ -6,6 +6,8 @@ import { redirectAuthenticatedAuthRoute } from "@/lib/server/route-access"
 
 // Cloudflare Pages requires dynamic routes to be marked as edge
 
+export const instant = false;
+
 // Auth layout metadata - common settings for all auth pages
 export const metadata: Metadata = {
   // Auth pages will override with their specific metadata

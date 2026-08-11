@@ -104,7 +104,7 @@ async function initializePostHog(nonce?: string) {
 
 // Global initialization removed to support nonce passing from server
 
-function PostHogTracking({ children }: { children: React.ReactNode }) {
+function PostHogPageViewContent() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const getParam = searchParams ? searchParams.get.bind(searchParams) : null
@@ -127,6 +127,9 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleUserIdentification = async () => {
       if (!posthog.__loaded) return;
+
+      // Check cookie consent status first
+      const consent = typeof window !== 'undefined' ? localStorage.getItem('cookie-consent') : null;
 
       // GDPR: Only identify users if they have consented to tracking
       if (!posthog.has_opted_in_capturing?.()) {
@@ -151,8 +154,6 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
             });
           }
         }
-        // Note: Anonymous tracking for documentation pages removed for GDPR compliance
-        // Users must accept cookies before any tracking occurs
       } catch (error) {
         console.error('Error handling user identification for PostHog:', error);
       }
@@ -246,7 +247,15 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
     }
   }, [searchParams])
 
-  return <>{children}</>
+  return null
+}
+
+function PostHogPageView() {
+  return (
+    <Suspense fallback={null}>
+      <PostHogPageViewContent />
+    </Suspense>
+  )
 }
 
 export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
@@ -261,9 +270,8 @@ export function PostHogProvider({ children, nonce }: { children: React.ReactNode
 
   return (
     <PHProvider client={posthog}>
-      <Suspense fallback={children}>
-        <PostHogTracking>{children}</PostHogTracking>
-      </Suspense>
+      <PostHogPageView />
+      {children}
     </PHProvider>
   )
 }

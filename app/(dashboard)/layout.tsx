@@ -6,6 +6,8 @@ import { getSidebarUserData } from "@/lib/server/user-data"
 
 // Cloudflare Pages requires dynamic routes to be marked as edge
 
+export const instant = false;
+
 export default async function DashboardRootLayout({
   children,
 }: Readonly<{

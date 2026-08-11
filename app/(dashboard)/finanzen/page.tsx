@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import FinanzenClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";

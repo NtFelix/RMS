@@ -14,6 +14,8 @@ interface FinanceRecord {
 
 import type { MonthlyData } from "@/utils/financeCalculations";
 
+export const instant = false;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
