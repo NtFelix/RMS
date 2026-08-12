@@ -11,8 +11,19 @@ import type { Wohnung } from "@/types/Wohnung";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
 // Server Component: Fetches data and passes it to the Client Component
-export default async function WohnungenPage() {
+export default function WohnungenPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <WohnungenContent />
+    </Suspense>
+  );
+}
+
+async function WohnungenContent() {
   const { supabase, user } = await requireAuthenticatedUser();
 
   // Permission check.

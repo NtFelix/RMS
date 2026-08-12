@@ -98,7 +98,18 @@ function determineInitialYear(
   return fallbackYear ?? currentYear;
 }
 
-export default async function FinanzenPage() {
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+export default function FinanzenPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <FinanzenContent />
+    </Suspense>
+  );
+}
+
+async function FinanzenContent() {
   const { supabase } = await requireAuthenticatedUser();
 
   const currentYear = new Date().getFullYear();

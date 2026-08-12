@@ -28,7 +28,18 @@ import {
 const currencyFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 const formatCurrency = (amount: number) => currencyFormatter.format(amount);
 
-export default async function Dashboard() {
+import { Suspense } from "react"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
+  )
+}
+
+async function DashboardContent() {
   // Ensure authentication first to avoid database errors during pre-fetching
   const { supabase } = await requireAuthenticatedUser();
 
