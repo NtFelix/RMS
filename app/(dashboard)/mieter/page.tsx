@@ -1,7 +1,5 @@
 // "use client" directive removed - this is now a Server Component file.
 
-export const dynamic = 'force-dynamic';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";

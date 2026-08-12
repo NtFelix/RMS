@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import SucheClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { requirePermission } from "@/lib/permissions";

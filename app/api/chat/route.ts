@@ -3,9 +3,6 @@ import { resolveUserAndOrg } from '@/lib/auth-utils';
 import { proxyToAiService } from '@/lib/ai-service-proxy';
 import { posthogLogger } from '@/lib/posthog-logger';
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
 export async function POST(req: NextRequest) {
   try {
     const { user, orgId, userJwt, errorResponse } = await resolveUserAndOrg(req);
