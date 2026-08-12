@@ -1,7 +1,5 @@
 // Remove "use client" from here as this file will be a Server Component
 
-export const dynamic = 'force-dynamic';
-
 import { fetchHaeuser as fetchHaeuserServer, fetchWithRpcFallback } from "../../../lib/data-fetching";
 import { fetchNebenkostenListOptimized } from "@/app/betriebskosten-actions";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";

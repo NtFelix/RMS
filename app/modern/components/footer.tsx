@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, useMotionValue, useSpring, AnimatePresence } from "framer-motion"
 import { ChevronDown, Mail } from "lucide-react"
 import Link from "next/link"
@@ -46,6 +46,11 @@ const categoryMap: Record<string, FooterCategory> = {
 
 export default function Footer() {
   const showLoesungen = useFeatureFlagEnabled('show-loesungen-dropdown')
+  const [currentYear, setCurrentYear] = useState(2026)
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear())
+  }, [])
 
   // Dynamic link categories depending on the feature flag
   const activeFooterLinks = {
@@ -229,7 +234,7 @@ export default function Footer() {
           {/* Bottom Bar: Copyright on left, legal links on right */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground relative z-10">
             <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start">
-              <span>© {new Date().getFullYear()} {BRAND_NAME}. Alle Rechte vorbehalten.</span>
+              <span>© {currentYear} {BRAND_NAME}. Alle Rechte vorbehalten.</span>
             </div>
             
             {/* Inline right-aligned legal links with analytics tracking restored */}

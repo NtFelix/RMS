@@ -16,6 +16,8 @@ const tablesToExport = {
   // profiles table removed from export as requested due to sensitive data.
 };
 
+export const instant = false;
+
 export async function GET() {
   try {
     const supabase = await createClient();

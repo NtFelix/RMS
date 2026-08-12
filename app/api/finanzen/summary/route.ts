@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
+export const instant = false;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

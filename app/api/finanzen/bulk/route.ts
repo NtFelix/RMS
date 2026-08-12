@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-
-export const dynamic = 'force-dynamic';
-
 export async function PATCH(request: Request) {
   try {
     const { ids, updates } = await request.json();

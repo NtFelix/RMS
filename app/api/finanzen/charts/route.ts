@@ -35,6 +35,8 @@ function getApartmentName(wohnungen: WohnungData | WohnungData[] | null): string
   return undefined;
 }
 
+export const instant = false;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

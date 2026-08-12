@@ -6,6 +6,8 @@ import { getAuthorizationDetailsAction, type AuthorizationDetails } from './acti
 
 
 
+export const instant = false;
+
 interface PageProps {
     searchParams: Promise<{
         authorization_id?: string;

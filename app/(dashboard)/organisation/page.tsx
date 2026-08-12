@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";

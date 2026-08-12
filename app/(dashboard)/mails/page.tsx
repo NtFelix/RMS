@@ -1,6 +1,3 @@
-
-export const dynamic = 'force-dynamic';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { requirePermission } from "@/lib/permissions";
 import MailsClientView from "./client-wrapper";

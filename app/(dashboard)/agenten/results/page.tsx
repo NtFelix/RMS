@@ -3,8 +3,6 @@ import { isAgentBuilderEnabled } from '@/lib/feature-flags';
 import { notFound } from 'next/navigation';
 import { AgentResultsView } from '@/components/agent-results/AgentResultsView';
 
-export const dynamic = 'force-dynamic';
-
 export default async function AgentResultsPage({
   searchParams,
 }: {

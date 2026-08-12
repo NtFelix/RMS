@@ -49,6 +49,8 @@ async function fetchPaginatedData(
   return { data, count: count || 0 };
 }
 
+export const instant = false;
+
 export async function GET(request: Request) {
   try {
     const { hasPermission } = await import("@/lib/permissions");

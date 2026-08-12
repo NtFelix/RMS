@@ -2,6 +2,8 @@ import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
+export const instant = false;
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
