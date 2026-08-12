@@ -22,6 +22,8 @@ export async function ensureAuth(): Promise<AuthResult> {
   return { user, supabase };
 }
 
+import { redirect, unstable_rethrow } from 'next/navigation';
+
 /**
  * Safer version that returns null instead of throwing.
  */
@@ -29,6 +31,7 @@ export async function getAuth() {
   try {
     return await ensureAuth();
   } catch (error) {
+    unstable_rethrow(error);
     return null;
   }
 }
