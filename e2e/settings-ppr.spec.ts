@@ -1,6 +1,17 @@
 import { test, expect } from '@playwright/test';
+import { login, hasTestCredentials, acceptCookieConsent } from './utils';
 
 test.describe('Settings Pages PPR & Navigation', () => {
+
+  test.beforeEach(async ({ page }) => {
+    test.skip(!hasTestCredentials(), 'Skipping settings PPR test: No test credentials provided in environment');
+    try {
+      await login(page);
+      await acceptCookieConsent(page);
+    } catch (error) {
+      test.skip(true, `Skipping test: Login unavailable (${error instanceof Error ? error.message : error})`);
+    }
+  });
 
   test('Settings pages render sidebar layout shell correctly', async ({ page }) => {
     await page.goto('/einstellungen/profil', { waitUntil: 'domcontentloaded' });

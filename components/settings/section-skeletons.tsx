@@ -80,15 +80,15 @@ export function SubscriptionSkeleton() {
 export function SettingsSectionSkeleton() {
   return (
     <div className="space-y-6">
-      <SettingsSection title="" description="">
-        <SettingsCard>
-          <div className="space-y-4 py-2">
-            <Skeleton className="h-6 w-1/3" />
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-20 w-full mt-4" />
-          </div>
-        </SettingsCard>
-      </SettingsSection>
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+      <SettingsCard>
+        <div className="space-y-4 py-2">
+          <Skeleton className="h-20 w-full" />
+        </div>
+      </SettingsCard>
     </div>
   )
 }
