@@ -7,6 +7,10 @@ import { useRouter } from 'next/navigation';
 import { deleteNebenkosten } from '@/app/betriebskosten-actions';
 import { createMockRouter } from '@/__tests__/utils/mock-router';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
 jest.mock('@/hooks/use-toast');

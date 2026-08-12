@@ -66,6 +66,7 @@ const nextConfig = {
       },
     ],
   },
+  cacheComponents: true,
   experimental: {
     scrollRestoration: true,
     optimizePackageImports: [

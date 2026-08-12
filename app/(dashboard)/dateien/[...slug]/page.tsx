@@ -4,6 +4,11 @@ import { redirect } from "next/navigation"
 import { getFolderContents } from "../actions"
 
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+
 export default async function DateienPathPage({ params }: { params: Promise<{ slug: string[] }> }) {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()

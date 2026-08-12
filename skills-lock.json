@@ -739,6 +739,12 @@
       "skillPath": "skills/team/customer-success/monthly-to-annual/SKILL.md",
       "computedHash": "09beada54429b0a1fa7be25891191e23661fa2c15590e62a7f632ee16d83c990"
     },
+    "next-cache-components-adoption": {
+      "source": "vercel/next.js",
+      "sourceType": "github",
+      "skillPath": "skills/next-cache-components-adoption/SKILL.md",
+      "computedHash": "15dcef9cfce611ba5a9ca467ed0d4eeae8de16fadb91b66df892a5ca63c57829"
+    },
     "optimizing-clickhouse-and-hogql-queries": {
       "source": "posthog/posthog",
       "sourceType": "github",
