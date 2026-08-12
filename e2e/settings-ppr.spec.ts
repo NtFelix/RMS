@@ -42,7 +42,7 @@ test.describe('Settings Pages PPR & Navigation', () => {
   test('Direct access to sub-routes renders correct section', async ({ page }) => {
     await page.goto('/einstellungen/sicherheit', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/einstellungen\/sicherheit/);
-    await expect(page.locator('nav')).toBeVisible();
+    await expect(page.locator('nav').first()).toBeVisible();
   });
 
 });
