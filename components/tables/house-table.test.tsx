@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HouseTable, House } from './house-table';
@@ -9,10 +10,12 @@ jest.mock('@/components/houses/house-context-menu', () => ({
   HouseContextMenu: ({ children, house, onEdit, onRefresh }: any) => (
     <>
       {children}
-      <div data-testid={`context-menu-${house.id}`} style={{ display: 'none' }}>
-        <button onClick={onEdit} data-testid={`edit-${house.id}`}>Edit</button>
-        <button onClick={onRefresh} data-testid={`refresh-${house.id}`}>Refresh</button>
-      </div>
+      <tr data-testid={`context-menu-${house.id}`} style={{ display: 'none' }}>
+        <td>
+          <button onClick={onEdit} data-testid={`edit-${house.id}`}>Edit</button>
+          <button onClick={onRefresh} data-testid={`refresh-${house.id}`}>Refresh</button>
+        </td>
+      </tr>
     </>
   ),
 }));
@@ -478,13 +481,15 @@ describe('HouseTable', () => {
 
   describe('Data fetching', () => {
     it('fetches houses when no initial data provided', async () => {
-      render(
-        <HouseTable
-          filter="all"
-          searchQuery=""
-          onEdit={mockOnEdit}
-        />
-      );
+      await React.act(async () => {
+        render(
+          <HouseTable
+            filter="all"
+            searchQuery=""
+            onEdit={mockOnEdit}
+          />
+        );
+      });
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith('/api/haeuser');
@@ -510,13 +515,15 @@ describe('HouseTable', () => {
       
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       
-      render(
-        <HouseTable
-          filter="all"
-          searchQuery=""
-          onEdit={mockOnEdit}
-        />
-      );
+      await React.act(async () => {
+        render(
+          <HouseTable
+            filter="all"
+            searchQuery=""
+            onEdit={mockOnEdit}
+          />
+        );
+      });
 
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith('Error fetching houses:', expect.any(Error));
@@ -531,13 +538,15 @@ describe('HouseTable', () => {
         status: 500,
       });
       
-      render(
-        <HouseTable
-          filter="all"
-          searchQuery=""
-          onEdit={mockOnEdit}
-        />
-      );
+      await React.act(async () => {
+        render(
+          <HouseTable
+            filter="all"
+            searchQuery=""
+            onEdit={mockOnEdit}
+          />
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Keine Häuser gefunden.')).toBeInTheDocument();

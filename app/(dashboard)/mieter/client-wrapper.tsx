@@ -554,13 +554,20 @@ export default function MieterClientView({
   const summary = useMemo(() => {
     const tenantsInTab = filteredTenantsByTab;
     const total = tenantsInTab.length;
-    const today = new Date();
+
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
 
     // For "mieter" tab, we distinguish active vs former
     // For "bewerber" tab, activeCount/formerCount doesn't make as much sense with current definitions,
     // so we might just show Total and maybe "With Email" or similar.
     // But to keep it simple, we reuse the logic:
-    const activeCount = tenantsInTab.filter(t => !t.auszug || new Date(t.auszug) > today).length;
+    const activeCount = tenantsInTab.filter(t => !t.auszug || t.auszug > todayStr).length;
     const formerCount = total - activeCount;
 
     // Average utility cost (use last nebenkosten entry of each tenant if available)
@@ -568,7 +575,7 @@ export default function MieterClientView({
       if (t.nebenkosten && t.nebenkosten.length > 0) {
         // Find latest entry by date (ISO string)
         const latestEntry = t.nebenkosten.reduce((latest, current) => {
-          return new Date(current.date) > new Date(latest.date) ? current : latest;
+          return current.date > latest.date ? current : latest;
         });
         const val = parseFloat(latestEntry.amount);
         if (!isNaN(val)) {

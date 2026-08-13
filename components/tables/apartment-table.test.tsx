@@ -3,7 +3,7 @@ import { ApartmentTable, Apartment } from './apartment-table'
 
 // Mock the context menu component
 jest.mock('@/components/apartments/apartment-context-menu', () => ({
-  ApartmentContextMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
+  ApartmentContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
 
 const mockApartments: Apartment[] = [
@@ -83,6 +83,7 @@ describe('ApartmentTable Sorting', () => {
     const rows = screen.getAllByRole('row')
     
     // Check individual cell contents for more robust testing
+    // Column 0 is the checkbox
     const row1Cells = rows[1].querySelectorAll('td')
     expect(row1Cells[1]).toHaveTextContent('Apartment A')
     expect(row1Cells[2]).toHaveTextContent('50,00 m²')
@@ -167,6 +168,7 @@ describe('ApartmentTable Sorting', () => {
     const rows = screen.getAllByRole('row')
     
     // Check individual cell contents for more robust testing
+    // Column 0 is the checkbox
     const row1Cells = rows[1].querySelectorAll('td')
     expect(row1Cells[1]).toHaveTextContent('Apartment C')
     expect(row1Cells[2]).toHaveTextContent('60,00 m²')

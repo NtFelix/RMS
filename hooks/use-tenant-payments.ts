@@ -5,6 +5,7 @@ import { TenantBentoItem } from '@/types/tenant-payment'
 import { FinanceEntryPayload } from '@/types/finanzen'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
+import { getTodayISOString, isTenantActive } from '@/utils/date-calculations'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -37,8 +38,9 @@ export function useTenantPayments() {
             const { tenants } = await response.json()
 
             // Filter for active tenants only
+            const todayStr = getTodayISOString()
             const activeTenants = tenants.filter((tenant: any) =>
-                !tenant.auszug || new Date(tenant.auszug) > new Date()
+                isTenantActive(tenant.auszug, todayStr)
             )
 
             const formattedData: TenantBentoItem[] = activeTenants.map((mieter: any) => {

@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 
 import { Suspense } from "react";
 import { TableSkeleton } from "@/components/common/table-skeleton";
@@ -97,7 +98,8 @@ async function MieterContent() {
     filteredWohnungen = (rawWohnungen || []).filter((w: any) => ids.has(w.id));
   }
 
-  const today = new Date();
+  const todayStr = getTodayISOString();
+
   const wohnungen: Wohnung[] = filteredWohnungen.map((apt: any) => {
     // If the data comes from our enriched RPC, it already has status and tenant
     if (apt.status && apt.tenant != null) {
@@ -110,7 +112,7 @@ async function MieterContent() {
     // Fallback mapping logic
     const tenant = filteredMieter.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
       status = 'vermietet';
     }
     return {
