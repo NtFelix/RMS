@@ -3,7 +3,7 @@ import { ApartmentTable, Apartment } from './apartment-table'
 
 // Mock the context menu component
 jest.mock('@/components/apartments/apartment-context-menu', () => ({
-  ApartmentContextMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>
+  ApartmentContextMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
 
 const mockApartments: Apartment[] = [
