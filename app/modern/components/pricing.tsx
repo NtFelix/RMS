@@ -553,7 +553,7 @@ export default function Pricing({
     );
   }
 
-  if (error || (groupedPlans.length === 0 && !isLoadingPlans)) {
+  if (error) {
     return (
       <section className="py-24 px-4 relative overflow-hidden">
         <div className="max-w-md mx-auto text-center">
@@ -571,12 +571,40 @@ export default function Pricing({
               </div>
 
               <Button
-                onClick={() => fetchPlans()}
+                onClick={fetchPlans}
                 variant="outline"
                 className="rounded-xl gap-2 mt-2"
               >
                 <RotateCw className="w-4 h-4" />
                 Erneut versuchen
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+    );
+  }
+
+  if (groupedPlans.length === 0 && !isLoadingPlans) {
+    return (
+      <section className="py-24 px-4 relative overflow-hidden">
+        <div className="max-w-md mx-auto text-center">
+          <Card className="border-border/60 bg-card/50 backdrop-blur-xs shadow-xl rounded-[2.5rem] p-8 sm:p-10">
+            <CardContent className="flex flex-col items-center text-center space-y-6 p-0">
+              <div className="space-y-2 max-w-sm">
+                <h3 className="text-2xl font-bold tracking-tight">Keine Tarife verfügbar</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Derzeit sind keine Abonnement-Pläne verfügbar. Bitte schauen Sie zu einem späteren Zeitpunkt wieder vorbei.
+                </p>
+              </div>
+
+              <Button
+                onClick={fetchPlans}
+                variant="outline"
+                className="rounded-xl gap-2 mt-2"
+              >
+                <RotateCw className="w-4 h-4" />
+                Aktualisieren
               </Button>
             </CardContent>
           </Card>

@@ -115,4 +115,20 @@ describe('Pricing Component', () => {
       );
     });
   });
+
+  it('renders empty plans state when no plans are available', async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+    ) as jest.Mock;
+
+    render(<Pricing onSelectPlan={jest.fn()} userProfile={null} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Keine Tarife verfügbar')).toBeInTheDocument();
+      expect(screen.getByText('Aktualisieren')).toBeInTheDocument();
+    });
+  });
 });
