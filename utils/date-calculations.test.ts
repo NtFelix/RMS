@@ -7,6 +7,8 @@ import {
   validateDateRange,
   getDefaultDateRange,
   formatPeriodDuration,
+  getTodayISOString,
+  isTenantActive,
 } from './date-calculations';
 
 describe('Date Calculations Utilities', () => {
@@ -209,6 +211,35 @@ describe('Date Calculations Utilities', () => {
 
     it('handles invalid dates gracefully', () => {
       expect(formatPeriodDuration('invalid', 'invalid')).toBe('Ungültiger Zeitraum');
+    });
+  });
+
+  describe('getTodayISOString and isTenantActive', () => {
+    it('returns today as YYYY-MM-DD', () => {
+      const today = getTodayISOString();
+      expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('returns true if tenant has no auszug date', () => {
+      expect(isTenantActive(null, '2026-08-13')).toBe(true);
+      expect(isTenantActive(undefined, '2026-08-13')).toBe(true);
+    });
+
+    it('returns true if auszug date is in the future', () => {
+      expect(isTenantActive('2026-08-14', '2026-08-13')).toBe(true);
+      expect(isTenantActive('2026-09-30', '2026-08-13')).toBe(true);
+    });
+
+    it('returns false if auszug date is today or in the past', () => {
+      expect(isTenantActive('2026-08-13', '2026-08-13')).toBe(false);
+      expect(isTenantActive('2026-08-12', '2026-08-13')).toBe(false);
+    });
+
+    it('handles ISO timestamp strings with time components correctly', () => {
+      // 2026-08-14T00:00:00Z should be treated as 2026-08-14 (future vs 2026-08-13)
+      expect(isTenantActive('2026-08-14T00:00:00Z', '2026-08-13')).toBe(true);
+      // 2026-08-13T14:00:00Z should be sliced to 2026-08-13, which equals todayStr, hence returns false
+      expect(isTenantActive('2026-08-13T14:00:00Z', '2026-08-13')).toBe(false);
     });
   });
 });

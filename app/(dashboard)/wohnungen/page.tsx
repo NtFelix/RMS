@@ -8,6 +8,7 @@ import { getPlanDetails } from '@/lib/stripe-server';
 import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
@@ -134,13 +135,7 @@ async function WohnungenContent() {
   if (housesError) console.error('Fehler beim Laden der Häuser:', housesError);
   const houses = housesData || [];
 
-  // Get today's date in YYYY-MM-DD format in local time
-  const now = new Date()
-  const todayStr = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0')
-  ].join('-')
+  const todayStr = getTodayISOString();
 
   type Tenant = NonNullable<typeof tenants>[number];
   const tenantMap = (tenants ?? []).reduce((map, t) => {
@@ -153,7 +148,7 @@ async function WohnungenContent() {
   const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
     const tenant = tenantMap.get(apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || tenant.auszug > todayStr)) {
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
       status = 'vermietet';
     }
     return {

@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { isTestEnv } from "./test-utils";
 import { after } from "next/server";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -371,18 +372,12 @@ export async function getDashboardSummary(supabaseClient?: SupabaseClient) {
         return sum + betraegeSum + zaehlerSum;
       }, 0);
 
-      // Get today's date in YYYY-MM-DD format in local time
-      const now = new Date();
-      const todayStr = [
-        now.getFullYear(),
-        String(now.getMonth() + 1).padStart(2, '0'),
-        String(now.getDate()).padStart(2, '0')
-      ].join('-');
+      const todayStr = getTodayISOString();
 
       return {
         haeuserCount: haeuser.length,
         wohnungenCount: wohnungen.length,
-        mieterCount: mieter.filter(m => !m.auszug || m.auszug > todayStr).length,
+        mieterCount: mieter.filter(m => isTenantActive(m.auszug, todayStr)).length,
         monatlicheEinnahmen,
         jaehrlicheAusgaben,
         offeneAufgabenCount: aufgaben.length

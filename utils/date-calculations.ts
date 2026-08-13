@@ -252,3 +252,25 @@ export const calculateTotalDays = (startdatum: string, enddatum: string): number
   const end = parseAsUtc(enddatum);
   return Math.round((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
 };
+
+/**
+ * Get today's local date as a YYYY-MM-DD string
+ */
+export function getTodayISOString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Check if a tenant is active as of a specified YYYY-MM-DD date.
+ * Safely handles ISO strings with timestamps by taking the YYYY-MM-DD prefix.
+ */
+export function isTenantActive(
+  auszug?: string | null,
+  todayStr: string = getTodayISOString()
+): boolean {
+  if (!auszug) return true;
+  const moveOutIso = auszug.slice(0, 10);
+  return moveOutIso > todayStr;
+}
+

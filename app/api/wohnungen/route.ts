@@ -5,6 +5,7 @@ import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 import { normalizeApartmentLimit } from '@/lib/utils/subscription';
+import { getTodayISOString, isTenantActive } from '@/utils/date-calculations';
 
 
 export async function POST(request: Request) {
@@ -205,13 +206,7 @@ export async function GET() {
   }
 
   // Add status and tenant information
-  // Get today's date in YYYY-MM-DD format in local time
-  const now = new Date()
-  const todayStr = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0')
-  ].join('-')
+  const todayStr = getTodayISOString();
 
   const enrichedApartments = (apartments || []).map(apt => {
     // Find tenant for this apartment
@@ -219,11 +214,8 @@ export async function GET() {
 
     // Determine if apartment is free or rented
     let status = 'frei';
-    if (tenant) {
-      // If tenant exists with no move-out date or move-out date is in the future
-      if (!tenant.auszug || tenant.auszug > todayStr) {
-        status = 'vermietet';
-      }
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
+      status = 'vermietet';
     }
 
     return {
