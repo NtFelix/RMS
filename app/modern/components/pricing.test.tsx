@@ -27,6 +27,14 @@ jest.mock('./preview-limit-notice-banner', () => ({
   PreviewLimitNoticeBanner: () => <div>PreviewLimitNoticeBanner</div>,
 }));
 
+jest.mock('@/lib/posthog-logger', () => ({
+  posthogLogger: {
+    error: jest.fn(),
+  },
+}));
+
+import { posthogLogger } from '@/lib/posthog-logger';
+
 const mockPlans = [
   {
     id: 'price_1',
@@ -81,6 +89,30 @@ describe('Pricing Component', () => {
       // Find all elements with text 'Basis'. In the new layout, it appears in the card and the comparison table.
       const basisElements = screen.getAllByText('Basis');
       expect(basisElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('renders connection failed container and logs error when fetch fails', async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Stripe secret key not configured.' }),
+      })
+    ) as jest.Mock;
+
+    render(<Pricing onSelectPlan={jest.fn()} userProfile={null} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Verbindung fehlgeschlagen')).toBeInTheDocument();
+      expect(screen.getByText('Erneut versuchen')).toBeInTheDocument();
+      expect(posthogLogger.error).toHaveBeenCalledWith(
+        'Pricing plans could not be loaded on frontend',
+        expect.objectContaining({
+          component: 'Pricing',
+          error: 'Stripe secret key not configured.',
+        })
+      );
     });
   });
 });

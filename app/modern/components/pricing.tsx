@@ -14,8 +14,9 @@ import {
 } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Minus, HelpCircle, SquareArrowOutUpRight, Sparkles } from "lucide-react";
-import { useEffect, useState, useMemo, Fragment } from 'react';
+import { Check, Minus, HelpCircle, SquareArrowOutUpRight, Sparkles, WifiOff, RotateCw } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
+import { posthogLogger } from "@/lib/posthog-logger";
 import { motion } from "framer-motion";
 import { WaitlistButton } from './waitlist-button';
 import { FAQ } from './faq';
@@ -332,29 +333,34 @@ export default function Pricing({
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      setIsLoadingPlans(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/stripe/plans');
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch plans: ${response.status}`);
-        }
-        // productName now comes directly from the API
-        const data: Plan[] = await response.json();
-        setAllPlans(data);
-      } catch (err) {
-        console.error(err);
-        setError((err as Error).message || 'An unexpected error occurred');
-      } finally {
-        setIsLoadingPlans(false);
+  const fetchPlans = useCallback(async () => {
+    setIsLoadingPlans(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/stripe/plans');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.error || `Failed to fetch plans: ${response.status}`;
+        throw new Error(message);
       }
-    };
-
-    fetchPlans();
+      const data: Plan[] = await response.json();
+      setAllPlans(data);
+    } catch (err) {
+      const errorMessage = (err as Error).message || 'An unexpected error occurred';
+      console.error(err);
+      setError(errorMessage);
+      posthogLogger.error('Pricing plans could not be loaded on frontend', {
+        error: errorMessage,
+        component: 'Pricing',
+      });
+    } finally {
+      setIsLoadingPlans(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
 
   const groupedPlans = useMemo(() => {
     const groups: Record<string, GroupedPlan> = {};
@@ -547,21 +553,33 @@ export default function Pricing({
     );
   }
 
-  if (error) {
+  if (error || (groupedPlans.length === 0 && !isLoadingPlans)) {
     return (
-      <section className="py-16 px-4 text-foreground">
-        <div className="max-w-6xl mx-auto text-center text-destructive">
-          <p>Error loading plans: {error}</p>
-        </div>
-      </section>
-    );
-  }
+      <section className="py-24 px-4 relative overflow-hidden">
+        <div className="max-w-md mx-auto text-center">
+          <Card className="border-destructive/20 bg-card/50 backdrop-blur-xs shadow-xl rounded-[2.5rem] p-8 sm:p-10">
+            <CardContent className="flex flex-col items-center text-center space-y-6 p-0">
+              <div className="rounded-full bg-destructive/10 p-4 ring-1 ring-destructive/20 text-destructive">
+                <WifiOff className="w-10 h-10" />
+              </div>
 
-  if (groupedPlans.length === 0 && !isLoadingPlans) {
-    return (
-      <section className="py-16 px-4 text-foreground">
-        <div className="max-w-6xl mx-auto text-center">
-          <p>No subscription plans are currently available. Please check back later.</p>
+              <div className="space-y-2 max-w-sm">
+                <h3 className="text-2xl font-bold tracking-tight">Verbindung fehlgeschlagen</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Die Preisinformationen konnten derzeit nicht geladen werden. Bitte überprüfen Sie Ihre Netzwerkverbindung oder versuchen Sie es später erneut.
+                </p>
+              </div>
+
+              <Button
+                onClick={() => fetchPlans()}
+                variant="outline"
+                className="rounded-xl gap-2 mt-2"
+              >
+                <RotateCw className="w-4 h-4" />
+                Erneut versuchen
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </section>
     );
