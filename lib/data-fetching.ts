@@ -385,6 +385,7 @@ export async function getDashboardSummary(supabaseClient?: SupabaseClient) {
         mieterCount: mieter.filter(m => !m.auszug || m.auszug > todayStr).length,
         monatlicheEinnahmen,
         jaehrlicheAusgaben,
+        offeneAufgabenCount: aufgaben.length
       };
     },
     'dashboard_overview_summary'
