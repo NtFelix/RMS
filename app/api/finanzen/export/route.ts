@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET(request: Request) {
@@ -160,6 +161,7 @@ export async function GET(request: Request) {
     
     return response;
   } catch (e) {
+    unstable_rethrow(e);
     console.error('Server error GET /api/finanzen/export:', e);
     return NextResponse.json({ error: 'Serverfehler beim Exportieren der Finanzen.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

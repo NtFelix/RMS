@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import { resolveUserAndOrg } from '@/lib/auth-utils';
 import { proxyToAiService } from '@/lib/ai-service-proxy';
 
@@ -9,6 +10,7 @@ export async function GET(req: NextRequest) {
 
     return proxyToAiService('/api/agents/runs', req, user.id, orgId, userJwt);
   } catch (err: any) {
+    unstable_rethrow(err);
     console.error('[GET /api/agents/runs] Internal error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
 import type {
@@ -761,6 +762,7 @@ export async function GET(request: Request) {
     });
     
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Search API error:', error);
     
     // Provide more specific error messages

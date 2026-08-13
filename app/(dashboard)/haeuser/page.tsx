@@ -7,7 +7,22 @@ import { House } from "@/components/tables/house-table"; // Type for enrichedHae
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
-export default async function HaeuserPage() {
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+export default function HaeuserPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <HaeuserContent />
+    </Suspense>
+  );
+}
+
+async function HaeuserContent() {
   const { supabase } = await requireAuthenticatedUser();
 
   const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([

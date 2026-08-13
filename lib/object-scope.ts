@@ -1,4 +1,5 @@
 import { ensureAuth } from "@/lib/auth-utils";
+import { unstable_rethrow } from "next/navigation";
 
 /**
  * Returns the list of accessible house IDs for the current user.
@@ -16,6 +17,7 @@ export async function getAccessibleHaeuserIds(): Promise<string[] | null> {
     }
     return data;
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Exception in getAccessibleHaeuserIds:", error);
     return []; // Fail-closed: deny access
   }
@@ -50,6 +52,7 @@ export async function getAccessibleWohnungIds(): Promise<string[] | null> {
     
     return data ? data.map((w: { id: string }) => w.id) : [];
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Exception in getAccessibleWohnungIds:", error);
     return []; // Fail-closed
   }

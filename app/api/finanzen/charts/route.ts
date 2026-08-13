@@ -1,5 +1,6 @@
 import { createClient } from "../../../../utils/supabase/server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -239,6 +240,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
+    unstable_rethrow(e);
     console.error('Server error GET /api/finanzen/charts:', e);
     return NextResponse.json({ error: 'Serverfehler bei Chart-Daten.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

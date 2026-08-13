@@ -1,5 +1,6 @@
 import { type User, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { redirect, unstable_rethrow } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 
 export type AuthResult = {
@@ -29,6 +30,7 @@ export async function getAuth() {
   try {
     return await ensureAuth();
   } catch (error) {
+    unstable_rethrow(error);
     return null;
   }
 }

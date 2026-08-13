@@ -104,7 +104,7 @@ async function initializePostHog(nonce?: string) {
 
 // Global initialization removed to support nonce passing from server
 
-function PostHogTracking({ children }: { children: React.ReactNode }) {
+function PostHogPageView() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const getParam = searchParams ? searchParams.get.bind(searchParams) : null
@@ -151,15 +151,13 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
             });
           }
         }
-        // Note: Anonymous tracking for documentation pages removed for GDPR compliance
-        // Users must accept cookies before any tracking occurs
       } catch (error) {
         console.error('Error handling user identification for PostHog:', error);
       }
     };
 
     handleUserIdentification();
-  }, [pathname, consentTrigger]); // Re-run when consent is granted
+  }, [pathname, consentTrigger]);
 
   // Track pageviews and pageleaves
   useEffect(() => {
@@ -173,14 +171,12 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
         url = url + `?${searchParams.toString()}`;
       }
 
-      // Determine user type by checking actual auth state
       try {
         const { createClient } = await import('@/utils/supabase/client');
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         currentIsAuthenticated = !!user;
       } catch {
-        // If we can't check auth, assume anonymous
         currentIsAuthenticated = false;
       }
 
@@ -206,7 +202,7 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
         });
       }
     };
-  }, [pathname, searchParams, consentTrigger]); // Re-run when consent is granted
+  }, [pathname, searchParams, consentTrigger]);
 
   // Handle login tracking from auth callback
   useEffect(() => {
@@ -216,13 +212,10 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
     const provider = getParam('provider')
 
     if (loginSuccess === 'true' && posthog.has_opted_in_capturing?.()) {
-      // Get user info from Supabase client
       import('@/utils/supabase/client').then(({ createClient }) => {
         const supabase = createClient()
         supabase.auth.getUser().then(({ data: { user } }) => {
           if (user) {
-            // Identify user and track login event
-            // Include user_type and is_anonymous for consistency with main identification
             posthog.identify(user.id, {
               email: user.email,
               name: user.user_metadata?.name || '',
@@ -238,7 +231,6 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
         })
       })
 
-      // Clean up URL params
       const newUrl = new URL(window.location.href)
       newUrl.searchParams.delete('login_success')
       newUrl.searchParams.delete('provider')
@@ -246,7 +238,7 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
     }
   }, [searchParams])
 
-  return <>{children}</>
+  return null
 }
 
 export function PostHogProvider({ children, nonce }: { children: React.ReactNode, nonce?: string }) {
@@ -261,9 +253,10 @@ export function PostHogProvider({ children, nonce }: { children: React.ReactNode
 
   return (
     <PHProvider client={posthog}>
-      <Suspense fallback={children}>
-        <PostHogTracking>{children}</PostHogTracking>
+      <Suspense fallback={null}>
+        <PostHogPageView />
       </Suspense>
+      {children}
     </PHProvider>
   )
 }

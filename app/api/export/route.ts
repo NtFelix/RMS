@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
@@ -138,6 +139,7 @@ export async function GET() {
         headers
     });
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error during data export process:', error);
     return NextResponse.json({ 
         error: 'Fehler beim Exportieren der Daten.', 

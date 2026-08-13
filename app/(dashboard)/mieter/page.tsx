@@ -10,7 +10,22 @@ import { redirect } from "next/navigation";
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
-export default async function MieterPage() {
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+export default function MieterPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <MieterContent />
+    </Suspense>
+  );
+}
+
+async function MieterContent() {
   const { supabase } = await requireAuthenticatedUser();
 
   // Permission check.

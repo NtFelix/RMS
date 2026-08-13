@@ -4,6 +4,10 @@ import DashboardInnerLayout from "./layout-inner"
 import { requireActiveSubscription } from "@/lib/server/route-access"
 import { getSidebarUserData } from "@/lib/server/user-data"
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 // Cloudflare Pages requires dynamic routes to be marked as edge
 
 export default async function DashboardRootLayout({
