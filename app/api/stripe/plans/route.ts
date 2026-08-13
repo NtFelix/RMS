@@ -13,12 +13,11 @@ export async function GET() {
     // Only log in non-CI environments to avoid cluttering test output
     if (process.env.CI !== 'true' && !process.env.STRIPE_SECRET_KEY?.startsWith('mock-')) {
       console.error('Stripe secret key not configured or is a mock key');
+      posthogLogger.error('Failed to load pricing plans from Stripe: Stripe secret key not configured or is a mock key', {
+        endpoint: '/api/stripe/plans',
+        isStripeMocked: true,
+      });
     }
-
-    posthogLogger.error('Failed to load pricing plans from Stripe: Stripe secret key not configured or is a mock key', {
-      endpoint: '/api/stripe/plans',
-      isStripeMocked: true,
-    });
 
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, {
       status: 500,
