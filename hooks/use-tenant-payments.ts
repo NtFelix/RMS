@@ -50,14 +50,14 @@ export function useTenantPayments() {
             )
 
             const formattedData: TenantBentoItem[] = activeTenants.map((mieter: any) => {
-                const mieteRaw = Number(mieter.Wohnungen.miete) || 0
+                const mieteRaw = Number(mieter.Wohnungen?.miete) || 0
                 const nebenkostenRaw = getLatestNebenkostenAmount(mieter.nebenkosten)
 
                 return {
                     id: mieter.id,
                     tenant: mieter.name,
-                    apartment: mieter.Wohnungen.name,
-                    apartmentId: mieter.Wohnungen.id,
+                    apartment: mieter.Wohnungen?.name || 'Keine Wohnung',
+                    apartmentId: mieter.Wohnungen?.id || '',
                     mieteRaw,
                     nebenkostenRaw,
                     actualRent: mieter.actualRent || 0,
@@ -84,6 +84,15 @@ export function useTenantPayments() {
     const toggleRentPayment = async (tenant: TenantBentoItem) => {
         if (updatingStatus === tenant.id) return
 
+        if (!tenant.apartmentId) {
+            toast({
+                title: "Keine Wohnung zugeordnet",
+                description: `Für ${tenant.tenant} ist keine Wohnung hinterlegt. Mietzahlungen können nur für Mieter mit zugeordneter Wohnung verwaltet werden.`,
+                variant: "destructive",
+            })
+            return
+        }
+
         const originalData = [...data]
         setUpdatingStatus(tenant.id)
 
@@ -102,16 +111,29 @@ export function useTenantPayments() {
 
             if (tenant.paid) {
                 // Remove payment records
-                const { error } = await supabase
+                const { data: financeEntries, error: selectError } = await supabase
                     .from('Finanzen')
-                    .delete()
+                    .select('id')
                     .eq('wohnung_id', tenant.apartmentId)
                     .eq('ist_einnahmen', true)
                     .gte('datum', start)
                     .lte('datum', end)
                     .or(`name.ilike.${PAYMENT_KEYWORDS.RENT}%,name.ilike.${PAYMENT_KEYWORDS.NEBENKOSTEN}%`)
 
-                if (error) throw error
+                if (selectError) throw selectError
+
+                if (financeEntries && financeEntries.length > 0) {
+                    const deletePromises = financeEntries.map(entry =>
+                        supabase.rpc('soft_delete_record', {
+                            p_table_name: 'Finanzen',
+                            p_record_id: entry.id,
+                        })
+                    )
+                    const results = await Promise.all(deletePromises)
+                    for (const { error } of results) {
+                        if (error) throw error
+                    }
+                }
 
                 toast({
                     title: "Zahlung entfernt",

@@ -80,8 +80,7 @@ describe('meter-actions', () => {
 
       expect(result.success).toBe(true);
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_zaehler_for_haus', {
-        haus_id_param: 'house1',
-        user_id_param: 'user1'
+        haus_id_param: 'house1'
       });
     });
 
@@ -130,7 +129,7 @@ describe('meter-actions', () => {
       const result = await createZaehler(payload);
 
       expect(result.success).toBe(true);
-      expect(mockSupabase.insert).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ user_id: 'user1' })]));
+      expect(mockSupabase.insert).toHaveBeenCalledWith([payload]);
       expect(capturePostHogEvent).toHaveBeenCalled();
     });
   });
@@ -142,7 +141,7 @@ describe('meter-actions', () => {
         eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         single: jest.fn()
-          .mockResolvedValueOnce({ data: { id: 'm1', user_id: 'user1' }, error: null }) // For pre-check
+          .mockResolvedValueOnce({ data: { id: 'm1' }, error: null }) // For pre-check
           .mockResolvedValueOnce({ data: { id: 'm1', custom_id: 'New' }, error: null }) // For update result
       };
       mockSupabase.from.mockReturnValue(chain);
@@ -153,36 +152,25 @@ describe('meter-actions', () => {
       expect(chain.update).toHaveBeenCalled();
       expect(chain.single).toHaveBeenCalledTimes(2);
     });
-
-    it('prevents update of another user\'s meter', async () => {
-      const chain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { id: 'm1', user_id: 'other-user' }, error: null })
-      };
-      mockSupabase.from.mockReturnValue(chain);
-
-      const result = await updateZaehler('m1', { custom_id: 'New' });
-
-      expect(result.success).toBe(false);
-      expect(result.message).toContain('Keine Berechtigung');
-    });
   });
 
   describe('deleteZaehler', () => {
     it('deletes a meter successfully', async () => {
       const chain = {
-        delete: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'm1' }, error: null })
       };
       mockSupabase.from.mockReturnValue(chain);
-      mockSupabase.delete.mockResolvedValue({ error: null });
+      mockSupabase.rpc.mockResolvedValue({ error: null });
 
       const result = await deleteZaehler('m1');
 
       expect(result.success).toBe(true);
-      expect(chain.delete).toHaveBeenCalled();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Zaehler',
+        p_record_id: 'm1',
+      });
     });
   });
 });

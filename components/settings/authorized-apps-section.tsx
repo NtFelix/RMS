@@ -158,9 +158,9 @@ const AuthorizedAppsSection = () => {
                         <div key={app.authorization_id} className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 border-b last:border-0 pb-6 last:pb-0">
                             <div className="flex items-start gap-4 flex-1">
                                 {app.client_logo ? (
-                                    <img src={app.client_logo} alt={app.client_name} className="w-12 h-12 rounded-xl border object-cover shadow-sm" />
+                                    <img src={app.client_logo} alt={app.client_name} className="w-12 h-12 rounded-xl border object-cover shadow-xs" />
                                 ) : (
-                                    <div className="w-12 h-12 rounded-xl border bg-muted flex items-center justify-center shadow-sm">
+                                    <div className="w-12 h-12 rounded-xl border bg-muted flex items-center justify-center shadow-xs">
                                         <ShieldCheck className="w-6 h-6 text-muted-foreground" />
                                     </div>
                                 )}
@@ -184,7 +184,7 @@ const AuthorizedAppsSection = () => {
                                                         <Tooltip delayDuration={0}>
                                                             <TooltipTrigger asChild>
                                                                 <div className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border bg-card/50 hover:bg-accent/50 transition-colors cursor-help group">
-                                                                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 text-green-600 group-hover:bg-green-500/20 transition-colors">
+                                                                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 text-green-600 group-hover:bg-green-500/20 transition-colors">
                                                                         <Check className="w-3.5 h-3.5" />
                                                                     </div>
                                                                     <span className="text-xs font-medium text-foreground">{details.title}</span>

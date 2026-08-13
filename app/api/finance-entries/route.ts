@@ -1,5 +1,4 @@
 import { createClient } from "@/utils/supabase/server"
-export const runtime = 'edge'
 
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
@@ -9,6 +8,9 @@ import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 export async function POST(request: Request) {
   const requestStartTime = Date.now()
   try {
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('finanzen', 'erstellen');
+
     const body = await request.json()
     const { entries }: { entries: FinanceEntryPayload[] } = body
 
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
-    // Validate each entry
+    // Validate each entry and check scope
     for (const entry of entries) {
       if (!entry.wohnung_id || !entry.name || entry.betrag == null || !entry.datum) {
         return NextResponse.json(
@@ -49,6 +51,13 @@ export async function POST(request: Request) {
           { status: 400, headers: NO_CACHE_HEADERS }
         )
       }
+
+      if (!(await verifyWohnungInScope(entry.wohnung_id))) {
+        return NextResponse.json(
+          { error: "Permission denied" },
+          { status: 403, headers: NO_CACHE_HEADERS }
+        )
+      }
     }
 
     // Try optimized RPC first
@@ -57,8 +66,7 @@ export async function POST(request: Request) {
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         "insert_finance_entries_batch",
         {
-          p_entries: entries,
-          p_user_id: user.id
+          p_entries: entries
         }
       )
 
@@ -107,7 +115,7 @@ export async function POST(request: Request) {
     const fallbackStartTime = Date.now()
     const { data, error } = await supabase
       .from("Finanzen")
-      .insert(entries.map(entry => ({ ...entry, user_id: user.id })))
+      .insert(entries)
       .select()
 
     const fallbackDuration = Date.now() - fallbackStartTime
@@ -145,9 +153,10 @@ export async function POST(request: Request) {
       path: request.url,
       totalDuration
     })
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: NO_CACHE_HEADERS }
+      { error: (error as Error).message || "Internal server error" },
+      { status, headers: NO_CACHE_HEADERS }
     )
   }
 }
@@ -171,20 +180,37 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return NextResponse.json({
+        entries: []
+      }, { headers: NO_CACHE_HEADERS })
+    }
+
     const { searchParams } = new URL(request.url)
     const wohnung_id = searchParams.get('wohnung_id')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
 
+    if (wohnung_id) {
+      const { verifyWohnungInScope } = await import("@/lib/api-permissions");
+      if (!(await verifyWohnungInScope(wohnung_id))) {
+        return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS })
+      }
+    }
+
     let query = supabase
       .from("Finanzen")
       .select("*")
-      .eq("user_id", user.id)
       .order("datum", { ascending: false })
       .range(offset, offset + limit - 1)
 
     if (wohnung_id) {
       query = query.eq("wohnung_id", wohnung_id)
+    } else if (wohnungIds !== null) {
+      query = query.in("wohnung_id", wohnungIds)
     }
 
     const { data, error } = await query

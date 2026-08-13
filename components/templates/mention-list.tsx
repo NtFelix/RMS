@@ -142,7 +142,7 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
                   data-mention-item="true"
                   aria-selected={isSelected}
                   className={cn(
-                    "relative flex w-full cursor-pointer select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                    "relative flex w-full cursor-pointer select-none items-center rounded-lg px-2 py-1.5 text-sm outline-hidden hover:bg-accent hover:text-accent-foreground",
                     isSelected 
                       ? "bg-accent text-accent-foreground" 
                       : "text-foreground"
@@ -151,7 +151,7 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
                   onClick={() => selectItem(index)}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
-                  <Icon className="mr-2 h-4 w-4 flex-shrink-0" />
+                  <Icon className="mr-2 h-4 w-4 shrink-0" />
                   
                   <div className="flex flex-col flex-1 text-left min-w-0">
                     <span className="truncate">
@@ -177,7 +177,7 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98, y: -4 }}
       transition={{ duration: 0.15, ease: "easeOut" }}
-      className="z-[9999] w-72 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg outline-none"
+      className="z-9999 w-72 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg outline-hidden"
       onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
     >
       <div className="max-h-[300px] overflow-y-auto p-1 custom-scrollbar">

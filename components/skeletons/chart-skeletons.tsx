@@ -88,7 +88,7 @@ function LineChartSkeleton() {
           
           {/* Animated line path simulation */}
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-pulse">
+            <div className="w-full h-1 bg-linear-to-r from-transparent via-primary/20 to-transparent animate-pulse">
               <div className="h-full bg-primary/30 animate-pulse" style={{
                 clipPath: "polygon(0 80%, 8% 75%, 16% 85%, 25% 70%, 33% 90%, 41% 65%, 50% 80%, 58% 60%, 66% 75%, 75% 55%, 83% 70%, 91% 50%, 100% 65%)"
               }} />

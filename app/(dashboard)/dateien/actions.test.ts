@@ -44,8 +44,9 @@ describe('dateien/actions', () => {
       like: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(), // mockResolvedValue will be used on this
-      then: jest.fn((resolve) => resolve({ data: [], error: null })), // Default resolution for await builder
-    };
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }), // used by house/apartment/tenant checks
+      then: jest.fn((resolve: any) => resolve({ data: [], error: null })), // Default resolution for await builder
+    } as any;
 
     mockStorageBuilder = {
       createSignedUrl: jest.fn(),
@@ -92,7 +93,6 @@ describe('dateien/actions', () => {
         totalSize: mockData.totalSize,
       });
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_user_id: 'user123',
         p_current_path: 'path/to/folder',
       });
     });
@@ -140,7 +140,6 @@ describe('dateien/actions', () => {
 
       await getPathContents('user123', 'path');
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_user_id: 'user123',
         p_current_path: 'path',
       });
     });
@@ -165,7 +164,6 @@ describe('dateien/actions', () => {
 
       await loadFilesForPath('user123', 'user_user123/path');
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_folder_contents', {
-        p_user_id: 'user123',
         p_current_path: 'user_user123/path',
       });
     });

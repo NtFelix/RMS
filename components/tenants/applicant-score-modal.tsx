@@ -117,7 +117,7 @@ export function ApplicantScoreModal() {
                         {/* Status Cards (Red Flags / Moving Reason) */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Red Flags Card */}
-                            <Card className="border-red-100 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10 shadow-sm">
+                            <Card className="border-red-100 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10 shadow-xs">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-sm font-medium text-red-600 dark:text-red-400 flex items-center gap-2">
                                         <AlertTriangle className="h-4 w-4" />
@@ -143,7 +143,7 @@ export function ApplicantScoreModal() {
                             </Card>
 
                             {/* Missing Info Card */}
-                            <Card className="border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-900/10 shadow-sm">
+                            <Card className="border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-900/10 shadow-xs">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-sm font-medium text-amber-600 dark:text-amber-400 flex items-center gap-2">
                                         <HelpCircle className="h-4 w-4" />

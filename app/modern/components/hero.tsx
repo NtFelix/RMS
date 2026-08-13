@@ -232,7 +232,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
             </div>
 
             {/* --- WORKSPACE CONTENT --- */}
-            <div className="relative rounded-2xl overflow-hidden bg-background border border-border/50 w-full h-[70vh] max-h-[600px] sm:h-auto sm:max-h-none sm:aspect-[2/1] shadow-inner flex">
+            <div className="relative rounded-2xl overflow-hidden bg-background border border-border/50 w-full h-[70vh] max-h-[600px] sm:h-auto sm:max-h-none sm:aspect-2/1 shadow-inner flex">
 
               {/* STAGE 1: INPUT COST (Belege) */}
               <AnimatePresence mode="wait">
@@ -319,7 +319,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                             <span className="text-xs font-bold text-muted-foreground">Nach Wohnfläche</span>
                             <div className="w-4 h-4 rounded-full border border-muted-foreground" />
                           </div>
-                          <div className="flex justify-between p-2 rounded-lg bg-background border border-primary shadow-sm scale-[1.02]">
+                          <div className="flex justify-between p-2 rounded-lg bg-background border border-primary shadow-xs scale-[1.02]">
                             <span className="text-xs font-bold text-foreground">Nach Personen</span>
                             <div className="w-4 h-4 rounded-full border-4 border-primary" />
                           </div>
@@ -368,7 +368,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                       </div>
                       <div className="h-px w-full bg-border" />
 
-                      <div className="bg-muted/10 p-6 rounded-2xl border border-border/50 space-y-4 shadow-sm">
+                      <div className="bg-muted/10 p-6 rounded-2xl border border-border/50 space-y-4 shadow-xs">
                         <div className="flex items-center gap-3 mb-2">
                           <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700" />
                           <div className="text-sm font-bold">Mieter: M. Mustermann</div>
@@ -432,7 +432,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                           hover: { opacity: 1, scale: 1, rotate: -6, x: -16 }
                         }}
                         transition={{ duration: 0.4, ease: "easeOut" }}
-                        className="absolute inset-0 bg-white rounded-lg shadow-sm border border-black/5 z-0 origin-bottom-left"
+                        className="absolute inset-0 bg-white rounded-lg shadow-xs border border-black/5 z-0 origin-bottom-left"
                       />
                       <motion.div
                         variants={{
@@ -440,7 +440,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                           hover: { opacity: 1, scale: 1, rotate: 6, x: 16 }
                         }}
                         transition={{ duration: 0.4, ease: "easeOut" }}
-                        className="absolute inset-0 bg-white rounded-lg shadow-sm border border-black/5 z-10 origin-bottom-right"
+                        className="absolute inset-0 bg-white rounded-lg shadow-xs border border-black/5 z-10 origin-bottom-right"
                       />
 
                       {/* Main Document (Foreground) */}
@@ -467,7 +467,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                             <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
                             <div className="w-1/4 h-1 bg-gray-200 rounded-sm" />
                           </div>
-                          <div className="w-full h-[1px] bg-gray-100" />
+                          <div className="w-full h-px bg-gray-100" />
                           <div className="flex gap-1">
                             <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />
                             <div className="w-1/4 h-1 bg-gray-50 rounded-sm" />

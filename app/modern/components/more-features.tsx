@@ -36,7 +36,7 @@ export default function MoreFeatures() {
           viewport={{ once: true }}
           className="text-center mb-20"
         >
-          <h2 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">
+          <h2 className="text-5xl md:text-6xl font-bold mb-6 bg-linear-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">
             Weitere Funktionen
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
@@ -55,10 +55,10 @@ export default function MoreFeatures() {
               whileHover={{ y: -5 }}
               className="group"
             >
-              <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 dark:hover:bg-primary/10 transition-all duration-300 h-full relative overflow-hidden rounded-3xl">
+              <Card className="bg-card/80 border-border backdrop-blur-xs hover:bg-gray-100 dark:hover:bg-primary/10 transition-all duration-300 h-full relative overflow-hidden rounded-3xl">
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">
-                    <div className="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <div className="w-16 h-16 bg-linear-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                       <feature.icon className="w-8 h-8 text-primary-foreground" />
                     </div>
                   </div>

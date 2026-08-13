@@ -1,6 +1,6 @@
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
-import { redirect } from "next/navigation"
+import { redirect, unstable_rethrow } from "next/navigation"
 import type { User, SupabaseClient } from "@supabase/supabase-js"
 import { ROUTES } from "@/lib/constants"
 import { createClient } from "@/utils/supabase/server"
@@ -65,6 +65,7 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
           console.warn("[getAuthenticatedUser] Invalid signature for cached user header. Potential spoofing attempt.")
         }
       } catch (e) {
+        unstable_rethrow(e);
         console.error("[getAuthenticatedUser] Failed to verify cached user headers:", e)
       }
     } else if (encodedUser && !secret) {
@@ -76,10 +77,12 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
           return { user: parsedUser, error: null }
         }
       } catch (e) {
+        unstable_rethrow(e);
         console.error("[getAuthenticatedUser] Failed to decode unsigned fallback user data:", e)
       }
     }
   } catch (e) {
+    unstable_rethrow(e);
     console.error("[getAuthenticatedUser] Failed to read cached user from headers:", e)
   }
   
@@ -113,7 +116,7 @@ export async function requireActiveSubscription() {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("stripe_subscription_status")
+    .select("stripe_subscription_status, stripe_price_id")
     .eq("id", user.id)
     .single()
 

@@ -223,7 +223,6 @@ export async function uploadFile(
               .select('id')
               .eq('dateipfad', directoryPath)
               .eq('dateiname', fileName)
-              .eq('user_id', userId)
               .single();
 
             if (existingFile) {
@@ -245,8 +244,7 @@ export async function uploadFile(
                   dateipfad: directoryPath,
                   dateiname: fileName,
                   dateigroesse: file.size,
-                  mime_type: file.type,
-                  user_id: userId
+                  mime_type: file.type
                 });
             }
           } catch (dbError) {
@@ -338,14 +336,12 @@ export async function listFiles(prefix: string, options?: {
     // Use circuit breaker to prevent cascading failures
     const result = await storageCircuitBreaker.execute(async () => {
       const supabase = createClient();
-      const userId = await getCurrentUserId();
 
       // Query Dokumente_Metadaten table instead of storage.list
       let query = supabase
         .from('Dokumente_Metadaten')
         .select('*')
-        .eq('dateipfad', sanitizedPrefix)
-        .eq('user_id', userId);
+        .eq('dateipfad', sanitizedPrefix);
 
       // Apply sorting
       const sortBy = options?.sortBy || 'name';
@@ -646,7 +642,6 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   const oldPathSegments = cleanOldPath.split('/');
   const sourceDirectory = oldPathSegments.slice(0, -1).join('/');
   let fileName = oldPathSegments[oldPathSegments.length - 1];
-  const userId = await getCurrentUserId();
 
   console.log('🔍 Checking source file existence in DB:', {
     sourceDirectory,
@@ -659,7 +654,6 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     .select('*')
     .eq('dateipfad', sourceDirectory)
     .eq('dateiname', fileName)
-    .eq('user_id', userId)
     .single();
 
   if (sourceFileError || !sourceFile) {
@@ -668,7 +662,6 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
       .from('Dokumente_Metadaten')
       .select('*')
       .eq('dateipfad', sourceDirectory)
-      .eq('user_id', userId)
       .ilike('dateiname', fileName); // Case insensitive match
 
     if (similarFiles && similarFiles.length > 0) {
@@ -716,7 +709,6 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     .select('id')
     .eq('dateipfad', targetDirectory)
     .eq('dateiname', targetFileName)
-    .eq('user_id', userId)
     .single();
 
   const targetFileExists = !!targetFile;
@@ -752,8 +744,7 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
           aktualisierungsdatum: new Date().toISOString()
         })
         .eq('dateipfad', newDirectoryPathForDb)
-        .eq('dateiname', newFileNameForDb)
-        .eq('user_id', userId);
+        .eq('dateiname', newFileNameForDb);
       console.log('✅ DB rollback completed successfully');
     } catch (rollbackError) {
       console.error('❌ CRITICAL: Failed to rollback DB changes:', rollbackError);
@@ -772,8 +763,7 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
         aktualisierungsdatum: new Date().toISOString()
       })
       .eq('dateipfad', oldDirectoryPathForDb)
-      .eq('dateiname', oldFileNameForDb)
-      .eq('user_id', userId);
+      .eq('dateiname', oldFileNameForDb);
 
     if (dbUpdateError) {
       console.error('❌ Failed to update DB metadata:', dbUpdateError);
@@ -1255,7 +1245,6 @@ export async function moveFolder(oldFolderPath: string, newFolderPath: string): 
  */
 async function getAllFilesInFolder(folderPath: string): Promise<Array<{ name: string, path: string }>> {
   const supabase = createClient();
-  const userId = await getCurrentUserId();
 
   try {
     // Query database for all files starting with the folder path
@@ -1263,8 +1252,7 @@ async function getAllFilesInFolder(folderPath: string): Promise<Array<{ name: st
     const { data: files, error } = await supabase
       .from('Dokumente_Metadaten')
       .select('dateipfad, dateiname')
-      .like('dateipfad', `${folderPath}%`)
-      .eq('user_id', userId);
+      .like('dateipfad', `${folderPath}%`);
 
     if (error) {
       console.warn(`Could not scan folder ${folderPath} from DB:`, error);
@@ -1292,13 +1280,11 @@ async function cleanupEmptyFolders(folderPath: string): Promise<void> {
 
   try {
     // Remove any remaining .keep files using DB
-    const userId = await getCurrentUserId();
     const { data: keepFilesData } = await supabase
       .from('Dokumente_Metadaten')
       .select('dateiname')
       .eq('dateipfad', folderPath)
-      .eq('dateiname', '.keep')
-      .eq('user_id', userId);
+      .eq('dateiname', '.keep');
 
     if (keepFilesData && keepFilesData.length > 0) {
       const keepFiles = [`${folderPath}/.keep`];
@@ -1312,8 +1298,7 @@ async function cleanupEmptyFolders(folderPath: string): Promise<void> {
         .from('Dokumente_Metadaten')
         .delete()
         .eq('dateipfad', folderPath)
-        .eq('dateiname', '.keep')
-        .eq('user_id', userId);
+        .eq('dateiname', '.keep');
 
       console.log(`🧹 Cleaned up .keep file in ${folderPath}`);
     }

@@ -150,6 +150,72 @@ describe('Backend Worker Tests', () => {
         });
     });
 
+    describe('Main Router (fetch)', () => {
+        it('should handle GET / correctly (health check)', async () => {
+            const request = new Request('https://worker.com/', {
+                method: 'GET'
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            expect(response.status).toBe(200);
+            expect(await response.text()).toBe('OK');
+        });
+
+        it('should handle GET /health correctly (health check)', async () => {
+            const request = new Request('https://worker.com/health', {
+                method: 'GET'
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            expect(response.status).toBe(200);
+            expect(await response.text()).toBe('OK');
+        });
+
+        it('should route to /ai correctly', async () => {
+            const originalFetch = globalThis.fetch;
+            globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+            try {
+                const request = new Request('https://worker.com/ai', {
+                    method: 'POST',
+                    body: JSON.stringify({ message: 'Hello' })
+                });
+
+                const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+                
+                // handleAIRequest returns 500 if Gemini fails, or starts a stream.
+                // File generation would return 400 for this body because 'type' is missing.
+                expect(response.status).not.toBe(400);
+            } finally {
+                globalThis.fetch = originalFetch;
+            }
+        });
+
+        it('should route to /process-queue correctly', async () => {
+            const request = new Request('https://worker.com/process-queue', {
+                method: 'POST',
+                headers: { 'x-worker-auth': 'test-auth-key' },
+                body: JSON.stringify({ user_id: 'test-user' })
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            
+            // processQueue would hit auth check then fail on Supabase
+            expect(response.status).not.toBe(404);
+            expect(response.status).not.toBe(400);
+        });
+
+        it('should fallback to file generation for other paths', async () => {
+            const request = new Request('https://worker.com/some-random-path', {
+                method: 'POST',
+                body: JSON.stringify({ type: 'csv', data: [] })
+            });
+
+            const response = await (await import('./index')).default.fetch(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext);
+            expect(response.status).toBe(200);
+            expect(response.headers.get('Content-Type')).toBe('text/csv');
+        });
+    });
+
     it('should pass a basic smoke test', () => {
         expect(true).toBe(true);
     });

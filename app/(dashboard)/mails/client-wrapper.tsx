@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle, Mail as MailIcon, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
+import { PlusCircle, Mail as MailIcon, Send, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { MailsTable } from "@/components/mails-table";
 import { MailDetailPanel } from "@/components/mail-detail-panel";
@@ -35,7 +35,7 @@ interface MailsClientViewProps {
 function AddMailButton({ onAdd }: { onAdd: () => void }) {
   return (
     <ButtonWithTooltip onClick={onAdd} size="sm" className="h-9 sm:w-auto">
-      <PlusCircle className="mr-2 h-4 w-4" />
+      <PlusCircle className="mr-2 size-4" />
       Neue E-Mail
     </ButtonWithTooltip>
   );
@@ -110,7 +110,7 @@ export default function MailsClientView({
       await updateEmailReadStatus(mailId, isRead);
       toast({ title: isRead ? 'Als gelesen markiert' : 'Als ungelesen markiert' });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [router, toast]);
@@ -120,7 +120,7 @@ export default function MailsClientView({
       await toggleEmailFavorite(mailId, isFavorite);
       toast({ title: isFavorite ? 'Als Favorit markiert' : 'Favorit entfernt' });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [router, toast]);
@@ -130,7 +130,7 @@ export default function MailsClientView({
       await moveEmailToFolder(mailId, 'archive');
       toast({ title: 'E-Mail archiviert' });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
   }, [router, toast]);
@@ -205,7 +205,7 @@ export default function MailsClientView({
       await Promise.all(promises);
       toast({ title: `${selectedMails.size} E-Mails als gelesen markiert` });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -218,7 +218,7 @@ export default function MailsClientView({
       await Promise.all(promises);
       toast({ title: `${selectedMails.size} E-Mails als ungelesen markiert` });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -232,7 +232,7 @@ export default function MailsClientView({
       await Promise.all(promises);
       toast({ title: `${selectedMails.size} E-Mails aktualisiert` });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, mailData, router, toast]);
@@ -246,7 +246,7 @@ export default function MailsClientView({
       toast({ title: `${selectedMails.size} E-Mails archiviert` });
       setSelectedMails(new Set());
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -260,7 +260,7 @@ export default function MailsClientView({
       toast({ title: `${selectedMails.size} E-Mails endgültig gelöscht` });
       setSelectedMails(new Set());
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Löschen', variant: 'destructive' });
     }
   }, [selectedMails, userId, router, toast]);
@@ -274,7 +274,7 @@ export default function MailsClientView({
       toast({ title: `${selectedMails.size} E-Mails verschoben` });
       setSelectedMails(new Set());
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Verschieben', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -366,7 +366,6 @@ export default function MailsClientView({
   // since loadMoreMails itself depends on mailData.length which it modifies
   useEffect(() => {
     loadMoreMails(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortKey, sortDirection]);
 
 
@@ -380,28 +379,28 @@ export default function MailsClientView({
   ];
 
   return (
-    <div className="flex flex-col gap-8 p-8 bg-white dark:bg-[#181818]">
+    <div className="flex flex-col gap-8 p-8">
       <div className="flex flex-wrap gap-4">
         <StatCard
           title="E-Mails Gesamt"
           value={summary.total}
-          icon={<MailIcon className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+          icon={<MailIcon className="size-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
         <StatCard
           title="Ungelesen"
           value={summary.unread}
-          icon={<Inbox className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+          icon={<Inbox className="size-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
         <StatCard
           title="Gesendet / Entwurf"
           value={`${summary.sent} / ${summary.drafts}`}
-          icon={<Send className="h-4 w-4 text-muted-foreground" />}
-          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl"
+          icon={<Send className="size-4 text-muted-foreground" />}
+          className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl"
         />
       </div>
-      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
+      <Card className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
         <CardHeader>
           <div className="flex flex-row items-start justify-between">
             <div>
@@ -416,7 +415,7 @@ export default function MailsClientView({
                 disabled={isRefreshing}
                 className="h-9"
               >
-                <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`mr-2 size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Aktualisieren
               </Button>
               <AddMailButton onAdd={handleAddMail} />
@@ -437,7 +436,7 @@ export default function MailsClientView({
                     onClick={() => setActiveTab(tab.id)}
                     className="h-9 rounded-full"
                   >
-                    <tab.icon className="mr-2 h-4 w-4" />
+                    <tab.icon className="mr-2 size-4" />
                     {tab.label}
                   </Button>
                 ))}

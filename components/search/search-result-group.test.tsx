@@ -13,7 +13,7 @@ jest.mock('@/components/ui/command', () => ({
 }));
 
 // Mock the SearchResultItem component
-jest.mock('../search-result-item', () => ({
+jest.mock('./search-result-item', () => ({
   SearchResultItem: ({ result, onSelect, onAction }: any) => (
     <div
       data-testid={`search-result-item-${result.id}`}

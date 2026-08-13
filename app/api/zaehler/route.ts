@@ -3,18 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
-// GET - Fetch all Wasserzähler for a specific Wohnung
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
-    }
-
     const searchParams = request.nextUrl.searchParams
     const wohnungId = searchParams.get('wohnung_id')
 
@@ -22,12 +13,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
+    }
+
+    const { verifyWohnungInScope } = await import("@/lib/api-permissions");
+    if (!(await verifyWohnungInScope(wohnungId))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
+    }
+
     // Verify the Wohnung belongs to the user
     const { data: wohnung, error: wohnungError } = await supabase
       .from('Wohnungen')
       .select('id')
       .eq('id', wohnungId)
-      .eq('user_id', user.id)
       .single()
 
     if (wohnungError || !wohnung) {
@@ -39,7 +41,6 @@ export async function GET(request: NextRequest) {
       .from('Zaehler')
       .select('*')
       .eq('wohnung_id', wohnungId)
-      .eq('user_id', user.id)
       .order('erstellungsdatum', { ascending: true })
 
     if (error) {
@@ -55,7 +56,6 @@ export async function GET(request: NextRequest) {
       .from('Zaehler_Ablesungen')
       .select('id, zaehler_id, ablese_datum, zaehlerstand, verbrauch')
       .in('zaehler_id', meterIds)
-      .eq('user_id', user.id)
       .order('ablese_datum', { ascending: false });
 
     // Create a map of the latest reading for each meter
@@ -90,6 +90,9 @@ export async function GET(request: NextRequest) {
 // POST - Create a new Wasserzähler
 export async function POST(request: NextRequest) {
   try {
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('zaehler', 'erstellen');
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -104,12 +107,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
+    if (!(await verifyWohnungInScope(wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
+    }
+
     // Verify the Wohnung belongs to the user
     const { data: wohnung, error: wohnungError } = await supabase
       .from('Wohnungen')
       .select('id')
       .eq('id', wohnung_id)
-      .eq('user_id', user.id)
       .single()
 
     if (wohnungError || !wohnung) {
@@ -123,7 +129,6 @@ export async function POST(request: NextRequest) {
         custom_id: custom_id || null,
         wohnung_id,
         eichungsdatum: eichungsdatum || null,
-        user_id: user.id,
         zaehler_typ: zaehler_typ || 'wasser',
         einheit: einheit || 'm³',
         kommentar: kommentar || null,
@@ -149,7 +154,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: 201, headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in POST /api/zaehler:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (error as Error).message || 'Internal server error' }, { status, headers: NO_CACHE_HEADERS })
   }
 }
 

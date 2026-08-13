@@ -26,6 +26,8 @@ interface TenantBulkActionBarProps {
   onExport: () => void
   onDelete: () => void
   onUpdate?: () => void // Callback to refresh the tenant list after update
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function TenantBulkActionBar({
@@ -36,6 +38,8 @@ export function TenantBulkActionBar({
   onExport,
   onDelete,
   onUpdate,
+  canEdit = true,
+  canDelete = true,
 }: TenantBulkActionBarProps) {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -213,6 +217,7 @@ export function TenantBulkActionBar({
           variant="outline"
           size="sm"
           onClick={() => setIsAssignDialogOpen(true)}
+          disabled={!canEdit || isUpdating}
           className="h-8 gap-2"
         >
           <Home className="h-4 w-4" />
@@ -231,7 +236,7 @@ export function TenantBulkActionBar({
           variant="outline"
           size="sm"
           onClick={handleDeleteClick}
-          disabled={isDeleting}
+          disabled={isDeleting || !canDelete}
           className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
         >
           {isDeleting ? (

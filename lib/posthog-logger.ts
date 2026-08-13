@@ -19,6 +19,7 @@ import {
     POSTHOG_API_KEY,
     POSTHOG_HOST,
     getLogsEndpoint,
+    getSpanContext,
     buildOTLPPayloadBatch,
 } from './otlp-utils';
 
@@ -53,6 +54,7 @@ let logBatch: Array<{
     severityText: string;
     body: string;
     attributes: Record<string, unknown>;
+    traceContext: { traceId?: string; spanId?: string };
 }> = [];
 
 // Track statistics for debugging
@@ -219,6 +221,7 @@ function log(
             severityText,
             body: message,
             attributes: enrichedAttributes,
+            traceContext: getSpanContext(),
         });
         stats.totalLogsQueued++;
         debugLog(`Queued log #${stats.totalLogsQueued}: [${severityText}] ${message.substring(0, 50)}...`);

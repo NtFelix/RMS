@@ -126,7 +126,7 @@ export function DocumentsSummaryCards({
   const uploadCardContent = (
     <Card
       className={cn(
-        "relative overflow-hidden rounded-3xl shadow-sm transition-all duration-200 flex-1",
+        "relative overflow-hidden rounded-3xl shadow-xs transition-all duration-200 flex-1",
         "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]",
         isUploadDisabled
           ? "cursor-not-allowed opacity-60"
@@ -204,7 +204,7 @@ export function DocumentsSummaryCards({
         {/* Create Folder Card */}
         <Card
           className={cn(
-            "relative overflow-hidden rounded-3xl shadow-sm transition-all duration-200 cursor-pointer group flex-1",
+            "relative overflow-hidden rounded-3xl shadow-xs transition-all duration-200 cursor-pointer group flex-1",
             "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]",
             "hover:shadow-md hover:scale-[1.02]"
           )}
@@ -230,7 +230,7 @@ export function DocumentsSummaryCards({
 
         {/* Total Size Card with Progress Bar */}
         <Card className={cn(
-          "relative overflow-hidden rounded-3xl shadow-sm transition-opacity duration-200 flex-1",
+          "relative overflow-hidden rounded-3xl shadow-xs transition-opacity duration-200 flex-1",
           "bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251]",
           isOverLimit && "border-destructive/50",
           isNearLimit && "border-amber-500/50"

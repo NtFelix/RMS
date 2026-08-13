@@ -6,15 +6,37 @@
 jest.mock('@/utils/supabase/server');
 jest.mock('next/cache');
 jest.mock('@/lib/data-fetching');
+jest.mock('@/lib/papierkorb/utils', () => ({
+  softDeleteEntryAction: jest.fn().mockResolvedValue(undefined),
+}));
 
-import { handleSubmit, deleteHouseAction, getWasserzaehlerModalDataLegacyAction } from './actions';
+import { handleSubmit, deleteHouseAction } from './actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { fetchWasserzaehlerModalData } from '@/lib/data-fetching';
+import { softDeleteEntryAction } from '@/lib/papierkorb/utils';
 
 const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
 const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
-const mockFetchWasserzaehlerModalData = fetchWasserzaehlerModalData as jest.MockedFunction<typeof fetchWasserzaehlerModalData>;
+const mockSoftDeleteEntryAction = softDeleteEntryAction as jest.MockedFunction<typeof softDeleteEntryAction>;
+
+// Build a chainable query builder mock
+function createQueryBuilder() {
+  const builder: any = {
+    select: jest.fn(() => builder),
+    insert: jest.fn(() => builder),
+    update: jest.fn(() => builder),
+    delete: jest.fn(() => builder),
+    eq: jest.fn(() => builder),
+    single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    order: jest.fn(() => builder),
+    limit: jest.fn(() => builder),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+  };
+  // The final resolved value for terminal chain calls
+  builder.single.mockResolvedValue({ data: null, error: null });
+  builder.eq.mockResolvedValue({ error: null });
+  return builder;
+}
 
 describe('House Actions', () => {
   let mockSupabase: any;
@@ -22,15 +44,13 @@ describe('House Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Create a comprehensive mock for Supabase
+    const queryBuilder = createQueryBuilder();
+
     mockSupabase = {
-      from: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockResolvedValue({ error: null }),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockResolvedValue({ error: null }),
+      from: jest.fn(() => queryBuilder),
+      rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
       auth: {
-        getUser: jest.fn(),
+        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user1' } }, error: null }),
       },
     };
 
@@ -46,22 +66,29 @@ describe('House Actions', () => {
         formData.append('strasse', 'Test Street 1');
         formData.append('groesse', '150.5');
 
+        // Make single() return a new house id so flow continues to rpc call
+        const builder = mockSupabase.from();
+        builder.single.mockResolvedValue({ data: { id: 'new-uuid' }, error: null });
+
         const result = await handleSubmit(null, formData);
 
         expect(mockSupabase.from).toHaveBeenCalledWith('Haeuser');
-        expect(mockSupabase.insert).toHaveBeenCalledWith({
+        expect(builder.insert).toHaveBeenCalledWith({
           name: 'Test House',
           ort: 'Berlin',
           strasse: 'Test Street 1',
           groesse: 150.5,
         });
+        expect(builder.select).toHaveBeenCalledWith('id');
+        expect(builder.single).toHaveBeenCalled();
         expect(mockRevalidatePath).toHaveBeenCalledWith('/haeuser');
         expect(result).toEqual({ success: true });
       });
 
       it('returns error when insert fails', async () => {
         const errorMessage = 'Database constraint violation';
-        mockSupabase.insert.mockResolvedValue({ error: { message: errorMessage } });
+        const builder = mockSupabase.from();
+        builder.single.mockResolvedValue({ data: null, error: { message: errorMessage } });
 
         const formData = new FormData();
         formData.append('name', 'Test House');
@@ -79,6 +106,7 @@ describe('House Actions', () => {
 
     describe('Updating existing house', () => {
       it('successfully updates an existing house', async () => {
+        const builder = mockSupabase.from();
         const houseId = 'house-123';
         const formData = new FormData();
         formData.append('name', 'Updated House');
@@ -89,20 +117,21 @@ describe('House Actions', () => {
         const result = await handleSubmit(houseId, formData);
 
         expect(mockSupabase.from).toHaveBeenCalledWith('Haeuser');
-        expect(mockSupabase.update).toHaveBeenCalledWith({
+        expect(builder.update).toHaveBeenCalledWith({
           name: 'Updated House',
           ort: 'Hamburg',
           strasse: 'Updated Street 2',
           groesse: 200,
         });
-        expect(mockSupabase.eq).toHaveBeenCalledWith('id', houseId);
+        expect(builder.eq).toHaveBeenCalledWith('id', houseId);
         expect(mockRevalidatePath).toHaveBeenCalledWith('/haeuser');
         expect(result).toEqual({ success: true });
       });
 
       it('returns error when update fails', async () => {
         const errorMessage = 'House not found';
-        mockSupabase.eq.mockResolvedValue({ error: { message: errorMessage } });
+        const builder = mockSupabase.from();
+        builder.eq.mockResolvedValue({ error: { message: errorMessage } });
 
         const houseId = 'nonexistent-house';
         const formData = new FormData();
@@ -126,16 +155,14 @@ describe('House Actions', () => {
 
       const result = await deleteHouseAction(houseId);
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('Haeuser');
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', houseId);
+      expect(mockSoftDeleteEntryAction).toHaveBeenCalledWith('Haeuser', houseId);
       expect(mockRevalidatePath).toHaveBeenCalledWith('/haeuser');
       expect(result).toEqual({ success: true });
     });
 
     it('returns error when delete fails', async () => {
       const errorMessage = 'Cannot delete house with existing apartments';
-      mockSupabase.eq.mockResolvedValue({ error: { message: errorMessage } });
+      mockSoftDeleteEntryAction.mockRejectedValue(new Error(errorMessage));
 
       const houseId = 'house-with-apartments';
 
@@ -146,49 +173,6 @@ describe('House Actions', () => {
         error: { message: errorMessage },
       });
       expect(mockRevalidatePath).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getWasserzaehlerModalDataLegacyAction', () => {
-    it('successfully fetches wasserzaehler modal data', async () => {
-      const mockData = {
-        mieterList: [
-          { id: '1', name: 'Mieter 1' },
-          { id: '2', name: 'Mieter 2' },
-        ],
-        existingReadings: [
-          { id: '1', value: 100 },
-          { id: '2', value: 200 },
-        ],
-      };
-
-      mockFetchWasserzaehlerModalData.mockResolvedValue(mockData as any);
-
-      const nebenkostenId = 'nebenkosten-123';
-      const result = await getWasserzaehlerModalDataLegacyAction(nebenkostenId);
-
-      expect(mockFetchWasserzaehlerModalData).toHaveBeenCalledWith(nebenkostenId);
-      expect(result).toEqual(mockData);
-    });
-
-    it('handles errors and returns empty data', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const error = new Error('Fetch error');
-      mockFetchWasserzaehlerModalData.mockRejectedValue(error);
-
-      const nebenkostenId = 'nebenkosten-123';
-      const result = await getWasserzaehlerModalDataLegacyAction(nebenkostenId);
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in getWasserzaehlerModalDataLegacyAction:',
-        error
-      );
-      expect(result).toEqual({
-        mieterList: [],
-        existingReadings: [],
-      });
-
-      consoleErrorSpy.mockRestore();
     });
   });
 });

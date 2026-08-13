@@ -1,5 +1,5 @@
-export const runtime = 'edge';
 import { NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import Stripe from 'stripe';
 import { createClient } from '@/utils/supabase/server';
 
@@ -123,6 +123,7 @@ export async function GET() {
     }, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching customer data:', error);
     const errorMessage = error instanceof Stripe.errors.StripeError
       ? error.message

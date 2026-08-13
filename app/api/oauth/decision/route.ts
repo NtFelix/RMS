@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
-export const runtime = 'edge';
 
 export async function POST(request: Request) {
     const formData = await request.formData();
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const authorizationId = formData.get('authorization_id') as string;
 
     if (!authorizationId) {
-        return NextResponse.json({ error: 'Missing authorization_id' }, { status: 400 });
+        return NextResponse.json({ error: 'Missing authorization_id' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
         if (error) {
             console.error('Approval error:', error);
-            return NextResponse.json({ error: error.message }, { status: 400 });
+            return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
         }
 
         // Redirect back to the client with authorization code
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
         if (error) {
             console.error('Denial error:', error);
-            return NextResponse.json({ error: error.message }, { status: 400 });
+            return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
         }
 
         // Redirect back to the client with error

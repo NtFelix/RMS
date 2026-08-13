@@ -22,7 +22,7 @@ import { ExportAbrechnungDropdown } from "@/components/abrechnung/export-abrechn
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import type { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/types";
+import type { Nebenkosten, Mieter, Wohnung, Rechnung, Zaehler, ZaehlerAblesung } from "@/lib/types";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { getTenantMeterCost } from "@/utils/water-cost-calculations";
@@ -198,8 +198,8 @@ interface AbrechnungModalProps {
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
   rechnungen: Rechnung[];
-  meters?: WasserZaehler[]; // Updated to use new generic meter type
-  readings?: WasserAblesung[]; // Updated to use new generic reading type
+  meters?: Zaehler[]; // Updated to use new generic meter type
+  readings?: ZaehlerAblesung[]; // Updated to use new generic reading type
   ownerName: string;
   ownerAddress: string;
   actualPayments?: any[]; // Actual financial entries
@@ -673,7 +673,7 @@ export function AbrechnungModal({
         {/* Global Summary Totals */}
         {summaryTotals && (
           <div className="mt-6 mb-2 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-            <Card className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-xs">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Gesamtvolumen</CardTitle>
                 <Coins className="h-4 w-4 text-muted-foreground" />
@@ -684,7 +684,7 @@ export function AbrechnungModal({
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-xs">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Vorauszahlungen</CardTitle>
                 <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -695,7 +695,7 @@ export function AbrechnungModal({
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-xs">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   {summaryTotals.totalSettlement >= 0 ? "Nachzahlung" : "Guthaben"}
@@ -733,7 +733,7 @@ export function AbrechnungModal({
           )}
 
           {calculatedTenantData.map((tenantData) => (
-            <div key={tenantData.tenantId} className="mb-6 p-4 border rounded-lg shadow-sm">
+            <div key={tenantData.tenantId} className="mb-6 p-4 border rounded-lg shadow-xs">
               <h3 className="text-xl font-semibold mb-3 text-foreground">
                 Mieter: <span className="font-bold">{tenantData.tenantName}</span>
               </h3>
@@ -807,7 +807,7 @@ export function AbrechnungModal({
                 {/* Wasserkosten Info Card */}
                 <HoverCard>
                   <HoverCardTrigger asChild>
-                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                    <Card className="grow min-w-[220px] sm:min-w-[250px]">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Wasserkosten</CardTitle>
                         <Droplet className="h-5 w-5 text-muted-foreground" />
@@ -841,7 +841,7 @@ export function AbrechnungModal({
                 {/* Vorauszahlungen Info Card */}
                 <HoverCard>
                   <HoverCardTrigger asChild>
-                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                    <Card className="grow min-w-[220px] sm:min-w-[250px]">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Vorauszahlungen</CardTitle>
                         <Landmark className="h-5 w-5 text-muted-foreground" />
@@ -882,7 +882,7 @@ export function AbrechnungModal({
                   return (
                     <HoverCard>
                       <HoverCardTrigger asChild>
-                        <Card className="flex-grow min-w-[220px] sm:min-w-[250px] cursor-pointer">
+                        <Card className="grow min-w-[220px] sm:min-w-[250px] cursor-pointer">
                           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className={`text-sm font-medium ${titleColor}`}>
                               {isNachzahlung ? "Nachzahlung" : "Guthaben"}

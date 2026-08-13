@@ -287,7 +287,7 @@ export default function TenantPaymentEditModal() {
     setTenantPaymentEditModalDirty(true)
   }
 
-  if (!isTenantPaymentEditModalOpen || !tenantPaymentEditInitialData) {
+  if (!isTenantPaymentEditModalOpen || !tenantPaymentEditInitialData || !tenantPaymentEditInitialData.apartmentId) {
     return null
   }
 

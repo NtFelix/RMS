@@ -415,7 +415,7 @@ export function WohnungOverviewModal() {
   return (
     <Dialog open={isWohnungOverviewModalOpen} onOpenChange={(open) => !open && closeWohnungOverviewModal()}>
       <DialogContent className="sm:max-w-5xl md:max-w-6xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl">
             {wohnungOverviewData ? `Wohnungs-Übersicht: ${wohnungOverviewData.name}` : 'Wohnungs-Übersicht'}
           </DialogTitle>
@@ -578,14 +578,22 @@ export function WohnungOverviewModal() {
                           </ContextMenuTrigger>
                           <ContextMenuContent className="w-64">
                             <ContextMenuItem
-                              onClick={() => handleEditMieter(mieter)}
+                              onClick={() => {
+                                setTimeout(() => {
+                                  handleEditMieter(mieter);
+                                }, 0);
+                              }}
                               className="flex items-center gap-2 cursor-pointer"
                             >
                               <Edit className="h-4 w-4" />
                               <span>Bearbeiten</span>
                             </ContextMenuItem>
                             <ContextMenuItem
-                              onClick={() => handleContactMieter(mieter)}
+                              onClick={() => {
+                                setTimeout(() => {
+                                  handleContactMieter(mieter);
+                                }, 0);
+                              }}
                               className="flex items-center gap-2 cursor-pointer"
                               disabled={(!mieter.email || mieter.email.trim() === '') && (!mieter.telefon || mieter.telefon.trim() === '')}
                             >

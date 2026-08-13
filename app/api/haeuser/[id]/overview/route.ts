@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createRequestLogger } from "@/utils/logger";
@@ -75,6 +74,17 @@ export async function GET(
         { error: "Ungültiges Haus-ID-Format." },
         { 
           status: 400,
+          headers: NO_CACHE_HEADERS
+        }
+      );
+    }
+
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (!(await verifyEntityInScope(hausId))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { 
+          status: 403,
           headers: NO_CACHE_HEADERS
         }
       );

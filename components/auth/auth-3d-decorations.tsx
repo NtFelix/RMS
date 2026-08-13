@@ -74,7 +74,7 @@ export function Auth3DDecorations() {
                     transition={{ duration: ANIMATION_DURATIONS.ring2, repeat: Infinity, ease: "linear" }}
                 />
                 <motion.div
-                    className="absolute -bottom-32 left-1/2 w-[30rem] h-[30rem] border rounded-full"
+                    className="absolute -bottom-32 left-1/2 w-120 h-120 border rounded-full"
                     style={{ borderColor: `rgba(255, 255, 255, ${RING_OPACITY.secondary})` }}
                     animate={{ rotateX: [45, 405], rotateY: [0, 0], rotateZ: [0, 360] }}
                     transition={{ duration: ANIMATION_DURATIONS.ring3, repeat: Infinity, ease: "linear" }}

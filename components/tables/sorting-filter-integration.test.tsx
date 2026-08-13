@@ -19,29 +19,48 @@ jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn()
 }))
 
-// Mock useModalStore
-jest.mock('@/hooks/use-modal-store', () => ({
-  useModalStore: Object.assign(
-    () => ({
-      openApplicantScoreModal: jest.fn(),
-      openMailPreviewModal: jest.fn(),
-      openZaehlerModal: jest.fn(),
-    }),
-    {
-      getState: () => ({
-        openHausOverviewModal: jest.fn(),
-        openZaehlerModal: jest.fn(),
-      }),
-    }
-  ),
-}))
-
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     refresh: jest.fn(),
     push: jest.fn(),
   }),
+}))
+
+// Mock the modal store
+jest.mock('@/hooks/use-modal-store', () => ({
+  useModalStore: () => ({
+    openTenantModal: jest.fn(),
+    openHouseModal: jest.fn(),
+    openWohnungModal: jest.fn(),
+    openFinanceModal: jest.fn(),
+    openAufgabeModal: jest.fn(),
+    openConfirmationModal: jest.fn(),
+    openKautionModal: jest.fn(),
+    openZaehlerModal: jest.fn(),
+    openApplicantScoreModal: jest.fn(),
+    openMailPreviewModal: jest.fn(),
+    isTenantModalOpen: false,
+    isHouseModalOpen: false,
+    isWohnungModalOpen: false,
+    isFinanceModalOpen: false,
+    isAufgabeModalOpen: false,
+    isTenantModalDirty: false,
+    isHouseModalDirty: false,
+    isWohnungModalDirty: false,
+    isFinanceModalDirty: false,
+    isAufgabeModalDirty: false,
+    getState: () => ({
+      openTenantModal: jest.fn(),
+      openHouseModal: jest.fn(),
+      openWohnungModal: jest.fn(),
+      openFinanceModal: jest.fn(),
+      openAufgabeModal: jest.fn(),
+      openConfirmationModal: jest.fn(),
+      openKautionModal: jest.fn(),
+      openZaehlerModal: jest.fn(),
+    }),
+  })
 }))
 
 import { ApartmentTable } from '@/components/tables/apartment-table'
@@ -301,8 +320,8 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // Sort by email
-      const emailHeader = screen.getByText('E-Mail').closest('div')
-      fireEvent.click(emailHeader!)
+      const emailHeader = screen.getByText('E-Mail')
+      fireEvent.click(emailHeader)
 
       // Should show only tenants matching "john", sorted by email
       const searchedRows = screen.getAllByRole('row')
@@ -323,8 +342,8 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // Sort by name
-      const nameHeader = screen.getByText('Name').closest('div')
-      fireEvent.click(nameHeader!)
+      const nameHeader = screen.getByText('Name')
+      fireEvent.click(nameHeader)
 
       // Should show only current tenants matching "o", sorted by name
       const combinedRows = screen.getAllByRole('row')
@@ -351,8 +370,8 @@ describe('Sorting and Filtering Integration', () => {
       expect(screen.getByText('Keine Wohnungen gefunden.')).toBeInTheDocument()
 
       // Sort headers should still be clickable
-      const nameHeader = screen.getByText('Wohnung').closest('div')
-      fireEvent.click(nameHeader!)
+      const nameHeader = screen.getByText('Wohnung')
+      fireEvent.click(nameHeader)
       
       // Should still show no apartments message
       expect(screen.getByText('Keine Wohnungen gefunden.')).toBeInTheDocument()
@@ -389,8 +408,8 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // Sort by house name (one has null house)
-      const houseHeader = screen.getByText('Haus').closest('div')
-      fireEvent.click(houseHeader!)
+      const houseHeader = screen.getByText('Haus')
+      fireEvent.click(houseHeader)
 
       // Should handle null values gracefully
       const rows = screen.getAllByRole('row')
@@ -409,8 +428,8 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // Sort by rent (ascending)
-      const rentHeader = screen.getByText('Miete').closest('button')
-      fireEvent.click(rentHeader!)
+      const rentHeader = screen.getByText('Miete').closest('button') || screen.getByText('Miete')
+      fireEvent.click(rentHeader)
 
       // Change filter but keep same sort
       rerender(

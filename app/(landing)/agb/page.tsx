@@ -1,10 +1,14 @@
 import { INFO_EMAIL } from '@/lib/constants';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export default function AGBPage() {
   return (
     <div className="w-full bg-background pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-4xl">
-        <div className="prose dark:prose-invert max-w-none bg-card p-8 rounded-lg shadow-sm">
+        <div className="prose dark:prose-invert max-w-none bg-card p-8 rounded-lg shadow-xs">
           <h1 className="text-3xl font-bold mb-2">Allgemeine Geschäftsbedingungen</h1>
           <p className="text-muted-foreground italic mb-8">Letzte Aktualisierung: 16. September 2025</p>
 

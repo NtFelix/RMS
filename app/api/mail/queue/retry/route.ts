@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 export async function POST() {
   try {
@@ -12,7 +12,7 @@ export async function POST() {
     if (authError || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
-        { status: 401 }
+        { status: 401, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -25,7 +25,7 @@ export async function POST() {
       console.error("Error retrying failed items:", error)
       return NextResponse.json(
         { error: "Failed to retry queue items" },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -37,12 +37,12 @@ export async function POST() {
       message: retriedCount > 0 
         ? `Retrying ${retriedCount} failed items` 
         : 'No failed items to retry',
-    })
+    }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Queue retry error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }

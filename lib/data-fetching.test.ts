@@ -6,6 +6,10 @@ jest.mock('./supabase-server', () => ({
   createSupabaseServerClient: jest.fn(),
 }));
 
+jest.mock('./test-utils', () => ({
+  isTestEnv: jest.fn(() => false),
+}));
+
 // Tests for fetchNebenkostenList and getHausGesamtFlaeche removed - functions replaced by optimized versions
 // fetchNebenkostenListOptimized in betriebskosten-actions.ts uses get_nebenkosten_with_metrics database function
 
@@ -14,8 +18,7 @@ import { getCurrentWohnungenCount, fetchUserProfile } from './data-fetching';
 describe('getCurrentWohnungenCount', () => {
   const mockSupabaseClient = {
     from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn(),
+    select: jest.fn(),
   };
   let consoleErrorSpy: jest.SpyInstance;
 
@@ -23,7 +26,6 @@ describe('getCurrentWohnungenCount', () => {
     (createSupabaseServerClient as jest.Mock).mockReturnValue(mockSupabaseClient);
     mockSupabaseClient.from.mockClear();
     mockSupabaseClient.select.mockClear();
-    mockSupabaseClient.eq.mockClear();
     // Spy on console.error before each test and restore it after each test
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -35,20 +37,19 @@ describe('getCurrentWohnungenCount', () => {
   it('should return the count of Wohnungen on successful retrieval', async () => {
     const userId = 'test-user-id';
     const mockCount = 5;
-    mockSupabaseClient.eq.mockResolvedValueOnce({ data: [], count: mockCount, error: null });
+    mockSupabaseClient.select.mockResolvedValueOnce({ data: [], count: mockCount, error: null });
 
     const result = await getCurrentWohnungenCount(mockSupabaseClient as any, userId);
 
     expect(result).toBe(mockCount);
     expect(mockSupabaseClient.from).toHaveBeenCalledWith('Wohnungen');
     expect(mockSupabaseClient.select).toHaveBeenCalledWith('*', { count: 'exact', head: true });
-    expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', userId);
   });
 
   it('should return 0 and log error if Supabase call fails', async () => {
     const userId = 'test-user-id';
     const dbError = new Error('Supabase DB Error');
-    mockSupabaseClient.eq.mockResolvedValueOnce({ data: null, count: null, error: dbError });
+    mockSupabaseClient.select.mockResolvedValueOnce({ data: null, count: null, error: dbError });
 
     const result = await getCurrentWohnungenCount(mockSupabaseClient as any, userId);
 
@@ -66,14 +67,13 @@ describe('getCurrentWohnungenCount', () => {
 
   it('should return 0 if Supabase returns null for count (no records found)', async () => {
     const userId = 'test-user-id';
-    mockSupabaseClient.eq.mockResolvedValueOnce({ data: [], count: null, error: null });
+    mockSupabaseClient.select.mockResolvedValueOnce({ data: [], count: null, error: null });
 
     const result = await getCurrentWohnungenCount(mockSupabaseClient as any, userId);
 
     expect(result).toBe(0);
     expect(mockSupabaseClient.from).toHaveBeenCalledWith('Wohnungen');
     expect(mockSupabaseClient.select).toHaveBeenCalledWith('*', { count: 'exact', head: true });
-    expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', userId);
   });
 });
 

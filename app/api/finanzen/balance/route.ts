@@ -1,6 +1,6 @@
-export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 // Helper function to fetch all records with pagination - no limits
@@ -42,9 +42,25 @@ export async function GET(request: Request) {
     const selectedType = searchParams.get('selectedType') || '';
 
     const supabase = await createClient();
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return NextResponse.json({ 
+        totalBalance: 0,
+        totalIncome: 0,
+        totalExpenses: 0,
+        transactionCount: 0
+      }, { status: 200, headers: NO_CACHE_HEADERS });
+    }
+
     let query = supabase
       .from('Finanzen')
       .select('betrag, ist_einnahmen, name, notiz, datum, wohnung_id', { count: 'exact' });
+
+    if (wohnungIds !== null) {
+      query = query.in('wohnung_id', wohnungIds);
+    }
 
     // Apply the same filters as the main query
     if (searchQuery) {
@@ -101,6 +117,7 @@ export async function GET(request: Request) {
       transactionCount
     }, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
+    unstable_rethrow(e);
     console.error('Server error GET /api/finanzen/balance:', e);
     return NextResponse.json({ error: 'Serverfehler bei Balance-Berechnung.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

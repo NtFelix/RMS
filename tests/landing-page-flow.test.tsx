@@ -106,7 +106,7 @@ describe('Auth Flow Integration', () => {
     expect(screen.getByTestId('auth-intent')).toHaveTextContent('get-started');
     
     // Simulate clicking the close button on the modal
-    const closeButton = screen.getByRole('button', { name: /close/i });
+    const closeButton = screen.getByRole('button', { name: /schließen/i });
     await user.click(closeButton);
     
     // The AuthModalProvider should have cleared the auth intent when closing

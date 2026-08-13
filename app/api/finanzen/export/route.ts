@@ -1,6 +1,6 @@
-export const runtime = 'edge';
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET(request: Request) {
@@ -12,6 +12,20 @@ export async function GET(request: Request) {
     const selectedType = searchParams.get('selectedType');
 
     const supabase = await createClient();
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return new NextResponse('', {
+        status: 200,
+        headers: {
+          ...NO_CACHE_HEADERS,
+          'Content-Disposition': 'attachment; filename="finanzen-export.csv"',
+          'Content-Type': 'text/csv;charset=utf-8;',
+        },
+      });
+    }
+
     const BATCH_SIZE = 5000; // Increased batch size for better performance
     let allData: any[] = [];
     let offset = 0;
@@ -24,6 +38,10 @@ export async function GET(request: Request) {
     let countQuery = supabase
       .from('Finanzen')
       .select('*', { count: 'exact', head: true });
+
+    if (wohnungIds !== null) {
+      countQuery = countQuery.in('wohnung_id', wohnungIds);
+    }
 
     // If apartment filter is selected, we need to join with Wohnungen
     if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
@@ -83,6 +101,10 @@ export async function GET(request: Request) {
         .order('datum', { ascending: false })
         .range(offset, offset + BATCH_SIZE - 1);
 
+      if (wohnungIds !== null) {
+        query = query.in('wohnung_id', wohnungIds);
+      }
+
       // Apply filters
       if (selectedApartment && selectedApartment !== 'Alle Wohnungen' && apartmentData) {
         // We already have the apartment ID from the count query, so we can use it directly
@@ -139,6 +161,7 @@ export async function GET(request: Request) {
     
     return response;
   } catch (e) {
+    unstable_rethrow(e);
     console.error('Server error GET /api/finanzen/export:', e);
     return NextResponse.json({ error: 'Serverfehler beim Exportieren der Finanzen.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

@@ -1,14 +1,17 @@
-export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
+import { normalizeApartmentLimit } from '@/lib/utils/subscription';
 
 
 export async function POST(request: Request) {
   try {
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'erstellen');
+
     const supabase = await createClient();
 
     // === BEGIN NEW LOGIC ===
@@ -44,17 +47,18 @@ export async function POST(request: Request) {
           });
         }
 
-        if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-          currentApartmentLimit = planDetails.limitWohnungen;
-        } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
-          currentApartmentLimit = Infinity;
-        } else {
-          console.error(`API: Invalid limitWohnungen configuration: ${planDetails.limitWohnungen}`);
+        // Use centralized normalization: null, 0, or negative = unlimited (Infinity)
+        const normalizedLimit = normalizeApartmentLimit(planDetails.limit_wohnungen);
+        
+        if (normalizedLimit === null) {
+          console.error(`API: Invalid limit_wohnungen configuration: ${planDetails.limit_wohnungen}`);
           return NextResponse.json({ error: "Ungültige Konfiguration für Wohnungslimit in Ihrem Plan." }, { 
             status: 500,
             headers: NO_CACHE_HEADERS
           });
         }
+        
+        currentApartmentLimit = normalizedLimit;
       } catch (planError: unknown) {
         if (planError instanceof Error) {
           console.error("API: Error fetching plan details for limit enforcement:", planError.message);
@@ -75,11 +79,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // Now, count existing apartments
     const { count, error: countError } = await supabase
       .from('Wohnungen')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .select('*', { count: 'exact', head: true });
 
     if (countError) {
       console.error('API: Error counting apartments:', countError);
@@ -125,9 +127,17 @@ export async function POST(request: Request) {
         headers: NO_CACHE_HEADERS
       });
     }
+
+    if (haus_id && !(await verifyEntityInScope(haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
     const { data, error } = await supabase
       .from('Wohnungen')
-      .insert({ name, groesse, miete, haus_id, user_id: userId }) // Add user_id here
+      .insert({ name, groesse, miete, haus_id })
       .select();
     if (error) {
       console.error("Supabase Insert Error (Wohnungen):", error);
@@ -142,8 +152,9 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("POST /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Speichern der Wohnung." }, { 
-      status: 500,
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || "Serverfehler beim Speichern der Wohnung." }, { 
+      status,
       headers: NO_CACHE_HEADERS
     });
   }
@@ -151,11 +162,19 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const supabase = await createClient();
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  const accessibleIds = await getAccessibleHaeuserIds();
 
   // Join Haeuser to get house name
-  const { data: apartments, error } = await supabase
+  let q = supabase
     .from('Wohnungen')
     .select('id, name, groesse, miete, haus_id, Haeuser(name)');
+
+  if (accessibleIds !== null) {
+    q = q.in('haus_id', accessibleIds);
+  }
+
+  const { data: apartments, error } = await q;
 
   if (error) {
     console.error("Supabase Select Error (Wohnungen):", error);
@@ -166,9 +185,16 @@ export async function GET() {
   }
 
   // Get tenants to determine occupation status
-  const { data: tenants, error: tenantsError } = await supabase
+  let tenantsQuery = supabase
     .from('Mieter')
     .select('id, wohnung_id, auszug, einzug, name');
+
+  if (accessibleIds !== null && apartments) {
+    const accessibleWohnungIds = apartments.map(a => a.id);
+    tenantsQuery = tenantsQuery.in('wohnung_id', accessibleWohnungIds);
+  }
+
+  const { data: tenants, error: tenantsError } = await tenantsQuery;
 
   if (tenantsError) {
     console.error("Supabase Select Error (Mieter):", tenantsError);
@@ -187,9 +213,9 @@ export async function GET() {
     String(now.getDate()).padStart(2, '0')
   ].join('-')
 
-  const enrichedApartments = apartments.map(apt => {
+  const enrichedApartments = (apartments || []).map(apt => {
     // Find tenant for this apartment
-    const tenant = tenants.find(t => t.wohnung_id === apt.id);
+    const tenant = (tenants || []).find(t => t.wohnung_id === apt.id);
 
     // Determine if apartment is free or rented
     let status = 'frei';
@@ -220,6 +246,9 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'loeschen');
+
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -229,7 +258,25 @@ export async function DELETE(request: Request) {
         headers: NO_CACHE_HEADERS
       });
     }
-    const { error } = await supabase.from('Wohnungen').delete().match({ id });
+
+    // Check if current Wohnung is in accessible scope
+    const { data: currentApt, error: checkError } = await supabase
+      .from('Wohnungen')
+      .select('haus_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !currentApt || !(await verifyEntityInScope(currentApt.haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Wohnungen',
+      p_record_id: id,
+    });
     if (error) {
       console.error("Supabase Delete Error (Wohnungen):", error);
       return NextResponse.json({ error: error.message }, { 
@@ -243,8 +290,9 @@ export async function DELETE(request: Request) {
     });
   } catch (e) {
     console.error("DELETE /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Löschen der Wohnung." }, { 
-      status: 500,
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || "Serverfehler beim Löschen der Wohnung." }, { 
+      status,
       headers: NO_CACHE_HEADERS
     });
   }
@@ -252,6 +300,9 @@ export async function DELETE(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'bearbeiten');
+
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -268,6 +319,29 @@ export async function PUT(request: Request) {
         headers: NO_CACHE_HEADERS
       });
     }
+
+    // Check scope of existing Wohnung
+    const { data: currentApt, error: checkError } = await supabase
+      .from('Wohnungen')
+      .select('haus_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !currentApt || !(await verifyEntityInScope(currentApt.haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
+    // Check scope of new house target
+    if (haus_id && !(await verifyEntityInScope(haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
     const { data, error } = await supabase
       .from('Wohnungen')
       .update({ name, groesse, miete, haus_id })
@@ -292,8 +366,9 @@ export async function PUT(request: Request) {
     });
   } catch (e) {
     console.error("PUT /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Aktualisieren der Wohnung." }, { 
-      status: 500,
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || "Serverfehler beim Aktualisieren der Wohnung." }, { 
+      status,
       headers: NO_CACHE_HEADERS
     });
   }

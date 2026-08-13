@@ -24,9 +24,11 @@ interface TaskCardProps {
   onToggleStatus: () => void
   onEdit: (task: TaskCardTask) => void
   onTaskDeleted: (taskId: string) => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
-export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCardProps) {
+export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted, canEdit = true, canDelete = true }: TaskCardProps) {
   const statusColor =
     task.status === "Erledigt"
       ? "bg-green-50 text-green-700 hover:bg-green-50"
@@ -40,6 +42,7 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
     )
 
   const handleEditClick = () => {
+    if (!canEdit) return;
     onEdit({
       ...task,
       beschreibung: task.beschreibung || task.description,
@@ -50,7 +53,9 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleStatus();
+    if (canEdit) {
+      onToggleStatus();
+    }
   };
 
   return (
@@ -66,19 +71,22 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
       onEdit={handleEditClick}
       onStatusToggle={onToggleStatus}
       onTaskDeleted={onTaskDeleted}
+      canEdit={canEdit}
+      canDelete={canDelete}
     >
       <Card
-        className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+        className={`overflow-hidden rounded-xl shadow-md transition-all ${canEdit ? 'hover:shadow-lg cursor-pointer' : 'cursor-default'}`}
         onClick={handleEditClick}
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 pt-1">
+            <div className="shrink-0 pt-1">
               <Checkbox
                 checked={task.ist_erledigt}
                 onCheckedChange={onToggleStatus}
                 onClick={handleCheckboxClick}
                 className="h-5 w-5"
+                disabled={!canEdit}
               />
             </div>
             <div className="flex-1 min-w-0">
@@ -97,7 +105,7 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
                 <span>Geändert: {task.updatedAt}</span>
               </div>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Badge
                 variant="outline"
                 className={`${statusColor}`}

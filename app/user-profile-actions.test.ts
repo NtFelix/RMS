@@ -51,6 +51,13 @@ describe('User Profile Actions', () => {
     jest.clearAllMocks();
     process.env.STRIPE_SECRET_KEY = 'sk_test_123';
 
+    // Reset and mock auth.getUser by default to prevent cross-test contamination
+    mockSupabase.auth.getUser.mockReset();
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'test@example.com' } },
+      error: null,
+    });
+
     // Default Supabase mocks
     mockSelect.mockReturnValue({
         eq: jest.fn().mockReturnValue({

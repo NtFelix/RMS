@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useCloudStorageNavigation } from '@/hooks/use-cloud-storage-navigation'
 import { getDirectoryCache } from '@/lib/directory-cache'
 import { useToast } from '@/hooks/use-toast'
@@ -408,6 +408,7 @@ export function useFolderNavigation(userId: string) {
   const directoryCache = getDirectoryCache()
   const { toast } = useToast()
   const router = useRouter()
+  const pathname = usePathname()
   
   const pathToHref = useCallback((path: string): string => {
     const base = `user_${userId}`
@@ -426,8 +427,10 @@ export function useFolderNavigation(userId: string) {
   ) => {
     try {
       // Check if we should use client-side navigation
+      const isFilesPage = pathname ? pathname.startsWith('/dateien') : false
       const shouldUseClient = folderPath.startsWith(`user_${userId}`) && 
-                             !navigation.isNavigating
+                             !navigation.isNavigating &&
+                             isFilesPage
       
       if (shouldUseClient) {
         // Try client-side navigation first

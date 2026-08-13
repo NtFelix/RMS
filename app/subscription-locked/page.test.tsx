@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import SubscriptionLockedPage from './page';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 // Mock lucide-react icons
 jest.mock('lucide-react', () => {
   const originalModule = jest.requireActual('lucide-react');

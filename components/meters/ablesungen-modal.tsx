@@ -573,11 +573,11 @@ export function AblesungenModal() {
     const getIcon = () => {
       switch (type) {
         case "error":
-          return <X className="h-4 w-4 flex-shrink-0" />
+          return <X className="h-4 w-4 shrink-0" />
         case "warning":
-          return <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          return <AlertTriangle className="h-4 w-4 shrink-0" />
         case "info":
-          return <TrendingDown className="h-4 w-4 flex-shrink-0" />
+          return <TrendingDown className="h-4 w-4 shrink-0" />
         default:
           return null
       }
@@ -729,7 +729,7 @@ export function AblesungenModal() {
                     const consumptionChange = getConsumptionChange(index)
 
                     return (
-                      <Card key={ablesung.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
+                      <Card key={ablesung.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
                         <CardContent className="p-0">
                           <AnimatePresence mode="wait">
                             {editingId === ablesung.id ? (
@@ -902,7 +902,7 @@ export function AblesungenModal() {
                                     transition={{ duration: 0.3, delay: 0.1 }}
                                     className="flex items-start gap-2"
                                   >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                       <Gauge className="h-4 w-4 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -921,7 +921,7 @@ export function AblesungenModal() {
                                     transition={{ duration: 0.3, delay: 0.2 }}
                                     className="flex items-start gap-2"
                                   >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                       {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-4 w-4 text-muted-foreground")}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -941,7 +941,7 @@ export function AblesungenModal() {
                                     transition={{ duration: 0.3, delay: 0.3 }}
                                     className="flex items-start gap-2"
                                   >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                       {(() => {
                                         const change = getConsumptionChange(index)
                                         if (change === null) return <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -979,7 +979,7 @@ export function AblesungenModal() {
                                       className="col-span-1 sm:col-span-3 mt-1 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700"
                                     >
                                       <div className="flex items-start gap-2">
-                                        <div className="flex-shrink-0 mt-0.5">
+                                        <div className="shrink-0 mt-0.5">
                                           <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                         </div>
                                         <div className="flex-1 min-w-0">

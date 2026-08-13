@@ -112,7 +112,7 @@ export function SummaryCard({
       <Card
         className={cn(
           // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
-          "relative overflow-hidden rounded-3xl shadow-sm transition-opacity duration-200",
+          "relative overflow-hidden rounded-3xl shadow-xs transition-opacity duration-200",
           // Background color matching dashboard cards
           "bg-gray-50 dark:bg-[#22272e]",
           // sichtbare Border wie im Main-Design
@@ -164,7 +164,7 @@ export function SummaryCardSkeleton({ className }: { className?: string }) {
   return (
     <Card
       className={cn(
-        "relative overflow-hidden rounded-3xl shadow-sm transition-opacity duration-200",
+        "relative overflow-hidden rounded-3xl shadow-xs transition-opacity duration-200",
         // Background color matching dashboard cards
         "bg-gray-50 dark:bg-[#22272e]",
         // konsistent zur Hauptkarte: sichtbare Border

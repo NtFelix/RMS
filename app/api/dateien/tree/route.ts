@@ -1,8 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_rethrow } from 'next/navigation'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 interface TreeNode {
   id: string
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
   } catch (error) {
+    unstable_rethrow(error)
     console.error('Unexpected error loading folder tree:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -121,13 +122,11 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
     const { data: houses } = await supabase
       .from('Haeuser')
       .select('id, name')
-      .eq('user_id', userId)
       .order('name')
 
     const { data: apartments } = await supabase
       .from('Wohnungen')
       .select('id, name, haus_id')
-      .eq('user_id', userId)
       .order('name')
 
     const houseIds = new Set(houses?.map((h: any) => h.id) || [])
@@ -257,17 +256,14 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
     const { data: houses } = await supabase
       .from('Haeuser')
       .select('id, name')
-      .eq('user_id', userId)
 
     const { data: apartments } = await supabase
       .from('Wohnungen')
       .select('id, name, haus_id')
-      .eq('user_id', userId)
 
     const { data: tenants } = await supabase
       .from('Mieter')
       .select('id, name, wohnung_id')
-      .eq('user_id', userId)
 
     const houseIds = new Set(houses?.map((h: any) => h.id) || [])
     const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])

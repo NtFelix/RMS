@@ -4,7 +4,8 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { GoogleGenAI } from '@google/genai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { WorkerLogger, ExecutionContext } from './logger';
+import { WorkerLogger, ExecutionContext, getPostHogApiKey } from './logger';
+import { initTracing, startSpan, endSpan, flushSpans, withSpan, runWithTrace, generateTraceId, SPAN_KINDS, STATUS_CODES } from './tracing';
 import pako from 'pako';
 import { PostHog } from 'posthog-node';
 
@@ -15,6 +16,7 @@ export interface Env {
     SUPABASE_URL: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
     POSTHOG_API_KEY?: string;
+    NEXT_PUBLIC_POSTHOG_KEY?: string;
     POSTHOG_HOST?: string;
     RATE_LIMITER: unknown; // Using 'unknown' instead of 'any'
     WORKER_AUTH_KEY?: string;
@@ -547,7 +549,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
         // Initialize Gemini
         const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
         const fullPrompt = `${SYSTEM_INSTRUCTION}\n\nUser Message: ${message}\n${contextText}`;
-        logger.info('Initializing Gemini API', { model: 'gemini-2.5-flash-lite', promptLength: fullPrompt.length });
+        logger.info('Initializing Gemini API', { model: 'gemini-3.1-flash-lite-preview', promptLength: fullPrompt.length });
 
         // Retry logic with exponential backoff
         const maxRetries = 3;
@@ -560,7 +562,7 @@ export async function handleAIRequest(request: Request, env: Env, ctx: Execution
             try {
                 logger.info('Attempting AI connection', { attempt: attempt + 1, maxRetries });
                 stream = await client.models.generateContentStream({
-                    model: 'models/gemini-2.5-flash-lite',
+                    model: 'models/gemini-3.1-flash-lite-preview',
                     contents: [{ role: 'user', parts: [{ text: fullPrompt }] }]
                 });
                 logger.info('AI connection successful', { attempt: attempt + 1 });
@@ -759,7 +761,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     usage: { model: string; inputTokens?: number; outputTokens?: number; totalTokens?: number; latencyMs: number; };
 }> {
     const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-    const model = 'gemini-2.5-flash-lite'; // Latest high-speed, cost-efficient model for batch tasks
+    const model = 'gemini-3.1-flash-lite-preview'; // Latest high-speed, cost-efficient model for batch tasks
     const startTime = Date.now();
     // Using a more lightweight model strictly for JSON extraction if possible, 
     // but gemini-1.5-flash is good. 'models/gemini-2.5-flash-lite' was used in existing code.
@@ -878,7 +880,7 @@ async function analyzeApplicantWithAI(env: Env, emailContent: string): Promise<{
     let parsedResult;
     try {
         parsedResult = JSON.parse(responseText);
-    } catch (e) {
+    } catch {
         // Fallback to regex if direct parse fails (maybe markdown code blocks)
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -926,7 +928,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         const clonedReq = request.clone();
         const body = await clonedReq.json() as { user_id?: string };
         if (body.user_id) userIdForTracking = body.user_id;
-    } catch (e) {
+    } catch {
         // Ignore parsing errors for requests without a body
     }
 
@@ -960,8 +962,10 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         }
 
         // Initialize PostHog only if we have work
-        if (env.POSTHOG_API_KEY) {
-            posthog = new PostHog(env.POSTHOG_API_KEY, {
+        const posthogKey = getPostHogApiKey(env);
+
+        if (posthogKey) {
+            posthog = new PostHog(posthogKey, {
                 host: env.POSTHOG_HOST || 'https://eu.i.posthog.com',
                 flushAt: 1,
                 flushInterval: 0,
@@ -1008,6 +1012,8 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
         const aiStartTime = Date.now();
 
         if (dateipfad) {
+            // Create a child span for AI analysis (wraps the AI call + PostHog $ai_generation event)
+            const aiChildSpan = startSpan('aiAnalysis', SPAN_KINDS.INTERNAL);
             try {
                 // Download & AI with retry for rate limits
                 logger.info('Starting email download', { msgId, mailId: mail_id, dateipfad });
@@ -1030,6 +1036,20 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 // Log LLM generation to PostHog for LLM Analytics dashboard
                 if (posthog) {
                     const traceId = crypto.randomUUID();
+                    // Resolve org_id from the mail's user context
+                    let orgId = 'unknown';
+                    try {
+                        const { data: userOrgs } = await supabase
+                            .from('Organisation_Mitglieder')
+                            .select('organisation_id')
+                            .eq('user_id', userIdForTracking)
+                            .limit(1);
+                        if (userOrgs && userOrgs.length > 0) {
+                            orgId = userOrgs[0].organisation_id;
+                        }
+                    } catch {
+                        // Best-effort, default to unknown
+                    }
                     await posthog.capture({
                         distinctId: userIdForTracking, // Use the actual user if provided
                         event: '$ai_generation',
@@ -1047,6 +1067,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                             user_id: userIdForTracking,
                             mail_id: mail_id,
                             completeness_score: aiScore || 0,
+                            // Org analytics
+                            org_id: orgId,
+                            feature: 'agent',
                         }
                     });
                     // Shutdown is handled at the end of function
@@ -1059,6 +1082,7 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                     score: aiScore || 0,
                     totalProcessingMs: Date.now() - processingStartTime
                 });
+                endSpan(aiChildSpan, { code: STATUS_CODES.OK });
 
                 // Update DB with Top-Level fields for easier access/sorting
                 logger.info('Updating tenant record in database', { mailId: mail_id, msgId });
@@ -1092,6 +1116,9 @@ export async function processQueue(request: Request, env: Env, ctx: ExecutionCon
                 logger.info('Tenant record updated successfully', { mailId: mail_id, msgId });
 
             } catch (processError: unknown) {
+                if (!aiChildSpan.endTimeUnixNano) {
+                    endSpan(aiChildSpan, { code: STATUS_CODES.ERROR, message: (processError as Error).message });
+                }
                 logger.error('Queue item processing failed', {
                     msgId,
                     mailId: mail_id,
@@ -1349,8 +1376,14 @@ export async function handleFileGeneration(request: Request, env: Env, ctx: Exec
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-        const logger = new WorkerLogger(env, ctx);
+        // Initialize tracing with PostHog env vars
+        initTracing({ POSTHOG_API_KEY: env.POSTHOG_API_KEY, POSTHOG_HOST: env.POSTHOG_HOST });
+
         const requestStartTime = Date.now();
+        const url = new URL(request.url);
+        const method = request.method;
+        const pathname = url.pathname;
+        const userAgent = request.headers.get('User-Agent') || 'none';
 
         const origin = request.headers.get('Origin') || '*';
         const corsHeaders: Record<string, string> = {
@@ -1362,64 +1395,88 @@ export default {
             'Access-Control-Expose-Headers': 'X-PDF-Page-Count, X-PDF-Generation-Time',
         };
 
-        const url = new URL(request.url);
-        logger.info('Worker request received', {
-            method: request.method,
-            pathname: url.pathname,
-            userAgent: request.headers.get('User-Agent') || 'none'
-        });
+        // Run the entire request lifecycle under a single trace context
+        return runWithTrace(generateTraceId(), async () => {
+            const logger = new WorkerLogger(env, ctx);
 
-        // Handle CORS preflight requests
-        if (request.method === "OPTIONS") {
-            logger.info('CORS preflight handled', { pathname: url.pathname });
-            return new Response(null, {
-                headers: corsHeaders
-            });
-        }
+            // Create root span for the entire request
+            const rootSpan = startSpan(`${method} ${pathname}`, SPAN_KINDS.SERVER, [
+                { key: 'http.method', value: { stringValue: method } },
+                { key: 'http.url', value: { stringValue: pathname } },
+                { key: 'http.user_agent', value: { stringValue: userAgent } },
+            ]);
 
-        try {
-            // Route based on URL path first (more robust)
-            let response: Response;
-            if (url.pathname === '/ai') {
-                response = await handleAIRequest(request, env, ctx);
-            } else if (url.pathname === '/process-queue') {
-                response = await processQueue(request, env, ctx);
-            } else {
-                // Fallback to file generation logic (PDF/ZIP/CSV)
-                response = await handleFileGeneration(request, env, ctx);
+            logger.info('Worker request received', { method, pathname, userAgent });
+
+            // Handle CORS preflight requests
+            if (method === "OPTIONS") {
+                logger.info('CORS preflight handled', { pathname });
+                endSpan(rootSpan, { code: STATUS_CODES.OK });
+                logger.flush();
+                ctx.waitUntil(flushSpans());
+                return new Response(null, {
+                    headers: corsHeaders
+                });
             }
 
-            // Append CORS headers to every response
-            const newHeaders = new Headers(response.headers);
-            Object.entries(corsHeaders).forEach(([key, value]) => {
-                newHeaders.set(key, value);
-            });
+            try {
+                // Route based on URL path first (more robust)
+                let response: Response;
 
-            const duration = Date.now() - requestStartTime;
-            logger.info('Worker request completed', {
-                pathname: url.pathname,
-                status: response.status,
-                durationMs: duration
-            });
-            logger.flush();
+                // Handle simple GET/HEAD requests (health checks, root)
+                if (method === 'GET' || method === 'HEAD') {
+                    if (pathname === '/' || pathname === '/health') {
+                        response = new Response('OK', { status: 200 });
+                    } else {
+                        response = new Response('Not Found', { status: 404 });
+                    }
+                } else if (pathname === '/ai') {
+                    response = await withSpan('handleAIRequest', () => handleAIRequest(request, env, ctx), SPAN_KINDS.SERVER);
+                } else if (pathname === '/process-queue') {
+                    response = await withSpan('processQueue', () => processQueue(request, env, ctx), SPAN_KINDS.SERVER);
+                } else {
+                    // Fallback to file generation logic (PDF/ZIP/CSV)
+                    response = await withSpan('handleFileGeneration', () => handleFileGeneration(request, env, ctx), SPAN_KINDS.SERVER);
+                }
 
-            return new Response(response.body, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: newHeaders
-            });
+                // Append CORS headers to every response
+                const newHeaders = new Headers(response.headers);
+                Object.entries(corsHeaders).forEach(([key, value]) => {
+                    newHeaders.set(key, value);
+                });
 
-        } catch (error: unknown) {
-            // Re-use existing logger instance
-            logger.error('Worker request failed with unhandled error', {
-                error: (error as Error).message,
-                pathname: url.pathname,
-                method: request.method,
-                durationMs: Date.now() - requestStartTime
-            });
-            logger.flush();
+                const duration = Date.now() - requestStartTime;
+                const status = response.status;
+                logger.info('Worker request completed', {
+                    pathname, status, durationMs: duration
+                });
 
-            return new Response(`Error: ${(error as Error).message}`, { status: 500, headers: corsHeaders });
-        }
+                endSpan(rootSpan, { code: STATUS_CODES.OK });
+
+                logger.flush();
+                ctx.waitUntil(flushSpans());
+
+                return new Response(response.body, {
+                    status,
+                    statusText: response.statusText,
+                    headers: newHeaders
+                });
+
+            } catch (error: unknown) {
+                const errMsg = (error as Error).message;
+                endSpan(rootSpan, { code: STATUS_CODES.ERROR, message: errMsg });
+
+                logger.error('Worker request failed with unhandled error', {
+                    error: errMsg,
+                    pathname,
+                    method,
+                    durationMs: Date.now() - requestStartTime
+                });
+                logger.flush();
+                ctx.waitUntil(flushSpans());
+
+                return new Response(`Error: ${errMsg}`, { status: 500, headers: corsHeaders });
+            }
+        });
     },
 };

@@ -12,7 +12,7 @@
  * @see .kiro/specs/betriebskosten-performance-optimization/design.md
  */
 
-import type { Nebenkosten, Mieter, WasserZaehler, WasserAblesung, Rechnung, Finanzen } from "@/lib/types";
+import type { Nebenkosten, Mieter, Zaehler, ZaehlerAblesung, Rechnung, Finanzen } from "@/lib/types";
 
 /**
  * OptimizedNebenkosten extends the existing Nebenkosten type with calculated fields
@@ -30,7 +30,7 @@ export type OptimizedNebenkosten = {
   zaehlerkosten: Record<string, number> | null; // JSONB: { [zaehlerTyp]: cost }
   zaehlerverbrauch: Record<string, number> | null; // JSONB: { [zaehlerTyp]: usage }
   haeuser_id: string;
-  user_id: string;
+  erstellt_von: string;
 
   // Calculated fields returned by database function (not stored in tables)
   haus_name: string;
@@ -80,8 +80,8 @@ export type AbrechnungModalData = {
   nebenkosten_data: Nebenkosten;  // From existing Nebenkosten table
   tenants: Mieter[];              // From existing Mieter table
   rechnungen: Rechnung[];         // From existing Rechnungen table
-  meters: WasserZaehler[];        // From Zaehler table (generic)
-  readings: WasserAblesung[];     // From Zaehler_Ablesungen table (generic)
+  meters: Zaehler[];        // From Zaehler table (generic)
+  readings: ZaehlerAblesung[];     // From Zaehler_Ablesungen table (generic)
   actualPayments?: Finanzen[];    // Actual financial entries if in IST mode
 };
 
@@ -98,7 +98,7 @@ export type OptimizedActionResponse<T> = {
  * Parameters for the get_nebenkosten_with_metrics database function
  */
 export type GetNebenkostenWithMetricsParams = {
-  user_id: string;
+  erstellt_von: string;
 };
 
 /**
@@ -106,7 +106,7 @@ export type GetNebenkostenWithMetricsParams = {
  */
 export type GetMeterModalDataParams = {
   nebenkosten_id: string;
-  user_id: string;
+  erstellt_von: string;
   meter_types?: string[];
 };
 
@@ -115,7 +115,7 @@ export type GetMeterModalDataParams = {
  */
 export type GetAbrechnungModalDataParams = {
   nebenkosten_id: string;
-  user_id: string;
+  erstellt_von: string;
 };
 
 /**

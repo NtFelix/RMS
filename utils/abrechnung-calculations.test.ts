@@ -19,9 +19,13 @@ import {
 import { getTenantMeterCost } from './water-cost-calculations';
 
 // Mock dependencies
-jest.mock('./date-calculations', () => ({
-  calculateTenantOccupancy: jest.fn()
-}));
+jest.mock('./date-calculations', () => {
+  const actual = jest.requireActual('./date-calculations');
+  return {
+    ...actual,
+    calculateTenantOccupancy: jest.fn()
+  };
+});
 
 jest.mock('./cost-calculations', () => ({
   calculateProFlächeDistribution: jest.fn(),
@@ -234,7 +238,7 @@ describe('abrechnung-calculations', () => {
       ist_einnahmen: true,
       name: 'Nebenkosten',
       notiz: null,
-      user_id: 'u1',
+      erstellt_von: 'u1',
       dokument_id: null,
       tags: ['Nebenkosten']
     } as Finanzen);
@@ -303,7 +307,7 @@ describe('abrechnung-calculations', () => {
       ist_einnahmen: true,
       name: 'Nebenkosten',
       notiz: null,
-      user_id: 'u1',
+      erstellt_von: 'u1',
       dokument_id: null,
       tags: ['Nebenkosten']
     } as Finanzen);

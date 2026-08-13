@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { TemplatePayload } from "@/types/template";
@@ -21,7 +20,6 @@ export async function GET() {
     const { data, error } = await supabase
       .from('Vorlagen')
       .select('*')
-      .eq('user_id', user.id)
       .order('aktualisiert_am', { ascending: false });
 
     if (error) {
@@ -123,7 +121,6 @@ export async function POST(request: Request) {
       inhalt: templateData.inhalt,
       kategorie: templateData.kategorie,
       kontext_anforderungen: templateData.kontext_anforderungen || [],
-      user_id: user.id
     };
 
 

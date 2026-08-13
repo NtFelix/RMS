@@ -56,6 +56,8 @@ interface FinanceTableProps {
   isLoading?: boolean;
   error?: string | null;
   loadFinances?: () => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -82,7 +84,9 @@ export function FinanceTable({
   hasMore = false,
   isLoading = false,
   error = null,
-  loadFinances
+  loadFinances,
+  canEdit = true,
+  canDelete = true,
 }: FinanceTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -106,7 +110,7 @@ export function FinanceTable({
     if (observer.current) observer.current.disconnect()
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
-        loadFinances && loadFinances()
+        loadFinances?.()
       }
     })
     if (node) observer.current.observe(node)
@@ -405,7 +409,7 @@ export function FinanceTable({
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                 <TableHead className="w-12 pl-0 pr-0 -ml-2">
                   <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox
@@ -486,6 +490,8 @@ export function FinanceTable({
                       finance={finance}
                       onEdit={() => onEdit?.(finance)}
                       onRefresh={onRefresh} // Pass the onRefresh prop here
+                      canEdit={canEdit}
+                      canDelete={canDelete}
                     >
                       <TableRow
                         ref={isLastElement ? lastTransactionElementRef : (el) => {
@@ -499,7 +505,7 @@ export function FinanceTable({
                           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                           }`}
-                        onClick={() => onEdit?.(finance)}
+                        onClick={() => canEdit ? onEdit?.(finance) : undefined}
                       >
                         <TableCell
                           className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -512,7 +518,7 @@ export function FinanceTable({
                           />
                         </TableCell>
                         <TableCell className={`font-medium py-4 dark:text-[#f3f4f6] flex items-center gap-3`}>
-                          <Avatar className="h-9 w-9 flex-shrink-0 bg-primary text-primary-foreground">
+                          <Avatar className="h-9 w-9 shrink-0 bg-primary text-primary-foreground">
                             <AvatarImage src="" alt={finance.name} />
                             <AvatarFallback className="bg-primary text-primary-foreground">
                               {getInitials(finance.name)}
@@ -521,7 +527,7 @@ export function FinanceTable({
                           <span>{finance.name}</span>
                           {finance.dokument_id && (
                             <span title="Dokument angehängt">
-                              <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                             </span>
                           )}
                         </TableCell>
@@ -555,6 +561,8 @@ export function FinanceTable({
                                 label: "Bearbeiten",
                                 onClick: () => onEdit?.(finance),
                                 variant: 'primary',
+                                disabled: !canEdit,
+                                tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
                               },
                               {
                                 id: `toggle-status-${finance.id}`,
@@ -562,6 +570,8 @@ export function FinanceTable({
                                 label: finance.ist_einnahmen ? "Als Ausgabe markieren" : "Als Einnahme markieren",
                                 onClick: () => handleToggleStatus(finance),
                                 variant: 'default',
+                                disabled: !canEdit,
+                                tooltip: !canEdit ? "Keine Berechtigung" : undefined,
                               },
                               {
                                 id: `more-${finance.id}`,

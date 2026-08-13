@@ -24,6 +24,7 @@ export function MailPreviewModal() {
     useEffect(() => {
         const getUserId = async () => {
             const supabase = createClient();
+            if (!supabase || !supabase.auth) return;
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setUserId(user.id);

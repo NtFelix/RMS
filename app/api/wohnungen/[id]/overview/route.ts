@@ -1,7 +1,7 @@
-export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createRequestLogger } from "@/utils/logger";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 interface WohnungWithMieter {
   id: string;
@@ -45,7 +45,7 @@ export async function GET(
     if (!wohnungId || wohnungId.trim() === '') {
       return NextResponse.json(
         { error: "Wohnungs-ID ist erforderlich." },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -54,7 +54,7 @@ export async function GET(
     if (!uuidRegex.test(wohnungId)) {
       return NextResponse.json(
         { error: "Ungültige Wohnungs-ID Format." },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -79,16 +79,24 @@ export async function GET(
         errorCode: wohnungError.code,
         details: wohnungError.details
       });
-      
+
       if (wohnungError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Wohnung nicht gefunden." },
-          { status: 404 }
+          { status: 404, headers: NO_CACHE_HEADERS }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (wohnungData.haus_id && !(await verifyEntityInScope(wohnungData.haus_id))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { status: 403, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -106,10 +114,10 @@ export async function GET(
         errorCode: mieterError.code,
         details: mieterError.details
       });
-      
+
       return NextResponse.json(
         { error: "Fehler beim Laden der Mieterdaten." },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -173,7 +181,7 @@ export async function GET(
       mieter
     };
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     const logger = createRequestLogger(request);
@@ -183,7 +191,7 @@ export async function GET(
     
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Wohnungsübersicht." },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

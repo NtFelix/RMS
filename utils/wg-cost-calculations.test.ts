@@ -13,7 +13,7 @@ describe('wg-cost-calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-123',
+    erstellt_von: 'user-123',
     ...overrides
   });
 

@@ -1,0 +1,94 @@
+version: 1
+config:
+    api: https://eu.posthog.com
+    team: '76914'
+    repo: f63cdd2e-ce5d-40ed-9d64-f49fafb448bc
+snapshots:
+    chromium-agb-dark:
+        hash: v1.k04ffa068.35e8971cb8bbafd8f9ab0770750332ad36e139546af3f30e5ef780e97120b627.u0eR-pmQLb7519KzdeeS5KO_7lmPrGm-sgqrSSXiUzw
+    chromium-agb-light:
+        hash: v1.k04ffa068.5724aa1586fd2a30aab3491d4c0e0a642866c41b5a79d9ea448c201393ddbddb.4fL3wyfr8IUhTpEjmbDqekRaDVK1Xjci5naW4CT_1r0
+    chromium-dashboard-betriebskosten-dark:
+        hash: v1.k04ffa068.ca428ec3c559c7244124ea44e8c3b00e9fa60f7ca84402a9eefd187981f6fb85.hzK3T7Mg6ltpDs_Gxi_W6avkzEDMxCA1QmS_hU5VTMw
+    chromium-dashboard-betriebskosten-light:
+        hash: v1.k04ffa068.f8c9a3c3648b7ed6bc1d06e7aa97b0adc5f0220e5e21a6f38da48a9a742867ae.8Pjg3dUT5FHuzx09TqdTaWFbpQxGNqzcAVlrT81OA-M
+    chromium-dashboard-dashboard-dark:
+        hash: v1.k04ffa068.3168053d454149e5e30afc364fe176b4f647c258f3e4bee8fdf754ffe67e5dc8.U7ys_KVbeMUdfeMDJuptA7lTelGUclXzk_RUxNwtl90
+    chromium-dashboard-dashboard-light:
+        hash: v1.k04ffa068.a4c3540eb1cce59854e1a2f646f7709905415f67a217c39c1bcd6ad077ebfc2a.FCvwBUnYOkjm5906FWBFsufN-BhdF22nA3R4DrLV_0o
+    chromium-dashboard-dateien-dark:
+        hash: v1.k04ffa068.3050e13ea0089773753a24702490a966638dab805f038d43945ea713f63ee001.mpJ_OLYPq2hVlsxhNKwzbt654qT7lLCtekKq_8QrFzo
+    chromium-dashboard-dateien-light:
+        hash: v1.k04ffa068.da843a186c574e85240d2479b7bf3a1010770e3c33271459177f690347fe9ffa.BNT-bDLeIzy8_lXDXQ8rRCF_eGrbWpq--6Fv-6uKbnw
+    chromium-dashboard-finanzen-dark:
+        hash: v1.k04ffa068.fd9f088d0b158ad34ecca3baa5f7eee081ac050d57516fb137e6611250b20b68.U9HIsUySkfwQBsj-7XvkAEWlMNSgaU_BssZmvECiVco
+    chromium-dashboard-finanzen-light:
+        hash: v1.k04ffa068.5669628b29483ca57cc8471318de656027c6fb4241b1f009cc39cc85a9773345.WCAy-f4XByWHL8msC7h0rg6_ofchgf0VrYXHuqiC5GA
+    chromium-dashboard-haeuser-dark:
+        hash: v1.k04ffa068.d30e376a9c22acfc26b9c77a67c67f1d3271fa4b308ecc66b24b12a588c61f13.yGXRXhua0QcfIzV4Ax-cmRa-EszBqhaTZKKIjS8Aj3w
+    chromium-dashboard-haeuser-light:
+        hash: v1.k04ffa068.2beb1a01bb3b7d1401727f0add6c041f7703ac270219db17366fb6a58bae38c5.cbooXsLlPShUR5pHnvBBeejNnL-1KpY9i3V6UZU2yuk
+    chromium-dashboard-mails-dark:
+        hash: v1.k04ffa068.f4d0d78509ab95140e54539b610b6225f3cf3e6f54d89c836b5525e92fba8009.p0-65_OrSmOyogxsBLrdisEc-LGdFrfm5U5tMh6RL3g
+    chromium-dashboard-mails-light:
+        hash: v1.k04ffa068.89df8ccfa16851bd52b59ba6e275409cc0df234b6ed2b6e4a025900d3e5143f1.ktPphA50BnmDKoU9uZwm6uwTYVUSEbep1qy7lFBAQbs
+    chromium-dashboard-mieter-dark:
+        hash: v1.k04ffa068.f0a30b1a8bb2d4163509f00e4ce384fa79285356309208449224372f301c7033.byspjl4x_zeCOsSnKW3UcKuC0Zmz5XKbr1LUIPgznW4
+    chromium-dashboard-mieter-light:
+        hash: v1.k04ffa068.aaf392dfbf3fd87974d9b25d8169e6c2d620fc8adccca35892ac9dd46ccf6013.j8jqsaxa8JSIWqjPpjpKL_VP1xvDLIbaoODYiv8X9Iw
+    chromium-dashboard-todos-dark:
+        hash: v1.k04ffa068.4073974c9d66d1621dbc3029dac475560145b777f4145f3a97bde50477f7c604.ig4EIiTm_VyWIOQJzXciNChvrsJQ1l-dLGKUYMu_OvA
+    chromium-dashboard-todos-light:
+        hash: v1.k04ffa068.9b3178502c92b7868d393e8d837876ac80414659d016476f158e362abcb04d32.Phqu2R52SXpQPBtkevq84OTZhrDU0DVQuG9QH8nUnuY
+    chromium-dashboard-wohnungen-dark:
+        hash: v1.k04ffa068.cb341752f97a41e3a88f091b8fcf44b29bb93e0faba683249bf5b24f9fe78782.63M5ZWHDYFWpT8cBQEgB3SuSJ7fafYaq-JH1fcMk3L8
+    chromium-dashboard-wohnungen-light:
+        hash: v1.k04ffa068.e61da7ce8ecdc9dc115de36f389dfb7cb74ece6b9685ca3d00258e4902d95364.JRLfHQukm3uu-JKNtuCfwCudbxwmt_ZQy1dnqdJVHjk
+    chromium-datenschutz-dark:
+        hash: v1.k04ffa068.f660c7a461ed650104337e49ca95625355a3cdf7529200bcbcaf542834dde1ce.rhIo6baS9yOSt4t5AenyeZDmfYWiTKDsjYo2BsvkAxQ
+    chromium-datenschutz-light:
+        hash: v1.k04ffa068.9fdf9a27b00e4c0ba974c47e9b671ba3517b04b9cc1f36878f3d34fefdf67bd0.d2coGO94KvElDDQfPZaSvWxMEfNeCuJw7vPQo1B6zpM
+    chromium-funktionen-betriebskosten-dark:
+        hash: v1.k04ffa068.0d36b4ac6ce02fe6915e3dd5c4e6075ef11e6df82a9b076233e2de5770c6dde6.bxJSKDaQMhq5G1S3E8zYNMJ8YCP2fMYGcYErSiZKyok
+    chromium-funktionen-betriebskosten-light:
+        hash: v1.k04ffa068.2d33bb220548f08505422ab1f95ed5866be2bb796453d748492b5ad5242ee077.Pa22YUCF4eVE4ZaoxAEcQHclH8dChk-sRfWVOGSezas
+    chromium-funktionen-finanzverwaltung-dark:
+        hash: v1.k04ffa068.43405f93299c64dee62a647e1d62c61eea76c8c3ff92a4029dbeb4a42907b5bf.JaxEOCkAwyWCU0IcrpiPVKy4Go-1AT-FJh79zf4uIek
+    chromium-funktionen-finanzverwaltung-light:
+        hash: v1.k04ffa068.f7225348548ca33f137cb00aee1ff15f93817e97072aed2701b58d4c8db71e8e.wGj4Cl847wmANrstw3BPxR4MMRjBSVz0QfS_mfB4exw
+    chromium-funktionen-wohnungsverwaltung-dark:
+        hash: v1.k04ffa068.485b0aaf559f921b9fa78a32053d9b1052650e0630a45345a42252d3089aa5b0.zpQWhGpOYC2FySaWTDENgSGGkzMDPiBZGm-pnw1QmW8
+    chromium-funktionen-wohnungsverwaltung-light:
+        hash: v1.k04ffa068.66f108e0631a940b7cdc9e4439a9892b0dfa90a8607eb712d68ee5803c0cca20.dE0cN71ozISyXp11hfGNcAK3miqa1Bx30u74KMbZUcc
+    chromium-impressum-dark:
+        hash: v1.k04ffa068.c763f68976df0e107e7fd848d8b702276d78029a32d49391bc992cca3c0cedfc.kJBC2VUlskXZ-U6JwX4Af8LUjwb8hRpU31cenE5Cegs
+    chromium-impressum-light:
+        hash: v1.k04ffa068.02e0e45b93144a590b54b87084d09350465e4cc4168a27edbd33e2da7830911c.DMCLR7FF9RyX3MAJbptTjKEO2iCa-zM-1pX8MHY7iS4
+    chromium-landing-dark:
+        hash: v1.k04ffa068.60f0621d78f57b7a0f5a2c18bfb867aaa1d8b8c236d1a6f92f405847c70df2b7.5bPA0W7LCEllMFEj8Km_-24oYHGbwsQM0zzT-SzPB1k
+    chromium-landing-light:
+        hash: v1.k04ffa068.f44e878d95237fb06e4af662759c977dc23c3a17eb0e6362ab70472f89c1e830.jWFJ96GddKe8pS7mABf41DAyJDPAubssb5G0bu21uE4
+    chromium-loesungen-grosse-hausverwaltungen-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.KB6jWRNuZk-mgiYAzquElIe5Di5WkewGkIeEw-jXwBw
+    chromium-loesungen-grosse-hausverwaltungen-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.75J83na5QwfvKWr8K2_nKKBOH6Bk1Aa4v95mNyS7Pgw
+    chromium-loesungen-kleine-mittlere-hausverwaltungen-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.Z2h-J0oorVDO0OGglSddu8myThdcHexyDXhyJ_gXi1w
+    chromium-loesungen-kleine-mittlere-hausverwaltungen-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.GgRCVH0y3HcpoBMB9feQLqX50pDxZz80-gnNIJd-Rf8
+    chromium-loesungen-privatvermieter-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.ajsessN7jK7rBYMyj7OlOxHD8ZREjyB8YhAVWRzM25k
+    chromium-loesungen-privatvermieter-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.cToRvKUeXUgYxGtA37BI-jqL8LEB_vmXnbKrI4J8n9Y
+    chromium-preise-dark:
+        hash: v1.k04ffa068.c3b773d69dcb7abb81750c4a91610a231765554e1f441cd07beaf1e96fad0504.fHwd0PnkyPkthGtoxqR2bxFf1R3zyq5_Va2hJMuO4D0
+    chromium-preise-light:
+        hash: v1.k04ffa068.3b4c3588e0128793e42b43a7b89f9e341195902109990d1c0371606db97905aa.Aa4wp0SQq49DTc4qpwdP-t3Jq2SAcMx8zOQuk9-WqII
+    chromium-warteliste-browser-erweiterung-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.30QNk91198dg0szqCq4YmmJlWzdtV3L_65-tFSxQbMw
+    chromium-warteliste-browser-erweiterung-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.NCsOfzvIgrKKoWe2w3rR4NXA4t0OMhv01jggL8lGAe0
+    chromium-warteliste-mobile-app-dark:
+        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.GzRIOTwjuRWAXUSbxBwSOsZNHpY2ri__GcHQO6jlngk
+    chromium-warteliste-mobile-app-light:
+        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.kBTiZYvtrPjOe8h9O00fMwI-fOL6lJhjAePl5mzeS-c

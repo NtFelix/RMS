@@ -138,7 +138,7 @@ describe('FinanceEditModal', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
 
       expect(screen.getByDisplayValue('Test Transaction')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('100.5')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('100,5')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Test note')).toBeInTheDocument();
     });
 
@@ -174,7 +174,7 @@ describe('FinanceEditModal', () => {
       const betragInput = screen.getByLabelText('Betrag (€)');
       await user.type(betragInput, '150.75');
 
-      expect(betragInput).toHaveValue(150.75);
+      expect(betragInput).toHaveValue('150,75');
       expect(mockSetFinanceModalDirty).toHaveBeenCalledWith(true);
     });
 

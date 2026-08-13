@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 export async function POST(request: NextRequest) {
   try {
@@ -114,7 +113,6 @@ export async function POST(request: NextRequest) {
         })
         .eq('dateipfad', filePath)
         .eq('dateiname', fileName)
-        .eq('user_id', user.id)
 
       if (dbUpdateError) {
         throw dbUpdateError

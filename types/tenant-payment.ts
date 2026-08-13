@@ -28,9 +28,9 @@ export type MieterData = {
     einzug: string | null
     auszug: string | null
     nebenkosten?: NebenkostenEntry[] | null
-    Wohnungen: {
+    Wohnungen?: {
         id: string
         name: string
         miete: number
-    }
+    } | null
 }

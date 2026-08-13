@@ -72,7 +72,7 @@ export default function DatenschutzPage() {
     <div className="w-full bg-background pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-4xl">
 
-        <div className="prose dark:prose-invert max-w-none bg-card p-8 rounded-lg shadow-sm">
+        <div className="prose dark:prose-invert max-w-none bg-card p-8 rounded-lg shadow-xs">
           <h1 className="text-3xl font-bold mb-2">Datenschutzerklärung</h1>
           <p className="text-muted-foreground italic mb-8">Letzte Aktualisierung: 27. Juli 2025</p>
 

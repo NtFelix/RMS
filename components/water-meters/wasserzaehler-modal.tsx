@@ -450,7 +450,7 @@ export function WasserzaehlerModal() {
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 py-4">
           {/* General Date Picker */}
           {formData.length > 0 && (
-            <div className="p-4 border rounded-3xl space-y-3 bg-white dark:bg-zinc-900 shadow-sm">
+            <div className="p-4 border rounded-3xl space-y-3 bg-white dark:bg-zinc-900 shadow-xs">
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                 <Label htmlFor="general-date-picker" className="text-sm font-medium">
@@ -567,7 +567,7 @@ export function WasserzaehlerModal() {
               groupedEntries.map(([wohnungName, entries]) => (
                 <div key={wohnungName} className="space-y-3">
                   {/* Apartment Group Header */}
-                  <div className="p-4 border rounded-3xl mb-4 bg-white dark:bg-zinc-900 shadow-sm">
+                  <div className="p-4 border rounded-3xl mb-4 bg-white dark:bg-zinc-900 shadow-xs">
                     <div className="flex justify-between items-start">
                       <div className="flex items-start gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground mt-1" />

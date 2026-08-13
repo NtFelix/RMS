@@ -5,12 +5,26 @@ import { usePathname } from 'next/navigation';
 import Navigation from './navigation';
 import { createClient } from '@/utils/supabase/client';
 
+import { useIsOverflowing } from '@/hooks/use-responsive';
+
 // Mock dependencies
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  prefetch: jest.fn(),
+  refresh: jest.fn(),
+};
+
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
+  useRouter: () => mockRouter,
 }));
 
 jest.mock('@/utils/supabase/client');
+
+jest.mock('@/hooks/use-responsive', () => ({
+  useIsOverflowing: jest.fn(),
+}));
 
 jest.mock('next/link', () => {
   return function MockLink({ href, children, ...props }: any) {
@@ -47,8 +61,8 @@ jest.mock('@/components/ui/pill-container', () => ({
 jest.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: any) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect }: any) => (
-    <button onClick={onSelect}>{children}</button>
+  DropdownMenuItem: ({ children, onSelect, onClick }: any) => (
+    <div onClick={onSelect || onClick} role="menuitem" tabIndex={0}>{children}</div>
   ),
   DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
   DropdownMenuSeparator: () => <hr />,
@@ -65,8 +79,22 @@ const mockSupabaseClient = {
 describe('Navigation - Jetzt loslegen Feature', () => {
   const mockOnLogin = jest.fn();
 
+  const setMobile = (isMobile: boolean) => {
+    (useIsOverflowing as jest.Mock).mockReturnValue({
+      ref: { current: null },
+      isOverflowing: isMobile,
+    });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: isMobile ? 500 : 1024,
+    });
+    window.dispatchEvent(new Event('resize'));
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    setMobile(false); // Default to desktop
     (usePathname as jest.Mock).mockReturnValue('/');
     (createClient as jest.Mock).mockReturnValue(mockSupabaseClient);
     
@@ -108,46 +136,12 @@ describe('Navigation - Jetzt loslegen Feature', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
       await waitFor(() => {
-        expect(screen.getByAltText('User avatar')).toBeInTheDocument();
+        expect(screen.getAllByAltText('test@example.com')[0]).toBeInTheDocument();
       });
     });
   });
 
   describe('Login Button Behavior', () => {
-    it('clears auth intent when login button is clicked', async () => {
-      const user = userEvent.setup();
-      render(<Navigation onLogin={mockOnLogin} />);
-
-      await waitFor(() => {
-        const loginButton = screen.getByText('Anmelden');
-        return user.click(loginButton);
-      });
-
-      expect(window.sessionStorage.removeItem).toHaveBeenCalledWith('authIntent');
-      expect(mockOnLogin).toHaveBeenCalled();
-    });
-
-    it('handles sessionStorage errors when clearing auth intent', async () => {
-      const user = userEvent.setup();
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
-      (window.sessionStorage.removeItem as jest.Mock).mockImplementation(() => {
-        throw new Error('SessionStorage not available');
-      });
-
-      render(<Navigation onLogin={mockOnLogin} />);
-
-      await waitFor(() => {
-        const loginButton = screen.getByText('Anmelden');
-        return user.click(loginButton);
-      });
-
-      expect(consoleSpy).toHaveBeenCalledWith('SessionStorage not available');
-      expect(mockOnLogin).toHaveBeenCalled();
-      
-      consoleSpy.mockRestore();
-    });
-
     it('calls onLogin prop when provided', async () => {
       const user = userEvent.setup();
       render(<Navigation onLogin={mockOnLogin} />);
@@ -160,7 +154,7 @@ describe('Navigation - Jetzt loslegen Feature', () => {
       expect(mockOnLogin).toHaveBeenCalled();
     });
 
-    it('works without onLogin prop', async () => {
+    it('routes to /auth/login when onLogin prop is not provided', async () => {
       const user = userEvent.setup();
       render(<Navigation />);
 
@@ -169,13 +163,25 @@ describe('Navigation - Jetzt loslegen Feature', () => {
         return user.click(loginButton);
       });
 
-      // Should not throw error
-      expect(window.sessionStorage.removeItem).toHaveBeenCalledWith('authIntent');
+      expect(mockRouter.push).toHaveBeenCalledWith('/auth/login');
+    });
+
+    it('routes to /auth/register when register button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<Navigation />);
+
+      await waitFor(() => {
+        const registerButton = screen.getByText('Kostenlos testen');
+        return user.click(registerButton);
+      });
+
+      expect(mockRouter.push).toHaveBeenCalledWith('/auth/register');
     });
   });
 
   describe('Logout Functionality', () => {
-    it('handles logout successfully', async () => {
+
+    it('handles logout successfully and redirects using replace', async () => {
       const user = userEvent.setup();
       const mockUser = { 
         id: '123', 
@@ -189,16 +195,21 @@ describe('Navigation - Jetzt loslegen Feature', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Abmelden')).toBeInTheDocument();
+        expect(screen.getByText('Mein Konto')).toBeInTheDocument();
       });
+
+      // Open the dropdown first
+      const accountButton = screen.getByText('Mein Konto');
+      await user.click(accountButton);
 
       const logoutButton = screen.getByText('Abmelden');
       await user.click(logoutButton);
 
       expect(mockSupabaseClient.auth.signOut).toHaveBeenCalled();
+      expect(window.location.replace).toHaveBeenCalledWith('/');
     });
 
-    it('handles logout errors', async () => {
+    it('handles logout errors and still redirects using replace', async () => {
       const user = userEvent.setup();
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       const mockUser = { 
@@ -215,54 +226,37 @@ describe('Navigation - Jetzt loslegen Feature', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Abmelden')).toBeInTheDocument();
+        expect(screen.getByText('Mein Konto')).toBeInTheDocument();
       });
+
+      // Open the dropdown first
+      const accountButton = screen.getByText('Mein Konto');
+      await user.click(accountButton);
 
       const logoutButton = screen.getByText('Abmelden');
       await user.click(logoutButton);
 
       expect(consoleSpy).toHaveBeenCalledWith('Error logging out:', 'Logout failed');
+      expect(window.location.replace).toHaveBeenCalledWith('/');
       consoleSpy.mockRestore();
     });
   });
 
   describe('Navigation Items', () => {
-    it('renders navigation items on homepage', () => {
+    it('renders navigation items', () => {
       (usePathname as jest.Mock).mockReturnValue('/');
       render(<Navigation onLogin={mockOnLogin} />);
 
-      expect(screen.getByText('Startseite')).toBeInTheDocument();
-      expect(screen.getByText('Funktionen')).toBeInTheDocument();
-      expect(screen.getByText('Preise')).toBeInTheDocument();
-    });
-
-    it('renders home link on other pages', () => {
-      (usePathname as jest.Mock).mockReturnValue('/other-page');
-      render(<Navigation onLogin={mockOnLogin} />);
-
-      expect(screen.getByText('Startseite')).toBeInTheDocument();
-    });
-
-    it('handles navigation clicks with smooth scroll', async () => {
-      const user = userEvent.setup();
-      const mockScrollIntoView = jest.fn();
-      
-      // Mock querySelector and scrollIntoView
-      const mockElement = { scrollIntoView: mockScrollIntoView };
-      jest.spyOn(document, 'querySelector').mockReturnValue(mockElement as any);
-
-      (usePathname as jest.Mock).mockReturnValue('/');
-      render(<Navigation onLogin={mockOnLogin} />);
-
-      const featuresButton = screen.getByText('Funktionen');
-      await user.click(featuresButton);
-
-      expect(document.querySelector).toHaveBeenCalledWith('#features');
-      expect(mockScrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
+      expect(screen.getAllByText(/Funktionen/)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/Preise/)[0]).toBeInTheDocument();
     });
   });
 
   describe('Mobile Navigation', () => {
+    beforeEach(() => {
+      setMobile(true);
+    });
+
     it('opens mobile menu when menu button is clicked', async () => {
       const user = userEvent.setup();
       render(<Navigation onLogin={mockOnLogin} />);
@@ -305,8 +299,8 @@ describe('Navigation - Jetzt loslegen Feature', () => {
     it('renders brand logo with correct text', () => {
       render(<Navigation onLogin={mockOnLogin} />);
 
-      expect(screen.getAllByText('Immobilien')).toHaveLength(2); // Mobile and desktop versions
-      expect(screen.getAllByText('Verwalter')).toHaveLength(2); // Mobile and desktop versions
+      expect(screen.getAllByText('Miet')).toHaveLength(1);
+      expect(screen.getAllByText('evo')).toHaveLength(1);
     });
 
     it('renders brand logo as link to home', () => {
@@ -320,13 +314,15 @@ describe('Navigation - Jetzt loslegen Feature', () => {
 
   describe('Responsive Behavior', () => {
     it('renders desktop navigation elements', () => {
+      setMobile(false);
       render(<Navigation onLogin={mockOnLogin} />);
 
-      // Desktop elements should be present (mobile menu, desktop logo, nav, auth)
-      expect(screen.getAllByTestId('pill-container')).toHaveLength(4);
+      // Desktop elements should be present (desktop nav has 1 wrapper)
+      expect(screen.getAllByTestId('pill-container')).toHaveLength(1);
     });
 
     it('renders mobile navigation elements', () => {
+      setMobile(true);
       render(<Navigation onLogin={mockOnLogin} />);
 
       // Mobile menu button should be present

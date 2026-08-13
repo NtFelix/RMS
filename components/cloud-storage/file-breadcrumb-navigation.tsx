@@ -85,7 +85,7 @@ export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNa
                   aria-current="page"
                   data-active-directory={isDirectoryActive(breadcrumb.path)}
                 >
-                  {Icon && <span className="flex-shrink-0">{Icon}</span>}
+                  {Icon && <span className="shrink-0">{Icon}</span>}
                   <span className="truncate max-w-[150px] sm:max-w-[200px]">
                     {breadcrumb.name}
                   </span>
@@ -104,7 +104,7 @@ export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNa
                   disabled={isNavigating}
                   aria-current={isDirectoryActive(breadcrumb.path) ? "page" : undefined}
                 >
-                  {Icon && <span className="flex-shrink-0">{Icon}</span>}
+                  {Icon && <span className="shrink-0">{Icon}</span>}
                   <span className="truncate max-w-[150px] sm:max-w-[200px]">
                     {breadcrumb.name}
                   </span>

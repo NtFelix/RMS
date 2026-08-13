@@ -1,11 +1,20 @@
 import { MetadataRoute } from 'next'
 import { ROUTES } from '@/lib/constants'
 
-// Required for Cloudflare Pages deployment
-export const runtime = 'edge'
 
 export default function robots(): MetadataRoute.Robots {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
+
+    if (process.env.ROBOTS_INDEXING === 'false') {
+        return {
+            rules: [
+                {
+                    userAgent: '*',
+                    disallow: '/',
+                },
+            ],
+        }
+    }
 
     return {
         rules: [
@@ -23,8 +32,9 @@ export default function robots(): MetadataRoute.Robots {
                     '/auth/verify-email/',
                     '/auth/update-password/',
                     '/auth/callback/',
-                    // Private dashboard pages
+                    // Private dashboard & settings pages - keep out of search
                     `${ROUTES.HOME}/`,
+                    `${ROUTES.SETTINGS}/`,
                     '/haeuser/',
                     '/wohnungen/',
                     '/mieter/',

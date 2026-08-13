@@ -55,6 +55,9 @@ interface ApartmentTableProps {
   initialApartments?: Apartment[]
   selectedApartments?: Set<string>
   onSelectionChange?: (selected: Set<string>) => void
+  canEdit?: boolean
+  canDelete?: boolean
+  canViewMeters?: boolean
 }
 
 // --- Sub-components ---
@@ -85,7 +88,7 @@ const TableHeaderCell = ({
           onClick={() => onSort?.(sortKey)}
           type="button"
           className={cn(
-            "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm w-full text-left font-semibold",
+            "flex items-center gap-2 p-2 -ml-2 dark:text-[#f3f4f6] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm w-full text-left font-semibold",
             "cursor-pointer"
           )}
         >
@@ -108,9 +111,10 @@ interface ApartmentBulkActionsProps {
   onClearSelection: () => void;
   onExport: () => void;
   onDeleteConfirm: () => void;
+  canDelete?: boolean;
 }
 
-const ApartmentBulkActions = ({ selectedCount, onClearSelection, onExport, onDeleteConfirm }: ApartmentBulkActionsProps) => (
+const ApartmentBulkActions = ({ selectedCount, onClearSelection, onExport, onDeleteConfirm, canDelete = true }: ApartmentBulkActionsProps) => (
   <div className="mb-4 p-4 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-lg flex items-center justify-between animate-in slide-in-from-top-2 duration-200">
     <div className="flex items-center gap-3">
       <div className="flex items-center gap-2">
@@ -146,6 +150,7 @@ const ApartmentBulkActions = ({ selectedCount, onClearSelection, onExport, onDel
         variant="outline"
         size="sm"
         onClick={onDeleteConfirm}
+        disabled={!canDelete}
         className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
       >
         <Trash2 className="h-4 w-4" />
@@ -164,9 +169,12 @@ interface ApartmentTableRowProps {
   onEdit?: (apt: Apartment) => void;
   onRefresh?: () => void | Promise<void>;
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
-const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, onSelect, onEdit, onRefresh, contextMenuRefs }: ApartmentTableRowProps) => (
+const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, onSelect, onEdit, onRefresh, contextMenuRefs, canEdit = true, canDelete = true, canViewMeters = true }: ApartmentTableRowProps) => (
   <ApartmentContextMenu
     key={apt.id}
     apartment={apt}
@@ -174,6 +182,9 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
     onRefresh={() => {
       if (onRefresh) onRefresh();
     }}
+    canEdit={canEdit}
+    canDelete={canDelete}
+    canViewMeters={canViewMeters}
   >
     <TableRow
       ref={(el) => {
@@ -184,7 +195,7 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
         ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
         : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
         }`}
-      onClick={() => onEdit?.(apt)}
+      onClick={() => canEdit ? onEdit?.(apt) : undefined}
     >
       <TableCell
         className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -223,9 +234,11 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
               icon: Pencil,
               label: "Bearbeiten",
               onClick: () => onEdit?.(apt),
-              variant: 'primary',
+              variant: 'primary' as const,
+              disabled: !canEdit,
+              tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
             },
-            {
+            ...(canViewMeters ? [{
               id: `meter-${apt.id}`,
               icon: Gauge,
               label: "Zähler verwalten",
@@ -233,8 +246,8 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
                 useOnboardingStore.getState().completeStep('create-meter-select');
                 useModalStore.getState().openZaehlerModal(apt.id, apt.name);
               },
-              variant: 'default',
-            },
+              variant: 'default' as const,
+            }] : []),
             {
               id: index === 0 ? "apartment-menu-trigger-0" : `more-${apt.id}`,
               icon: MoreVertical,
@@ -256,7 +269,7 @@ const ApartmentTableRowItem = React.memo(({ apt, index, isSelected, isLastRow, o
                   rowElement.dispatchEvent(contextMenuEvent)
                 }
               },
-              variant: 'default',
+              variant: 'default' as const,
             }
           ]}
           shape="pill"
@@ -296,7 +309,20 @@ function apartmentReducer(state: ApartmentState, action: ApartmentAction): Apart
   }
 }
 
-export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, onDelete, initialApartments, selectedApartments: externalSelectedApartments, onSelectionChange }: ApartmentTableProps) {
+export function ApartmentTable({
+  filter,
+  searchQuery,
+  reloadRef,
+  onEdit,
+  onTableRefresh,
+  onDelete,
+  initialApartments,
+  selectedApartments: externalSelectedApartments,
+  onSelectionChange,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
+}: ApartmentTableProps) {
   const router = useRouter()
   const [state, dispatch] = React.useReducer(apartmentReducer, {
     sortKey: "name",
@@ -460,13 +486,14 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
           onClearSelection={() => setSelectedApartments(new Set())}
           onExport={handleBulkExport}
           onDeleteConfirm={() => dispatch({ type: 'SET_BULK_DELETE_CONFIRM', payload: true })}
+          canDelete={canDelete}
         />
       )}
       <div className="overflow-x-auto -mx-4 sm:mx-0 min-h-[600px]">
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                 <TableHead className="w-12 pl-0 pr-0 -ml-2">
                   <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox
@@ -501,6 +528,9 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
                     onEdit={onEdit}
                     onRefresh={onTableRefresh}
                     contextMenuRefs={contextMenuRefs}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
+                    canViewMeters={canViewMeters}
                   />
                 ))
               )}

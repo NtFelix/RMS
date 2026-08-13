@@ -2,10 +2,15 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ConsentUI from './ConsentUI';
-import { getAuthorizationDetailsAction } from './actions';
-import { safeServerRedirect } from '@/lib/oauth-utils';
+import { getAuthorizationDetailsAction, type AuthorizationDetails } from './actions';
 
-export const runtime = 'edge';
+
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+
 
 interface PageProps {
     searchParams: Promise<{
@@ -25,7 +30,7 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     if (error && message) {
         return <ConsentUI
             type="error"
-            error={decodeURIComponent(message)}
+            error={message}
         />;
     }
 
@@ -58,8 +63,15 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-        // Redirect to login, preserving authorization_id
-        redirect(`/login?redirect=/oauth/consent?authorization_id=${authorizationId}`);
+        // 1. Properly construct the path with its parameters
+        const consentPath = `/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`;
+
+        // 2. Encode the ENTIRE path as a query parameter
+        // Note: Use '/auth/login' as the base path and add the '?'
+        const loginUrl = `/auth/login?redirect=${encodeURIComponent(consentPath)}`;
+
+        // 3. Perform the redirect
+        redirect(loginUrl);
     }
 
     // When Supabase has already auto-approved the app, it responds with a ConsentResponse
@@ -76,25 +88,29 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         return <ConsentUI type="success" />;
     }
 
-    // Detect auto-approval: The response has a redirect URL but no client details
-    const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
-    const isAutoApproved = success && autoRedirectUrl && !data?.client;
+    // Detect auto-approval: Supabase successfully returned a payload without client details.
+    // Instead of auto-redirecting (which silently completes the flow without user awareness),
+    // show a manage screen where the user can review the app, manage it, or continue.
+    const autoRedirectUrl = (data?.redirect_url || data?.redirect_to) as string | undefined;
+    const isAutoApproved = success && !data?.client;
 
     if (isAutoApproved) {
-        console.info('[OAuth SSR] auto_approved detected', {
-            authorizationId,
-            redirect_to: data?.redirect_to,
-            redirect_url: data?.redirect_url,
-            resolved: autoRedirectUrl,
-        });
-
-        if (autoRedirectUrl) {
-            safeServerRedirect(autoRedirectUrl as string);
+        if (!autoRedirectUrl) {
+            return (
+                <ConsentUI
+                    type="error"
+                    error="Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden."
+                />
+            );
         }
-
-        // auto_approved but no redirect url — redirect to a user-friendly error page
-        // instead of silently rendering the consent UI which would cause a 400 on approve.
-        redirect(`/oauth/consent?error=true&message=${encodeURIComponent('Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden.')}`);
+        return (
+            <ConsentUI
+                type="manage"
+                authorizationId={authorizationId}
+                initialData={data as AuthorizationDetails}
+                autoRedirectUrl={autoRedirectUrl}
+            />
+        );
     }
 
     return (

@@ -52,14 +52,14 @@ function ToolbarButton({ onClick, isActive, disabled, title, icon }: ToolbarButt
             className={cn(
               "p-2 rounded-lg transition-all duration-200",
               isActive 
-                ? "bg-primary text-primary-foreground shadow-sm scale-105" 
+                ? "bg-primary text-primary-foreground shadow-xs scale-105" 
                 : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
             )}
           >
             {icon}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="text-[10px] font-bold uppercase tracking-wider bg-popover/90 backdrop-blur-sm border-primary/10 px-2 py-1 shadow-xl">
+        <TooltipContent side="top" className="text-[10px] font-bold uppercase tracking-wider bg-popover/90 backdrop-blur-xs border-primary/10 px-2 py-1 shadow-xl">
           {title}
         </TooltipContent>
       </Tooltip>
@@ -226,7 +226,7 @@ export function TemplateEditor({
       className={cn('flex flex-col h-full bg-background relative', className)}
     >
       {!readOnly && (
-        <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b bg-muted/20 backdrop-blur-md overflow-x-auto no-scrollbar sticky top-0 z-10">
+        <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b bg-muted/20 backdrop-blur-md overflow-x-auto no-scrollbar sticky top-0 z-10">
           <div className="flex items-center gap-1">
             <ToolbarButton
               title="Überschrift 1"
@@ -293,7 +293,7 @@ export function TemplateEditor({
             />
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full border border-primary/20 shadow-sm uppercase tracking-widest transition-all hover:bg-primary/20">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full border border-primary/20 shadow-xs uppercase tracking-widest transition-all hover:bg-primary/20">
             <AtSign size={12} />
             <span>für Variablen tippen</span>
           </div>
@@ -304,7 +304,7 @@ export function TemplateEditor({
         <EditorContent
           editor={editor}
           className={cn(
-            'prose prose-slate dark:prose-invert max-w-none focus:outline-none min-h-full p-10 lg:p-14 text-foreground/80 leading-relaxed',
+            'prose prose-slate dark:prose-invert max-w-none focus:outline-hidden min-h-full p-10 lg:p-14 text-foreground/80 leading-relaxed',
             'transition-all duration-300 ease-in-out',
             readOnly && 'cursor-default'
           )}

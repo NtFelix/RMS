@@ -6,12 +6,13 @@
  * and data validation.
  */
 
-import type { Mieter, Nebenkosten, WasserZaehler, WasserAblesung, Finanzen, Rechnung } from "@/lib/types";
+import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung } from "@/lib/types";
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
 import { roundToNearest5 } from "@/lib/utils";
+import { parseISO } from "date-fns";
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -44,13 +45,13 @@ export function calculateOccupancyPercentage(
   const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
   // Calculate total days in period
-  const startDate = new Date(startdatum);
-  const endDate = new Date(enddatum);
+  const startDate = parseISO(startdatum);
+  const endDate = parseISO(enddatum);
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
 
   // Determine effective period dates
-  const tenantStart = tenant.einzug ? new Date(tenant.einzug) : startDate;
-  const tenantEnd = tenant.auszug ? new Date(tenant.auszug) : endDate;
+  const tenantStart = tenant.einzug ? parseISO(tenant.einzug) : startDate;
+  const tenantEnd = tenant.auszug ? parseISO(tenant.auszug) : endDate;
 
   const effectiveStart = new Date(Math.max(startDate.getTime(), tenantStart.getTime()));
   const effectiveEnd = new Date(Math.min(endDate.getTime(), tenantEnd.getTime()));
@@ -109,14 +110,16 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            totalHouseArea
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
           // Self-consistent per-tenant rate: pricePerSqm × area × occupancyRatio = tenantShare
           // This avoids the stacking problem (sequential tenants in same apartment).
-          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+          const rawPrice = (tenantArea > 0 && occupancy.percentage > 0)
             ? tenantShare / (tenantArea * (occupancy.percentage / 100))
             : undefined;
+          pricePerSqm = rawPrice !== undefined ? Math.round(rawPrice * 10000) / 10000 : undefined;
           // Verteiler shows physical area vs total house area (for PDF column)
           distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
           break;
@@ -161,12 +164,14 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            totalHouseArea
           );
           tenantShare = defaultDistribution[tenant.id]?.amount || 0;
-          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+          const rawDefaultPrice = (tenantArea > 0 && occupancy.percentage > 0)
             ? tenantShare / (tenantArea * (occupancy.percentage / 100))
             : undefined;
+          pricePerSqm = rawDefaultPrice !== undefined ? Math.round(rawDefaultPrice * 10000) / 10000 : undefined;
           distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
       }
 
@@ -193,8 +198,8 @@ export function calculateMeterCostDistribution(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
   allTenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[]
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[]
 ): MeterCostBreakdown {
   // Pass per-type costs and consumption to the calculation function
   // This ensures each meter type gets its own price per unit
@@ -236,7 +241,7 @@ export function calculateMeterCostDistribution(
     const relevantReadings = readings
       .filter(r => apartmentMeterIds.includes(r.zaehler_id || ''))
       .filter(r => r.ablese_datum >= nebenkosten.startdatum && r.ablese_datum <= nebenkosten.enddatum)
-      .sort((a, b) => new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime());
+      .sort((a, b) => parseISO(b.ablese_datum).getTime() - parseISO(a.ablese_datum).getTime());
 
     if (relevantReadings.length > 0) {
       const latestReading = relevantReadings[0];
@@ -276,10 +281,10 @@ export function calculatePrepayments(
   const startDate = new Date(startdatum);
   const endDate = new Date(enddatum);
 
-  const currentDate = new Date(startDate);
+  const currentDate = parseISO(startdatum);
   while (currentDate <= endDate) {
-    const monthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
-    const monthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
     // Calculate occupancy for this month
     const monthOccupancy = calculateTenantOccupancy(
@@ -294,7 +299,7 @@ export function calculatePrepayments(
     if (mode === 'actual' && actualPayments) {
       const monthPayments = actualPayments.filter(p => {
         if (!p.datum) return false;
-        const pDate = new Date(p.datum + 'T00:00:00Z');
+        const pDate = parseISO(p.datum);
         return pDate >= monthStart && pDate <= monthEnd;
       });
       monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
@@ -303,8 +308,8 @@ export function calculatePrepayments(
         // Find applicable prepayment for this month.
         // We look for the latest prepayment entry that is valid before or during this month.
         const applicableNK = [...(tenant.nebenkosten || [])]
-          .filter(n => n.date && new Date(n.date) <= monthEnd)
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          .filter(n => n.date && parseISO(n.date) <= monthEnd)
+          .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())[0];
 
         if (applicableNK) {
           monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
@@ -383,8 +388,8 @@ export function formatCurrency(amount: number): string {
 export function validateCalculationData(
   nebenkosten: Nebenkosten,
   tenants: Mieter[],
-  waterMeters?: WasserZaehler[],
-  waterReadings?: WasserAblesung[]
+  waterMeters?: Zaehler[],
+  waterReadings?: ZaehlerAblesung[]
 ): CalculationValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -394,7 +399,7 @@ export function validateCalculationData(
     errors.push('Start- und Enddatum sind erforderlich');
   }
 
-  if (new Date(nebenkosten.enddatum) <= new Date(nebenkosten.startdatum)) {
+  if (parseISO(nebenkosten.enddatum) <= parseISO(nebenkosten.startdatum)) {
     errors.push('Enddatum muss nach dem Startdatum liegen');
   }
 
@@ -473,8 +478,8 @@ export function calculateCompleteTenantResult(
   tenant: Mieter,
   nebenkosten: Nebenkosten,
   allTenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
   prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
   rechnungen?: Rechnung[]
@@ -553,8 +558,8 @@ export function calculateCompleteTenantResult(
 export function calculateAbrechnungSummary(
   tenants: Mieter[],
   nebenkosten: Nebenkosten,
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
   prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
 ) {

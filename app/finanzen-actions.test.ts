@@ -35,6 +35,7 @@ jest.mock('@/utils/logger', () => ({
 const mockSelectEq = jest.fn();
 const mockUpdateEq = jest.fn();
 const mockDeleteEq = jest.fn();
+const mockRpc = jest.fn();
 
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
@@ -50,6 +51,7 @@ const mockSupabase = {
     update: mockUpdate,
     delete: mockDelete,
   })),
+  rpc: mockRpc,
   auth: {
     getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null }),
   },
@@ -103,6 +105,7 @@ describe('Finanzen Server Actions', () => {
     // Default resolutions
     mockSingle.mockResolvedValue({ data: { id: 'fin-1', betrag: 100 }, error: null });
     mockDeleteEq.mockResolvedValue({ data: null, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: null });
   });
 
   describe('financeServerAction', () => {
@@ -139,12 +142,12 @@ describe('Finanzen Server Actions', () => {
       const invalidName = { ...validData, name: '' };
       const res1 = await financeServerAction(null, invalidName);
       expect(res1.success).toBe(false);
-      expect(res1.error.message).toContain('Name ist erforderlich');
+      expect(res1.error?.message).toContain('Name ist erforderlich');
 
       const invalidAmount = { ...validData, betrag: 'invalid' as any };
       const res2 = await financeServerAction(null, invalidAmount);
       expect(res2.success).toBe(false);
-      expect(res2.error.message).toContain('Betrag muss eine Zahl sein');
+      expect(res2.error?.message).toContain('Betrag muss eine Zahl sein');
     });
 
     it('should handle database errors', async () => {
@@ -152,7 +155,7 @@ describe('Finanzen Server Actions', () => {
 
         const result = await financeServerAction(null, validData);
         expect(result.success).toBe(false);
-        expect(result.error.message).toBe('DB Error');
+        expect(result.error?.message).toBe('DB Error');
     });
   });
 
@@ -172,13 +175,15 @@ describe('Finanzen Server Actions', () => {
     it('should delete a record', async () => {
         const result = await deleteFinanceAction('fin-123');
 
-        expect(mockDelete).toHaveBeenCalled();
-        expect(mockDeleteEq).toHaveBeenCalledWith('id', 'fin-123');
+        expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+          p_table_name: 'Finanzen',
+          p_record_id: 'fin-123',
+        });
         expect(result.success).toBe(true);
     });
 
     it('should return error if delete fails', async () => {
-        mockDeleteEq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+        mockRpc.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
         const result = await deleteFinanceAction('fin-123');
         expect(result.success).toBe(false);

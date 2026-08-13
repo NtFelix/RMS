@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_rethrow } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { PAGINATION } from '@/constants'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 export async function GET(request: NextRequest) {
   try {
@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
+    unstable_rethrow(error)
     console.error('Server error GET /api/mails:', error)
     return NextResponse.json({ error: 'Internal server error' }, {
       status: 500,
