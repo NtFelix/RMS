@@ -241,5 +241,15 @@ describe('Date Calculations Utilities', () => {
       // 2026-08-13T14:00:00Z should be sliced to 2026-08-13, which equals todayStr, hence returns false
       expect(isTenantActive('2026-08-13T14:00:00Z', '2026-08-13')).toBe(false);
     });
+
+    it('handles German date format DD.MM.YYYY correctly', () => {
+      expect(isTenantActive('14.08.2026', '2026-08-13')).toBe(true);
+      expect(isTenantActive('13.08.2026', '2026-08-13')).toBe(false);
+      expect(isTenantActive('12.08.2026', '2026-08-13')).toBe(false);
+    });
+
+    it('handles invalid date strings by returning false', () => {
+      expect(isTenantActive('invalid-date', '2026-08-13')).toBe(false);
+    });
   });
 });

@@ -270,7 +270,16 @@ export function isTenantActive(
   todayStr: string = getTodayISOString()
 ): boolean {
   if (!auszug) return true;
-  const moveOutIso = auszug.slice(0, 10);
+  let moveOutIso = auszug.trim();
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(moveOutIso)) {
+    const [day, month, year] = moveOutIso.split('.');
+    moveOutIso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  } else {
+    moveOutIso = moveOutIso.slice(0, 10);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(moveOutIso)) {
+    return false;
+  }
   return moveOutIso > todayStr;
 }
 
