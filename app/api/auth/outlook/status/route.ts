@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { unstable_rethrow } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
@@ -53,6 +54,7 @@ export async function GET() {
       }
     }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
+    unstable_rethrow(error)
     console.error("Outlook status error:", error)
     return NextResponse.json(
       { connected: false },

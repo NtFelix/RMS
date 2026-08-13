@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary, type FinanceTransaction } from "@/utils/financeCalculations";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -56,6 +57,7 @@ export async function GET(request: Request) {
     return response;
     
   } catch (error) {
+    unstable_rethrow(error);
     console.error('❌ [Finance Analytics] API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

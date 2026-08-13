@@ -1,5 +1,6 @@
 import { type User, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { redirect, unstable_rethrow } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 
 export type AuthResult = {
@@ -21,8 +22,6 @@ export async function ensureAuth(): Promise<AuthResult> {
   
   return { user, supabase };
 }
-
-import { redirect, unstable_rethrow } from 'next/navigation';
 
 /**
  * Safer version that returns null instead of throwing.

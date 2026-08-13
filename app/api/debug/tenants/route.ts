@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_rethrow } from 'next/navigation'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
 
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    unstable_rethrow(error)
     console.error('Debug API error:', error)
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 
