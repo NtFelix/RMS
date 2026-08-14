@@ -132,7 +132,11 @@ export function ApiKeyCard({
             <DropdownMenuContent align="end">
               {(k.status === "aktiv" || k.status === "pausiert") && (
                 <DropdownMenuItem
-                  onClick={() => onRevoke(k.id)}
+                  onClick={() => {
+                    if (window.confirm(`Möchten Sie den API-Schlüssel "${k.name}" wirklich endgültig widerrufen? Dieser Vorgang kann nicht rückgängig gemacht werden.`)) {
+                      onRevoke(k.id);
+                    }
+                  }}
                   className="text-destructive gap-2 cursor-pointer"
                 >
                   <XCircle className="h-4 w-4" />
@@ -141,7 +145,11 @@ export function ApiKeyCard({
               )}
               {(k.status === "abgelehnt" || k.status === "widerrufen") && (
                 <DropdownMenuItem
-                  onClick={() => onDelete(k.id)}
+                  onClick={() => {
+                    if (window.confirm(`Möchten Sie den API-Schlüssel "${k.name}" wirklich löschen?`)) {
+                      onDelete(k.id);
+                    }
+                  }}
                   className="text-destructive gap-2 cursor-pointer"
                 >
                   <Trash2 className="h-4 w-4" />

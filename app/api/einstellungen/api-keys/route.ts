@@ -38,6 +38,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ein Name für den API-Key ist erforderlich." }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
+    if (name.trim().length > 100) {
+      return NextResponse.json({ error: "Der Name des API-Keys darf maximal 100 Zeichen lang sein." }, { status: 400, headers: NO_CACHE_HEADERS });
+    }
+
+    if (expires_at) {
+      const expDate = new Date(expires_at);
+      if (isNaN(expDate.getTime()) || expDate.getTime() <= Date.now()) {
+        return NextResponse.json({ error: "Das Ablaufdatum muss in der Zukunft liegen." }, { status: 400, headers: NO_CACHE_HEADERS });
+      }
+    }
+
     const { data: keyId, error } = await supabase.rpc("api_key_anfragen", {
       p_name: name.trim(),
       p_angefragte_berechtigungen: angefragte_berechtigungen || null,
