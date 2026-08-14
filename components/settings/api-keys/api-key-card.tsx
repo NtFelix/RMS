@@ -28,8 +28,8 @@ import {
   formatDateTimeDeterministic,
 } from "./types";
 import {
-  renderStatusBadge,
-  renderPermissionsSummary,
+  StatusBadge,
+  PermissionsSummary,
 } from "./helpers";
 
 interface ApiKeyCardProps {
@@ -63,7 +63,7 @@ export function ApiKeyCard({
             <Key className="h-3.5 w-3.5" />
           </div>
           <span className="font-semibold text-sm truncate">{k.name}</span>
-          {renderStatusBadge(k.status, k.pausiert_grund)}
+          <StatusBadge status={k.status} pausiertGrund={k.pausiert_grund} />
           <Badge variant="outline" className="text-[10px] uppercase font-mono tracking-wider">
             {k.environment}
           </Badge>
@@ -235,7 +235,7 @@ export function ApiKeyCard({
               {k.status === "ausstehend" ? "Angefragte Berechtigungen:" : "Aktive Berechtigungen:"}
             </span>
           </div>
-          {renderPermissionsSummary(k.status === "ausstehend" ? k.angefragte_berechtigungen : k.berechtigungen)}
+          <PermissionsSummary berechtigungen={k.status === "ausstehend" ? k.angefragte_berechtigungen : k.berechtigungen} />
         </div>
       </div>
     </div>

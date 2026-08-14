@@ -2,7 +2,12 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { ApiKeyItem, AVAILABLE_MODULES, AVAILABLE_ACTIONS } from "./types";
 
-export function renderStatusBadge(status: ApiKeyItem["status"], pausiertGrund?: string | null): React.ReactElement {
+interface StatusBadgeProps {
+  status: ApiKeyItem["status"];
+  pausiertGrund?: string | null;
+}
+
+export function StatusBadge({ status, pausiertGrund }: StatusBadgeProps): React.ReactElement {
   switch (status) {
     case "aktiv":
       return <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">Aktiv</Badge>;
@@ -26,12 +31,16 @@ export function renderStatusBadge(status: ApiKeyItem["status"], pausiertGrund?: 
   }
 }
 
-export function renderPermissionsSummary(permsObj: Record<string, unknown> | null): React.ReactElement {
-  if (!permsObj || !permsObj.module || typeof permsObj.module !== "object") {
+interface PermissionsSummaryProps {
+  berechtigungen: Record<string, unknown> | null;
+}
+
+export function PermissionsSummary({ berechtigungen }: PermissionsSummaryProps): React.ReactElement {
+  if (!berechtigungen || !berechtigungen.module || typeof berechtigungen.module !== "object") {
     return <span className="text-muted-foreground">Keine Module zugewiesen</span>;
   }
 
-  const moduleObj = permsObj.module as Record<string, unknown>;
+  const moduleObj = berechtigungen.module as Record<string, unknown>;
   const badges: React.ReactElement[] = [];
 
   for (const [modName, acts] of Object.entries(moduleObj)) {
@@ -63,8 +72,8 @@ export function renderPermissionsSummary(permsObj: Record<string, unknown> | nul
   }
 
   if (badges.length === 0) {
-    return <span className="text-muted-foreground">Keine Berechtigungen</span>;
+    return <span className="text-muted-foreground">Keine aktiven Rechte</span>;
   }
 
-  return <div className="flex flex-wrap gap-1 mt-1">{badges}</div>;
+  return <div className="flex flex-wrap gap-1.5">{badges}</div>;
 }
