@@ -32,13 +32,21 @@ export default function ApiKeysSection() {
       if (res.ok) {
         const data = await res.json();
         setKeys(Array.isArray(data) ? data : []);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Fehler beim Laden der API-Keys.");
       }
-    } catch (err) {
-      console.error("Failed to fetch API keys:", err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Fehler beim Laden der API-Keys.";
+      toast({
+        title: "Fehler beim Laden",
+        description: msg,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchKeys();

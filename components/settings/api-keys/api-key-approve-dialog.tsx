@@ -29,8 +29,25 @@ export function ApiKeyApproveDialog({ open, onOpenChange, keyItem, onSuccess }: 
 
   useEffect(() => {
     if (keyItem) {
-      const requested = (keyItem.angefragte_berechtigungen?.module as Record<string, Record<string, boolean>>) || {};
-      setPermissions(structuredClone(requested));
+      const rawModule = (keyItem.angefragte_berechtigungen?.module as Record<string, unknown>) || {};
+      const normalized: Record<string, Record<string, boolean>> = {};
+
+      Object.entries(rawModule).forEach(([modul, actions]) => {
+        normalized[modul] = {};
+        if (Array.isArray(actions)) {
+          actions.forEach((act: string) => {
+            normalized[modul][act] = true;
+          });
+        } else if (actions && typeof actions === "object") {
+          Object.entries(actions).forEach(([act, val]) => {
+            if (val === true || val === "true") {
+              normalized[modul][act] = true;
+            }
+          });
+        }
+      });
+
+      setPermissions(normalized);
     }
   }, [keyItem]);
 
