@@ -13,11 +13,17 @@ import {
   FlaskConical,
   Mail,
   Brain,
+  Key,
 } from "lucide-react"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
 
-export function SettingsLayoutClient({ children }: { children: React.ReactNode }) {
+interface SettingsLayoutClientProps {
+  children: React.ReactNode
+  apiZugriffAktiviert?: boolean
+}
+
+export function SettingsLayoutClient({ children, apiZugriffAktiviert = false }: SettingsLayoutClientProps) {
   const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
   const aiAgentEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MIETEVO_AI_AGENT)
 
@@ -28,12 +34,13 @@ export function SettingsLayoutClient({ children }: { children: React.ReactNode }
       { value: "abo", label: "Abo", icon: CreditCard },
       ...(mailsEnabled ? [{ value: "mail", label: "E-Mail", icon: Mail }] : []),
       { value: "darstellung", label: "Darstellung", icon: Monitor },
+      ...(apiZugriffAktiviert ? [{ value: "api-keys", label: "API-Keys", icon: Key }] : []),
       { value: "datenexport", label: "Datenexport", icon: DownloadCloud },
       { value: "vorschau", label: "Vorschau", icon: FlaskConical },
       ...(aiAgentEnabled ? [{ value: "ki", label: "KI", icon: Brain }] : []),
       { value: "mietevo", label: "Mietevo", icon: Info },
     ],
-    [mailsEnabled, aiAgentEnabled],
+    [mailsEnabled, aiAgentEnabled, apiZugriffAktiviert],
   )
 
   return (
