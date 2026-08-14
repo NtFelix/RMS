@@ -24,6 +24,8 @@ import {
 import {
   ApiKeyItem,
   formatUserName,
+  formatDateDeterministic,
+  formatDateTimeDeterministic,
 } from "./types";
 import {
   renderStatusBadge,
@@ -184,7 +186,7 @@ export function ApiKeyCard({
             )}
           </div>
           <div className="text-muted-foreground pl-5 text-[11px]">
-            Beantragt am: {new Date(k.erstellt_am).toLocaleDateString("de-DE")}
+            Beantragt am: {formatDateDeterministic(k.erstellt_am)}
           </div>
 
           {k.genehmigt_am && (
@@ -203,13 +205,7 @@ export function ApiKeyCard({
             <span className="font-medium">Zuletzt aktiv:</span>
             <span className="text-muted-foreground">
               {k.last_used_at
-                ? new Date(k.last_used_at).toLocaleDateString("de-DE", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })
+                ? formatDateTimeDeterministic(k.last_used_at)
                 : "Noch nie verwendet"}
             </span>
           </div>
@@ -218,7 +214,7 @@ export function ApiKeyCard({
             <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span className="font-medium">Gültig bis:</span>
             <span className="text-muted-foreground">
-              {k.expires_at ? new Date(k.expires_at).toLocaleDateString("de-DE") : "Unbegrenzt gültig"}
+              {k.expires_at ? formatDateDeterministic(k.expires_at) : "Unbegrenzt gültig"}
             </span>
           </div>
         </div>

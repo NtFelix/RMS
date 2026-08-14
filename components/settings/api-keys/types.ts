@@ -49,3 +49,33 @@ export function formatUserName(firstName?: string | null, lastName?: string | nu
   }
   return email || "Unbekannter Nutzer";
 }
+
+export function formatDateDeterministic(isoDateStr?: string | null): string {
+  if (!isoDateStr) return "";
+  try {
+    const d = new Date(isoDateStr);
+    if (isNaN(d.getTime())) return isoDateStr;
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  } catch {
+    return isoDateStr;
+  }
+}
+
+export function formatDateTimeDeterministic(isoDateStr?: string | null): string {
+  if (!isoDateStr) return "";
+  try {
+    const d = new Date(isoDateStr);
+    if (isNaN(d.getTime())) return isoDateStr;
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${day}.${month}.${year}, ${hours}:${minutes} Uhr`;
+  } catch {
+    return isoDateStr;
+  }
+}
