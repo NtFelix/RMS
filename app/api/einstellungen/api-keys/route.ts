@@ -17,9 +17,9 @@ export async function GET() {
     }
 
     return NextResponse.json(data || [], { headers: NO_CACHE_HEADERS });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Exception in GET /api/einstellungen/api-keys:", err);
-    return NextResponse.json({ error: err.message || "Interner Serverfehler" }, { status: 500, headers: NO_CACHE_HEADERS });
+    return NextResponse.json({ error: "Ein interner Serverfehler ist aufgetreten." }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ id: keyId, success: true }, { status: 201, headers: NO_CACHE_HEADERS });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Exception in POST /api/einstellungen/api-keys:", err);
-    return NextResponse.json({ error: err.message || "Interner Serverfehler" }, { status: 500, headers: NO_CACHE_HEADERS });
+    return NextResponse.json({ error: "Ein interner Serverfehler ist aufgetreten." }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

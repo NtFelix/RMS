@@ -25,8 +25,8 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true }, { headers: NO_CACHE_HEADERS });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Exception in DELETE api-keys/[id]:", err);
-    return NextResponse.json({ error: err.message || "Interner Serverfehler" }, { status: 500, headers: NO_CACHE_HEADERS });
+    return NextResponse.json({ error: "Ein interner Serverfehler ist aufgetreten." }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

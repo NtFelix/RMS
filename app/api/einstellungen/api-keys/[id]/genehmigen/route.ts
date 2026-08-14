@@ -46,8 +46,8 @@ export async function POST(
       },
       { headers: NO_CACHE_HEADERS }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Exception in POST api-keys/genehmigen:", err);
-    return NextResponse.json({ error: err.message || "Interner Serverfehler" }, { status: 500, headers: NO_CACHE_HEADERS });
+    return NextResponse.json({ error: "Ein interner Serverfehler ist aufgetreten." }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

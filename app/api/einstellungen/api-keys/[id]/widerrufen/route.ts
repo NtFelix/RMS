@@ -25,8 +25,8 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true }, { headers: NO_CACHE_HEADERS });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Exception in POST api-keys/widerrufen:", err);
-    return NextResponse.json({ error: err.message || "Interner Serverfehler" }, { status: 500, headers: NO_CACHE_HEADERS });
+    return NextResponse.json({ error: "Ein interner Serverfehler ist aufgetreten." }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

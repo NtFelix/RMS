@@ -63,14 +63,14 @@ export default function ApiKeysSection() {
     fetchKeys();
   };
 
-  const handleRejectKey = async (id: string) => {
+  const runAction = async (url: string, method: "POST" | "DELETE", title: string, description: string) => {
     try {
-      const res = await fetch(`/api/einstellungen/api-keys/${id}/ablehnen`, { method: "POST" });
+      const res = await fetch(url, { method });
       if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Fehler beim Ablehnen.");
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Fehler bei der Aktion.");
       }
-      toast({ title: "Abgelehnt", description: "API-Key wurde abgelehnt." });
+      toast({ title, description });
       fetchKeys();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Fehler beim Ausführen.";
@@ -78,65 +78,25 @@ export default function ApiKeysSection() {
     }
   };
 
-  const handleRevokeKey = async (id: string) => {
-    try {
-      const res = await fetch(`/api/einstellungen/api-keys/${id}/widerrufen`, { method: "POST" });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Fehler beim Widerrufen.");
-      }
-      toast({ title: "Widerrufen", description: "API-Key wurde widerrufen." });
-      fetchKeys();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Fehler beim Ausführen.";
-      toast({ title: "Fehler", description: msg, variant: "destructive" });
-    }
-  };
+  const handleRejectKey = (id: string) =>
+    runAction(`/api/einstellungen/api-keys/${id}/ablehnen`, "POST", "Abgelehnt", "API-Key wurde abgelehnt.");
 
-  const handlePauseKey = async (id: string) => {
-    try {
-      const res = await fetch(`/api/einstellungen/api-keys/${id}/pausieren`, { method: "POST" });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Fehler beim Deaktivieren des API-Keys.");
-      }
-      toast({ title: "Deaktiviert", description: "API-Key wurde erfolgreich pausiert/deaktiviert." });
-      fetchKeys();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Fehler beim Ausführen.";
-      toast({ title: "Fehler", description: msg, variant: "destructive" });
-    }
-  };
+  const handleRevokeKey = (id: string) =>
+    runAction(`/api/einstellungen/api-keys/${id}/widerrufen`, "POST", "Widerrufen", "API-Key wurde widerrufen.");
 
-  const handleResumeKey = async (id: string) => {
-    try {
-      const res = await fetch(`/api/einstellungen/api-keys/${id}/fortsetzen`, { method: "POST" });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Fehler beim Fortsetzen.");
-      }
-      toast({ title: "Aktiviert", description: "API-Key wurde erfolgreich fortgesetzt." });
-      fetchKeys();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Fehler beim Ausführen.";
-      toast({ title: "Fehler", description: msg, variant: "destructive" });
-    }
-  };
+  const handlePauseKey = (id: string) =>
+    runAction(
+      `/api/einstellungen/api-keys/${id}/pausieren`,
+      "POST",
+      "Deaktiviert",
+      "API-Key wurde erfolgreich pausiert/deaktiviert."
+    );
 
-  const handleDeleteKey = async (id: string) => {
-    try {
-      const res = await fetch(`/api/einstellungen/api-keys/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Fehler beim Löschen.");
-      }
-      toast({ title: "Gelöscht", description: "API-Key wurde gelöscht." });
-      fetchKeys();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Fehler beim Ausführen.";
-      toast({ title: "Fehler", description: msg, variant: "destructive" });
-    }
-  };
+  const handleResumeKey = (id: string) =>
+    runAction(`/api/einstellungen/api-keys/${id}/fortsetzen`, "POST", "Aktiviert", "API-Key wurde erfolgreich fortgesetzt.");
+
+  const handleDeleteKey = (id: string) =>
+    runAction(`/api/einstellungen/api-keys/${id}`, "DELETE", "Gelöscht", "API-Key wurde gelöscht.");
 
   return (
     <div className="space-y-6">
