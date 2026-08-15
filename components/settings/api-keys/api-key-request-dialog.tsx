@@ -14,6 +14,28 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AVAILABLE_MODULES, AVAILABLE_ACTIONS } from "./types";
+import { HouseScopeSection, HouseItem } from "./house-scope-section";
+
+interface FormState {
+  keyName: string;
+  environment: "live" | "test";
+  expiresAt: string;
+  selectedModules: Record<string, Record<string, boolean>>;
+  houseScope: "all" | "selected";
+  selectedHouseIds: string[];
+}
+
+const initialFormState: FormState = {
+  keyName: "",
+  environment: "live",
+  expiresAt: "",
+  selectedModules: {
+    haeuser: { ansehen: true },
+    wohnungen: { ansehen: true },
+  },
+  houseScope: "all",
+  selectedHouseIds: [],
+};
 
 interface ApiKeyRequestDialogProps {
   open: boolean;
@@ -23,17 +45,28 @@ interface ApiKeyRequestDialogProps {
 
 export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyRequestDialogProps) {
   const { toast } = useToast();
-  const [keyName, setKeyName] = useState("");
-  const [environment, setEnvironment] = useState<"live" | "test">("live");
-  const [expiresAt, setExpiresAt] = useState("");
-  const [selectedModules, setSelectedModules] = useState<Record<string, Record<string, boolean>>>({
-    haeuser: { ansehen: true },
-    wohnungen: { ansehen: true },
-  });
+  const [form, setForm] = useState<FormState>(initialFormState);
+  const [availableHouses, setAvailableHouses] = useState<HouseItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      fetch("/api/haeuser")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setAvailableHouses(data);
+          }
+        })
+        .catch((err) => {
+          console.error("Fehler beim Laden der Häuser:", err);
+        });
+    }
+    onOpenChange(newOpen);
+  };
+
   const handleSubmit = async () => {
-    if (!keyName.trim()) {
+    if (!form.keyName.trim()) {
       toast({
         title: "Fehler",
         description: "Bitte geben Sie einen Namen für den API-Key ein.",
@@ -42,14 +75,24 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
       return;
     }
 
+    if (form.houseScope === "selected" && form.selectedHouseIds.length === 0) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie mindestens ein Haus aus oder wählen Sie 'Alle Häuser'.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
       const payload = {
-        name: keyName.trim(),
-        environment,
-        expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+        name: form.keyName.trim(),
+        environment: form.environment,
+        expires_at: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
         angefragte_berechtigungen: {
-          module: selectedModules,
+          module: form.selectedModules,
+          haeuser: form.houseScope === "selected" ? form.selectedHouseIds : null,
         },
       };
 
@@ -71,12 +114,7 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
       });
 
       onOpenChange(false);
-      setKeyName("");
-      setExpiresAt("");
-      setSelectedModules({
-        haeuser: { ansehen: true },
-        wohnungen: { ansehen: true },
-      });
+      setForm(initialFormState);
       onSuccess();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Fehler beim Beantragen.";
@@ -91,12 +129,12 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>API-Schlüssel beantragen</DialogTitle>
           <DialogDescription>
-            Wählen Sie den gewünschten Namen und die benötigten Berechtigungen.
+            Wählen Sie den Namen, Modulberechtigungen und den Objekt-Zugriff.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,8 +146,8 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
             <Input
               id="api-key-name-input"
               placeholder="z. B. Buchhaltungs-Integration"
-              value={keyName}
-              onChange={(e) => setKeyName(e.target.value)}
+              value={form.keyName}
+              onChange={(e) => setForm((prev) => ({ ...prev, keyName: e.target.value }))}
             />
           </div>
 
@@ -121,8 +159,10 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
               <select
                 id="api-key-env-select"
                 aria-label="Umgebung"
-                value={environment}
-                onChange={(e) => setEnvironment(e.target.value as "live" | "test")}
+                value={form.environment}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, environment: e.target.value as "live" | "test" }))
+                }
                 className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs"
               >
                 <option value="live">Live</option>
@@ -137,21 +177,22 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
               <Input
                 id="api-key-expires-input"
                 type="date"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                value={form.expiresAt}
+                onChange={(e) => setForm((prev) => ({ ...prev, expiresAt: e.target.value }))}
               />
             </div>
           </div>
 
+          {/* Module Permissions */}
           <div className="space-y-2 pt-2">
-            <span className="text-xs font-semibold block">Angefragte Berechtigungen</span>
+            <span className="text-xs font-semibold block">Angefragte Modul-Berechtigungen</span>
             <div className="border border-border/60 rounded-lg p-3 space-y-3 bg-muted/20">
               {AVAILABLE_MODULES.map((mod) => (
                 <div key={mod.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                   <span className="font-medium w-32">{mod.label}</span>
                   <div className="flex items-center gap-4 flex-wrap">
                     {AVAILABLE_ACTIONS.map((act) => {
-                      const isChecked = !!selectedModules[mod.id]?.[act.id];
+                      const isChecked = !!form.selectedModules[mod.id]?.[act.id];
                       const checkboxId = `req-mod-${mod.id}-act-${act.id}`;
                       return (
                         <div key={act.id} className="flex items-center gap-1.5">
@@ -159,11 +200,14 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
                             id={checkboxId}
                             checked={isChecked}
                             onCheckedChange={(val) => {
-                              setSelectedModules((prev) => ({
+                              setForm((prev) => ({
                                 ...prev,
-                                [mod.id]: {
-                                  ...(prev[mod.id] || {}),
-                                  [act.id]: !!val,
+                                selectedModules: {
+                                  ...prev.selectedModules,
+                                  [mod.id]: {
+                                    ...(prev.selectedModules[mod.id] || {}),
+                                    [act.id]: !!val,
+                                  },
                                 },
                               }));
                             }}
@@ -179,6 +223,16 @@ export function ApiKeyRequestDialog({ open, onOpenChange, onSuccess }: ApiKeyReq
               ))}
             </div>
           </div>
+
+          {/* House Object Scoping */}
+          <HouseScopeSection
+            idPrefix="req"
+            houseScope={form.houseScope}
+            onScopeChange={(scope) => setForm((prev) => ({ ...prev, houseScope: scope }))}
+            selectedHouseIds={form.selectedHouseIds}
+            onSelectedHouseIdsChange={(ids) => setForm((prev) => ({ ...prev, selectedHouseIds: ids }))}
+            availableHouses={availableHouses}
+          />
         </div>
 
         <DialogFooter>

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ApiKeyItem, AVAILABLE_MODULES, AVAILABLE_ACTIONS } from "./types";
+import { HouseScopeSection, HouseItem } from "./house-scope-section";
 
 interface ApiKeyApproveDialogProps {
   open: boolean;
@@ -45,14 +46,39 @@ function getNormalizedPermissions(keyItem: ApiKeyItem | null): Record<string, Re
   return normalized;
 }
 
+function getInitialHouseScope(keyItem: ApiKeyItem | null): { scope: "all" | "selected"; ids: string[] } {
+  if (!keyItem) return { scope: "all", ids: [] };
+  const rawHaeuser = keyItem.angefragte_berechtigungen?.haeuser;
+  if (Array.isArray(rawHaeuser) && rawHaeuser.length > 0) {
+    return { scope: "selected", ids: rawHaeuser.filter((h): h is string => typeof h === "string") };
+  }
+  return { scope: "all", ids: [] };
+}
+
 export function ApiKeyApproveDialog({ open, onOpenChange, keyItem, onSuccess }: ApiKeyApproveDialogProps) {
   const { toast } = useToast();
   const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>(() => getNormalizedPermissions(keyItem));
+  const [houseScope, setHouseScope] = useState<"all" | "selected">(() => getInitialHouseScope(keyItem).scope);
+  const [selectedHouseIds, setSelectedHouseIds] = useState<string[]>(() => getInitialHouseScope(keyItem).ids);
+  const [availableHouses, setAvailableHouses] = useState<HouseItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && keyItem) {
       setPermissions(getNormalizedPermissions(keyItem));
+      const initHouses = getInitialHouseScope(keyItem);
+      setHouseScope(initHouses.scope);
+      setSelectedHouseIds(initHouses.ids);
+      fetch("/api/haeuser")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setAvailableHouses(data);
+          }
+        })
+        .catch((err) => {
+          console.error("Fehler beim Laden der Häuser:", err);
+        });
     }
     onOpenChange(newOpen);
   };
@@ -60,13 +86,25 @@ export function ApiKeyApproveDialog({ open, onOpenChange, keyItem, onSuccess }: 
   const handleApprove = async () => {
     if (!keyItem) return;
 
+    if (houseScope === "selected" && selectedHouseIds.length === 0) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie mindestens ein Haus aus oder wählen Sie 'Alle Häuser'.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
       const res = await fetch(`/api/einstellungen/api-keys/${keyItem.id}/genehmigen`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          berechtigungen: { module: permissions },
+          berechtigungen: {
+            module: permissions,
+            haeuser: houseScope === "selected" ? selectedHouseIds : null,
+          },
           environment: keyItem.environment,
         }),
       });
@@ -102,7 +140,7 @@ export function ApiKeyApproveDialog({ open, onOpenChange, keyItem, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>API-Schlüssel genehmigen</DialogTitle>
           <DialogDescription>
@@ -110,7 +148,7 @@ export function ApiKeyApproveDialog({ open, onOpenChange, keyItem, onSuccess }: 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="py-2 space-y-4">
           <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground flex gap-2 items-start">
             <Info className="h-4 w-4 shrink-0 mt-0.5" />
             <p>
@@ -119,7 +157,9 @@ export function ApiKeyApproveDialog({ open, onOpenChange, keyItem, onSuccess }: 
             </p>
           </div>
 
-          <div className="space-y-4">
+          {/* Module Permissions */}
+          <div className="space-y-3">
+            <span className="text-xs font-semibold block">Modul-Berechtigungen</span>
             {AVAILABLE_MODULES.map((modul) => (
               <div key={modul.id} className="rounded-lg border p-3 bg-card">
                 <div className="font-medium text-sm mb-2">{modul.label}</div>
@@ -143,6 +183,16 @@ export function ApiKeyApproveDialog({ open, onOpenChange, keyItem, onSuccess }: 
               </div>
             ))}
           </div>
+
+          {/* House Object Scoping */}
+          <HouseScopeSection
+            idPrefix="appr"
+            houseScope={houseScope}
+            onScopeChange={setHouseScope}
+            selectedHouseIds={selectedHouseIds}
+            onSelectedHouseIdsChange={setSelectedHouseIds}
+            availableHouses={availableHouses}
+          />
         </div>
 
         <DialogFooter>

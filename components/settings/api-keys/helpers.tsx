@@ -71,6 +71,21 @@ export function PermissionsSummary({ berechtigungen }: PermissionsSummaryProps):
     }
   }
 
+  // House scope badge
+  if (Array.isArray(berechtigungen.haeuser) && berechtigungen.haeuser.length > 0) {
+    badges.push(
+      <Badge key="haeuser-scope" variant="outline" className="text-[11px] font-normal py-0.5 px-2 border-primary/40 text-primary bg-primary/5">
+        Objekte: {berechtigungen.haeuser.length} {berechtigungen.haeuser.length === 1 ? "Haus" : "Häuser"}
+      </Badge>
+    );
+  } else if (berechtigungen.haeuser === null || berechtigungen.haeuser === undefined) {
+    badges.push(
+      <Badge key="haeuser-scope" variant="outline" className="text-[11px] font-normal py-0.5 px-2 border-border/60 text-muted-foreground">
+        Objekte: Alle
+      </Badge>
+    );
+  }
+
   if (badges.length === 0) {
     return <span className="text-muted-foreground">Keine aktiven Rechte</span>;
   }
