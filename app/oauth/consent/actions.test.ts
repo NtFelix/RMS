@@ -86,9 +86,33 @@ describe('OAuth Consent actions', () => {
             expect(result.success).toBe(false);
             expect(result.error).toContain('bereits verwendet oder ist abgelaufen');
         });
+        it('handles 401/403 unauthorized responses gracefully', async () => {
+            (global.fetch as jest.Mock).mockResolvedValueOnce({
+                ok: false,
+                status: 401,
+            });
+
+            const result = await getAuthorizationDetailsAction('auth_123456789012');
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Sitzung ist abgelaufen');
+        });
+
+        it('handles network failure rejection in catch block', async () => {
+            (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network failure'));
+
+            const result = await getAuthorizationDetailsAction('auth_123456789012');
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Network failure');
+        });
     });
 
     describe('submitDecisionAction', () => {
+        it('rejects invalid decision parameter values', async () => {
+            const result = await submitDecisionAction('auth_123456789012', 'invalid_decision' as any);
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Invalid decision value');
+        });
+
         it('submits allow decision to /consent endpoint', async () => {
             (global.fetch as jest.Mock).mockResolvedValueOnce({
                 ok: true,
@@ -143,6 +167,44 @@ describe('OAuth Consent actions', () => {
             expect(result.success).toBe(true);
             expect(result.redirect_to).toBe('https://mcp.mietevo.de/oauth/callback?code=fallback_code');
             expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('falls back to /authorizations/{id} when /consent returns 405', async () => {
+            (global.fetch as jest.Mock).mockResolvedValueOnce({
+                ok: false,
+                status: 405,
+            });
+            (global.fetch as jest.Mock).mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => ({
+                    redirect_to: 'https://mcp.mietevo.de/oauth/callback?code=fallback_code_405',
+                }),
+            });
+
+            const result = await submitDecisionAction('auth_123456789012', 'allow');
+            expect(result.success).toBe(true);
+            expect(result.redirect_to).toBe('https://mcp.mietevo.de/oauth/callback?code=fallback_code_405');
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('handles 401 unauthorized responses on decision submit', async () => {
+            (global.fetch as jest.Mock).mockResolvedValueOnce({
+                ok: false,
+                status: 401,
+            });
+
+            const result = await submitDecisionAction('auth_123456789012', 'allow');
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Sitzung ist abgelaufen');
+        });
+
+        it('handles network failure rejection in submit decision', async () => {
+            (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network down'));
+
+            const result = await submitDecisionAction('auth_123456789012', 'allow');
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Network down');
         });
     });
 });

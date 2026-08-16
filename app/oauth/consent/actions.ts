@@ -35,28 +35,10 @@ function parseSupabaseAuthError(responseText: string, fallbackMessage: string): 
     try {
         errorData = JSON.parse(responseText);
     } catch {
-        // Not a JSON response, use the raw text if available.
-        return responseText || fallbackMessage;
+        // Not a JSON response — avoid leaking raw HTML/gateway errors to UI
+        return fallbackMessage;
     }
     return errorData.error_description || errorData.message || errorData.error || fallbackMessage;
-}
-
-/**
- * Retrieves the current user's access token from their Supabase session.
- * The /auth/v1/oauth/authorizations/{id} endpoint requires a Bearer token,
- * NOT cookies — unlike most other Supabase Auth endpoints.
- */
-async function getAccessToken(): Promise<string> {
-    const { supabase } = await ensureAuth();
-
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-        throw new Error(`Session error: ${sessionError.message}`);
-    }
-    if (!session?.access_token) {
-        throw new Error('Not authenticated: no valid session found');
-    }
-    return session.access_token;
 }
 
 /**
@@ -171,26 +153,25 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
 
         const consentUrl = `${SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}/consent`;
         const consentValue = decision === 'allow' ? 'approve' : 'deny';
+        // Dual payload (consent + decision) provides compatibility across different Supabase GoTrue versions.
+        const consentPayload = JSON.stringify({
+            consent: consentValue,
+            decision: decision,
+        });
 
         let response = await fetchAuthEndpoint(consentUrl, accessToken, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                consent: consentValue,
-                decision: decision,
-            }),
+            body: consentPayload,
         });
 
-        // Fallback to /auth/v1/oauth/authorizations/{id} if /consent returns 404
-        if (response.status === 404) {
+        // Fallback to /auth/v1/oauth/authorizations/{id} if /consent returns 404 or 405 (endpoint not supported)
+        if (response.status === 404 || response.status === 405) {
             const fallbackUrl = buildAuthUrl(authorizationId);
             response = await fetchAuthEndpoint(fallbackUrl, accessToken, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    consent: consentValue,
-                    decision: decision,
-                }),
+                body: consentPayload,
             });
         }
 
