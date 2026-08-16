@@ -75,7 +75,8 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     }
 
     // Detect auto-approval: Supabase successfully returned a payload without client details.
-    // The user has already approved this app previously. Redirect immediately to complete the flow.
+    // Instead of auto-redirecting (which silently completes the flow without user awareness),
+    // show a manage screen where the user can review the app, manage it, or continue.
     const autoRedirectUrl = (data?.redirect_url || data?.redirect_to) as string | undefined;
     const isAutoApproved = success && !data?.client;
 
@@ -88,8 +89,14 @@ export default async function ConsentPage({ searchParams }: PageProps) {
                 />
             );
         }
-        // Seamless auto-redirect for pre-approved sessions (no manual reconfirmation needed)
-        redirect(autoRedirectUrl);
+        return (
+            <ConsentUI
+                type="manage"
+                authorizationId={authorizationId}
+                initialData={data as AuthorizationDetails}
+                autoRedirectUrl={autoRedirectUrl}
+            />
+        );
     }
 
     return (
