@@ -86,10 +86,10 @@ describe('OAuth Consent actions', () => {
             expect(result.success).toBe(false);
             expect(result.error).toContain('bereits verwendet oder ist abgelaufen');
         });
-        it('handles 401/403 unauthorized responses gracefully', async () => {
+        it.each([401, 403])('handles %i unauthorized responses gracefully', async (status) => {
             (global.fetch as jest.Mock).mockResolvedValueOnce({
                 ok: false,
-                status: 401,
+                status,
             });
 
             const result = await getAuthorizationDetailsAction('auth_123456789012');
@@ -188,10 +188,10 @@ describe('OAuth Consent actions', () => {
             expect(global.fetch).toHaveBeenCalledTimes(2);
         });
 
-        it('handles 401 unauthorized responses on decision submit', async () => {
+        it.each([401, 403])('handles %i unauthorized responses on decision submit', async (status) => {
             (global.fetch as jest.Mock).mockResolvedValueOnce({
                 ok: false,
-                status: 401,
+                status,
             });
 
             const result = await submitDecisionAction('auth_123456789012', 'allow');

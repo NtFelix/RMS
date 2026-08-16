@@ -20,16 +20,18 @@ export async function GET(request: NextRequest) {
                 new URL(
                     `/oauth/consent?error=approval_failed&message=${encodeURIComponent(error || 'Unknown error')}`,
                     baseUrl
-                )
+                ),
+                { headers: NO_CACHE_HEADERS }
             );
         }
 
-        return NextResponse.redirect(redirect_to);
+        return NextResponse.redirect(redirect_to, { headers: NO_CACHE_HEADERS });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown server error';
         console.error('[OAuth Approve] Approval error:', err);
         return NextResponse.redirect(
-            new URL(`/oauth/consent?error=server_error&message=${encodeURIComponent(message)}`, baseUrl)
+            new URL(`/oauth/consent?error=server_error&message=${encodeURIComponent(message)}`, baseUrl),
+            { headers: NO_CACHE_HEADERS }
         );
     }
 }

@@ -20,5 +20,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error || 'Decision failed' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
-    return NextResponse.redirect(redirect_to);
+    return NextResponse.redirect(redirect_to, { headers: NO_CACHE_HEADERS });
 }
