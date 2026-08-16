@@ -112,11 +112,16 @@ export interface AuthorizationDetailsResult {
  * Must run server-side — Supabase CORS policy blocks client-side requests.
  */
 export async function getAuthorizationDetailsAction(authorizationId: string): Promise<AuthorizationDetailsResult> {
+    const { supabase } = await ensureAuth();
     try {
         validateId(authorizationId);
-        const accessToken = await getAccessToken();
-        const url = buildAuthUrl(authorizationId);
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+        if (!accessToken) {
+            return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };
+        }
 
+        const url = buildAuthUrl(authorizationId);
         const response = await fetchAuthEndpoint(url, accessToken, { method: 'GET' });
 
         if (!response.ok) {
@@ -151,13 +156,19 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
  * POST /auth/v1/oauth/authorizations/{id}/consent
  */
 export async function submitDecisionAction(authorizationId: string, decision: 'allow' | 'deny') {
+    const { supabase } = await ensureAuth();
     try {
         validateId(authorizationId);
         if (decision !== 'allow' && decision !== 'deny') {
             throw new Error('Invalid decision value');
         }
 
-        const accessToken = await getAccessToken();
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+        if (!accessToken) {
+            return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
+        }
+
         const consentUrl = `${SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}/consent`;
         const consentValue = decision === 'allow' ? 'approve' : 'deny';
 
@@ -204,16 +215,4 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         console.error('Server Action: submitDecision failed:', message);
         return { success: false, redirect_to: null, error: message };
     }
-}
-
-/**
- * @deprecated Use submitDecisionAction('allow') instead.
- */
-export async function approveAuthorizationAction(authorizationId: string) {
-    const result = await submitDecisionAction(authorizationId, 'allow');
-    return {
-        success: result.success,
-        redirect_to: result.redirect_to,
-        error: result.error,
-    };
 }
