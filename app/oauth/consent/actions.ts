@@ -107,33 +107,38 @@ export interface AuthorizationDetailsResult {
 }
 
 /**
- * Fetches the authorization request details from Supabase.
- * Uses the Supabase JS client SDK's getAuthorizationDetails method.
+ * Fetches the authorization request details from Supabase GoTrue Auth REST endpoint.
+ * GET /auth/v1/oauth/authorizations/{id}
  * Must run server-side — Supabase CORS policy blocks client-side requests.
  */
 export async function getAuthorizationDetailsAction(authorizationId: string): Promise<AuthorizationDetailsResult> {
     try {
         validateId(authorizationId);
-        const { supabase } = await ensureAuth();
+        const accessToken = await getAccessToken();
+        const url = buildAuthUrl(authorizationId);
 
-        const { data, error } = await (supabase.auth as any).oauth.getAuthorizationDetails(authorizationId);
+        const response = await fetchAuthEndpoint(url, accessToken, { method: 'GET' });
 
-        if (error) {
-            const msg = error.message || 'Failed to load authorization details';
-            console.error('[OAuth] getAuthorizationDetails error:', msg, error);
-            // Check if this is a "already processed" 400 error
-            if (msg.toLowerCase().includes('cannot be processed') ||
-                msg.toLowerCase().includes('validation_failed') ||
-                error.status === 400) {
-                return { success: true, alreadyProcessed: true, error: null, data: null };
-            }
-            if (error.status === 404) {
+        if (!response.ok) {
+            if (response.status === 404) {
                 return { success: false, error: ERR_AUTH_EXPIRED, data: null };
             }
+            if (response.status === 400) {
+                // Any 400 from GET /oauth/authorizations/{id} means the authorization
+                // is in a terminal state — already consumed by a prior auto_approved redirect.
+                return { success: true, alreadyProcessed: true, error: null, data: null };
+            }
+            if (response.status === 401 || response.status === 403) {
+                return { success: false, error: ERR_AUTH_UNAUTHORIZED, data: null };
+            }
+            const responseText = await response.text();
+            const msg = parseSupabaseAuthError(responseText, `Failed to load authorization details (${response.status})`);
+            console.error('[OAuth] getAuthorizationDetails failed:', response.status, msg);
             return { success: false, error: msg, data: null };
         }
 
-        return { success: true, data: data as AuthorizationDetails, error: null };
+        const data = (await response.json()) as AuthorizationDetails;
+        return { success: true, data, error: null };
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to load authorization details";
         console.error('Server Action: getAuthorizationDetails failed:', message);
@@ -142,9 +147,8 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
 }
 
 /**
- * Submits the user's consent decision (allow or deny) to Supabase.
- * Uses the Supabase JS client SDK which knows the correct endpoint
- * (POST /authorizations/{id}/consent) and request body format.
+ * Submits the user's consent decision (allow or deny) to Supabase GoTrue Auth REST endpoint.
+ * POST /auth/v1/oauth/authorizations/{id}/consent
  */
 export async function submitDecisionAction(authorizationId: string, decision: 'allow' | 'deny') {
     try {
@@ -153,25 +157,48 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
             throw new Error('Invalid decision value');
         }
 
-        const { supabase } = await ensureAuth();
+        const accessToken = await getAccessToken();
+        const consentUrl = `${SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}/consent`;
+        const consentValue = decision === 'allow' ? 'approve' : 'deny';
 
-        if (decision === 'allow') {
-            // supabase.auth.oauth.approveAuthorization() POSTs to
-            // /auth/v1/oauth/authorizations/{id}/consent with the correct body format
-            const { data, error } = await (supabase.auth as any).oauth.approveAuthorization(authorizationId);
-            if (error) {
-                console.error('[OAuth] approveAuthorization failed:', error.message);
-                return { success: false, redirect_to: null, error: error.message };
-            }
-            return { success: true, redirect_to: data?.redirect_url || data?.redirect_to || null, error: null };
-        } else {
-            const { data, error } = await (supabase.auth as any).oauth.denyAuthorization(authorizationId);
-            if (error) {
-                console.error('[OAuth] denyAuthorization failed:', error.message);
-                return { success: false, redirect_to: null, error: error.message };
-            }
-            return { success: true, redirect_to: data?.redirect_url || data?.redirect_to || null, error: null };
+        let response = await fetchAuthEndpoint(consentUrl, accessToken, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                consent: consentValue,
+                decision: decision,
+            }),
+        });
+
+        // Fallback to /auth/v1/oauth/authorizations/{id} if /consent returns 404
+        if (response.status === 404) {
+            const fallbackUrl = buildAuthUrl(authorizationId);
+            response = await fetchAuthEndpoint(fallbackUrl, accessToken, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    consent: consentValue,
+                    decision: decision,
+                }),
+            });
         }
+
+        if (!response.ok) {
+            if (response.status === 404 || response.status === 405) {
+                return { success: false, redirect_to: null, error: ERR_AUTH_EXPIRED };
+            }
+            if (response.status === 401 || response.status === 403) {
+                return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
+            }
+            const responseText = await response.text();
+            const msg = parseSupabaseAuthError(responseText, `Decision failed (${response.status})`);
+            console.error('[OAuth] submitDecision failed:', response.status, msg);
+            return { success: false, redirect_to: null, error: msg };
+        }
+
+        const data = (await response.json()) as { redirect_to?: string; redirect_url?: string };
+        const redirectTo = data.redirect_to || data.redirect_url || null;
+        return { success: true, redirect_to: redirectTo, error: null };
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Authorization decision failed";
         console.error('Server Action: submitDecision failed:', message);
