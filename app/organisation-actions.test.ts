@@ -160,10 +160,18 @@ describe('organisation-actions', () => {
       expect(result.error?.message).toBe('Nicht angemeldet');
     });
 
-    it('should fail when organisationId is missing', async () => {
-      const result = await setOrganisationMcpAccessAction('', true);
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Organisations-ID ist erforderlich');
+    it('should fail when organisationId is missing or whitespace-only', async () => {
+      const resultEmpty = await setOrganisationMcpAccessAction('', true);
+      expect(resultEmpty.success).toBe(false);
+      expect(resultEmpty.error?.message).toContain('Organisations-ID ist erforderlich');
+
+      const resultWhitespace = await setOrganisationMcpAccessAction('   \t\n  ', true);
+      expect(resultWhitespace.success).toBe(false);
+      expect(resultWhitespace.error?.message).toContain('Organisations-ID ist erforderlich');
+
+      const resultNull = await setOrganisationMcpAccessAction(null as unknown as string, true);
+      expect(resultNull.success).toBe(false);
+      expect(resultNull.error?.message).toContain('Organisations-ID ist erforderlich');
     });
 
     it('should handle RPC error response', async () => {
