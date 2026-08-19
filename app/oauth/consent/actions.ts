@@ -197,3 +197,88 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         return { success: false, redirect_to: null, error: message };
     }
 }
+
+/**
+ * Item structure returned by get_user_mcp_organisations RPC.
+ */
+export interface UserMcpOrganisationItem {
+    organisation_id: string;
+    name: string;
+    ist_versteckt: boolean;
+    rolle: string;
+    mcp_zugriff_aktiviert: boolean;
+    is_authorized: boolean;
+    allow_all: boolean;
+}
+
+/**
+ * Fetches all organisations the authenticated user belongs to with their MCP access status and client authorizations.
+ */
+export async function getUserMcpOrganisationsAction(
+    clientId?: string
+): Promise<{ success: boolean; data?: UserMcpOrganisationItem[]; error?: string }> {
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('get_user_mcp_organisations', {
+            p_client_id: clientId || null,
+        });
+
+        if (error) {
+            console.error('[OAuth] getUserMcpOrganisations failed:', error.message);
+            return { success: false, error: error.message };
+        }
+
+        return { success: true, data: (data || []) as UserMcpOrganisationItem[] };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load user organisations";
+        console.error('Server Action: getUserMcpOrganisations failed:', message);
+        return { success: false, error: message };
+    }
+}
+
+/**
+ * Persists the user's MCP organisation authorization selection for a given client_id.
+ */
+export async function saveUserMcpAuthorizationAction(
+    clientId: string,
+    allowedOrgIds: string[],
+    allowAll: boolean
+): Promise<{ success: boolean; data?: any; error?: string }> {
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
+
+    if (!clientId || !clientId.trim()) {
+        return { success: false, error: 'Client-ID ist erforderlich' };
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('save_user_mcp_authorization', {
+            p_client_id: clientId.trim(),
+            p_allowed_org_ids: allowedOrgIds || [],
+            p_allow_all: allowAll,
+        });
+
+        if (error) {
+            console.error('[OAuth] saveUserMcpAuthorization failed:', error.message);
+            return { success: false, error: error.message };
+        }
+
+        return { success: true, data };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to save user MCP authorization";
+        console.error('Server Action: saveUserMcpAuthorization failed:', message);
+        return { success: false, error: message };
+    }
+}

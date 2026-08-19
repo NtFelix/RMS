@@ -67,6 +67,7 @@ interface OrganisationClientViewProps {
     owner_id: string;
     ist_versteckt: boolean;
     einstellungen: Record<string, unknown> | null;
+    mcp_zugriff_aktiviert?: boolean;
   };
   initialMembers: OrganisationMember[];
   initialInvitations: OrganisationInvitation[];
@@ -938,6 +939,8 @@ export default function OrganisationClientView({
           hasVerwaltenPermission={hasVerwaltenPermission}
           initialPolicies={initialPolicies}
           initialHaeuser={initialHaeuser}
+          organisationId={org.id}
+          initialMcpZugriffAktiviert={org.mcp_zugriff_aktiviert ?? true}
         />
       )}
 

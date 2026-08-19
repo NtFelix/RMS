@@ -29,7 +29,7 @@ export default async function OrganisationPage() {
   const [{ data: org, error: orgError }, { data: personalOrg }] = await Promise.all([
     supabase
       .from('Organisation')
-      .select('id, owner_id, ist_versteckt, einstellungen')
+      .select('id, owner_id, ist_versteckt, einstellungen, mcp_zugriff_aktiviert')
       .eq('id', orgId)
       .single(),
     supabase

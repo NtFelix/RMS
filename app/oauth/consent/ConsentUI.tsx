@@ -1,10 +1,19 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getAuthorizationDetailsAction, submitDecisionAction, type AuthorizationDetails } from './actions';
+import {
+    getAuthorizationDetailsAction,
+    submitDecisionAction,
+    getUserMcpOrganisationsAction,
+    saveUserMcpAuthorizationAction,
+    type AuthorizationDetails,
+    type UserMcpOrganisationItem
+} from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Check, Loader2, AlertTriangle, X, Terminal } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { ShieldAlert, Check, Loader2, AlertTriangle, X, Terminal, Building2 } from 'lucide-react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -60,6 +69,7 @@ interface ConsentUIProps {
     initialData?: AuthorizationDetails;
     initialError?: string;
     autoRedirectUrl?: string;
+    initialOrganisations?: UserMcpOrganisationItem[];
 }
 
 import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/constants';
@@ -279,7 +289,8 @@ export default function ConsentUI({
     isDemo = false,
     initialData,
     initialError,
-    autoRedirectUrl
+    autoRedirectUrl,
+    initialOrganisations
 }: ConsentUIProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processError, setProcessError] = useState<string | null>(null);
@@ -294,6 +305,32 @@ export default function ConsentUI({
     );
     const [loadError, setLoadError] = useState<string | null>(initialError || null);
     const [countdown, setCountdown] = useState(5);
+
+    const [organisations, setOrganisations] = useState<UserMcpOrganisationItem[]>(initialOrganisations || []);
+    const [isLoadingOrgs, setIsLoadingOrgs] = useState(!isDemo && (!initialOrganisations || initialOrganisations.length === 0));
+    const [allowAllOrgs, setAllowAllOrgs] = useState<boolean>(() => {
+        if (initialOrganisations && initialOrganisations.length > 0) {
+            const hasAuthRecord = initialOrganisations.some(o => o.allow_all || o.is_authorized);
+            if (hasAuthRecord) {
+                return initialOrganisations.some(o => o.allow_all);
+            }
+        }
+        return true;
+    });
+    const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>(() => {
+        if (initialOrganisations && initialOrganisations.length > 0) {
+            const hasAuthRecord = initialOrganisations.some(o => o.allow_all || o.is_authorized);
+            if (hasAuthRecord) {
+                return initialOrganisations
+                    .filter(o => o.is_authorized && o.mcp_zugriff_aktiviert)
+                    .map(o => o.organisation_id);
+            }
+            return initialOrganisations
+                .filter(o => o.mcp_zugriff_aktiviert)
+                .map(o => o.organisation_id);
+        }
+        return [];
+    });
 
     // Auto-close success window after a delay with visible countdown
     useEffect(() => {
@@ -393,6 +430,59 @@ export default function ConsentUI({
         initialClientIcon
     );
 
+    // Fetch organisations for the client if not already provided
+    useEffect(() => {
+        if (isDemo || type === 'error' || type === 'success') {
+            setIsLoadingOrgs(false);
+            return;
+        }
+
+        const fetchOrgs = async () => {
+            try {
+                const res = await getUserMcpOrganisationsAction(clientId);
+                if (res.success && res.data) {
+                    setOrganisations(res.data);
+                    const hasAuth = res.data.some(o => o.allow_all || o.is_authorized);
+                    if (hasAuth) {
+                        const isAll = res.data.some(o => o.allow_all);
+                        setAllowAllOrgs(isAll);
+                        setSelectedOrgIds(
+                            res.data
+                                .filter(o => o.is_authorized && o.mcp_zugriff_aktiviert)
+                                .map(o => o.organisation_id)
+                        );
+                    } else {
+                        setAllowAllOrgs(true);
+                        setSelectedOrgIds(
+                            res.data
+                                .filter(o => o.mcp_zugriff_aktiviert)
+                                .map(o => o.organisation_id)
+                        );
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to fetch user organisations:', err);
+            } finally {
+                setIsLoadingOrgs(false);
+            }
+        };
+
+        fetchOrgs();
+    }, [clientId, isDemo, type]);
+
+    const handleToggleOrg = (orgId: string, isEnabled: boolean) => {
+        if (!isEnabled) return;
+        setSelectedOrgIds(prev =>
+            prev.includes(orgId) ? prev.filter(id => id !== orgId) : [...prev, orgId]
+        );
+    };
+
+    const enabledOrgs = organisations.filter(o => o.mcp_zugriff_aktiviert);
+    const hasEnabledOrgs = enabledOrgs.length > 0;
+    const hasValidOrgSelection = allowAllOrgs
+        ? hasEnabledOrgs
+        : selectedOrgIds.some(id => enabledOrgs.some(o => o.organisation_id === id));
+
     // Merge Supabase scopes with our custom stashed scopes
     const rawSupabaseScopes = typeof authDetails?.scopes === 'string' ? authDetails.scopes.split(' ') : (authDetails?.scopes || []);
     const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...customScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
@@ -453,6 +543,26 @@ export default function ConsentUI({
                 setIsProcessing(false); // defensive reset before navigation
                 safeRedirect(autoRedirectUrl);
                 return;
+            }
+
+            // Save MCP organisation authorization before submitting consent decision
+            if (decision === 'approve' && clientId && organisations.length > 0) {
+                const enabledOrgList = organisations.filter(o => o.mcp_zugriff_aktiviert);
+                const orgsToSave = allowAllOrgs
+                    ? enabledOrgList.map(o => o.organisation_id)
+                    : selectedOrgIds.filter(id => enabledOrgList.some(o => o.organisation_id === id));
+
+                const saveResult = await saveUserMcpAuthorizationAction(
+                    clientId,
+                    orgsToSave,
+                    allowAllOrgs
+                );
+
+                if (!saveResult.success) {
+                    setProcessError(saveResult.error || 'Fehler beim Speichern der Organisationsberechtigungen.');
+                    setIsProcessing(false);
+                    return;
+                }
             }
 
             // All Supabase calls go through server actions to avoid CORS issues.
@@ -757,11 +867,170 @@ export default function ConsentUI({
                             </div>
                         )}
 
+                        {/* Organisation Access Selector */}
+                        {!isLoadingOrgs && organisations.length > 0 && (
+                            <div className="mb-8">
+                                <div className="flex items-center justify-between mb-3 px-1">
+                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                                        <Building2 className="w-4 h-4 text-primary" />
+                                        <span>Freizugebende Organisationen:</span>
+                                    </h3>
+                                    {organisations.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newAllowAll = !allowAllOrgs;
+                                                setAllowAllOrgs(newAllowAll);
+                                                if (newAllowAll) {
+                                                    setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
+                                                }
+                                            }}
+                                            className="text-xs font-semibold text-primary hover:underline transition-colors cursor-pointer bg-transparent border-0"
+                                        >
+                                            {allowAllOrgs ? "Auswahl anpassen" : "Alle freigeben"}
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-2">
+                                    {/* Quick Toggle for All Orgs */}
+                                    {organisations.length > 1 && (
+                                        <div
+                                            onClick={() => {
+                                                const newAllowAll = !allowAllOrgs;
+                                                setAllowAllOrgs(newAllowAll);
+                                                if (newAllowAll) {
+                                                    setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
+                                                }
+                                            }}
+                                            className={cn(
+                                                "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 cursor-pointer",
+                                                allowAllOrgs
+                                                    ? "bg-primary/5 border-primary/30 dark:border-primary/40"
+                                                    : "bg-card border-border/40 hover:border-border/80"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Checkbox
+                                                    id="org-select-all"
+                                                    checked={allowAllOrgs}
+                                                    onCheckedChange={(checked) => {
+                                                        const isChecked = !!checked;
+                                                        setAllowAllOrgs(isChecked);
+                                                        if (isChecked) {
+                                                            setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
+                                                        }
+                                                    }}
+                                                    className="rounded-md"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-foreground">
+                                                        Alle erlaubten Organisationen freigeben
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Gewährt Zugriff auf alle aktuellen und zukünftigen Organisationen mit aktiviertem MCP-Zugriff
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Individual Organisation List */}
+                                    {(!allowAllOrgs || organisations.length === 1) && (
+                                        <div className="space-y-1.5 pt-1">
+                                            {organisations.map((org) => {
+                                                const isEnabled = org.mcp_zugriff_aktiviert;
+                                                const isChecked = isEnabled && (allowAllOrgs || selectedOrgIds.includes(org.organisation_id));
+
+                                                return (
+                                                    <div
+                                                        key={org.organisation_id}
+                                                        onClick={() => {
+                                                            if (isEnabled && !allowAllOrgs) {
+                                                                handleToggleOrg(org.organisation_id, isEnabled);
+                                                            }
+                                                        }}
+                                                        className={cn(
+                                                            "flex items-center justify-between p-3 rounded-xl border transition-all duration-200",
+                                                            isEnabled
+                                                                ? isChecked
+                                                                    ? "bg-card border-primary/30 dark:border-primary/40 shadow-xs cursor-pointer"
+                                                                    : "bg-card/60 border-border/40 hover:border-border/80 cursor-pointer"
+                                                                : "bg-muted/40 border-dashed border-border/30 opacity-70 cursor-not-allowed"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <Checkbox
+                                                                id={`org-${org.organisation_id}`}
+                                                                checked={isChecked}
+                                                                disabled={!isEnabled || allowAllOrgs}
+                                                                onCheckedChange={() => {
+                                                                    if (isEnabled && !allowAllOrgs) {
+                                                                        handleToggleOrg(org.organisation_id, isEnabled);
+                                                                    }
+                                                                }}
+                                                                className="rounded-md"
+                                                            />
+                                                            <div className="flex flex-col min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={cn(
+                                                                        "text-sm font-medium truncate",
+                                                                        !isEnabled && "line-through text-muted-foreground"
+                                                                    )}>
+                                                                        {org.name}
+                                                                    </span>
+                                                                    {org.ist_versteckt && (
+                                                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                                            Persönlich
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-[11px] text-muted-foreground capitalize">
+                                                                    Rolle: {org.rolle === 'owner' ? 'Eigentümer' : org.rolle === 'admin' ? 'Administrator' : 'Mitarbeiter'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {!isEnabled && (
+                                                            <Badge
+                                                                variant="destructive"
+                                                                className="text-[10px] px-2 py-0.5 shrink-0 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                                            >
+                                                                Durch Administrator deaktiviert
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {!hasEnabledOrgs && (
+                                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                                            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                            <span>
+                                                In allen Organisationen, in denen Sie Mitglied sind, wurde der MCP Server Zugriff durch einen Administrator deaktiviert.
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Error display */}
                         {processError && (
                             <Alert variant="destructive" className="rounded-xl mb-4 bg-destructive/10 text-destructive border-destructive/20">
                                 <AlertDescription>{processError}</AlertDescription>
                             </Alert>
+                        )}
+
+                        {/* Validation notice when no enabled org is selected */}
+                        {!hasValidOrgSelection && !isLoading && organisations.length > 0 && (
+                            <p className="text-xs text-destructive text-center mb-4 font-medium">
+                                {!hasEnabledOrgs
+                                    ? "Keine freigebbare Organisation verfügbar (MCP-Zugriff durch Administrator deaktiviert)."
+                                    : "Bitte wählen Sie mindestens eine freizugebende Organisation aus."}
+                            </p>
                         )}
 
                         {/* Redirect URI info */}
@@ -782,8 +1051,8 @@ export default function ConsentUI({
                     <CardFooter className="flex flex-col gap-3 px-8 pb-8">
                         <Button
                             onClick={handleApprove}
-                            disabled={isProcessing}
-                            className="w-full h-12 rounded-xl text-base font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] dark:hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all duration-300"
+                            disabled={isProcessing || isLoading || (!isDemo && organisations.length > 0 && !hasValidOrgSelection)}
+                            className="w-full h-12 rounded-xl text-base font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] dark:hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {isProcessing ? (
                                 <>

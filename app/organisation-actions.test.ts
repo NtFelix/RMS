@@ -1,4 +1,11 @@
-import { createEinladungAction, revokeEinladungAction, setMitgliedRolleAction, setMitgliedStatusAction, removeMitgliedAction } from './organisation-actions';
+import {
+  createEinladungAction,
+  revokeEinladungAction,
+  setMitgliedRolleAction,
+  setMitgliedStatusAction,
+  removeMitgliedAction,
+  setOrganisationMcpAccessAction
+} from './organisation-actions';
 import { ensureAuth } from '@/lib/auth-utils';
 import { hasPermission } from '@/lib/permissions';
 import { revalidatePath } from 'next/cache';
@@ -100,6 +107,74 @@ describe('organisation-actions', () => {
         p_mitglied_id: 'member-id'
       });
       expect(revalidatePath).toHaveBeenCalledWith('/organisation');
+    });
+  });
+
+  describe('setOrganisationMcpAccessAction', () => {
+    it('should successfully enable MCP access for organisation', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        error: null,
+        data: { success: true, organisation_id: 'org-uuid-1', mcp_zugriff_aktiviert: true }
+      });
+
+      const result = await setOrganisationMcpAccessAction('org-uuid-1', true);
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ success: true, organisation_id: 'org-uuid-1', mcp_zugriff_aktiviert: true });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('set_organisation_mcp_access', {
+        p_org_id: 'org-uuid-1',
+        p_enabled: true
+      });
+      expect(revalidatePath).toHaveBeenCalledWith('/organisation');
+    });
+
+    it('should successfully disable MCP access for organisation', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        error: null,
+        data: { success: true, organisation_id: 'org-uuid-1', mcp_zugriff_aktiviert: false }
+      });
+
+      const result = await setOrganisationMcpAccessAction('org-uuid-1', false);
+      expect(result.success).toBe(true);
+      expect(result.data?.mcp_zugriff_aktiviert).toBe(false);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('set_organisation_mcp_access', {
+        p_org_id: 'org-uuid-1',
+        p_enabled: false
+      });
+      expect(revalidatePath).toHaveBeenCalledWith('/organisation');
+    });
+
+    it('should fail when user lacks organisation:verwalten permission', async () => {
+      (hasPermission as jest.Mock).mockResolvedValueOnce(false);
+
+      const result = await setOrganisationMcpAccessAction('org-uuid-1', false);
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('Keine Berechtigung zum Verwalten der Organisation');
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it('should fail when user is not authenticated', async () => {
+      (ensureAuth as jest.Mock).mockRejectedValueOnce(new Error('Nicht angemeldet'));
+
+      const result = await setOrganisationMcpAccessAction('org-uuid-1', true);
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe('Nicht angemeldet');
+    });
+
+    it('should fail when organisationId is missing', async () => {
+      const result = await setOrganisationMcpAccessAction('', true);
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toContain('Organisations-ID ist erforderlich');
+    });
+
+    it('should handle RPC error response', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        error: { message: 'Database error occurred' },
+        data: null
+      });
+
+      const result = await setOrganisationMcpAccessAction('org-uuid-1', true);
+      expect(result.success).toBe(false);
+      expect(result.error?.message).toBe('Database error occurred');
     });
   });
 });

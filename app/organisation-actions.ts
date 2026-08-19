@@ -614,5 +614,42 @@ export const getAuditLogDetailsAction = withLogging(
   }
 );
 
+/**
+ * Toggles MCP server access for an organisation.
+ * Only callable by organisation Admins and Owners.
+ */
+export const setOrganisationMcpAccessAction = withLogging(
+  'setOrganisationMcpAccess',
+  async (
+    organisationId: string,
+    enabled: boolean
+  ): Promise<{ success: boolean; data?: any; error?: { message: string } }> => {
+    let user, supabase;
+    try {
+      ({ user, supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
+    }
 
+    if (!(await hasPermission('organisation', 'verwalten'))) {
+      return { success: false, error: { message: "Keine Berechtigung zum Verwalten der Organisation." } };
+    }
 
+    if (!organisationId) {
+      return { success: false, error: { message: "Organisations-ID ist erforderlich." } };
+    }
+
+    const { data, error } = await supabase.rpc('set_organisation_mcp_access', {
+      p_org_id: organisationId,
+      p_enabled: enabled,
+    });
+
+    if (error) {
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/organisation');
+    return { success: true, data };
+  }
+);
