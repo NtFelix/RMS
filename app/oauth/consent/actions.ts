@@ -243,6 +243,18 @@ export async function getUserMcpOrganisationsAction(
     }
 }
 
+export interface SaveUserMcpAuthorizationResult {
+    success: boolean;
+    data?: {
+        success: boolean;
+        user_id?: string;
+        client_id?: string;
+        allowed_organisation_ids?: string[];
+        allow_all?: boolean;
+    };
+    error?: string;
+}
+
 /**
  * Persists the user's MCP organisation authorization selection for a given client_id.
  */
@@ -250,7 +262,7 @@ export async function saveUserMcpAuthorizationAction(
     clientId: string,
     allowedOrgIds: string[],
     allowAll: boolean
-): Promise<{ success: boolean; data?: any; error?: string }> {
+): Promise<SaveUserMcpAuthorizationResult> {
     let supabase;
     try {
         ({ supabase } = await ensureAuth());

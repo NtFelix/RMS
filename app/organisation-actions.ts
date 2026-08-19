@@ -614,6 +614,16 @@ export const getAuditLogDetailsAction = withLogging(
   }
 );
 
+export interface SetOrganisationMcpAccessResult {
+  success: boolean;
+  data?: {
+    success: boolean;
+    organisation_id?: string;
+    mcp_zugriff_aktiviert?: boolean;
+  };
+  error?: { message: string };
+}
+
 /**
  * Toggles MCP server access for an organisation.
  * Only callable by organisation Admins and Owners.
@@ -623,7 +633,7 @@ export const setOrganisationMcpAccessAction = withLogging(
   async (
     organisationId: string,
     enabled: boolean
-  ): Promise<{ success: boolean; data?: any; error?: { message: string } }> => {
+  ): Promise<SetOrganisationMcpAccessResult> => {
     let user, supabase;
     try {
       ({ user, supabase } = await ensureAuth());
