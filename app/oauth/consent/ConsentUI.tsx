@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     getAuthorizationDetailsAction,
     submitDecisionAction,
@@ -430,45 +430,57 @@ export default function ConsentUI({
         initialClientIcon
     );
 
-    // Fetch organisations for the client if not already provided
-    useEffect(() => {
+    const [orgFetchError, setOrgFetchError] = useState<string | null>(null);
+
+    const fetchOrgs = useCallback(async () => {
         if (isDemo || type === 'error' || type === 'success') {
             setIsLoadingOrgs(false);
             return;
         }
 
-        const fetchOrgs = async () => {
-            try {
-                const res = await getUserMcpOrganisationsAction(clientId);
-                if (res.success && res.data) {
-                    setOrganisations(res.data);
-                    const hasAuth = res.data.some(o => o.allow_all || o.is_authorized);
-                    if (hasAuth) {
-                        const isAll = res.data.some(o => o.allow_all);
-                        setAllowAllOrgs(isAll);
-                        setSelectedOrgIds(
-                            res.data
-                                .filter(o => o.is_authorized && o.mcp_zugriff_aktiviert)
-                                .map(o => o.organisation_id)
-                        );
-                    } else {
-                        setAllowAllOrgs(true);
-                        setSelectedOrgIds(
-                            res.data
-                                .filter(o => o.mcp_zugriff_aktiviert)
-                                .map(o => o.organisation_id)
-                        );
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to fetch user organisations:', err);
-            } finally {
-                setIsLoadingOrgs(false);
-            }
-        };
+        setIsLoadingOrgs(true);
+        setOrgFetchError(null);
 
-        fetchOrgs();
+        try {
+            const res = await getUserMcpOrganisationsAction(clientId);
+            if (res.success && res.data) {
+                setOrganisations(res.data);
+                const hasAuth = res.data.some(o => o.allow_all || o.is_authorized);
+                if (hasAuth) {
+                    const isAll = res.data.some(o => o.allow_all);
+                    setAllowAllOrgs(isAll);
+                    setSelectedOrgIds(
+                        res.data
+                            .filter(o => o.is_authorized && o.mcp_zugriff_aktiviert)
+                            .map(o => o.organisation_id)
+                    );
+                } else {
+                    setAllowAllOrgs(true);
+                    setSelectedOrgIds(
+                        res.data
+                            .filter(o => o.mcp_zugriff_aktiviert)
+                            .map(o => o.organisation_id)
+                    );
+                }
+            } else {
+                setOrgFetchError(res.error || 'Organisationen konnten nicht geladen werden.');
+            }
+        } catch (err) {
+            console.error('Failed to fetch user organisations:', err);
+            setOrgFetchError(err instanceof Error ? err.message : 'Unerwarteter Fehler beim Laden der Organisationen.');
+        } finally {
+            setIsLoadingOrgs(false);
+        }
     }, [clientId, isDemo, type]);
+
+    // Fetch organisations for the client if not already provided
+    useEffect(() => {
+        if (initialOrganisations && initialOrganisations.length > 0) {
+            setIsLoadingOrgs(false);
+            return;
+        }
+        fetchOrgs();
+    }, [fetchOrgs, initialOrganisations]);
 
     const handleToggleOrg = (orgId: string, isEnabled: boolean) => {
         if (!isEnabled) return;
@@ -1043,8 +1055,27 @@ export default function ConsentUI({
                             </div>
                         )}
 
+                        {/* Org fetch error with retry button */}
+                        {!isLoadingOrgs && orgFetchError && (
+                            <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center justify-between gap-3 mb-6">
+                                <div className="flex items-start gap-2 min-w-0">
+                                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                    <span className="leading-relaxed truncate">{orgFetchError}</span>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => fetchOrgs()}
+                                    className="text-xs h-7 px-2.5 shrink-0 hover:bg-destructive/10"
+                                >
+                                    Erneut versuchen
+                                </Button>
+                            </div>
+                        )}
+
                         {/* Banner when no organisations exist at all */}
-                        {!isLoadingOrgs && organisations.length === 0 && (
+                        {!isLoadingOrgs && !orgFetchError && organisations.length === 0 && (
                             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2 mb-6">
                                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                                 <span>
