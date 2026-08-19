@@ -634,9 +634,9 @@ export const setOrganisationMcpAccessAction = withLogging(
     organisationId: string,
     enabled: boolean
   ): Promise<SetOrganisationMcpAccessResult> => {
-    let user, supabase;
+    let supabase;
     try {
-      ({ user, supabase } = await ensureAuth());
+      ({ supabase } = await ensureAuth());
     } catch (authError: unknown) {
       const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
       return { success: false, error: { message: errorMessage } };
@@ -646,7 +646,7 @@ export const setOrganisationMcpAccessAction = withLogging(
       return { success: false, error: { message: "Keine Berechtigung zum Verwalten der Organisation." } };
     }
 
-    if (!organisationId) {
+    if (!organisationId || typeof organisationId !== 'string' || !organisationId.trim()) {
       return { success: false, error: { message: "Organisations-ID ist erforderlich." } };
     }
 
