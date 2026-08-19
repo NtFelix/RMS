@@ -174,7 +174,22 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
     // without knowing which apartment was affected.
     revalidatePath('/wohnungen');
     // Also consider revalidating the dashboard if it summarizes tenant counts or related info.
-    // revalidatePath('/'); 
+    // revalidatePath('/');
+
+    try {
+      const posthog = getPostHogServer();
+      await posthog.capture({
+        distinctId: user.id,
+        event: 'tenant_deleted',
+        properties: {
+          tenant_id: tenantId,
+          source: 'server_action',
+        },
+      });
+      await posthog.flush();
+    } catch (phError) {
+      console.error('[PostHog] Failed to capture tenant_deleted:', phError);
+    }
 
     return { success: true };
 
