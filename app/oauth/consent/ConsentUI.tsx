@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     getAuthorizationDetailsAction,
     submitDecisionAction,
@@ -320,17 +320,26 @@ export default function ConsentUI({
     const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>(() => {
         if (initialOrganisations && initialOrganisations.length > 0) {
             const hasAuthRecord = initialOrganisations.some(o => o.allow_all || o.is_authorized);
+            const result: string[] = [];
             if (hasAuthRecord) {
-                return initialOrganisations
-                    .filter(o => o.is_authorized && o.mcp_zugriff_aktiviert)
-                    .map(o => o.organisation_id);
+                for (const o of initialOrganisations) {
+                    if (o.is_authorized && o.mcp_zugriff_aktiviert) {
+                        result.push(o.organisation_id);
+                    }
+                }
+            } else {
+                for (const o of initialOrganisations) {
+                    if (o.mcp_zugriff_aktiviert) {
+                        result.push(o.organisation_id);
+                    }
+                }
             }
-            return initialOrganisations
-                .filter(o => o.mcp_zugriff_aktiviert)
-                .map(o => o.organisation_id);
+            return result;
         }
         return [];
     });
+
+    const selectedOrgSet = useMemo(() => new Set(selectedOrgIds), [selectedOrgIds]);
 
     // Auto-close success window after a delay with visible countdown
     useEffect(() => {
@@ -449,18 +458,22 @@ export default function ConsentUI({
                 if (hasAuth) {
                     const isAll = res.data.some(o => o.allow_all);
                     setAllowAllOrgs(isAll);
-                    setSelectedOrgIds(
-                        res.data
-                            .filter(o => o.is_authorized && o.mcp_zugriff_aktiviert)
-                            .map(o => o.organisation_id)
-                    );
+                    const selected: string[] = [];
+                    for (const o of res.data) {
+                        if (o.is_authorized && o.mcp_zugriff_aktiviert) {
+                            selected.push(o.organisation_id);
+                        }
+                    }
+                    setSelectedOrgIds(selected);
                 } else {
                     setAllowAllOrgs(true);
-                    setSelectedOrgIds(
-                        res.data
-                            .filter(o => o.mcp_zugriff_aktiviert)
-                            .map(o => o.organisation_id)
-                    );
+                    const selected: string[] = [];
+                    for (const o of res.data) {
+                        if (o.mcp_zugriff_aktiviert) {
+                            selected.push(o.organisation_id);
+                        }
+                    }
+                    setSelectedOrgIds(selected);
                 }
             } else {
                 setOrgFetchError(res.error || 'Organisationen konnten nicht geladen werden.');
@@ -970,7 +983,7 @@ export default function ConsentUI({
                                         <div className="space-y-1.5 pt-1">
                                             {organisations.map((org) => {
                                                 const isEnabled = org.mcp_zugriff_aktiviert;
-                                                const isChecked = isEnabled && (allowAllOrgs || selectedOrgIds.includes(org.organisation_id));
+                                                const isChecked = isEnabled && (allowAllOrgs || selectedOrgSet.has(org.organisation_id));
 
                                                 return (
                                                     <div
@@ -1121,7 +1134,7 @@ export default function ConsentUI({
                         <Button
                             onClick={handleApprove}
                             disabled={isProcessing || isLoading || isLoadingOrgs || (!isDemo && (organisations.length === 0 || !hasValidOrgSelection))}
-                            className="w-full h-12 rounded-xl text-base font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] dark:hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none"
+                            className="w-full h-12 rounded-xl text-base font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] dark:hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-colors duration-300 disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {isProcessing ? (
                                 <>
