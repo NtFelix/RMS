@@ -89,11 +89,12 @@ export function OrganisationPoliciesTab({
           variant: "success",
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Es gab ein Problem beim Aktualisieren des MCP Server Zugriffs.";
       setMcpEnabled(previousState);
       toast({
         title: "Fehler beim Aktualisieren",
-        description: err.message || "Es gab ein Problem beim Aktualisieren des MCP Server Zugriffs.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

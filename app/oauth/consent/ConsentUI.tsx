@@ -483,6 +483,14 @@ export default function ConsentUI({
         ? hasEnabledOrgs
         : selectedOrgIds.some(id => enabledOrgs.some(o => o.organisation_id === id));
 
+    const toggleAllowAll = () => {
+        const newAllowAll = !allowAllOrgs;
+        setAllowAllOrgs(newAllowAll);
+        if (newAllowAll) {
+            setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
+        }
+    };
+
     // Merge Supabase scopes with our custom stashed scopes
     const rawSupabaseScopes = typeof authDetails?.scopes === 'string' ? authDetails.scopes.split(' ') : (authDetails?.scopes || []);
     const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...customScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
@@ -546,22 +554,36 @@ export default function ConsentUI({
             }
 
             // Save MCP organisation authorization before submitting consent decision
-            if (decision === 'approve' && clientId && organisations.length > 0) {
-                const enabledOrgList = organisations.filter(o => o.mcp_zugriff_aktiviert);
-                const orgsToSave = allowAllOrgs
-                    ? enabledOrgList.map(o => o.organisation_id)
-                    : selectedOrgIds.filter(id => enabledOrgList.some(o => o.organisation_id === id));
-
-                const saveResult = await saveUserMcpAuthorizationAction(
-                    clientId,
-                    orgsToSave,
-                    allowAllOrgs
-                );
-
-                if (!saveResult.success) {
-                    setProcessError(saveResult.error || 'Fehler beim Speichern der Organisationsberechtigungen.');
+            if (decision === 'approve' && !isDemo) {
+                if (isLoadingOrgs) {
+                    setProcessError('Organisationsdaten werden noch geladen. Bitte warten.');
                     setIsProcessing(false);
                     return;
+                }
+
+                if (organisations.length === 0 || !hasValidOrgSelection) {
+                    setProcessError('Keine freigebbaren Organisationen verfügbar. Autorisierung kann nicht erteilt werden.');
+                    setIsProcessing(false);
+                    return;
+                }
+
+                if (clientId && organisations.length > 0) {
+                    const enabledOrgList = organisations.filter(o => o.mcp_zugriff_aktiviert);
+                    const orgsToSave = allowAllOrgs
+                        ? enabledOrgList.map(o => o.organisation_id)
+                        : selectedOrgIds.filter(id => enabledOrgList.some(o => o.organisation_id === id));
+
+                    const saveResult = await saveUserMcpAuthorizationAction(
+                        clientId,
+                        orgsToSave,
+                        allowAllOrgs
+                    );
+
+                    if (!saveResult.success) {
+                        setProcessError(saveResult.error || 'Fehler beim Speichern der Organisationsberechtigungen.');
+                        setIsProcessing(false);
+                        return;
+                    }
                 }
             }
 
@@ -878,13 +900,7 @@ export default function ConsentUI({
                                     {organisations.length > 1 && (
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                const newAllowAll = !allowAllOrgs;
-                                                setAllowAllOrgs(newAllowAll);
-                                                if (newAllowAll) {
-                                                    setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
-                                                }
-                                            }}
+                                            onClick={toggleAllowAll}
                                             className="text-xs font-semibold text-primary hover:underline transition-colors cursor-pointer bg-transparent border-0"
                                         >
                                             {allowAllOrgs ? "Auswahl anpassen" : "Alle freigeben"}
@@ -896,15 +912,17 @@ export default function ConsentUI({
                                     {/* Quick Toggle for All Orgs */}
                                     {organisations.length > 1 && (
                                         <div
-                                            onClick={() => {
-                                                const newAllowAll = !allowAllOrgs;
-                                                setAllowAllOrgs(newAllowAll);
-                                                if (newAllowAll) {
-                                                    setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={toggleAllowAll}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    toggleAllowAll();
                                                 }
                                             }}
                                             className={cn(
-                                                "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 cursor-pointer",
+                                                "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                                                 allowAllOrgs
                                                     ? "bg-primary/5 border-primary/30 dark:border-primary/40"
                                                     : "bg-card border-border/40 hover:border-border/80"
@@ -945,13 +963,21 @@ export default function ConsentUI({
                                                 return (
                                                     <div
                                                         key={org.organisation_id}
+                                                        role={isEnabled ? "button" : undefined}
+                                                        tabIndex={isEnabled && !allowAllOrgs ? 0 : undefined}
                                                         onClick={() => {
                                                             if (isEnabled && !allowAllOrgs) {
                                                                 handleToggleOrg(org.organisation_id, isEnabled);
                                                             }
                                                         }}
+                                                        onKeyDown={(e) => {
+                                                            if (isEnabled && !allowAllOrgs && (e.key === 'Enter' || e.key === ' ')) {
+                                                                e.preventDefault();
+                                                                handleToggleOrg(org.organisation_id, isEnabled);
+                                                            }
+                                                        }}
                                                         className={cn(
-                                                            "flex items-center justify-between p-3 rounded-xl border transition-all duration-200",
+                                                            "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                                                             isEnabled
                                                                 ? isChecked
                                                                     ? "bg-card border-primary/30 dark:border-primary/40 shadow-xs cursor-pointer"
@@ -1017,6 +1043,16 @@ export default function ConsentUI({
                             </div>
                         )}
 
+                        {/* Banner when no organisations exist at all */}
+                        {!isLoadingOrgs && organisations.length === 0 && (
+                            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2 mb-6">
+                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                                <span>
+                                    Es wurden keine Organisationen für Ihr Benutzerkonto gefunden. Der MCP Server Zugriff kann nicht autorisiert werden.
+                                </span>
+                            </div>
+                        )}
+
                         {/* Error display */}
                         {processError && (
                             <Alert variant="destructive" className="rounded-xl mb-4 bg-destructive/10 text-destructive border-destructive/20">
@@ -1024,10 +1060,12 @@ export default function ConsentUI({
                             </Alert>
                         )}
 
-                        {/* Validation notice when no enabled org is selected */}
-                        {!hasValidOrgSelection && !isLoading && organisations.length > 0 && (
+                        {/* Validation notice when no enabled org is selected or no orgs exist */}
+                        {(!hasValidOrgSelection || organisations.length === 0) && !isLoading && !isLoadingOrgs && (
                             <p className="text-xs text-destructive text-center mb-4 font-medium">
-                                {!hasEnabledOrgs
+                                {organisations.length === 0
+                                    ? "Keine Organisationen verfügbar. Autorisierung nicht möglich."
+                                    : !hasEnabledOrgs
                                     ? "Keine freigebbare Organisation verfügbar (MCP-Zugriff durch Administrator deaktiviert)."
                                     : "Bitte wählen Sie mindestens eine freizugebende Organisation aus."}
                             </p>
@@ -1051,7 +1089,7 @@ export default function ConsentUI({
                     <CardFooter className="flex flex-col gap-3 px-8 pb-8">
                         <Button
                             onClick={handleApprove}
-                            disabled={isProcessing || isLoading || (!isDemo && organisations.length > 0 && !hasValidOrgSelection)}
+                            disabled={isProcessing || isLoading || isLoadingOrgs || (!isDemo && (organisations.length === 0 || !hasValidOrgSelection))}
                             className="w-full h-12 rounded-xl text-base font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] dark:hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {isProcessing ? (
