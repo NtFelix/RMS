@@ -146,7 +146,8 @@ describe('ConsentUI Component', () => {
             expect(saveUserMcpAuthorizationAction).toHaveBeenCalledWith(
                 'client-123',
                 ['org-active-1'],
-                true
+                true,
+                { all: true, write: true }
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',
@@ -181,11 +182,44 @@ describe('ConsentUI Component', () => {
             expect(saveUserMcpAuthorizationAction).toHaveBeenCalledWith(
                 'client-123',
                 ['org-active-1'],
-                false
+                false,
+                { all: true, write: true }
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',
                 'allow'
+            );
+        });
+    });
+
+    it('persists read-only scope when Read-Only pill is selected', async () => {
+        render(
+            <ConsentUI
+                type="consent"
+                authorizationId="auth_123456789012"
+                initialData={{
+                    id: 'auth_123456789012',
+                    client: { id: 'client-123', name: 'Claude Desktop' },
+                    scopes: ['properties:read'],
+                    redirect_uri: 'https://claude.ai/oauth/callback',
+                }}
+                initialOrganisations={mockDefaultOrganisations}
+            />
+        );
+
+        // Select Read-Only mode
+        const readOnlyButton = screen.getByRole('button', { name: /Nur Lesen/i });
+        fireEvent.click(readOnlyButton);
+
+        const approveButton = screen.getByRole('button', { name: /Zugriff erlauben/i });
+        fireEvent.click(approveButton);
+
+        await waitFor(() => {
+            expect(saveUserMcpAuthorizationAction).toHaveBeenCalledWith(
+                'client-123',
+                ['org-active-1'],
+                true,
+                { all: true, write: false }
             );
         });
     });

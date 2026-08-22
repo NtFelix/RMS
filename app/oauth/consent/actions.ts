@@ -209,6 +209,20 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
 }
 
 /**
+ * Structure of granular MCP module & write scopes.
+ */
+export interface McpModuleScope {
+    read: boolean;
+    write: boolean;
+}
+
+export interface UserMcpScopes {
+    all?: boolean;
+    write?: boolean;
+    module?: Record<string, McpModuleScope>;
+}
+
+/**
  * Item structure returned by get_user_mcp_organisations RPC.
  */
 export interface UserMcpOrganisationItem {
@@ -219,6 +233,7 @@ export interface UserMcpOrganisationItem {
     mcp_zugriff_aktiviert: boolean;
     is_authorized: boolean;
     allow_all: boolean;
+    scopes?: UserMcpScopes;
 }
 
 /**
@@ -261,17 +276,19 @@ export interface SaveUserMcpAuthorizationResult {
         client_id?: string;
         allowed_organisation_ids?: string[];
         allow_all?: boolean;
+        scopes?: UserMcpScopes;
     };
     error?: string;
 }
 
 /**
- * Persists the user's MCP organisation authorization selection for a given client_id.
+ * Persists the user's MCP organisation and scope authorization selection for a given client_id.
  */
 export async function saveUserMcpAuthorizationAction(
     clientId: string,
     allowedOrgIds: string[],
-    allowAll: boolean
+    allowAll: boolean,
+    scopes?: UserMcpScopes
 ): Promise<SaveUserMcpAuthorizationResult> {
     let supabase;
     try {
@@ -285,11 +302,15 @@ export async function saveUserMcpAuthorizationAction(
         return { success: false, error: 'Client-ID ist erforderlich' };
     }
 
+    const defaultScopes: UserMcpScopes = { all: true, write: true };
+    const finalScopes = scopes || defaultScopes;
+
     try {
         const { data, error } = await supabase.rpc('save_user_mcp_authorization', {
             p_client_id: clientId.trim(),
             p_allowed_org_ids: allowedOrgIds || [],
             p_allow_all: allowAll,
+            p_scopes: finalScopes,
         });
 
         if (error) {
@@ -299,8 +320,10 @@ export async function saveUserMcpAuthorizationAction(
 
         return { success: true, data };
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Failed to save user MCP authorization";
+        const message = err instanceof Error ? err.message : "Failed to save user MCP authorizations";
         console.error('Server Action: saveUserMcpAuthorization failed:', message);
         return { success: false, error: message };
+    }
+}
     }
 }

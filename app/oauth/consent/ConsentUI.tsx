@@ -7,13 +7,14 @@ import {
     getUserMcpOrganisationsAction,
     saveUserMcpAuthorizationAction,
     type AuthorizationDetails,
-    type UserMcpOrganisationItem
+    type UserMcpOrganisationItem,
+    type UserMcpScopes
 } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { ShieldAlert, Check, Loader2, AlertTriangle, X, Terminal, Building2 } from 'lucide-react';
+import { ShieldAlert, Check, Loader2, AlertTriangle, X, Terminal, Building2, ShieldCheck } from 'lucide-react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -341,6 +342,53 @@ export default function ConsentUI({
 
     const selectedOrgSet = useMemo(() => new Set(selectedOrgIds), [selectedOrgIds]);
 
+    // Scope & Read/Write selection mode
+    type ScopeMode = 'full' | 'readonly' | 'custom';
+    const [scopeMode, setScopeMode] = useState<ScopeMode>(() => {
+        const existing = initialOrganisations?.[0]?.scopes;
+        if (existing) {
+            if (existing.all === true && existing.write !== false) return 'full';
+            if (existing.all === true && existing.write === false) return 'readonly';
+            if (existing.all === false) return 'custom';
+        }
+        return 'full';
+    });
+
+    const [moduleScopes, setModuleScopes] = useState<Record<string, { read: boolean; write: boolean }>>(() => {
+        const initialMap: Record<string, { read: boolean; write: boolean }> = {};
+        const existingMap = initialOrganisations?.[0]?.scopes?.module;
+        const defaultMods = [
+            { id: 'haeuser', defaultRead: true, defaultWrite: true },
+            { id: 'wohnungen', defaultRead: true, defaultWrite: true },
+            { id: 'mieter', defaultRead: true, defaultWrite: false },
+            { id: 'finanzen', defaultRead: true, defaultWrite: false },
+            { id: 'zaehler', defaultRead: true, defaultWrite: true },
+            { id: 'aufgaben', defaultRead: true, defaultWrite: true },
+            { id: 'dokumente', defaultRead: true, defaultWrite: false },
+        ];
+        for (const mod of defaultMods) {
+            initialMap[mod.id] = {
+                read: existingMap?.[mod.id]?.read ?? mod.defaultRead,
+                write: existingMap?.[mod.id]?.write ?? mod.defaultWrite,
+            };
+        }
+        return initialMap;
+    });
+
+    const handleToggleModuleScope = (moduleId: string, action: 'read' | 'write') => {
+        setModuleScopes(prev => {
+            const current = prev[moduleId] || { read: true, write: false };
+            const updated = { ...current, [action]: !current[action] };
+            if (action === 'write' && updated.write && !updated.read) {
+                updated.read = true;
+            }
+            if (action === 'read' && !updated.read && updated.write) {
+                updated.write = false;
+            }
+            return { ...prev, [moduleId]: updated };
+        });
+    };
+
     // Auto-close success window after a delay with visible countdown
     useEffect(() => {
         if (type !== 'success' || typeof window === 'undefined') return;
@@ -598,10 +646,24 @@ export default function ConsentUI({
                         ? enabledOrgList.map(o => o.organisation_id)
                         : selectedOrgIds.filter(id => enabledOrgList.some(o => o.organisation_id === id));
 
+                    let scopesToSave: UserMcpScopes;
+                    if (scopeMode === 'full') {
+                        scopesToSave = { all: true, write: true };
+                    } else if (scopeMode === 'readonly') {
+                        scopesToSave = { all: true, write: false };
+                    } else {
+                        scopesToSave = {
+                            all: false,
+                            write: Object.values(moduleScopes).some(m => m.write),
+                            module: moduleScopes,
+                        };
+                    }
+
                     const saveResult = await saveUserMcpAuthorizationAction(
                         clientId,
                         orgsToSave,
-                        allowAllOrgs
+                        allowAllOrgs,
+                        scopesToSave
                     );
 
                     if (!saveResult.success) {
@@ -1030,6 +1092,129 @@ export default function ConsentUI({
                                 <span>
                                     Es wurden keine Organisationen für Ihr Benutzerkonto gefunden. Der MCP Server Zugriff kann nicht autorisiert werden.
                                 </span>
+                            </div>
+                        )}
+
+                        {/* Granular MCP Scopes & Read/Write Selector */}
+                        {!isLoadingOrgs && organisations.length > 0 && (
+                            <div className="mb-8">
+                                <div className="flex items-center justify-between mb-3 px-1">
+                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                                        <ShieldCheck className="w-4 h-4 text-primary" />
+                                        <span>KI-Zugriff & Berechtigungen:</span>
+                                    </h3>
+                                    {scopeMode === 'custom' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setScopeMode('full')}
+                                            className="text-xs font-semibold text-primary hover:underline transition-colors cursor-pointer bg-transparent border-0"
+                                        >
+                                            Vollzugriff wählen
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-3">
+                                    {/* Mode Selector Radio Pills */}
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setScopeMode('full')}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-200 cursor-pointer",
+                                                scopeMode === 'full'
+                                                    ? "bg-primary/10 border-primary/40 text-foreground font-semibold shadow-xs"
+                                                    : "bg-card/70 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
+                                            )}
+                                        >
+                                            <span className="text-xs">Vollzugriff</span>
+                                            <span className="text-[10px] opacity-75">Lesen & Schreiben</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setScopeMode('readonly')}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-200 cursor-pointer",
+                                                scopeMode === 'readonly'
+                                                    ? "bg-primary/10 border-primary/40 text-foreground font-semibold shadow-xs"
+                                                    : "bg-card/70 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
+                                            )}
+                                        >
+                                            <span className="text-xs">Nur Lesen</span>
+                                            <span className="text-[10px] opacity-75">Read-Only</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setScopeMode('custom')}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-200 cursor-pointer",
+                                                scopeMode === 'custom'
+                                                    ? "bg-primary/10 border-primary/40 text-foreground font-semibold shadow-xs"
+                                                    : "bg-card/70 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
+                                            )}
+                                        >
+                                            <span className="text-xs">Granular</span>
+                                            <span className="text-[10px] opacity-75">Modulrechte</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Granular Module List when scopeMode === 'custom' */}
+                                    {scopeMode === 'custom' && (
+                                        <div className="space-y-1.5 pt-1">
+                                            {[
+                                                { id: 'haeuser', label: 'Häuser & Liegenschaften', desc: 'Gebäude, Adressen & Stammdaten' },
+                                                { id: 'wohnungen', label: 'Wohnungen & Einheiten', desc: 'Mieteinheiten, Flächen & Zimmer' },
+                                                { id: 'mieter', label: 'Mieter & Verträge', desc: 'Mieterdaten & Mietverträge' },
+                                                { id: 'finanzen', label: 'Finanzen & Transaktionen', desc: 'Mieteinnahmen & Betriebskosten' },
+                                                { id: 'zaehler', label: 'Zähler & Ablesungen', desc: 'Zählerstände & Verbrauchswerte' },
+                                                { id: 'aufgaben', label: 'Aufgaben & Tickets', desc: 'Instandhaltung & Handwerker' },
+                                                { id: 'dokumente', label: 'Dokumente & Vorlagen', desc: 'Dateien & Mietvertragsdokumente' },
+                                            ].map((mod) => {
+                                                const currentScope = moduleScopes[mod.id] || { read: false, write: false };
+                                                return (
+                                                    <div
+                                                        key={mod.id}
+                                                        className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-all duration-200"
+                                                    >
+                                                        <div className="flex flex-col min-w-0 pr-2">
+                                                            <span className="text-xs font-semibold text-foreground truncate">
+                                                                {mod.label}
+                                                            </span>
+                                                            <span className="text-[10px] text-muted-foreground truncate">
+                                                                {mod.desc}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            {/* Read Checkbox */}
+                                                            <label className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-muted/50">
+                                                                <Checkbox
+                                                                    id={`scope-read-${mod.id}`}
+                                                                    checked={currentScope.read}
+                                                                    onCheckedChange={() => handleToggleModuleScope(mod.id, 'read')}
+                                                                    className="rounded-sm w-3.5 h-3.5"
+                                                                />
+                                                                <span>Lesen</span>
+                                                            </label>
+
+                                                            {/* Write Checkbox */}
+                                                            <label className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-muted/50">
+                                                                <Checkbox
+                                                                    id={`scope-write-${mod.id}`}
+                                                                    checked={currentScope.write}
+                                                                    onCheckedChange={() => handleToggleModuleScope(mod.id, 'write')}
+                                                                    className="rounded-sm w-3.5 h-3.5"
+                                                                />
+                                                                <span>Schreiben</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
 
