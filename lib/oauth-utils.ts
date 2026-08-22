@@ -12,36 +12,30 @@ export const ALLOWED_REDIRECT_ORIGINS = [
     'https://www.perplexity.ai',
     'https://mcp.mietevo.de',
     'https://mietevo.de',
-    'http://localhost:8787',
-    'http://localhost:3000',
-    'http://localhost:3333',
-    'http://127.0.0.1:8787',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3333',
-    'http://127.0.0.1:54321',
-    // Allow any Cloudflare Pages preview deploy for development
+    'https://claude.ai',
+    'https://cursor.com',
+    // Allow any additional redirect origins configured via environment
     ...(process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS
-        ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',')
+        ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',').map(s => s.trim())
         : []),
 ];
 
-function isAllowedProtocol(parsed: URL): boolean {
-    if (parsed.protocol === 'https:') return true;
-    if (parsed.protocol === 'http:') {
-        return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '[::1]';
-    }
-    return false;
+function isLoopback(hostname: string): boolean {
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
 }
 
 /**
  * Validates a redirect URL against the allowlist.
- * Only HTTPS URLs (or local loopback HTTP URLs) whose origin is in the allowlist are accepted.
+ * Accepts trusted HTTPS origins and local loopback HTTP/HTTPS URLs.
  */
 export function isValidRedirect(url: string | undefined | null): boolean {
     if (!url) return false;
     try {
         const parsed = new URL(url);
-        if (!isAllowedProtocol(parsed)) return false;
+        if (isLoopback(parsed.hostname) && (parsed.protocol === 'http:' || parsed.protocol === 'https:')) {
+            return true;
+        }
+        if (parsed.protocol !== 'https:') return false;
         return ALLOWED_REDIRECT_ORIGINS.some(allowed => parsed.origin === allowed);
     } catch {
         return false;
@@ -60,7 +54,7 @@ export function isValidSupabaseRedirect(url: string | undefined | null): boolean
     if (!activeUrl) return false; // fail-closed
     try {
         const parsed = new URL(url);
-        if (!isAllowedProtocol(parsed)) return false;
+        if (parsed.protocol !== 'https:' && !isLoopback(parsed.hostname)) return false;
         const supabaseOrigin = new URL(activeUrl).origin;
         return parsed.origin === supabaseOrigin;
     } catch {
