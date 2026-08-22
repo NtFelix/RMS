@@ -104,6 +104,7 @@ describe('Adversarial Security & Action Challenge Tests', () => {
                 p_client_id: 'claude-desktop',
                 p_allowed_org_ids: [],
                 p_allow_all: false,
+                p_scopes: { all: true, write: true },
             });
         });
 

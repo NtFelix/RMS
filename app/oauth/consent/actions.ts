@@ -325,5 +325,3 @@ export async function saveUserMcpAuthorizationAction(
         return { success: false, error: message };
     }
 }
-    }
-}

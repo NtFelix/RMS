@@ -141,7 +141,8 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
                 expect(saveUserMcpAuthorizationAction).toHaveBeenCalledWith(
                     mockClientId,
                     [ORG_ACTIVE_1.organisation_id],
-                    false
+                    false,
+                    { all: true, write: true }
                 );
                 expect(submitDecisionAction).toHaveBeenCalledTimes(1);
                 expect(submitDecisionAction).toHaveBeenCalledWith(mockAuthId, 'allow');

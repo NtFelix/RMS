@@ -140,7 +140,7 @@ describe('OAuth Consent actions', () => {
                 expect.stringContaining('/auth/v1/oauth/authorizations/auth_123456789012/consent'),
                 expect.objectContaining({
                     method: 'POST',
-                    body: JSON.stringify({ consent: 'approve', decision: 'allow' }),
+                    body: JSON.stringify({ action: 'approve', consent: 'approve', decision: 'allow' }),
                 })
             );
         });
@@ -297,6 +297,7 @@ describe('OAuth Consent actions', () => {
                 p_client_id: 'claude-desktop',
                 p_allowed_org_ids: ['org-1', 'org-2'],
                 p_allow_all: false,
+                p_scopes: { all: true, write: true },
             });
         });
 
@@ -317,6 +318,7 @@ describe('OAuth Consent actions', () => {
                 p_client_id: 'claude-desktop',
                 p_allowed_org_ids: [],
                 p_allow_all: true,
+                p_scopes: { all: true, write: true },
             });
         });
 

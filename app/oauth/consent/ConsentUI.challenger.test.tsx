@@ -194,7 +194,8 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
             expect(saveUserMcpAuthorizationAction).toHaveBeenCalledWith(
                 'client-123',
                 expect.not.arrayContaining(['org-disabled']),
-                false
+                false,
+                { all: true, write: true }
             );
         });
     });
