@@ -614,5 +614,52 @@ export const getAuditLogDetailsAction = withLogging(
   }
 );
 
+export interface SetOrganisationMcpAccessResult {
+  success: boolean;
+  data?: {
+    success: boolean;
+    organisation_id?: string;
+    mcp_zugriff_aktiviert?: boolean;
+  };
+  error?: { message: string };
+}
 
+/**
+ * Toggles MCP server access for an organisation.
+ * Only callable by organisation Admins and Owners.
+ */
+export const setOrganisationMcpAccessAction = withLogging(
+  'setOrganisationMcpAccess',
+  async (
+    organisationId: string,
+    enabled: boolean
+  ): Promise<SetOrganisationMcpAccessResult> => {
+    let supabase;
+    try {
+      ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+      const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+      return { success: false, error: { message: errorMessage } };
+    }
 
+    if (!(await hasPermission('organisation', 'verwalten'))) {
+      return { success: false, error: { message: "Keine Berechtigung zum Verwalten der Organisation." } };
+    }
+
+    if (!organisationId || typeof organisationId !== 'string' || !organisationId.trim()) {
+      return { success: false, error: { message: "Organisations-ID ist erforderlich." } };
+    }
+
+    const { data, error } = await supabase.rpc('set_organisation_mcp_access', {
+      p_org_id: organisationId,
+      p_enabled: enabled,
+    });
+
+    if (error) {
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/organisation');
+    return { success: true, data };
+  }
+);

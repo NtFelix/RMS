@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { getSupabasePublicEnv } from './supabase-env';
 
 /**
  * Allowlist of trusted redirect origins for the OAuth consent flow.
@@ -11,20 +12,29 @@ export const ALLOWED_REDIRECT_ORIGINS = [
     'https://www.perplexity.ai',
     'https://mcp.mietevo.de',
     'https://mietevo.de',
-    // Allow any Cloudflare Pages preview deploy for development
+    'https://claude.ai',
+    'https://cursor.com',
+    // Allow any additional redirect origins configured via environment
     ...(process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS
-        ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',')
+        ? process.env.NEXT_PUBLIC_EXTRA_REDIRECT_ORIGINS.split(',').map(s => s.trim())
         : []),
 ];
 
+function isLoopback(hostname: string): boolean {
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
 /**
  * Validates a redirect URL against the allowlist.
- * Only HTTPS URLs whose origin is in the allowlist are accepted.
+ * Accepts trusted HTTPS origins and local loopback HTTP/HTTPS URLs.
  */
 export function isValidRedirect(url: string | undefined | null): boolean {
     if (!url) return false;
     try {
         const parsed = new URL(url);
+        if (isLoopback(parsed.hostname) && (parsed.protocol === 'http:' || parsed.protocol === 'https:')) {
+            return true;
+        }
         if (parsed.protocol !== 'https:') return false;
         return ALLOWED_REDIRECT_ORIGINS.some(allowed => parsed.origin === allowed);
     } catch {
@@ -39,12 +49,13 @@ export function isValidRedirect(url: string | undefined | null): boolean {
  */
 export function isValidSupabaseRedirect(url: string | undefined | null): boolean {
     if (!url) return false;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) return false; // fail-closed
+    const { url: supabaseUrl } = getSupabasePublicEnv();
+    const activeUrl = supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!activeUrl) return false; // fail-closed
     try {
         const parsed = new URL(url);
-        if (parsed.protocol !== 'https:') return false;
-        const supabaseOrigin = new URL(supabaseUrl).origin;
+        if (parsed.protocol !== 'https:' && !isLoopback(parsed.hostname)) return false;
+        const supabaseOrigin = new URL(activeUrl).origin;
         return parsed.origin === supabaseOrigin;
     } catch {
         return false;
