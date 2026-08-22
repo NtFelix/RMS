@@ -1,9 +1,15 @@
 'use server';
 
 import { ensureAuth } from '@/lib/auth-utils';
+import { getSupabasePublicEnv } from '@/lib/supabase-env';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+function getSupabaseConfig() {
+    const { url, anonKey } = getSupabasePublicEnv();
+    return {
+        url: url || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+        anonKey: anonKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH',
+    };
+}
 
 const ERR_AUTH_EXPIRED =
     'Dieser Autorisierungslink wurde bereits verwendet oder ist abgelaufen. Bitte starten Sie den Verbindungsvorgang erneut.';
@@ -23,9 +29,10 @@ function validateId(authorizationId: string): void {
 
 /** Builds the authorization endpoint URL */
 function buildAuthUrl(authorizationId: string): string {
+    const { url } = getSupabaseConfig();
     return new URL(
         '/auth/v1/oauth/authorizations/' + encodeURIComponent(authorizationId),
-        SUPABASE_URL
+        url
     ).toString();
 }
 
@@ -46,12 +53,13 @@ function parseSupabaseAuthError(responseText: string, fallbackMessage: string): 
  * Includes a mandatory timeout and standard headers.
  */
 async function fetchAuthEndpoint(url: string, accessToken: string, options: RequestInit = {}) {
+    const { anonKey } = getSupabaseConfig();
     return fetch(url, {
         ...options,
         headers: {
             ...options.headers,
             'Authorization': `Bearer ${accessToken}`,
-            'apikey': SUPABASE_ANON_KEY,
+            'apikey': anonKey,
         },
         // Prevent blocking server actions indefinitely
         signal: AbortSignal.timeout(5000),
@@ -151,10 +159,12 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
             return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
         }
 
-        const consentUrl = `${SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}/consent`;
+        const { url } = getSupabaseConfig();
+        const consentUrl = `${url}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}/consent`;
         const consentValue = decision === 'allow' ? 'approve' : 'deny';
-        // Dual payload (consent + decision) provides compatibility across different Supabase GoTrue versions.
+        // Multi-field payload (action + consent + decision) provides compatibility across different Supabase GoTrue versions.
         const consentPayload = JSON.stringify({
+            action: consentValue,
             consent: consentValue,
             decision: decision,
         });

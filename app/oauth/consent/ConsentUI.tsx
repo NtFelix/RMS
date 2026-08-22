@@ -850,70 +850,6 @@ export default function ConsentUI({
                             </CardDescription>
                         </CardHeader>
                     <CardContent className="px-8 pb-4">
-                        {scopes.length > 0 && (
-                            <div className="mb-8">
-                                <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
-                                    Diese Anwendung darf:
-                                </h3>
-                                <div className="relative rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden flex flex-col shadow-inner backdrop-blur-xs">
-                                    {/* Top scroll fade */}
-                                    {showTopFade && (
-                                        <motion.div
-                                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                            className="absolute top-0 left-0 right-0 h-6 bg-linear-to-b from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none"
-                                        />
-                                    )}
-
-                                    <div
-                                        ref={scrollRef}
-                                        onScroll={handleScroll}
-                                        className="max-h-60 overflow-y-auto p-3 space-y-2 custom-scrollbar relative z-0"
-                                    >
-                                        {scopes.map((scope, index) => {
-                                            const details = getScopeDetails(scope);
-                                            return (
-                                                <motion.div
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: 0.1 * index }}
-                                                    key={scope}
-                                                    className="group/scope flex items-start gap-4 p-3.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 dark:border-border/30 dark:hover:border-border/80 hover:bg-card hover:shadow-xs dark:hover:shadow-md transition-all duration-300"
-                                                >
-                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 group-hover/scope:bg-primary/20 group-hover/scope:scale-110 transition-all duration-300">
-                                                        <Check className="w-4 h-4 text-primary" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold text-foreground mb-0.5">
-                                                            {details.title}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground leading-relaxed">
-                                                            {details.description}
-                                                        </p>
-                                                    </div>
-                                                </motion.div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Bottom scroll fade with bouncing arrow */}
-                                    {showBottomFade && (
-                                        <motion.div
-                                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                            className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none flex items-end justify-center pb-1.5"
-                                        >
-                                            <motion.div
-                                                animate={{ y: [0, 3, 0] }}
-                                                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                                                className="w-5 h-5 rounded-full bg-background/50 border border-border/50 flex items-center justify-center backdrop-blur-md shadow-xs"
-                                            >
-                                                <div className="w-1.5 h-1.5 border-b-2 border-r-2 border-muted-foreground rotate-45 mb-0.5" />
-                                            </motion.div>
-                                        </motion.div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
                         {/* Organisation Access Selector */}
                         {!isLoadingOrgs && organisations.length > 0 && (
                             <div className="mb-8">
@@ -1094,6 +1030,70 @@ export default function ConsentUI({
                                 <span>
                                     Es wurden keine Organisationen für Ihr Benutzerkonto gefunden. Der MCP Server Zugriff kann nicht autorisiert werden.
                                 </span>
+                            </div>
+                        )}
+
+                        {scopes.length > 0 && (
+                            <div className="mb-8">
+                                <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
+                                    Diese Anwendung darf:
+                                </h3>
+                                <div className="relative rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden flex flex-col shadow-inner backdrop-blur-xs">
+                                    {/* Top scroll fade */}
+                                    {showTopFade && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                            className="absolute top-0 left-0 right-0 h-6 bg-linear-to-b from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none"
+                                        />
+                                    )}
+
+                                    <div
+                                        ref={scrollRef}
+                                        onScroll={handleScroll}
+                                        className="max-h-60 overflow-y-auto p-3 space-y-2 custom-scrollbar relative z-0"
+                                    >
+                                        {scopes.map((scope, index) => {
+                                            const details = getScopeDetails(scope);
+                                            return (
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: 0.1 * index }}
+                                                    key={scope}
+                                                    className="group/scope flex items-start gap-4 p-3.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 dark:border-border/30 dark:hover:border-border/80 hover:bg-card hover:shadow-xs dark:hover:shadow-md transition-all duration-300"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 group-hover/scope:bg-primary/20 group-hover/scope:scale-110 transition-all duration-300">
+                                                        <Check className="w-4 h-4 text-primary" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold text-foreground mb-0.5">
+                                                            {details.title}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                                            {details.description}
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Bottom scroll fade with bouncing arrow */}
+                                    {showBottomFade && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                            className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-muted/90 dark:from-background/90 to-transparent z-10 pointer-events-none flex items-end justify-center pb-1.5"
+                                        >
+                                            <motion.div
+                                                animate={{ y: [0, 3, 0] }}
+                                                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                                                className="w-5 h-5 rounded-full bg-background/50 border border-border/50 flex items-center justify-center backdrop-blur-md shadow-xs"
+                                            >
+                                                <div className="w-1.5 h-1.5 border-b-2 border-r-2 border-muted-foreground rotate-45 mb-0.5" />
+                                            </motion.div>
+                                        </motion.div>
+                                    )}
+                                </div>
                             </div>
                         )}
 
