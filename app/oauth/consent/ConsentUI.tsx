@@ -14,7 +14,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { ShieldAlert, Check, Loader2, AlertTriangle, X, Terminal, Building2, ShieldCheck } from 'lucide-react';
+import {
+    ShieldAlert,
+    Check,
+    Loader2,
+    AlertTriangle,
+    X,
+    Terminal,
+    Building2,
+    ShieldCheck,
+    Clock,
+    Sparkles,
+    Eye,
+    SlidersHorizontal,
+    Home,
+    Users,
+    Wallet,
+    Gauge,
+    CheckSquare,
+    FileText
+} from 'lucide-react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -746,23 +765,23 @@ export default function ConsentUI({
     if (type === 'success') {
         return (
             <FullScreenLayout>
-                <Card className="border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+                <Card className="border-border/50 dark:border-border/30 bg-background/80 dark:bg-background/60 backdrop-blur-2xl shadow-xl dark:shadow-2xl rounded-[2.5rem] overflow-hidden">
                     <CardHeader className="text-center pt-8">
-                        <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mb-6 border border-green-500/20 p-4">
-                            <Check className="w-10 h-10 text-green-500" />
+                        <div className="mx-auto w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 border border-primary/20 p-4 shadow-inner">
+                            <Check className="w-10 h-10 text-primary" />
                         </div>
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                        <CardTitle className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
                             Verbindung hergestellt
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="px-8 pb-8 flex flex-col items-center">
-                        <p className="text-muted-foreground text-center mb-4">
+                        <p className="text-muted-foreground text-center mb-5 text-sm leading-relaxed max-w-sm">
                             Diese Autorisierung wurde bereits erfolgreich verarbeitet.
                             Sie können dieses Fenster schließen.
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
-                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            Fenster schließt in {countdown}s
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-muted/60 dark:bg-muted/30 border border-border/40 px-3.5 py-1.5 rounded-full shadow-2xs">
+                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>Fenster schließt in {countdown}s</span>
                         </div>
                     </CardContent>
                 </Card>
@@ -798,10 +817,10 @@ export default function ConsentUI({
                         <CardContent className="px-8 pb-4">
                             {scopes.length > 0 && (
                                 <div className="mb-6">
-                                    <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
+                                    <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">
                                         Aktuelle Berechtigungen:
                                     </h3>
-                                    <div className="rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-2">
+                                    <div className="rounded-2xl border border-border/50 bg-muted/20 dark:bg-muted/10 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-2">
                                         {scopes.map((scope, index) => {
                                             const details = getScopeDetails(scope);
                                             return (
@@ -810,10 +829,10 @@ export default function ConsentUI({
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ delay: 0.1 * index }}
                                                     key={scope}
-                                                    className="flex items-start gap-4 p-3.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 dark:border-border/30 dark:hover:border-border/80 transition-all duration-300"
+                                                    className="group/scope flex items-start gap-3.5 p-3 rounded-xl bg-card border border-border/40 hover:border-border/80 hover:bg-card/90 shadow-2xs transition-all duration-200"
                                                 >
-                                                    <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                        <Check className="w-4 h-4 text-green-500" />
+                                                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover/scope:bg-primary/20 transition-colors">
+                                                        <Check className="w-3.5 h-3.5" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-semibold text-foreground mb-0.5">
@@ -916,7 +935,7 @@ export default function ConsentUI({
                         {!isLoadingOrgs && organisations.length > 0 && (
                             <div className="mb-8">
                                 <div className="flex items-center justify-between mb-3 px-1">
-                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                         <Building2 className="w-4 h-4 text-primary" />
                                         <span>Freizugebende Organisationen:</span>
                                     </h3>
@@ -924,14 +943,14 @@ export default function ConsentUI({
                                         <button
                                             type="button"
                                             onClick={toggleAllowAll}
-                                            className="text-xs font-semibold text-primary hover:underline transition-colors cursor-pointer bg-transparent border-0"
+                                            className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer bg-transparent border-0"
                                         >
                                             {allowAllOrgs ? "Auswahl anpassen" : "Alle freigeben"}
                                         </button>
                                     )}
                                 </div>
 
-                                <div className="rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-2">
+                                <div className="rounded-2xl border border-border/50 bg-muted/20 dark:bg-muted/10 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-2.5">
                                     {/* Quick Toggle for All Orgs */}
                                     {organisations.length > 1 && (
                                         <div
@@ -945,13 +964,13 @@ export default function ConsentUI({
                                                 }
                                             }}
                                             className={cn(
-                                                "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+                                                "flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                                                 allowAllOrgs
-                                                    ? "bg-primary/5 border-primary/30 dark:border-primary/40"
-                                                    : "bg-card border-border/40 hover:border-border/80"
+                                                    ? "bg-card border-primary/40 dark:border-primary/50 shadow-xs ring-1 ring-primary/20"
+                                                    : "bg-card/70 border-border/40 hover:border-border/80 hover:bg-card"
                                             )}
                                         >
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-3.5 min-w-0">
                                                 <Checkbox
                                                     id="org-select-all"
                                                     checked={allowAllOrgs}
@@ -964,11 +983,11 @@ export default function ConsentUI({
                                                     }}
                                                     className="rounded-md"
                                                 />
-                                                <div className="flex flex-col">
+                                                <div className="flex flex-col min-w-0">
                                                     <span className="text-sm font-semibold text-foreground">
                                                         Alle erlaubten Organisationen freigeben
                                                     </span>
-                                                    <span className="text-xs text-muted-foreground">
+                                                    <span className="text-xs text-muted-foreground leading-relaxed">
                                                         Gewährt Zugriff auf alle aktuellen und zukünftigen Organisationen mit aktiviertem MCP-Zugriff
                                                     </span>
                                                 </div>
@@ -978,7 +997,7 @@ export default function ConsentUI({
 
                                     {/* Individual Organisation List */}
                                     {(!allowAllOrgs || organisations.length === 1) && (
-                                        <div className="space-y-1.5 pt-1">
+                                        <div className="space-y-2 pt-0.5">
                                             {organisations.map((org) => {
                                                 const isEnabled = org.mcp_zugriff_aktiviert;
                                                 const isChecked = isEnabled && (allowAllOrgs || selectedOrgSet.has(org.organisation_id));
@@ -1000,15 +1019,15 @@ export default function ConsentUI({
                                                             }
                                                         }}
                                                         className={cn(
-                                                            "flex items-center justify-between p-3 rounded-xl border transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+                                                            "flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                                                             isEnabled
                                                                 ? isChecked
-                                                                    ? "bg-card border-primary/30 dark:border-primary/40 shadow-xs cursor-pointer"
-                                                                    : "bg-card/60 border-border/40 hover:border-border/80 cursor-pointer"
-                                                                : "bg-muted/40 border-dashed border-border/30 opacity-70 cursor-not-allowed"
+                                                                    ? "bg-card border-primary/40 dark:border-primary/50 shadow-xs ring-1 ring-primary/20 cursor-pointer"
+                                                                    : "bg-card/70 border-border/40 hover:border-border/80 hover:bg-card cursor-pointer"
+                                                                : "bg-muted/30 border-dashed border-border/40 opacity-65 cursor-not-allowed"
                                                         )}
                                                     >
-                                                        <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="flex items-center gap-3.5 min-w-0">
                                                             <Checkbox
                                                                 id={`org-${org.organisation_id}`}
                                                                 checked={isChecked}
@@ -1020,21 +1039,24 @@ export default function ConsentUI({
                                                                 }}
                                                                 className="rounded-md"
                                                             />
+                                                            <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                                                                <Building2 className="w-4 h-4" />
+                                                            </div>
                                                             <div className="flex flex-col min-w-0">
                                                                 <div className="flex items-center gap-2">
                                                                     <span className={cn(
-                                                                        "text-sm font-medium truncate",
-                                                                        !isEnabled && "line-through text-muted-foreground"
+                                                                        "text-sm font-semibold truncate",
+                                                                        !isEnabled && "line-through text-muted-foreground font-normal"
                                                                     )}>
                                                                         {org.name}
                                                                     </span>
                                                                     {org.ist_versteckt && (
-                                                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-border/60">
                                                                             Persönlich
                                                                         </Badge>
                                                                     )}
                                                                 </div>
-                                                                <span className="text-[11px] text-muted-foreground capitalize">
+                                                                <span className="text-xs text-muted-foreground capitalize">
                                                                     Rolle: {org.rolle === 'owner' ? 'Eigentümer' : org.rolle === 'admin' ? 'Administrator' : 'Mitarbeiter'}
                                                                 </span>
                                                             </div>
@@ -1043,7 +1065,7 @@ export default function ConsentUI({
                                                         {!isEnabled && (
                                                             <Badge
                                                                 variant="destructive"
-                                                                className="text-[10px] px-2 py-0.5 shrink-0 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                                                className="text-[10px] px-2 py-0.5 shrink-0 bg-destructive/10 text-destructive border border-destructive/20"
                                                             >
                                                                 Durch Administrator deaktiviert
                                                             </Badge>
@@ -1099,7 +1121,7 @@ export default function ConsentUI({
                         {!isLoadingOrgs && organisations.length > 0 && (
                             <div className="mb-8">
                                 <div className="flex items-center justify-between mb-3 px-1">
-                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                         <ShieldCheck className="w-4 h-4 text-primary" />
                                         <span>KI-Zugriff & Berechtigungen:</span>
                                     </h3>
@@ -1107,88 +1129,110 @@ export default function ConsentUI({
                                         <button
                                             type="button"
                                             onClick={() => setScopeMode('full')}
-                                            className="text-xs font-semibold text-primary hover:underline transition-colors cursor-pointer bg-transparent border-0"
+                                            className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer bg-transparent border-0"
                                         >
                                             Vollzugriff wählen
                                         </button>
                                     )}
                                 </div>
 
-                                <div className="rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-3">
+                                <div className="rounded-2xl border border-border/50 bg-muted/20 dark:bg-muted/10 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-3">
                                     {/* Mode Selector Radio Pills */}
                                     <div className="grid grid-cols-3 gap-2">
                                         <button
                                             type="button"
                                             onClick={() => setScopeMode('full')}
                                             className={cn(
-                                                "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-200 cursor-pointer",
+                                                "flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer group",
                                                 scopeMode === 'full'
-                                                    ? "bg-primary/10 border-primary/40 text-foreground font-semibold shadow-xs"
-                                                    : "bg-card/70 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
+                                                    ? "bg-card border-primary/50 text-foreground font-semibold shadow-xs ring-1 ring-primary/20"
+                                                    : "bg-card/60 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground hover:bg-card"
                                             )}
                                         >
-                                            <span className="text-xs">Vollzugriff</span>
-                                            <span className="text-[10px] opacity-75">Lesen & Schreiben</span>
+                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                <Sparkles className={cn("w-3.5 h-3.5", scopeMode === 'full' ? "text-primary" : "text-muted-foreground")} />
+                                                <span className="text-xs font-semibold">Vollzugriff</span>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground">Lesen & Schreiben</span>
                                         </button>
 
                                         <button
                                             type="button"
                                             onClick={() => setScopeMode('readonly')}
                                             className={cn(
-                                                "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-200 cursor-pointer",
+                                                "flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer group",
                                                 scopeMode === 'readonly'
-                                                    ? "bg-primary/10 border-primary/40 text-foreground font-semibold shadow-xs"
-                                                    : "bg-card/70 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
+                                                    ? "bg-card border-primary/50 text-foreground font-semibold shadow-xs ring-1 ring-primary/20"
+                                                    : "bg-card/60 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground hover:bg-card"
                                             )}
                                         >
-                                            <span className="text-xs">Nur Lesen</span>
-                                            <span className="text-[10px] opacity-75">Read-Only</span>
+                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                <Eye className={cn("w-3.5 h-3.5", scopeMode === 'readonly' ? "text-primary" : "text-muted-foreground")} />
+                                                <span className="text-xs font-semibold">Nur Lesen</span>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground">Read-Only</span>
                                         </button>
 
                                         <button
                                             type="button"
                                             onClick={() => setScopeMode('custom')}
                                             className={cn(
-                                                "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all duration-200 cursor-pointer",
+                                                "flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer group",
                                                 scopeMode === 'custom'
-                                                    ? "bg-primary/10 border-primary/40 text-foreground font-semibold shadow-xs"
-                                                    : "bg-card/70 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
+                                                    ? "bg-card border-primary/50 text-foreground font-semibold shadow-xs ring-1 ring-primary/20"
+                                                    : "bg-card/60 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground hover:bg-card"
                                             )}
                                         >
-                                            <span className="text-xs">Granular</span>
-                                            <span className="text-[10px] opacity-75">Modulrechte</span>
+                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                <SlidersHorizontal className={cn("w-3.5 h-3.5", scopeMode === 'custom' ? "text-primary" : "text-muted-foreground")} />
+                                                <span className="text-xs font-semibold">Granular</span>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground">Modulrechte</span>
                                         </button>
                                     </div>
 
                                     {/* Granular Module List when scopeMode === 'custom' */}
                                     {scopeMode === 'custom' && (
-                                        <div className="space-y-1.5 pt-1">
+                                        <div className="space-y-2 pt-1">
                                             {[
-                                                { id: 'haeuser', label: 'Häuser & Liegenschaften', desc: 'Gebäude, Adressen & Stammdaten' },
-                                                { id: 'wohnungen', label: 'Wohnungen & Einheiten', desc: 'Mieteinheiten, Flächen & Zimmer' },
-                                                { id: 'mieter', label: 'Mieter & Verträge', desc: 'Mieterdaten & Mietverträge' },
-                                                { id: 'finanzen', label: 'Finanzen & Transaktionen', desc: 'Mieteinnahmen & Betriebskosten' },
-                                                { id: 'zaehler', label: 'Zähler & Ablesungen', desc: 'Zählerstände & Verbrauchswerte' },
-                                                { id: 'aufgaben', label: 'Aufgaben & Tickets', desc: 'Instandhaltung & Handwerker' },
-                                                { id: 'dokumente', label: 'Dokumente & Vorlagen', desc: 'Dateien & Mietvertragsdokumente' },
+                                                { id: 'haeuser', label: 'Häuser & Liegenschaften', desc: 'Gebäude, Adressen & Stammdaten', icon: Building2 },
+                                                { id: 'wohnungen', label: 'Wohnungen & Einheiten', desc: 'Mieteinheiten, Flächen & Zimmer', icon: Home },
+                                                { id: 'mieter', label: 'Mieter & Verträge', desc: 'Mieterdaten & Mietverträge', icon: Users },
+                                                { id: 'finanzen', label: 'Finanzen & Transaktionen', desc: 'Mieteinnahmen & Betriebskosten', icon: Wallet },
+                                                { id: 'zaehler', label: 'Zähler & Ablesungen', desc: 'Zählerstände & Verbrauchswerte', icon: Gauge },
+                                                { id: 'aufgaben', label: 'Aufgaben & Tickets', desc: 'Instandhaltung & Handwerker', icon: CheckSquare },
+                                                { id: 'dokumente', label: 'Dokumente & Vorlagen', desc: 'Dateien & Mietvertragsdokumente', icon: FileText },
                                             ].map((mod) => {
                                                 const currentScope = moduleScopes[mod.id] || { read: false, write: false };
+                                                const ModIcon = mod.icon;
                                                 return (
                                                     <div
                                                         key={mod.id}
-                                                        className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-all duration-200"
+                                                        className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-all duration-200 shadow-2xs"
                                                     >
-                                                        <div className="flex flex-col min-w-0 pr-2">
-                                                            <span className="text-xs font-semibold text-foreground truncate">
-                                                                {mod.label}
-                                                            </span>
-                                                            <span className="text-[10px] text-muted-foreground truncate">
-                                                                {mod.desc}
-                                                            </span>
+                                                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                                                            <div className="w-8 h-8 rounded-lg bg-muted/60 dark:bg-muted/30 border border-border/40 flex items-center justify-center text-foreground shrink-0">
+                                                                <ModIcon className="w-4 h-4 text-primary" />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-xs font-semibold text-foreground truncate">
+                                                                    {mod.label}
+                                                                </span>
+                                                                <span className="text-[11px] text-muted-foreground truncate">
+                                                                    {mod.desc}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                         <div className="flex items-center gap-2 shrink-0">
-                                                            {/* Read Checkbox */}
-                                                            <label className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-muted/50">
+                                                            {/* Read Checkbox Chip */}
+                                                            <label
+                                                                className={cn(
+                                                                    "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none",
+                                                                    currentScope.read
+                                                                        ? "bg-primary/10 border-primary/30 text-primary font-medium shadow-2xs"
+                                                                        : "bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                                                                )}
+                                                            >
                                                                 <Checkbox
                                                                     id={`scope-read-${mod.id}`}
                                                                     checked={currentScope.read}
@@ -1198,8 +1242,15 @@ export default function ConsentUI({
                                                                 <span>Lesen</span>
                                                             </label>
 
-                                                            {/* Write Checkbox */}
-                                                            <label className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-pointer px-1.5 py-0.5 rounded-md hover:bg-muted/50">
+                                                            {/* Write Checkbox Chip */}
+                                                            <label
+                                                                className={cn(
+                                                                    "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none",
+                                                                    currentScope.write
+                                                                        ? "bg-primary/10 border-primary/30 text-primary font-medium shadow-2xs"
+                                                                        : "bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                                                                )}
+                                                            >
                                                                 <Checkbox
                                                                     id={`scope-write-${mod.id}`}
                                                                     checked={currentScope.write}
@@ -1220,10 +1271,10 @@ export default function ConsentUI({
 
                         {scopes.length > 0 && (
                             <div className="mb-8">
-                                <h3 className="text-sm font-medium text-muted-foreground mb-4 text-center">
+                                <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">
                                     Diese Anwendung darf:
                                 </h3>
-                                <div className="relative rounded-2xl border border-border/40 bg-muted/30 dark:bg-background/50 overflow-hidden flex flex-col shadow-inner backdrop-blur-xs">
+                                <div className="relative rounded-2xl border border-border/50 bg-muted/20 dark:bg-muted/10 overflow-hidden flex flex-col shadow-inner backdrop-blur-xs">
                                     {/* Top scroll fade */}
                                     {showTopFade && (
                                         <motion.div
@@ -1245,10 +1296,10 @@ export default function ConsentUI({
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ delay: 0.1 * index }}
                                                     key={scope}
-                                                    className="group/scope flex items-start gap-4 p-3.5 rounded-xl bg-card border border-border/40 hover:border-primary/30 dark:border-border/30 dark:hover:border-border/80 hover:bg-card hover:shadow-xs dark:hover:shadow-md transition-all duration-300"
+                                                    className="group/scope flex items-start gap-3.5 p-3 rounded-xl bg-card border border-border/40 hover:border-border/80 hover:bg-card/90 shadow-2xs transition-all duration-200"
                                                 >
-                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 group-hover/scope:bg-primary/20 group-hover/scope:scale-110 transition-all duration-300">
-                                                        <Check className="w-4 h-4 text-primary" />
+                                                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover/scope:bg-primary/20 transition-colors">
+                                                        <Check className="w-3.5 h-3.5" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-semibold text-foreground mb-0.5">
