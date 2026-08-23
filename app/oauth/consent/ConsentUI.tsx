@@ -32,7 +32,8 @@ import {
     Wallet,
     Gauge,
     CheckSquare,
-    FileText
+    FileText,
+    ChevronDown
 } from 'lucide-react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -360,6 +361,7 @@ export default function ConsentUI({
     });
 
     const selectedOrgSet = useMemo(() => new Set(selectedOrgIds), [selectedOrgIds]);
+    const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(true);
 
     // Scope & Read/Write selection mode
     type ScopeMode = 'full' | 'readonly' | 'custom';
@@ -939,64 +941,73 @@ export default function ConsentUI({
                                         <Building2 className="w-4 h-4 text-primary" />
                                         <span>Freizugebende Organisationen:</span>
                                     </h3>
-                                    {organisations.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={toggleAllowAll}
-                                            className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer bg-transparent border-0"
-                                        >
-                                            {allowAllOrgs ? "Auswahl anpassen" : "Alle freigeben"}
-                                        </button>
-                                    )}
                                 </div>
 
-                                <div className="rounded-2xl border border-border/50 bg-muted/20 dark:bg-muted/10 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-2.5">
-                                    {/* Quick Toggle for All Orgs */}
+                                <div className="rounded-2xl border border-border/50 bg-muted/20 dark:bg-muted/10 overflow-hidden shadow-inner backdrop-blur-xs p-3 space-y-3">
+                                    {/* Mode Selector Pill (Alle freigeben vs. Auswahl anpassen) */}
                                     {organisations.length > 1 && (
-                                        <div
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={toggleAllowAll}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    toggleAllowAll();
-                                                }
-                                            }}
-                                            className={cn(
-                                                "flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
-                                                allowAllOrgs
-                                                    ? "bg-card border-primary/40 dark:border-primary/50 shadow-xs ring-1 ring-primary/20"
-                                                    : "bg-card/70 border-border/40 hover:border-border/80 hover:bg-card"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-3.5 min-w-0">
-                                                <Checkbox
-                                                    id="org-select-all"
-                                                    checked={allowAllOrgs}
-                                                    onCheckedChange={(checked) => {
-                                                        const isChecked = !!checked;
-                                                        setAllowAllOrgs(isChecked);
-                                                        if (isChecked) {
-                                                            setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
-                                                        }
-                                                    }}
-                                                    className="rounded-md"
-                                                />
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="text-sm font-semibold text-foreground">
-                                                        Alle erlaubten Organisationen freigeben
-                                                    </span>
-                                                    <span className="text-xs text-muted-foreground leading-relaxed">
-                                                        Gewährt Zugriff auf alle aktuellen und zukünftigen Organisationen mit aktiviertem MCP-Zugriff
-                                                    </span>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setAllowAllOrgs(true);
+                                                    setSelectedOrgIds(enabledOrgs.map(o => o.organisation_id));
+                                                }}
+                                                className={cn(
+                                                    "flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer group",
+                                                    allowAllOrgs
+                                                        ? "bg-card border-primary/50 text-foreground font-semibold shadow-xs ring-1 ring-primary/20"
+                                                        : "bg-card/60 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground hover:bg-card"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                    <Building2 className={cn("w-3.5 h-3.5", allowAllOrgs ? "text-primary" : "text-muted-foreground")} />
+                                                    <span className="text-xs font-semibold">Alle freigeben</span>
                                                 </div>
+                                                <span className="text-[10px] text-muted-foreground">Alle Organisationen</span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setAllowAllOrgs(false);
+                                                    setIsOrgDropdownOpen(true);
+                                                }}
+                                                className={cn(
+                                                    "flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 cursor-pointer group",
+                                                    !allowAllOrgs
+                                                        ? "bg-card border-primary/50 text-foreground font-semibold shadow-xs ring-1 ring-primary/20"
+                                                        : "bg-card/60 border-border/40 text-muted-foreground hover:border-border/80 hover:text-foreground hover:bg-card"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                    <SlidersHorizontal className={cn("w-3.5 h-3.5", !allowAllOrgs ? "text-primary" : "text-muted-foreground")} />
+                                                    <span className="text-xs font-semibold">Auswahl anpassen</span>
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground">Benutzerdefiniert</span>
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* When "Alle freigeben" is active */}
+                                    {allowAllOrgs && organisations.length > 1 && (
+                                        <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-card border border-primary/30 dark:border-primary/40 shadow-2xs">
+                                            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-semibold text-foreground">
+                                                    Alle erlaubten Organisationen freigeben
+                                                </span>
+                                                <span className="text-[11px] text-muted-foreground leading-relaxed">
+                                                    Zugriff auf alle {enabledOrgs.length} aktuellen und zukünftigen Organisationen mit aktiviertem MCP-Zugriff.
+                                                </span>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* Individual Organisation List */}
-                                    {(!allowAllOrgs || organisations.length === 1) && (
+                                    {/* When single org exists */}
+                                    {organisations.length === 1 && (
                                         <div className="space-y-2 pt-0.5">
                                             {organisations.map((org) => {
                                                 const isEnabled = org.mcp_zugriff_aktiviert;
@@ -1005,49 +1016,20 @@ export default function ConsentUI({
                                                 return (
                                                     <div
                                                         key={org.organisation_id}
-                                                        role={isEnabled ? "button" : undefined}
-                                                        tabIndex={isEnabled && !allowAllOrgs ? 0 : undefined}
-                                                        onClick={() => {
-                                                            if (isEnabled && !allowAllOrgs) {
-                                                                handleToggleOrg(org.organisation_id, isEnabled);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (isEnabled && !allowAllOrgs && (e.key === 'Enter' || e.key === ' ')) {
-                                                                e.preventDefault();
-                                                                handleToggleOrg(org.organisation_id, isEnabled);
-                                                            }
-                                                        }}
                                                         className={cn(
-                                                            "flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+                                                            "flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200",
                                                             isEnabled
-                                                                ? isChecked
-                                                                    ? "bg-card border-primary/40 dark:border-primary/50 shadow-xs ring-1 ring-primary/20 cursor-pointer"
-                                                                    : "bg-card/70 border-border/40 hover:border-border/80 hover:bg-card cursor-pointer"
-                                                                : "bg-muted/30 border-dashed border-border/40 opacity-65 cursor-not-allowed"
+                                                                ? "bg-card border-primary/40 dark:border-primary/50 shadow-xs ring-1 ring-primary/20"
+                                                                : "bg-muted/30 border-dashed border-border/40 opacity-65"
                                                         )}
                                                     >
                                                         <div className="flex items-center gap-3.5 min-w-0">
-                                                            <Checkbox
-                                                                id={`org-${org.organisation_id}`}
-                                                                checked={isChecked}
-                                                                disabled={!isEnabled || allowAllOrgs}
-                                                                onCheckedChange={() => {
-                                                                    if (isEnabled && !allowAllOrgs) {
-                                                                        handleToggleOrg(org.organisation_id, isEnabled);
-                                                                    }
-                                                                }}
-                                                                className="rounded-md"
-                                                            />
                                                             <div className="w-8 h-8 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary flex items-center justify-center shrink-0">
                                                                 <Building2 className="w-4 h-4" />
                                                             </div>
                                                             <div className="flex flex-col min-w-0">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className={cn(
-                                                                        "text-sm font-semibold truncate",
-                                                                        !isEnabled && "line-through text-muted-foreground font-normal"
-                                                                    )}>
+                                                                    <span className="text-sm font-semibold truncate">
                                                                         {org.name}
                                                                     </span>
                                                                     {org.ist_versteckt && (
@@ -1073,6 +1055,154 @@ export default function ConsentUI({
                                                     </div>
                                                 );
                                             })}
+                                        </div>
+                                    )}
+
+                                    {/* Custom Mode: Dropdown with Checklist + Selected Cards List */}
+                                    {(!allowAllOrgs && organisations.length > 1) && (
+                                        <div className="space-y-2.5 pt-0.5">
+                                            {/* Dropdown Checklist Trigger */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsOrgDropdownOpen(!isOrgDropdownOpen)}
+                                                className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border/40 hover:border-border/80 text-xs font-medium text-foreground transition-all duration-200 cursor-pointer shadow-2xs group"
+                                            >
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                                        <Building2 className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <div className="flex flex-col text-left min-w-0">
+                                                        <span className="font-semibold text-xs">
+                                                            Organisationen auswählen ({selectedOrgIds.length} von {enabledOrgs.length})
+                                                        </span>
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            {isOrgDropdownOpen ? "Klicken zum Einklappen" : "Klicken zum Bearbeiten der Auswahl"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <ChevronDown className={cn("w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform duration-200", isOrgDropdownOpen && "rotate-180")} />
+                                            </button>
+
+                                            {/* Expandable Checklist */}
+                                            {isOrgDropdownOpen && (
+                                                <div className="space-y-1.5 p-2 rounded-xl bg-background/50 border border-border/30 backdrop-blur-xs">
+                                                    {organisations.map((org) => {
+                                                        const isEnabled = org.mcp_zugriff_aktiviert;
+                                                        const isChecked = isEnabled && selectedOrgSet.has(org.organisation_id);
+
+                                                        return (
+                                                            <div
+                                                                key={org.organisation_id}
+                                                                role={isEnabled ? "button" : undefined}
+                                                                tabIndex={isEnabled ? 0 : undefined}
+                                                                onClick={() => {
+                                                                    if (isEnabled) {
+                                                                        handleToggleOrg(org.organisation_id, isEnabled);
+                                                                    }
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (isEnabled && (e.key === 'Enter' || e.key === ' ')) {
+                                                                        e.preventDefault();
+                                                                        handleToggleOrg(org.organisation_id, isEnabled);
+                                                                    }
+                                                                }}
+                                                                className={cn(
+                                                                    "flex items-center justify-between p-2.5 rounded-lg border transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+                                                                    isEnabled
+                                                                        ? isChecked
+                                                                            ? "bg-card border-primary/40 dark:border-primary/50 shadow-2xs cursor-pointer"
+                                                                            : "bg-card/50 border-border/30 hover:border-border/70 hover:bg-card cursor-pointer"
+                                                                        : "bg-muted/30 border-dashed border-border/30 opacity-60 cursor-not-allowed"
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                                    <Checkbox
+                                                                        id={`org-${org.organisation_id}`}
+                                                                        checked={isChecked}
+                                                                        disabled={!isEnabled}
+                                                                        onCheckedChange={() => {
+                                                                            if (isEnabled) {
+                                                                                handleToggleOrg(org.organisation_id, isEnabled);
+                                                                            }
+                                                                        }}
+                                                                        className="rounded-md"
+                                                                    />
+                                                                    <div className="flex flex-col min-w-0">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className={cn(
+                                                                                "text-xs font-semibold truncate",
+                                                                                !isEnabled && "line-through text-muted-foreground font-normal"
+                                                                            )}>
+                                                                                {org.name}
+                                                                            </span>
+                                                                            {org.ist_versteckt && (
+                                                                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-border/60">
+                                                                                    Persönlich
+                                                                                </Badge>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="text-[10px] text-muted-foreground capitalize">
+                                                                            Rolle: {org.rolle === 'owner' ? 'Eigentümer' : org.rolle === 'admin' ? 'Administrator' : 'Mitarbeiter'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {!isEnabled && (
+                                                                    <Badge
+                                                                        variant="destructive"
+                                                                        className="text-[9px] px-2 py-0.5 shrink-0 bg-destructive/10 text-destructive border border-destructive/20"
+                                                                    >
+                                                                        Durch Administrator deaktiviert
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {/* Selected Organisation Chips underneath */}
+                                            {selectedOrgIds.length > 0 ? (
+                                                <div className="pt-2 space-y-1.5">
+                                                    <div className="text-[11px] font-medium text-muted-foreground px-1 flex items-center justify-between">
+                                                        <span>Freizugebende Organisationen ({selectedOrgIds.length}):</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {organisations
+                                                            .filter(org => org.mcp_zugriff_aktiviert && selectedOrgSet.has(org.organisation_id))
+                                                            .map(org => (
+                                                                <div
+                                                                    key={`selected-chip-${org.organisation_id}`}
+                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 dark:bg-primary/15 text-primary border border-primary/25 text-xs font-medium shadow-2xs group"
+                                                                >
+                                                                    <Building2 className="w-3.5 h-3.5 shrink-0" />
+                                                                    <span className="truncate max-w-[180px]">Freigabe: {org.name}</span>
+                                                                    {org.ist_versteckt && (
+                                                                        <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary">
+                                                                            Persönlich
+                                                                        </Badge>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleToggleOrg(org.organisation_id, true);
+                                                                        }}
+                                                                        title={`${org.name} entfernen`}
+                                                                        className="w-4 h-4 rounded-sm hover:bg-primary/20 flex items-center justify-center transition-colors cursor-pointer text-primary/70 hover:text-primary"
+                                                                    >
+                                                                        <X className="w-3 h-3" />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="p-2.5 rounded-xl bg-muted/40 border border-border/40 text-xs text-muted-foreground flex items-center gap-2 mt-2">
+                                                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+                                                    <span>Keine Organisation ausgewählt. Bitte oben in der Liste anhaken.</span>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
