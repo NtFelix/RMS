@@ -45,6 +45,14 @@ import { cn } from '@/lib/utils';
 
 // Scope descriptions mapping
 const SCOPE_DETAILS: Record<string, { title: string; description: string }> = {
+    'openid': {
+        title: 'OpenID-Authentifizierung',
+        description: 'Verifizierung Ihrer Identität über OpenID Connect.'
+    },
+    'profile': {
+        title: 'Benutzerprofil',
+        description: 'Lesezugriff auf Profilinformationen wie Ihren Namen und Ihr Profilbild.'
+    },
     'profile:read': {
         title: 'Benutzerprofil',
         description: 'Lesezugriff auf Ihren Namen und Avatar.'
@@ -53,25 +61,77 @@ const SCOPE_DETAILS: Record<string, { title: string; description: string }> = {
         title: 'E-Mail-Adresse',
         description: 'Lesezugriff auf Ihre verifizierte E-Mail-Adresse.'
     },
+    'email:read': {
+        title: 'E-Mail-Adresse',
+        description: 'Lesezugriff auf Ihre verifizierte E-Mail-Adresse.'
+    },
     'offline_access': {
         title: 'Offline-Zugriff',
         description: 'Zugriff auf Ihre Daten, auch wenn Sie die Anwendung gerade nicht verwenden (Refresh Token).'
     },
-    'properties:write': {
-        title: 'Immobilien verwalten',
-        description: 'Erlaubt das Erstellen, Bearbeiten und Löschen von Immobilien.'
-    },
     'properties:read': {
         title: 'Immobilien ansehen',
-        description: 'Lesezugriff auf Ihre gespeicherten Immobilien.'
+        description: 'Lesezugriff auf Ihre gespeicherten Immobilien (Häuser & Wohnungen).'
+    },
+    'properties:write': {
+        title: 'Immobilien verwalten',
+        description: 'Erlaubt das Erstellen, Bearbeiten und Löschen von Immobilien (Häuser & Wohnungen).'
     },
     'tenants:read': {
         title: 'Mieter ansehen',
-        description: 'Lesezugriff auf Ihre gespeicherten Mieterdaten.'
+        description: 'Lesezugriff auf Ihre gespeicherten Mieter- und Vertragsdaten.'
     },
     'tenants:write': {
         title: 'Mieter verwalten',
-        description: 'Erlaubt das Erstellen, Bearbeiten und Löschen von Mieterdaten.'
+        description: 'Erlaubt das Erstellen, Bearbeiten und Löschen von Mieter- und Vertragsdaten.'
+    },
+    'finanzen:read': {
+        title: 'Finanzen ansehen',
+        description: 'Lesezugriff auf Finanzbuchungen, Mieteinnahmen und Betriebskosten.'
+    },
+    'finanzen:write': {
+        title: 'Finanzen verwalten',
+        description: 'Erlaubt das Erstellen, Bearbeiten und Löschen von Finanztransaktionen.'
+    },
+    'zaehler:read': {
+        title: 'Zähler ansehen',
+        description: 'Lesezugriff auf Zähler, Messgeräte und Ablesungen.'
+    },
+    'zaehler:write': {
+        title: 'Zähler verwalten',
+        description: 'Erlaubt das Erfassen und Bearbeiten von Zählerständen und Messgeräten.'
+    },
+    'aufgaben:read': {
+        title: 'Aufgaben ansehen',
+        description: 'Lesezugriff auf Aufgaben, Vorgänge und Instandhaltungstickets.'
+    },
+    'aufgaben:write': {
+        title: 'Aufgaben verwalten',
+        description: 'Erlaubt das Erstellen und Bearbeiten von Aufgaben und Vorgängen.'
+    },
+    'dokumente:read': {
+        title: 'Dokumente ansehen',
+        description: 'Lesezugriff auf hinterlegte Dokumente und Vorlagen.'
+    },
+    'dokumente:write': {
+        title: 'Dokumente verwalten',
+        description: 'Erlaubt das Hochladen und Verwalten von Dokumenten und Vorlagen.'
+    },
+    'betriebskosten:read': {
+        title: 'Betriebskosten ansehen',
+        description: 'Lesezugriff auf Betriebskostenabrechnungen und Abrechnungspositionen.'
+    },
+    'organisation:read': {
+        title: 'Organisation ansehen',
+        description: 'Lesezugriff auf Organisationsdaten und Mitglieder.'
+    },
+    'all': {
+        title: 'Vollständiger Zugriff',
+        description: 'Voller Lese- und Schreibzugriff auf alle Module Ihrer Organisationen.'
+    },
+    'mcp': {
+        title: 'MCP Server Zugriff',
+        description: 'Zugriff auf Ihre Daten über das Model Context Protocol.'
     }
 };
 
@@ -772,6 +832,17 @@ export default function ConsentUI({
                             }
                             if (def.id === 'tenants') {
                                 moduleMap['mieter'] = moduleMap[def.id];
+                            }
+                            if (def.id === 'finanzen') {
+                                moduleMap['betriebskosten'] = moduleMap[def.id];
+                                moduleMap['nebenkosten'] = moduleMap[def.id];
+                            }
+                            if (def.id === 'zaehler') {
+                                moduleMap['zaehler_ablesungen'] = moduleMap[def.id];
+                            }
+                            if (def.id === 'dokumente') {
+                                moduleMap['vorlagen'] = moduleMap[def.id];
+                                moduleMap['dokumente_metadaten'] = moduleMap[def.id];
                             }
                         }
                         scopesToSave = {
