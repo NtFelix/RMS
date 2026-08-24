@@ -765,7 +765,13 @@ export default function ConsentUI({
 
         setIsProcessing(true);
         setProcessError(null);
-        let savedGrantForRollback: { clientId: string; orgIds: string[] } | null = null;
+        let savedGrantForRollback: {
+            clientId: string;
+            priorGrantExisted: boolean;
+            priorOrgIds: string[];
+            priorAllowAll: boolean;
+            priorScopes?: UserMcpScopes;
+        } | null = null;
 
         try {
             // For auto-approved authorizations, Supabase has already granted access.
@@ -872,10 +878,20 @@ export default function ConsentUI({
                         return;
                     }
 
-                    // Track the persisted grant so it can be rolled back if the Supabase consent
+                    // Snapshot the persisted grant so it can be restored if the Supabase consent
                     // leg fails below — otherwise an authorization would remain recorded without
-                    // a completed OAuth approval.
-                    savedGrantForRollback = { clientId, orgIds: orgsToSave };
+                    // a completed OAuth approval. Restoring the PRIOR state (rather than blanket-
+                    // revoking) avoids silently degrading an already-working setup on re-consent.
+                    const priorGrant = organisations.find(o => o.is_authorized || o.allow_all);
+                    savedGrantForRollback = {
+                        clientId,
+                        priorGrantExisted: !!priorGrant,
+                        priorOrgIds: priorGrant
+                            ? enabledOrgList.filter(o => o.is_authorized).map(o => o.organisation_id)
+                            : [],
+                        priorAllowAll: priorGrant?.allow_all ?? false,
+                        priorScopes: priorGrant?.scopes,
+                    };
                 }
             }
 
@@ -887,12 +903,19 @@ export default function ConsentUI({
             );
 
             if (!success || error) {
-                // Roll back any grant persisted above so no MCP authorization outlives a failed consent.
+                // Restore the pre-consent grant state: a prior authorization is re-saved
+                // unchanged; without one the grant is zeroed out (fail-closed revocation).
+                // Either way no MCP authorization outlives a failed consent.
                 if (savedGrantForRollback) {
                     try {
-                        await saveUserMcpAuthorizationAction(savedGrantForRollback.clientId, [], false, { all: false, write: false });
+                        await saveUserMcpAuthorizationAction(
+                            savedGrantForRollback.clientId,
+                            savedGrantForRollback.priorOrgIds,
+                            savedGrantForRollback.priorAllowAll,
+                            savedGrantForRollback.priorScopes ?? { all: false, write: false }
+                        );
                     } catch (rollbackErr) {
-                        console.error('Failed to roll back MCP authorization after failed consent:', rollbackErr);
+                        console.error('Failed to restore prior MCP authorization after failed consent:', rollbackErr);
                     }
                 }
                 setProcessError(error || 'Decision failed');

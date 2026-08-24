@@ -116,6 +116,131 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
         });
     });
 
+    it('Scenario 1b: Restores prior grant (not blanket revocation) when consent leg fails after save', async () => {
+        // User already has an authorized grant (allow_all=true) and re-consents to change selection.
+        const previouslyAuthorizedOrgs: UserMcpOrganisationItem[] = [
+            {
+                organisation_id: 'org-1',
+                name: 'Active Org 1',
+                ist_versteckt: false,
+                rolle: 'owner',
+                mcp_zugriff_aktiviert: true,
+                is_authorized: true,
+                allow_all: true,
+                scopes: { all: true, write: false },
+            },
+            {
+                organisation_id: 'org-2',
+                name: 'Active Org 2',
+                ist_versteckt: false,
+                rolle: 'mitarbeiter',
+                mcp_zugriff_aktiviert: true,
+                is_authorized: true,
+                allow_all: true,
+                scopes: { all: true, write: false },
+            },
+            {
+                organisation_id: 'org-disabled',
+                name: 'Disabled Org',
+                ist_versteckt: false,
+                rolle: 'admin',
+                mcp_zugriff_aktiviert: false,
+                is_authorized: false,
+                allow_all: false,
+            },
+        ];
+
+        (getUserMcpOrganisationsAction as jest.Mock).mockResolvedValue({
+            success: true,
+            data: previouslyAuthorizedOrgs,
+        });
+
+        await act(async () => {
+            render(
+                <ConsentUI
+                    type="consent"
+                    authorizationId="auth_123456789012"
+                    initialData={{
+                        id: 'auth_123456789012',
+                        client: { id: 'client-123', name: 'Claude Desktop' },
+                        scopes: ['properties:read'],
+                        redirect_uri: 'https://claude.ai/oauth/callback',
+                    }}
+                    initialOrganisations={previouslyAuthorizedOrgs}
+                />
+            );
+        });
+
+        // Grant saves successfully, but the Supabase consent leg fails.
+        (submitDecisionAction as jest.Mock).mockResolvedValueOnce({
+            success: false,
+            redirect_to: null,
+            error: 'Authorization link expired',
+        });
+
+        const approveButton = screen.getByRole('button', { name: /Zugriff erlauben/i });
+        await act(async () => {
+            fireEvent.click(approveButton);
+        });
+
+        await waitFor(() => {
+            expect(submitDecisionAction).toHaveBeenCalledWith('auth_123456789012', 'allow');
+        });
+
+        // Rollback must RESTORE the prior allow_all=true grant, not zero it out.
+        await waitFor(() => {
+            expect(saveUserMcpAuthorizationAction).toHaveBeenLastCalledWith(
+                'client-123',
+                ['org-1', 'org-2'],
+                true,
+                { all: true, write: false }
+            );
+        });
+    });
+
+    it('Scenario 1c: Zeroes out grant on failed consent when no prior grant existed', async () => {
+        await act(async () => {
+            render(
+                <ConsentUI
+                    type="consent"
+                    authorizationId="auth_123456789012"
+                    initialData={{
+                        id: 'auth_123456789012',
+                        client: { id: 'client-123', name: 'Claude Desktop' },
+                        scopes: ['properties:read'],
+                        redirect_uri: 'https://claude.ai/oauth/callback',
+                    }}
+                    initialOrganisations={multiOrgs}
+                />
+            );
+        });
+
+        // Grant saves successfully, but the Supabase consent leg fails.
+        (submitDecisionAction as jest.Mock).mockResolvedValueOnce({
+            success: false,
+            redirect_to: null,
+            error: 'Authorization link expired',
+        });
+
+        const approveButton = screen.getByRole('button', { name: /Zugriff erlauben/i });
+        await act(async () => {
+            fireEvent.click(approveButton);
+        });
+
+        await waitFor(() => {
+            expect(submitDecisionAction).toHaveBeenCalledWith('auth_123456789012', 'allow');
+        });
+
+        await waitFor(() => {
+            expect(saveUserMcpAuthorizationAction).toHaveBeenLastCalledWith(
+                'client-123',
+                [],
+                false,
+                { all: false, write: false }
+            );
+        });
+    });
+
     it('Scenario 2: Prevents approval when custom selection is active but all orgs are deselected', async () => {
         await act(async () => {
             render(
