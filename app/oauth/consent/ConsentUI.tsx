@@ -765,6 +765,7 @@ export default function ConsentUI({
 
         setIsProcessing(true);
         setProcessError(null);
+        let savedGrantForRollback: { clientId: string; orgIds: string[] } | null = null;
 
         try {
             // For auto-approved authorizations, Supabase has already granted access.
@@ -819,6 +820,12 @@ export default function ConsentUI({
                     } else if (allPermissionsState === 'read') {
                         scopesToSave = { all: true, write: false };
                     } else {
+                        // IMPORTANT: The module aliases written here (haeuser, wohnungen, mieter,
+                        // betriebskosten, nebenkosten, zaehler_ablesungen, vorlagen,
+                        // dokumente_metadaten) must stay in sync with MODULE_ALIASES in
+                        // mietevo-mcp/src/mcp-server.ts — the MCP server resolves these keys when
+                        // enforcing per-tool scopes. Drift between the two maps silently breaks
+                        // scope enforcement; consent-module-aliases.test.ts guards this.
                         const moduleMap: Record<string, { read: boolean; write: boolean }> = {};
                         for (const def of PERMISSION_DEFINITIONS) {
                             const level = modulePermissions[def.id] || def.defaultLevel;
@@ -864,6 +871,11 @@ export default function ConsentUI({
                         setIsProcessing(false);
                         return;
                     }
+
+                    // Track the persisted grant so it can be rolled back if the Supabase consent
+                    // leg fails below — otherwise an authorization would remain recorded without
+                    // a completed OAuth approval.
+                    savedGrantForRollback = { clientId, orgIds: orgsToSave };
                 }
             }
 
@@ -875,6 +887,14 @@ export default function ConsentUI({
             );
 
             if (!success || error) {
+                // Roll back any grant persisted above so no MCP authorization outlives a failed consent.
+                if (savedGrantForRollback) {
+                    try {
+                        await saveUserMcpAuthorizationAction(savedGrantForRollback.clientId, [], false, { all: false, write: false });
+                    } catch (rollbackErr) {
+                        console.error('Failed to roll back MCP authorization after failed consent:', rollbackErr);
+                    }
+                }
                 setProcessError(error || 'Decision failed');
                 setIsProcessing(false);
                 return;

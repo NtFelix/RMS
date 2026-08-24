@@ -108,7 +108,7 @@ describe('Adversarial Security & Action Challenge Tests', () => {
             });
         });
 
-        it('safely surfaces DB RPC errors during authorization save', async () => {
+        it('safely sanitizes DB RPC errors during authorization save (no detail leakage)', async () => {
             mockRpc.mockResolvedValueOnce({
                 data: null,
                 error: { message: 'Database connection terminated unexpectedly' },
@@ -116,7 +116,9 @@ describe('Adversarial Security & Action Challenge Tests', () => {
 
             const res = await saveUserMcpAuthorizationAction('claude-desktop', ['org-1'], false);
             expect(res.success).toBe(false);
-            expect(res.error).toBe('Database connection terminated unexpectedly');
+            // Raw DB error must not leak to the client
+            expect(res.error).not.toBe('Database connection terminated unexpectedly');
+            expect(res.error).toContain('Fehler beim Speichern');
         });
 
         it('handles unauthenticated context gracefully across all actions', async () => {

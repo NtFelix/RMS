@@ -257,14 +257,15 @@ export async function getUserMcpOrganisationsAction(
 
         if (error) {
             console.error('[OAuth] getUserMcpOrganisations failed:', error.message);
-            return { success: false, error: error.message };
+            // Do not surface raw DB error details to the client
+            return { success: false, error: 'Organisationen konnten nicht geladen werden. Bitte versuchen Sie es erneut.' };
         }
 
         return { success: true, data: (data || []) as UserMcpOrganisationItem[] };
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to load user organisations";
         console.error('Server Action: getUserMcpOrganisations failed:', message);
-        return { success: false, error: message };
+        return { success: false, error: 'Organisationen konnten nicht geladen werden. Bitte versuchen Sie es erneut.' };
     }
 }
 
@@ -315,13 +316,14 @@ export async function saveUserMcpAuthorizationAction(
 
         if (error) {
             console.error('[OAuth] saveUserMcpAuthorization failed:', error.message);
-            return { success: false, error: error.message };
+            // Do not surface raw DB error details to the client
+            return { success: false, error: 'Fehler beim Speichern der Organisationsberechtigungen. Bitte versuchen Sie es erneut.' };
         }
 
         return { success: true, data };
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to save user MCP authorizations";
         console.error('Server Action: saveUserMcpAuthorization failed:', message);
-        return { success: false, error: message };
+        return { success: false, error: 'Fehler beim Speichern der Organisationsberechtigungen. Bitte versuchen Sie es erneut.' };
     }
 }

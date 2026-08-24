@@ -270,12 +270,14 @@ describe('OAuth Consent actions', () => {
             expect(result.error).toBe('Benutzer nicht angemeldet');
         });
 
-        it('handles database RPC error', async () => {
+        it('handles database RPC error without leaking raw DB details', async () => {
             mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'DB connection error' } });
 
             const result = await getUserMcpOrganisationsAction('client-id');
             expect(result.success).toBe(false);
-            expect(result.error).toBe('DB connection error');
+            // Raw DB error message must not be surfaced to the client
+            expect(result.error).not.toBe('DB connection error');
+            expect(result.error).toContain('nicht geladen');
         });
     });
 
@@ -337,7 +339,7 @@ describe('OAuth Consent actions', () => {
             expect(result.error).toBe('Nicht authentifiziert');
         });
 
-        it('handles database RPC error', async () => {
+        it('handles database RPC error without leaking raw DB details', async () => {
             mockRpc.mockResolvedValueOnce({
                 data: null,
                 error: { message: 'Constraint violation in save RPC' },
@@ -345,7 +347,9 @@ describe('OAuth Consent actions', () => {
 
             const result = await saveUserMcpAuthorizationAction('client-1', ['org-1'], false);
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Constraint violation in save RPC');
+            // Raw DB error message must not be surfaced to the client
+            expect(result.error).not.toBe('Constraint violation in save RPC');
+            expect(result.error).toContain('Fehler beim Speichern');
         });
     });
 });
