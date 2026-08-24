@@ -303,6 +303,76 @@ function FullScreenLayout({
     );
 }
 
+// 3-State Permission Level Type
+type PermissionLevel = 'none' | 'read' | 'write';
+
+interface PermissionDefinition {
+    id: string;
+    label: string;
+    readLabel: string;
+    writeLabel: string;
+    noneLabel: string;
+    desc: string;
+    defaultLevel: PermissionLevel;
+}
+
+const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
+    {
+        id: 'properties',
+        label: 'Immobilien & Liegenschaften',
+        readLabel: 'Immobilien ansehen',
+        writeLabel: 'Immobilien verwalten',
+        noneLabel: 'Kein Zugriff auf Immobilien',
+        desc: 'Gebäude, Einheiten, Flächen & Adressen',
+        defaultLevel: 'read',
+    },
+    {
+        id: 'tenants',
+        label: 'Mieter & Verträge',
+        readLabel: 'Mieter ansehen',
+        writeLabel: 'Mieter verwalten',
+        noneLabel: 'Kein Zugriff auf Mieter',
+        desc: 'Mieterdaten, Mietverträge & Kontakte',
+        defaultLevel: 'read',
+    },
+    {
+        id: 'finanzen',
+        label: 'Finanzen & Zahlungen',
+        readLabel: 'Finanzen ansehen',
+        writeLabel: 'Finanzen verwalten',
+        noneLabel: 'Kein Zugriff auf Finanzen',
+        desc: 'Mieteinnahmen, Zahlungen & Betriebskosten',
+        defaultLevel: 'read',
+    },
+    {
+        id: 'zaehler',
+        label: 'Zähler & Ablesungen',
+        readLabel: 'Zähler ansehen',
+        writeLabel: 'Zähler verwalten',
+        noneLabel: 'Kein Zugriff auf Zähler',
+        desc: 'Zählerstände, Messgeräte & Verbrauchswerte',
+        defaultLevel: 'read',
+    },
+    {
+        id: 'aufgaben',
+        label: 'Aufgaben & Tickets',
+        readLabel: 'Aufgaben ansehen',
+        writeLabel: 'Aufgaben verwalten',
+        noneLabel: 'Kein Zugriff auf Aufgaben',
+        desc: 'Instandhaltung, Handwerker & Vorgänge',
+        defaultLevel: 'read',
+    },
+    {
+        id: 'dokumente',
+        label: 'Dokumente & Vorlagen',
+        readLabel: 'Dokumente ansehen',
+        writeLabel: 'Dokumente verwalten',
+        noneLabel: 'Kein Zugriff auf Dokumente',
+        desc: 'Dateien, Vorlagen & Mietvertragsdokumente',
+        defaultLevel: 'read',
+    },
+];
+
 export default function ConsentUI({
     type,
     error,
@@ -374,87 +444,11 @@ export default function ConsentUI({
         ? hasEnabledOrgs
         : selectedOrgIds.some(id => enabledOrgs.some(o => o.organisation_id === id));
 
-    // 3-State Permission Level Type
-    type PermissionLevel = 'none' | 'read' | 'write';
-
-    interface PermissionDefinition {
-        id: string;
-        label: string;
-        readLabel: string;
-        writeLabel: string;
-        noneLabel: string;
-        desc: string;
-        defaultLevel: PermissionLevel;
-    }
-
-    const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
-        {
-            id: 'properties',
-            label: 'Immobilien & Liegenschaften',
-            readLabel: 'Immobilien ansehen',
-            writeLabel: 'Immobilien verwalten',
-            noneLabel: 'Kein Zugriff auf Immobilien',
-            desc: 'Gebäude, Einheiten, Flächen & Adressen',
-            defaultLevel: 'read',
-        },
-        {
-            id: 'tenants',
-            label: 'Mieter & Verträge',
-            readLabel: 'Mieter ansehen',
-            writeLabel: 'Mieter verwalten',
-            noneLabel: 'Kein Zugriff auf Mieter',
-            desc: 'Mieterdaten, Mietverträge & Kontakte',
-            defaultLevel: 'read',
-        },
-        {
-            id: 'finanzen',
-            label: 'Finanzen & Zahlungen',
-            readLabel: 'Finanzen ansehen',
-            writeLabel: 'Finanzen verwalten',
-            noneLabel: 'Kein Zugriff auf Finanzen',
-            desc: 'Mieteinnahmen, Zahlungen & Betriebskosten',
-            defaultLevel: 'read',
-        },
-        {
-            id: 'zaehler',
-            label: 'Zähler & Ablesungen',
-            readLabel: 'Zähler ansehen',
-            writeLabel: 'Zähler verwalten',
-            noneLabel: 'Kein Zugriff auf Zähler',
-            desc: 'Zählerstände, Messgeräte & Verbrauchswerte',
-            defaultLevel: 'read',
-        },
-        {
-            id: 'aufgaben',
-            label: 'Aufgaben & Tickets',
-            readLabel: 'Aufgaben ansehen',
-            writeLabel: 'Aufgaben verwalten',
-            noneLabel: 'Kein Zugriff auf Aufgaben',
-            desc: 'Instandhaltung, Handwerker & Vorgänge',
-            defaultLevel: 'read',
-        },
-        {
-            id: 'dokumente',
-            label: 'Dokumente & Vorlagen',
-            readLabel: 'Dokumente ansehen',
-            writeLabel: 'Dokumente verwalten',
-            noneLabel: 'Kein Zugriff auf Dokumente',
-            desc: 'Dateien, Vorlagen & Mietvertragsdokumente',
-            defaultLevel: 'read',
-        },
-    ];
-
-    // Scope & Read/Write selection mode
-    type ScopeMode = 'full' | 'readonly' | 'custom';
-    const [scopeMode, setScopeMode] = useState<ScopeMode>(() => {
-        const existing = initialOrganisations?.[0]?.scopes;
-        if (existing) {
-            if (existing.all === true && existing.write !== false) return 'full';
-            if (existing.all === true && existing.write === false) return 'readonly';
-            if (existing.all === false) return 'custom';
-        }
-        return 'readonly';
-    });
+    const filteredOrganisations = useMemo(() => {
+        const query = orgSearchQuery.trim().toLowerCase();
+        if (!query) return organisations;
+        return organisations.filter(o => o.name.toLowerCase().includes(query));
+    }, [organisations, orgSearchQuery]);
 
     const [modulePermissions, setModulePermissions] = useState<Record<string, PermissionLevel>>(() => {
         const map: Record<string, PermissionLevel> = {};
@@ -495,7 +489,6 @@ export default function ConsentUI({
                 current === 'read' ? 'none' : 'write';
             return { ...prev, [id]: next };
         });
-        setScopeMode('custom');
     };
 
     const allPermissionsState = useMemo<'write' | 'read' | 'none' | 'mixed'>(() => {
@@ -515,7 +508,6 @@ export default function ConsentUI({
             }
             return updated;
         });
-        setScopeMode(level === 'write' ? 'full' : level === 'read' ? 'readonly' : 'custom');
     };
 
     // Auto-close success window after a delay with visible countdown
@@ -762,9 +754,9 @@ export default function ConsentUI({
                         : selectedOrgIds.filter(id => enabledOrgList.some(o => o.organisation_id === id));
 
                     let scopesToSave: UserMcpScopes;
-                    if (scopeMode === 'full') {
+                    if (allPermissionsState === 'write') {
                         scopesToSave = { all: true, write: true };
-                    } else if (scopeMode === 'readonly') {
+                    } else if (allPermissionsState === 'read') {
                         scopesToSave = { all: true, write: false };
                     } else {
                         const moduleMap: Record<string, { read: boolean; write: boolean }> = {};
@@ -940,7 +932,7 @@ export default function ConsentUI({
                                                     animate={{ opacity: 1, x: 0 }}
                                                     transition={{ delay: 0.1 * index }}
                                                     key={scope}
-                                                    className="group/scope flex items-start gap-3.5 p-3 rounded-2xl bg-card border border-border/40 hover:border-border/80 hover:bg-card/90 shadow-2xs transition-all duration-200"
+                                                    className="group/scope flex items-start gap-3.5 p-3 rounded-2xl bg-card border border-border/40 hover:border-border/80 hover:bg-card/90 shadow-2xs transition-colors duration-200"
                                                 >
                                                     <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 group-hover/scope:bg-primary/20 transition-colors">
                                                         <Check className="w-3.5 h-3.5" />
@@ -1138,6 +1130,7 @@ export default function ConsentUI({
                                                         <Search className="w-3.5 h-3.5 text-muted-foreground mr-1.5 shrink-0" />
                                                         <input
                                                             type="text"
+                                                            aria-label="Organisation suchen"
                                                             value={orgSearchQuery}
                                                             onChange={(e) => setOrgSearchQuery(e.target.value)}
                                                             placeholder="Organisation suchen..."
@@ -1147,8 +1140,9 @@ export default function ConsentUI({
                                                         {orgSearchQuery && (
                                                             <button
                                                                 type="button"
+                                                                aria-label="Suchbegriff löschen"
                                                                 onClick={() => setOrgSearchQuery('')}
-                                                                className="text-muted-foreground hover:text-foreground text-xs"
+                                                                className="text-muted-foreground hover:text-foreground text-xs cursor-pointer"
                                                             >
                                                                 <X className="w-3 h-3" />
                                                             </button>
@@ -1180,9 +1174,7 @@ export default function ConsentUI({
 
                                                 {/* Org items list */}
                                                 <div className="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar">
-                                                    {organisations
-                                                        .filter(o => !orgSearchQuery.trim() || o.name.toLowerCase().includes(orgSearchQuery.toLowerCase()))
-                                                        .map((org) => {
+                                                    {filteredOrganisations.map((org) => {
                                                             const isEnabled = org.mcp_zugriff_aktiviert;
                                                             const isChecked = isEnabled && selectedOrgSet.has(org.organisation_id);
 
@@ -1503,7 +1495,7 @@ export default function ConsentUI({
                         <Button
                             onClick={handleApprove}
                             disabled={isProcessing || isLoading || isLoadingOrgs || (!isDemo && (organisations.length === 0 || !hasValidOrgSelection))}
-                            className="w-full h-11 rounded-xl text-sm font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none"
+                            className="w-full h-11 rounded-xl text-sm font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] transition-colors duration-300 disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {isProcessing ? (
                                 <>
