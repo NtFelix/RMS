@@ -133,8 +133,8 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
             );
         });
 
-        // Switch to custom selection
-        const toggleButton = screen.getByText('Auswahl anpassen');
+        // Switch to custom selection (which is the combobox and opens dropdown)
+        const toggleButton = screen.getByRole('combobox');
         await act(async () => {
             fireEvent.click(toggleButton);
         });
@@ -172,8 +172,8 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
             );
         });
 
-        // Switch to custom selection
-        const toggleButton = screen.getByText('Auswahl anpassen');
+        // Switch to custom selection (which is the combobox and opens dropdown)
+        const toggleButton = screen.getByRole('combobox');
         await act(async () => {
             fireEvent.click(toggleButton);
         });
@@ -195,7 +195,7 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
                 'client-123',
                 expect.not.arrayContaining(['org-disabled']),
                 false,
-                { all: true, write: true }
+                { all: true, write: false }
             );
         });
     });

@@ -125,7 +125,13 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
                 />
             );
 
-            expect(screen.getByText('Schmidt Hausverwaltung GmbH')).toBeInTheDocument();
+            // Click combobox to open dropdown
+            const combobox = screen.queryByRole('combobox');
+            if (combobox) {
+                fireEvent.click(combobox);
+            }
+
+            expect(screen.getAllByText('Schmidt Hausverwaltung GmbH')[0]).toBeInTheDocument();
             expect(screen.getByText('Muster Immobilien (Deactivated)')).toBeInTheDocument();
 
             // Disabled badge must be rendered for the deactivated org
@@ -142,7 +148,7 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
                     mockClientId,
                     [ORG_ACTIVE_1.organisation_id],
                     false,
-                    { all: true, write: true }
+                    { all: true, write: false }
                 );
                 expect(submitDecisionAction).toHaveBeenCalledTimes(1);
                 expect(submitDecisionAction).toHaveBeenCalledWith(mockAuthId, 'allow');

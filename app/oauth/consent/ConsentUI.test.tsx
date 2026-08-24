@@ -97,7 +97,7 @@ describe('ConsentUI Component', () => {
         expect(screen.getByText('Immobilien ansehen')).toBeInTheDocument();
         expect(screen.getByText('Mieter ansehen')).toBeInTheDocument();
         expect(screen.getByText('Freizugebende Organisationen:')).toBeInTheDocument();
-        expect(screen.getByText('Alle erlaubten Organisationen freigeben')).toBeInTheDocument();
+        expect(screen.getByText('Erlaubt Zugriff auf alle aktuellen und zukünftigen Organisationen.')).toBeInTheDocument();
     });
 
     it('shows disabled badge for organisations with mcp_zugriff_aktiviert = false when customized', async () => {
@@ -115,11 +115,11 @@ describe('ConsentUI Component', () => {
             />
         );
 
-        // Switch to custom selection
-        const toggleButton = screen.getByText('Auswahl anpassen');
+        // Switch to custom selection (which directly opens the dropdown)
+        const toggleButton = screen.getByRole('combobox');
         fireEvent.click(toggleButton);
 
-        expect(screen.getByText('Immobilienverwaltung Schmidt')).toBeInTheDocument();
+        expect(screen.getAllByText('Immobilienverwaltung Schmidt')[0]).toBeInTheDocument();
         expect(screen.getByText('Gewerbe Portfolio Nord')).toBeInTheDocument();
         expect(screen.getByText('Durch Administrator deaktiviert')).toBeInTheDocument();
     });
@@ -147,7 +147,7 @@ describe('ConsentUI Component', () => {
                 'client-123',
                 ['org-active-1'],
                 true,
-                { all: true, write: true }
+                { all: true, write: false }
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',
@@ -183,7 +183,7 @@ describe('ConsentUI Component', () => {
                 'client-123',
                 ['org-active-1'],
                 false,
-                { all: true, write: true }
+                { all: true, write: false }
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',
@@ -192,7 +192,7 @@ describe('ConsentUI Component', () => {
         });
     });
 
-    it('persists read-only scope when Read-Only pill is selected', async () => {
+    it('persists write scope when Schreiben pill is selected', async () => {
         render(
             <ConsentUI
                 type="consent"
@@ -207,9 +207,9 @@ describe('ConsentUI Component', () => {
             />
         );
 
-        // Select Read-Only mode
-        const readOnlyButton = screen.getByRole('button', { name: /Nur Lesen/i });
-        fireEvent.click(readOnlyButton);
+        // Click Schreiben pill
+        const writeButton = screen.getByRole('button', { name: /Schreiben/i });
+        fireEvent.click(writeButton);
 
         const approveButton = screen.getByRole('button', { name: /Zugriff erlauben/i });
         fireEvent.click(approveButton);
@@ -219,7 +219,7 @@ describe('ConsentUI Component', () => {
                 'client-123',
                 ['org-active-1'],
                 true,
-                { all: true, write: false }
+                { all: true, write: true }
             );
         });
     });
