@@ -2,6 +2,7 @@
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 
 // Update function signature to accept id as the first parameter
 // Define the expected fields and their types
@@ -108,6 +109,24 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
         if (scopeError) {
           console.error('Failed to auto-grant scope for new house:', scopeError);
         }
+      }
+
+      try {
+        const posthog = getPostHogServer();
+        await posthog.capture({
+          distinctId: user.id,
+          event: 'house_created',
+          properties: {
+            house_id: newHouse.id,
+            house_name: name,
+            has_location: !!ort,
+            has_size: processedGroesse !== null,
+            source: 'server_action',
+          },
+        });
+        await posthog.flush();
+      } catch (phError) {
+        console.error('[PostHog] Failed to capture house_created:', phError);
       }
     }
     revalidatePath("/haeuser");

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getPostHogServer } from '@/app/posthog-server.mjs';
 
 export type AcceptEinladungResult =
   | { success: true }
@@ -61,6 +62,21 @@ export async function acceptEinladungAction(token: string): Promise<AcceptEinlad
     const msg = rpcError instanceof Error ? rpcError.message : String(rpcError);
     console.error("[acceptEinladungAction] Unexpected RPC error:", msg);
     return { success: false, error: "Ein unerwarteter Fehler ist aufgetreten.", code: "unknown" };
+  }
+
+  try {
+    const posthog = getPostHogServer();
+    await posthog.capture({
+      distinctId: user.id,
+      event: 'invitation_accepted',
+      properties: {
+        user_email: user.email,
+        source: 'server_action',
+      },
+    });
+    await posthog.flush();
+  } catch (phError) {
+    console.error('[PostHog] Failed to capture invitation_accepted:', phError);
   }
 
   return { success: true };
