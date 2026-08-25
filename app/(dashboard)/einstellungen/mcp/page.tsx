@@ -24,7 +24,7 @@ export default async function McpSettingsPage() {
   const { data: orgData } = await supabase
     .from("Organisation")
     .select("id, name, mcp_zugriff_aktiviert")
-    .single();
+    .maybeSingle();
 
   return (
     <Suspense fallback={<SettingsSectionSkeleton />}>

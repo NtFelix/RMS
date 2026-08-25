@@ -23,6 +23,8 @@ export interface McpSectionProps {
   hasVerwaltenPermission?: boolean;
 }
 
+const MCP_SERVER_URL = "https://mcp.mietevo.de/mcp";
+
 export default function McpSection({
   organisationId,
   organisationName,
@@ -33,11 +35,9 @@ export default function McpSection({
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
 
-  const serverUrl = "https://mcp.mietevo.de/mcp";
-
   const handleCopyUrl = async () => {
     try {
-      await navigator.clipboard.writeText(serverUrl);
+      await navigator.clipboard.writeText(MCP_SERVER_URL);
       setCopiedUrl(true);
       setTimeout(() => setCopiedUrl(false), 2000);
       toast({
@@ -148,7 +148,7 @@ export default function McpSection({
               </label>
               <div className="flex items-center gap-2 max-w-xl">
                 <div className="flex-1 h-9 rounded-lg bg-muted/60 border border-border/50 px-3 flex items-center font-mono text-xs text-foreground overflow-x-auto select-all">
-                  {serverUrl}
+                  {MCP_SERVER_URL}
                 </div>
                 <Button
                   type="button"

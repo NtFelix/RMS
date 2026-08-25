@@ -660,6 +660,7 @@ export const setOrganisationMcpAccessAction = withLogging(
     }
 
     revalidatePath('/organisation');
+    revalidatePath('/einstellungen/mcp');
     return { success: true, data };
   }
 );
