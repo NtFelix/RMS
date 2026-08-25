@@ -147,7 +147,19 @@ describe('ConsentUI Component', () => {
                 'client-123',
                 ['org-active-1'],
                 true,
-                { all: true, write: false }
+                {
+                    all: false,
+                    write: false,
+                    module: expect.objectContaining({
+                        // Only requested modules get access; everything else stays 'none'
+                        properties: { read: true, write: false },
+                        tenants: { read: false, write: false },
+                        finanzen: { read: false, write: false },
+                        zaehler: { read: false, write: false },
+                        aufgaben: { read: false, write: false },
+                        dokumente: { read: false, write: false },
+                    })
+                }
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',
@@ -183,7 +195,18 @@ describe('ConsentUI Component', () => {
                 'client-123',
                 ['org-active-1'],
                 false,
-                { all: true, write: false }
+                {
+                    all: false,
+                    write: false,
+                    module: expect.objectContaining({
+                        properties: { read: true, write: false },
+                        tenants: { read: false, write: false },
+                        finanzen: { read: false, write: false },
+                        zaehler: { read: false, write: false },
+                        aufgaben: { read: false, write: false },
+                        dokumente: { read: false, write: false },
+                    })
+                }
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',

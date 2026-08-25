@@ -44,7 +44,9 @@ export function SettingsLayoutClient({
       { value: "vorschau", label: "Vorschau", icon: FlaskConical, group: "Konto" },
       ...(aiAgentEnabled ? [{ value: "ki", label: "KI", icon: Brain, group: "Konto" }] : []),
       { value: "mietevo", label: "Mietevo", icon: Info, group: "Konto" },
-      ...(canManageOrg && apiZugriffAktiviert ? [{ value: "api-keys", label: "API-Keys", icon: Key, group: "Organisation" }] : []),
+      // Flag-gated only: members need this tab to submit key requests; approval is
+      // permission-checked server-side, not by hiding the tab.
+      ...(apiZugriffAktiviert ? [{ value: "api-keys", label: "API-Keys", icon: Key, group: "Organisation" }] : []),
       ...(canManageOrg ? [{ value: "mcp", label: "MCP-Server", icon: Bot, group: "Organisation" }] : []),
     ],
     [mailsEnabled, aiAgentEnabled, apiZugriffAktiviert, canManageOrg],

@@ -320,7 +320,15 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
                 'client-123',
                 expect.not.arrayContaining(['org-disabled']),
                 false,
-                { all: true, write: false }
+                expect.objectContaining({
+                    all: false,
+                    write: false,
+                    module: expect.objectContaining({
+                        // Only the requested module gets access
+                        properties: { read: true, write: false },
+                        finanzen: { read: false, write: false },
+                    })
+                })
             );
         });
     });

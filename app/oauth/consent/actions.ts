@@ -176,8 +176,12 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
  * POST /auth/v1/oauth/authorizations/{id}/consent
  */
 export async function submitDecisionAction(authorizationId: string, decision: 'allow' | 'deny') {
-    const { supabase } = await ensureAuth();
+    // ensureAuth stays inside the try so an expired session surfaces as a structured
+    // {success:false} result instead of a thrown error the caller's rollback logic
+    // (which lives outside its own try) would never see.
+    let supabase;
     try {
+        ({ supabase } = await ensureAuth());
         validateId(authorizationId);
         if (decision !== 'allow' && decision !== 'deny') {
             throw new Error('Invalid decision value');
@@ -313,6 +317,43 @@ export interface SaveUserMcpAuthorizationResult {
 }
 
 /**
+ * Whitelist of MCP scope keys the client may set in a save request. Anything outside
+ * this list (or with non-boolean values) is stripped — the caller never dictates
+ * access beyond what these known module aliases cover.
+ */
+const ALLOWED_MODULE_SCOPE_KEYS = new Set([
+    // Canonical consent modules (must stay in sync with PERMISSION_DEFINITIONS in ConsentUI.tsx)
+    'properties', 'tenants', 'finanzen', 'zaehler', 'aufgaben', 'dokumente',
+    // Legacy/MCP-server aliases (must stay in sync with MODULE_ALIASES in mietevo-mcp/src/mcp-server.ts)
+    'haeuser', 'wohnungen', 'mieter', 'betriebskosten', 'nebenkosten',
+    'zaehler_ablesungen', 'vorlagen', 'dokumente_metadaten',
+]);
+
+/** Validates and normalizes a caller-supplied scopes object before persistence. */
+function sanitizeScopes(scopes: UserMcpScopes | undefined): UserMcpScopes {
+    if (!scopes || typeof scopes !== 'object') {
+        return { all: false, write: false };
+    }
+    const sanitized: UserMcpScopes = {
+        all: scopes.all === true,
+        write: scopes.write === true,
+    };
+    if (scopes.module && typeof scopes.module === 'object') {
+        const moduleMap: Record<string, McpModuleScope> = {};
+        for (const [key, value] of Object.entries(scopes.module)) {
+            if (!ALLOWED_MODULE_SCOPE_KEYS.has(key)) continue;
+            if (!value || typeof value !== 'object') continue;
+            moduleMap[key] = {
+                read: (value as McpModuleScope).read === true,
+                write: (value as McpModuleScope).write === true,
+            };
+        }
+        sanitized.module = moduleMap;
+    }
+    return sanitized;
+}
+
+/**
  * Persists the user's MCP organisation and scope authorization selection for a given client_id.
  */
 export async function saveUserMcpAuthorizationAction(
@@ -333,14 +374,20 @@ export async function saveUserMcpAuthorizationAction(
         return { success: false, error: 'Client-ID ist erforderlich' };
     }
 
-    const defaultScopes: UserMcpScopes = { all: true, write: true };
-    const finalScopes = scopes || defaultScopes;
+    if (!Array.isArray(allowedOrgIds)) {
+        return { success: false, error: 'Ungültige Organisationsauswahl' };
+    }
+
+    // Never trust caller-supplied scope shapes: coerce to booleans over known keys only.
+    // A missing scopes object means "no access" — the previous default of {all:true,write:true}
+    // would let any caller self-grant full access by omitting the argument.
+    const finalScopes = sanitizeScopes(scopes);
 
     try {
         const { data, error } = await supabase.rpc('save_user_mcp_authorization', {
             p_client_id: clientId.trim(),
-            p_allowed_org_ids: allowedOrgIds || [],
-            p_allow_all: allowAll,
+            p_allowed_org_ids: allowedOrgIds.filter(id => typeof id === 'string' && id.trim()),
+            p_allow_all: allowAll === true,
             p_scopes: finalScopes,
         });
 

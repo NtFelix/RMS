@@ -148,7 +148,15 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
                     mockClientId,
                     [ORG_ACTIVE_1.organisation_id],
                     false,
-                    { all: true, write: false }
+                    expect.objectContaining({
+                        all: false,
+                        write: false,
+                        module: expect.objectContaining({
+                            // Only the requested module gets access
+                            properties: { read: true, write: false },
+                            finanzen: { read: false, write: false },
+                        })
+                    })
                 );
                 expect(submitDecisionAction).toHaveBeenCalledTimes(1);
                 expect(submitDecisionAction).toHaveBeenCalledWith(sampleId, 'allow');

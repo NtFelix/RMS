@@ -299,7 +299,8 @@ describe('OAuth Consent actions', () => {
                 p_client_id: 'claude-desktop',
                 p_allowed_org_ids: ['org-1', 'org-2'],
                 p_allow_all: false,
-                p_scopes: { all: true, write: true },
+                // Fail-closed default: no scopes object means no access
+                p_scopes: { all: false, write: false },
             });
         });
 
@@ -320,7 +321,7 @@ describe('OAuth Consent actions', () => {
                 p_client_id: 'claude-desktop',
                 p_allowed_org_ids: [],
                 p_allow_all: true,
-                p_scopes: { all: true, write: true },
+                p_scopes: { all: false, write: false },
             });
         });
 

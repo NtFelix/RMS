@@ -25,14 +25,27 @@ function isLoopback(hostname: string): boolean {
 }
 
 /**
+ * Loopback redirect targets (native OAuth apps on localhost) are only accepted outside
+ * production — in production they would let a crafted redirect_to hand an authorization
+ * code to any local process on a shared machine.
+ */
+function allowsLoopbackRedirects(): boolean {
+    return process.env.NODE_ENV !== 'production';
+}
+
+/**
  * Validates a redirect URL against the allowlist.
- * Accepts trusted HTTPS origins and local loopback HTTP/HTTPS URLs.
+ * Accepts trusted HTTPS origins, plus loopback HTTP/HTTPS URLs in non-production only.
  */
 export function isValidRedirect(url: string | undefined | null): boolean {
     if (!url) return false;
     try {
         const parsed = new URL(url);
-        if (isLoopback(parsed.hostname) && (parsed.protocol === 'http:' || parsed.protocol === 'https:')) {
+        if (
+            allowsLoopbackRedirects() &&
+            isLoopback(parsed.hostname) &&
+            (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+        ) {
             return true;
         }
         if (parsed.protocol !== 'https:') return false;
@@ -54,7 +67,7 @@ export function isValidSupabaseRedirect(url: string | undefined | null): boolean
     if (!activeUrl) return false; // fail-closed
     try {
         const parsed = new URL(url);
-        if (parsed.protocol !== 'https:' && !isLoopback(parsed.hostname)) return false;
+        if (parsed.protocol !== 'https:' && !(allowsLoopbackRedirects() && isLoopback(parsed.hostname))) return false;
         const supabaseOrigin = new URL(activeUrl).origin;
         return parsed.origin === supabaseOrigin;
     } catch {

@@ -92,19 +92,30 @@ describe('Adversarial Security & Action Challenge Tests', () => {
             }
         });
 
-        it('safely handles empty allowedOrgIds array and null arguments in saveUserMcpAuthorizationAction', async () => {
+        it('rejects non-array allowedOrgIds and defaults missing scopes to no access (fail-closed)', async () => {
             mockRpc.mockResolvedValueOnce({
                 data: { success: true },
                 error: null,
             });
 
-            const res = await saveUserMcpAuthorizationAction('claude-desktop', null as any, false);
+            // A tampered/null org list is rejected outright...
+            const badRes = await saveUserMcpAuthorizationAction('claude-desktop', null as any, false);
+            expect(badRes.success).toBe(false);
+            expect(mockRpc).not.toHaveBeenCalled();
+
+            // ...and a missing scopes object persists NO access, not blanket access.
+            mockRpc.mockClear();
+            mockRpc.mockResolvedValueOnce({
+                data: { success: true },
+                error: null,
+            });
+            const res = await saveUserMcpAuthorizationAction('claude-desktop', ['org-1'], false);
             expect(res.success).toBe(true);
             expect(mockRpc).toHaveBeenCalledWith('save_user_mcp_authorization', {
                 p_client_id: 'claude-desktop',
-                p_allowed_org_ids: [],
+                p_allowed_org_ids: ['org-1'],
                 p_allow_all: false,
-                p_scopes: { all: true, write: true },
+                p_scopes: { all: false, write: false },
             });
         });
 

@@ -23,7 +23,8 @@ export interface McpSectionProps {
   hasVerwaltenPermission?: boolean;
 }
 
-const MCP_SERVER_URL = "https://mcp.mietevo.de/mcp";
+// MCP endpoint URL — env-configurable, /mcp path appended (base URL has no path)
+const MCP_SERVER_URL = `${process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || 'https://mcp.mietevo.de'}/mcp`;
 
 export default function McpSection({
   organisationId,

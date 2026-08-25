@@ -25,21 +25,12 @@ import {
     Building2,
     ShieldCheck,
     Clock,
-    Sparkles,
-    Eye,
     SlidersHorizontal,
-    Home,
-    Users,
-    Wallet,
-    Gauge,
-    CheckSquare,
-    FileText,
     ChevronDown,
     Globe,
     Search
 } from 'lucide-react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
-import { AnimatedPillToggle } from '@/components/ui/animated-pill-toggle';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
@@ -384,7 +375,7 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
         writeLabel: 'Immobilien verwalten',
         noneLabel: 'Kein Zugriff auf Immobilien',
         desc: 'Gebäude, Einheiten, Flächen & Adressen',
-        defaultLevel: 'read',
+        defaultLevel: 'none',
     },
     {
         id: 'tenants',
@@ -393,7 +384,7 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
         writeLabel: 'Mieter verwalten',
         noneLabel: 'Kein Zugriff auf Mieter',
         desc: 'Mieterdaten, Mietverträge & Kontakte',
-        defaultLevel: 'read',
+        defaultLevel: 'none',
     },
     {
         id: 'finanzen',
@@ -402,7 +393,7 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
         writeLabel: 'Finanzen verwalten',
         noneLabel: 'Kein Zugriff auf Finanzen',
         desc: 'Mieteinnahmen, Zahlungen & Betriebskosten',
-        defaultLevel: 'read',
+        defaultLevel: 'none',
     },
     {
         id: 'zaehler',
@@ -411,7 +402,7 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
         writeLabel: 'Zähler verwalten',
         noneLabel: 'Kein Zugriff auf Zähler',
         desc: 'Zählerstände, Messgeräte & Verbrauchswerte',
-        defaultLevel: 'read',
+        defaultLevel: 'none',
     },
     {
         id: 'aufgaben',
@@ -420,7 +411,7 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
         writeLabel: 'Aufgaben verwalten',
         noneLabel: 'Kein Zugriff auf Aufgaben',
         desc: 'Instandhaltung, Handwerker & Vorgänge',
-        defaultLevel: 'read',
+        defaultLevel: 'none',
     },
     {
         id: 'dokumente',
@@ -429,7 +420,7 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
         writeLabel: 'Dokumente verwalten',
         noneLabel: 'Kein Zugriff auf Dokumente',
         desc: 'Dateien, Vorlagen & Mietvertragsdokumente',
-        defaultLevel: 'read',
+        defaultLevel: 'none',
     },
 ];
 
@@ -506,22 +497,46 @@ export default function ConsentUI({
         ? hasEnabledOrgs
         : selectedOrgIds.some(id => enabledOrgs.some(o => o.organisation_id === id));
 
+    // Pure identity scopes (OpenID Connect login) need no organisation data — the consent
+    // flow must not be blocked when the org RPC fails or the user has no MCP-enabled org.
+    const ORG_INDEPENDENT_SCOPES = new Set([
+        'openid', 'profile', 'email', 'offline_access',
+        'profile:read', 'email:read'
+    ]);
+    const requiresOrgSelection = useMemo(() => {
+        const requested = (initialScopes && initialScopes.length > 0)
+            ? initialScopes
+            : (Array.isArray(authDetails?.scopes)
+                ? authDetails.scopes
+                : typeof authDetails?.scopes === 'string'
+                ? authDetails.scopes.split(' ')
+                : []);
+        const hasOrgScope = requested.some(s =>
+            !ORG_INDEPENDENT_SCOPES.has(s.trim()) && s.trim().length > 0
+        );
+        return hasOrgScope || (requested.length === 0);
+    }, [initialScopes, authDetails]);
+
     const filteredOrganisations = useMemo(() => {
         const query = orgSearchQuery.trim().toLowerCase();
         if (!query) return organisations;
         return organisations.filter(o => o.name.toLowerCase().includes(query));
     }, [organisations, orgSearchQuery]);
 
-    const [modulePermissions, setModulePermissions] = useState<Record<string, PermissionLevel>>(() => {
+    // Derives the per-module permission levels from the user's stored grant scopes
+    // and the scopes the client actually requested. Modules covered by neither fall
+    // back to 'none' — access is only ever granted explicitly (stored grant, requested
+    // scope, or user interaction), never by default.
+    const buildModulePermissions = useCallback((
+        orgs: UserMcpOrganisationItem[],
+        requestedScopes: string[] | string | undefined
+    ): Record<string, PermissionLevel> => {
         const map: Record<string, PermissionLevel> = {};
-        const existing = initialOrganisations?.[0]?.scopes?.module;
-        const rawRequested = (initialScopes && initialScopes.length > 0)
-            ? initialScopes
-            : (initialData?.scopes || []);
-        const requestedArr = Array.isArray(rawRequested)
-            ? rawRequested
-            : typeof rawRequested === 'string'
-            ? (rawRequested as string).split(' ')
+        const existing = orgs?.[0]?.scopes?.module;
+        const requestedArr = Array.isArray(requestedScopes)
+            ? requestedScopes
+            : typeof requestedScopes === 'string'
+            ? requestedScopes.split(' ')
             : [];
 
         for (const def of PERMISSION_DEFINITIONS) {
@@ -540,7 +555,13 @@ export default function ConsentUI({
             }
         }
         return map;
-    });
+    }, []);
+
+    const [modulePermissions, setModulePermissions] = useState<Record<string, PermissionLevel>>(() =>
+        buildModulePermissions(initialOrganisations || [], (initialScopes && initialScopes.length > 0)
+            ? initialScopes
+            : (initialData?.scopes || []))
+    );
 
     // 3-state toggle cycle: write -> read -> none -> write
     const cyclePermission = (id: string) => {
@@ -657,6 +678,12 @@ export default function ConsentUI({
             const res = await getUserMcpOrganisationsAction(clientId);
             if (res.success && res.data) {
                 setOrganisations(res.data);
+                // Re-derive module permissions from the freshly loaded grant scopes —
+                // the useState initializer only saw initialOrganisations, which may have
+                // been empty when the server-side fetch failed.
+                setModulePermissions(buildModulePermissions(res.data, (initialScopes && initialScopes.length > 0)
+                    ? initialScopes
+                    : (authDetails?.scopes || [])));
                 const hasAuth = res.data.some(o => o.allow_all || o.is_authorized);
                 if (hasAuth) {
                     const isAll = res.data.some(o => o.allow_all);
@@ -687,7 +714,7 @@ export default function ConsentUI({
         } finally {
             setIsLoadingOrgs(false);
         }
-    }, [clientId, isDemo, type]);
+    }, [clientId, isDemo, type, buildModulePermissions, initialScopes, authDetails]);
 
     // Fetch organisations for the client if not already provided
     useEffect(() => {
@@ -734,6 +761,28 @@ export default function ConsentUI({
     const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
     const scopes = mergedScopes.length > 0 ? mergedScopes : ['openid', 'email'];
 
+    // Restores the pre-consent MCP grant state after a failed consent leg. Defined once
+    // so both the structured-failure branch and the outer catch of handleDecision run it.
+    const restorePriorGrant = async (grant: {
+        clientId: string;
+        priorGrantExisted: boolean;
+        priorOrgIds: string[];
+        priorAllowAll: boolean;
+        priorScopes?: UserMcpScopes;
+    } | null) => {
+        if (!grant) return;
+        try {
+            await saveUserMcpAuthorizationAction(
+                grant.clientId,
+                grant.priorOrgIds,
+                grant.priorAllowAll,
+                grant.priorScopes ?? { all: false, write: false }
+            );
+        } catch (rollbackErr) {
+            console.error('Failed to restore prior MCP authorization after failed consent:', rollbackErr);
+        }
+    };
+
     const handleDecision = async (decision: 'approve' | 'deny') => {
         if (!authorizationId) return;
 
@@ -776,16 +825,26 @@ export default function ConsentUI({
 
             // Save MCP organisation authorization before submitting consent decision
             if (decision === 'approve' && !isDemo) {
-                if (isLoadingOrgs) {
-                    setProcessError('Organisationsdaten werden noch geladen. Bitte warten.');
+                // Fail closed: without a clientId we could not persist an MCP grant, and
+                // approving anyway would issue the code while silently skipping the save.
+                if (!clientId) {
+                    setProcessError('Die Client-Konfiguration dieser Anwendung ist unvollständig (fehlende Client-ID). Die Autorisierung wurde abgebrochen.');
                     setIsProcessing(false);
                     return;
                 }
 
-                if (organisations.length === 0 || !hasValidOrgSelection) {
-                    setProcessError('Keine freigebbaren Organisationen verfügbar. Autorisierung kann nicht erteilt werden.');
-                    setIsProcessing(false);
-                    return;
+                if (requiresOrgSelection) {
+                    if (isLoadingOrgs) {
+                        setProcessError('Organisationsdaten werden noch geladen. Bitte warten.');
+                        setIsProcessing(false);
+                        return;
+                    }
+
+                    if (organisations.length === 0 || !hasValidOrgSelection) {
+                        setProcessError('Keine freigebbaren Organisationen verfügbar. Autorisierung kann nicht erteilt werden.');
+                        setIsProcessing(false);
+                        return;
+                    }
                 }
 
                 if (clientId && organisations.length > 0) {
@@ -860,8 +919,11 @@ export default function ConsentUI({
                     savedGrantForRollback = {
                         clientId,
                         priorGrantExisted: !!priorGrant,
+                        // Snapshot from ALL organisations, not just MCP-enabled ones — an org
+                        // an admin has since disabled may still hold a stored authorization,
+                        // and the rollback is meant to restore that prior state unchanged.
                         priorOrgIds: priorGrant
-                            ? enabledOrgList.filter(o => o.is_authorized).map(o => o.organisation_id)
+                            ? organisations.filter(o => o.is_authorized).map(o => o.organisation_id)
                             : [],
                         priorAllowAll: priorGrant?.allow_all ?? false,
                         priorScopes: priorGrant?.scopes,
@@ -880,18 +942,7 @@ export default function ConsentUI({
                 // Restore the pre-consent grant state: a prior authorization is re-saved
                 // unchanged; without one the grant is zeroed out (fail-closed revocation).
                 // Either way no MCP authorization outlives a failed consent.
-                if (savedGrantForRollback) {
-                    try {
-                        await saveUserMcpAuthorizationAction(
-                            savedGrantForRollback.clientId,
-                            savedGrantForRollback.priorOrgIds,
-                            savedGrantForRollback.priorAllowAll,
-                            savedGrantForRollback.priorScopes ?? { all: false, write: false }
-                        );
-                    } catch (rollbackErr) {
-                        console.error('Failed to restore prior MCP authorization after failed consent:', rollbackErr);
-                    }
-                }
+                await restorePriorGrant(savedGrantForRollback);
                 setProcessError(error || 'Decision failed');
                 setIsProcessing(false);
                 return;
@@ -904,6 +955,10 @@ export default function ConsentUI({
                 setIsProcessing(false);
             }
         } catch (err: any) {
+            // The rollback must run here too: an exception thrown after the grant was
+            // saved (network flap, unexpected server-action failure) must not leave an
+            // MCP authorization behind that outlives an incomplete consent.
+            await restorePriorGrant(savedGrantForRollback);
             setProcessError(err.message || `An error occurred while ${decision === 'approve' ? 'approving' : 'denying'} authorization`);
             setIsProcessing(false);
         }
@@ -1581,7 +1636,7 @@ export default function ConsentUI({
                     <CardFooter className="flex flex-col gap-2.5 px-7 pt-2 pb-7">
                         <Button
                             onClick={handleApprove}
-                            disabled={isProcessing || isLoading || isLoadingOrgs || (!isDemo && (organisations.length === 0 || !hasValidOrgSelection))}
+                            disabled={isProcessing || isLoading || (!isDemo && requiresOrgSelection && (isLoadingOrgs || organisations.length === 0 || !hasValidOrgSelection))}
                             className="w-full h-11 rounded-xl text-sm font-semibold border-none bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_4px_14px_rgba(var(--primary),0.2)] dark:shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_6px_20px_rgba(var(--primary),0.3)] transition-colors duration-300 disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {isProcessing ? (

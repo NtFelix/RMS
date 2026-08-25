@@ -182,7 +182,8 @@ describe('organisation-actions', () => {
 
       const result = await setOrganisationMcpAccessAction('org-uuid-1', true);
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('Database error occurred');
+      // Raw DB details must not reach the client (matches the consent actions' sanitization)
+      expect(result.error?.message).toBe('MCP-Zugriff für die Organisation konnte nicht geändert werden. Bitte versuchen Sie es erneut.');
     });
   });
 });

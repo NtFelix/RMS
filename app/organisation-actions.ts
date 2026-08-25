@@ -656,7 +656,9 @@ export const setOrganisationMcpAccessAction = withLogging(
     });
 
     if (error) {
-      return { success: false, error: { message: error.message } };
+      // Do not surface raw DB error details to the client (matches the consent actions)
+      console.error('[MCP] setOrganisationMcpAccess failed:', error.message);
+      return { success: false, error: { message: "MCP-Zugriff für die Organisation konnte nicht geändert werden. Bitte versuchen Sie es erneut." } };
     }
 
     revalidatePath('/organisation');
