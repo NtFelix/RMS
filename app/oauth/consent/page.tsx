@@ -1,14 +1,26 @@
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import ConsentUI from './ConsentUI';
-import { getAuthorizationDetailsAction, type AuthorizationDetails } from './actions';
-
-
+import {
+    getAuthorizationDetailsAction,
+    getUserMcpOrganisationsAction,
+    type AuthorizationDetails,
+    type UserMcpOrganisationItem
+} from './actions';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 export const instant = false;
+
+export const metadata: Metadata = {
+    title: 'OAuth Autorisierung | Mietevo',
+    robots: {
+        index: false,
+        follow: false,
+    },
+};
 
 
 
@@ -99,12 +111,22 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         );
     }
 
+    // Load initial user organisations for the consent screen
+    let initialOrganisations: UserMcpOrganisationItem[] = [];
+    if (user && success) {
+        const orgsResult = await getUserMcpOrganisationsAction(data?.client?.id);
+        if (orgsResult.success && orgsResult.data) {
+            initialOrganisations = orgsResult.data;
+        }
+    }
+
     return (
         <ConsentUI
             type="consent"
             authorizationId={authorizationId}
             initialData={success ? (data || undefined) : undefined}
             initialError={!success ? (fetchError || undefined) : undefined}
+            initialOrganisations={initialOrganisations}
         />
     );
 }

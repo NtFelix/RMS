@@ -1,8 +1,17 @@
-import { getAuthorizationDetailsAction, submitDecisionAction } from './actions';
+import {
+    getAuthorizationDetailsAction,
+    submitDecisionAction,
+    getUserMcpOrganisationsAction,
+    saveUserMcpAuthorizationAction
+} from './actions';
+import { ensureAuth } from '@/lib/auth-utils';
+
+const mockRpc = jest.fn();
 
 // Mock ensureAuth
 jest.mock('@/lib/auth-utils', () => ({
-    ensureAuth: jest.fn().mockResolvedValue({
+    ensureAuth: jest.fn().mockImplementation(() => Promise.resolve({
+        user: { id: 'user-123' },
         supabase: {
             auth: {
                 getSession: jest.fn().mockResolvedValue({
@@ -14,8 +23,9 @@ jest.mock('@/lib/auth-utils', () => ({
                     error: null,
                 }),
             },
+            rpc: mockRpc,
         },
-    }),
+    })),
 }));
 
 // Mock fetch
@@ -24,6 +34,7 @@ const originalFetch = global.fetch;
 describe('OAuth Consent actions', () => {
     beforeEach(() => {
         global.fetch = jest.fn();
+        mockRpc.mockReset();
     });
 
     afterAll(() => {
@@ -129,7 +140,7 @@ describe('OAuth Consent actions', () => {
                 expect.stringContaining('/auth/v1/oauth/authorizations/auth_123456789012/consent'),
                 expect.objectContaining({
                     method: 'POST',
-                    body: JSON.stringify({ consent: 'approve', decision: 'allow' }),
+                    body: JSON.stringify({ action: 'approve', consent: 'approve', decision: 'allow' }),
                 })
             );
         });
@@ -205,6 +216,141 @@ describe('OAuth Consent actions', () => {
             const result = await submitDecisionAction('auth_123456789012', 'allow');
             expect(result.success).toBe(false);
             expect(result.error).toContain('Network down');
+        });
+    });
+
+    describe('getUserMcpOrganisationsAction', () => {
+        it('fetches user organizations and their MCP access status successfully', async () => {
+            const mockOrgs = [
+                {
+                    organisation_id: 'org-1',
+                    name: 'Immobilien GmbH',
+                    ist_versteckt: false,
+                    rolle: 'owner',
+                    mcp_zugriff_aktiviert: true,
+                    is_authorized: true,
+                    allow_all: false,
+                },
+                {
+                    organisation_id: 'org-2',
+                    name: 'Private Hausverwaltung',
+                    ist_versteckt: false,
+                    rolle: 'admin',
+                    mcp_zugriff_aktiviert: false,
+                    is_authorized: false,
+                    allow_all: false,
+                },
+            ];
+            mockRpc.mockResolvedValueOnce({ data: mockOrgs, error: null });
+
+            const result = await getUserMcpOrganisationsAction('notion-client-id');
+            expect(result.success).toBe(true);
+            expect(result.data).toEqual(mockOrgs);
+            expect(mockRpc).toHaveBeenCalledWith('get_user_mcp_organisations', {
+                p_client_id: 'notion-client-id',
+            });
+        });
+
+        it('handles null clientId parameter gracefully', async () => {
+            mockRpc.mockResolvedValueOnce({ data: [], error: null });
+
+            const result = await getUserMcpOrganisationsAction();
+            expect(result.success).toBe(true);
+            expect(result.data).toEqual([]);
+            expect(mockRpc).toHaveBeenCalledWith('get_user_mcp_organisations', {
+                p_client_id: null,
+            });
+        });
+
+        it('handles authentication failure gracefully', async () => {
+            (ensureAuth as jest.Mock).mockRejectedValueOnce(new Error('Benutzer nicht angemeldet'));
+
+            const result = await getUserMcpOrganisationsAction('client-id');
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Benutzer nicht angemeldet');
+        });
+
+        it('handles database RPC error without leaking raw DB details', async () => {
+            mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'DB connection error' } });
+
+            const result = await getUserMcpOrganisationsAction('client-id');
+            expect(result.success).toBe(false);
+            // Raw DB error message must not be surfaced to the client
+            expect(result.error).not.toBe('DB connection error');
+            expect(result.error).toContain('nicht geladen');
+        });
+    });
+
+    describe('saveUserMcpAuthorizationAction', () => {
+        it('saves user MCP authorizations successfully', async () => {
+            mockRpc.mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    client_id: 'claude-desktop',
+                    allowed_organisation_ids: ['org-1', 'org-2'],
+                    allow_all: false,
+                },
+                error: null,
+            });
+
+            const result = await saveUserMcpAuthorizationAction('claude-desktop', ['org-1', 'org-2'], false);
+            expect(result.success).toBe(true);
+            expect(mockRpc).toHaveBeenCalledWith('save_user_mcp_authorization', {
+                p_client_id: 'claude-desktop',
+                p_allowed_org_ids: ['org-1', 'org-2'],
+                p_allow_all: false,
+                // Fail-closed default: no scopes object means no access
+                p_scopes: { all: false, write: false },
+            });
+        });
+
+        it('saves with allow_all = true', async () => {
+            mockRpc.mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    client_id: 'claude-desktop',
+                    allowed_organisation_ids: [],
+                    allow_all: true,
+                },
+                error: null,
+            });
+
+            const result = await saveUserMcpAuthorizationAction('claude-desktop', [], true);
+            expect(result.success).toBe(true);
+            expect(mockRpc).toHaveBeenCalledWith('save_user_mcp_authorization', {
+                p_client_id: 'claude-desktop',
+                p_allowed_org_ids: [],
+                p_allow_all: true,
+                p_scopes: { all: false, write: false },
+            });
+        });
+
+        it('rejects empty clientId', async () => {
+            const result = await saveUserMcpAuthorizationAction('   ', ['org-1'], false);
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Client-ID ist erforderlich');
+            expect(mockRpc).not.toHaveBeenCalled();
+        });
+
+        it('handles unauthenticated error', async () => {
+            (ensureAuth as jest.Mock).mockRejectedValueOnce(new Error('Nicht authentifiziert'));
+
+            const result = await saveUserMcpAuthorizationAction('client-1', ['org-1'], false);
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Nicht authentifiziert');
+        });
+
+        it('handles database RPC error without leaking raw DB details', async () => {
+            mockRpc.mockResolvedValueOnce({
+                data: null,
+                error: { message: 'Constraint violation in save RPC' },
+            });
+
+            const result = await saveUserMcpAuthorizationAction('client-1', ['org-1'], false);
+            expect(result.success).toBe(false);
+            // Raw DB error message must not be surfaced to the client
+            expect(result.error).not.toBe('Constraint violation in save RPC');
+            expect(result.error).toContain('Fehler beim Speichern');
         });
     });
 });

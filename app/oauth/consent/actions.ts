@@ -1,9 +1,15 @@
 'use server';
 
 import { ensureAuth } from '@/lib/auth-utils';
+import { getSupabasePublicEnv } from '@/lib/supabase-env';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+function getSupabaseConfig() {
+    const { url, anonKey } = getSupabasePublicEnv();
+    if (!url || !anonKey) {
+        throw new Error('Supabase configuration missing (URL or Anon Key)');
+    }
+    return { url, anonKey };
+}
 
 const ERR_AUTH_EXPIRED =
     'Dieser Autorisierungslink wurde bereits verwendet oder ist abgelaufen. Bitte starten Sie den Verbindungsvorgang erneut.';
@@ -23,9 +29,10 @@ function validateId(authorizationId: string): void {
 
 /** Builds the authorization endpoint URL */
 function buildAuthUrl(authorizationId: string): string {
+    const { url } = getSupabaseConfig();
     return new URL(
         '/auth/v1/oauth/authorizations/' + encodeURIComponent(authorizationId),
-        SUPABASE_URL
+        url
     ).toString();
 }
 
@@ -46,12 +53,13 @@ function parseSupabaseAuthError(responseText: string, fallbackMessage: string): 
  * Includes a mandatory timeout and standard headers.
  */
 async function fetchAuthEndpoint(url: string, accessToken: string, options: RequestInit = {}) {
+    const { anonKey } = getSupabaseConfig();
     return fetch(url, {
         ...options,
         headers: {
             ...options.headers,
             'Authorization': `Bearer ${accessToken}`,
-            'apikey': SUPABASE_ANON_KEY,
+            'apikey': anonKey,
         },
         // Prevent blocking server actions indefinitely
         signal: AbortSignal.timeout(5000),
@@ -125,6 +133,36 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
         }
 
         const data = (await response.json()) as AuthorizationDetails;
+
+        // Side-channel: Fetch requested scopes directly from the Mietevo Worker
+        // because Supabase GoTrue filters out any scopes it doesn't officially recognize.
+        if (data?.state) {
+            try {
+                const mcpUrl = process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || 'https://mcp.mietevo.de';
+                const scopeRes = await fetch(`${mcpUrl}/oauth/scopes?state=${encodeURIComponent(data.state)}`, {
+                    signal: AbortSignal.timeout(2500),
+                });
+                if (scopeRes.ok) {
+                    const scopeData = await scopeRes.json();
+                    if (scopeData?.scopes) {
+                        const customList: string[] = typeof scopeData.scopes === 'string'
+                            ? scopeData.scopes.split(' ')
+                            : Array.isArray(scopeData.scopes)
+                            ? scopeData.scopes
+                            : [];
+                        const existing: string[] = Array.isArray(data.scopes)
+                            ? data.scopes
+                            : typeof data.scopes === 'string'
+                            ? data.scopes.split(' ')
+                            : [];
+                        data.scopes = Array.from(new Set([...existing, ...customList])).filter(Boolean);
+                    }
+                }
+            } catch {
+                // Non-blocking fallback
+            }
+        }
+
         return { success: true, data, error: null };
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to load authorization details";
@@ -138,8 +176,12 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
  * POST /auth/v1/oauth/authorizations/{id}/consent
  */
 export async function submitDecisionAction(authorizationId: string, decision: 'allow' | 'deny') {
-    const { supabase } = await ensureAuth();
+    // ensureAuth stays inside the try so an expired session surfaces as a structured
+    // {success:false} result instead of a thrown error the caller's rollback logic
+    // (which lives outside its own try) would never see.
+    let supabase;
     try {
+        ({ supabase } = await ensureAuth());
         validateId(authorizationId);
         if (decision !== 'allow' && decision !== 'deny') {
             throw new Error('Invalid decision value');
@@ -151,10 +193,12 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
             return { success: false, redirect_to: null, error: ERR_AUTH_UNAUTHORIZED };
         }
 
-        const consentUrl = `${SUPABASE_URL}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}/consent`;
+        const { url } = getSupabaseConfig();
+        const consentUrl = `${url}/auth/v1/oauth/authorizations/${encodeURIComponent(authorizationId)}/consent`;
         const consentValue = decision === 'allow' ? 'approve' : 'deny';
-        // Dual payload (consent + decision) provides compatibility across different Supabase GoTrue versions.
+        // Multi-field payload (action + consent + decision) provides compatibility across different Supabase GoTrue versions.
         const consentPayload = JSON.stringify({
+            action: consentValue,
             consent: consentValue,
             decision: decision,
         });
@@ -195,5 +239,168 @@ export async function submitDecisionAction(authorizationId: string, decision: 'a
         const message = err instanceof Error ? err.message : "Authorization decision failed";
         console.error('Server Action: submitDecision failed:', message);
         return { success: false, redirect_to: null, error: message };
+    }
+}
+
+/**
+ * Structure of granular MCP module & write scopes.
+ */
+export interface McpModuleScope {
+    read: boolean;
+    write: boolean;
+}
+
+export interface UserMcpScopes {
+    all?: boolean;
+    write?: boolean;
+    module?: Record<string, McpModuleScope>;
+}
+
+/**
+ * Item structure returned by get_user_mcp_organisations RPC.
+ */
+export interface UserMcpOrganisationItem {
+    organisation_id: string;
+    name: string;
+    ist_versteckt: boolean;
+    rolle: string;
+    mcp_zugriff_aktiviert: boolean;
+    is_authorized: boolean;
+    allow_all: boolean;
+    scopes?: UserMcpScopes;
+}
+
+/**
+ * Fetches all organisations the authenticated user belongs to with their MCP access status and client authorizations.
+ */
+export async function getUserMcpOrganisationsAction(
+    clientId?: string
+): Promise<{ success: boolean; data?: UserMcpOrganisationItem[]; error?: string }> {
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
+
+    try {
+        const { data, error } = await supabase.rpc('get_user_mcp_organisations', {
+            p_client_id: clientId || null,
+        });
+
+        if (error) {
+            console.error('[OAuth] getUserMcpOrganisations failed:', error.message);
+            // Do not surface raw DB error details to the client
+            return { success: false, error: 'Organisationen konnten nicht geladen werden. Bitte versuchen Sie es erneut.' };
+        }
+
+        return { success: true, data: (data || []) as UserMcpOrganisationItem[] };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load user organisations";
+        console.error('Server Action: getUserMcpOrganisations failed:', message);
+        return { success: false, error: 'Organisationen konnten nicht geladen werden. Bitte versuchen Sie es erneut.' };
+    }
+}
+
+export interface SaveUserMcpAuthorizationResult {
+    success: boolean;
+    data?: {
+        success: boolean;
+        user_id?: string;
+        client_id?: string;
+        allowed_organisation_ids?: string[];
+        allow_all?: boolean;
+        scopes?: UserMcpScopes;
+    };
+    error?: string;
+}
+
+/**
+ * Whitelist of MCP scope keys the client may set in a save request. Anything outside
+ * this list (or with non-boolean values) is stripped — the caller never dictates
+ * access beyond what these known module aliases cover.
+ */
+const ALLOWED_MODULE_SCOPE_KEYS = new Set([
+    // Canonical consent modules (must stay in sync with PERMISSION_DEFINITIONS in ConsentUI.tsx)
+    'properties', 'tenants', 'finanzen', 'zaehler', 'aufgaben', 'dokumente',
+    // Legacy/MCP-server aliases (must stay in sync with MODULE_ALIASES in mietevo-mcp/src/mcp-server.ts)
+    'haeuser', 'wohnungen', 'mieter', 'betriebskosten', 'nebenkosten',
+    'zaehler_ablesungen', 'vorlagen', 'dokumente_metadaten',
+]);
+
+/** Validates and normalizes a caller-supplied scopes object before persistence. */
+function sanitizeScopes(scopes: UserMcpScopes | undefined): UserMcpScopes {
+    if (!scopes || typeof scopes !== 'object') {
+        return { all: false, write: false };
+    }
+    const sanitized: UserMcpScopes = {
+        all: scopes.all === true,
+        write: scopes.write === true,
+    };
+    if (scopes.module && typeof scopes.module === 'object') {
+        const moduleMap: Record<string, McpModuleScope> = {};
+        for (const [key, value] of Object.entries(scopes.module)) {
+            if (!ALLOWED_MODULE_SCOPE_KEYS.has(key)) continue;
+            if (!value || typeof value !== 'object') continue;
+            moduleMap[key] = {
+                read: (value as McpModuleScope).read === true,
+                write: (value as McpModuleScope).write === true,
+            };
+        }
+        sanitized.module = moduleMap;
+    }
+    return sanitized;
+}
+
+/**
+ * Persists the user's MCP organisation and scope authorization selection for a given client_id.
+ */
+export async function saveUserMcpAuthorizationAction(
+    clientId: string,
+    allowedOrgIds: string[],
+    allowAll: boolean,
+    scopes?: UserMcpScopes
+): Promise<SaveUserMcpAuthorizationResult> {
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
+
+    if (!clientId || !clientId.trim()) {
+        return { success: false, error: 'Client-ID ist erforderlich' };
+    }
+
+    if (!Array.isArray(allowedOrgIds)) {
+        return { success: false, error: 'Ungültige Organisationsauswahl' };
+    }
+
+    // Never trust caller-supplied scope shapes: coerce to booleans over known keys only.
+    // A missing scopes object means "no access" — the previous default of {all:true,write:true}
+    // would let any caller self-grant full access by omitting the argument.
+    const finalScopes = sanitizeScopes(scopes);
+
+    try {
+        const { data, error } = await supabase.rpc('save_user_mcp_authorization', {
+            p_client_id: clientId.trim(),
+            p_allowed_org_ids: allowedOrgIds.filter(id => typeof id === 'string' && id.trim()),
+            p_allow_all: allowAll === true,
+            p_scopes: finalScopes,
+        });
+
+        if (error) {
+            console.error('[OAuth] saveUserMcpAuthorization failed:', error.message);
+            // Do not surface raw DB error details to the client
+            return { success: false, error: 'Fehler beim Speichern der Organisationsberechtigungen. Bitte versuchen Sie es erneut.' };
+        }
+
+        return { success: true, data };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to save user MCP authorizations";
+        console.error('Server Action: saveUserMcpAuthorization failed:', message);
+        return { success: false, error: 'Fehler beim Speichern der Organisationsberechtigungen. Bitte versuchen Sie es erneut.' };
     }
 }

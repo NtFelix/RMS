@@ -67,6 +67,7 @@ interface OrganisationClientViewProps {
     owner_id: string;
     ist_versteckt: boolean;
     einstellungen: Record<string, unknown> | null;
+    mcp_zugriff_aktiviert?: boolean;
   };
   initialMembers: OrganisationMember[];
   initialInvitations: OrganisationInvitation[];

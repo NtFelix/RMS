@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
+import { isOrgAdminOrOwner, hasPermission } from "@/lib/permissions";
 import { SettingsLayoutClient } from "./settings-layout-client";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -15,15 +16,23 @@ export const metadata: Metadata = {
 
 export default async function EinstellungenLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
-  const { data: orgData } = await supabase
-    .from("Organisation")
-    .select("api_zugriff_aktiviert")
-    .single();
+  const [{ data: orgData }, isAdminOrOwner, canManagePermission] = await Promise.all([
+    supabase
+      .from("Organisation")
+      .select("api_zugriff_aktiviert")
+      .single(),
+    isOrgAdminOrOwner(),
+    hasPermission("organisation", "verwalten"),
+  ]);
 
   const apiZugriffAktiviert = orgData?.api_zugriff_aktiviert ?? false;
+  const canManageOrg = isAdminOrOwner || canManagePermission;
 
   return (
-    <SettingsLayoutClient apiZugriffAktiviert={apiZugriffAktiviert}>
+    <SettingsLayoutClient
+      apiZugriffAktiviert={apiZugriffAktiviert}
+      canManageOrg={canManageOrg}
+    >
       {children}
     </SettingsLayoutClient>
   );
