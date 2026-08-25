@@ -30,7 +30,6 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { PolicyDetailsSkeleton } from "./organisation-loading-skeletons";
 import { getModuleIcon, getPermissionIcon, getModuleLabel, getActionLabel, ChangeSummary } from "@/lib/organisation/permission-utils";
-import { OrganisationMcpAccessCard } from "./organisation-mcp-access-card";
 
 interface OrganisationPoliciesTabProps {
   hasVerwaltenPermission: boolean;
@@ -44,8 +43,6 @@ export function OrganisationPoliciesTab({
   hasVerwaltenPermission,
   initialPolicies,
   initialHaeuser,
-  organisationId,
-  initialMcpZugriffAktiviert = true
 }: OrganisationPoliciesTabProps) {
   const [policies, setPolicies] = useState<OrganisationPolicy[]>(initialPolicies);
   const haeuser = initialHaeuser;
@@ -431,13 +428,6 @@ export function OrganisationPoliciesTab({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Organisation-wide MCP Server Access Settings Card */}
-      <OrganisationMcpAccessCard
-        hasVerwaltenPermission={hasVerwaltenPermission}
-        organisationId={organisationId}
-        initialMcpZugriffAktiviert={initialMcpZugriffAktiviert}
-      />
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         {/* Left Pane: Unified Policies Navigation List */}
         <Card className="md:col-span-1 rounded-[2rem] border border-zinc-200/50 dark:border-zinc-800/50 shadow-xs overflow-hidden h-[calc(100vh-180px)] flex flex-col md:sticky md:top-24">

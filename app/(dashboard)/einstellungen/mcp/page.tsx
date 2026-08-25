@@ -2,12 +2,12 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { isOrgAdminOrOwner, hasPermission } from "@/lib/permissions";
-import ApiKeysSection from "@/components/settings/api-keys-section";
+import McpSection from "@/components/settings/mcp-section";
 import { SettingsSectionSkeleton } from "@/components/settings/section-skeletons";
 
 export const instant = false;
 
-export default async function ApiKeysPage() {
+export default async function McpSettingsPage() {
   const [isAdminOrOwner, canManagePermission] = await Promise.all([
     isOrgAdminOrOwner(),
     hasPermission("organisation", "verwalten"),
@@ -19,18 +19,21 @@ export default async function ApiKeysPage() {
   }
 
   const supabase = await createClient();
+
+  // Fetch current active organisation
   const { data: orgData } = await supabase
     .from("Organisation")
-    .select("api_zugriff_aktiviert")
+    .select("id, name, mcp_zugriff_aktiviert")
     .single();
-
-  if (!orgData?.api_zugriff_aktiviert) {
-    redirect("/einstellungen/profil");
-  }
 
   return (
     <Suspense fallback={<SettingsSectionSkeleton />}>
-      <ApiKeysSection />
+      <McpSection
+        organisationId={orgData?.id}
+        organisationName={orgData?.name}
+        initialMcpZugriffAktiviert={orgData?.mcp_zugriff_aktiviert ?? true}
+        hasVerwaltenPermission={true}
+      />
     </Suspense>
   );
 }

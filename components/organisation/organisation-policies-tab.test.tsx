@@ -1,13 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { OrganisationPoliciesTab } from './organisation-policies-tab';
-import { setOrganisationMcpAccessAction } from '@/app/organisation-actions';
-import { toast } from '@/hooks/use-toast';
-
-// Mock organisation-actions
-jest.mock('@/app/organisation-actions', () => ({
-  setOrganisationMcpAccessAction: jest.fn(),
-}));
+import type { OrganisationPolicy } from '@/lib/organisation-types';
 
 // Mock policy-actions
 jest.mock('@/lib/organisation/policy-actions', () => ({
@@ -23,7 +17,7 @@ jest.mock('@/hooks/use-toast', () => ({
 }));
 
 describe('OrganisationPoliciesTab Component', () => {
-  const mockPolicies = [
+  const mockPolicies: OrganisationPolicy[] = [
     {
       id: 'policy-1',
       organisation_id: 'org-123',
@@ -33,6 +27,16 @@ describe('OrganisationPoliciesTab Component', () => {
         objekte: { haeuser: null },
       },
       erstellt_am: '2026-01-01T00:00:00Z',
+    },
+    {
+      id: 'policy-2',
+      organisation_id: 'org-123',
+      name: 'Finanzverwalter',
+      berechtigungen: {
+        module: { finanzen: ['verwalten'] },
+        objekte: { haeuser: null },
+      },
+      erstellt_am: '2026-01-02T00:00:00Z',
     },
   ];
 
@@ -46,170 +50,49 @@ describe('OrganisationPoliciesTab Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (setOrganisationMcpAccessAction as jest.Mock).mockResolvedValue({
-      success: true,
-      data: { success: true },
-    });
   });
 
-  it('renders MCP Server Zugriff card with enabled status badge', () => {
+  it('renders list of policies correctly', () => {
     render(
       <OrganisationPoliciesTab
         hasVerwaltenPermission={true}
         initialPolicies={mockPolicies}
         initialHaeuser={mockHaeuser}
-        organisationId="org-123"
-        initialMcpZugriffAktiviert={true}
       />
     );
 
-    expect(screen.getByText('MCP Server Zugriff (Model Context Protocol)')).toBeInTheDocument();
-    expect(screen.getByText('Aktiviert')).toBeInTheDocument();
-    expect(screen.getByText(/Ermöglicht autorisierten KI-Assistenten/i)).toBeInTheDocument();
+    expect(screen.getByText('Standard Mitarbeiter')).toBeInTheDocument();
+    expect(screen.getByText('Finanzverwalter')).toBeInTheDocument();
+    expect(screen.getByText('Erstellen')).toBeInTheDocument();
   });
 
-  it('renders disabled status badge when initialMcpZugriffAktiviert is false', () => {
+  it('filters policies based on search query', () => {
     render(
       <OrganisationPoliciesTab
         hasVerwaltenPermission={true}
         initialPolicies={mockPolicies}
         initialHaeuser={mockHaeuser}
-        organisationId="org-123"
-        initialMcpZugriffAktiviert={false}
       />
     );
 
-    expect(screen.getByText('Deaktiviert')).toBeInTheDocument();
+    const searchInput = screen.getByPlaceholderText('Suchen nach Richtlinien...');
+    fireEvent.change(searchInput, { target: { value: 'Finanz' } });
+
+    expect(screen.getByText('Finanzverwalter')).toBeInTheDocument();
+    expect(screen.queryByText('Standard Mitarbeiter')).not.toBeInTheDocument();
   });
 
-  it('toggles MCP access switch and invokes setOrganisationMcpAccessAction', async () => {
-    render(
-      <OrganisationPoliciesTab
-        hasVerwaltenPermission={true}
-        initialPolicies={mockPolicies}
-        initialHaeuser={mockHaeuser}
-        organisationId="org-123"
-        initialMcpZugriffAktiviert={true}
-      />
-    );
-
-    const switchElement = screen.getByRole('switch', { name: /MCP Server Zugriff umschalten/i });
-    expect(switchElement).toBeInTheDocument();
-
-    fireEvent.click(switchElement);
-
-    await waitFor(() => {
-      expect(setOrganisationMcpAccessAction).toHaveBeenCalledWith('org-123', false);
-      expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'MCP Server Zugriff aktualisiert',
-          variant: 'success',
-        })
-      );
-    });
-  });
-
-  it('disables switch and shows restriction message when user lacks verwalten permission', () => {
+  it('hides create button when user lacks verwalten permission', () => {
     render(
       <OrganisationPoliciesTab
         hasVerwaltenPermission={false}
         initialPolicies={mockPolicies}
         initialHaeuser={mockHaeuser}
-        organisationId="org-123"
-        initialMcpZugriffAktiviert={true}
       />
     );
 
-    const switchElement = screen.getByRole('switch', { name: /MCP Server Zugriff umschalten/i });
-    expect(switchElement).toBeDisabled();
-    expect(screen.getByText(/Nur Administratoren und Eigentümer können den MCP Server Zugriff verwalten/i)).toBeInTheDocument();
-  });
-
-  it('rolls back optimistic state and shows error toast when action returns success=false', async () => {
-    (setOrganisationMcpAccessAction as jest.Mock).mockResolvedValueOnce({
-      success: false,
-      error: { message: 'Keine Berechtigung' },
-    });
-
-    render(
-      <OrganisationPoliciesTab
-        hasVerwaltenPermission={true}
-        initialPolicies={mockPolicies}
-        initialHaeuser={mockHaeuser}
-        organisationId="org-123"
-        initialMcpZugriffAktiviert={true}
-      />
-    );
-
-    const switchElement = screen.getByRole('switch', { name: /MCP Server Zugriff umschalten/i });
-    expect(screen.getByText('Aktiviert')).toBeInTheDocument();
-
-    fireEvent.click(switchElement);
-
-    // Wait for the action to complete and rollback to happen
-    await waitFor(() => {
-      expect(setOrganisationMcpAccessAction).toHaveBeenCalledWith('org-123', false);
-      expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'Fehler beim Aktualisieren',
-          description: 'Keine Berechtigung',
-          variant: 'destructive',
-        })
-      );
-      // Badge should have rolled back to 'Aktiviert'
-      expect(screen.getByText('Aktiviert')).toBeInTheDocument();
-    });
-  });
-
-  it('rolls back optimistic state and shows error toast when action throws an exception', async () => {
-    (setOrganisationMcpAccessAction as jest.Mock).mockRejectedValueOnce(
-      new Error('Netzwerkfehler')
-    );
-
-    render(
-      <OrganisationPoliciesTab
-        hasVerwaltenPermission={true}
-        initialPolicies={mockPolicies}
-        initialHaeuser={mockHaeuser}
-        organisationId="org-123"
-        initialMcpZugriffAktiviert={true}
-      />
-    );
-
-    const switchElement = screen.getByRole('switch', { name: /MCP Server Zugriff umschalten/i });
-    expect(screen.getByText('Aktiviert')).toBeInTheDocument();
-
-    fireEvent.click(switchElement);
-
-    await waitFor(() => {
-      expect(setOrganisationMcpAccessAction).toHaveBeenCalledWith('org-123', false);
-      expect(toast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'Fehler beim Aktualisieren',
-          description: 'Netzwerkfehler',
-          variant: 'destructive',
-        })
-      );
-      // Badge should have rolled back to 'Aktiviert'
-      expect(screen.getByText('Aktiviert')).toBeInTheDocument();
-    });
-  });
-
-  it('does not invoke setOrganisationMcpAccessAction when organisationId is undefined', () => {
-    render(
-      <OrganisationPoliciesTab
-        hasVerwaltenPermission={true}
-        initialPolicies={mockPolicies}
-        initialHaeuser={mockHaeuser}
-        organisationId={undefined}
-        initialMcpZugriffAktiviert={true}
-      />
-    );
-
-    const switchElement = screen.getByRole('switch', { name: /MCP Server Zugriff umschalten/i });
-    expect(switchElement).toBeDisabled();
-
-    fireEvent.click(switchElement);
-    expect(setOrganisationMcpAccessAction).not.toHaveBeenCalled();
+    expect(screen.queryByText('Erstellen')).not.toBeInTheDocument();
+    expect(screen.getByText('Standard Mitarbeiter')).toBeInTheDocument();
   });
 });
+

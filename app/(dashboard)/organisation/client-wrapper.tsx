@@ -939,8 +939,6 @@ export default function OrganisationClientView({
           hasVerwaltenPermission={hasVerwaltenPermission}
           initialPolicies={initialPolicies}
           initialHaeuser={initialHaeuser}
-          organisationId={org.id}
-          initialMcpZugriffAktiviert={org.mcp_zugriff_aktiviert ?? true}
         />
       )}
 
