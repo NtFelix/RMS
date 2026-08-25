@@ -143,9 +143,9 @@ export default function McpSection({
         <SettingsCard>
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
                 MCP Server Endpunkt (SSE / HTTP)
-              </label>
+              </span>
               <div className="flex items-center gap-2 max-w-xl">
                 <div className="flex-1 h-9 rounded-lg bg-muted/60 border border-border/50 px-3 flex items-center font-mono text-xs text-foreground overflow-x-auto select-all">
                   {MCP_SERVER_URL}

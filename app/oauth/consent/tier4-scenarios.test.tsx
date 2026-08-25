@@ -39,7 +39,7 @@ jest.mock('@/lib/oauth-utils', () => ({
 }));
 
 describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent Flow', () => {
-    const mockAuthId = '123e4567-e89b-42d3-a456-426614174000';
+    const sampleId = '123e4567-e89b-42d3-a456-426614174000';
     const mockClientId = 'claude-ai-mcp';
 
     const ORG_ACTIVE_1 = {
@@ -114,9 +114,9 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
             render(
                 <ConsentUI
                     type="consent"
-                    authorizationId={mockAuthId}
+                    authorizationId={sampleId}
                     initialData={{
-                        id: mockAuthId,
+                        id: sampleId,
                         client: { id: mockClientId, name: 'Claude Desktop' },
                         scopes: ['properties:read'],
                         redirect_uri: 'https://claude.ai/api/mcp/oauth_callback',
@@ -151,7 +151,7 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
                     { all: true, write: false }
                 );
                 expect(submitDecisionAction).toHaveBeenCalledTimes(1);
-                expect(submitDecisionAction).toHaveBeenCalledWith(mockAuthId, 'allow');
+                expect(submitDecisionAction).toHaveBeenCalledWith(sampleId, 'allow');
             });
         });
 
@@ -164,9 +164,9 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
             render(
                 <ConsentUI
                     type="consent"
-                    authorizationId={mockAuthId}
+                    authorizationId={sampleId}
                     initialData={{
-                        id: mockAuthId,
+                        id: sampleId,
                         client: { id: mockClientId, name: 'Claude Desktop' },
                         scopes: ['properties:read'],
                         redirect_uri: 'https://claude.ai/api/mcp/oauth_callback',

@@ -157,7 +157,7 @@ interface ConsentUIProps {
     initialOrganisations?: UserMcpOrganisationItem[];
 }
 
-import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS, MIETEVO_MCP_URL } from '@/lib/constants';
+import { LOGO_URL, BRAND_NAME, OAUTH_CLIENT_IDS } from '@/lib/constants';
 
 import { isValidRedirect, isValidSupabaseRedirect } from '@/lib/oauth-utils';
 
@@ -433,6 +433,8 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     },
 ];
 
+const EMPTY_SCOPES: string[] = [];
+
 export default function ConsentUI({
     type,
     error,
@@ -440,7 +442,7 @@ export default function ConsentUI({
     clientName: initialClientName,
     clientIcon: initialClientIcon,
     redirectUri: initialRedirectUri,
-    scopes: initialScopes = [],
+    scopes: initialScopes = EMPTY_SCOPES,
     isDemo = false,
     initialData,
     initialError,
@@ -629,34 +631,6 @@ export default function ConsentUI({
         fetchDetails();
     }, [authorizationId, type, isDemo, initialData, initialError]);
 
-    // Side-channel: Fetch requested scopes directly from the Mietevo Worker 
-    // because Supabase filters out any scopes it doesn't officially support.
-    const [customScopes, setCustomScopes] = useState<string[]>([]);
-    useEffect(() => {
-        const state = authDetails?.state;
-        if (!state) return;
-
-        const fetchCustomScopes = async () => {
-            try {
-                const response = await fetch(`${MIETEVO_MCP_URL}/oauth/scopes?state=${encodeURIComponent(state)}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.scopes) {
-                        // scopes might be a space-separated string or an array
-                        const scopeList = typeof data.scopes === 'string'
-                            ? data.scopes.split(' ')
-                            : data.scopes;
-                        setCustomScopes(scopeList.filter(Boolean));
-                    }
-                }
-            } catch (err) {
-                console.warn('Failed to fetch custom scopes side-channel:', err);
-            }
-        };
-
-        fetchCustomScopes();
-    }, [authDetails]);
-
     const clientId = authDetails?.client?.id;
     const redirectUri = authDetails?.redirect_uri || initialRedirectUri;
     const { name: clientName, icon: clientIcon } = getSmartClientConfig(
@@ -755,9 +729,9 @@ export default function ConsentUI({
         }
     };
 
-    // Merge Supabase scopes with our custom stashed scopes
+    // Merge Supabase scopes with initial scopes
     const rawSupabaseScopes = typeof authDetails?.scopes === 'string' ? authDetails.scopes.split(' ') : (authDetails?.scopes || []);
-    const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...customScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
+    const mergedScopes = Array.from(new Set([...rawSupabaseScopes, ...(initialScopes || [])])).filter(s => s !== 'offline_access');
     const scopes = mergedScopes.length > 0 ? mergedScopes : ['openid', 'email'];
 
     const handleDecision = async (decision: 'approve' | 'deny') => {
@@ -1249,7 +1223,6 @@ export default function ConsentUI({
                                                             onChange={(e) => setOrgSearchQuery(e.target.value)}
                                                             placeholder="Organisation suchen..."
                                                             className="w-full bg-transparent border-0 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden"
-                                                            autoFocus
                                                         />
                                                         {orgSearchQuery && (
                                                             <button

@@ -133,6 +133,36 @@ export async function getAuthorizationDetailsAction(authorizationId: string): Pr
         }
 
         const data = (await response.json()) as AuthorizationDetails;
+
+        // Side-channel: Fetch requested scopes directly from the Mietevo Worker
+        // because Supabase GoTrue filters out any scopes it doesn't officially recognize.
+        if (data?.state) {
+            try {
+                const mcpUrl = process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || 'https://mcp.mietevo.de';
+                const scopeRes = await fetch(`${mcpUrl}/oauth/scopes?state=${encodeURIComponent(data.state)}`, {
+                    signal: AbortSignal.timeout(2500),
+                });
+                if (scopeRes.ok) {
+                    const scopeData = await scopeRes.json();
+                    if (scopeData?.scopes) {
+                        const customList: string[] = typeof scopeData.scopes === 'string'
+                            ? scopeData.scopes.split(' ')
+                            : Array.isArray(scopeData.scopes)
+                            ? scopeData.scopes
+                            : [];
+                        const existing: string[] = Array.isArray(data.scopes)
+                            ? data.scopes
+                            : typeof data.scopes === 'string'
+                            ? data.scopes.split(' ')
+                            : [];
+                        data.scopes = Array.from(new Set([...existing, ...customList])).filter(Boolean);
+                    }
+                }
+            } catch {
+                // Non-blocking fallback
+            }
+        }
+
         return { success: true, data, error: null };
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to load authorization details";
