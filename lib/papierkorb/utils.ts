@@ -1,8 +1,8 @@
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from 'next/cache';
 
 export async function softDeleteEntryAction(tableName: string, recordId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase.rpc('soft_delete_record', {
     p_table_name: tableName,

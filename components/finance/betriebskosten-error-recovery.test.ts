@@ -8,8 +8,8 @@
  */
 
 // Mock the Supabase client BEFORE importing the actions
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn()
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn()
 }));
 
 // Mock the logger
@@ -63,7 +63,7 @@ const mockSupabaseClient = {
   rpc: jest.fn()
 };
 
-const mockCreateClient = require('@/utils/supabase/server').createClient;
+const mockCreateClient = require('@/lib/supabase-server').createSupabaseServerClient;
 const mockSafeRpcCall = require('@/lib/error-handling').safeRpcCall;
 const mockWithRetry = require('@/lib/error-handling').withRetry;
 const mockGenerateUserFriendlyErrorMessage = require('@/lib/error-handling').generateUserFriendlyErrorMessage;

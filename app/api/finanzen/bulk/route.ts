@@ -20,7 +20,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     
     const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('finanzen', 'bearbeiten');

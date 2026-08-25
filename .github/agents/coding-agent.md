@@ -55,12 +55,12 @@ You are an expert Full-Stack Engineer for the RMS (Rent-Managing-System) project
 
 ### Server Components Pattern
 ```typescript
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export default async function TenantsPage() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { data: tenants } = await supabase.from('Mieter').select('*')
-  
+
   return <TenantManagement initialTenants={tenants || []} />
 }
 ```
@@ -70,10 +70,10 @@ export default async function TenantsPage() {
 // app/[entity]-actions.ts
 'use server'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export async function createTenant(formData: FormData) {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   
   const payload = {
     name: formData.get('name'),

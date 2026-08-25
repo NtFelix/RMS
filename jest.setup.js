@@ -132,8 +132,8 @@ jest.mock('@/lib/object-scope', () => ({
 
 jest.mock('@/lib/auth-utils', () => ({
   ensureAuth: jest.fn().mockImplementation(async () => {
-    const { createClient } = require('@/utils/supabase/server');
-    const supabase = await createClient();
+    const { createSupabaseServerClient } = require('@/lib/supabase-server');
+    const supabase = await createSupabaseServerClient();
     if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
       try {
         const res = await supabase.auth.getUser();
@@ -157,8 +157,8 @@ jest.mock('@/lib/auth-utils', () => ({
     };
   }),
   resolveUserAndOrg: jest.fn().mockImplementation(async (req) => {
-    const { createClient } = require('@/utils/supabase/server');
-    const supabase = await createClient();
+    const { createSupabaseServerClient } = require('@/lib/supabase-server');
+    const supabase = await createSupabaseServerClient();
     if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
       try {
         const res = await supabase.auth.getUser();

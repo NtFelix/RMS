@@ -6,12 +6,12 @@ import {
   toggleFinanceStatusAction,
   deleteFinanceAction,
 } from '../finanzen-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({
@@ -69,7 +69,7 @@ describe('finanzen-actions', () => {
       auth: mockAuth,
     };
 
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('financeServerAction', () => {

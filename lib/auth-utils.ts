@@ -1,7 +1,7 @@
 import { type User, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { redirect, unstable_rethrow } from 'next/navigation';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export type AuthResult = {
   user: User;
@@ -13,7 +13,7 @@ export type AuthResult = {
  * Throws an error if not authenticated.
  */
 export async function ensureAuth(): Promise<AuthResult> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   
   if (error || !user) {
@@ -44,7 +44,7 @@ export type ResolveUserAndOrgResult =
  * Ensures the organization ID is verified against the user's active memberships.
  */
 export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserAndOrgResult> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {

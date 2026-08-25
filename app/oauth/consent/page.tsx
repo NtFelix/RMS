@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import ConsentUI from './ConsentUI';
 import {
     getAuthorizationDetailsAction,
@@ -55,7 +55,7 @@ export default async function ConsentPage({ searchParams }: PageProps) {
     }
 
     // Create Supabase server client safely
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // Check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();

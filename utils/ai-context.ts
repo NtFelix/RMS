@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -11,7 +11,7 @@ function sanitize(value: string): string {
 }
 
 export async function getAIContextForPathname(pathname: string) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   let contextParts: string[] = [];
 
   contextParts.push(`Current Page Path: ${sanitize(pathname)}`);

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
 import { unstable_rethrow } from "next/navigation"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 
 export async function GET() {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     

@@ -35,5 +35,29 @@ export default tseslint.config(
       "@typescript-eslint/no-require-imports": "warn",
       "prefer-const": "warn",
     },
+  },
+  {
+    // Guardrail: the canonical Supabase server client lives in @/lib/supabase-server.
+    // The old utils/supabase/server module was removed — reintroducing it must fail lint.
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/utils/supabase/server",
+              message: "Use createSupabaseServerClient from '@/lib/supabase-server' instead.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/utils/supabase/server"],
+              message: "Use createSupabaseServerClient from '@/lib/supabase-server' instead.",
+            },
+          ],
+        },
+      ],
+    },
   }
 );

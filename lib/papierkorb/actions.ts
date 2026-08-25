@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ensureAuth } from '@/lib/auth-utils';
 import { isOrgAdminOrOwner } from '@/lib/permissions';
 import { revalidatePathsForTable } from './utils';
@@ -22,7 +22,7 @@ export async function getPapierkorbEntriesAction(): Promise<PapierkorbEntry[]> {
   if (!(await isOrgAdminOrOwner())) {
     throw new Error('Zugriff verweigert.');
   }
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc('get_paperkorb_entries');
   if (error) {
     console.error('Error fetching paperkorb entries:', error);
@@ -37,7 +37,7 @@ export async function restoreEntryAction(tableName: string, recordId: string): P
   if (!(await isOrgAdminOrOwner())) {
     throw new Error('Zugriff verweigert.');
   }
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc('restore_record', {
     p_table_name: tableName,
     p_record_id: recordId,
@@ -54,7 +54,7 @@ export async function permanentlyDeleteEntryAction(tableName: string, recordId: 
   if (!(await isOrgAdminOrOwner())) {
     throw new Error('Zugriff verweigert.');
   }
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc('permanently_delete_record', {
     p_table_name: tableName,
     p_record_id: recordId,

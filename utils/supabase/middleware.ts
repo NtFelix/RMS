@@ -39,18 +39,27 @@ export async function updateSession(request: NextRequest, response: NextResponse
     },
   )
 
-  // getUser() validates the session and implicitly triggers a token refresh
-  // via the cookie adapter above when the access token has expired.
+  // getClaims() verifies the JWT locally against cached JWKS (asymmetric keys)
+  // instead of a per-request roundtrip to the auth server — the official Supabase
+  // recommendation for Next.js. For HS256/legacy JWT secrets it transparently falls
+  // back to a network getUser(). __loadSession() still triggers token refresh via
+  // the cookie adapter above when the access token has expired.
   // We use a try-catch to avoid crashing the middleware on malformed sessions,
   // but we still log the error for debugging.
   try {
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const { data, error } = await supabase.auth.getClaims()
     if (error && !error.message.includes('Auth session missing')) {
       console.error('[updateSession] Error refreshing session:', error.message)
     }
-    return user
+    if (!data?.claims?.sub) {
+      return null
+    }
+    // Shim: JWT claims carry sub/email/role/user_metadata/app_metadata — everything
+    // proxy.ts (user.id, x-user-data serialization) and route-access.ts (parses
+    // x-user-data as User, asserts only .id) consume downstream.
+    return { ...data.claims, id: data.claims.sub } as unknown as User
   } catch (e) {
-    console.error('[updateSession] Unexpected error in getUser():', e)
+    console.error('[updateSession] Unexpected error in getClaims():', e)
     return null
   }
 }

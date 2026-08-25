@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isOrgAdminOrOwner, hasPermission } from "@/lib/permissions";
 import { SettingsLayoutClient } from "./settings-layout-client";
 
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function EinstellungenLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const [{ data: orgData }, isAdminOrOwner, canManagePermission] = await Promise.all([
     supabase
       .from("Organisation")

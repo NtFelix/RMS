@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isOrgAdminOrOwner, hasPermission } from "@/lib/permissions";
 import McpSection from "@/components/settings/mcp-section";
 import { SettingsSectionSkeleton } from "@/components/settings/section-skeletons";
@@ -18,7 +18,7 @@ export default async function McpSettingsPage() {
     redirect("/einstellungen/profil");
   }
 
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
   // Fetch current active organisation
   const { data: orgData } = await supabase

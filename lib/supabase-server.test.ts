@@ -25,9 +25,10 @@ describe('lib/supabase-server', () => {
   beforeEach(() => {
     originalEnv = { ...process.env };
     jest.clearAllMocks();
-    
+
     // Mock cookies function
     mockCookies.mockResolvedValue({
+      get: jest.fn().mockReturnValue(undefined),
       getAll: jest.fn().mockReturnValue([{ name: 'test-cookie', value: 'test-cookie-value' }]),
       set: jest.fn(),
     } as any);
@@ -43,7 +44,7 @@ describe('lib/supabase-server', () => {
   });
 
   describe('createSupabaseServerClient', () => {
-    it('should create Supabase client with correct configuration', () => {
+    it('should create Supabase client with correct configuration', async () => {
       Object.assign(process.env, {
         NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
         NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key'
@@ -52,7 +53,7 @@ describe('lib/supabase-server', () => {
       const mockClient = { from: jest.fn() };
       mockCreateServerClient.mockReturnValue(mockClient as any);
 
-      const result = createSupabaseServerClient();
+      const result = await createSupabaseServerClient();
 
       expect(mockCreateServerClient).toHaveBeenCalledWith(
         'https://test.supabase.co',
@@ -68,7 +69,7 @@ describe('lib/supabase-server', () => {
       expect(result).toBe(mockClient);
     });
 
-    it('should handle missing environment variables', () => {
+    it('should handle missing environment variables', async () => {
       Object.assign(process.env, originalEnv);
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -76,16 +77,17 @@ describe('lib/supabase-server', () => {
       const mockClient = { from: jest.fn() };
       mockCreateServerClient.mockReturnValue(mockClient as any);
 
-      createSupabaseServerClient();
+      await createSupabaseServerClient();
 
+      // getSupabasePublicEnv() falls back to '' (never undefined) when env is missing
       expect(mockCreateServerClient).toHaveBeenCalledWith(
-        undefined,
-        undefined,
+        '',
+        '',
         expect.any(Object)
       );
     });
 
-    it('should configure cookies correctly', () => {
+    it('should configure cookies correctly', async () => {
       Object.assign(process.env, {
         ...originalEnv,
         NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
@@ -94,7 +96,7 @@ describe('lib/supabase-server', () => {
 
       mockCreateServerClient.mockReturnValue({} as any);
 
-      createSupabaseServerClient();
+      await createSupabaseServerClient();
 
       const cookiesConfig = mockCreateServerClient.mock.calls[0][2];
       expect(cookiesConfig).toHaveProperty('cookies');
@@ -104,7 +106,7 @@ describe('lib/supabase-server', () => {
       expect(typeof (cookiesConfig.cookies as any).setAll).toBe('function');
     });
 
-    it('should return the same client instance', () => {
+    it('should return the same client instance', async () => {
       Object.assign(process.env, {
         ...originalEnv,
         NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
@@ -114,8 +116,8 @@ describe('lib/supabase-server', () => {
       const mockClient = { from: jest.fn() };
       mockCreateServerClient.mockReturnValue(mockClient as any);
 
-      const client1 = createSupabaseServerClient();
-      const client2 = createSupabaseServerClient();
+      const client1 = await createSupabaseServerClient();
+      const client2 = await createSupabaseServerClient();
 
       // Both calls should create new instances (not cached)
       expect(mockCreateServerClient).toHaveBeenCalledTimes(2);
@@ -132,23 +134,81 @@ describe('lib/supabase-server', () => {
 
       mockCreateServerClient.mockReturnValue({} as any);
 
-      createSupabaseServerClient();
+      // The client captures the cookie store at creation time, so the
+      // cookie data must be present before createSupabaseServerClient().
+      const cookieData = [{ name: 'test-cookie', value: 'test-value' }];
+      mockCookies.mockResolvedValue({
+        get: jest.fn().mockReturnValue(undefined),
+        getAll: jest.fn().mockReturnValue(cookieData),
+        set: jest.fn()
+      } as any);
+
+      await createSupabaseServerClient();
 
       const cookiesConfig = mockCreateServerClient.mock.calls[0][2];
       const { getAll, setAll } = cookiesConfig.cookies as any;
 
-      // Test getAll function
-      const cookieData = [{ name: 'test-cookie', value: 'test-value' }];
-      mockCookies.mockResolvedValue({
-        getAll: jest.fn().mockReturnValue(cookieData),
-        set: jest.fn()
-      } as any);
-      
       const result = await getAll();
       expect(result).toEqual(cookieData);
 
-      // Test setAll function
-      await expect(setAll(cookieData)).resolves.not.toThrow();
+      // Test setAll function (swallows errors from cookies().set during RSC render)
+      expect(() => setAll(cookieData)).not.toThrow();
+    });
+
+    describe('multi-tenancy org header injection', () => {
+      beforeEach(() => {
+        Object.assign(process.env, {
+          NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key'
+        });
+        mockCreateServerClient.mockReturnValue({} as any);
+      });
+
+      function getGlobalHeaders(): Record<string, string> {
+        return (mockCreateServerClient.mock.calls[0][2] as any).global?.headers ?? {};
+      }
+
+      it('should inject the current_organisation_id header when the cookie is present', async () => {
+        mockCookies.mockResolvedValue({
+          get: jest.fn().mockImplementation((name: string) =>
+            name === 'current_organisation_id'
+              ? { name, value: 'org-42' }
+              : undefined
+          ),
+          getAll: jest.fn().mockReturnValue([]),
+          set: jest.fn(),
+        } as any);
+
+        await createSupabaseServerClient();
+
+        expect(getGlobalHeaders()).toEqual({
+          Cookie: 'current_organisation_id=org-42',
+        });
+      });
+
+      it('should not inject the org header when no cookie and no override are present', async () => {
+        await createSupabaseServerClient();
+
+        expect(getGlobalHeaders()).toEqual({});
+      });
+
+      it('should prefer orgIdOverride over the cookie value', async () => {
+        mockCookies.mockResolvedValue({
+          get: jest.fn().mockImplementation((name: string) =>
+            name === 'current_organisation_id'
+              ? { name, value: 'org-from-cookie' }
+              : undefined
+          ),
+          getAll: jest.fn().mockReturnValue([]),
+          set: jest.fn(),
+        } as any);
+
+        await createSupabaseServerClient('org-from-override');
+
+        expect(getGlobalHeaders()).toEqual({
+          Cookie: 'current_organisation_id=org-from-override',
+        });
+      });
     });
   });
 });

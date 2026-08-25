@@ -11,13 +11,13 @@ import {
   deleteRechnungenByNebenkostenId,
   createRechnungenBatch
 } from './betriebskosten-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/logging-middleware';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('@/lib/permissions', () => ({
@@ -93,7 +93,7 @@ describe('betriebskosten-actions', () => {
       rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
     };
 
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('createNebenkosten', () => {

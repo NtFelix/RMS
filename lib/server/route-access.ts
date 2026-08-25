@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { redirect, unstable_rethrow } from "next/navigation"
 import type { User, SupabaseClient } from "@supabase/supabase-js"
 import { ROUTES } from "@/lib/constants"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isTestEnv } from "@/lib/test-utils"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
@@ -92,7 +92,7 @@ async function getAuthenticatedUser(supabase: SupabaseClient): Promise<{ user: U
 }
 
 export async function requireAuthenticatedUser() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { user, error: authError } = await getAuthenticatedUser(supabase)
 
   if (authError || !user) {
@@ -162,7 +162,7 @@ export async function redirectAuthenticatedAuthRoute() {
     return
   }
 
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { user } = await getAuthenticatedUser(supabase)
 
   if (user) {
@@ -194,7 +194,7 @@ export async function redirectAuthenticatedAuthRoute() {
 export async function requireAuthenticatedUserForApi(): Promise<
   { supabase: SupabaseClient; user: User } | NextResponse
 > {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { user, error } = await getAuthenticatedUser(supabase)
   
   if (error || !user) {
