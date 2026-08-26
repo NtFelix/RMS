@@ -117,6 +117,7 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/',
   redirect: jest.fn(),
+  unstable_rethrow: jest.fn(),
 }));
 
 jest.mock('@/lib/permissions', () => ({
