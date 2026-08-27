@@ -3,6 +3,7 @@ import { updateSession } from "@/utils/supabase/middleware"
 import posthogProxyConfig from "@/lib/posthog-proxy"
 import { createServerClient } from "@supabase/ssr"
 import { evaluatePermission, type Modul } from "@/lib/permissions-core"
+import { getSupabasePublicEnv, UUID_REGEX } from "@/lib/supabase-env"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
@@ -109,13 +110,14 @@ export async function proxy(request: NextRequest) {
         const modul = ROUTE_PERMISSIONS[matchedPrefix]
         const currentOrgId = request.cookies.get('current_organisation_id')?.value
         const globalHeaders: Record<string, string> = {}
-        if (currentOrgId) {
-          globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
+        if (currentOrgId && UUID_REGEX.test(currentOrgId)) {
+          globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
         }
 
+        const { url, anonKey } = getSupabasePublicEnv()
         const supabase = createServerClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          url,
+          anonKey,
           {
             global: {
               headers: globalHeaders

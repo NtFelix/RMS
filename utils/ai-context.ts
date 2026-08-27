@@ -1,6 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_REGEX } from "@/lib/supabase-env";
 
 function sanitize(value: string): string {
   return value
@@ -23,7 +22,7 @@ export async function getAIContextForPathname(pathname: string) {
 
     const queries: (() => Promise<void>)[] = [];
 
-    if (houseMatch && houseMatch[1] && UUID_RE.test(houseMatch[1])) {
+    if (houseMatch && houseMatch[1] && UUID_REGEX.test(houseMatch[1])) {
       const houseId = houseMatch[1];
       queries.push(async () => {
         const { data: house, error } = await supabase.from('haeuser').select('*').eq('id', houseId).single();
@@ -36,7 +35,7 @@ Total Units: ${sanitize(String(house.anzahl_wohnungen ?? 'Unknown'))}`);
       });
     }
 
-    if (tenantMatch && tenantMatch[1] && UUID_RE.test(tenantMatch[1])) {
+    if (tenantMatch && tenantMatch[1] && UUID_REGEX.test(tenantMatch[1])) {
       const tenantId = tenantMatch[1];
       queries.push(async () => {
         const { data: tenant, error } = await supabase.from('mieter')
@@ -52,7 +51,7 @@ Apartment: ${sanitize(tenant.wohnungen?.name || 'N/A')} in House: ${sanitize(ten
       });
     }
 
-    if (unitMatch && unitMatch[1] && !tenantMatch && UUID_RE.test(unitMatch[1])) {
+    if (unitMatch && unitMatch[1] && !tenantMatch && UUID_REGEX.test(unitMatch[1])) {
       const unitId = unitMatch[1];
       queries.push(async () => {
         const { data: unit, error } = await supabase.from('wohnungen')

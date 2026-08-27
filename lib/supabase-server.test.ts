@@ -106,7 +106,7 @@ describe('lib/supabase-server', () => {
       expect(typeof (cookiesConfig.cookies as any).setAll).toBe('function');
     });
 
-    it('should return the same client instance', async () => {
+    it('should create a new client instance on each call', async () => {
       Object.assign(process.env, {
         ...originalEnv,
         NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
