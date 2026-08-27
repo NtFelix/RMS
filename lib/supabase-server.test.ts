@@ -168,11 +168,12 @@ describe('lib/supabase-server', () => {
         return (mockCreateServerClient.mock.calls[0][2] as any).global?.headers ?? {};
       }
 
-      it('should inject the current_organisation_id header when the cookie is present', async () => {
+      it('should inject the current_organisation_id header when the cookie is a valid UUID', async () => {
+        const validOrgId = '11111111-1111-1111-1111-111111111111';
         mockCookies.mockResolvedValue({
           get: jest.fn().mockImplementation((name: string) =>
             name === 'current_organisation_id'
-              ? { name, value: 'org-42' }
+              ? { name, value: validOrgId }
               : undefined
           ),
           getAll: jest.fn().mockReturnValue([]),
@@ -182,8 +183,24 @@ describe('lib/supabase-server', () => {
         await createSupabaseServerClient();
 
         expect(getGlobalHeaders()).toEqual({
-          Cookie: 'current_organisation_id=org-42',
+          Cookie: `current_organisation_id=${validOrgId}`,
         });
+      });
+
+      it('should not inject the org header when the cookie is not a valid UUID', async () => {
+        mockCookies.mockResolvedValue({
+          get: jest.fn().mockImplementation((name: string) =>
+            name === 'current_organisation_id'
+              ? { name, value: 'invalid-not-a-uuid' }
+              : undefined
+          ),
+          getAll: jest.fn().mockReturnValue([]),
+          set: jest.fn(),
+        } as any);
+
+        await createSupabaseServerClient();
+
+        expect(getGlobalHeaders()).toEqual({});
       });
 
       it('should not inject the org header when no cookie and no override are present', async () => {
@@ -192,21 +209,23 @@ describe('lib/supabase-server', () => {
         expect(getGlobalHeaders()).toEqual({});
       });
 
-      it('should prefer orgIdOverride over the cookie value', async () => {
+      it('should prefer orgIdOverride over the cookie value when valid', async () => {
+        const cookieOrgId = '11111111-1111-1111-1111-111111111111';
+        const overrideOrgId = '22222222-2222-2222-2222-222222222222';
         mockCookies.mockResolvedValue({
           get: jest.fn().mockImplementation((name: string) =>
             name === 'current_organisation_id'
-              ? { name, value: 'org-from-cookie' }
+              ? { name, value: cookieOrgId }
               : undefined
           ),
           getAll: jest.fn().mockReturnValue([]),
           set: jest.fn(),
         } as any);
 
-        await createSupabaseServerClient('org-from-override');
+        await createSupabaseServerClient(overrideOrgId);
 
         expect(getGlobalHeaders()).toEqual({
-          Cookie: 'current_organisation_id=org-from-override',
+          Cookie: `current_organisation_id=${overrideOrgId}`,
         });
       });
     });

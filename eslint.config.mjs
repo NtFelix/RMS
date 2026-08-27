@@ -44,12 +44,6 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            {
-              name: "@/utils/supabase/server",
-              message: "Use createSupabaseServerClient from '@/lib/supabase-server' instead.",
-            },
-          ],
           patterns: [
             {
               group: ["**/utils/supabase/server"],

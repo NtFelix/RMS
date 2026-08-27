@@ -3,11 +3,13 @@ import type { User } from "@supabase/supabase-js"
 import { createServerClient } from "@supabase/ssr"
 import { getSupabasePublicEnv } from "@/lib/supabase-env"
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function updateSession(request: NextRequest, response: NextResponse): Promise<User | null> {
   const currentOrgId = request.cookies.get('current_organisation_id')?.value
   const globalHeaders: Record<string, string> = {}
-  if (currentOrgId) {
-    globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
+  if (currentOrgId && UUID_REGEX.test(currentOrgId)) {
+    globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
   }
 
   const { url, anonKey } = getSupabasePublicEnv()
