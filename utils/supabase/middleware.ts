@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import type { User } from "@supabase/supabase-js"
-import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import { createServerClient } from "@supabase/ssr"
 import { getSupabasePublicEnv } from "@/lib/supabase-env"
 
 export async function updateSession(request: NextRequest, response: NextResponse): Promise<User | null> {

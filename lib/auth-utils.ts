@@ -1,6 +1,6 @@
 import { type User, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { redirect, unstable_rethrow } from 'next/navigation';
+import { unstable_rethrow } from 'next/navigation';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export type AuthResult = {
@@ -86,7 +86,7 @@ export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserA
           if (body && typeof body.orgId === 'string') {
             requestedOrgId = body.orgId;
           }
-        } catch (e) {
+        } catch {
           // Ignore parse error if body is not JSON or unavailable
         }
       }

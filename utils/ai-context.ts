@@ -12,7 +12,7 @@ function sanitize(value: string): string {
 
 export async function getAIContextForPathname(pathname: string) {
   const supabase = await createSupabaseServerClient();
-  let contextParts: string[] = [];
+  const contextParts: string[] = [];
 
   contextParts.push(`Current Page Path: ${sanitize(pathname)}`);
 

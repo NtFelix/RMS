@@ -37,15 +37,8 @@ import type {
   Aufgabe,
   Nebenkosten,
   NebenkostenChartData,
-  Zaehler,
   ZaehlerAblesung,
-  WasserZaehler,
-  WasserAblesung,
-  Wasserzaehler,
   Finanzen,
-  RechnungSql,
-  MeterReadingFormEntry,
-  MeterReadingFormData
 } from "./types";
 import { type SupabaseClient } from "@supabase/supabase-js";
 

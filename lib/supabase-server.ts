@@ -26,19 +26,19 @@ export async function createSupabaseServerClient(orgIdOverride?: string) {
           cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, options)
           )
-        } catch (error: any) {
+        } catch (error: unknown) {
           // In Next.js, cookies().set() throws if called during Server Component rendering.
           // This is expected when middleware refreshes user sessions. However, we log
           // other types of errors to aid debugging.
+          const err = error as { message?: string; digest?: string } | undefined
           const isReadOnlyError =
-            error?.message?.includes('readonly') || error?.digest?.includes('NEXT_REDIRECT')
+            err?.message?.includes('readonly') || err?.digest?.includes('NEXT_REDIRECT')
 
           if (!isReadOnlyError && process.env.NODE_ENV === 'development') {
-            console.warn('[Supabase Server] setAll encountered an unexpected error:', error.message)
+            console.warn('[Supabase Server] setAll encountered an unexpected error:', err?.message ?? String(error))
           }
         }
       },
-      },
     },
-  )
+  })
 }
