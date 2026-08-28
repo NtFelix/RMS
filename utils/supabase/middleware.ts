@@ -5,7 +5,7 @@ import { getSupabasePublicEnv, UUID_REGEX } from "@/lib/supabase-env"
 
 export type SessionUser = Pick<User, 'id' | 'email' | 'role' | 'app_metadata' | 'user_metadata' | 'aud'>
 
-export async function updateSession(request: NextRequest, response: NextResponse): Promise<User | null> {
+export async function updateSession(request: NextRequest, response: NextResponse): Promise<SessionUser | null> {
   const currentOrgId = request.cookies.get('current_organisation_id')?.value
   const globalHeaders: Record<string, string> = {}
   if (currentOrgId) {
@@ -63,7 +63,7 @@ export async function updateSession(request: NextRequest, response: NextResponse
     // Shim: JWT claims carry sub/email/role/user_metadata/app_metadata — everything
     // proxy.ts (user.id, x-user-data serialization) and route-access.ts (parses
     // x-user-data as User, asserts only .id) consume downstream.
-    return { ...data.claims, id: data.claims.sub } as unknown as User
+    return { ...data.claims, id: data.claims.sub } as SessionUser
   } catch (e) {
     console.error('[updateSession] Unexpected error in getClaims():', e)
     return null
