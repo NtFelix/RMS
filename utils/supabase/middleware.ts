@@ -60,10 +60,22 @@ export async function updateSession(request: NextRequest, response: NextResponse
     if (!data?.claims?.sub) {
       return null
     }
-    // Shim: JWT claims carry sub/email/role/user_metadata/app_metadata — everything
-    // proxy.ts (user.id, x-user-data serialization) and route-access.ts (parses
-    // x-user-data as User, asserts only .id) consume downstream.
-    return { ...data.claims, id: data.claims.sub } as SessionUser
+    // Map JWT claims to SessionUser interface for downstream consumers (proxy.ts and route-access.ts)
+    const claims = data.claims
+    const audString = typeof claims.aud === 'string'
+      ? claims.aud
+      : Array.isArray(claims.aud)
+        ? (claims.aud[0] ?? '')
+        : ''
+
+    return {
+      id: claims.sub,
+      email: claims.email,
+      role: claims.role,
+      aud: audString,
+      app_metadata: (claims.app_metadata as Record<string, unknown>) ?? {},
+      user_metadata: (claims.user_metadata as Record<string, unknown>) ?? {},
+    }
   } catch (e) {
     console.error('[updateSession] Unexpected error in getClaims():', e)
     return null
