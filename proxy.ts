@@ -94,7 +94,7 @@ export async function proxy(request: NextRequest) {
   request.headers.set('Content-Security-Policy', csp)
 
   // Initialize empty response to collect cookie mutations from updateSession
-  let response = NextResponse.next()
+  const response = NextResponse.next()
 
   // Ensure Supabase session cookies are refreshed for prolonged client-side idling
   // Only execute logic for non-auth paths to avoid token churn on login flows
