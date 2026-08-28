@@ -1189,8 +1189,10 @@ export async function saveMeterReadingsOptimized(
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
   const { createSupabaseServerClient } = await import("@/lib/supabase-server");
 
-  const supabase = await createSupabaseServerClient();
-  const accessibleIds = await getAccessibleHaeuserIds();
+  const [supabase, accessibleIds] = await Promise.all([
+    createSupabaseServerClient(),
+    getAccessibleHaeuserIds(),
+  ]);
   if (accessibleIds !== null && formData.entries.length > 0) {
     const meterIds = formData.entries.map(e => e.zaehler_id).filter(Boolean);
     const mieterIds = formData.entries.map(e => e.mieter_id).filter(Boolean);
