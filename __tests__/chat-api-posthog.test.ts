@@ -1,11 +1,11 @@
 /**
  * @jest-environment node
  */
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('posthog-node', () => ({
@@ -60,7 +60,7 @@ describe('Chat API', () => {
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
       }),
     };
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   function createMockRequest(data: Record<string, unknown>) {

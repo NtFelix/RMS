@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
-import { createClient } from "../../../../utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { fetchAvailableFinanceYears } from "../../../../utils/financeCalculations";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json([], { status: 200, headers: NO_CACHE_HEADERS });
     }
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     if (wohnungIds !== null) {
       const { data, error } = await supabase

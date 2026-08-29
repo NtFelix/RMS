@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getFinanceDocumentPath } from "@/app/finance-file-actions";
 import { logger } from "@/utils/logger";
 import {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
         await requireApiPermission('finanzen', 'erstellen');
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
 
         // Check authentication
         const { data: { user }, error: authError } = await supabase.auth.getUser();

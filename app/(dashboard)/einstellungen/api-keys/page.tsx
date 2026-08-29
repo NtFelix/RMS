@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import ApiKeysSection from "@/components/settings/api-keys-section";
 import { SettingsSectionSkeleton } from "@/components/settings/section-skeletons";
@@ -12,7 +12,7 @@ export default async function ApiKeysPage() {
   // reach this page to submit key requests ("API-Key beantragen"). Approval actions are
   // permission-checked server-side (api_key_genehmigen RPC requires api_keys/genehmigen),
   // so opening the page to members does not expose approval capabilities.
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: orgData } = await supabase
     .from("Organisation")
     .select("api_zugriff_aktiviert")

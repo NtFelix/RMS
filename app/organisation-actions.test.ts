@@ -10,8 +10,8 @@ import { ensureAuth } from '@/lib/auth-utils';
 import { hasPermission } from '@/lib/permissions';
 import { revalidatePath } from 'next/cache';
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => ({
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => ({
     rpc: jest.fn().mockResolvedValue({ error: null })
   }))
 }));

@@ -4,7 +4,7 @@ import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 // GET todos
 export async function GET(request: NextRequest) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient();
   
   try {
     const { data, error } = await supabase
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
 // POST new todo
 export async function POST(request: NextRequest) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient();
   
   try {
     const body = await request.json()
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH to update todo status
 export async function PATCH(request: NextRequest) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient();
   
   try {
     const body = await request.json()

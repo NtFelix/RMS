@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('wohnungen', 'erstellen');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // === BEGIN NEW LOGIC ===
     const userProfile = await fetchUserProfile(); // This already gets user or returns null
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
   const accessibleIds = await getAccessibleHaeuserIds();
 
@@ -241,7 +241,7 @@ export async function DELETE(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('wohnungen', 'loeschen');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
@@ -295,7 +295,7 @@ export async function PUT(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('wohnungen', 'bearbeiten');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const { name, groesse, miete, haus_id } = await request.json();

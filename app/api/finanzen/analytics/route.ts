@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary, type FinanceTransaction } from "@/utils/financeCalculations";
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     console.log(`🚀 [Finance Analytics] API called - Action: ${action}, Year: ${year}`);
     const requestStartTime = Date.now();
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     let response: Response;
     switch (action) {

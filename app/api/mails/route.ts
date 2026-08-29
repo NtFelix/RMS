@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_rethrow } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { PAGINATION } from '@/constants'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const sortKey = searchParams.get('sortKey') || 'datum_erhalten'
     const sortDirection = (searchParams.get('sortDirection') || 'desc') as 'asc' | 'desc'
     
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()

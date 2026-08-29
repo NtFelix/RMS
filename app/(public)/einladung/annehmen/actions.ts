@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export type AcceptEinladungResult =
   | { success: true }
@@ -21,7 +21,7 @@ export async function acceptEinladungAction(token: string): Promise<AcceptEinlad
 
   let supabase;
   try {
-    supabase = await createClient();
+    supabase = await createSupabaseServerClient();
   } catch {
     return { success: false, error: "Serverfehler beim Erstellen der Verbindung.", code: "unknown" };
   }

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
   const stripe = new StripeNode(process.env.STRIPE_SECRET_KEY!);
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();

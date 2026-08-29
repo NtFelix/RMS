@@ -1,3 +1,5 @@
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function getSupabasePublicEnv() {
   const isDev = process.env.NEXT_PUBLIC_DEV === 'true' || process.env.DEV === 'true';
 

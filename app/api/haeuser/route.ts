@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { formatNumber } from "@/utils/format"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     const { requireApiPermission } = await import("@/lib/api-permissions")
     await requireApiPermission('haeuser', 'erstellen')
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { name, strasse, ort } = await request.json()
     if (!name || !strasse || !ort) {
       return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope")
 
   // Apply object scope filtering
@@ -148,7 +148,7 @@ export async function DELETE(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions")
     await requireApiPermission('haeuser', 'loeschen')
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 
@@ -198,7 +198,7 @@ export async function PUT(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions")
     await requireApiPermission('haeuser', 'bearbeiten')
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
     const { name, strasse, ort } = await request.json()

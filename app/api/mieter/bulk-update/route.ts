@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 
@@ -15,7 +15,7 @@ export async function PATCH(request: Request) {
     const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('mieter', 'bearbeiten');
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { ids, updates } = await request.json() as BulkUpdateRequest
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

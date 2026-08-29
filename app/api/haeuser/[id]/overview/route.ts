@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -53,7 +53,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { id: hausId } = await params;
 
     // Enhanced input validation

@@ -14,8 +14,8 @@ jest.mock('@/lib/permissions', () => ({
     hasPermission: jest.fn(),
 }));
 
-jest.mock('@/utils/supabase/server', () => ({
-    createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+    createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({

@@ -3,6 +3,7 @@ import { updateSession } from "@/utils/supabase/middleware"
 import posthogProxyConfig from "@/lib/posthog-proxy"
 import { createServerClient } from "@supabase/ssr"
 import { evaluatePermission, type Modul } from "@/lib/permissions-core"
+import { getSupabasePublicEnv, UUID_REGEX } from "@/lib/supabase-env"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
@@ -93,7 +94,7 @@ export async function proxy(request: NextRequest) {
   request.headers.set('Content-Security-Policy', csp)
 
   // Initialize empty response to collect cookie mutations from updateSession
-  let response = NextResponse.next()
+  const response = NextResponse.next()
 
   // Ensure Supabase session cookies are refreshed for prolonged client-side idling
   // Only execute logic for non-auth paths to avoid token churn on login flows
@@ -110,12 +111,17 @@ export async function proxy(request: NextRequest) {
         const currentOrgId = request.cookies.get('current_organisation_id')?.value
         const globalHeaders: Record<string, string> = {}
         if (currentOrgId) {
-          globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
+          if (UUID_REGEX.test(currentOrgId)) {
+            globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
+          } else if (process.env.NODE_ENV === 'development') {
+            console.warn('[proxy] Invalid current_organisation_id format (expected UUID):', currentOrgId)
+          }
         }
 
+        const { url, anonKey } = getSupabasePublicEnv()
         const supabase = createServerClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          url,
+          anonKey,
           {
             global: {
               headers: globalHeaders

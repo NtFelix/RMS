@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
+import { createSupabaseServerClient } from "@/lib/supabase-server"; // Adjusted based on common project structure
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
@@ -432,7 +432,7 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
  * Fetches a single Nebenkosten record with optimized metrics (house name, area, tenant counts)
  */
 export async function fetchOptimizedNebenkostenById(id: string): Promise<{ success: boolean; data: OptimizedNebenkosten | null; message?: string }> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, data: null, message: "Not authenticated" };
 
@@ -1189,8 +1189,10 @@ export async function saveMeterReadingsOptimized(
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
   const { createSupabaseServerClient } = await import("@/lib/supabase-server");
 
-  const supabase = createSupabaseServerClient();
-  const accessibleIds = await getAccessibleHaeuserIds();
+  const [supabase, accessibleIds] = await Promise.all([
+    createSupabaseServerClient(),
+    getAccessibleHaeuserIds(),
+  ]);
   if (accessibleIds !== null && formData.entries.length > 0) {
     const meterIds = formData.entries.map(e => e.zaehler_id).filter(Boolean);
     const mieterIds = formData.entries.map(e => e.mieter_id).filter(Boolean);

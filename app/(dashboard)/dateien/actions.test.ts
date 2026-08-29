@@ -5,12 +5,12 @@ import {
   getTotalStorageUsage,
   deleteFolder,
 } from './actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('next/navigation', () => ({
@@ -64,7 +64,7 @@ describe('dateien/actions', () => {
       },
     };
 
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('getFolderContents', () => {

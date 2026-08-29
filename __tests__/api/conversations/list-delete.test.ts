@@ -19,8 +19,8 @@ const mockSupabaseClient = {
   auth: { getUser: mockAuthGetUser },
 };
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => mockSupabaseClient),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => mockSupabaseClient),
 }));
 
 function req(url: string) {

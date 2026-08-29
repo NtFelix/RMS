@@ -1,5 +1,5 @@
 import { CloudStorage } from "@/components/cloud-storage/cloud-storage"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { redirect } from "next/navigation"
 import { getFolderContents } from "../actions"
 
@@ -10,7 +10,7 @@ export const instant = false;
 
 
 export default async function DateienPathPage({ params }: { params: Promise<{ slug: string[] }> }) {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) {
         redirect('/auth/login')

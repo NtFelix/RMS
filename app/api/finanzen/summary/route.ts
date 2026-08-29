@@ -1,4 +1,4 @@
-import { createClient } from "../../../../utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const wohnungIds = await getAccessibleWohnungIds();
 
