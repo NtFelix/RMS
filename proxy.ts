@@ -108,14 +108,13 @@ export async function proxy(request: NextRequest) {
 
       if (matchedPrefix) {
         const modul = ROUTE_PERMISSIONS[matchedPrefix]
-        const currentOrgId = request.cookies.get('current_organisation_id')?.value
+        const rawOrgCookie = request.cookies.get('current_organisation_id')?.value
+        const currentOrgId = (rawOrgCookie && UUID_REGEX.test(rawOrgCookie)) ? rawOrgCookie : null
         const globalHeaders: Record<string, string> = {}
         if (currentOrgId) {
-          if (UUID_REGEX.test(currentOrgId)) {
-            globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
-          } else if (process.env.NODE_ENV === 'development') {
-            console.warn('[proxy] Invalid current_organisation_id format (expected UUID):', currentOrgId)
-          }
+          globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
+        } else if (rawOrgCookie && rawOrgCookie !== 'private' && rawOrgCookie !== 'null' && process.env.NODE_ENV === 'development') {
+          console.warn('[proxy] Invalid current_organisation_id format (expected UUID):', rawOrgCookie)
         }
 
         const { url, anonKey } = getSupabasePublicEnv()

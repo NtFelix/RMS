@@ -6,14 +6,13 @@ import { getSupabasePublicEnv, UUID_REGEX } from "@/lib/supabase-env"
 export type SessionUser = Pick<User, 'id' | 'email' | 'role' | 'app_metadata' | 'user_metadata' | 'aud'>
 
 export async function updateSession(request: NextRequest, response: NextResponse): Promise<SessionUser | null> {
-  const currentOrgId = request.cookies.get('current_organisation_id')?.value
+  const rawOrgId = request.cookies.get('current_organisation_id')?.value
+  const currentOrgId = (rawOrgId && UUID_REGEX.test(rawOrgId)) ? rawOrgId : null
   const globalHeaders: Record<string, string> = {}
   if (currentOrgId) {
-    if (UUID_REGEX.test(currentOrgId)) {
-      globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
-    } else if (process.env.NODE_ENV === 'development') {
-      console.warn('[updateSession] Invalid current_organisation_id format (expected UUID):', currentOrgId)
-    }
+    globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
+  } else if (rawOrgId && rawOrgId !== 'private' && rawOrgId !== 'null' && process.env.NODE_ENV === 'development') {
+    console.warn('[updateSession] Invalid current_organisation_id format (expected UUID):', rawOrgId)
   }
 
   const { url, anonKey } = getSupabasePublicEnv()

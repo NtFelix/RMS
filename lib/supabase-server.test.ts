@@ -203,6 +203,38 @@ describe('lib/supabase-server', () => {
         expect(getGlobalHeaders()).toEqual({});
       });
 
+      it('should not inject the org header when the cookie is "private"', async () => {
+        mockCookies.mockResolvedValue({
+          get: jest.fn().mockImplementation((name: string) =>
+            name === 'current_organisation_id'
+              ? { name, value: 'private' }
+              : undefined
+          ),
+          getAll: jest.fn().mockReturnValue([]),
+          set: jest.fn(),
+        } as any);
+
+        await createSupabaseServerClient();
+
+        expect(getGlobalHeaders()).toEqual({});
+      });
+
+      it('should not inject the org header when the cookie is "null"', async () => {
+        mockCookies.mockResolvedValue({
+          get: jest.fn().mockImplementation((name: string) =>
+            name === 'current_organisation_id'
+              ? { name, value: 'null' }
+              : undefined
+          ),
+          getAll: jest.fn().mockReturnValue([]),
+          set: jest.fn(),
+        } as any);
+
+        await createSupabaseServerClient();
+
+        expect(getGlobalHeaders()).toEqual({});
+      });
+
       it('should not inject the org header when no cookie and no override are present', async () => {
         await createSupabaseServerClient();
 
