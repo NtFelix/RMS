@@ -11,7 +11,20 @@ export interface LogAttributes {
 }
 
 // Configuration constants
+import { trace } from '@opentelemetry/api';
 import resolvePostHogHost from './posthog-host';
+
+/**
+ * Capture the active span context (trace_id / span_id) from the
+ * currently executing OpenTelemetry span, if any.
+ */
+export function getSpanContext(): { traceId?: string; spanId?: string } {
+    const currentSpan = trace.getActiveSpan();
+    if (!currentSpan) return {};
+    const ctx = currentSpan.spanContext();
+    if (!ctx || !ctx.traceId || ctx.traceId === '00000000000000000000000000000000') return {};
+    return { traceId: ctx.traceId, spanId: ctx.spanId };
+}
 
 export const SERVICE_NAME = 'mietevo';
 export const POSTHOG_API_KEY = (() => {
@@ -122,6 +135,7 @@ export function buildOTLPPayloadSingle(
                     severityNumber: getSeverityNumber(severityText),
                     severityText: severityText.toUpperCase(),
                     body: { stringValue: message },
+                    ...getSpanContext(),
                     attributes: Object.entries(enrichedAttributes)
                         .filter(([, v]) => v !== null && v !== undefined)
                         .map(([key, value]) => ({
@@ -142,6 +156,7 @@ export function buildOTLPPayloadBatch(logs: Array<{
     severityText: string;
     body: string;
     attributes: Record<string, unknown>;
+    traceContext?: { traceId?: string; spanId?: string };
 }>) {
     return {
         resourceLogs: [{
@@ -156,6 +171,7 @@ export function buildOTLPPayloadBatch(logs: Array<{
                     severityNumber: getSeverityNumber(log.severityText),
                     severityText: log.severityText.toUpperCase(),
                     body: { stringValue: log.body },
+                    ...(log.traceContext ?? getSpanContext()),
                     attributes: Object.entries(log.attributes)
                         .filter(([, v]) => v !== null && v !== undefined)
                         .map(([key, value]) => ({

@@ -1,5 +1,5 @@
 import { GET } from './route'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 jest.mock('next/server', () => ({
   NextResponse: {
@@ -12,8 +12,8 @@ jest.mock('next/server', () => ({
   },
 }))
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }))
 
 jest.mock('@/lib/logging-middleware', () => ({
@@ -29,7 +29,7 @@ describe('/auth/callback route', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(createClient as jest.Mock).mockResolvedValue({
+    ;(createSupabaseServerClient as jest.Mock).mockResolvedValue({
       auth: {
         exchangeCodeForSession: mockExchangeCodeForSession,
       },

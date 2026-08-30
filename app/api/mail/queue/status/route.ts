@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { unstable_rethrow } from "next/navigation"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 export async function GET() {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
@@ -41,6 +41,7 @@ export async function GET() {
       },
     }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
+    unstable_rethrow(error)
     console.error("Queue status error:", error)
     return NextResponse.json(
       { error: "Internal server error" },

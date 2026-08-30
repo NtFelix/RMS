@@ -1,10 +1,10 @@
 import { GET } from './route'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
 // Mock Supabase client
-jest.mock('@/utils/supabase/server')
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>
+jest.mock('@/lib/supabase-server')
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
 
 // Mock NextResponse
 jest.mock('next/server', () => ({
@@ -64,7 +64,7 @@ describe('/api/wohnungen/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Wohnungs-ID ist erforderlich.' },
-      { status: 400 }
+      expect.objectContaining({ status: 400 })
     )
   })
 
@@ -76,7 +76,7 @@ describe('/api/wohnungen/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Ungültige Wohnungs-ID Format.' },
-      { status: 400 }
+      expect.objectContaining({ status: 400 })
     )
   })
 
@@ -99,7 +99,7 @@ describe('/api/wohnungen/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Wohnung nicht gefunden.' },
-      { status: 404 }
+      expect.objectContaining({ status: 404 })
     )
   })
 
@@ -122,7 +122,7 @@ describe('/api/wohnungen/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Fehler beim Laden der Wohnungsdaten.' },
-      { status: 500 }
+      expect.objectContaining({ status: 500 })
     )
   })
 
@@ -156,7 +156,7 @@ describe('/api/wohnungen/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Fehler beim Laden der Mieterdaten.' },
-      { status: 500 }
+      expect.objectContaining({ status: 500 })
     )
   })
 
@@ -216,7 +216,7 @@ describe('/api/wohnungen/[id]/overview', () => {
           }),
         ]),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -252,7 +252,7 @@ describe('/api/wohnungen/[id]/overview', () => {
       expect.objectContaining({
         mieter: [],
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -306,7 +306,7 @@ describe('/api/wohnungen/[id]/overview', () => {
           }),
         ]),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -354,7 +354,7 @@ describe('/api/wohnungen/[id]/overview', () => {
         miete: 0,
         hausName: 'Unbekannt',
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -410,7 +410,7 @@ describe('/api/wohnungen/[id]/overview', () => {
           }),
         ]),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 })

@@ -30,12 +30,18 @@ export const INFO_EMAIL = "info@mietevo.de";
 // For backward compatibility, CONTACT_EMAIL now aliases INFO_EMAIL (it was previously SUPPORT_EMAIL).
 export const CONTACT_EMAIL = INFO_EMAIL;
 
+// Centralized media query breakpoints
+export const TABLET_BREAKPOINT = '(max-width: 1023px)';
+
 // Base URL - centralized to ensure consistency across all environments
 export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';
 
 // Website domain (without protocol) - for display in legal pages
 export const WEBSITE_DOMAIN = 'mietevo.de';
 
+
+// Allowed MIME types for image preview in chat attachments
+export const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 // Feature flags removed as functionality is now standard
 // PostHog feature flag keys - centralized to prevent magic strings
@@ -51,6 +57,7 @@ export const POSTHOG_FEATURE_FLAGS = {
   CREATE_FILE_OPTION: 'create-file-option',
   DARK_MODE: 'dark-mode',
   AI_DOCUMENTATION_MODE: 'ai-documentation-mode',
+  MIETEVO_AI_AGENT: 'mietevo-ai-agent',
   // Sidebar features
   SUPPORT_BUTTON: 'support-button',
   NOTIFICATION_CENTER: 'notification-center',

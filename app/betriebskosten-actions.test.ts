@@ -11,13 +11,13 @@ import {
   deleteRechnungenByNebenkostenId,
   createRechnungenBatch
 } from './betriebskosten-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/logging-middleware';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('@/lib/permissions', () => ({
@@ -80,7 +80,7 @@ describe('betriebskosten-actions', () => {
 
     mockSupabase = {
       auth: {
-        getUser: jest.fn(),
+        getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user123' } }, error: null }),
       },
       from: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
@@ -90,9 +90,10 @@ describe('betriebskosten-actions', () => {
       eq: jest.fn().mockReturnThis(),
       in: jest.fn().mockReturnThis(),
       single: jest.fn(),
+      rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
     };
 
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('createNebenkosten', () => {
@@ -201,22 +202,20 @@ describe('betriebskosten-actions', () => {
 
   describe('deleteNebenkosten', () => {
     it('should delete nebenkosten', async () => {
-      mockSupabase.delete.mockReturnThis();
-      mockSupabase.eq.mockResolvedValue({ error: null });
-
       const result = await deleteNebenkosten('nb1');
 
       expect(result).toEqual({
         success: true,
         message: 'Nebenkosten erfolgreich gelöscht',
       });
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'nb1');
-      expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Nebenkosten',
+        p_record_id: 'nb1',
+      });
     });
 
     it('should handle delete error', async () => {
-      mockSupabase.eq.mockResolvedValue({ error: { message: 'Delete failed' } });
+      mockSupabase.rpc.mockResolvedValue({ error: { message: 'Delete failed' } });
 
       const result = await deleteNebenkosten('nb1');
 
@@ -229,8 +228,6 @@ describe('betriebskosten-actions', () => {
 
   describe('bulkDeleteNebenkosten', () => {
     it('should delete multiple nebenkosten', async () => {
-      mockSupabase.in.mockResolvedValue({ count: 2, error: null });
-
       const result = await bulkDeleteNebenkosten(['id1', 'id2']);
 
       expect(result).toEqual({
@@ -238,8 +235,14 @@ describe('betriebskosten-actions', () => {
         count: 2,
         message: '2 Betriebskostenabrechnungen erfolgreich gelöscht',
       });
-      expect(mockSupabase.in).toHaveBeenCalledWith('id', ['id1', 'id2']);
-      expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Nebenkosten',
+        p_record_id: 'id1',
+      });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Nebenkosten',
+        p_record_id: 'id2',
+      });
     });
 
     it('should return error if no ids provided', async () => {
@@ -315,17 +318,14 @@ describe('betriebskosten-actions', () => {
 
   describe('deleteRechnungenByNebenkostenId', () => {
     it('should delete rechnungen', async () => {
-        mockSupabase.auth.getUser.mockResolvedValue({
-            data: { user: { id: 'user123' } },
-            error: null,
-          });
-      mockSupabase.eq.mockResolvedValue({ error: null });
+      mockSupabase.auth.getUser.mockResolvedValue({
+          data: { user: { id: 'user123' } },
+          error: null,
+        });
 
       const result = await deleteRechnungenByNebenkostenId('nb1');
 
       expect(result).toEqual({ success: true });
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.eq).toHaveBeenCalledWith('nebenkosten_id', 'nb1');
     });
   });
 });

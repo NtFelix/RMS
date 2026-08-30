@@ -43,6 +43,10 @@ global.Response = class Response {
     this.statusText = init?.statusText || 'OK';
     this.headers = new Map(Object.entries(init?.headers || {}));
   }
+
+  get ok() {
+    return this.status >= 200 && this.status < 300;
+  }
   
   json() {
     return Promise.resolve(JSON.parse(this.body));
@@ -110,7 +114,10 @@ jest.mock('next/navigation', () => ({
     replace: jest.fn(),
     refresh: jest.fn(),
   }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
   redirect: jest.fn(),
+  unstable_rethrow: jest.fn(),
 }));
 
 jest.mock('@/lib/permissions', () => ({
@@ -126,8 +133,8 @@ jest.mock('@/lib/object-scope', () => ({
 
 jest.mock('@/lib/auth-utils', () => ({
   ensureAuth: jest.fn().mockImplementation(async () => {
-    const { createClient } = require('@/utils/supabase/server');
-    const supabase = await createClient();
+    const { createSupabaseServerClient } = require('@/lib/supabase-server');
+    const supabase = await createSupabaseServerClient();
     if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
       try {
         const res = await supabase.auth.getUser();
@@ -150,6 +157,38 @@ jest.mock('@/lib/auth-utils', () => ({
       supabase,
     };
   }),
+  resolveUserAndOrg: jest.fn().mockImplementation(async (req) => {
+    const { createSupabaseServerClient } = require('@/lib/supabase-server');
+    const supabase = await createSupabaseServerClient();
+    if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
+      try {
+        const res = await supabase.auth.getUser();
+        if (res && (res.error || (res.data && res.data.user === null))) {
+          return { errorResponse: new Response(JSON.stringify({ error: 'Nicht authentifiziert' }), { status: 401 }) };
+        }
+        if (res && res.data && res.data.user) {
+          return {
+            user: res.data.user,
+            supabase,
+            orgId: 'test-org-id',
+            userJwt: 'test-jwt',
+          };
+        }
+      } catch (e) {
+        // fall through to default
+      }
+    }
+    return {
+      user: { id: 'test-user-id', email: 'test@example.com' },
+      orgId: 'test-org-id',
+      userJwt: 'test-jwt',
+      supabase,
+    };
+  }),
+}));
+
+jest.mock('@/lib/ai-service-proxy', () => ({
+  proxyToAiService: jest.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 })),
 }));
 
 jest.mock('next/server', () => ({
@@ -238,31 +277,6 @@ jest.mock('@/hooks/use-modal-store', () => ({
 jest.mock('@/hooks/use-toast', () => ({
   useToast: jest.fn(),
   toast: jest.fn(),
-}));
-
-// Mock complex AI-related dependencies to prevent hanging
-jest.mock('@/hooks/use-ai-cache-client', () => ({
-  useAICacheClient: () => ({
-    cacheResponse: jest.fn(),
-    getCachedResponse: jest.fn(),
-    hasCachedResponse: jest.fn(),
-    stats: { hits: 0, misses: 0 }
-  }),
-  useAICacheWarming: () => ({
-    preloadFrequentQueries: jest.fn()
-  })
-}));
-
-// AI input validation is used directly in tests to verify logic
-jest.unmock('@/lib/ai-input-validation');
-
-jest.mock('@/lib/ai-documentation-context', () => ({
-  categorizeAIError: jest.fn(() => ({
-    errorType: 'unknown_error',
-    errorMessage: 'Test error',
-    retryable: false
-  })),
-  trackAIRequestFailure: jest.fn()
 }));
 
 // Prevent timers from hanging tests

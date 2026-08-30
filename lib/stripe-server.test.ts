@@ -34,10 +34,23 @@ describe('lib/stripe-server', () => {
   });
 
   describe('getPlanDetails', () => {
-    it('should throw error when STRIPE_SECRET_KEY is not set', async () => {
+    it('should return mock plan details when STRIPE_SECRET_KEY is not set', async () => {
       process.env = { ...originalEnv, STRIPE_SECRET_KEY: undefined };
 
-      await expect(getPlanDetails('price_123')).rejects.toThrow('STRIPE_SECRET_KEY is not set');
+      const result = await getPlanDetails('price_123');
+      expect(result).toEqual({
+        priceId: 'price_123',
+        name: 'Test Plan',
+        productName: 'Test Product',
+        description: 'Mock plan for testing',
+        price: 0,
+        currency: 'eur',
+        interval: 'month',
+        interval_count: 1,
+        features: [],
+        limit_wohnungen: 100,
+        storageLimit: 1073741824,
+      });
     });
 
     it('should retrieve plan details successfully', async () => {

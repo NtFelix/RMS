@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const { requireApiPermission } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'loeschen');
+
+    const supabase = await createSupabaseServerClient()
     const { ids } = await request.json()
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -16,14 +18,31 @@ export async function POST(request: Request) {
       )
     }
 
-    const { data, error } = await supabase
+    // Fetch haus_ids of these apartments
+    const { data: aptsToCheck, error: checkError } = await supabase
       .from('Wohnungen')
-      .delete()
-      .in('id', ids)
-      .select()
+      .select('haus_id')
+      .in('id', ids);
+      
+    if (checkError || !aptsToCheck) {
+      return NextResponse.json({ error: "Fehler bei der Berechtigungsprüfung" }, { status: 500, headers: NO_CACHE_HEADERS });
+    }
+    
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    const accessibleHaeuserIds = await getAccessibleHaeuserIds();
+    if (accessibleHaeuserIds !== null) {
+      for (const apt of aptsToCheck) {
+        if (apt.haus_id && !accessibleHaeuserIds.includes(apt.haus_id)) {
+          return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
+      }
+    }
 
-    if (error) {
-      console.error("Supabase Bulk Delete Error:", error)
+    try {
+      const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+      await Promise.all(ids.map(id => softDeleteEntryAction("Wohnungen", id)));
+    } catch (error: any) {
+      console.error("Supabase Bulk Delete Error for Wohnungen:", error);
       return NextResponse.json(
         { error: error.message },
         { status: 500, headers: NO_CACHE_HEADERS }
@@ -31,14 +50,15 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { successCount: data?.length || 0 },
+      { successCount: ids.length },
       { status: 200, headers: NO_CACHE_HEADERS }
     )
   } catch (e) {
     console.error("POST /api/apartments/bulk-delete error:", e)
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
     return NextResponse.json(
-      { error: "Serverfehler beim Löschen der Wohnungen." },
-      { status: 500, headers: NO_CACHE_HEADERS }
+      { error: (e as Error).message || "Serverfehler beim Löschen der Wohnungen." },
+      { status, headers: NO_CACHE_HEADERS }
     )
   }
 }

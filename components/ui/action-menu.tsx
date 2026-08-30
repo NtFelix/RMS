@@ -21,6 +21,10 @@ export interface ActionMenuItem {
     variant?: 'default' | 'primary' | 'destructive';
     /** Optional custom data attributes (e.g., for accessibility or testing) */
     dataAttributes?: Record<string, string>;
+    /** Disable this action item */
+    disabled?: boolean;
+    /** Tooltip or title text when disabled or hovered */
+    tooltip?: string;
 }
 
 export interface ActionMenuProps {
@@ -132,13 +136,14 @@ export function ActionMenu({
                         variant="ghost"
                         size="icon"
                         onClick={handleClick}
+                        disabled={action.disabled}
                         className={cn(
                             'h-7 w-7 transition-colors',
                             isRoundedPill ? 'rounded-full' : 'rounded-md',
                             variantStyles[variant]
                         )}
                         aria-label={action.label}
-                        title={action.label}
+                        title={action.tooltip || action.label}
                         {...action.dataAttributes}
                     >
                         <Icon className="h-3.5! w-3.5!" aria-hidden="true" />

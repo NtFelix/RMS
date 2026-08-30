@@ -110,14 +110,16 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            totalHouseArea
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
           // Self-consistent per-tenant rate: pricePerSqm × area × occupancyRatio = tenantShare
           // This avoids the stacking problem (sequential tenants in same apartment).
-          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+          const rawPrice = (tenantArea > 0 && occupancy.percentage > 0)
             ? tenantShare / (tenantArea * (occupancy.percentage / 100))
             : undefined;
+          pricePerSqm = rawPrice !== undefined ? Math.round(rawPrice * 10000) / 10000 : undefined;
           // Verteiler shows physical area vs total house area (for PDF column)
           distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
           break;
@@ -162,12 +164,14 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            totalHouseArea
           );
           tenantShare = defaultDistribution[tenant.id]?.amount || 0;
-          pricePerSqm = (tenantArea > 0 && occupancy.percentage > 0)
+          const rawDefaultPrice = (tenantArea > 0 && occupancy.percentage > 0)
             ? tenantShare / (tenantArea * (occupancy.percentage / 100))
             : undefined;
+          pricePerSqm = rawDefaultPrice !== undefined ? Math.round(rawDefaultPrice * 10000) / 10000 : undefined;
           distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
       }
 

@@ -1,16 +1,35 @@
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
 import FinanzenClientWrapper from "./client-wrapper";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { calculateFinancialSummary, processRpcFinancialSummary, fetchAvailableFinanceYears } from "@/utils/financeCalculations";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 
 import { PAGINATION } from "@/constants";
+import { getAccessibleWohnungIds } from "@/lib/object-scope";
 
-async function getSummaryData(supabase: SupabaseClient, year: number) {
+async function getSummaryData(supabase: SupabaseClient, year: number, accessibleWohnungIds: string[] | null) {
+  if (accessibleWohnungIds !== null) {
+    // Restricted employee: bypass RPC and query Finanzen directly with scoping.
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    const { data: rawFinances, error } = await supabase
+      .from('Finanzen')
+      .select('*')
+      .in('wohnung_id', accessibleWohnungIds)
+      .gte('datum', yearStart)
+      .lte('datum', yearEnd);
+
+    if (error) {
+      console.error('Error fetching scoped finance data for summary:', error);
+      return calculateFinancialSummary([], year, new Date());
+    }
+
+    return calculateFinancialSummary(rawFinances || [], year, new Date());
+  }
+
   const data = await fetchWithRpcFallback<unknown>(
     supabase,
     'get_financial_year_summary',
@@ -79,12 +98,59 @@ function determineInitialYear(
   return fallbackYear ?? currentYear;
 }
 
-export default async function FinanzenPage() {
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+export default function FinanzenPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <FinanzenContent />
+    </Suspense>
+  );
+}
+
+async function FinanzenContent() {
   const { supabase } = await requireAuthenticatedUser();
 
   const currentYear = new Date().getFullYear();
 
+  // Permission check.
+  const [canView, canCreate, canEdit, canDelete, accessibleWohnungIds] = await Promise.all([
+    hasPermission('finanzen', 'ansehen'),
+    hasPermission('finanzen', 'erstellen'),
+    hasPermission('finanzen', 'bearbeiten'),
+    hasPermission('finanzen', 'loeschen'),
+    getAccessibleWohnungIds(),
+  ]);
+  if (!canView) {
+    redirect('/unauthorized');
+  }
+
   // Load all initial data in parallel
+  const fetchWohnungen = () => {
+    let q = supabase.from('Wohnungen').select('id,name,miete');
+    if (accessibleWohnungIds !== null) {
+      q = q.in('id', accessibleWohnungIds);
+    }
+    return q;
+  };
+
+  const fetchFinanzen = () => {
+    let q = supabase
+      .from('Finanzen')
+      .select('*, Wohnungen(name)')
+      .order('datum', { ascending: false })
+      .range(0, PAGINATION.DEFAULT_PAGE_SIZE - 1);
+    if (accessibleWohnungIds !== null) {
+      q = q.in('wohnung_id', accessibleWohnungIds);
+    }
+    return q;
+  };
+
   const [
     wohnungenResult,
     finanzenResult,
@@ -92,14 +158,10 @@ export default async function FinanzenPage() {
     initialSummaryData
   ] = await Promise.all([
     // Wohnungen laden
-    supabase.from('Wohnungen').select('id,name,miete'),
+    fetchWohnungen(),
 
     // Initial Finanzen laden (nur die erste Seite für die Transaktionsliste)
-    supabase
-      .from('Finanzen')
-      .select('*, Wohnungen(name)')
-      .order('datum', { ascending: false })
-      .range(0, PAGINATION.DEFAULT_PAGE_SIZE - 1),
+    fetchFinanzen(),
 
     // Available years laden (needed for fallback logic)
     getAvailableYears(supabase).catch((error) => {
@@ -108,7 +170,7 @@ export default async function FinanzenPage() {
     }),
 
     // Summary-Daten für das aktuelle Jahr laden
-    getSummaryData(supabase, currentYear)
+    getSummaryData(supabase, currentYear, accessibleWohnungIds)
   ]);
 
   if (wohnungenResult.error) {
@@ -128,7 +190,7 @@ export default async function FinanzenPage() {
 
   // If we're falling back to a previous year, load that year's summary data
   if (initialYear !== currentYear) {
-    summaryData = await getSummaryData(supabase, initialYear);
+    summaryData = await getSummaryData(supabase, initialYear, accessibleWohnungIds);
   }
 
   return <FinanzenClientWrapper
@@ -139,5 +201,8 @@ export default async function FinanzenPage() {
     initialYear={initialYear}
     isUsingFallbackYear={initialYear !== currentYear}
     currentYear={currentYear}
+    canCreate={canCreate}
+    canEdit={canEdit}
+    canDelete={canDelete}
   />;
 }

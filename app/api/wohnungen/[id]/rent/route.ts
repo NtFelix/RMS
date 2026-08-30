@@ -1,5 +1,4 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
@@ -9,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     
     // Verify user authentication
     const userProfile = await fetchUserProfile();
@@ -21,7 +20,7 @@ export async function GET(
     
     const { data: apartment, error } = await supabase
       .from('Wohnungen')
-      .select('miete')
+      .select('miete, haus_id')
       .eq('id', wohnungId)
       .single();
 
@@ -32,6 +31,11 @@ export async function GET(
 
     if (!apartment) {
       return NextResponse.json({ error: "Wohnung nicht gefunden." }, { status: 404, headers: NO_CACHE_HEADERS });
+    }
+
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (apartment.haus_id && !(await verifyEntityInScope(apartment.haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
     }
 
     return NextResponse.json({ miete: apartment.miete }, { status: 200, headers: NO_CACHE_HEADERS });

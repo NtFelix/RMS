@@ -19,9 +19,13 @@ import {
 import { getTenantMeterCost } from './water-cost-calculations';
 
 // Mock dependencies
-jest.mock('./date-calculations', () => ({
-  calculateTenantOccupancy: jest.fn()
-}));
+jest.mock('./date-calculations', () => {
+  const actual = jest.requireActual('./date-calculations');
+  return {
+    ...actual,
+    calculateTenantOccupancy: jest.fn()
+  };
+});
 
 jest.mock('./cost-calculations', () => ({
   calculateProFlächeDistribution: jest.fn(),

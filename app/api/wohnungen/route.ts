@@ -1,16 +1,19 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 import { normalizeApartmentLimit } from '@/lib/utils/subscription';
+import { getTodayISOString, isTenantActive } from '@/utils/date-calculations';
 
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'erstellen');
+
+    const supabase = await createSupabaseServerClient();
 
     // === BEGIN NEW LOGIC ===
     const userProfile = await fetchUserProfile(); // This already gets user or returns null
@@ -125,6 +128,14 @@ export async function POST(request: Request) {
         headers: NO_CACHE_HEADERS
       });
     }
+
+    if (haus_id && !(await verifyEntityInScope(haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
     const { data, error } = await supabase
       .from('Wohnungen')
       .insert({ name, groesse, miete, haus_id })
@@ -142,20 +153,29 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("POST /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Speichern der Wohnung." }, { 
-      status: 500,
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || "Serverfehler beim Speichern der Wohnung." }, { 
+      status,
       headers: NO_CACHE_HEADERS
     });
   }
 }
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  const accessibleIds = await getAccessibleHaeuserIds();
 
   // Join Haeuser to get house name
-  const { data: apartments, error } = await supabase
+  let q = supabase
     .from('Wohnungen')
     .select('id, name, groesse, miete, haus_id, Haeuser(name)');
+
+  if (accessibleIds !== null) {
+    q = q.in('haus_id', accessibleIds);
+  }
+
+  const { data: apartments, error } = await q;
 
   if (error) {
     console.error("Supabase Select Error (Wohnungen):", error);
@@ -166,9 +186,16 @@ export async function GET() {
   }
 
   // Get tenants to determine occupation status
-  const { data: tenants, error: tenantsError } = await supabase
+  let tenantsQuery = supabase
     .from('Mieter')
     .select('id, wohnung_id, auszug, einzug, name');
+
+  if (accessibleIds !== null && apartments) {
+    const accessibleWohnungIds = apartments.map(a => a.id);
+    tenantsQuery = tenantsQuery.in('wohnung_id', accessibleWohnungIds);
+  }
+
+  const { data: tenants, error: tenantsError } = await tenantsQuery;
 
   if (tenantsError) {
     console.error("Supabase Select Error (Mieter):", tenantsError);
@@ -179,18 +206,16 @@ export async function GET() {
   }
 
   // Add status and tenant information
-  const today = new Date();
-  const enrichedApartments = apartments.map(apt => {
+  const todayStr = getTodayISOString();
+
+  const enrichedApartments = (apartments || []).map(apt => {
     // Find tenant for this apartment
-    const tenant = tenants.find(t => t.wohnung_id === apt.id);
+    const tenant = (tenants || []).find(t => t.wohnung_id === apt.id);
 
     // Determine if apartment is free or rented
     let status = 'frei';
-    if (tenant) {
-      // If tenant exists with no move-out date or move-out date is in the future
-      if (!tenant.auszug || new Date(tenant.auszug) > today) {
-        status = 'vermietet';
-      }
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
+      status = 'vermietet';
     }
 
     return {
@@ -213,7 +238,10 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createClient();
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'loeschen');
+
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
@@ -222,7 +250,25 @@ export async function DELETE(request: Request) {
         headers: NO_CACHE_HEADERS
       });
     }
-    const { error } = await supabase.from('Wohnungen').delete().match({ id });
+
+    // Check if current Wohnung is in accessible scope
+    const { data: currentApt, error: checkError } = await supabase
+      .from('Wohnungen')
+      .select('haus_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !currentApt || !(await verifyEntityInScope(currentApt.haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
+    const { error } = await supabase.rpc('soft_delete_record', {
+      p_table_name: 'Wohnungen',
+      p_record_id: id,
+    });
     if (error) {
       console.error("Supabase Delete Error (Wohnungen):", error);
       return NextResponse.json({ error: error.message }, { 
@@ -236,8 +282,9 @@ export async function DELETE(request: Request) {
     });
   } catch (e) {
     console.error("DELETE /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Löschen der Wohnung." }, { 
-      status: 500,
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || "Serverfehler beim Löschen der Wohnung." }, { 
+      status,
       headers: NO_CACHE_HEADERS
     });
   }
@@ -245,7 +292,10 @@ export async function DELETE(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const supabase = await createClient();
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'bearbeiten');
+
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const { name, groesse, miete, haus_id } = await request.json();
@@ -261,6 +311,29 @@ export async function PUT(request: Request) {
         headers: NO_CACHE_HEADERS
       });
     }
+
+    // Check scope of existing Wohnung
+    const { data: currentApt, error: checkError } = await supabase
+      .from('Wohnungen')
+      .select('haus_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !currentApt || !(await verifyEntityInScope(currentApt.haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
+    // Check scope of new house target
+    if (haus_id && !(await verifyEntityInScope(haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { 
+        status: 403,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+
     const { data, error } = await supabase
       .from('Wohnungen')
       .update({ name, groesse, miete, haus_id })
@@ -285,8 +358,9 @@ export async function PUT(request: Request) {
     });
   } catch (e) {
     console.error("PUT /api/wohnungen error:", e);
-    return NextResponse.json({ error: "Serverfehler beim Aktualisieren der Wohnung." }, { 
-      status: 500,
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (e as Error).message || "Serverfehler beim Aktualisieren der Wohnung." }, { 
+      status,
       headers: NO_CACHE_HEADERS
     });
   }

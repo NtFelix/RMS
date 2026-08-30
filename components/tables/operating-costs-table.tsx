@@ -40,7 +40,7 @@ import {
   deleteNebenkosten as deleteNebenkostenServerAction,
   bulkDeleteNebenkosten
 } from "@/app/betriebskosten-actions" // Removed old wasserzaehler imports
-import { toast } from "@/hooks/use-toast" // For notifications
+import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
@@ -58,6 +58,9 @@ interface OperatingCostsTableProps {
   allHaeuser: Haus[];
   selectedItems?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 export function OperatingCostsTable({
@@ -67,12 +70,15 @@ export function OperatingCostsTable({
   ownerName,
   allHaeuser,
   selectedItems: externalSelectedItems,
-  onSelectionChange
+  onSelectionChange,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: OperatingCostsTableProps) {
   const router = useRouter()
 
   // Old openWasserzaehlerModalOptimized removed - now using new ZaehlerAblesenModal
-  const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
+  const { openOperatingCostsOverviewModal } = useModalStore();
   // Old wasserzähler modal state removed - now using new ZaehlerAblesenModal
   const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
@@ -188,11 +194,7 @@ export function OperatingCostsTable({
   };
 
   const handleOpenOverview = (item: OptimizedNebenkosten) => {
-    setOverviewItem(item);
-  };
-
-  const handleCloseOverview = () => {
-    setOverviewItem(null);
+    openOperatingCostsOverviewModal(item);
   };
 
   // Old handleOpenWasserzaehlerModal function removed - now using new WasserZaehlerAblesenModal
@@ -400,7 +402,7 @@ export function OperatingCostsTable({
               variant="outline"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
-              disabled={isBulkDeleting}
+              disabled={isBulkDeleting || !canDelete}
               className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
               {isBulkDeleting ? (
@@ -469,7 +471,7 @@ export function OperatingCostsTable({
                             ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                             }`}
-                          onClick={() => onEdit?.(item)}
+                          onClick={() => canEdit ? onEdit?.(item) : handleOpenOverview(item)}
                         >
                           <TableCell
                             className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -529,6 +531,8 @@ export function OperatingCostsTable({
                                   label: "Bearbeiten",
                                   onClick: () => onEdit?.(item),
                                   variant: 'primary',
+                                  disabled: !canEdit,
+                                  tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
                                 },
                                 {
                                   id: `overview-${item.id}`,
@@ -567,35 +571,43 @@ export function OperatingCostsTable({
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-56">
                         <ContextMenuItem
-                          onClick={(e) => { e.stopPropagation(); handleOpenOverview(item); }}
+                          onClick={(e) => { e.stopPropagation(); setTimeout(() => handleOpenOverview(item), 0); }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <FileText className="h-4 w-4" />
                           <span>Übersicht</span>
                         </ContextMenuItem>
                         <ContextMenuItem
-                          onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                          onClick={(e) => { e.stopPropagation(); setTimeout(() => onEdit?.(item), 0); }}
+                          disabled={!canEdit}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <Edit className="h-4 w-4" />
                           <span>Bearbeiten</span>
                         </ContextMenuItem>
                         {/* Old Wasserzähler modal button removed - now using new ZaehlerAblesenModal */}
+                        {canViewMeters && (
+                          <ContextMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedNebenkostenForAblesen(item);
+                              setTimeout(() => {
+                                setIsZaehlerAblesenOpen(true);
+                              }, 0);
+                            }}
+                            disabled={!canEdit}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Droplets className="h-4 w-4" />
+                            <span>Zähler</span>
+                          </ContextMenuItem>
+                        )}
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedNebenkostenForAblesen(item);
-                            setIsZaehlerAblesenOpen(true);
-                          }}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Droplets className="h-4 w-4" />
-                          <span>Zähler</span>
-                        </ContextMenuItem>
-                        <ContextMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenAbrechnungModal(item);
+                            setTimeout(() => {
+                              handleOpenAbrechnungModal(item);
+                            }, 0);
                           }}
                           className="flex items-center gap-2 cursor-pointer"
                           disabled={isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id}
@@ -606,6 +618,7 @@ export function OperatingCostsTable({
                         <ContextMenuSeparator />
                         <ContextMenuItem
                           onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+                          disabled={!canDelete}
                           className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-500 dark:focus:text-red-500 dark:focus:bg-red-900/50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -621,14 +634,7 @@ export function OperatingCostsTable({
         </div>
       </div>
 
-      {/* Overview Modal */}
-      {overviewItem && (
-        <OperatingCostsOverviewModal
-          isOpen={!!overviewItem}
-          onClose={handleCloseOverview}
-          nebenkosten={overviewItem}
-        />
-      )}
+      {/* Overview Modal is now handled globally via ModalStore */}
 
       {/* Zaehler Modal is now handled by the modal store */}
 

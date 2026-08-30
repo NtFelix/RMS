@@ -1,5 +1,4 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
@@ -9,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ apartmentId: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { apartmentId } = await params;
 
     if (!apartmentId) {
@@ -47,6 +46,14 @@ export async function GET(
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." }, 
         { status: 500, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (apartment.haus_id && !(await verifyEntityInScope(apartment.haus_id))) {
+      return NextResponse.json(
+        { error: "Permission denied" }, 
+        { status: 403, headers: NO_CACHE_HEADERS }
       );
     }
 

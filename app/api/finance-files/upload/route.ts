@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getFinanceDocumentPath } from "@/app/finance-file-actions";
 import { logger } from "@/utils/logger";
 import {
@@ -10,11 +10,13 @@ import {
 } from "@/lib/finance-file-constants";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createClient();
+        const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+        await requireApiPermission('finanzen', 'erstellen');
+
+        const supabase = await createSupabaseServerClient();
 
         // Check authentication
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -30,6 +32,33 @@ export async function POST(request: NextRequest) {
         const file = formData.get("file");
         const wohnungId = formData.get("wohnung_id") as string | null;
         const financeId = formData.get("finance_id") as string | null;
+
+        if (wohnungId && !(await verifyWohnungInScope(wohnungId))) {
+            return NextResponse.json(
+                { error: "Zugriff verweigert (Wohnung nicht im Scope)" },
+                { status: 403, headers: NO_CACHE_HEADERS }
+            );
+        }
+
+        if (financeId) {
+    const { data: finData, error: finError } = await supabase
+        .from("Finanzen")
+        .select("wohnung_id")
+        .eq("id", financeId)
+        .maybeSingle();
+    if (finError || !finData) {
+        return NextResponse.json(
+            { error: "Finanzbuchung nicht gefunden" },
+            { status: 404, headers: NO_CACHE_HEADERS }
+        );
+    }
+    if (finData.wohnung_id && !(await verifyWohnungInScope(finData.wohnung_id))) {
+                return NextResponse.json(
+                    { error: "Zugriff verweigert (Finanzbuchung nicht im Scope)" },
+                    { status: 403, headers: NO_CACHE_HEADERS }
+                );
+            }
+        }
 
         if (!(file instanceof File)) {
             return NextResponse.json(
@@ -162,10 +191,13 @@ export async function POST(request: NextRequest) {
             linkedToFinance,
         }, { headers: NO_CACHE_HEADERS });
     } catch (error) {
-        logger.error("Unexpected error in finance file upload", error instanceof Error ? error : new Error(String(error)));
+        const isPermissionError = error instanceof Error && error.message === 'Permission denied';
+        if (!isPermissionError) {
+            logger.error("Unexpected error in finance file upload", error instanceof Error ? error : new Error(String(error)));
+        }
         return NextResponse.json(
-            { error: "Ein unerwarteter Fehler ist aufgetreten" },
-            { status: 500, headers: NO_CACHE_HEADERS }
+            { error: isPermissionError ? "Zugriff verweigert" : "Ein unerwarteter Fehler ist aufgetreten" },
+            { status: isPermissionError ? 403 : 500, headers: NO_CACHE_HEADERS }
         );
     }
 }

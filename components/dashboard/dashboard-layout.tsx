@@ -2,31 +2,36 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
-import { SidebarUserData } from "@/lib/server/user-data"
+import type { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
 import dynamic from "next/dynamic"
+import { useAIChatStore } from "@/hooks/use-ai-chat-store"
+import { useMediaQuery } from "@/hooks/use-media-query"
+import { TABLET_BREAKPOINT } from "@/lib/constants"
 
 const SupportLauncher = dynamic(
   () => import("@/components/support/support-launcher").then((mod) => mod.SupportLauncher),
   { ssr: false },
 )
 
-export function DashboardLayout({ 
+export function DashboardLayout({
   children,
   sidebarData
-}: { 
+}: {
   children: React.ReactNode
   sidebarData: SidebarUserData
 }) {
-  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const isTabletCollapsed = useMediaQuery(TABLET_BREAKPOINT)
   const { preference } = useSidebarStore()
+  const { isOpen, displayMode } = useAIChatStore()
+  const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
+  const isCollapsed = isTabletCollapsed || preference === 'collapsed'
 
   // Prevent hydration errors and handle responsive behavior
   useEffect(() => {
@@ -34,21 +39,17 @@ export function DashboardLayout({
 
     // Check initial screen size with proper breakpoint detection
     const checkScreenSize = () => {
-      const newIsMobile = window.innerWidth < 768
-      setIsMobile(newIsMobile)
-      return newIsMobile
+      setIsMobile(window.innerWidth < 768)
     }
 
-    // Set initial state
     checkScreenSize()
 
-    // Add resize listener for responsive behavior with debouncing
     let resizeTimeout: NodeJS.Timeout
     const handleResize = () => {
       clearTimeout(resizeTimeout)
       resizeTimeout = setTimeout(() => {
-        checkScreenSize()
-      }, 150) // Debounce resize events to prevent excessive re-renders
+        setIsMobile(window.innerWidth < 768)
+      }, 150)
     }
 
     window.addEventListener('resize', handleResize, { passive: true })
@@ -115,34 +116,39 @@ export function DashboardLayout({
     <TaskDndProvider>
       <div className="flex min-h-screen bg-background w-full max-w-full">
         {/* Desktop sidebar */}
-        <div 
-          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift transition-all duration-300 ease-in-out overflow-hidden h-screen sticky top-0"
+        <div
+          className="desktop-sidebar-responsive hydration-safe-desktop prevent-layout-shift overflow-hidden h-screen sticky top-0"
           style={{
-            width: preference === 'expanded' ? "16rem" : "5rem"
+            width: isCollapsed ? "4.5rem" : "16rem"
           }}
         >
           <DashboardSidebar sidebarData={sidebarData} />
         </div>
 
-        <div className="flex flex-1 flex-col min-w-0">
-          <main className={cn(
-            "flex flex-1 flex-col min-h-0 min-w-0",
+        <main className={cn(
+          "flex flex-1 flex-col min-h-0 overflow-hidden",
+          // Enhanced responsive padding with CSS-only fallbacks
+          "main-content-responsive",
+          "responsive-transition",
+          // Responsive padding: 0px on left, 12px on top, bottom, right
+          "py-3 pr-3 pl-0",
+          // JavaScript-enhanced responsive padding
+          isMobile ? "pb-20 pt-3 px-3" : "py-3 pr-3 pl-0",
+          // Push mode: shift content by adding right margin matching sidebar width
+          isPushMode && "md:mr-[450px]"
+        )}>
+          <div className={cn(
+            "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-y-auto overflow-x-hidden",
+            "rounded-[2rem] md:rounded-[2.5rem]",
             "responsive-transition",
-            "p-4"
+            "prevent-layout-shift",
+            "mobile-smooth-scroll",
+            "mb-0",
+            isMobile && "pb-20"
           )}>
-            <div className={cn(
-              "flex-1 border shadow-xs bg-white dark:bg-[#181818] relative overflow-hidden",
-              "rounded-[2rem] md:rounded-[2.5rem]",
-              "responsive-transition",
-              "prevent-layout-shift",
-              "mobile-smooth-scroll",
-              "mb-0",
-              isMobile && "pb-20"
-            )}>
-              {children}
-            </div>
-          </main>
-        </div>
+            {children}
+          </div>
+        </main>
 
         {mounted && isMobile && <MobileBottomNavigation />}
         <SupportLauncher />

@@ -1,9 +1,6 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
-
-export const runtime = 'edge';
+import { submitDecisionAction } from '@/app/oauth/consent/actions';
 
 export async function POST(request: Request) {
     const formData = await request.formData();
@@ -14,43 +11,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing authorization_id' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        throw new Error('Missing Supabase environment variables');
-    }
-
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-            cookies: {
-                getAll: async () => (await cookies()).getAll(),
-                setAll: async (cookiesToSet) => {
-                    const cookieStore = await cookies();
-                    cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-                },
-            },
-        }
+    const { success, redirect_to, error } = await submitDecisionAction(
+        authorizationId,
+        decision === 'approve' ? 'allow' : 'deny'
     );
 
-    if (decision === 'approve') {
-        const { data, error } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.approveAuthorization(authorizationId);
-
-        if (error) {
-            console.error('Approval error:', error);
-            return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
-        }
-
-        // Redirect back to the client with authorization code
-        return NextResponse.redirect(data.redirect_to);
-    } else {
-        const { data, error } = await (supabase.auth as unknown as import('@/types/supabase').SupabaseAuthWithOAuth).oauth.denyAuthorization(authorizationId);
-
-        if (error) {
-            console.error('Denial error:', error);
-            return NextResponse.json({ error: error.message }, { status: 400, headers: NO_CACHE_HEADERS });
-        }
-
-        // Redirect back to the client with error
-        return NextResponse.redirect(data.redirect_to);
+    if (!success || error || !redirect_to) {
+        return NextResponse.json({ error: error || 'Decision failed' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
+
+    return NextResponse.redirect(redirect_to, { headers: NO_CACHE_HEADERS });
 }

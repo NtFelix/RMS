@@ -1,10 +1,10 @@
 import { GET } from './route'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
 // Mock Supabase client
-jest.mock('@/utils/supabase/server')
-const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>
+jest.mock('@/lib/supabase-server')
+const mockCreateClient = createSupabaseServerClient as jest.MockedFunction<typeof createSupabaseServerClient>
 
 // Mock NextResponse
 jest.mock('next/server', () => ({
@@ -54,8 +54,8 @@ describe('/api/apartments/[apartmentId]/details', () => {
     await GET(request, { params })
 
     expect(NextResponse.json).toHaveBeenCalledWith(
-      { error: 'Apartment ID ist erforderlich.' },
-      { status: 400 }
+      { error: 'Apartment ID und Tenant ID sind erforderlich.' },
+      expect.objectContaining({ status: 400 })
     )
   })
 
@@ -78,7 +78,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Wohnung nicht gefunden.' },
-      { status: 404 }
+      expect.objectContaining({ status: 404 })
     )
   })
 
@@ -95,10 +95,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
     const mockTenantQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({
+      single: jest.fn().mockResolvedValue({
         data: mockTenantData,
         error: null,
       }),
@@ -131,17 +128,17 @@ describe('/api/apartments/[apartmentId]/details', () => {
           email: 'max@example.com',
           telefon: '+49123456789',
           einzug: '2023-01-01',
-          auszug: null,
+          auszug: undefined,
           leaseTerms: undefined,
           paymentHistory: [],
           notes: 'Zuverlässiger Mieter',
         }),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
-  it('returns apartment details without tenant when vacant', async () => {
+  it('returns 404 when tenant is not found', async () => {
     const mockApartmentQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
@@ -154,12 +151,9 @@ describe('/api/apartments/[apartmentId]/details', () => {
     const mockTenantQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({
+      single: jest.fn().mockResolvedValue({
         data: null,
-        error: null,
+        error: { code: 'PGRST116' },
       }),
     }
 
@@ -168,26 +162,17 @@ describe('/api/apartments/[apartmentId]/details', () => {
       .mockReturnValueOnce(mockTenantQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: 'any' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174099' })
 
     await GET(request, { params })
 
     expect(NextResponse.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        apartment: expect.objectContaining({
-          id: '123e4567-e89b-12d3-a456-426614174001',
-          name: 'Wohnung 1A',
-          groesse: 75,
-          miete: 1200,
-          hausName: 'Test Haus',
-        }),
-        tenant: undefined,
-      }),
-      { status: 200 }
+      { error: 'Mieter nicht gefunden oder nicht dieser Wohnung zugeordnet.' },
+      expect.objectContaining({ status: 404 })
     )
   })
 
-  it('continues without tenant data when tenant query fails', async () => {
+  it('returns 500 on tenant database error', async () => {
     const mockApartmentQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
@@ -200,10 +185,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
     const mockTenantQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({
+      single: jest.fn().mockResolvedValue({
         data: null,
         error: { code: 'PGRST000', message: 'Database error' },
       }),
@@ -219,13 +201,8 @@ describe('/api/apartments/[apartmentId]/details', () => {
     await GET(request, { params })
 
     expect(NextResponse.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        apartment: expect.objectContaining({
-          id: '123e4567-e89b-12d3-a456-426614174001',
-        }),
-        tenant: undefined,
-      }),
-      { status: 200 }
+      { error: 'Fehler beim Laden der Mieterdaten.' },
+      expect.objectContaining({ status: 500 })
     )
   })
 
@@ -247,11 +224,8 @@ describe('/api/apartments/[apartmentId]/details', () => {
     const mockTenantQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({
-        data: null,
+      single: jest.fn().mockResolvedValue({
+        data: mockTenantData,
         error: null,
       }),
     }
@@ -261,7 +235,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
       .mockReturnValueOnce(mockTenantQuery)
 
     const request = new Request('http://localhost/api/apartments/123e4567-e89b-12d3-a456-426614174001/details')
-    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: 'any' })
+    const params = Promise.resolve({ apartmentId: '123e4567-e89b-12d3-a456-426614174001', tenantId: '123e4567-e89b-12d3-a456-426614174002' })
 
     await GET(request, { params })
 
@@ -271,7 +245,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
           hausName: 'Unbekannt',
         }),
       }),
-      { status: 200 }
+      expect.objectContaining({ status: 200 })
     )
   })
 
@@ -294,7 +268,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Fehler beim Laden der Wohnungsdaten.' },
-      { status: 500 }
+      expect.objectContaining({ status: 500 })
     )
   })
 
@@ -310,7 +284,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: 'Serverfehler beim Laden der Details.' },
-      { status: 500 }
+      expect.objectContaining({ status: 500 })
     )
   })
 
@@ -327,10 +301,7 @@ describe('/api/apartments/[apartmentId]/details', () => {
     const mockTenantQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({
+      single: jest.fn().mockResolvedValue({
         data: mockTenantData,
         error: null,
       }),
@@ -345,11 +316,9 @@ describe('/api/apartments/[apartmentId]/details', () => {
 
     await GET(request, { params })
 
-    // Verify that the tenant query includes the date filter
-    expect(mockTenantQuery.or).toHaveBeenCalledWith(
-      expect.stringMatching(/auszug\.is\.null,auszug\.gt\./)
-    )
-    expect(mockTenantQuery.order).toHaveBeenCalledWith('einzug', { ascending: false })
-    expect(mockTenantQuery.limit).toHaveBeenCalledWith(1)
+    // Verify that the tenant query filters by id and wohnung_id
+    expect(mockTenantQuery.eq).toHaveBeenCalledWith('id', '123e4567-e89b-12d3-a456-426614174002')
+    expect(mockTenantQuery.eq).toHaveBeenCalledWith('wohnung_id', '123e4567-e89b-12d3-a456-426614174001')
+    expect(mockTenantQuery.select).toHaveBeenCalledWith('*')
   })
 })

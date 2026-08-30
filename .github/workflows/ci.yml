@@ -9,13 +9,7 @@ on:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
   pull_request:
-    paths-ignore:
-      - 'playwright/snapshots.yml'
-      - '**/snapshots.yml'
   workflow_dispatch:
 
 env:
@@ -49,19 +43,25 @@ jobs:
       should-run-docker: ${{ steps.deploy.outputs.should-run-docker }}
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: Get changed files
         id: changed-files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_SHA="$PR_BASE_SHA"
+            HEAD_SHA="$PR_HEAD_SHA"
           else
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.sha }}"
+            BASE_SHA="$EVENT_BEFORE"
+            HEAD_SHA="$GITHUB_SHA"
 
             if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
               BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
@@ -83,19 +83,23 @@ jobs:
 
       - name: Check visual review scope
         id: visual
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should-run-visual=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
             echo "should-run-visual=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          BASE_SHA="$PR_BASE_SHA"
+          HEAD_SHA="$PR_HEAD_SHA"
 
           CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E \
             '^(app|components|lib|hooks|public|styles|playwright)/|\.css$|playwright\.config\.ts$' \
@@ -109,17 +113,21 @@ jobs:
 
       - name: Check Lighthouse audit scope
         id: lighthouse
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
           FULL_MATRIX='["mobile", "desktop", "tablet"]'
           DESKTOP_ONLY='["desktop"]'
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          elif [[ "$EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "pull_request" && ("${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "reopened") ]]; then
+          elif [[ "$EVENT_NAME" == "pull_request" && ("$EVENT_ACTION" == "opened" || "$EVENT_ACTION" == "reopened") ]]; then
             echo "should-run-lighthouse=true" >> $GITHUB_OUTPUT
             echo "device-matrix=$FULL_MATRIX" >> $GITHUB_OUTPUT
           else
@@ -129,8 +137,10 @@ jobs:
 
       - name: Check E2E scope
         id: e2e
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" || "$EVENT_NAME" == "push" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "should-run-e2e=true" >> $GITHUB_OUTPUT
           else
             echo "should-run-e2e=false" >> $GITHUB_OUTPUT
@@ -138,6 +148,9 @@ jobs:
 
       - name: Discover & Filter Test Files
         id: tests
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           ALL_TEST_FILES=$(find . -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) \
             -not -path "./node_modules/*" \
@@ -151,7 +164,7 @@ jobs:
           TOTAL_ALL_FILES=${#ALL_FILES_ARRAY[@]}
 
           IS_FULL_RUN=false
-          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/main" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             IS_FULL_RUN=true
           fi
 
@@ -237,12 +250,17 @@ jobs:
 
       - name: Check deployment scope
         id: deploy
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          IS_MAIN_BRANCH=$([[ "${{ github.ref }}" == "refs/heads/main" ]] && echo "true" || echo "false")
-          IS_PR=$([[ "${{ github.event_name }}" == "pull_request" ]] && echo "true" || echo "false")
+          IS_MAIN_BRANCH=$([[ "$GITHUB_REF" == "refs/heads/main" ]] && echo "true" || echo "false")
+          IS_PR=$([[ "$EVENT_NAME" == "pull_request" ]] && echo "true" || echo "false")
           
           if [[ "$IS_PR" == "true" ]]; then
-            APP_CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" 2>/dev/null | grep -E '^(app|components|lib|hooks|public|styles|playwright|types|utils|supabase)/|\.css$|\.js$|\.tsx?$|package.*\.json|next\.config.*|tailwind\.config.*|Dockerfile|\.github/workflows' || true)
+            APP_CHANGED=$(git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" 2>/dev/null | grep -E '^(app|components|lib|hooks|public|styles|playwright|types|utils|supabase)/|\.css$|\.js$|\.tsx?$|package.*\.json|next\.config.*|tailwind\.config.*|Dockerfile|\.github/workflows' || true)
           else
             APP_CHANGED="true"
           fi
@@ -275,10 +293,10 @@ jobs:
     needs: check-runs
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -295,10 +313,10 @@ jobs:
     needs: check-runs
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -317,6 +335,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
+      statuses: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -324,16 +344,16 @@ jobs:
           fetch-depth: 0 # Required for diffing branches
 
       - name: React Doctor
-        uses: millionco/react-doctor@main
+        uses: millionco/react-doctor@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          diff: ${{ github.base_ref }}
+          scope: changed
 
       - name: Send Discord notification
         if: always()
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_LIGHTHOUSE_REPORTS }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
         with:
           script: |
             const fs = require('fs').promises;
@@ -348,7 +368,7 @@ jobs:
             console.log('Running React Doctor scan for Discord payload...');
             let report;
             try {
-              execSync('npx react-doctor@latest . --diff ${{ github.base_ref }} --json > react-doctor-report.json || true');
+              execSync(`npx react-doctor@latest . --diff ${process.env.GITHUB_BASE_REF} --json > react-doctor-report.json || true`);
               const rawData = await fs.readFile('react-doctor-report.json', 'utf8');
               report = JSON.parse(rawData);
             } catch (error) {
@@ -477,7 +497,7 @@ jobs:
       SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Run Semgrep Security Scan
         run: semgrep ci
@@ -499,10 +519,10 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: nextjs-build
           path: .next
@@ -561,14 +581,19 @@ jobs:
 
       - name: Set Image Name & Tag
         id: image
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           IMAGE_BASE="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            TAG="pr-${{ github.event.pull_request.number }}"
-          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            TAG="pr-$PR_NUMBER"
+          elif [ "$GITHUB_REF" = "refs/heads/main" ]; then
             TAG="latest"
           else
-            TAG="branch-${{ github.ref_name }}"
+            TAG="branch-$GITHUB_REF_NAME"
           fi
           echo "full_name=$IMAGE_BASE:$TAG" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
@@ -598,8 +623,10 @@ jobs:
             ROBOTS_INDEXING=${{ github.event_name == 'pull_request' && 'false' || 'true' }}
             POSTHOG_PROJECT_ID=${{ secrets.POSTHOG_PROJECT_ID }}
             POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
+            POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
           secrets: |
             "POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}"
+            "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}"
           cache-from: type=gha,scope=docker-build
           cache-to: type=gha,mode=max,scope=docker-build
 
@@ -617,6 +644,7 @@ jobs:
             -e NODE_ENV=production \
             -e NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co \
             -e NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder \
+            -e POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }} \
             ${{ steps.image.outputs.full_name }}
 
           # Give container a moment to start
@@ -743,7 +771,7 @@ jobs:
           scanners: vuln,secret
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -758,10 +786,11 @@ jobs:
           echo "✓ SBOM generated"
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: sbom
           path: sbom.spdx.json
+          if-no-files-found: ignore
           retention-days: 90
 
       - name: Dive image layer analysis
@@ -803,7 +832,7 @@ jobs:
           echo "✓ Container runs as non-root user: **$USER**"
 
       - name: Push Docker image to Artifact Registry
-        if: success()
+        if: success() && github.actor != 'dependabot[bot]'
         run: |
           echo "Pushing ${{ steps.image.outputs.full_name }}..."
           docker push ${{ steps.image.outputs.full_name }}
@@ -820,10 +849,10 @@ jobs:
       build-cache-key: ${{ steps.build-key.outputs.key }}
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -844,7 +873,7 @@ jobs:
 
       - name: Restore build cache
         id: build-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next
           key: ${{ steps.build-key.outputs.key }}
@@ -874,13 +903,13 @@ jobs:
 
       - name: Save build cache
         if: steps.build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .next
           key: ${{ steps.build-key.outputs.key }}
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: nextjs-build
           path: .next
@@ -891,7 +920,7 @@ jobs:
     name: E2E Smoke Check
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:v1.61.0-noble
     env:
       HOME: /root
     needs: [check-runs, build-app, lint, type-check]
@@ -899,16 +928,16 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: nextjs-build
           path: .next
@@ -942,7 +971,7 @@ jobs:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:v1.61.0-noble
     env:
       HOME: /root
     needs: [check-runs, build-app, lint, type-check, e2e-smoke]
@@ -954,17 +983,17 @@ jobs:
         browser: [chromium, firefox, webkit]
     steps:
       - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -972,7 +1001,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: nextjs-build
           path: .next
@@ -1005,7 +1034,7 @@ jobs:
           NEXT_PUBLIC_BASE_URL: http://localhost:3000
 
       - name: Upload Playwright report (${{ matrix.browser }})
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.browser }}
@@ -1014,7 +1043,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Playwright test results (${{ matrix.browser }})
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-test-results-${{ matrix.browser }}
@@ -1032,15 +1061,15 @@ jobs:
       matrix: ${{ fromJson(needs.check-runs.outputs.test-matrix) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22'
 
       - name: Cache node_modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         id: cache-node-modules
         with:
           path: node_modules
@@ -1049,7 +1078,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Cache Jest
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         id: cache-jest
         with:
           path: .jest/cache
@@ -1143,7 +1172,7 @@ jobs:
 
       - name: Upload test results
         if: always() && matrix.is-first-group
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-results
           path: |
@@ -1154,7 +1183,7 @@ jobs:
 
       - name: Upload JUnit test results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-results-group-${{ matrix.test-group }}
           path: |
@@ -1217,7 +1246,7 @@ jobs:
 
       - name: Upload passing tests data
         if: success()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: passing-tests-group-${{ matrix.test-group }}
           path: .test-cache/passing-tests-group-${{ matrix.test-group }}.json
@@ -1225,7 +1254,7 @@ jobs:
 
       - name: Upload test summary
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-summary-${{ matrix.test-group }}
           path: test-summaries/
@@ -1238,10 +1267,10 @@ jobs:
     if: always()
     steps:
       - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download test summaries
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: test-summary-*
           path: test-summaries
@@ -1249,7 +1278,7 @@ jobs:
         continue-on-error: true
 
       - name: Download Playwright reports
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: playwright-report-*
           path: playwright-reports
@@ -1257,7 +1286,7 @@ jobs:
         continue-on-error: true
 
       - name: Download passing tests data
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: passing-tests-group-*
           path: passing-tests-data
@@ -1311,13 +1340,13 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Restore LHCI tools cache
         id: lhci-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: |
             lhci-tools/node_modules
@@ -1360,17 +1389,17 @@ jobs:
       contents: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
@@ -1378,7 +1407,7 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: nextjs-build
           path: .next
@@ -1393,17 +1422,12 @@ jobs:
             exit 1
           fi
 
-      - name: Install dependencies (if not cached)
-        run: |
-          if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
-            echo "Installing dependencies..."
-            npm ci --prefer-offline
-          else
-            echo "✓ node_modules exists and appears complete - skipping npm ci"
-          fi
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
 
       - name: Restore LHCI tools cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: |
             lhci-tools/node_modules
@@ -1496,7 +1520,7 @@ jobs:
 
       - name: Upload Lighthouse report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: lighthouse-${{ matrix.device }}
           path: lighthouse-reports/
@@ -1515,13 +1539,13 @@ jobs:
       issues: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: lighthouse-results
 
       - name: Generate PR comment
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -1593,7 +1617,7 @@ jobs:
 
       - name: Generate Actions Summary
         if: always()
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -1657,7 +1681,7 @@ jobs:
       - name: Prepare Discord notification
         if: always()
         id: prepare-discord
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs').promises;
@@ -1866,19 +1890,19 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:v1.61.0-noble
     env:
       HOME: /root
     needs: [lint, type-check, check-runs, build-app, e2e-smoke]
     if: needs.check-runs.outputs.should-run-visual == 'true'
     steps:
       - name: Checkout (latest branch tip)
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1887,7 +1911,7 @@ jobs:
         run: npm_config_legacy_peer_deps=true npm ci --prefer-offline
 
       - name: Download Build Artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: nextjs-build
           path: .next
@@ -1906,8 +1930,10 @@ jobs:
         run: npx playwright test --project=chromium --grep @visual --reporter=list
         env:
           BASE_URL: http://localhost:3000
-          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          VISUAL_TEST_EMAIL: ${{ secrets.VISUAL_TEST_EMAIL || secrets.TEST_EMAIL }}
+          VISUAL_TEST_PASSWORD: ${{ secrets.VISUAL_TEST_PASSWORD || secrets.TEST_PASSWORD }}
+          TEST_EMAIL: ${{ secrets.VISUAL_TEST_EMAIL || secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.VISUAL_TEST_PASSWORD || secrets.TEST_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
@@ -1921,39 +1947,46 @@ jobs:
           cd /tmp/posthog
           git sparse-checkout set products/visual_review/cli
           cd products/visual_review/cli
-          npm ci
+          npm install --no-audit
 
       - name: Create PostHog Visual Review run
         if: always()
         id: vr-run
+        working-directory: /tmp/posthog/products/visual_review/cli
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          PR_ARGS: ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          RUN_ID=$(npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run create \
+          RUN_ID=$(npx tsx src/index.ts run create \
             --type playwright \
-            --baseline playwright/snapshots.yml \
+            --baseline "$GITHUB_WORKSPACE/playwright/snapshots.yml" \
             --token ${{ secrets.POSTHOG_VR_TOKEN }} \
-            --branch ${{ github.event.pull_request.head.ref || github.ref_name }} \
-            --commit $(git rev-parse HEAD) \
-            ${{ github.event_name == 'pull_request' && format('--pr {0}', github.event.pull_request.number) || '' }})
+            --branch "$BRANCH_NAME" \
+            --commit "$COMMIT_SHA" \
+            $PR_ARGS)
           echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Created PostHog VR run: $RUN_ID"
 
       - name: Upload snapshots to PostHog Visual Review
         if: always() && steps.vr-run.outputs.run-id != ''
+        working-directory: /tmp/posthog/products/visual_review/cli
         run: |
-          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run upload \
+          npx tsx src/index.ts run upload \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
-            --dir playwright/__snapshots__ \
-            --baseline playwright/snapshots.yml \
+            --dir "$GITHUB_WORKSPACE/playwright/__snapshots__" \
+            --baseline "$GITHUB_WORKSPACE/playwright/snapshots.yml" \
             --token ${{ secrets.POSTHOG_VR_TOKEN }}
 
       - name: Wait for PostHog diff processing
         if: always() && steps.vr-run.outputs.run-id != ''
         id: vr-complete
+        working-directory: /tmp/posthog/products/visual_review/cli
         run: |
-          npx tsx /tmp/posthog/products/visual_review/cli/src/index.ts run complete \
+          npx tsx src/index.ts run complete \
             --run-id ${{ steps.vr-run.outputs.run-id }} \
-            --baseline playwright/snapshots.yml \
-            --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee vr-output.txt || echo "exit_code=$?" >> $GITHUB_OUTPUT
+            --baseline "$GITHUB_WORKSPACE/playwright/snapshots.yml" \
+            --token ${{ secrets.POSTHOG_VR_TOKEN }} 2>&1 | tee "$GITHUB_WORKSPACE/vr-output.txt" || echo "exit_code=$?" >> $GITHUB_OUTPUT
 
       - name: Generate PostHog Visual Review Summary
         if: always() && steps.vr-run.outputs.run-id != ''
@@ -1988,7 +2021,7 @@ jobs:
     name: Deploy Preview
     runs-on: ubuntu-latest
     needs: [docker-build, check-runs]
-    if: needs.check-runs.outputs.should-run-deploy-preview == 'true'
+    if: needs.check-runs.outputs.should-run-deploy-preview == 'true' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       pull-requests: write
@@ -2052,6 +2085,11 @@ jobs:
             OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
             OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
+            POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+
 
       - name: Comment Preview URL on PR
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -2125,7 +2163,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [docker-build, check-runs]
-    if: needs.check-runs.outputs.should-run-deploy-production == 'true'
+    if: needs.check-runs.outputs.should-run-deploy-production == 'true' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -2163,3 +2201,7 @@ jobs:
             OUTLOOK_CLIENT_ID=${{ secrets.OUTLOOK_CLIENT_ID }}
             OUTLOOK_CLIENT_SECRET=${{ secrets.OUTLOOK_CLIENT_SECRET }}
             OUTLOOK_TENANT_ID=${{ secrets.OUTLOOK_TENANT_ID }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
+            POSTHOG_PERSONAL_API_KEY=${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}

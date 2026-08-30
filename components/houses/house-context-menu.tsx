@@ -39,6 +39,8 @@ interface HouseContextMenuProps {
   house: House
   onEdit: () => void
   onRefresh: () => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export function HouseContextMenu({
@@ -46,13 +48,17 @@ export function HouseContextMenu({
   house,
   onEdit,
   onRefresh,
+  canEdit = true,
+  canDelete = true,
 }: HouseContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const { openHausOverviewModal } = useModalStore()
 
   const handleOverview = () => {
-    openHausOverviewModal(house.id);
+    setTimeout(() => {
+      openHausOverviewModal(house.id);
+    }, 0);
   };
 
   const handleDelete = async () => {
@@ -98,13 +104,22 @@ export function HouseContextMenu({
             <Eye className="h-4 w-4" />
             <span>Übersicht</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem 
+            onClick={() => {
+              setTimeout(() => {
+                onEdit();
+              }, 0);
+            }} 
+            disabled={!canEdit} 
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
             onClick={() => setDeleteDialogOpen(true)}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />

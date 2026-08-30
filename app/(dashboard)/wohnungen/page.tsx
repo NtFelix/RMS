@@ -1,9 +1,6 @@
 // "use client" directive removed from the top of this file.
 // This file now exports a Server Component by default.
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchUserProfile } from '@/lib/data-fetching';
 
@@ -11,17 +8,67 @@ import { getPlanDetails } from '@/lib/stripe-server';
 import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
+import { hasPermission } from "@/lib/permissions";
+import { redirect } from "next/navigation";
+
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
 
 // Server Component: Fetches data and passes it to the Client Component
-export default async function WohnungenPage() {
+export default function WohnungenPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <WohnungenContent />
+    </Suspense>
+  );
+}
+
+async function WohnungenContent() {
   const { supabase, user } = await requireAuthenticatedUser();
+
+  // Permission check.
+  const [canView, canCreate, canEdit, canDelete, canViewMeters, accessibleIdsResult] = await Promise.all([
+    hasPermission('wohnungen', 'ansehen'),
+    hasPermission('wohnungen', 'erstellen'),
+    hasPermission('wohnungen', 'bearbeiten'),
+    hasPermission('wohnungen', 'loeschen'),
+    hasPermission('zaehler', 'ansehen'),
+    supabase.rpc('get_accessible_haeuser_ids'),
+  ]);
+  const accessibleIds = accessibleIdsResult.data;
+  if (!canView) {
+    redirect('/unauthorized');
+  }
 
   let apartmentCount = 0;
   let userIsEligibleToAdd = false;
   let effectiveApartmentLimit: number | typeof Infinity = 0;
   let limitReason: 'trial' | 'subscription' | 'none' = 'none';
 
-  // Load profile and main data in parallel to eliminate waterfalls
+  // Load profile and main data in parallel with object-scope filtering.
+  // The accessibleIds check restricts all queries to only houses/apartments
+  // the restricted employee has object-level access to.
+  const fetchScopedApartmentsCount = async () => {
+    let q = supabase.from('Wohnungen').select('*', { count: 'exact', head: true });
+    if (accessibleIds !== null) q = q.in('haus_id', accessibleIds);
+    return q;
+  };
+  const fetchScopedApartments = async () => {
+    let q = supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+    if (accessibleIds !== null) q = q.in('haus_id', accessibleIds);
+    return q;
+  };
+  const fetchScopedHaeuser = async () => {
+    let q = supabase.from('Haeuser').select('id,name');
+    if (accessibleIds !== null) q = q.in('id', accessibleIds);
+    return q;
+  };
+
   const [
     userProfile,
     countResult,
@@ -30,10 +77,12 @@ export default async function WohnungenPage() {
     housesResult
   ] = await Promise.all([
     fetchUserProfile(),
-    supabase.from('Wohnungen').select('*', { count: 'exact', head: true }),
-    supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)'),
+    fetchScopedApartmentsCount(),
+    fetchScopedApartments(),
+    // Tenants query is unscoped — tenantMap is only accessed by scoped apartment IDs,
+    // so extra tenant data is harmless.
     supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name'),
-    supabase.from('Haeuser').select('id,name')
+    fetchScopedHaeuser(),
   ]);
 
   if (userProfile) {
@@ -86,7 +135,7 @@ export default async function WohnungenPage() {
   if (housesError) console.error('Fehler beim Laden der Häuser:', housesError);
   const houses = housesData || [];
 
-  const today = new Date();
+  const todayStr = getTodayISOString();
 
   type Tenant = NonNullable<typeof tenants>[number];
   const tenantMap = (tenants ?? []).reduce((map, t) => {
@@ -99,7 +148,7 @@ export default async function WohnungenPage() {
   const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
     const tenant = tenantMap.get(apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
       status = 'vermietet';
     }
     return {
@@ -118,6 +167,10 @@ export default async function WohnungenPage() {
       serverApartmentLimit={effectiveApartmentLimit}
       serverUserIsEligibleToAdd={userIsEligibleToAdd}
       serverLimitReason={limitReason}
+      canCreate={canCreate}
+      canEdit={canEdit}
+      canDelete={canDelete}
+      canViewMeters={canViewMeters}
     />
   );
 }

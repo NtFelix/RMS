@@ -229,3 +229,57 @@ export function formatPeriodDuration(startdatum: string, enddatum: string): stri
     return 'Ungültiger Zeitraum';
   }
 }
+
+/**
+ * Helper to parse date string (ISO or German format) as UTC Date object at 00:00:00Z
+ */
+export const parseAsUtc = (dateStr: string): Date => {
+  if (!dateStr) return new Date(NaN);
+  let isoStr = dateStr;
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(dateStr)) {
+    const [day, month, year] = dateStr.split('.');
+    isoStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  const cleanStr = isoStr.includes('T') ? isoStr : `${isoStr}T00:00:00Z`;
+  return new Date(cleanStr);
+};
+
+/**
+ * Calculate the total number of days in a period (inclusive) using UTC-safe parsing
+ */
+export const calculateTotalDays = (startdatum: string, enddatum: string): number => {
+  const start = parseAsUtc(startdatum);
+  const end = parseAsUtc(enddatum);
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
+};
+
+/**
+ * Get today's local date as a YYYY-MM-DD string
+ */
+export function getTodayISOString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Check if a tenant is active as of a specified YYYY-MM-DD date.
+ * Safely handles ISO strings with timestamps by taking the YYYY-MM-DD prefix.
+ */
+export function isTenantActive(
+  auszug?: string | null,
+  todayStr: string = getTodayISOString()
+): boolean {
+  if (!auszug) return true;
+  let moveOutIso = auszug.trim();
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(moveOutIso)) {
+    const [day, month, year] = moveOutIso.split('.');
+    moveOutIso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  } else {
+    moveOutIso = moveOutIso.slice(0, 10);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(moveOutIso)) {
+    return false;
+  }
+  return moveOutIso > todayStr;
+}
+

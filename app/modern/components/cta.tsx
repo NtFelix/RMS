@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Sparkles } from "lucide-react"
+import { Rocket } from "lucide-react"
 import { CallToAction } from "./call-to-action"
 
 interface CTAProps {
@@ -62,7 +62,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           className="mb-8"
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-xs mb-8">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <Rocket className="w-4 h-4 text-primary" />
             <span className="text-sm text-muted-foreground">Bereit zur Vereinfachung?</span>
           </div>
         </motion.div>

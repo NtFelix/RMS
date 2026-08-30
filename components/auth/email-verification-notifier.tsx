@@ -21,7 +21,7 @@ export function EmailVerificationNotifier() {
         if (loginSuccess === 'true') {
             // Use BroadcastChannel for cross-tab communication
             try {
-                const channel = new BroadcastChannel(VERIFICATION_CHANNEL)
+                const channel = new globalThis.BroadcastChannel(VERIFICATION_CHANNEL)
                 channel.postMessage({ verified: true })
                 channel.close()
             } catch {

@@ -3,8 +3,11 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTabParams } from "@/hooks/use-tab-params";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle, Users, BadgeCheck, Euro, Search, Building2, BarChart3 } from "lucide-react";
@@ -77,11 +80,13 @@ const CustomNebenkostenTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-// Props for the main client view component
 interface MieterClientViewProps {
   initialTenants: Tenant[];
   initialWohnungen: Wohnung[];
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
@@ -90,14 +95,23 @@ interface MieterClientViewProps {
 // This is the new main client component, previously MieterPageClientComponent in page.tsx
 import { useFeatureFlagEnabled } from "posthog-js/react";
 
+const VALID_MIETER_TABS_DEFAULT = ["mieter", "overview"] as const;
+const VALID_MIETER_TABS_WITH_BEWERBER = ["mieter", "overview", "bewerber"] as const;
+
 export default function MieterClientView({
   initialTenants,
   initialWohnungen,
   serverAction,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: MieterClientViewProps) {
   const router = useRouter()
+  const rawFlag = useFeatureFlagEnabled('applicants-tab');
+  const showApplicantsTab = !!rawFlag;
+  const validTabs = showApplicantsTab ? VALID_MIETER_TABS_WITH_BEWERBER : VALID_MIETER_TABS_DEFAULT;
   const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
-  const [currentTab, setCurrentTab] = useState<"mieter" | "bewerber" | "overview">("mieter");
+  const [currentTab, setCurrentTab] = useTabParams<"mieter" | "bewerber" | "overview">("mieter", validTabs);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedTenants, setSelectedTenants] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -110,8 +124,7 @@ export default function MieterClientView({
   const [depositFilter, setDepositFilter] = useState<"all" | "Erhalten" | "Zurückgezahlt" | "Ausstehend">("all");
   const [applicantSearch, setApplicantSearch] = useState<string>("");
   const [applicantFilter, setApplicantFilter] = useState<"all" | "A-Fit" | "B-Fit" | "C-Fit">("all");
-  const rawFlag = useFeatureFlagEnabled('applicants-tab');
-  const showApplicantsTab = !!rawFlag;
+  const applicantsMailImportFlag = useFeatureFlagEnabled('applicants-mail-import');
   const [nebenkostenTimeframe, setNebenkostenTimeframe] = useState<"1" | "2" | "5">("1");
 
   // Fallback to "mieter" if applicants tab is disabled and user is on "bewerber"
@@ -541,13 +554,20 @@ export default function MieterClientView({
   const summary = useMemo(() => {
     const tenantsInTab = filteredTenantsByTab;
     const total = tenantsInTab.length;
-    const today = new Date();
+
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
 
     // For "mieter" tab, we distinguish active vs former
     // For "bewerber" tab, activeCount/formerCount doesn't make as much sense with current definitions,
     // so we might just show Total and maybe "With Email" or similar.
     // But to keep it simple, we reuse the logic:
-    const activeCount = tenantsInTab.filter(t => !t.auszug || new Date(t.auszug) > today).length;
+    const activeCount = tenantsInTab.filter(t => !t.auszug || t.auszug > todayStr).length;
     const formerCount = total - activeCount;
 
     // Average utility cost (use last nebenkosten entry of each tenant if available)
@@ -555,7 +575,7 @@ export default function MieterClientView({
       if (t.nebenkosten && t.nebenkosten.length > 0) {
         // Find latest entry by date (ISO string)
         const latestEntry = t.nebenkosten.reduce((latest, current) => {
-          return new Date(current.date) > new Date(latest.date) ? current : latest;
+          return current.date > latest.date ? current : latest;
         });
         const val = parseFloat(latestEntry.amount);
         if (!isNaN(val)) {
@@ -743,84 +763,21 @@ export default function MieterClientView({
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
 
       <div className="flex flex-col gap-6">
-        {/* 3-way sliding toggle */}
-        <div className={cn(
-          "flex items-center bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full select-none z-0 overflow-hidden",
-          showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"
-        )}>
-          <motion.button
-            layout
-            type="button"
-            onClick={() => {
-              setCurrentTab("mieter");
-              setFilter("current");
-              setSelectedTenants(new Set());
-            }}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-              currentTab === "mieter" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {currentTab === "mieter" && (
-              <motion.div
-                layoutId="active-tenant-tab-pill"
-                className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
-            <Users className="size-4 shrink-0 transition-transform duration-300" />
-            <span>Mieter</span>
-          </motion.button>
-
-          {showApplicantsTab && (
-            <motion.button
-              layout
-              type="button"
-              onClick={() => {
-                setCurrentTab("bewerber");
-                setFilter("current");
-                setSelectedTenants(new Set());
-              }}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-                currentTab === "bewerber" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {currentTab === "bewerber" && (
-                <motion.div
-                  layoutId="active-tenant-tab-pill"
-                  className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
-              <UserPlus className="size-4 shrink-0 transition-transform duration-300" />
-              <span>Bewerber</span>
-            </motion.button>
-          )}
-
-          <motion.button
-            layout
-            type="button"
-            onClick={() => {
-              setCurrentTab("overview");
-              setSelectedTenants(new Set());
-            }}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 rounded-full h-9 relative outline-none cursor-pointer text-xs sm:text-sm font-medium transition-colors duration-300",
-              currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {currentTab === "overview" && (
-              <motion.div
-                layoutId="active-tenant-tab-pill"
-                className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
-            <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-            <span>Übersicht</span>
-          </motion.button>
-        </div>
+        <AnimatedPillToggle
+          tabs={[
+            { value: "mieter", label: "Mieter", icon: Users },
+            ...(showApplicantsTab ? [{ value: "bewerber" as const, label: "Bewerber", icon: UserPlus }] : []),
+            { value: "overview", label: "Übersicht", icon: BarChart3 },
+          ]}
+          activeTab={currentTab}
+          onTabChange={(tab) => {
+            setCurrentTab(tab);
+            setSelectedTenants(new Set());
+            if (tab !== "overview") setFilter("current");
+          }}
+          layoutId="active-tenant-tab-pill"
+          className={showApplicantsTab ? "sm:w-[380px]" : "sm:w-[260px]"}
+        />
 
         {currentTab !== "overview" ? (
           <>
@@ -861,41 +818,43 @@ export default function MieterClientView({
                     </p>
                   </div>
                   <div className="mt-0 sm:mt-1">
-                    {showApplicantsTab ? (
+                    {currentTab === 'bewerber' ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button className="w-full sm:w-auto gap-2">
+                          <ButtonWithTooltip className="w-full sm:w-auto gap-2" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
                             <PlusCircle className="size-4" />
                             Hinzufügen
                             <ChevronDown className="size-4 opacity-50" />
-                          </Button>
+                          </ButtonWithTooltip>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuItem onClick={handleAddTenant} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                          <DropdownMenuItem onSelect={() => setTimeout(handleAddTenant, 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
                             <div className="flex items-center font-medium">
                               <UserPlus className="mr-2 size-4" />
-                              Manuell hinzufügen
+                              Bewerber hinzufügen
                             </div>
                             <span className="text-xs text-muted-foreground ml-6">
-                              Erstellen Sie einen neuen Mieter oder Bewerber per Hand.
+                              Erstellen Sie einen neuen Bewerber per Hand.
                             </span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setShowImportModal(true)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                            <div className="flex items-center font-medium">
-                              <Mail className="mr-2 size-4" />
-                              Aus E-Mails importieren
-                            </div>
-                            <span className="text-xs text-muted-foreground ml-6">
-                              Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
-                            </span>
-                          </DropdownMenuItem>
+                          {applicantsMailImportFlag && (
+                            <DropdownMenuItem onSelect={() => setTimeout(() => setShowImportModal(true), 0)} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                              <div className="flex items-center font-medium">
+                                <Mail className="mr-2 size-4" />
+                                Aus E-Mails importieren
+                              </div>
+                              <span className="text-xs text-muted-foreground ml-6">
+                                Die KI analysiert E-Mails und erstellt automatisch Bewerber-Profile.
+                              </span>
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <Button onClick={handleAddTenant} className="w-full sm:w-auto gap-2">
+                      <ButtonWithTooltip onClick={handleAddTenant} className="w-full sm:w-auto gap-2" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
                         <PlusCircle className="size-4" />
                         Mieter hinzufügen
-                      </Button>
+                      </ButtonWithTooltip>
                     )}
                   </div>
                 </div>
@@ -952,6 +911,8 @@ export default function MieterClientView({
                     onClearSelection={() => setSelectedTenants(new Set())}
                     onExport={handleBulkExport}
                     onDelete={() => setShowBulkDeleteConfirm(true)}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                   />
                 </div>
                 <TenantTable
@@ -964,6 +925,8 @@ export default function MieterClientView({
                   selectedTenants={selectedTenants}
                   onSelectionChange={setSelectedTenants}
                   mode={currentTab === "mieter" ? "tenants" : "applicants"}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               </CardContent>
             </Card>

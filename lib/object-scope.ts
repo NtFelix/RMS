@@ -1,4 +1,5 @@
 import { ensureAuth } from "@/lib/auth-utils";
+import { unstable_rethrow } from "next/navigation";
 
 /**
  * Returns the list of accessible house IDs for the current user.
@@ -16,6 +17,7 @@ export async function getAccessibleHaeuserIds(): Promise<string[] | null> {
     }
     return data;
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Exception in getAccessibleHaeuserIds:", error);
     return []; // Fail-closed: deny access
   }
@@ -50,6 +52,7 @@ export async function getAccessibleWohnungIds(): Promise<string[] | null> {
     
     return data ? data.map((w: { id: string }) => w.id) : [];
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Exception in getAccessibleWohnungIds:", error);
     return []; // Fail-closed
   }
@@ -61,8 +64,6 @@ export async function getAccessibleWohnungIds(): Promise<string[] | null> {
  * Otherwise, filters the specified column to match only the provided ids.
  */
 export function applyHaeuserScope<T>(query: T, column: string, ids: string[] | null): T {
-  if (ids === null) {
-    return query;
-  }
+  if (ids === null || ids.length === 0) return query;
   return (query as any).in(column, ids);
 }

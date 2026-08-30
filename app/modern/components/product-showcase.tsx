@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Sparkles, Home, Receipt, BarChart3, Maximize2, X } from "lucide-react"
+import { Sparkles, Layers, Home, Receipt, BarChart3, Maximize2, X } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 
@@ -59,7 +59,7 @@ export default function ProductShowcase() {
                         transition={{ duration: 0.5 }}
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-xs mb-6"
                     >
-                        <Sparkles className="w-4 h-4 text-primary" />
+                        <Layers className="w-4 h-4 text-primary" />
                         <span className="text-sm font-medium text-primary">Plattform</span>
                     </motion.div>
 

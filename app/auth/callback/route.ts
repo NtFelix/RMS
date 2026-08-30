@@ -1,11 +1,10 @@
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server"
 import { logApiRoute } from "@/lib/logging-middleware"
 import { capturePostHogEvent } from "@/lib/posthog-helpers"
 import { ROUTES, BASE_URL } from "@/lib/constants"
 import { getSafeAuthRedirect } from "@/lib/auth-redirects"
 
-export const runtime = 'edge'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -113,7 +112,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {

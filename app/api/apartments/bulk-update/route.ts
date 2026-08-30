@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 type BulkUpdatePayload = {
   ids: string[];
@@ -13,7 +12,10 @@ type BulkUpdatePayload = {
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = await createClient()
+    const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('wohnungen', 'bearbeiten');
+
+    const supabase = await createSupabaseServerClient()
     const { ids, updates } = await request.json() as BulkUpdatePayload
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -28,6 +30,31 @@ export async function PATCH(request: Request) {
         { error: "Keine Aktualisierungen angegeben." },
         { status: 400, headers: NO_CACHE_HEADERS }
       )
+    }
+
+    // Fetch haus_ids of these apartments
+    const { data: aptsToCheck, error: checkError } = await supabase
+      .from('Wohnungen')
+      .select('haus_id')
+      .in('id', ids);
+      
+    if (checkError || !aptsToCheck) {
+      return NextResponse.json({ error: "Fehler bei der Berechtigungsprüfung" }, { status: 500, headers: NO_CACHE_HEADERS });
+    }
+    
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    const accessibleHaeuserIds = await getAccessibleHaeuserIds();
+    if (accessibleHaeuserIds !== null) {
+      for (const apt of aptsToCheck) {
+        if (apt.haus_id && !accessibleHaeuserIds.includes(apt.haus_id)) {
+          return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
+        }
+      }
+    }
+
+    // Check scope of new target house
+    if (updates.haus_id && !(await verifyEntityInScope(updates.haus_id))) {
+      return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
     }
 
     // Only allow specific fields to be updated in bulk
@@ -55,9 +82,10 @@ export async function PATCH(request: Request) {
     )
   } catch (e) {
     console.error("PATCH /api/apartments/bulk-update error:", e)
+    const status = (e as Error).message === 'Permission denied' ? 403 : 500
     return NextResponse.json(
-      { error: "Serverfehler beim Aktualisieren der Wohnungen." },
-      { status: 500, headers: NO_CACHE_HEADERS }
+      { error: (e as Error).message || "Serverfehler beim Aktualisieren der Wohnungen." },
+      { status, headers: NO_CACHE_HEADERS }
     )
   }
 }

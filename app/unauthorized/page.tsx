@@ -3,6 +3,10 @@ import { ShieldAlert } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { UnauthorizedButtons } from './unauthorized-buttons';
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const metadata = {
   title: "Kein Zugriff",
   description: "Sie haben keine Berechtigung für diese Seite."

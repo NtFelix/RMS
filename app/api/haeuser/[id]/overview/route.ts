@@ -1,6 +1,5 @@
-export const runtime = 'edge';
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -54,7 +53,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { id: hausId } = await params;
 
     // Enhanced input validation
@@ -75,6 +74,17 @@ export async function GET(
         { error: "Ungültiges Haus-ID-Format." },
         { 
           status: 400,
+          headers: NO_CACHE_HEADERS
+        }
+      );
+    }
+
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (!(await verifyEntityInScope(hausId))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { 
+          status: 403,
           headers: NO_CACHE_HEADERS
         }
       );
@@ -129,11 +139,18 @@ export async function GET(
     const wohnungenData = hausData.Wohnungen || [];
 
     // Process Wohnungen with tenant status
-    const today = new Date();
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+
     const wohnungen: WohnungOverviewData[] = wohnungenData.map(wohnung => {
       // Find current tenant (no move-out date or move-out date in the future)
       const currentTenant = (wohnung.Mieter || []).find((mieter: MieterFromDB) => 
-        !mieter.auszug || new Date(mieter.auszug) > today
+        !mieter.auszug || mieter.auszug > todayStr
       );
 
       const rentPerSqm = wohnung.groesse > 0 ? (wohnung.miete || 0) / wohnung.groesse : 0;

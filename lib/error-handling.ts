@@ -34,6 +34,11 @@ export interface SafeRpcCallResult<T> {
   success: boolean;
   data?: T;
   message?: string;
+  error?: {
+    code: string;
+    category: ErrorCategory;
+    message: string;
+  };
   performanceMetrics?: PerformanceMetrics;
 }
 
@@ -80,6 +85,17 @@ function mapSupabaseError(error: any): StructuredError {
   const message = error.message || 'Unknown database error';
 
   switch (code) {
+    case '42883':
+    case 'PGRST202':
+    case 'PGRST200':
+      return {
+        category: ErrorCategory.DATABASE,
+        code,
+        message,
+        userMessage: 'Die angeforderte Funktion existiert nicht in der Datenbank.',
+        retryable: false
+      };
+
     case 'PGRST116':
       return {
         category: ErrorCategory.DATABASE,
@@ -249,6 +265,11 @@ export async function safeRpcCall<T>(
       return {
         success: false,
         message: structuredError.userMessage,
+        error: {
+          code: structuredError.code || 'unknown',
+          category: structuredError.category,
+          message: error.message || 'Unknown database error'
+        },
         performanceMetrics
       };
     }
@@ -300,6 +321,11 @@ export async function safeRpcCall<T>(
       return {
         success: false,
         message: 'Die Anfrage dauerte zu lange. Bitte versuchen Sie es erneut.',
+        error: {
+          code: 'timeout',
+          category: ErrorCategory.TIMEOUT,
+          message: error.message
+        },
         performanceMetrics
       };
     }
@@ -327,6 +353,11 @@ export async function safeRpcCall<T>(
       return {
         success: false,
         message: 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.',
+        error: {
+          code: 'network',
+          category: ErrorCategory.NETWORK,
+          message: error.message
+        },
         performanceMetrics
       };
     }
@@ -354,6 +385,11 @@ export async function safeRpcCall<T>(
     return {
       success: false,
       message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+      error: {
+        code: error.code || 'unknown',
+        category: ErrorCategory.UNKNOWN,
+        message: error.message || 'Unknown error'
+      },
       performanceMetrics
     };
   }

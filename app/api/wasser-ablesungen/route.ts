@@ -1,14 +1,13 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 // GET - Fetch all Wasser_Ablesungen for a specific Wasserzähler
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -25,12 +24,17 @@ export async function GET(request: NextRequest) {
     // Verify the Wasserzähler belongs to the user
     const { data: zaehler, error: zaehlerError } = await supabase
       .from('Zaehler')
-      .select('id')
+      .select('id, wohnung_id')
       .eq('id', wasserZaehlerId)
       .maybeSingle()
 
     if (zaehlerError || !zaehler) {
       return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
+    }
+
+    const { verifyWohnungInScope } = await import("@/lib/api-permissions");
+    if (zaehler.wohnung_id && !(await verifyWohnungInScope(zaehler.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Fetch Zaehler_Ablesungen
@@ -55,7 +59,10 @@ export async function GET(request: NextRequest) {
 // POST - Create a new Wasser_Ablesung
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('zaehler', 'erstellen');
+
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -73,12 +80,16 @@ export async function POST(request: NextRequest) {
     // Verify the Wasserzähler belongs to the user
     const { data: zaehler, error: zaehlerError } = await supabase
       .from('Zaehler')
-      .select('id')
+      .select('id, wohnung_id')
       .eq('id', meterId)
       .maybeSingle()
 
     if (zaehlerError || !zaehler) {
       return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
+    }
+
+    if (zaehler.wohnung_id && !(await verifyWohnungInScope(zaehler.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Create Zaehler_Ablesung
@@ -111,7 +122,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: 201, headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in POST /api/wasser-ablesungen:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (error as Error).message || 'Internal server error' }, { status, headers: NO_CACHE_HEADERS })
   }
 }
 

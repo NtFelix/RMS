@@ -257,8 +257,8 @@ describe('Mobile Navigation Responsive Behavior', () => {
       // Should have screen reader announcement container
       const announcementContainer = container.querySelector('[aria-live="polite"]')
       expect(announcementContainer).toBeInTheDocument()
-      expect(announcementContainer).toHaveAttribute('role', 'status')
       expect(announcementContainer).toHaveClass('sr-only')
+      expect(announcementContainer?.tagName).toBe('OUTPUT')
 
       jest.useRealTimers()
     })

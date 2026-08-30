@@ -18,6 +18,7 @@ interface CreateAbrechnungDropdownProps {
   buttonText?: string;
   buttonVariant?: "default" | "outline" | "ghost" | "link";
   align?: "center" | "start" | "end";
+  canCreate?: boolean;
 }
 
 export function CreateAbrechnungDropdown({
@@ -28,6 +29,7 @@ export function CreateAbrechnungDropdown({
   buttonText = "Neue Abrechnung erstellen",
   buttonVariant,
   align = "end",
+  canCreate = true,
 }: CreateAbrechnungDropdownProps) {
   return (
     <DropdownMenu>
@@ -37,6 +39,9 @@ export function CreateAbrechnungDropdown({
           onClick={() => useOnboardingStore.getState().completeStep('create-bill-start')}
           className={className}
           variant={buttonVariant}
+          disabled={!canCreate}
+          tooltip="Keine Berechtigung zum Erstellen"
+          showTooltip={!canCreate}
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           {buttonText}

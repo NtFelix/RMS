@@ -4,33 +4,40 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { FinanceDonutChart, BaseDonutChart } from "@/components/dashboard/dashboard-charts";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 
 import dynamic from "next/dynamic";
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Search, Euro, TrendingUp, TrendingDown, Download, Info, Building2, Coins, Clock, Percent, Activity } from "lucide-react";
+import { useTabParams } from "@/hooks/use-tab-params";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, PlusCircle, Euro, Info, Building2, Coins, Activity } from "lucide-react";
 
 // Dynamically import heavy components
 const FinanceVisualization = dynamic(
   () => import("@/components/finance/finance-visualization").then((mod) => mod.FinanceVisualization),
-  { ssr: false } // Charts are client-side only
+  {
+    ssr: false,
+    loading: () => <div className="h-[300px] w-full bg-gray-100 dark:bg-zinc-800/40 rounded-2xl animate-pulse" />
+  }
 );
 
 const FinanceTable = dynamic(
   () => import("@/components/tables/finance-table").then((mod) => mod.FinanceTable),
-  { ssr: true } // Table benefits from SSR for SEO/initial paint
+  {
+    ssr: true,
+    loading: () => <div className="h-[400px] w-full bg-gray-100 dark:bg-zinc-800/40 rounded-2xl animate-pulse" />
+  }
 );
 
 import { FinanceBulkActionBar } from "@/components/finance/finance-bulk-action-bar";
 import { SummaryCardSkeleton } from "@/components/skeletons/summary-card-skeleton";
 import { SummaryCard } from "@/components/common/summary-card";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/common/stat-card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { CustomCombobox } from "@/components/ui/custom-combobox";
-import { TagInput, ALL_FINANCE_TAGS } from "@/components/ui/tag-input";
+import { TagInput } from "@/components/ui/tag-input";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -50,6 +57,17 @@ interface Finanz {
 }
 
 interface Wohnung { id: string; name: string; miete?: number; }
+
+interface TenantPaymentRecord {
+  id?: string;
+  status?: string;
+  wohnung_id?: string | null;
+  einzug?: string | null;
+  auszug?: string | null;
+  actualRent?: number | string;
+  Wohnungen?: { id?: string; miete?: number | string };
+  [key: string]: unknown;
+}
 
 interface SummaryData {
   year: number;
@@ -72,6 +90,9 @@ interface FinanzenClientWrapperProps {
   initialYear?: number;
   isUsingFallbackYear?: boolean;
   currentYear?: number;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 // Utility function to remove duplicates based on ID
@@ -92,12 +113,7 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 0 
 });
 
-const CURRENCY_FORMATTER_WITH_DECIMALS = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
+const VALID_FINANZEN_TABS = ["finance", "overview"] as const;
 
 export default function FinanzenClientWrapper({
   finances: initialFinances,
@@ -106,18 +122,24 @@ export default function FinanzenClientWrapper({
   initialAvailableYears = [],
   initialYear,
   isUsingFallbackYear = false,
-  currentYear = new Date().getFullYear()
+  currentYear = new Date().getFullYear(),
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: FinanzenClientWrapperProps) {
-  const [currentTab, setCurrentTab] = useState<"finance" | "overview">("finance");
+  const [currentTab, setCurrentTab] = useTabParams<"finance" | "overview">("finance", VALID_FINANZEN_TABS);
   const [finData, setFinData] = useState<Finanz[]>(() => deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [unitSearch, setUnitSearch] = useState<string>("");
   const [hoveredPieIndex, setHoveredPieIndex] = useState<number | null>(null);
-  const [tenantPaymentsData, setTenantPaymentsData] = useState<any[]>([]);
+  const [tenantPaymentsData, setTenantPaymentsData] = useState<TenantPaymentRecord[]>([]);
   const [isTenantPaymentsLoading, setIsTenantPaymentsLoading] = useState<boolean>(false);
   const [financeTimeframe, setFinanceTimeframe] = useState<"1" | "2" | "5">("1");
   const [chartFinances, setChartFinances] = useState<Finanz[]>([]);
   const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
+
+  const effectiveIsChartLoading = isChartLoading || (currentTab === "overview" && chartFinances.length === 0);
+  const effectiveIsTenantPaymentsLoading = isTenantPaymentsLoading || (currentTab === "overview" && tenantPaymentsData.length === 0);
 
   // ... (useEffect for chartFinances remains same)
   useEffect(() => {
@@ -254,7 +276,7 @@ export default function FinanzenClientWrapper({
       paidCount: 0,
       unpaidCount: 0,
       activeTenantsCount: 0,
-      activeTenants: [] as any[]
+      activeTenants: [] as TenantPaymentRecord[]
     };
 
     const metrics = tenantPaymentsData.reduce((acc, t) => {
@@ -303,7 +325,7 @@ export default function FinanzenClientWrapper({
       return acc;
     }, initialMetrics);
 
-    const { totalCurrentMonthExpected, totalCurrentMonthCollected, currentMonthRentStatus, paidCount, unpaidCount, activeTenantsCount } = {
+    const { totalCurrentMonthExpected, totalCurrentMonthCollected, currentMonthRentStatus, paidCount, unpaidCount } = {
       ...metrics,
       currentMonthRentStatus: metrics.activeTenants
     };
@@ -443,11 +465,6 @@ export default function FinanzenClientWrapper({
       .sort((a, b) => b.netProfit - a.netProfit);
   }, [monthlyChartSource, wohnungen]);
 
-  // Compute annualized operating income and rental yields
-  const annualizedIncome = useMemo(() => financeStats.totalIncome, [financeStats.totalIncome]);
-  const annualizedExpenses = useMemo(() => financeStats.totalExpenses, [financeStats.totalExpenses]);
-  const netAnnualOperatingIncome = useMemo(() => annualizedIncome - annualizedExpenses, [annualizedIncome, annualizedExpenses]);
-
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
   const [page, setPage] = useState(1);
@@ -469,9 +486,9 @@ export default function FinanzenClientWrapper({
   const [totalBalance, setTotalBalance] = useState(0);
   const [filteredIncome, setFilteredIncome] = useState(0);
   const [filteredExpenses, setFilteredExpenses] = useState(0);
-  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
-  const reloadRef = useRef<(() => void) | null>(null);
+  const isInitialMountRef = useRef(true);
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
   const filtersRef = useRef(filters);
   const debouncedSearchQueryRef = useRef(debouncedSearchQuery);
@@ -646,9 +663,9 @@ export default function FinanzenClientWrapper({
     fetchBalance();
   }, [refreshSummaryData, fetchBalance]);
 
-  const handleSuccess = useCallback((data: any) => {
+  const handleSuccess = useCallback((data: Finanz | Finanz[]) => {
     if (data) {
-      handleAddFinance(data);
+      handleAddFinance(data as Finanz);
     }
   }, [handleAddFinance]);
 
@@ -657,8 +674,6 @@ export default function FinanzenClientWrapper({
   const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
   const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
   const yearlyProjection = summaryData?.yearlyProjection ?? 0;
-  const totalIncome = summaryData?.totalIncome ?? 0;
-  const totalExpenses = summaryData?.totalExpenses ?? 0;
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -695,41 +710,6 @@ export default function FinanzenClientWrapper({
       [key]: value
     });
   };
-
-  // Summary calculation for StatCards
-  const summary = useMemo(() => {
-    const totalTransactions = finData.length;
-    const initialSummary = {
-      incomeCount: 0,
-      expenseCount: 0,
-      totalAmountForAvg: 0,
-      countForAvg: 0
-    };
-
-    const result = finData.reduce((acc, f) => {
-      if (f.ist_einnahmen) {
-        acc.incomeCount++;
-      } else {
-        acc.expenseCount++;
-      }
-      
-      const amount = Number(f.betrag || 0);
-      if (amount > 0) {
-        acc.totalAmountForAvg += amount;
-        acc.countForAvg++;
-      }
-      return acc;
-    }, initialSummary);
-
-    const avgTransaction = result.countForAvg > 0 ? result.totalAmountForAvg / result.countForAvg : 0;
-
-    return { 
-      totalTransactions, 
-      incomeCount: result.incomeCount, 
-      expenseCount: result.expenseCount, 
-      avgTransaction 
-    };
-  }, [finData]);
 
   // Wohnungen map for bulk actions
   const wohnungsMap = useMemo(() => {
@@ -819,17 +799,6 @@ export default function FinanzenClientWrapper({
     link.click()
   }, [selectedFinances, finData, escapeCsvValue]);
 
-  const handleExportCsv = () => {
-    const params = new URLSearchParams();
-    if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
-    if (filters.selectedApartment) params.append('selectedApartment', filters.selectedApartment);
-    if (filters.selectedYear) params.append('selectedYear', filters.selectedYear);
-    if (filters.selectedType) params.append('selectedType', filters.selectedType);
-
-    const url = `/api/finanzen/export?${params.toString()}`;
-    window.open(url, '_blank');
-  };
-
   const fetchAvailableYears = useCallback(async () => {
     try {
       const response = await fetch('/api/finanzen/analytics?action=available-years');
@@ -861,6 +830,11 @@ export default function FinanzenClientWrapper({
   }, []); // Only run once on mount
 
   useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
     setIsFilterLoading(true);
     const timer = setTimeout(() => {
       loadMoreTransactions(true).finally(() => setIsFilterLoading(false));
@@ -873,46 +847,15 @@ export default function FinanzenClientWrapper({
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* Visual Toggle Pill */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-        <motion.button
-          layout
-          onClick={() => setCurrentTab("finance")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "finance" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "finance" && (
-            <motion.div
-              layoutId="active-finanzen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Wallet className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Finanzen</span>
-        </motion.button>
-
-        <motion.button
-          layout
-          onClick={() => setCurrentTab("overview")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "overview" && (
-            <motion.div
-              layoutId="active-finanzen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Übersicht</span>
-        </motion.button>
-      </div>
+      <AnimatedPillToggle
+        tabs={[
+          { value: "finance", label: "Finanzen", icon: Wallet },
+          { value: "overview", label: "Übersicht", icon: BarChart3 },
+        ]}
+        activeTab={currentTab}
+        onTabChange={setCurrentTab}
+        layoutId="active-finanzen-tab-pill"
+      />
 
       {currentTab === "finance" ? (
         <>
@@ -1046,7 +989,7 @@ export default function FinanzenClientWrapper({
                   <p className="text-sm text-muted-foreground mt-1 hidden sm:block">Verwalten Sie hier alle Ihre Einnahmen und Ausgaben</p>
                 </div>
                 <div className="mt-0 sm:mt-1">
-                  <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="size-4" />} shortText="Hinzufügen">
+                  <ResponsiveButtonWithTooltip onClick={handleAddTransaction} icon={<PlusCircle className="size-4" />} shortText="Hinzufügen" disabled={!canCreate} tooltip="Keine Berechtigung zum Erstellen" showTooltip={!canCreate}>
                     Transaktion hinzufügen
                   </ResponsiveButtonWithTooltip>
                 </div>
@@ -1115,6 +1058,8 @@ export default function FinanzenClientWrapper({
                   onExport={handleBulkExport}
                   onDelete={handleBulkDelete}
                   onUpdate={handleBulkUpdateSuccess}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               </div>
               <FinanceTable
@@ -1131,6 +1076,8 @@ export default function FinanzenClientWrapper({
                 isLoading={isLoading}
                 error={error}
                 loadFinances={() => loadMoreTransactions(false)}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             </CardContent>
           </Card>
@@ -1248,7 +1195,7 @@ export default function FinanzenClientWrapper({
                 <div className="w-full max-w-[340px] h-[280px]">
                   <FinanceDonutChart 
                     finanzen={monthlyChartSource} 
-                    isLoading={isChartLoading}
+                    isLoading={effectiveIsChartLoading}
                   />
                 </div>
               </div>
@@ -1296,7 +1243,7 @@ export default function FinanzenClientWrapper({
               </div>
             </CardHeader>
             <CardContent className="px-0 pb-0 mt-4 flex-1 flex flex-col min-h-0 relative">
-              {isChartLoading ? (
+              {effectiveIsChartLoading ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-8 text-center animate-pulse h-full min-h-[280px]">
                   <Activity className="size-6 text-accent/50 animate-bounce mb-2" />
                   <span className="text-xs text-muted-foreground">Lade Transaktionshistorie (5 Jahre)...</span>
@@ -1337,7 +1284,7 @@ export default function FinanzenClientWrapper({
                           }
                           return label;
                         }}
-                        formatter={(value: any) => [`${value.toLocaleString('de-DE')} €`]}
+                        formatter={(value: unknown) => [`${Number(value).toLocaleString('de-DE')} €`]}
                         contentStyle={{
                           backgroundColor: 'rgba(255, 255, 255, 0.95)',
                           border: '1px solid #e4e4e7',
@@ -1460,7 +1407,12 @@ export default function FinanzenClientWrapper({
                       
                       {/* Interactive Center Label */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center mt-0.5 px-3">
-                        {hoveredPieIndex === null ? (
+                        {effectiveIsTenantPaymentsLoading ? (
+                          <div className="flex flex-col items-center justify-center animate-pulse">
+                            <div className="h-5 w-20 bg-zinc-200 dark:bg-zinc-700 rounded-md mb-1.5" />
+                            <div className="h-3 w-14 bg-zinc-200 dark:bg-zinc-700 rounded-md" />
+                          </div>
+                        ) : hoveredPieIndex === null ? (
                           <>
                             <span className={cn(
                               "font-black tracking-tight leading-none transition-all duration-200",
@@ -1505,35 +1457,43 @@ export default function FinanzenClientWrapper({
                   </div>
 
                   {/* Spacious 3-Column Statistics Bar */}
-                  <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0">
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <div className="flex items-center gap-1">
-                        <Coins className="size-3.5 text-muted-foreground" />
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Soll-Ertrag</span>
-                      </div>
-                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                        {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthExpected)}
-                      </span>
+                  {effectiveIsTenantPaymentsLoading ? (
+                    <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0 animate-pulse">
+                      <div className="h-8 bg-zinc-200 dark:bg-zinc-700/50 rounded-xl" />
+                      <div className="h-8 bg-zinc-200 dark:bg-zinc-700/50 rounded-xl" />
+                      <div className="h-8 bg-zinc-200 dark:bg-zinc-700/50 rounded-xl" />
                     </div>
-                    <div className="flex flex-col items-center justify-center gap-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
-                      <div className="flex items-center gap-1">
-                        <ArrowUpCircle className="size-3.5 text-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Ist-Miete</span>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-1.5 bg-zinc-100/50 dark:bg-zinc-800/10 border border-zinc-200/50 dark:border-zinc-800/30 rounded-2xl p-4 text-center shrink-0">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <Coins className="size-3.5 text-muted-foreground" />
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Soll-Ertrag</span>
+                        </div>
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                          {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthExpected)}
+                        </span>
                       </div>
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-500">
-                        {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthCollected)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <div className="flex items-center gap-1">
-                        <Activity className="size-3.5 text-accent" />
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
+                      <div className="flex flex-col items-center justify-center gap-1 border-x border-zinc-200/50 dark:border-zinc-800/30 px-1">
+                        <div className="flex items-center gap-1">
+                          <ArrowUpCircle className="size-3.5 text-emerald-500 animate-pulse" />
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Ist-Miete</span>
+                        </div>
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-500">
+                          {CURRENCY_FORMATTER.format(collectionMetrics.totalCurrentMonthCollected)}
+                        </span>
                       </div>
-                      <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5 truncate">
-                        {collectionMetrics.paidCount} / {collectionMetrics.currentMonthRentStatus.length} Bezahlt
-                      </span>
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <Activity className="size-3.5 text-accent" />
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Status</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 block mt-0.5 truncate">
+                          {collectionMetrics.paidCount} / {collectionMetrics.currentMonthRentStatus.length} Bezahlt
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
 

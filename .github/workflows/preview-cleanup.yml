@@ -30,16 +30,20 @@ jobs:
 
       - name: Remove Preview and Merged Branch Tags
         if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
         run: |
-          PR_TAG="pr-${{ github.event.pull_request.number }}"
-          BRANCH_TAG=$(printf '%s' "branch-${{ github.event.pull_request.head.ref }}" \
+          PR_TAG="pr-$PR_NUMBER"
+          BRANCH_TAG=$(printf '%s' "branch-$PR_HEAD_REF" \
             | tr '[:upper:]' '[:lower:]' \
             | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' \
             | cut -c1-63 \
             | sed -E 's/-+$//')
 
           TAGS=("$PR_TAG")
-          if [ "${{ github.event.pull_request.merged }}" = "true" ] && [ -n "$BRANCH_TAG" ]; then
+          if [ "$PR_MERGED" = "true" ] && [ -n "$BRANCH_TAG" ]; then
             TAGS+=("$BRANCH_TAG")
           fi
 
@@ -53,6 +57,8 @@ jobs:
       - name: Delete Docker Image from Artifact Registry
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Use safer pipe handling
           set -o pipefail
@@ -60,15 +66,15 @@ jobs:
           REPO="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mietevo/mietevo"
 
           # 1. Delete the specific PR image (fast path if triggered by PR close)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_TAG="pr-${{ github.event.pull_request.number }}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            PR_TAG="pr-$PR_NUMBER"
             echo "Deleting image for PR: $PR_TAG"
             gcloud artifacts docker images delete "$REPO:$PR_TAG" --quiet || echo "PR Image $PR_TAG not found or permission denied"
           fi
 
           # 2. Cleanup: Delete all untagged images (orphaned versions)
           # ONLY RUN ON MANUAL DISPATCH - too broad for every PR close
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "Cleaning up all untagged images (Manual Dispatch)..."
             gcloud artifacts docker images delete "$REPO" --filter='-tags:*' --quiet || echo "No untagged images found"
           fi

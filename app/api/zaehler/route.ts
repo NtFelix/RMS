@@ -1,25 +1,28 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
-// GET - Fetch all Wasserzähler for a specific Wohnung
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const searchParams = request.nextUrl.searchParams
+    const wohnungId = searchParams.get('wohnung_id')
+
+    if (!wohnungId) {
+      return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
+    }
+
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
-    const searchParams = request.nextUrl.searchParams
-    const wohnungId = searchParams.get('wohnung_id')
-
-    if (!wohnungId) {
-      return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
+    const { verifyWohnungInScope } = await import("@/lib/api-permissions");
+    if (!(await verifyWohnungInScope(wohnungId))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Verify the Wohnung belongs to the user
@@ -87,7 +90,10 @@ export async function GET(request: NextRequest) {
 // POST - Create a new Wasserzähler
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('zaehler', 'erstellen');
+
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -99,6 +105,10 @@ export async function POST(request: NextRequest) {
 
     if (!wohnung_id) {
       return NextResponse.json({ error: 'wohnung_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
+    }
+
+    if (!(await verifyWohnungInScope(wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Verify the Wohnung belongs to the user
@@ -144,7 +154,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: 201, headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in POST /api/zaehler:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (error as Error).message || 'Internal server error' }, { status, headers: NO_CACHE_HEADERS })
   }
 }
 

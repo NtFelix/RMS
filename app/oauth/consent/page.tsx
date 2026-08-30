@@ -1,11 +1,28 @@
-import { createServerClient } from '@supabase/ssr';
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import ConsentUI from './ConsentUI';
-import { getAuthorizationDetailsAction } from './actions';
-import { safeServerRedirect } from '@/lib/oauth-utils';
+import {
+    getAuthorizationDetailsAction,
+    getUserMcpOrganisationsAction,
+    type AuthorizationDetails,
+    type UserMcpOrganisationItem
+} from './actions';
 
-export const runtime = 'edge';
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+export const metadata: Metadata = {
+    title: 'OAuth Autorisierung | Mietevo',
+    robots: {
+        index: false,
+        follow: false,
+    },
+};
+
+
 
 interface PageProps {
     searchParams: Promise<{
@@ -37,22 +54,8 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         />;
     }
 
-    // Create Supabase server client
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll: () => cookieStore.getAll(),
-                setAll: (cookiesToSet) => {
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        cookieStore.set(name, value, options)
-                    );
-                },
-            },
-        }
-    );
+    // Create Supabase server client safely
+    const supabase = await createSupabaseServerClient();
 
     // Check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
@@ -83,25 +86,38 @@ export default async function ConsentPage({ searchParams }: PageProps) {
         return <ConsentUI type="success" />;
     }
 
-    // Detect auto-approval: Supabase successfully returned a payload without client details
-    const autoRedirectUrl = data?.redirect_url || data?.redirect_to;
+    // Detect auto-approval: Supabase successfully returned a payload without client details.
+    // Instead of auto-redirecting (which silently completes the flow without user awareness),
+    // show a manage screen where the user can review the app, manage it, or continue.
+    const autoRedirectUrl = (data?.redirect_url || data?.redirect_to) as string | undefined;
     const isAutoApproved = success && !data?.client;
 
     if (isAutoApproved) {
-        console.info('[OAuth SSR] auto_approved detected', {
-            authorizationId,
-            redirect_to: data?.redirect_to,
-            redirect_url: data?.redirect_url,
-            resolved: autoRedirectUrl,
-        });
-
-        if (autoRedirectUrl) {
-            safeServerRedirect(autoRedirectUrl as string);
+        if (!autoRedirectUrl) {
+            return (
+                <ConsentUI
+                    type="error"
+                    error="Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden."
+                />
+            );
         }
+        return (
+            <ConsentUI
+                type="manage"
+                authorizationId={authorizationId}
+                initialData={data as AuthorizationDetails}
+                autoRedirectUrl={autoRedirectUrl}
+            />
+        );
+    }
 
-        // auto_approved but no redirect url — redirect to a user-friendly error page
-        // instead of silently rendering the consent UI which would cause a 400 on approve.
-        redirect(`/oauth/consent?error=true&message=${encodeURIComponent('Automatische Autorisierung fehlgeschlagen: Kein Weiterleitungs-Link gefunden.')}`);
+    // Load initial user organisations for the consent screen
+    let initialOrganisations: UserMcpOrganisationItem[] = [];
+    if (user && success) {
+        const orgsResult = await getUserMcpOrganisationsAction(data?.client?.id);
+        if (orgsResult.success && orgsResult.data) {
+            initialOrganisations = orgsResult.data;
+        }
     }
 
     return (
@@ -110,6 +126,7 @@ export default async function ConsentPage({ searchParams }: PageProps) {
             authorizationId={authorizationId}
             initialData={success ? (data || undefined) : undefined}
             initialError={!success ? (fetchError || undefined) : undefined}
+            initialOrganisations={initialOrganisations}
         />
     );
 }

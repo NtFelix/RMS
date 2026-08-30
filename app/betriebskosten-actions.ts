@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
+import { createSupabaseServerClient } from "@/lib/supabase-server"; // Adjusted based on common project structure
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
@@ -112,7 +112,10 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
 
   revalidatePath("/dashboard/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: data?.id, house_id: formData.haeuser_id });
-  return { success: true, data };
+
+  // Return optimized data for the UI
+  const { data: optimizedData } = await fetchOptimizedNebenkostenById(data.id);
+  return { success: true, data: optimizedData || data };
 }
 
 // Implement updateNebenkosten function
@@ -169,7 +172,10 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
 
   revalidatePath("/dashboard/betriebskosten");
   logAction(actionName, 'success', { nebenkosten_id: id });
-  return { success: true, data };
+
+  // Return optimized data for the UI
+  const { data: optimizedData } = await fetchOptimizedNebenkostenById(id);
+  return { success: true, data: optimizedData || data };
 }
 
 // Implement deleteNebenkosten function
@@ -207,12 +213,10 @@ export async function deleteNebenkosten(id: string) {
     }
   }
 
-  const { error } = await supabase
-    .from("Nebenkosten")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
+  try {
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await softDeleteEntryAction("Nebenkosten", id);
+  } catch (error: any) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: error.message });
     return { success: false, message: error.message };
   }
@@ -262,21 +266,16 @@ export async function bulkDeleteNebenkosten(ids: string[]) {
 
 
   try {
-    // Use in_ operator to delete multiple records in a single query
-    const { count, error } = await supabase
-      .from("Nebenkosten")
-      .delete()
-      .in("id", ids);
-
-    if (error) throw error;
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    await Promise.all(ids.map(id => softDeleteEntryAction("Nebenkosten", id)));
 
     // Invalidate cache and refresh data
     revalidatePath("/dashboard/betriebskosten");
 
     return {
       success: true,
-      count: count || 0,
-      message: `${count} Betriebskostenabrechnung${count !== 1 ? 'en' : ''} erfolgreich gelöscht`
+      count: ids.length,
+      message: `${ids.length} Betriebskostenabrechnung${ids.length !== 1 ? 'en' : ''} erfolgreich gelöscht`
     };
   } catch (error) {
     console.error("Error bulk deleting Nebenkosten:", error);
@@ -402,20 +401,68 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
     }
   }
 
-  const { error } = await supabase
+  // Fetch Rechnungen for this Nebenkosten ID
+  const { data: rechnungen, error: fetchError } = await supabase
     .from("Rechnungen")
-    .delete()
+    .select("id")
     .eq("nebenkosten_id", nebenkostenId);
 
-  if (error) {
-    console.error('Error deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, error);
-    return { success: false, message: error.message };
+  if (fetchError) {
+    console.error('Error fetching Rechnungen for deletion:', fetchError);
+    return { success: false, message: fetchError.message };
+  }
+
+  if (rechnungen && rechnungen.length > 0) {
+    try {
+      const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+      await Promise.all(rechnungen.map(r => softDeleteEntryAction("Rechnungen", r.id)));
+    } catch (err: any) {
+      console.error('Error soft deleting Rechnungen for nebenkosten_id %s:', nebenkostenId, err);
+      return { success: false, message: err.message };
+    }
   }
 
   console.log(`[Server Action] Successfully deleted Rechnungen for nebenkosten_id ${nebenkostenId}`);
   // No revalidatePath here as this is a subordinate action.
   // Revalidation should happen after the primary operation (e.g., updateNebenkosten) is complete.
   return { success: true };
+}
+
+/**
+ * Fetches a single Nebenkosten record with optimized metrics (house name, area, tenant counts)
+ */
+export async function fetchOptimizedNebenkostenById(id: string): Promise<{ success: boolean; data: OptimizedNebenkosten | null; message?: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, data: null, message: "Not authenticated" };
+
+  try {
+    // We use the RPC defined in modernize_nebenkosten_rpcs.sql
+    // and filter for the specific ID
+    const { data, error } = await supabase.rpc('get_nebenkosten_with_metrics');
+
+    if (error) throw error;
+
+    const record = data?.find((n: any) => n.id === id);
+
+    if (!record) {
+      // Fallback: if not found in the optimized list (rare), fetch raw record
+      const { data: rawData } = await supabase.from('Nebenkosten').select('*, Haeuser(name)').eq('id', id).single();
+      return { success: true, data: rawData as any };
+    }
+
+    return {
+      success: true,
+      data: {
+        ...record,
+        // Map user_id_field to user_id to match OptimizedNebenkosten type
+        user_id: record.user_id_field
+      } as OptimizedNebenkosten
+    };
+  } catch (error: any) {
+    console.error("Error fetching optimized nebenkosten:", error);
+    return { success: false, data: null, message: error.message };
+  }
 }
 
 export async function getNebenkostenDetailsAction(id: string): Promise<{
@@ -898,6 +945,63 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
     return { success: false, message: errorMessage };
   }
 
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+
+  if (!(await hasPermission('betriebskosten', 'bearbeiten'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+
+  const accessibleIds = await getAccessibleHaeuserIds();
+  if (accessibleIds !== null && formData.entries.length > 0) {
+    const meterIds = formData.entries.map(e => e.zaehler_id).filter(Boolean);
+    const mieterIds = formData.entries.map(e => e.mieter_id).filter(Boolean);
+
+    const allowedMeters = new Set<string>();
+    const allowedMieters = new Set<string>();
+
+    if (meterIds.length > 0) {
+      const { data: meters, error: meterError } = await supabase
+        .from('Zaehler')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', meterIds);
+      if (!meterError && meters) {
+        meters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) {
+            allowedMeters.add(m.id);
+          }
+        });
+      }
+    }
+
+    if (mieterIds.length > 0) {
+      const { data: mieters, error: mieterError } = await supabase
+        .from('Mieter')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', mieterIds);
+      if (!mieterError && mieters) {
+        mieters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) {
+            allowedMieters.add(m.id);
+          }
+        });
+      }
+    }
+
+    formData.entries = formData.entries.filter(e => {
+      if (e.zaehler_id) {
+        return allowedMeters.has(e.zaehler_id);
+      }
+      if (e.mieter_id) {
+        return allowedMieters.has(e.mieter_id);
+      }
+      return false;
+    });
+  }
+
   const results = [];
   let successCount = 0;
   let errorCount = 0;
@@ -1077,6 +1181,54 @@ export async function saveMeterReadings(formData: MeterReadingFormData): Promise
 export async function saveMeterReadingsOptimized(
   formData: MeterReadingFormData
 ): Promise<{ success: boolean; message?: string; data?: any[]; validationErrors?: string[] }> {
+  const { hasPermission } = await import("@/lib/permissions");
+  if (!(await hasPermission('betriebskosten', 'bearbeiten'))) {
+    return { success: false, message: "Keine Berechtigung" };
+  }
+
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  const { createSupabaseServerClient } = await import("@/lib/supabase-server");
+
+  const [supabase, accessibleIds] = await Promise.all([
+    createSupabaseServerClient(),
+    getAccessibleHaeuserIds(),
+  ]);
+  if (accessibleIds !== null && formData.entries.length > 0) {
+    const meterIds = formData.entries.map(e => e.zaehler_id).filter(Boolean);
+    const mieterIds = formData.entries.map(e => e.mieter_id).filter(Boolean);
+    const allowedMeters = new Set<string>();
+    const allowedMieters = new Set<string>();
+    if (meterIds.length > 0) {
+      const { data: meters } = await supabase
+        .from('Zaehler')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', meterIds);
+      if (meters) {
+        meters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) allowedMeters.add(m.id);
+        });
+      }
+    }
+    if (mieterIds.length > 0) {
+      const { data: mieters } = await supabase
+        .from('Mieter')
+        .select('id, wohnung_id, Wohnungen!inner(haus_id)')
+        .in('id', mieterIds);
+      if (mieters) {
+        mieters.forEach((m: any) => {
+          const hausId = m.Wohnungen?.haus_id;
+          if (hausId && accessibleIds.includes(hausId)) allowedMieters.add(m.id);
+        });
+      }
+    }
+    formData.entries = formData.entries.filter(e => {
+      if (e.zaehler_id) return allowedMeters.has(e.zaehler_id);
+      if (e.mieter_id) return allowedMieters.has(e.mieter_id);
+      return false;
+    });
+  }
+
   // Import validation utilities dynamically to avoid server-side issues
   // Note: We might rename this file later, but for now it contains general validation logic acceptable for meters
   const { validateMeterReadingFormData, formatValidationErrors } = await import('@/utils/wasserzaehler-validation');
@@ -1742,9 +1894,9 @@ async function resolveActualPaymentsData(
   options: { prepaymentMode?: 'scheduled' | 'actual' } = {},
   nebenkostenId: string
 ): Promise<Finanzen[]> {
-  const dbPrepaymentMode = (nebenkosten_data as any).vorauszahlungs_art;
-  const effectivePrepaymentMode = options.prepaymentMode ||
-    (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
+    const dbPrepaymentMode = nebenkosten_data?.vorauszahlungs_art;
+    const effectivePrepaymentMode = options.prepaymentMode ||
+      (dbPrepaymentMode === 'ist' ? 'actual' : 'scheduled');
 
   if (effectivePrepaymentMode === 'actual') {
     const apartmentIds = tenants.map(t => t.wohnung_id).filter((id): id is string => !!id);
@@ -2561,7 +2713,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     }
 
     // Parse the structured data from the database function
-    const nebenkosten_data = dbResult.nebenkosten_data;
+    const nebenkosten_data = dbResult.nebenkosten_data as Nebenkosten;
     const tenants_with_occupancy = dbResult.tenants_with_occupancy || [];
 
     // Workaround for vorauszahlungs_art removed - database function now includes it.
@@ -2570,6 +2722,11 @@ export async function createAbrechnungCalculationOptimizedAction(
     const wasserzaehler_meters = dbResult.wasserzaehler_meters || [];
     const house_metrics = dbResult.house_metrics || {};
     const calculation_metadata = dbResult.calculation_metadata || {};
+
+    // Ensure gesamtFlaeche is set on nebenkosten_data for calculations to use
+    if (nebenkosten_data && house_metrics) {
+      nebenkosten_data.gesamtFlaeche = house_metrics.totalArea;
+    }
 
     // Validate that we have the necessary data
     if (!tenants_with_occupancy || tenants_with_occupancy.length === 0) {
