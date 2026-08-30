@@ -25,6 +25,8 @@ export function getSupabaseServerEnv() {
   return { url, anonKey, serviceKey };
 }
 
+const KNOWN_SENTINELS = new Set(['', 'private', 'null', 'undefined']);
+
 /**
  * Normalizes and validates raw organisation ID cookie or override values.
  * Returns the valid UUID string, or null if unset or set to a sentinel value ('private', 'null', empty).
@@ -42,13 +44,13 @@ export function sanitizeOrgId(rawOrgId?: string | null): string | null {
  * Determines whether an invalid organisation ID string is an unexpected value
  * that warrants a development warning (ignoring standard sentinels like 'private', 'null', and whitespace).
  */
-export function shouldLogOrgWarning(rawOrgId?: string | null): boolean {
+function shouldLogOrgWarning(rawOrgId?: string | null): boolean {
   if (!rawOrgId) return false;
   const normalized = rawOrgId.trim().toLowerCase();
-  if (normalized === '' || normalized === 'private' || normalized === 'null' || normalized === 'undefined') {
+  if (KNOWN_SENTINELS.has(normalized)) {
     return false;
   }
-  return !UUID_REGEX.test(normalized);
+  return sanitizeOrgId(normalized) === null;
 }
 
 /**
@@ -60,6 +62,7 @@ export function getOrgCookieHeader(rawOrgId?: string | null, callerTag?: string)
   const headers: Record<string, string> = {};
 
   if (currentOrgId) {
+    // encodeURIComponent is safe and standard for HTTP cookie header values
     headers['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`;
   } else if (callerTag && process.env.NODE_ENV === 'development' && shouldLogOrgWarning(rawOrgId)) {
     console.warn(`[${callerTag}] Invalid current_organisation_id format (expected UUID):`, rawOrgId);
@@ -67,4 +70,5 @@ export function getOrgCookieHeader(rawOrgId?: string | null, callerTag?: string)
 
   return headers;
 }
+
 

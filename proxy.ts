@@ -140,10 +140,12 @@ export async function proxy(request: NextRequest) {
             const { data: resolvedOrgId, error: rpcError } = await supabase.rpc('current_organisation_id')
             if (rpcError) {
               console.error('[Proxy] Failed to resolve fallback organisation for private/unset context:', rpcError.message)
+              throw new Error(`Fallback organisation resolution failed: ${rpcError.message}`)
             }
             orgId = resolvedOrgId
           }
 
+          // Personal accounts (orgId is null without error) have unrestricted module access
           let hasPerm = true
           if (orgId) {
             hasPerm = await evaluatePermission(supabase, user.id, orgId, modul as Modul, 'ansehen')

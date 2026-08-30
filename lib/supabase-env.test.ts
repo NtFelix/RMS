@@ -1,4 +1,4 @@
-import { sanitizeOrgId, shouldLogOrgWarning, getOrgCookieHeader } from './supabase-env';
+import { sanitizeOrgId, getOrgCookieHeader } from './supabase-env';
 
 describe('lib/supabase-env', () => {
   const validUuid = '11111111-1111-1111-1111-111111111111';
@@ -25,34 +25,12 @@ describe('lib/supabase-env', () => {
       expect(sanitizeOrgId('null')).toBeNull();
       expect(sanitizeOrgId('NULL')).toBeNull();
       expect(sanitizeOrgId('undefined')).toBeNull();
+      expect(sanitizeOrgId(' UNDEFINED ')).toBeNull();
     });
 
     it('returns null for arbitrary invalid strings', () => {
       expect(sanitizeOrgId('invalid-not-a-uuid')).toBeNull();
       expect(sanitizeOrgId('12345')).toBeNull();
-    });
-  });
-
-  describe('shouldLogOrgWarning', () => {
-    it('returns false for valid UUID', () => {
-      expect(shouldLogOrgWarning(validUuid)).toBe(false);
-    });
-
-    it('returns false for falsy or sentinel values (case and whitespace insensitive)', () => {
-      expect(shouldLogOrgWarning(undefined)).toBe(false);
-      expect(shouldLogOrgWarning(null)).toBe(false);
-      expect(shouldLogOrgWarning('')).toBe(false);
-      expect(shouldLogOrgWarning('   ')).toBe(false);
-      expect(shouldLogOrgWarning('private')).toBe(false);
-      expect(shouldLogOrgWarning(' Private ')).toBe(false);
-      expect(shouldLogOrgWarning('null')).toBe(false);
-      expect(shouldLogOrgWarning(' NULL ')).toBe(false);
-      expect(shouldLogOrgWarning('undefined')).toBe(false);
-    });
-
-    it('returns true for unexpected invalid strings', () => {
-      expect(shouldLogOrgWarning('random-string')).toBe(true);
-      expect(shouldLogOrgWarning('invalid-uuid-123')).toBe(true);
     });
   });
 
@@ -63,12 +41,17 @@ describe('lib/supabase-env', () => {
       });
     });
 
-    it('returns empty object for sentinels and falsy values without logging', () => {
+    it('returns empty object for sentinels and falsy values without logging warnings', () => {
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       
+      expect(getOrgCookieHeader('', 'TestCaller')).toEqual({});
+      expect(getOrgCookieHeader('   ', 'TestCaller')).toEqual({});
       expect(getOrgCookieHeader('private', 'TestCaller')).toEqual({});
       expect(getOrgCookieHeader(' Private ', 'TestCaller')).toEqual({});
       expect(getOrgCookieHeader('null', 'TestCaller')).toEqual({});
+      expect(getOrgCookieHeader(' NULL ', 'TestCaller')).toEqual({});
+      expect(getOrgCookieHeader('undefined', 'TestCaller')).toEqual({});
+      expect(getOrgCookieHeader(' UNDEFINED ', 'TestCaller')).toEqual({});
       expect(getOrgCookieHeader(null, 'TestCaller')).toEqual({});
       expect(getOrgCookieHeader(undefined, 'TestCaller')).toEqual({});
 
@@ -91,5 +74,19 @@ describe('lib/supabase-env', () => {
       warnSpy.mockRestore();
       (process.env as any).NODE_ENV = originalEnv;
     });
+
+    it('suppresses warning in production (NODE_ENV !== development) for invalid strings', () => {
+      const originalEnv = process.env.NODE_ENV;
+      (process.env as any).NODE_ENV = 'production';
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const result = getOrgCookieHeader('malformed-uuid', 'TestCaller');
+      expect(result).toEqual({});
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+      (process.env as any).NODE_ENV = originalEnv;
+    });
   });
 });
+
