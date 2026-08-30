@@ -3,7 +3,7 @@ import { updateSession } from "@/utils/supabase/middleware"
 import posthogProxyConfig from "@/lib/posthog-proxy"
 import { createServerClient } from "@supabase/ssr"
 import { evaluatePermission, type Modul } from "@/lib/permissions-core"
-import { getSupabasePublicEnv, UUID_REGEX } from "@/lib/supabase-env"
+import { getSupabasePublicEnv, sanitizeOrgId, getOrgCookieHeader } from "@/lib/supabase-env"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
@@ -109,13 +109,8 @@ export async function proxy(request: NextRequest) {
       if (matchedPrefix) {
         const modul = ROUTE_PERMISSIONS[matchedPrefix]
         const rawOrgCookie = request.cookies.get('current_organisation_id')?.value
-        const currentOrgId = (rawOrgCookie && UUID_REGEX.test(rawOrgCookie)) ? rawOrgCookie : null
-        const globalHeaders: Record<string, string> = {}
-        if (currentOrgId) {
-          globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
-        } else if (rawOrgCookie && rawOrgCookie !== 'private' && rawOrgCookie !== 'null' && process.env.NODE_ENV === 'development') {
-          console.warn('[proxy] Invalid current_organisation_id format (expected UUID):', rawOrgCookie)
-        }
+        const currentOrgId = sanitizeOrgId(rawOrgCookie)
+        const globalHeaders = getOrgCookieHeader(rawOrgCookie, 'proxy')
 
         const { url, anonKey } = getSupabasePublicEnv()
         const supabase = createServerClient(
@@ -142,7 +137,10 @@ export async function proxy(request: NextRequest) {
         try {
           let orgId = currentOrgId
           if (!orgId) {
-            const { data: resolvedOrgId } = await supabase.rpc('current_organisation_id')
+            const { data: resolvedOrgId, error: rpcError } = await supabase.rpc('current_organisation_id')
+            if (rpcError) {
+              console.error('[Proxy] Failed to resolve fallback organisation for private/unset context:', rpcError.message)
+            }
             orgId = resolvedOrgId
           }
 
@@ -161,7 +159,7 @@ export async function proxy(request: NextRequest) {
             return redirectResponse
           }
         } catch (e) {
-          console.error(`[Proxy] Exception checking permission for ${modul}:`, e)
+          console.error(`[Proxy] Exception checking permission for ${modul} (org: ${currentOrgId ?? 'private'}):`, e)
           const redirectUrl = request.nextUrl.clone()
           redirectUrl.pathname = '/unauthorized'
           const redirectResponse = NextResponse.redirect(redirectUrl)

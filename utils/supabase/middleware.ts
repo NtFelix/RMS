@@ -1,19 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server"
 import type { User } from "@supabase/supabase-js"
 import { createServerClient } from "@supabase/ssr"
-import { getSupabasePublicEnv, UUID_REGEX } from "@/lib/supabase-env"
+import { getSupabasePublicEnv, getOrgCookieHeader } from "@/lib/supabase-env"
 
 export type SessionUser = Pick<User, 'id' | 'email' | 'role' | 'app_metadata' | 'user_metadata' | 'aud'>
 
 export async function updateSession(request: NextRequest, response: NextResponse): Promise<SessionUser | null> {
   const rawOrgId = request.cookies.get('current_organisation_id')?.value
-  const currentOrgId = (rawOrgId && UUID_REGEX.test(rawOrgId)) ? rawOrgId : null
-  const globalHeaders: Record<string, string> = {}
-  if (currentOrgId) {
-    globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
-  } else if (rawOrgId && rawOrgId !== 'private' && rawOrgId !== 'null' && process.env.NODE_ENV === 'development') {
-    console.warn('[updateSession] Invalid current_organisation_id format (expected UUID):', rawOrgId)
-  }
+  const globalHeaders = getOrgCookieHeader(rawOrgId, 'updateSession')
 
   const { url, anonKey } = getSupabasePublicEnv()
 
