@@ -14,3 +14,13 @@ export function createMockRouter(overrides: Partial<AppRouterInstance> = {}): Ap
     ...overrides,
   } as unknown as AppRouterInstance;
 }
+
+describe('createMockRouter', () => {
+  it('creates mock router with default mock functions and applies overrides', () => {
+    const customPush = jest.fn();
+    const router = createMockRouter({ push: customPush });
+    expect(router.push).toBe(customPush);
+    expect(typeof router.back).toBe('function');
+  });
+});
+
