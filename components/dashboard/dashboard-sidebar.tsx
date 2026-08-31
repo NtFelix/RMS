@@ -6,8 +6,9 @@ import Link from "next/link"
 import Image from "next/image"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check
+  Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check, Plus
 } from "lucide-react"
+import { formatRelativeTime } from "@/lib/format-relative-time"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"
 import { cn } from "@/lib/utils"
@@ -457,7 +458,6 @@ function SidebarHeader({
 }) {
   const { toast } = useToast()
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
-
   const handleSwitchOrg = async (orgId: string | null) => {
     if (orgId === currentOrgId) return;
     setIsSwitchingOrg(true);
@@ -767,7 +767,13 @@ function SidebarActions({
 }) {
   const [supportOpen, setSupportOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const { openSupport, unreadCount: supportUnreadCount } = useSupportStore()
+  const {
+    openSupport,
+    openSupportWithTicket,
+    openSupportNewTicket,
+    unreadCount: supportUnreadCount,
+    tickets: supportTickets,
+  } = useSupportStore()
   const hasUnreadMessages = supportUnreadCount > 0
 
   if (!supportButtonEnabled && !notificationCenterFeatureEnabled) return null;
@@ -806,32 +812,93 @@ function SidebarActions({
             side="right" 
             align="end" 
             sideOffset={12} 
-            className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
+            className="w-88 max-w-[calc(100vw-32px)] p-0 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300 overflow-hidden"
           >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
-                <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">{supportUnreadCount} Ungelesen</span>
-              </div>
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                  <MessageCircle className="size-5 text-zinc-400 dark:text-zinc-500" />
+            <div className="flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800/60">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support & Hilfe</h3>
+                  {supportUnreadCount > 0 && (
+                    <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                      {supportUnreadCount} neu
+                    </span>
+                  )}
                 </div>
-                <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine Support-Anfragen</h4>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
-                  Sobald du Hilfe benötigst oder Fragen hast, kannst du einen neuen Support-Chat starten.
-                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSupportOpen(false)
+                    openSupportNewTicket()
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+                >
+                  <Plus className="size-3.5" />
+                  Neu
+                </button>
               </div>
-              <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+
+              {/* Conversations List */}
+              {supportTickets.length > 0 ? (
+                <div className="max-h-72 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/40 p-1">
+                  {supportTickets.slice(0, 5).map((ticket) => {
+                    const isUnread = (ticket.unread_count || 0) > 0
+                    return (
+                      <button
+                        key={ticket.id}
+                        type="button"
+                        onClick={() => {
+                          setSupportOpen(false)
+                          openSupportWithTicket(ticket.id)
+                        }}
+                        className="w-full text-left p-2.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors flex flex-col gap-1 cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={cn(
+                            "text-xs line-clamp-1 group-hover:text-primary transition-colors",
+                            isUnread ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-700 dark:text-zinc-300"
+                          )}>
+                            {ticket.last_message || 'Keine Nachricht'}
+                          </span>
+                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 shrink-0">
+                            {formatRelativeTime(ticket.last_message_at || ticket.created_at)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium">
+                            {ticket.status === 'resolved' ? 'Gelöst' : ticket.status === 'on_hold' ? 'Wartend' : 'Aktiv'}
+                          </span>
+                          {isUnread && (
+                            <span className="size-1.5 rounded-full bg-primary shrink-0" />
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+                  <div className="size-10 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-2.5 shadow-inner">
+                    <MessageCircle className="size-4 text-zinc-400 dark:text-zinc-500" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine aktiven Tickets</h4>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[220px] leading-relaxed">
+                    Hast du Fragen oder brauchst Hilfe? Erstelle jederzeit ein neues Ticket.
+                  </p>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="p-2 border-t border-zinc-100 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-900/20">
                 <button 
                   type="button"
                   onClick={() => {
                     setSupportOpen(false)
                     openSupport()
                   }}
-                  className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200 cursor-pointer"
+                  className="flex items-center justify-center w-full py-2 rounded-xl bg-white hover:bg-zinc-100 dark:bg-zinc-900/60 dark:hover:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800/40 text-xs font-medium text-zinc-700 dark:text-zinc-200 transition-all duration-200 cursor-pointer"
                 >
-                  Support öffnen
+                  {supportTickets.length > 0 ? 'Alle Anfragen anzeigen' : 'Support-Chat öffnen'}
                 </button>
               </div>
             </div>

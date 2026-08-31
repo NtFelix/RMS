@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { requireAuthenticatedUserForApi } from '@/lib/server/route-access'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
-
 function bufferToHex(buffer: ArrayBuffer) {
   return Array.from(new Uint8Array(buffer))
     .map((byte) => byte.toString(16).padStart(2, '0'))

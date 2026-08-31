@@ -40,6 +40,13 @@ export interface SupportTicketsResponse {
   results: SupportTicket[]
 }
 
+export interface RestoreResult {
+  status: 'success' | 'invalid'
+  widget_session_id?: string
+  migrated_ticket_ids?: string[]
+  code?: string
+}
+
 export interface SupportConversationsClient {
   isAvailable?: () => boolean
   getTickets?: (options?: {
@@ -66,7 +73,27 @@ export interface SupportConversationsClient {
   getCurrentTicketId?: () => string | null
   getWidgetSessionId?: () => string | null
   requestRestoreLink?: (email: string) => Promise<void>
-  restoreFromUrlToken?: () => Promise<unknown>
+  restoreFromUrlToken?: () => Promise<RestoreResult | null>
+}
+
+export function getSupportErrorMessage(error: unknown): string {
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    return 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.'
+  }
+  if (error instanceof Error) {
+    if (error.message.includes('Too many requests') || error.message.includes('429')) {
+      return 'Zu viele Anfragen. Bitte warten Sie einen Moment, bevor Sie es erneut versuchen.'
+    }
+    return error.message
+  }
+  return 'Ein unerwarteter Fehler ist aufgetreten.'
+}
+
+export function isRateLimitedError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.message.includes('Too many requests') || error.message.includes('429')
+  }
+  return false
 }
 
 const supportIdentityCache = new Map<string, Promise<SupportIdentityResponse | null>>()
@@ -86,6 +113,101 @@ export function buildSupportTraits(user: User | null | undefined) {
       || undefined,
     email: user.email || undefined,
   }
+}
+
+let conversationsBundlePromise: Promise<void> | null = null
+
+export async function loadConversationsBundle(): Promise<void> {
+  if (typeof window === 'undefined') return
+  if ((window as any).__PosthogExtensions__?.initConversations) {
+    return
+  }
+  if (conversationsBundlePromise) {
+    return conversationsBundlePromise
+  }
+
+  const sources = [
+    '/assets/v2/static/conversations.js',
+    'https://eu-assets.i.posthog.com/static/conversations.js',
+    'https://us-assets.i.posthog.com/static/conversations.js',
+  ]
+
+  conversationsBundlePromise = (async () => {
+    for (const src of sources) {
+      try {
+        const res = await fetch(src)
+        if (res.ok) {
+          const code = await res.text()
+          const fn = new Function(code)
+          fn()
+          if ((window as any).__PosthogExtensions__?.initConversations) {
+            return
+          }
+        }
+      } catch (err) {
+        console.warn(`[Support] Failed loading conversations bundle from ${src}:`, err)
+      }
+    }
+    throw new Error('Could not load conversations bundle from any source')
+  })().finally(() => {
+    conversationsBundlePromise = null
+  })
+
+  return conversationsBundlePromise
+}
+
+export async function ensureConversationsReady(posthog: PostHog | null | undefined): Promise<boolean> {
+  if (!posthog || typeof window === 'undefined') return false
+
+  const conv = (posthog as any)?.conversations
+  if (conv?.isAvailable?.()) {
+    return true
+  }
+
+  try {
+    await loadConversationsBundle()
+    const initConversations = (window as any).__PosthogExtensions__?.initConversations
+
+    if (!initConversations) {
+      return false
+    }
+
+    let remoteConfig = conv?._remoteConfig
+    if (!remoteConfig || !remoteConfig.token) {
+      const phKey = (posthog as any)?.config?.token || process.env.NEXT_PUBLIC_POSTHOG_KEY
+      const phHost = (posthog as any)?.config?.api_host || process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+      const configHost = phHost.startsWith('http') ? phHost : 'https://eu.i.posthog.com'
+
+      if (phKey) {
+        try {
+          const configRes = await fetch(`${configHost}/array/${phKey}/config`)
+          if (configRes.ok) {
+            const configJson = await configRes.json()
+            if (configJson?.conversations) {
+              remoteConfig = configJson.conversations
+              if (conv) {
+                conv._remoteConfig = configJson.conversations
+                conv._isConversationsEnabled = Boolean(configJson.conversations.enabled)
+              }
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('[Support] Could not fetch remote config directly:', fetchErr)
+        }
+      }
+    }
+
+    if (remoteConfig && initConversations && conv) {
+      conv._remoteConfig = remoteConfig
+      conv._isConversationsEnabled = true
+      conv._conversationsManager = initConversations(remoteConfig, posthog)
+      return Boolean(conv.isAvailable?.())
+    }
+  } catch (err) {
+    console.error('[Support] Error ensuring conversations readiness:', err)
+  }
+
+  return Boolean(conv?.isAvailable?.())
 }
 
 export async function syncSupportIdentity(
