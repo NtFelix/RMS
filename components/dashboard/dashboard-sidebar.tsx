@@ -804,7 +804,9 @@ function SidebarActions({
             >
               <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
               {hasUnreadMessages && (
-                <span className="absolute top-2.5 right-2.5 size-2 bg-accent rounded-full border-2 border-white dark:border-[#181818]" />
+                <span className="absolute -top-1 -right-1 flex min-w-5 h-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground px-1 border-2 border-white dark:border-[#181818] shadow-xs">
+                  {supportUnreadCount > 99 ? '99+' : supportUnreadCount}
+                </span>
               )}
             </m.button>
           </PopoverTrigger>

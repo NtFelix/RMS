@@ -44,6 +44,7 @@ import {
   Clock,
   Sparkles,
   Inbox,
+  ArrowUp,
 } from "lucide-react"
 
 const ticketStatusLabels: Record<string, string> = {
@@ -1074,10 +1075,10 @@ export function SupportPanel() {
                   </div>
                 </div>
 
-                {/* Sticky Bottom Message Composer */}
-                <div className="shrink-0 border-t border-border/70 bg-background/95 p-4 shadow-lg backdrop-blur-md">
+                {/* Message Composer - Single sleek container matching AI Chat Input */}
+                <div className="shrink-0 p-4 bg-background border-t border-border/60 shadow-sm z-20">
                   {!canReplyToSelection && (
-                    <div className="mb-3 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                    <div className="mb-3 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
                       <span>Dies ist ein abgeschlossenes Ticket.</span>
                       <Button
                         type="button"
@@ -1091,45 +1092,54 @@ export function SupportPanel() {
                     </div>
                   )}
 
-                  <div className="relative flex flex-col gap-2 rounded-2xl border border-border/90 bg-muted/30 p-3 shadow-xs focus-within:border-primary/50 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/20">
-                    <Textarea
-                      ref={textareaRef}
-                      value={draft}
-                      onChange={(event) => setDraft(event.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={
-                        isComposingNewTicket
-                          ? "Beschreiben Sie Ihr Anliegen detailliert..."
-                          : "Antwort schreiben..."
-                      }
-                      rows={3}
-                      className="min-h-[4.5rem] max-h-36 resize-none border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0 focus-visible:outline-hidden text-foreground placeholder:text-muted-foreground"
-                    />
+                  <div className="relative border border-border/80 dark:border-border/20 rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-primary/25 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground">
+                    <div className="px-4 pt-3">
+                      <textarea
+                        ref={textareaRef}
+                        value={draft}
+                        onChange={(e) => {
+                          setDraft(e.target.value)
+                          e.target.style.height = 'auto'
+                          e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
+                        }}
+                        onKeyDown={handleKeyDown}
+                        placeholder={
+                          isComposingNewTicket
+                            ? "Beschreiben Sie Ihr Anliegen detailliert..."
+                            : "Antwort schreiben..."
+                        }
+                        disabled={isSending || !canReplyToSelection}
+                        rows={1}
+                        aria-label="Support-Nachricht eingeben"
+                        className="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[140px] text-xs sm:text-sm placeholder:text-muted-foreground disabled:opacity-50 min-h-[44px] outline-none leading-relaxed"
+                        style={{ overflowY: draft.length > 80 ? 'auto' : 'hidden' }}
+                      />
+                    </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                        <kbd className="rounded border border-border/80 px-1 py-0.5 text-[9px] bg-muted/60">⌘</kbd> + <kbd className="rounded border border-border/80 px-1 py-0.5 text-[9px] bg-muted/60">Enter</kbd> zum Senden
-                      </span>
+                    <div className="flex items-center justify-between px-3 pb-3">
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-normal">
+                        <span className="hidden sm:inline">
+                          <kbd className="rounded border border-border/60 px-1 py-0.5 text-[9px] bg-muted/40 font-mono">⌘</kbd> + <kbd className="rounded border border-border/60 px-1 py-0.5 text-[9px] bg-muted/40 font-mono">↵</kbd> zum Senden
+                        </span>
+                      </div>
 
-                      <Button
-                        type="button"
-                        onClick={handleSendMessage}
-                        disabled={!draft.trim() || isSending || !isAvailable || !supportTraits || !canReplyToSelection}
-                        size="sm"
-                        className="ml-auto h-8 gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/95 active:scale-95 disabled:opacity-50 cursor-pointer"
-                      >
-                        {isSending ? (
-                          <>
-                            <Loader2 className="size-3.5 animate-spin" />
-                            <span>Wird gesendet...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>{isComposingNewTicket ? 'Ticket erstellen' : 'Senden'}</span>
-                            <Send className="size-3.5" />
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          onClick={handleSendMessage}
+                          disabled={!draft.trim() || isSending || !isAvailable || !supportTraits || !canReplyToSelection}
+                          size="icon"
+                          aria-label={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
+                          title={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
+                          className="rounded-full size-9 shrink-0 shadow-none transition-all active:scale-95 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary cursor-pointer"
+                        >
+                          {isSending ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <ArrowUp className="size-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
