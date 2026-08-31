@@ -656,95 +656,94 @@ export function SupportPanel() {
         )}
       >
         <div className="flex h-full flex-col overflow-hidden">
-          {/* Header - Styled like Tenant Modal / Form Modal Shell */}
-          <SheetHeader className="shrink-0 border-b border-border/70 bg-background/95 px-5 py-4 pl-14 backdrop-blur-md">
-            <div className="flex items-center justify-between gap-3">
+          {/* Header - Styled like Tenant Modal / Form Modal Shell with precise vertical alignment */}
+          <SheetHeader className="h-16 shrink-0 border-b border-border/70 bg-background/95 px-4 pl-14 flex flex-row items-center justify-between backdrop-blur-md space-y-0 text-left">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               {viewMode === 'chat' && tickets.length > 0 ? (
-                <div className="flex items-center gap-2.5 min-w-0">
+                <>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => setViewMode('inbox')}
-                    className="h-8 gap-1.5 rounded-xl px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    className="h-8 gap-1.5 rounded-xl px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 shrink-0"
                   >
                     <ArrowLeft className="size-3.5" />
                     <span>Übersicht</span>
                   </Button>
-                  <div className="h-4 w-px bg-border/80" />
-                  <div className="min-w-0">
-                    <SheetTitle className="truncate text-sm font-bold text-foreground">
-                      {isComposingNewTicket
-                        ? 'Neue Support-Anfrage'
-                        : visibleTicket
-                        ? formatTicketTitle(visibleTicket)
-                        : 'Support-Chat'}
-                    </SheetTitle>
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-                      {visibleTicket ? (
-                        <>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "px-1.5 py-0 text-[10px] font-medium border uppercase tracking-wider",
-                              ticketStatusClasses[visibleTicket.status] || 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {ticketStatusLabels[visibleTicket.status] || visibleTicket.status}
-                          </Badge>
-                          <span>•</span>
-                          <span>{formatRelativeTime(visibleTicket.last_message_at || visibleTicket.created_at)}</span>
-                        </>
-                      ) : (
-                        <span>Mietevo Support Team</span>
+                  <div className="h-4 w-px bg-border/80 shrink-0" />
+                  <div className="min-w-0 flex-1 flex flex-col justify-center">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <SheetTitle className="truncate text-sm font-bold text-foreground leading-tight">
+                        {isComposingNewTicket
+                          ? 'Neue Support-Anfrage'
+                          : visibleTicket
+                          ? formatTicketTitle(visibleTicket)
+                          : 'Support-Chat'}
+                      </SheetTitle>
+                      {visibleTicket && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "px-1.5 py-0 text-[10px] font-medium border uppercase tracking-wider shrink-0 h-4.5 flex items-center",
+                            ticketStatusClasses[visibleTicket.status] || 'bg-muted text-muted-foreground',
+                          )}
+                        >
+                          {ticketStatusLabels[visibleTicket.status] || visibleTicket.status}
+                        </Badge>
                       )}
                     </div>
+                    <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                      {visibleTicket
+                        ? formatRelativeTime(visibleTicket.last_message_at || visibleTicket.created_at)
+                        : 'Mietevo Support Team'}
+                    </p>
                   </div>
-                </div>
+                </>
               ) : (
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
-                    <Headphones className="size-5" />
+                <>
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
+                    <Headphones className="size-4" />
                   </div>
-                  <div>
-                    <SheetTitle className="text-base font-bold text-foreground">
+                  <div className="min-w-0 flex-1 flex flex-col justify-center">
+                    <SheetTitle className="text-sm font-bold text-foreground leading-tight">
                       Support & Hilfe
                     </SheetTitle>
-                    <SheetDescription className="text-xs text-muted-foreground">
-                      Direkte Unterstützung durch unser Support-Team
+                    <SheetDescription className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                      {tickets.length > 0 ? `${tickets.length} Anfragen gesamt` : 'Direkte Unterstützung'}
                     </SheetDescription>
                   </div>
-                </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+              {viewMode === 'inbox' && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => void refreshTickets()}
+                  disabled={ticketsLoading}
+                  className="size-8 rounded-xl text-muted-foreground hover:text-foreground"
+                  title="Tickets aktualisieren"
+                >
+                  <RefreshCcw className={cn("size-3.5", ticketsLoading && "animate-spin")} />
+                </Button>
               )}
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                {viewMode === 'inbox' && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => void refreshTickets()}
-                    disabled={ticketsLoading}
-                    className="size-8 rounded-xl text-muted-foreground hover:text-foreground"
-                    title="Tickets aktualisieren"
-                  >
-                    <RefreshCcw className={cn("size-3.5", ticketsLoading && "animate-spin")} />
-                  </Button>
-                )}
-
-                {viewMode === 'chat' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleStartNewTicket}
-                    className="h-8 gap-1.5 rounded-xl px-2.5 text-xs font-semibold shadow-xs"
-                  >
-                    <Plus className="size-3.5" />
-                    <span>Neu</span>
-                  </Button>
-                )}
-              </div>
+              {viewMode === 'chat' && !isComposingNewTicket && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleStartNewTicket}
+                  className="h-8 gap-1.5 rounded-xl px-2.5 text-xs font-semibold shadow-xs"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Neu</span>
+                </Button>
+              )}
             </div>
           </SheetHeader>
 
