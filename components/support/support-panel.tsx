@@ -124,14 +124,14 @@ export function SupportPanel() {
     setUnreadCount,
     isAvailable,
     setIsAvailable,
-    setTickets: setStoreTickets,
+    tickets,
+    setTickets,
     selectedTicketId: storeSelectedTicketId,
     setSelectedTicketId: setStoreSelectedTicketId,
     isComposingNew: storeIsComposingNew,
     setIsComposingNew: setStoreIsComposingNew,
   } = useSupportStore()
 
-  const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [ticketsLoading, setTicketsLoading] = useState(false)
   const [ticketsError, setTicketsError] = useState<string | null>(null)
   
@@ -298,7 +298,6 @@ export function SupportPanel() {
       })
 
       setTickets(normalizedTickets)
-      setStoreTickets(normalizedTickets)
       setTotalTicketsCount(response.count)
       setUnreadCount(normalizedTickets.reduce((total, ticket) => total + (ticket.unread_count || 0), 0))
       
@@ -320,7 +319,7 @@ export function SupportPanel() {
         setTicketsLoading(false)
       }
     }
-  }, [isAvailable, isComposingNewTicket, posthog, setStoreTickets, setUnreadCount])
+  }, [isAvailable, isComposingNewTicket, posthog, setTickets, setUnreadCount])
 
   const refreshMessages = useCallback(async (ticketId: string | null, isBackground = false) => {
     if (!posthog || !isAvailable || !ticketId) {
@@ -410,7 +409,6 @@ export function SupportPanel() {
       const newTickets = response.results.filter((t) => !existingIds.has(t.id))
       const merged = [...tickets, ...newTickets]
       setTickets(merged)
-      setStoreTickets(merged)
       const totalUnread = merged.reduce((total, ticket) => total + (ticket.unread_count || 0), 0)
       setUnreadCount(totalUnread)
     } catch (error) {
@@ -418,7 +416,7 @@ export function SupportPanel() {
     } finally {
       setLoadingMoreTickets(false)
     }
-  }, [isAvailable, posthog, setStoreTickets, setUnreadCount, tickets])
+  }, [isAvailable, posthog, setTickets, setUnreadCount, tickets])
 
   useEffect(() => {
     if (!isAvailable || typeof posthog?.conversations?.restoreFromUrlToken !== 'function') {
@@ -544,24 +542,18 @@ export function SupportPanel() {
         message_count: 1,
         unread_count: 0,
       }
-      setTickets((prev) => {
-        const next = [optimisticTicket, ...prev.filter((t) => t.id !== tempTicketId)]
-        setStoreTickets(next)
-        return next
-      })
+      setTickets([optimisticTicket, ...tickets.filter((t) => t.id !== tempTicketId)])
       setSelectedTicketId(tempTicketId)
       setCurrentTicketId(tempTicketId)
       setIsComposingNewTicket(false)
     } else if (selectedTicketId) {
-      setTickets((prev) => {
-        const next = prev.map((t) =>
+      setTickets(
+        tickets.map((t) =>
           t.id === selectedTicketId
             ? { ...t, last_message: message, last_message_at: nowIso, message_count: t.message_count + 1 }
             : t
         )
-        setStoreTickets(next)
-        return next
-      })
+      )
     }
 
     setDraft('')
@@ -591,8 +583,8 @@ export function SupportPanel() {
           return updated
         })
 
-        setTickets((prev) => {
-          const updated = prev.map((t) =>
+        setTickets(
+          tickets.map((t) =>
             t.id === tempTicketId || t.id === realTicketId
               ? {
                   ...t,
@@ -603,9 +595,7 @@ export function SupportPanel() {
                 }
               : t
           )
-          setStoreTickets(updated)
-          return updated
-        })
+        )
 
         setSelectedTicketId(realTicketId)
         setCurrentTicketId(realTicketId)
