@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { useAuth } from "@/components/auth/auth-provider"
 import { SupportButton } from "@/components/support/support-button"
 
 const SupportPanel = dynamic(
@@ -11,9 +12,10 @@ const SupportPanel = dynamic(
 )
 
 export function SupportLauncher() {
+  const { user } = useAuth()
   const supportEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
 
-  if (!supportEnabled) {
+  if (!user || !supportEnabled) {
     return null
   }
 

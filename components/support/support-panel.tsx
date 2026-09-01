@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 import {
   MessageCircle,
   MessageSquarePlus,
@@ -51,6 +52,7 @@ import {
   AlertTriangle,
   RotateCcw,
   X,
+  Lock,
 } from "lucide-react"
 import { SupportMessageContent } from "./support-message-content"
 import { SupportImageLightbox, type LightboxImageData } from "./support-image-lightbox"
@@ -295,7 +297,7 @@ export function SupportPanel() {
   }, [isAvailable, posthog, user?.id])
 
   const refreshTickets = useCallback(async (isBackground = false) => {
-    if (!posthog || !isAvailable) return
+    if (!posthog || !isAvailable || !user?.id) return
 
     if (!isBackground) {
       setTicketsLoading(true)
@@ -330,10 +332,10 @@ export function SupportPanel() {
         setTicketsLoading(false)
       }
     }
-  }, [isAvailable, isComposingNewTicket, posthog, setTickets, setUnreadCount])
+  }, [isAvailable, isComposingNewTicket, posthog, setTickets, setUnreadCount, user?.id])
 
   const refreshMessages = useCallback(async (ticketId: string | null, isBackground = false) => {
-    if (!posthog || !isAvailable || !ticketId) {
+    if (!posthog || !isAvailable || !ticketId || !user?.id) {
       if (!isBackground) setMessages([])
       return
     }
@@ -534,9 +536,13 @@ export function SupportPanel() {
         return
       }
 
+      if (!user?.id || !supportTraits) {
+        setMessageError('Sie müssen angemeldet sein, um eine Nachricht an den Support zu senden.')
+        return
+      }
+
       if (
         !posthog ||
-        !supportTraits ||
         !isAvailable ||
         !canReplyToSelection ||
         typeof posthog.conversations?.sendMessage !== 'function'
@@ -829,7 +835,22 @@ export function SupportPanel() {
 
           {/* Body Content */}
           <div className="flex flex-1 flex-col overflow-hidden bg-background">
-            {availabilityTimedOut ? (
+            {!user ? (
+              <div className="flex flex-1 flex-col items-center justify-center p-6 text-center animate-in fade-in-50 duration-200">
+                <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
+                  <Lock className="size-6" />
+                </div>
+                <h3 className="mb-2 text-base font-bold text-foreground">
+                  Anmeldung erforderlich
+                </h3>
+                <p className="mb-6 max-w-sm text-xs text-muted-foreground leading-relaxed">
+                  Der Mietevo Support steht exklusiv angemeldeten Nutzern zur Verfügung. Bitte melden Sie sich mit Ihrem Konto an, um Support-Tickets zu erstellen oder einzusehen.
+                </p>
+                <Button asChild className="rounded-xl text-xs font-semibold shadow-xs">
+                  <Link href="/auth/login">Jetzt anmelden</Link>
+                </Button>
+              </div>
+            ) : availabilityTimedOut ? (
               <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
                 <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
                   <Headphones className="size-6" />
