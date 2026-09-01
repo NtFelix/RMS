@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from "react"
 import { usePostHog } from "posthog-js/react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useSupportStore } from "@/hooks/use-support-store"
@@ -118,6 +118,308 @@ async function loadSupportMessages(
   return posthog.conversations.getMessages(ticketId, after)
 }
 
+// Memoized Message Bubble component to prevent re-renders when typing
+interface SupportMessageBubbleProps {
+  message: SupportMessage
+  onOpenImage: (data: LightboxImageData) => void
+  onRetryMessage: (message: SupportMessage) => void
+  onEditFailedMessage: (message: SupportMessage) => void
+}
+
+const SupportMessageBubble = memo(function SupportMessageBubble({
+  message,
+  onOpenImage,
+  onRetryMessage,
+  onEditFailedMessage,
+}: SupportMessageBubbleProps) {
+  const isCustomer = message.author_type === 'customer'
+  const isAI =
+    message.author_type === 'bot' ||
+    Boolean(message.author_name && message.author_name.toLowerCase().includes('ai'))
+  const isSendingMessage = message.status === 'sending'
+  const isFailedMessage = message.status === 'failed'
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-1.5",
+        isCustomer ? "items-end" : "items-start",
+      )}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        {!isCustomer && (
+          <span className="flex size-4 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            {isAI ? <Bot className="size-2.5" /> : <Headphones className="size-2.5" />}
+          </span>
+        )}
+        <span className="font-medium">
+          {isCustomer ? 'Sie' : isAI ? 'Mietevo AI' : message.author_name || 'Support'}
+        </span>
+        <span>•</span>
+        {isSendingMessage ? (
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Loader2 className="size-2.5 animate-spin" />
+            <span>Wird gesendet...</span>
+          </span>
+        ) : isFailedMessage ? (
+          <span className="flex items-center gap-1 text-[10px] font-medium text-destructive">
+            <AlertCircle className="size-2.5" />
+            <span>Fehlgeschlagen</span>
+          </span>
+        ) : (
+          <span>{formatRelativeTime(message.created_at)}</span>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          "max-w-[85%] sm:max-w-[78%] rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-xs transition-all",
+          isFailedMessage
+            ? "border border-destructive/40 bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-tr-xs"
+            : isCustomer
+            ? cn(
+                "bg-primary text-primary-foreground rounded-tr-xs font-normal shadow-sm",
+                isSendingMessage && "opacity-80",
+              )
+            : "border border-border/70 bg-card text-card-foreground dark:bg-zinc-900 rounded-tl-xs",
+        )}
+      >
+        <SupportMessageContent
+          content={message.content}
+          isCustomer={isCustomer}
+          onOpenImage={onOpenImage}
+        />
+      </div>
+
+      {isFailedMessage && (
+        <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px] text-destructive">
+          <AlertCircle className="size-3 shrink-0" />
+          <span className="font-medium">Nicht übermittelt</span>
+          {message.error && (
+            <>
+              <span className="text-muted-foreground/40">•</span>
+              <span className="text-destructive/90 max-w-[280px] truncate" title={message.error}>
+                {message.error}
+              </span>
+            </>
+          )}
+          <span className="text-muted-foreground/40">•</span>
+          <button
+            type="button"
+            onClick={() => onRetryMessage(message)}
+            className="inline-flex items-center gap-0.5 font-semibold text-destructive underline hover:no-underline cursor-pointer"
+          >
+            <RotateCcw className="size-2.5 mr-0.5" />
+            <span>Wiederholen</span>
+          </button>
+          <span className="text-muted-foreground/40">•</span>
+          <button
+            type="button"
+            onClick={() => onEditFailedMessage(message)}
+            className="font-semibold text-destructive underline hover:no-underline cursor-pointer"
+          >
+            Bearbeiten
+          </button>
+        </div>
+      )}
+    </div>
+  )
+})
+
+// Memoized Composer Component with smooth auto-height
+interface SupportComposerProps {
+  draft: string
+  setDraft: React.Dispatch<React.SetStateAction<string>>
+  isSending: boolean
+  isComposingNewTicket: boolean
+  canReplyToSelection: boolean
+  isAvailable: boolean
+  supportTraitsReady: boolean
+  messageError: string | null
+  onClearMessageError: () => void
+  onSendMessage: () => void
+  onStartNewTicket: () => void
+  userEmail?: string
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
+}
+
+const SupportComposer = memo(function SupportComposer({
+  draft,
+  setDraft,
+  isSending,
+  isComposingNewTicket,
+  canReplyToSelection,
+  isAvailable,
+  supportTraitsReady,
+  messageError,
+  onClearMessageError,
+  onSendMessage,
+  onStartNewTicket,
+  userEmail,
+  textareaRef,
+}: SupportComposerProps) {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      onSendMessage()
+    }
+  }
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setDraft(val)
+    if (messageError) onClearMessageError()
+  }
+
+  // Smooth layout effect for textarea auto-resizing without layout thrashing
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const newHeight = Math.min(el.scrollHeight, 140)
+    el.style.height = `${Math.max(newHeight, 36)}px`
+  }, [draft, textareaRef])
+
+  const isOverLimit = draft.length > MAX_SUPPORT_MESSAGE_LENGTH
+  const isApproachingLimit = draft.length >= WARN_SUPPORT_MESSAGE_LENGTH
+
+  return (
+    <div className="shrink-0 p-3 bg-background border-t border-border/60 shadow-sm z-20">
+      {messageError && (
+        <div className="mb-2.5 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive animate-in fade-in-50 duration-200">
+          <AlertCircle className="size-4 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-xs leading-tight">Nachricht konnte nicht gesendet werden</p>
+            <p className="text-[11px] text-destructive/90 mt-0.5 leading-snug break-words">{messageError}</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClearMessageError}
+            className="size-5 rounded-md hover:bg-destructive/20 text-destructive shrink-0"
+          >
+            <X className="size-3" />
+          </Button>
+        </div>
+      )}
+
+      {!canReplyToSelection && (
+        <div className="mb-2.5 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
+          <span>Dies ist ein abgeschlossenes Ticket.</span>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            onClick={onStartNewTicket}
+            className="h-auto p-0 text-xs font-semibold text-amber-800 underline dark:text-amber-300"
+          >
+            Neues Ticket erstellen
+          </Button>
+        </div>
+      )}
+
+      {draft.length > 500 && (
+        <div className="flex items-center justify-between px-1 pb-1 text-[11px]">
+          {isOverLimit ? (
+            <span className="text-destructive font-semibold flex items-center gap-1">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              <span>
+                {(draft.length - MAX_SUPPORT_MESSAGE_LENGTH).toLocaleString('de-DE')} Zeichen zu lang (max. {MAX_SUPPORT_MESSAGE_LENGTH.toLocaleString('de-DE')})
+              </span>
+            </span>
+          ) : isApproachingLimit ? (
+            <span className="text-amber-600 dark:text-amber-400 font-medium">
+              Noch {(MAX_SUPPORT_MESSAGE_LENGTH - draft.length).toLocaleString('de-DE')} Zeichen übrig
+            </span>
+          ) : (
+            <span />
+          )}
+          <span
+            className={cn(
+              "text-[10px] tabular-nums font-medium",
+              isOverLimit
+                ? "text-destructive font-bold"
+                : isApproachingLimit
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground/70",
+            )}
+          >
+            {draft.length.toLocaleString('de-DE')} / {MAX_SUPPORT_MESSAGE_LENGTH.toLocaleString('de-DE')}
+          </span>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "relative flex items-end gap-2 border rounded-2xl shadow-xs focus-within:ring-1 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground p-1.5 pl-3.5",
+          isOverLimit
+            ? "border-destructive/60 focus-within:ring-destructive/30"
+            : "border-border/80 dark:border-border/20 focus-within:ring-primary/25",
+        )}
+      >
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={handleTextareaChange}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            isComposingNewTicket
+              ? "Beschreiben Sie Ihr Anliegen..."
+              : "Antwort schreiben..."
+          }
+          disabled={isSending || !canReplyToSelection}
+          rows={1}
+          aria-label="Support-Nachricht eingeben"
+          className="w-full flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-[140px] text-xs sm:text-sm placeholder:text-muted-foreground disabled:opacity-50 min-h-[36px] py-2 outline-none leading-relaxed overflow-y-auto"
+        />
+
+        <Button
+          type="button"
+          onClick={onSendMessage}
+          disabled={
+            !draft.trim() ||
+            isSending ||
+            !isAvailable ||
+            !supportTraitsReady ||
+            !canReplyToSelection ||
+            isOverLimit
+          }
+          size="icon"
+          aria-label={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
+          title={
+            isOverLimit
+              ? 'Nachricht ist zu lang'
+              : isComposingNewTicket
+              ? 'Ticket erstellen'
+              : 'Nachricht senden'
+          }
+          className={cn(
+            "rounded-full size-8 shrink-0 shadow-none transition-all active:scale-95 text-primary-foreground cursor-pointer mb-0.5",
+            isOverLimit
+              ? "bg-destructive hover:bg-destructive/90 disabled:opacity-40"
+              : "bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary",
+          )}
+        >
+          {isSending ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <ArrowUp className="size-3.5" />
+          )}
+        </Button>
+      </div>
+
+      {!supportTraitsReady && (
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          {userEmail === 'Nicht angemeldet'
+            ? 'Bitte melden Sie sich an, um Support-Nachrichten zu senden.'
+            : 'Benutzerdaten werden geladen...'}
+        </p>
+      )}
+    </div>
+  )
+})
+
 export function SupportPanel() {
   const posthog = usePostHog()
   const { user } = useAuth()
@@ -187,6 +489,8 @@ export function SupportPanel() {
   const canReplyToSelection = isComposingNewTicket || !selectedTicketId || selectedTicketId === currentTicketId
   const userDisplay = getUserDisplayData(user)
   const supportTraits = buildSupportTraits(user)
+  const prevMessageCountRef = useRef(0)
+  const prevTicketIdRef = useRef<string | null>(null)
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
@@ -196,7 +500,14 @@ export function SupportPanel() {
 
   useEffect(() => {
     if (viewMode === 'chat' && visibleMessages.length > 0) {
-      scrollToBottom(false)
+      if (
+        visibleMessages.length !== prevMessageCountRef.current ||
+        visibleTicketId !== prevTicketIdRef.current
+      ) {
+        prevMessageCountRef.current = visibleMessages.length
+        prevTicketIdRef.current = visibleTicketId
+        scrollToBottom(false)
+      }
     }
   }, [viewMode, visibleTicketId, visibleMessages.length, scrollToBottom])
 
@@ -310,7 +621,22 @@ export function SupportPanel() {
         return new Date(b.last_message_at || b.created_at).getTime() - new Date(a.last_message_at || a.created_at).getTime()
       })
 
-      setTickets(normalizedTickets)
+      const isIdentical =
+        tickets.length === normalizedTickets.length &&
+        tickets.every((t, i) => {
+          const n = normalizedTickets[i]
+          return (
+            t.id === n?.id &&
+            t.status === n?.status &&
+            t.last_message === n?.last_message &&
+            t.unread_count === n?.unread_count
+          )
+        })
+
+      if (!isIdentical) {
+        setTickets(normalizedTickets)
+      }
+
       setTotalTicketsCount(response.count)
       setUnreadCount(normalizedTickets.reduce((total, ticket) => total + (ticket.unread_count || 0), 0))
       
@@ -332,7 +658,7 @@ export function SupportPanel() {
         setTicketsLoading(false)
       }
     }
-  }, [isAvailable, isComposingNewTicket, posthog, setTickets, setUnreadCount, user?.id])
+  }, [isAvailable, isComposingNewTicket, posthog, setTickets, setUnreadCount, tickets, user?.id])
 
   const refreshMessages = useCallback(async (ticketId: string | null, isBackground = false) => {
     if (!posthog || !isAvailable || !ticketId || !user?.id) {
@@ -352,8 +678,24 @@ export function SupportPanel() {
         return
       }
 
-      messagesCacheRef.current[ticketId] = response.messages
-      setMessages(response.messages)
+      const newMessages = (response.messages || []) as SupportMessage[]
+      setMessages((prev) => {
+        if (prev.length === newMessages.length) {
+          const identical = prev.every((m, i) => {
+            const n = newMessages[i]
+            return (
+              m.id === n?.id &&
+              m.content === n?.content &&
+              m.status === n?.status &&
+              m.error === n?.error
+            )
+          })
+          if (identical) return prev
+        }
+        messagesCacheRef.current[ticketId] = newMessages
+        return newMessages
+      })
+
       setHasMoreMessages(response.has_more)
       if (response.messages.length > 0) {
         const oldest = response.messages.reduce((a, b) => a.created_at < b.created_at ? a : b)
@@ -370,7 +712,7 @@ export function SupportPanel() {
         setMessagesLoading(false)
       }
     }
-  }, [isAvailable, posthog])
+  }, [isAvailable, posthog, user?.id])
 
   const refreshTicketsRef = useRef(refreshTickets)
   refreshTicketsRef.current = refreshTickets
@@ -1065,245 +1407,35 @@ export function SupportPanel() {
                   )}
 
                   <div className="space-y-4">
-                    {visibleMessages.map((message) => {
-                      const isCustomer = message.author_type === 'customer'
-                      const isAI =
-                        message.author_type === 'bot' ||
-                        (message.author_name && message.author_name.toLowerCase().includes('ai'))
-                      const isSendingMessage = message.status === 'sending'
-                      const isFailedMessage = message.status === 'failed'
-
-                      return (
-                        <div
-                          key={message.id}
-                          className={cn(
-                            "flex flex-col gap-1.5",
-                            isCustomer ? "items-end" : "items-start",
-                          )}
-                        >
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            {!isCustomer && (
-                              <span className="flex size-4 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                                {isAI ? <Bot className="size-2.5" /> : <Headphones className="size-2.5" />}
-                              </span>
-                            )}
-                            <span className="font-medium">
-                              {isCustomer ? 'Sie' : isAI ? 'Mietevo AI' : message.author_name || 'Support'}
-                            </span>
-                            <span>•</span>
-                            {isSendingMessage ? (
-                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                <Loader2 className="size-2.5 animate-spin" />
-                                <span>Wird gesendet...</span>
-                              </span>
-                            ) : isFailedMessage ? (
-                              <span className="flex items-center gap-1 text-[10px] font-medium text-destructive">
-                                <AlertCircle className="size-2.5" />
-                                <span>Fehlgeschlagen</span>
-                              </span>
-                            ) : (
-                              <span>{formatRelativeTime(message.created_at)}</span>
-                            )}
-                          </div>
-
-                          <div
-                            className={cn(
-                              "max-w-[85%] sm:max-w-[78%] rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-xs transition-all",
-                              isFailedMessage
-                                ? "border border-destructive/40 bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-tr-xs"
-                                : isCustomer
-                                ? cn(
-                                    "bg-primary text-primary-foreground rounded-tr-xs font-normal shadow-sm",
-                                    isSendingMessage && "opacity-80",
-                                  )
-                                : "border border-border/70 bg-card text-card-foreground dark:bg-zinc-900 rounded-tl-xs",
-                            )}
-                          >
-                            <SupportMessageContent
-                              content={message.content}
-                              isCustomer={isCustomer}
-                              onOpenImage={(img) => setLightboxImage(img)}
-                            />
-                          </div>
-
-                          {isFailedMessage && (
-                            <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px] text-destructive">
-                              <AlertCircle className="size-3 shrink-0" />
-                              <span className="font-medium">Nicht übermittelt</span>
-                              {message.error && (
-                                <>
-                                  <span className="text-muted-foreground/40">•</span>
-                                  <span className="text-destructive/90 max-w-[280px] truncate" title={message.error}>
-                                    {message.error}
-                                  </span>
-                                </>
-                              )}
-                              <span className="text-muted-foreground/40">•</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRetryMessage(message)}
-                                className="inline-flex items-center gap-0.5 font-semibold text-destructive underline hover:no-underline cursor-pointer"
-                              >
-                                <RotateCcw className="size-2.5 mr-0.5" />
-                                <span>Wiederholen</span>
-                              </button>
-                              <span className="text-muted-foreground/40">•</span>
-                              <button
-                                type="button"
-                                onClick={() => handleEditFailedMessage(message)}
-                                className="font-semibold text-destructive underline hover:no-underline cursor-pointer"
-                              >
-                                Bearbeiten
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                    {visibleMessages.map((message) => (
+                      <SupportMessageBubble
+                        key={message.id}
+                        message={message}
+                        onOpenImage={setLightboxImage}
+                        onRetryMessage={handleRetryMessage}
+                        onEditFailedMessage={handleEditFailedMessage}
+                      />
+                    ))}
                     <div ref={messagesEndRef} />
                   </div>
                 </div>
 
                 {/* Message Composer */}
-                <div className="shrink-0 p-3 bg-background border-t border-border/60 shadow-sm z-20">
-                  {messageError && (
-                    <div className="mb-2.5 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive animate-in fade-in-50 duration-200">
-                      <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs leading-tight">Nachricht konnte nicht gesendet werden</p>
-                        <p className="text-[11px] text-destructive/90 mt-0.5 leading-snug break-words">{messageError}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setMessageError(null)}
-                        className="size-5 rounded-md hover:bg-destructive/20 text-destructive shrink-0"
-                      >
-                        <X className="size-3" />
-                      </Button>
-                    </div>
-                  )}
-
-                  {!canReplyToSelection && (
-                    <div className="mb-2.5 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
-                      <span>Dies ist ein abgeschlossenes Ticket.</span>
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        onClick={handleStartNewTicket}
-                        className="h-auto p-0 text-xs font-semibold text-amber-800 underline dark:text-amber-300"
-                      >
-                        Neues Ticket erstellen
-                      </Button>
-                    </div>
-                  )}
-
-                  {draft.length > 500 && (
-                    <div className="flex items-center justify-between px-1 pb-1 text-[11px]">
-                      {draft.length > MAX_SUPPORT_MESSAGE_LENGTH ? (
-                        <span className="text-destructive font-semibold flex items-center gap-1">
-                          <AlertTriangle className="size-3.5 shrink-0" />
-                          <span>
-                            {(draft.length - MAX_SUPPORT_MESSAGE_LENGTH).toLocaleString('de-DE')} Zeichen zu lang (max. {MAX_SUPPORT_MESSAGE_LENGTH.toLocaleString('de-DE')})
-                          </span>
-                        </span>
-                      ) : draft.length >= WARN_SUPPORT_MESSAGE_LENGTH ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-medium">
-                          Noch {(MAX_SUPPORT_MESSAGE_LENGTH - draft.length).toLocaleString('de-DE')} Zeichen übrig
-                        </span>
-                      ) : (
-                        <span />
-                      )}
-                      <span
-                        className={cn(
-                          "text-[10px] tabular-nums font-medium",
-                          draft.length > MAX_SUPPORT_MESSAGE_LENGTH
-                            ? "text-destructive font-bold"
-                            : draft.length >= WARN_SUPPORT_MESSAGE_LENGTH
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-muted-foreground/70",
-                        )}
-                      >
-                        {draft.length.toLocaleString('de-DE')} / {MAX_SUPPORT_MESSAGE_LENGTH.toLocaleString('de-DE')}
-                      </span>
-                    </div>
-                  )}
-
-                  <div
-                    className={cn(
-                      "relative flex items-end gap-2 border rounded-2xl shadow-xs focus-within:ring-1 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground p-1.5 pl-3.5",
-                      draft.length > MAX_SUPPORT_MESSAGE_LENGTH
-                        ? "border-destructive/60 focus-within:ring-destructive/30"
-                        : "border-border/80 dark:border-border/20 focus-within:ring-primary/25",
-                    )}
-                  >
-                    <textarea
-                      ref={textareaRef}
-                      value={draft}
-                      onChange={(e) => {
-                        setDraft(e.target.value)
-                        if (messageError) setMessageError(null)
-                        e.target.style.height = 'auto'
-                        e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
-                      }}
-                      onKeyDown={handleKeyDown}
-                      placeholder={
-                        isComposingNewTicket
-                          ? "Beschreiben Sie Ihr Anliegen..."
-                          : "Antwort schreiben..."
-                      }
-                      disabled={isSending || !canReplyToSelection}
-                      rows={1}
-                      aria-label="Support-Nachricht eingeben"
-                      className="w-full flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-[140px] text-xs sm:text-sm placeholder:text-muted-foreground disabled:opacity-50 min-h-[36px] py-2 outline-none leading-relaxed"
-                      style={{ overflowY: draft.length > 80 ? 'auto' : 'hidden' }}
-                    />
-
-                    <Button
-                      type="button"
-                      onClick={handleSendMessage}
-                      disabled={
-                        !draft.trim() ||
-                        isSending ||
-                        !isAvailable ||
-                        !supportTraits ||
-                        !canReplyToSelection ||
-                        draft.length > MAX_SUPPORT_MESSAGE_LENGTH
-                      }
-                      size="icon"
-                      aria-label={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
-                      title={
-                        draft.length > MAX_SUPPORT_MESSAGE_LENGTH
-                          ? 'Nachricht ist zu lang'
-                          : isComposingNewTicket
-                          ? 'Ticket erstellen'
-                          : 'Nachricht senden'
-                      }
-                      className={cn(
-                        "rounded-full size-8 shrink-0 shadow-none transition-all active:scale-95 text-primary-foreground cursor-pointer mb-0.5",
-                        draft.length > MAX_SUPPORT_MESSAGE_LENGTH
-                          ? "bg-destructive hover:bg-destructive/90 disabled:opacity-40"
-                          : "bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary",
-                      )}
-                    >
-                      {isSending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <ArrowUp className="size-3.5" />
-                      )}
-                    </Button>
-                  </div>
-
-                  {!supportTraits && (
-                    <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                      {userDisplay.userEmail === 'Nicht angemeldet'
-                        ? 'Bitte melden Sie sich an, um Support-Nachrichten zu senden.'
-                        : 'Benutzerdaten werden geladen...'}
-                    </p>
-                  )}
-                </div>
+                <SupportComposer
+                  draft={draft}
+                  setDraft={setDraft}
+                  isSending={isSending}
+                  isComposingNewTicket={isComposingNewTicket}
+                  canReplyToSelection={canReplyToSelection}
+                  isAvailable={isAvailable}
+                  supportTraitsReady={Boolean(supportTraits)}
+                  messageError={messageError}
+                  onClearMessageError={() => setMessageError(null)}
+                  onSendMessage={handleSendMessage}
+                  onStartNewTicket={handleStartNewTicket}
+                  userEmail={userDisplay.userEmail}
+                  textareaRef={textareaRef}
+                />
               </div>
             )}
           </div>

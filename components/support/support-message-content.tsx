@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo, memo } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { ExternalLink, Eye, AlertCircle, Image as ImageIcon, Loader2 } from "lucide-react"
+import { ExternalLink, Eye, AlertCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+const REMARK_PLUGINS = [remarkGfm]
 
 interface SupportMessageContentProps {
   content: string
@@ -12,7 +14,7 @@ interface SupportMessageContentProps {
   onOpenImage?: (data: { src: string; alt?: string }) => void
 }
 
-function SupportImageElement({
+const SupportImageElement = memo(function SupportImageElement({
   src,
   alt,
   onOpenImage,
@@ -51,7 +53,7 @@ function SupportImageElement({
         className="relative block max-w-full rounded-xl overflow-hidden border border-border/70 bg-muted/40 shadow-xs hover:border-primary/50 transition-all cursor-zoom-in text-left group"
       >
         {loading && (
-          <span className="flex items-center justify-center gap-2 p-6 bg-muted/30 text-muted-foreground text-xs min-h-[120px] min-w-[180px]">
+          <span className="flex items-center justify-center gap-2 p-6 bg-muted/30 text-muted-foreground text-xs min-h-[100px] min-w-[160px]">
             <Loader2 className="size-4 animate-spin text-primary" />
             <span>Lade Bild...</span>
           </span>
@@ -89,13 +91,95 @@ function SupportImageElement({
       )}
     </span>
   )
-}
+})
 
-export function SupportMessageContent({
+export const SupportMessageContent = memo(function SupportMessageContent({
   content,
   isCustomer,
   onOpenImage,
 }: SupportMessageContentProps) {
+  const components = useMemo(() => ({
+    img: ({ src, alt }: { src?: any; alt?: string }) => (
+      <SupportImageElement
+        src={typeof src === "string" ? src : undefined}
+        alt={alt}
+        onOpenImage={onOpenImage}
+      />
+    ),
+    a: ({ href, children, ...props }: any) => (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          "inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition-opacity hover:opacity-80 break-all",
+          isCustomer
+            ? "text-primary-foreground decoration-primary-foreground/60"
+            : "text-primary decoration-primary/60",
+        )}
+        {...props}
+      >
+        <span>{children}</span>
+        <ExternalLink className="size-2.5 inline-block shrink-0 opacity-75" />
+      </a>
+    ),
+    p: ({ children }: any) => (
+      <p className="mb-2 last:mb-0 leading-relaxed whitespace-pre-wrap">{children}</p>
+    ),
+    ul: ({ children }: any) => (
+      <ul className="list-disc pl-4 mb-2 space-y-1 last:mb-0">{children}</ul>
+    ),
+    ol: ({ children }: any) => (
+      <ol className="list-decimal pl-4 mb-2 space-y-1 last:mb-0">{children}</ol>
+    ),
+    li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
+    strong: ({ children }: any) => <strong className="font-bold">{children}</strong>,
+    em: ({ children }: any) => <em className="italic">{children}</em>,
+    code: ({ children, className }: any) => {
+      const isBlock = className?.includes("language-")
+      if (isBlock) {
+        return (
+          <div className="my-2 p-2.5 rounded-xl bg-zinc-950 text-zinc-100 font-mono text-[11px] overflow-x-auto border border-zinc-800">
+            <code>{children}</code>
+          </div>
+        )
+      }
+      return (
+        <code
+          className={cn(
+            "font-mono text-[11px] px-1.5 py-0.5 rounded-md",
+            isCustomer
+              ? "bg-primary-foreground/20 text-primary-foreground"
+              : "bg-muted text-foreground border border-border/60",
+          )}
+        >
+          {children}
+        </code>
+      )
+    },
+    blockquote: ({ children }: any) => (
+      <blockquote
+        className={cn(
+          "border-l-2 pl-3 py-1 my-2 italic text-[11px]",
+          isCustomer ? "border-primary-foreground/50 opacity-90" : "border-primary/60 text-muted-foreground",
+        )}
+      >
+        {children}
+      </blockquote>
+    ),
+    table: ({ children }: any) => (
+      <div className="overflow-x-auto my-2 rounded-lg border border-border/60">
+        <table className="min-w-full text-left text-[11px] border-collapse">{children}</table>
+      </div>
+    ),
+    th: ({ children }: any) => (
+      <th className="border-b border-border/60 p-1.5 font-bold bg-muted/40">{children}</th>
+    ),
+    td: ({ children }: any) => (
+      <td className="border-b border-border/40 p-1.5">{children}</td>
+    ),
+  }), [isCustomer, onOpenImage])
+
   return (
     <div
       className={cn(
@@ -104,91 +188,11 @@ export function SupportMessageContent({
       )}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          img: ({ src, alt }) => (
-            <SupportImageElement
-              src={typeof src === "string" ? src : undefined}
-              alt={alt}
-              onOpenImage={onOpenImage}
-            />
-          ),
-          a: ({ href, children, ...props }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "inline-flex items-center gap-1 font-semibold underline underline-offset-2 transition-opacity hover:opacity-80 break-all",
-                isCustomer
-                  ? "text-primary-foreground decoration-primary-foreground/60"
-                  : "text-primary decoration-primary/60",
-              )}
-              {...props}
-            >
-              <span>{children}</span>
-              <ExternalLink className="size-2.5 inline-block shrink-0 opacity-75" />
-            </a>
-          ),
-          p: ({ children }) => (
-            <p className="mb-2 last:mb-0 leading-relaxed whitespace-pre-wrap">{children}</p>
-          ),
-          ul: ({ children }) => (
-            <ul className="list-disc pl-4 mb-2 space-y-1 last:mb-0">{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="list-decimal pl-4 mb-2 space-y-1 last:mb-0">{children}</ol>
-          ),
-          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-          strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-          em: ({ children }) => <em className="italic">{children}</em>,
-          code: ({ children, className }) => {
-            const isBlock = className?.includes("language-")
-            if (isBlock) {
-              return (
-                <div className="my-2 p-2.5 rounded-xl bg-zinc-950 text-zinc-100 font-mono text-[11px] overflow-x-auto border border-zinc-800">
-                  <code>{children}</code>
-                </div>
-              )
-            }
-            return (
-              <code
-                className={cn(
-                  "font-mono text-[11px] px-1.5 py-0.5 rounded-md",
-                  isCustomer
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : "bg-muted text-foreground border border-border/60",
-                )}
-              >
-                {children}
-              </code>
-            )
-          },
-          blockquote: ({ children }) => (
-            <blockquote
-              className={cn(
-                "border-l-2 pl-3 py-1 my-2 italic text-[11px]",
-                isCustomer ? "border-primary-foreground/50 opacity-90" : "border-primary/60 text-muted-foreground",
-              )}
-            >
-              {children}
-            </blockquote>
-          ),
-          table: ({ children }) => (
-            <div className="overflow-x-auto my-2 rounded-lg border border-border/60">
-              <table className="min-w-full text-left text-[11px] border-collapse">{children}</table>
-            </div>
-          ),
-          th: ({ children }) => (
-            <th className="border-b border-border/60 p-1.5 font-bold bg-muted/40">{children}</th>
-          ),
-          td: ({ children }) => (
-            <td className="border-b border-border/40 p-1.5">{children}</td>
-          ),
-        }}
+        remarkPlugins={REMARK_PLUGINS}
+        components={components}
       >
         {content}
       </ReactMarkdown>
     </div>
   )
-}
+})
