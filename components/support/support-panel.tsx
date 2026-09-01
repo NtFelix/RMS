@@ -69,28 +69,59 @@ import { SupportImageLightbox, type LightboxImageData } from "./support-image-li
 const ticketStatusLabels: Record<string, string> = {
   new: 'Neu',
   open: 'Offen',
+  pending: 'Ausstehend',
   in_progress: 'In Bearbeitung',
+  on_hold: 'Pausiert',
   resolved: 'Gelöst',
   closed: 'Geschlossen',
-  on_hold: 'Wartend',
 }
 
 const ticketStatusClasses: Record<string, string> = {
   new: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 dark:bg-emerald-500/20 font-medium',
   open: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 dark:bg-blue-500/20 font-medium',
-  in_progress: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 dark:bg-amber-500/20 font-medium',
+  pending: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 dark:bg-amber-500/20 font-medium',
+  in_progress: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 dark:bg-indigo-500/20 font-medium',
+  on_hold: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 dark:bg-purple-500/20 font-medium',
   resolved: 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 dark:bg-teal-500/20 font-medium',
   closed: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30 dark:bg-zinc-500/20 font-medium',
-  on_hold: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 dark:bg-purple-500/20 font-medium',
 }
 
 const ticketStatusDotClasses: Record<string, string> = {
   new: 'bg-emerald-500 animate-pulse',
   open: 'bg-blue-500',
-  in_progress: 'bg-amber-500',
+  pending: 'bg-amber-500',
+  in_progress: 'bg-indigo-500',
+  on_hold: 'bg-purple-500',
   resolved: 'bg-teal-500',
   closed: 'bg-zinc-400',
-  on_hold: 'bg-purple-500',
+}
+
+function normalizeTicketStatusKey(rawStatus?: string | null): string {
+  if (!rawStatus) return 'open'
+  const s = rawStatus.toLowerCase().trim().replace(/[\s-]+/g, '_')
+  if (s === 'hold' || s === 'on_hold' || s === 'onhold') return 'on_hold'
+  if (s === 'progress' || s === 'in_progress' || s === 'inprog') return 'in_progress'
+  if (s === 'pend' || s === 'pending' || s === 'ausstehend') return 'pending'
+  if (s === 'res' || s === 'resolved' || s === 'geloest' || s === 'gelöst') return 'resolved'
+  if (s === 'close' || s === 'closed' || s === 'geschlossen') return 'closed'
+  if (s === 'neu' || s === 'new') return 'new'
+  if (s === 'offen' || s === 'open') return 'open'
+  return s
+}
+
+function getTicketStatusLabel(status?: string | null): string {
+  const key = normalizeTicketStatusKey(status)
+  return ticketStatusLabels[key] || status || 'Offen'
+}
+
+function getTicketStatusClass(status?: string | null): string {
+  const key = normalizeTicketStatusKey(status)
+  return ticketStatusClasses[key] || 'bg-muted text-muted-foreground border-border'
+}
+
+function getTicketStatusDotClass(status?: string | null): string {
+  const key = normalizeTicketStatusKey(status)
+  return ticketStatusDotClasses[key] || 'bg-muted-foreground'
 }
 
 function normalizeMessages(messages: SupportMessage[]): SupportMessage[] {
@@ -1141,16 +1172,16 @@ export function SupportPanel() {
                         variant="outline"
                         className={cn(
                           "px-2 py-0.5 text-[10px] font-semibold border uppercase tracking-wider shrink-0 h-5 flex items-center gap-1.5 rounded-full shadow-2xs",
-                          ticketStatusClasses[visibleTicket.status] || 'bg-muted text-muted-foreground',
+                          getTicketStatusClass(visibleTicket.status),
                         )}
                       >
                         <span
                           className={cn(
                             "size-1.5 rounded-full shrink-0",
-                            ticketStatusDotClasses[visibleTicket.status] || 'bg-muted-foreground'
+                            getTicketStatusDotClass(visibleTicket.status),
                           )}
                         />
-                        <span>{ticketStatusLabels[visibleTicket.status] || visibleTicket.status}</span>
+                        <span>{getTicketStatusLabel(visibleTicket.status)}</span>
                       </Badge>
                     )}
                   </div>
@@ -1278,12 +1309,13 @@ export function SupportPanel() {
                           </SelectTrigger>
                           <SelectContent className="z-50 min-w-[170px]">
                             <SelectItem value="all">Alle Status</SelectItem>
-                            <SelectItem value="open">Offene Tickets</SelectItem>
+                            <SelectItem value="open">Offen</SelectItem>
+                            <SelectItem value="pending">Ausstehend</SelectItem>
                             <SelectItem value="in_progress">In Bearbeitung</SelectItem>
-                            <SelectItem value="new">Neue Tickets</SelectItem>
-                            <SelectItem value="resolved">Gelöste Tickets</SelectItem>
-                            <SelectItem value="closed">Geschlossene</SelectItem>
-                            <SelectItem value="on_hold">Wartende</SelectItem>
+                            <SelectItem value="new">Neu</SelectItem>
+                            <SelectItem value="on_hold">Pausiert</SelectItem>
+                            <SelectItem value="resolved">Gelöst</SelectItem>
+                            <SelectItem value="closed">Geschlossen</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1316,7 +1348,7 @@ export function SupportPanel() {
                       )}
                       {statusFilter !== 'all' && (
                         <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-muted/40 py-0 px-2 h-5">
-                          <span>Status: {statusFilter === 'open' ? 'Offen' : ticketStatusLabels[statusFilter] || statusFilter}</span>
+                          <span>Status: {statusFilter === 'open' ? 'Offen' : getTicketStatusLabel(statusFilter)}</span>
                         </Badge>
                       )}
                       <Button
@@ -1393,16 +1425,16 @@ export function SupportPanel() {
                                     variant="outline"
                                     className={cn(
                                       "px-2 py-0.5 text-[10px] font-semibold border uppercase tracking-wider shrink-0 flex items-center gap-1.5 rounded-full shadow-2xs",
-                                      ticketStatusClasses[ticket.status] || 'bg-muted text-muted-foreground'
+                                      getTicketStatusClass(ticket.status),
                                     )}
                                   >
                                     <span
                                       className={cn(
                                         "size-1.5 rounded-full shrink-0",
-                                        ticketStatusDotClasses[ticket.status] || 'bg-muted-foreground'
+                                        getTicketStatusDotClass(ticket.status),
                                       )}
                                     />
-                                    <span>{ticketStatusLabels[ticket.status] || ticket.status}</span>
+                                    <span>{getTicketStatusLabel(ticket.status)}</span>
                                   </Badge>
                                   <span className="truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                                     {formatTicketTitle(ticket)}

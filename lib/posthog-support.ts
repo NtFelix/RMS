@@ -13,7 +13,7 @@ export const WARN_SUPPORT_MESSAGE_LENGTH = 8_000
 
 export interface SupportTicket {
   id: string
-  status: 'new' | 'open' | 'pending' | 'on_hold' | 'resolved' | string
+  status: 'new' | 'open' | 'pending' | 'in_progress' | 'on_hold' | 'resolved' | 'closed' | string
   last_message?: string
   last_message_at?: string
   message_count: number
