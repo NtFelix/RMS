@@ -27,6 +27,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { SearchInput } from "@/components/ui/search-input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -43,6 +51,7 @@ import {
   ChevronRight,
   Bot,
   Search,
+  Filter,
   Check,
   Clock,
   Sparkles,
@@ -67,12 +76,21 @@ const ticketStatusLabels: Record<string, string> = {
 }
 
 const ticketStatusClasses: Record<string, string> = {
-  new: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-  open: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-  in_progress: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-  resolved: 'bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20',
-  closed: 'bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20',
-  on_hold: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+  new: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 dark:bg-emerald-500/20 font-medium',
+  open: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 dark:bg-blue-500/20 font-medium',
+  in_progress: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 dark:bg-amber-500/20 font-medium',
+  resolved: 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30 dark:bg-teal-500/20 font-medium',
+  closed: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30 dark:bg-zinc-500/20 font-medium',
+  on_hold: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 dark:bg-purple-500/20 font-medium',
+}
+
+const ticketStatusDotClasses: Record<string, string> = {
+  new: 'bg-emerald-500 animate-pulse',
+  open: 'bg-blue-500',
+  in_progress: 'bg-amber-500',
+  resolved: 'bg-teal-500',
+  closed: 'bg-zinc-400',
+  on_hold: 'bg-purple-500',
 }
 
 function normalizeMessages(messages: SupportMessage[]): SupportMessage[] {
@@ -461,7 +479,7 @@ export function SupportPanel() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [currentTicketId, setCurrentTicketId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'resolved'>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const selectedTicketIdRef = useRef(selectedTicketId)
   selectedTicketIdRef.current = selectedTicketId
@@ -1072,6 +1090,7 @@ export function SupportPanel() {
     return tickets.filter((ticket) => {
       if (statusFilter === 'open' && (ticket.status === 'resolved' || ticket.status === 'closed')) return false
       if (statusFilter === 'resolved' && ticket.status !== 'resolved' && ticket.status !== 'closed') return false
+      if (statusFilter !== 'all' && statusFilter !== 'open' && statusFilter !== 'resolved' && ticket.status !== statusFilter) return false
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase()
@@ -1103,7 +1122,7 @@ export function SupportPanel() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setViewMode('inbox')}
-                    className="h-8 gap-1.5 rounded-xl px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 shrink-0"
+                    className="h-8 gap-1.5 rounded-xl px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 shrink-0 cursor-pointer"
                   >
                     <ArrowLeft className="size-3.5" />
                     <span>Übersicht</span>
@@ -1121,11 +1140,17 @@ export function SupportPanel() {
                       <Badge
                         variant="outline"
                         className={cn(
-                          "px-1.5 py-0 text-[10px] font-medium border uppercase tracking-wider shrink-0 h-4.5 flex items-center",
+                          "px-2 py-0.5 text-[10px] font-semibold border uppercase tracking-wider shrink-0 h-5 flex items-center gap-1.5 rounded-full shadow-2xs",
                           ticketStatusClasses[visibleTicket.status] || 'bg-muted text-muted-foreground',
                         )}
                       >
-                        {ticketStatusLabels[visibleTicket.status] || visibleTicket.status}
+                        <span
+                          className={cn(
+                            "size-1.5 rounded-full shrink-0",
+                            ticketStatusDotClasses[visibleTicket.status] || 'bg-muted-foreground'
+                          )}
+                        />
+                        <span>{ticketStatusLabels[visibleTicket.status] || visibleTicket.status}</span>
                       </Badge>
                     )}
                   </div>
@@ -1221,46 +1246,92 @@ export function SupportPanel() {
             ) : viewMode === 'inbox' ? (
               /* INBOX VIEW - All Tickets */
               <div className="flex flex-1 flex-col overflow-hidden">
-                {/* Search & Actions Bar */}
-                <div className="shrink-0 space-y-3 border-b border-border/70 p-4 bg-muted/20">
-                  <Button
-                    type="button"
-                    onClick={handleStartNewTicket}
-                    className="w-full gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs h-9 shadow-xs hover:bg-primary/95 active:scale-98 transition-all"
-                  >
-                    <Plus className="size-4" />
-                    <span>Neues Ticket erstellen</span>
-                  </Button>
-
+                {/* Search & Actions Bar - matching templates modal look */}
+                <div className="shrink-0 pb-3 pt-3 px-3.5 border-b border-border/70 space-y-2.5 bg-background/50">
+                  {/* Single Row: Search, Filter, and Create Button */}
                   <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <Input
+                    {/* Search Bar - Takes most space */}
+                    <div className="flex-1 min-w-0">
+                      <SearchInput
+                        placeholder="Tickets durchsuchen..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Tickets durchsuchen..."
-                        className="h-8 pl-8 pr-3 text-xs rounded-xl bg-background border-border/80"
+                        onClear={() => setSearchQuery("")}
+                        mode="modal"
+                        className="h-9 text-xs"
+                        aria-label="Tickets durchsuchen"
                       />
                     </div>
-                    
-                    <div className="flex items-center gap-1 bg-muted/70 p-0.5 rounded-xl border border-border/60">
-                      {(['all', 'open', 'resolved'] as const).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => setStatusFilter(filter)}
-                          className={cn(
-                            "px-2 py-1 text-[11px] font-medium rounded-lg transition-all",
-                            statusFilter === filter
-                              ? "bg-background text-foreground shadow-xs font-semibold"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
+
+                    {/* Status Filter - Select dropdown with Filter icon */}
+                    <div className="min-w-0">
+                      <div className="relative w-[125px] sm:w-[145px] min-w-0">
+                        <Select
+                          value={statusFilter}
+                          onValueChange={(value) => setStatusFilter(value)}
                         >
-                          {filter === 'all' ? 'Alle' : filter === 'open' ? 'Offen' : 'Gelöst'}
-                        </button>
-                      ))}
+                          <SelectTrigger className="w-full h-9 text-xs focus-visible:scale-100 focus:ring-1 border-border/80 px-2.5">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <Filter className="size-3.5 text-muted-foreground shrink-0" />
+                              <SelectValue placeholder="Status" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="z-50 min-w-[170px]">
+                            <SelectItem value="all">Alle Status</SelectItem>
+                            <SelectItem value="open">Offene Tickets</SelectItem>
+                            <SelectItem value="in_progress">In Bearbeitung</SelectItem>
+                            <SelectItem value="new">Neue Tickets</SelectItem>
+                            <SelectItem value="resolved">Gelöste Tickets</SelectItem>
+                            <SelectItem value="closed">Geschlossene</SelectItem>
+                            <SelectItem value="on_hold">Wartende</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+
+                    {/* Create Ticket Button */}
+                    <Button
+                      type="button"
+                      onClick={handleStartNewTicket}
+                      className="shrink-0 h-9 px-3 gap-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-xs hover:bg-primary/95 cursor-pointer"
+                      aria-label="Neues Ticket erstellen"
+                    >
+                      <Plus className="size-3.5" />
+                      <span className="hidden sm:inline">Neues Ticket</span>
+                      <span className="sm:hidden">Neu</span>
+                    </Button>
                   </div>
+
+                  {/* Active Filters Row (matching templates modal) */}
+                  {(searchQuery || statusFilter !== 'all') && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-border/60 animate-in fade-in-50 duration-150">
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        <span className="hidden sm:inline">Aktive Filter:</span>
+                        <span className="sm:hidden">Filter:</span>
+                      </span>
+                      {searchQuery && (
+                        <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-muted/40 py-0 px-2 h-5">
+                          <span>Suche: "{searchQuery}"</span>
+                        </Badge>
+                      )}
+                      {statusFilter !== 'all' && (
+                        <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-muted/40 py-0 px-2 h-5">
+                          <span>Status: {statusFilter === 'open' ? 'Offen' : ticketStatusLabels[statusFilter] || statusFilter}</span>
+                        </Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSearchQuery('')
+                          setStatusFilter('all')
+                        }}
+                        className="h-5 px-2 text-[11px] text-muted-foreground hover:text-foreground ml-auto rounded-md cursor-pointer"
+                      >
+                        Zurücksetzen
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Ticket List */}
@@ -1277,11 +1348,25 @@ export function SupportPanel() {
                           <Inbox className="size-6" />
                         </div>
                         <p className="text-sm font-semibold text-foreground">Keine Anfragen gefunden</p>
-                        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                        <p className="text-xs text-muted-foreground mt-1 max-w-xs mb-3">
                           {searchQuery || statusFilter !== 'all'
-                            ? 'Keine passenden Anfragen zu Ihren Filtern.'
+                            ? 'Versuchen Sie andere Suchbegriffe oder Filter.'
                             : 'Erstellen Sie Ihr erstes Support-Ticket über den Button oben.'}
                         </p>
+                        {(searchQuery || statusFilter !== 'all') && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSearchQuery('')
+                              setStatusFilter('all')
+                            }}
+                            className="h-8 text-xs rounded-xl cursor-pointer"
+                          >
+                            Filter zurücksetzen
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -1307,11 +1392,17 @@ export function SupportPanel() {
                                   <Badge
                                     variant="outline"
                                     className={cn(
-                                      "px-1.5 py-0 text-[10px] font-medium border uppercase tracking-wider shrink-0",
+                                      "px-2 py-0.5 text-[10px] font-semibold border uppercase tracking-wider shrink-0 flex items-center gap-1.5 rounded-full shadow-2xs",
                                       ticketStatusClasses[ticket.status] || 'bg-muted text-muted-foreground'
                                     )}
                                   >
-                                    {ticketStatusLabels[ticket.status] || ticket.status}
+                                    <span
+                                      className={cn(
+                                        "size-1.5 rounded-full shrink-0",
+                                        ticketStatusDotClasses[ticket.status] || 'bg-muted-foreground'
+                                      )}
+                                    />
+                                    <span>{ticketStatusLabels[ticket.status] || ticket.status}</span>
                                   </Badge>
                                   <span className="truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                                     {formatTicketTitle(ticket)}
