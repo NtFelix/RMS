@@ -8,6 +8,9 @@ export interface SupportIdentityResponse {
   hash: string
 }
 
+export const MAX_SUPPORT_MESSAGE_LENGTH = 10_000
+export const WARN_SUPPORT_MESSAGE_LENGTH = 8_000
+
 export interface SupportTicket {
   id: string
   status: 'new' | 'open' | 'pending' | 'on_hold' | 'resolved' | string
@@ -25,6 +28,8 @@ export interface SupportMessage {
   author_name?: string
   created_at: string
   is_private: boolean
+  status?: 'sending' | 'sent' | 'failed'
+  error?: string
 }
 
 export interface SupportMessagesResponse {
@@ -77,16 +82,38 @@ export interface SupportConversationsClient {
 }
 
 export function getSupportErrorMessage(error: unknown): string {
+  if (typeof error === 'string') {
+    if (
+      error.includes('10000') ||
+      error.toLowerCase().includes('character') ||
+      error.toLowerCase().includes('too large') ||
+      error.toLowerCase().includes('invalid request data')
+    ) {
+      return 'Die Nachricht ist zu lang (maximal 10.000 Zeichen erlaubt). Bitte kürzen Sie Ihren Text.'
+    }
+    return error
+  }
   if (error instanceof TypeError && error.message === 'Failed to fetch') {
     return 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.'
   }
   if (error instanceof Error) {
-    if (error.message.includes('Too many requests') || error.message.includes('429')) {
+    const msg = error.message
+    const lower = msg.toLowerCase()
+    if (lower.includes('too many requests') || lower.includes('429') || (error as any).kind === 'rate_limit') {
       return 'Zu viele Anfragen. Bitte warten Sie einen Moment, bevor Sie es erneut versuchen.'
     }
-    return error.message
+    if (
+      msg.includes('10000') ||
+      lower.includes('character') ||
+      lower.includes('too large') ||
+      lower.includes('invalid request data') ||
+      msg.includes('413')
+    ) {
+      return 'Die Nachricht ist zu lang (maximal 10.000 Zeichen erlaubt). Bitte kürzen Sie Ihren Text.'
+    }
+    return msg
   }
-  return 'Ein unerwarteter Fehler ist aufgetreten.'
+  return 'Die Nachricht konnte nicht gesendet werden. Bitte überprüfen Sie Ihre Eingabe und versuchen Sie es erneut.'
 }
 
 export function isRateLimitedError(error: unknown): boolean {

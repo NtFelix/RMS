@@ -13,6 +13,8 @@ import {
   loadConversationsBundle,
   ensureConversationsReady,
   SUPPORT_POLL_INTERVAL_MS,
+  MAX_SUPPORT_MESSAGE_LENGTH,
+  WARN_SUPPORT_MESSAGE_LENGTH,
   type SupportMessage,
   type SupportTicket,
   type RestoreResult,
@@ -45,7 +47,13 @@ import {
   Sparkles,
   Inbox,
   ArrowUp,
+  AlertCircle,
+  AlertTriangle,
+  RotateCcw,
+  X,
 } from "lucide-react"
+import { SupportMessageContent } from "./support-message-content"
+import { SupportImageLightbox, type LightboxImageData } from "./support-image-lightbox"
 
 const ticketStatusLabels: Record<string, string> = {
   new: 'Neu',
@@ -161,6 +169,9 @@ export function SupportPanel() {
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
   const [totalTicketsCount, setTotalTicketsCount] = useState(0)
   const [loadingMoreTickets, setLoadingMoreTickets] = useState(false)
+
+  // Image Lightbox state
+  const [lightboxImage, setLightboxImage] = useState<LightboxImageData | null>(null)
 
   const lastIdentityUserId = useRef<string | null>(null)
   const messageCursorRef = useRef<string | null>(null)
@@ -510,71 +521,93 @@ export function SupportPanel() {
     }, 100)
   }
 
-  const handleSendMessage = () => {
-    if (!posthog || !supportTraits || !draft.trim() || !isAvailable || !canReplyToSelection || typeof posthog.conversations?.sendMessage !== 'function') {
-      return
-    }
+  const sendMessageContent = useCallback(
+    async (content: string, failedMsgIdToReplace?: string) => {
+      const message = content.trim()
+      if (!message) return
 
-    const message = draft.trim()
-    const isNew = isComposingNewTicket || !currentTicketId || selectedTicketId === null
-    const tempMsgId = `temp-msg-${Date.now()}`
-    const tempTicketId = selectedTicketId || currentTicketId || `temp-ticket-${Date.now()}`
-    const nowIso = new Date().toISOString()
-
-    const optimisticMessage: SupportMessage = {
-      id: tempMsgId,
-      content: message,
-      author_type: 'customer',
-      author_name: userDisplay.userName || 'Sie',
-      created_at: nowIso,
-      is_private: false,
-    }
-
-    // 1. Instant optimistic message in chat
-    setMessages((prev) => {
-      const next = [...prev, optimisticMessage]
-      messagesCacheRef.current[tempTicketId] = next
-      return next
-    })
-
-    // 2. Instant optimistic ticket in ticket list
-    if (isNew) {
-      const optimisticTicket: SupportTicket = {
-        id: tempTicketId,
-        status: 'new',
-        last_message: message,
-        last_message_at: nowIso,
-        created_at: nowIso,
-        message_count: 1,
-        unread_count: 0,
-      }
-      setTickets([optimisticTicket, ...tickets.filter((t) => t.id !== tempTicketId)])
-      setSelectedTicketId(tempTicketId)
-      setCurrentTicketId(tempTicketId)
-      setIsComposingNewTicket(false)
-    } else if (selectedTicketId) {
-      setTickets(
-        tickets.map((t) =>
-          t.id === selectedTicketId
-            ? { ...t, last_message: message, last_message_at: nowIso, message_count: t.message_count + 1 }
-            : t
+      if (message.length > MAX_SUPPORT_MESSAGE_LENGTH) {
+        const over = message.length - MAX_SUPPORT_MESSAGE_LENGTH
+        setMessageError(
+          `Die Nachricht ist um ${over.toLocaleString('de-DE')} Zeichen zu lang (maximal ${MAX_SUPPORT_MESSAGE_LENGTH.toLocaleString('de-DE')} Zeichen erlaubt). Bitte kürzen Sie Ihren Text.`,
         )
-      )
-    }
+        return
+      }
 
-    setDraft('')
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-    }
-    setMessageError(null)
-    setIsSending(true)
-    setTimeout(() => scrollToBottom(true), 30)
+      if (
+        !posthog ||
+        !supportTraits ||
+        !isAvailable ||
+        !canReplyToSelection ||
+        typeof posthog.conversations?.sendMessage !== 'function'
+      ) {
+        setMessageError('Der Support-Dienst ist momentan nicht bereit. Bitte versuchen Sie es in wenigen Sekunden erneut.')
+        return
+      }
 
-    void posthog.conversations.sendMessage(message, supportTraits, isNew)
-      .then((response) => {
-        if (!response) {
-          setMessages((prev) => prev.filter((msg) => msg.id !== tempMsgId))
-          return
+      const isNew = isComposingNewTicket || !currentTicketId || selectedTicketId === null
+      const tempMsgId = failedMsgIdToReplace || `temp-msg-${Date.now()}`
+      const tempTicketId = selectedTicketId || currentTicketId || `temp-ticket-${Date.now()}`
+      const nowIso = new Date().toISOString()
+
+      const optimisticMessage: SupportMessage = {
+        id: tempMsgId,
+        content: message,
+        author_type: 'customer',
+        author_name: userDisplay.userName || 'Sie',
+        created_at: nowIso,
+        is_private: false,
+        status: 'sending',
+      }
+
+      // 1. Instant optimistic message in chat
+      setMessages((prev) => {
+        const filtered = prev.filter((msg) => msg.id !== tempMsgId)
+        const next = [...filtered, optimisticMessage]
+        messagesCacheRef.current[tempTicketId] = next
+        return next
+      })
+
+      // 2. Instant optimistic ticket in ticket list
+      if (isNew) {
+        const optimisticTicket: SupportTicket = {
+          id: tempTicketId,
+          status: 'new',
+          last_message: message,
+          last_message_at: nowIso,
+          created_at: nowIso,
+          message_count: 1,
+          unread_count: 0,
+        }
+        setTickets([optimisticTicket, ...tickets.filter((t) => t.id !== tempTicketId)])
+        setSelectedTicketId(tempTicketId)
+        setCurrentTicketId(tempTicketId)
+        setIsComposingNewTicket(false)
+      } else if (selectedTicketId) {
+        setTickets(
+          tickets.map((t) =>
+            t.id === selectedTicketId
+              ? { ...t, last_message: message, last_message_at: nowIso, message_count: t.message_count + 1 }
+              : t,
+          ),
+        )
+      }
+
+      if (!failedMsgIdToReplace) {
+        setDraft('')
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto'
+        }
+      }
+
+      setMessageError(null)
+      setIsSending(true)
+      setTimeout(() => scrollToBottom(true), 30)
+
+      try {
+        const response = await posthog.conversations.sendMessage(message, supportTraits, isNew)
+        if (!response || !response.ticket_id) {
+          throw new Error('Der Server hat keine Bestätigung für die Nachricht zurückgegeben.')
         }
 
         const realTicketId = response.ticket_id
@@ -585,8 +618,8 @@ export function SupportPanel() {
         setMessages((prev) => {
           const updated = prev.map((m) =>
             m.id === tempMsgId
-              ? { ...m, id: realMsgId, created_at: realCreatedAt }
-              : m
+              ? { ...m, id: realMsgId, created_at: realCreatedAt, status: 'sent' as const, error: undefined }
+              : m,
           )
           messagesCacheRef.current[realTicketId] = updated
           return updated
@@ -602,8 +635,8 @@ export function SupportPanel() {
                   last_message: message,
                   last_message_at: realCreatedAt,
                 }
-              : t
-          )
+              : t,
+          ),
         )
 
         setSelectedTicketId(realTicketId)
@@ -613,15 +646,62 @@ export function SupportPanel() {
         // Silent background sync without UI flashes
         void refreshTickets(true)
         void refreshMessages(realTicketId, true)
-      })
-      .catch((error) => {
-        setMessages((prev) => prev.filter((msg) => msg.id !== tempMsgId))
-        setDraft(message)
-        setMessageError(getSupportErrorMessage(error))
-      })
-      .finally(() => {
+      } catch (error) {
+        const errorMsg = getSupportErrorMessage(error)
+        setMessageError(errorMsg)
+
+        // Mark message as failed in UI so user can retry or edit
+        setMessages((prev) => {
+          const updated = prev.map((m) =>
+            m.id === tempMsgId
+              ? { ...m, status: 'failed' as const, error: errorMsg }
+              : m,
+          )
+          messagesCacheRef.current[tempTicketId] = updated
+          return updated
+        })
+      } finally {
         setIsSending(false)
-      })
+      }
+    },
+    [
+      canReplyToSelection,
+      currentTicketId,
+      isAvailable,
+      isComposingNewTicket,
+      posthog,
+      refreshMessages,
+      refreshTickets,
+      scrollToBottom,
+      selectedTicketId,
+      setTickets,
+      supportTraits,
+      tickets,
+      userDisplay.userName,
+    ],
+  )
+
+  const handleSendMessage = () => {
+    void sendMessageContent(draft)
+  }
+
+  const handleRetryMessage = (failedMsg: SupportMessage) => {
+    void sendMessageContent(failedMsg.content, failedMsg.id)
+  }
+
+  const handleEditFailedMessage = (failedMsg: SupportMessage) => {
+    setDraft(failedMsg.content)
+    setMessages((prev) => prev.filter((m) => m.id !== failedMsg.id))
+    setMessageError(null)
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 140) + 'px'
+          textareaRef.current.focus()
+        }
+      }, 50)
+    }
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -966,7 +1046,11 @@ export function SupportPanel() {
                   <div className="space-y-4">
                     {visibleMessages.map((message) => {
                       const isCustomer = message.author_type === 'customer'
-                      const isAI = message.author_type === 'bot' || (message.author_name && message.author_name.toLowerCase().includes('ai'))
+                      const isAI =
+                        message.author_type === 'bot' ||
+                        (message.author_name && message.author_name.toLowerCase().includes('ai'))
+                      const isSendingMessage = message.status === 'sending'
+                      const isFailedMessage = message.status === 'failed'
 
                       return (
                         <div
@@ -982,21 +1066,76 @@ export function SupportPanel() {
                                 {isAI ? <Bot className="size-2.5" /> : <Headphones className="size-2.5" />}
                               </span>
                             )}
-                            <span className="font-medium">{isCustomer ? 'Sie' : isAI ? 'Mietevo AI' : message.author_name || 'Support'}</span>
+                            <span className="font-medium">
+                              {isCustomer ? 'Sie' : isAI ? 'Mietevo AI' : message.author_name || 'Support'}
+                            </span>
                             <span>•</span>
-                            <span>{formatRelativeTime(message.created_at)}</span>
+                            {isSendingMessage ? (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Loader2 className="size-2.5 animate-spin" />
+                                <span>Wird gesendet...</span>
+                              </span>
+                            ) : isFailedMessage ? (
+                              <span className="flex items-center gap-1 text-[10px] font-medium text-destructive">
+                                <AlertCircle className="size-2.5" />
+                                <span>Fehlgeschlagen</span>
+                              </span>
+                            ) : (
+                              <span>{formatRelativeTime(message.created_at)}</span>
+                            )}
                           </div>
 
                           <div
                             className={cn(
-                              "max-w-[85%] sm:max-w-[78%] rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-xs",
-                              isCustomer
-                                ? "bg-primary text-primary-foreground rounded-tr-xs font-normal shadow-sm"
+                              "max-w-[85%] sm:max-w-[78%] rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-xs transition-all",
+                              isFailedMessage
+                                ? "border border-destructive/40 bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-tr-xs"
+                                : isCustomer
+                                ? cn(
+                                    "bg-primary text-primary-foreground rounded-tr-xs font-normal shadow-sm",
+                                    isSendingMessage && "opacity-80",
+                                  )
                                 : "border border-border/70 bg-card text-card-foreground dark:bg-zinc-900 rounded-tl-xs",
                             )}
                           >
-                            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                            <SupportMessageContent
+                              content={message.content}
+                              isCustomer={isCustomer}
+                              onOpenImage={(img) => setLightboxImage(img)}
+                            />
                           </div>
+
+                          {isFailedMessage && (
+                            <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px] text-destructive">
+                              <AlertCircle className="size-3 shrink-0" />
+                              <span className="font-medium">Nicht übermittelt</span>
+                              {message.error && (
+                                <>
+                                  <span className="text-muted-foreground/40">•</span>
+                                  <span className="text-destructive/90 max-w-[280px] truncate" title={message.error}>
+                                    {message.error}
+                                  </span>
+                                </>
+                              )}
+                              <span className="text-muted-foreground/40">•</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRetryMessage(message)}
+                                className="inline-flex items-center gap-0.5 font-semibold text-destructive underline hover:no-underline cursor-pointer"
+                              >
+                                <RotateCcw className="size-2.5 mr-0.5" />
+                                <span>Wiederholen</span>
+                              </button>
+                              <span className="text-muted-foreground/40">•</span>
+                              <button
+                                type="button"
+                                onClick={() => handleEditFailedMessage(message)}
+                                className="font-semibold text-destructive underline hover:no-underline cursor-pointer"
+                              >
+                                Bearbeiten
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -1004,8 +1143,27 @@ export function SupportPanel() {
                   </div>
                 </div>
 
-                {/* Message Composer - Single sleek expanding one-liner container matching AI Chat Input */}
+                {/* Message Composer */}
                 <div className="shrink-0 p-3 bg-background border-t border-border/60 shadow-sm z-20">
+                  {messageError && (
+                    <div className="mb-2.5 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive animate-in fade-in-50 duration-200">
+                      <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-xs leading-tight">Nachricht konnte nicht gesendet werden</p>
+                        <p className="text-[11px] text-destructive/90 mt-0.5 leading-snug break-words">{messageError}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setMessageError(null)}
+                        className="size-5 rounded-md hover:bg-destructive/20 text-destructive shrink-0"
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    </div>
+                  )}
+
                   {!canReplyToSelection && (
                     <div className="mb-2.5 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
                       <span>Dies ist ein abgeschlossenes Ticket.</span>
@@ -1021,12 +1179,51 @@ export function SupportPanel() {
                     </div>
                   )}
 
-                  <div className="relative flex items-end gap-2 border border-border/80 dark:border-border/20 rounded-2xl shadow-xs focus-within:ring-1 focus-within:ring-primary/25 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground p-1.5 pl-3.5">
+                  {draft.length > 500 && (
+                    <div className="flex items-center justify-between px-1 pb-1 text-[11px]">
+                      {draft.length > MAX_SUPPORT_MESSAGE_LENGTH ? (
+                        <span className="text-destructive font-semibold flex items-center gap-1">
+                          <AlertTriangle className="size-3.5 shrink-0" />
+                          <span>
+                            {(draft.length - MAX_SUPPORT_MESSAGE_LENGTH).toLocaleString('de-DE')} Zeichen zu lang (max. {MAX_SUPPORT_MESSAGE_LENGTH.toLocaleString('de-DE')})
+                          </span>
+                        </span>
+                      ) : draft.length >= WARN_SUPPORT_MESSAGE_LENGTH ? (
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">
+                          Noch {(MAX_SUPPORT_MESSAGE_LENGTH - draft.length).toLocaleString('de-DE')} Zeichen übrig
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      <span
+                        className={cn(
+                          "text-[10px] tabular-nums font-medium",
+                          draft.length > MAX_SUPPORT_MESSAGE_LENGTH
+                            ? "text-destructive font-bold"
+                            : draft.length >= WARN_SUPPORT_MESSAGE_LENGTH
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-muted-foreground/70",
+                        )}
+                      >
+                        {draft.length.toLocaleString('de-DE')} / {MAX_SUPPORT_MESSAGE_LENGTH.toLocaleString('de-DE')}
+                      </span>
+                    </div>
+                  )}
+
+                  <div
+                    className={cn(
+                      "relative flex items-end gap-2 border rounded-2xl shadow-xs focus-within:ring-1 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground p-1.5 pl-3.5",
+                      draft.length > MAX_SUPPORT_MESSAGE_LENGTH
+                        ? "border-destructive/60 focus-within:ring-destructive/30"
+                        : "border-border/80 dark:border-border/20 focus-within:ring-primary/25",
+                    )}
+                  >
                     <textarea
                       ref={textareaRef}
                       value={draft}
                       onChange={(e) => {
                         setDraft(e.target.value)
+                        if (messageError) setMessageError(null)
                         e.target.style.height = 'auto'
                         e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
                       }}
@@ -1046,11 +1243,29 @@ export function SupportPanel() {
                     <Button
                       type="button"
                       onClick={handleSendMessage}
-                      disabled={!draft.trim() || isSending || !isAvailable || !supportTraits || !canReplyToSelection}
+                      disabled={
+                        !draft.trim() ||
+                        isSending ||
+                        !isAvailable ||
+                        !supportTraits ||
+                        !canReplyToSelection ||
+                        draft.length > MAX_SUPPORT_MESSAGE_LENGTH
+                      }
                       size="icon"
                       aria-label={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
-                      title={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
-                      className="rounded-full size-8 shrink-0 shadow-none transition-all active:scale-95 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary cursor-pointer mb-0.5"
+                      title={
+                        draft.length > MAX_SUPPORT_MESSAGE_LENGTH
+                          ? 'Nachricht ist zu lang'
+                          : isComposingNewTicket
+                          ? 'Ticket erstellen'
+                          : 'Nachricht senden'
+                      }
+                      className={cn(
+                        "rounded-full size-8 shrink-0 shadow-none transition-all active:scale-95 text-primary-foreground cursor-pointer mb-0.5",
+                        draft.length > MAX_SUPPORT_MESSAGE_LENGTH
+                          ? "bg-destructive hover:bg-destructive/90 disabled:opacity-40"
+                          : "bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary",
+                      )}
                     >
                       {isSending ? (
                         <Loader2 className="size-3.5 animate-spin" />
@@ -1073,6 +1288,12 @@ export function SupportPanel() {
           </div>
         </div>
       </SheetContent>
+
+      {/* Full Resolution Image Lightbox Dialog */}
+      <SupportImageLightbox
+        image={lightboxImage}
+        onClose={() => setLightboxImage(null)}
+      />
     </Sheet>
   )
 }
