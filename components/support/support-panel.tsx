@@ -479,6 +479,9 @@ export function SupportPanel() {
     setSelectedTicketId(ticket.id)
     setViewMode('chat')
     setDraft('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     
     // Instant display from cache if available (0ms delay)
     const cached = messagesCacheRef.current[ticket.id]
@@ -497,6 +500,9 @@ export function SupportPanel() {
     setCurrentTicketId(null)
     setMessages([])
     setDraft('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     setMessageError(null)
     setViewMode('chat')
     setTimeout(() => {
@@ -557,6 +563,9 @@ export function SupportPanel() {
     }
 
     setDraft('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     setMessageError(null)
     setIsSending(true)
     setTimeout(() => scrollToBottom(true), 30)
@@ -616,7 +625,7 @@ export function SupportPanel() {
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       handleSendMessage()
     }
@@ -738,296 +747,226 @@ export function SupportPanel() {
             </div>
           </SheetHeader>
 
-          {/* Service Availability Alerts */}
-          {!isAvailable && !availabilityTimedOut && (
-            <div className="p-4">
-              <Alert className="border-blue-500/20 bg-blue-500/5 text-blue-900 dark:text-blue-200 rounded-2xl">
-                <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-400" />
-                <AlertTitle className="text-sm font-medium">Support-Dienst wird initialisiert</AlertTitle>
-                <AlertDescription className="text-xs text-blue-700 dark:text-blue-300">
-                  Verbindung wird hergestellt...
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          {availabilityTimedOut && (
-            <div className="p-4">
-              <Alert variant="destructive" className="rounded-2xl">
-                <AlertTitle className="text-sm font-bold">Support aktuell nicht erreichbar</AlertTitle>
-                <AlertDescription className="text-xs">
-                  Der Support-Chat konnte nicht geladen werden. Bitte laden Sie die Seite neu.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          {restoreResult && (
-            <div className="px-4 pt-3">
-              <Alert className="border-emerald-500/20 bg-emerald-500/10 py-2.5 rounded-2xl">
-                <CheckCircle2 className="size-4 text-emerald-600" />
-                <AlertDescription className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
-                  {restoreResult.migrated_ticket_ids?.length} Ticket(s) erfolgreich wiederhergestellt.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          {restoreEmailSent && (
-            <div className="px-4 pt-3">
-              <Alert className="border-emerald-500/20 bg-emerald-500/10 py-2.5 rounded-2xl">
-                <CheckCircle2 className="size-4 text-emerald-600" />
-                <AlertDescription className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
-                  Wiederherstellungs-Link wurde an {user?.email} gesendet.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          {/* MAIN BODY: VIEW SWITCHER */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/20">
-            {/* VIEW 1: INBOX / TICKET LIST */}
-            {viewMode === 'inbox' && (
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                {/* Search & Filter Bar */}
-                <div className="shrink-0 p-4 space-y-3 bg-background border-b border-border/60">
+          {/* Body Content */}
+          <div className="flex flex-1 flex-col overflow-hidden bg-background">
+            {availabilityTimedOut ? (
+              <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+                <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <Headphones className="size-6" />
+                </div>
+                <h3 className="mb-2 text-base font-semibold text-foreground">
+                  Support aktuell nicht erreichbar
+                </h3>
+                <p className="mb-6 max-w-sm text-xs text-muted-foreground">
+                  Der Support-Chat konnte nicht initialisiert werden. Bitte überprüfen Sie Ihre Internetverbindung oder versuchen Sie es in wenigen Momenten erneut.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setAvailabilityTimedOut(false)
+                    void refreshTickets()
+                  }}
+                  className="gap-2 rounded-xl text-xs font-medium"
+                >
+                  <RefreshCcw className="size-3.5" />
+                  <span>Erneut versuchen</span>
+                </Button>
+              </div>
+            ) : viewMode === 'inbox' ? (
+              /* INBOX VIEW - All Tickets */
+              <div className="flex flex-1 flex-col overflow-hidden">
+                {/* Search & Actions Bar */}
+                <div className="shrink-0 space-y-3 border-b border-border/70 p-4 bg-muted/20">
                   <Button
                     type="button"
                     onClick={handleStartNewTicket}
-                    className="w-full justify-center gap-2 rounded-2xl bg-primary py-5 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/95 active:scale-[0.99] cursor-pointer"
+                    className="w-full gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs h-9 shadow-xs hover:bg-primary/95 active:scale-98 transition-all"
                   >
                     <Plus className="size-4" />
                     <span>Neues Ticket erstellen</span>
                   </Button>
 
-                  {tickets.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-                        <Input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Anfragen durchsuchen..."
-                          className="h-9 pl-9 rounded-xl text-xs bg-muted/40 border-border/60"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-1.5 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setStatusFilter('all')}
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer",
-                            statusFilter === 'all'
-                              ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                              : "bg-muted/60 text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          Alle ({tickets.length})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStatusFilter('open')}
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer",
-                            statusFilter === 'open'
-                              ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                              : "bg-muted/60 text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          Offen ({tickets.filter((t) => t.status !== 'resolved' && t.status !== 'closed').length})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStatusFilter('resolved')}
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer",
-                            statusFilter === 'resolved'
-                              ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                              : "bg-muted/60 text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          Gelöst ({tickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length})
-                        </button>
-                      </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Tickets durchsuchen..."
+                        className="h-8 pl-8 pr-3 text-xs rounded-xl bg-background border-border/80"
+                      />
                     </div>
-                  )}
+                    
+                    <div className="flex items-center gap-1 bg-muted/70 p-0.5 rounded-xl border border-border/60">
+                      {(['all', 'open', 'resolved'] as const).map((filter) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => setStatusFilter(filter)}
+                          className={cn(
+                            "px-2 py-1 text-[11px] font-medium rounded-lg transition-all",
+                            statusFilter === filter
+                              ? "bg-background text-foreground shadow-xs font-semibold"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {filter === 'all' ? 'Alle' : filter === 'open' ? 'Offen' : 'Gelöst'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                <ScrollArea className="flex-1 px-4 py-3">
-                  <div className="space-y-2.5">
-                    {filteredTickets.length === 0 && !ticketsLoading ? (
-                      <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/80 bg-background/60 p-8 text-center my-4">
-                        <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                          <MessageCircle className="size-6" />
+                {/* Ticket List */}
+                <ScrollArea className="flex-1">
+                  <div className="p-3 space-y-2">
+                    {ticketsLoading && tickets.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                        <Loader2 className="size-6 animate-spin mb-3 text-primary" />
+                        <p className="text-xs font-medium">Lade Support-Anfragen...</p>
+                      </div>
+                    ) : filteredTickets.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                        <div className="flex size-12 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground mb-3">
+                          <Inbox className="size-6" />
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">
-                            {searchQuery ? 'Keine passenden Anfragen' : 'Noch keine Anfragen'}
-                          </p>
-                          <p className="text-xs text-muted-foreground max-w-[260px] leading-relaxed">
-                            {searchQuery
-                              ? 'Versuche einen anderen Suchbegriff.'
-                              : 'Haben Sie Fragen oder benötigen Hilfe? Starten Sie einfach eine neue Support-Anfrage.'}
-                          </p>
-                        </div>
-                        {user?.email && typeof posthog?.conversations?.requestRestoreLink === 'function' && !searchQuery && (
-                          <button
-                            type="button"
-                            disabled={!isAvailable}
-                            onClick={async () => {
-                              if (!isAvailable || !user?.email) return
-                              setRestoreError(null)
-                              setRestoreEmailSent(false)
-                              try {
-                                await posthog.conversations.requestRestoreLink!(user.email)
-                                setRestoreEmailSent(true)
-                              } catch (error) {
-                                setRestoreError(getSupportErrorMessage(error))
-                              }
-                            }}
-                            className="mt-2 text-xs font-medium text-primary hover:underline cursor-pointer"
-                          >
-                            Frühere Tickets per E-Mail wiederherstellen
-                          </button>
-                        )}
+                        <p className="text-sm font-semibold text-foreground">Keine Anfragen gefunden</p>
+                        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                          {searchQuery || statusFilter !== 'all'
+                            ? 'Keine passenden Anfragen zu Ihren Filtern.'
+                            : 'Erstellen Sie Ihr erstes Support-Ticket über den Button oben.'}
+                        </p>
                       </div>
                     ) : (
-                      filteredTickets.map((ticket) => {
-                        const active = ticket.id === selectedTicketId
-                        const unread = ticket.unread_count || 0
+                      <>
+                        {filteredTickets.map((ticket) => {
+                          const isCurrent = ticket.id === currentTicketId
+                          const isResolved = ticket.status === 'resolved' || ticket.status === 'closed'
+                          const unread = ticket.unread_count || 0
 
-                        return (
-                          <button
-                            key={ticket.id}
-                            type="button"
-                            onClick={() => handleSelectTicket(ticket)}
-                            className={cn(
-                              "group relative flex w-full flex-col gap-2 rounded-2xl border p-4 text-left transition-all duration-200 cursor-pointer shadow-xs",
-                              active
-                                ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                                : "border-border/70 bg-card hover:border-border hover:bg-muted/40",
-                            )}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="truncate text-xs font-bold text-foreground">
-                                {formatTicketTitle(ticket)}
-                              </p>
-                              <div className="flex shrink-0 items-center gap-1.5">
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    "border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-lg",
-                                    ticketStatusClasses[ticket.status] || 'bg-muted text-muted-foreground',
+                          return (
+                            <button
+                              key={ticket.id}
+                              type="button"
+                              onClick={() => handleSelectTicket(ticket)}
+                              className={cn(
+                                "group relative flex w-full flex-col gap-1.5 rounded-xl border p-3 text-left transition-all hover:shadow-xs active:scale-99 cursor-pointer",
+                                isCurrent
+                                  ? "border-primary/40 bg-primary/5 dark:bg-primary/10"
+                                  : "border-border/70 bg-card hover:border-border hover:bg-muted/40"
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "px-1.5 py-0 text-[10px] font-medium border uppercase tracking-wider shrink-0",
+                                      ticketStatusClasses[ticket.status] || 'bg-muted text-muted-foreground'
+                                    )}
+                                  >
+                                    {ticketStatusLabels[ticket.status] || ticket.status}
+                                  </Badge>
+                                  <span className="truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                                    {formatTicketTitle(ticket)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {unread > 0 && (
+                                    <span className="flex min-w-4 h-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-accent-foreground px-1">
+                                      {unread}
+                                    </span>
                                   )}
-                                >
-                                  {ticketStatusLabels[ticket.status] || ticket.status}
-                                </Badge>
-                                {unread > 0 && (
-                                  <span className="flex size-2 rounded-full bg-accent" />
-                                )}
+                                  <span className="text-[10px] text-muted-foreground font-normal">
+                                    {formatRelativeTime(ticket.last_message_at || ticket.created_at)}
+                                  </span>
+                                  <ChevronRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+                                </div>
                               </div>
-                            </div>
 
-                            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                              {getTicketPreview(ticket)}
-                            </p>
+                              <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">
+                                {ticket.last_message || 'Keine Nachrichtenvorschau'}
+                              </p>
+                            </button>
+                          )
+                        })}
 
-                            <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground/80 pt-1 border-t border-border/40">
-                              <span>{formatRelativeTime(ticket.last_message_at || ticket.created_at)}</span>
-                              <div className="flex items-center gap-1 text-muted-foreground group-hover:text-primary transition-colors font-medium">
-                                <span>Öffnen</span>
-                                <ChevronRight className="size-3" />
-                              </div>
-                            </div>
-                          </button>
-                        )
-                      })
-                    )}
-
-                    {totalTicketsCount > tickets.length && (
-                      <div className="flex justify-center pt-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void loadMoreTickets()}
-                          disabled={loadingMoreTickets}
-                          className="h-8 text-xs text-muted-foreground"
-                        >
-                          {loadingMoreTickets ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            `Weitere laden (${tickets.length}/${totalTicketsCount})`
-                          )}
-                        </Button>
-                      </div>
+                        {tickets.length < totalTicketsCount && (
+                          <div className="pt-2 text-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => void loadMoreTickets()}
+                              disabled={loadingMoreTickets}
+                              className="text-xs text-muted-foreground hover:text-foreground rounded-xl"
+                            >
+                              {loadingMoreTickets ? (
+                                <>
+                                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                                  <span>Lade weitere...</span>
+                                </>
+                              ) : (
+                                <span>Weitere Anfragen laden ({totalTicketsCount - tickets.length})</span>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </ScrollArea>
               </div>
-            )}
-
-            {/* VIEW 2: CHAT CONVERSATION & INPUT COMPOSER */}
-            {viewMode === 'chat' && (
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-                {/* Message stream */}
-                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-                  <div className="space-y-4 pb-2">
-                    {messagesLoading && (
-                      <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin text-primary" />
-                        <span>Nachrichten werden geladen...</span>
+            ) : (
+              /* CHAT VIEW - Conversation Stream */
+              <div className="flex flex-1 flex-col overflow-hidden">
+                {/* Messages Stream */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  {messagesLoading && messages.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+                      <Loader2 className="size-6 animate-spin mb-3 text-primary" />
+                      <p className="text-xs font-medium">Lade Unterhaltung...</p>
+                    </div>
+                  ) : visibleMessages.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center p-6 text-center text-muted-foreground">
+                      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20">
+                        <MessageSquarePlus className="size-6" />
                       </div>
-                    )}
+                      <h4 className="text-sm font-bold text-foreground">
+                        {isComposingNewTicket ? 'Wie können wir Ihnen helfen?' : 'Keine Nachrichten vorhanden'}
+                      </h4>
+                      <p className="mt-1.5 max-w-xs text-xs text-muted-foreground leading-relaxed">
+                        {isComposingNewTicket
+                          ? 'Beschreiben Sie Ihr Anliegen im Textfeld unten. Unser Team antwortet Ihnen schnellstmöglich.'
+                          : 'Senden Sie Ihre erste Nachricht, um die Unterhaltung zu starten.'}
+                      </p>
+                    </div>
+                  ) : null}
 
-                    {messageError && (
-                      <Alert variant="destructive" className="py-2.5 text-xs rounded-2xl">
-                        <AlertTitle className="text-xs font-semibold">Fehler</AlertTitle>
-                        <AlertDescription>{messageError}</AlertDescription>
-                      </Alert>
-                    )}
+                  {hasMoreMessages && (
+                    <div className="mb-3 text-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void loadOlderMessages()}
+                        disabled={loadingOlderMessages}
+                        className="h-7 text-[11px] text-muted-foreground rounded-lg"
+                      >
+                        {loadingOlderMessages ? (
+                          <Loader2 className="size-3 animate-spin mr-1" />
+                        ) : (
+                          'Ältere Nachrichten laden'
+                        )}
+                      </Button>
+                    </div>
+                  )}
 
-                    {!messagesLoading && visibleMessages.length === 0 && (
-                      <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border/80 bg-muted/20 p-8 text-center my-6">
-                        <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
-                          <Sparkles className="size-5" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold text-foreground">
-                            {isComposingNewTicket ? 'Wie können wir Ihnen helfen?' : 'Noch keine Nachrichten'}
-                          </p>
-                          <p className="text-xs leading-relaxed text-muted-foreground max-w-xs">
-                            Beschreiben Sie Ihr Anliegen so detailliert wie möglich. Unser Team antwortet Ihnen schnellstmöglich.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {hasMoreMessages && visibleMessages.length > 0 && (
-                      <div className="flex justify-center pb-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void loadOlderMessages()}
-                          disabled={loadingOlderMessages}
-                          className="h-7 text-[11px] text-muted-foreground"
-                        >
-                          {loadingOlderMessages ? (
-                            <Loader2 className="size-3 animate-spin mr-1" />
-                          ) : (
-                            <RefreshCcw className="size-3 mr-1" />
-                          )}
-                          Ältere Nachrichten laden
-                        </Button>
-                      </div>
-                    )}
-
+                  <div className="space-y-4">
                     {visibleMessages.map((message) => {
                       const isCustomer = message.author_type === 'customer'
-                      const isAI = message.author_type === 'AI'
+                      const isAI = message.author_type === 'bot' || (message.author_name && message.author_name.toLowerCase().includes('ai'))
 
                       return (
                         <div
@@ -1037,7 +976,7 @@ export function SupportPanel() {
                             isCustomer ? "items-end" : "items-start",
                           )}
                         >
-                          <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                             {!isCustomer && (
                               <span className="flex size-4 items-center justify-center rounded-full bg-muted text-muted-foreground">
                                 {isAI ? <Bot className="size-2.5" /> : <Headphones className="size-2.5" />}
@@ -1065,10 +1004,10 @@ export function SupportPanel() {
                   </div>
                 </div>
 
-                {/* Message Composer - Single sleek container matching AI Chat Input */}
-                <div className="shrink-0 p-4 bg-background border-t border-border/60 shadow-sm z-20">
+                {/* Message Composer - Single sleek expanding one-liner container matching AI Chat Input */}
+                <div className="shrink-0 p-3 bg-background border-t border-border/60 shadow-sm z-20">
                   {!canReplyToSelection && (
-                    <div className="mb-3 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
+                    <div className="mb-2.5 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
                       <span>Dies ist ein abgeschlossenes Ticket.</span>
                       <Button
                         type="button"
@@ -1082,55 +1021,43 @@ export function SupportPanel() {
                     </div>
                   )}
 
-                  <div className="relative border border-border/80 dark:border-border/20 rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-primary/25 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground">
-                    <div className="px-4 pt-3">
-                      <textarea
-                        ref={textareaRef}
-                        value={draft}
-                        onChange={(e) => {
-                          setDraft(e.target.value)
-                          e.target.style.height = 'auto'
-                          e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
-                        }}
-                        onKeyDown={handleKeyDown}
-                        placeholder={
-                          isComposingNewTicket
-                            ? "Beschreiben Sie Ihr Anliegen detailliert..."
-                            : "Antwort schreiben..."
-                        }
-                        disabled={isSending || !canReplyToSelection}
-                        rows={1}
-                        aria-label="Support-Nachricht eingeben"
-                        className="w-full bg-transparent border-0 focus:ring-0 resize-none max-h-[140px] text-xs sm:text-sm placeholder:text-muted-foreground disabled:opacity-50 min-h-[44px] outline-none leading-relaxed"
-                        style={{ overflowY: draft.length > 80 ? 'auto' : 'hidden' }}
-                      />
-                    </div>
+                  <div className="relative flex items-end gap-2 border border-border/80 dark:border-border/20 rounded-2xl shadow-xs focus-within:ring-1 focus-within:ring-primary/25 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground p-1.5 pl-3.5">
+                    <textarea
+                      ref={textareaRef}
+                      value={draft}
+                      onChange={(e) => {
+                        setDraft(e.target.value)
+                        e.target.style.height = 'auto'
+                        e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px'
+                      }}
+                      onKeyDown={handleKeyDown}
+                      placeholder={
+                        isComposingNewTicket
+                          ? "Beschreiben Sie Ihr Anliegen..."
+                          : "Antwort schreiben..."
+                      }
+                      disabled={isSending || !canReplyToSelection}
+                      rows={1}
+                      aria-label="Support-Nachricht eingeben"
+                      className="w-full flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-[140px] text-xs sm:text-sm placeholder:text-muted-foreground disabled:opacity-50 min-h-[36px] py-2 outline-none leading-relaxed"
+                      style={{ overflowY: draft.length > 80 ? 'auto' : 'hidden' }}
+                    />
 
-                    <div className="flex items-center justify-between px-3 pb-3">
-                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-normal">
-                        <span className="hidden sm:inline">
-                          <kbd className="rounded border border-border/60 px-1 py-0.5 text-[9px] bg-muted/40 font-mono">⌘</kbd> + <kbd className="rounded border border-border/60 px-1 py-0.5 text-[9px] bg-muted/40 font-mono">↵</kbd> zum Senden
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          onClick={handleSendMessage}
-                          disabled={!draft.trim() || isSending || !isAvailable || !supportTraits || !canReplyToSelection}
-                          size="icon"
-                          aria-label={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
-                          title={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
-                          className="rounded-full size-9 shrink-0 shadow-none transition-all active:scale-95 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary cursor-pointer"
-                        >
-                          {isSending ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <ArrowUp className="size-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleSendMessage}
+                      disabled={!draft.trim() || isSending || !isAvailable || !supportTraits || !canReplyToSelection}
+                      size="icon"
+                      aria-label={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
+                      title={isComposingNewTicket ? 'Ticket erstellen' : 'Nachricht senden'}
+                      className="rounded-full size-8 shrink-0 shadow-none transition-all active:scale-95 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary cursor-pointer mb-0.5"
+                    >
+                      {isSending ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <ArrowUp className="size-3.5" />
+                      )}
+                    </Button>
                   </div>
 
                   {!supportTraits && (
