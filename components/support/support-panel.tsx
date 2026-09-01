@@ -258,6 +258,8 @@ const SupportComposer = memo(function SupportComposer({
   userEmail,
   textareaRef,
 }: SupportComposerProps) {
+  const [isMultiline, setIsMultiline] = useState(false)
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -271,13 +273,15 @@ const SupportComposer = memo(function SupportComposer({
     if (messageError) onClearMessageError()
   }
 
-  // Smooth layout effect for textarea auto-resizing without layout thrashing
+  // Smooth layout effect for textarea auto-resizing and pill-to-box shape transition
   useLayoutEffect(() => {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    const newHeight = Math.min(el.scrollHeight, 140)
+    const scrollHeight = el.scrollHeight
+    const newHeight = Math.min(scrollHeight, 140)
     el.style.height = `${Math.max(newHeight, 36)}px`
+    setIsMultiline(scrollHeight > 42 || draft.includes('\n'))
   }, [draft, textareaRef])
 
   const isOverLimit = draft.length > MAX_SUPPORT_MESSAGE_LENGTH
@@ -352,7 +356,8 @@ const SupportComposer = memo(function SupportComposer({
 
       <div
         className={cn(
-          "relative flex items-end gap-2 border rounded-2xl shadow-xs focus-within:ring-1 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground p-1.5 pl-3.5",
+          "relative flex items-end gap-2 border shadow-xs focus-within:ring-1 transition-all duration-200 bg-white dark:bg-[#1A1A1A] text-foreground",
+          isMultiline ? "rounded-2xl p-2 pl-3.5" : "rounded-full py-1 pl-4 pr-1.5",
           isOverLimit
             ? "border-destructive/60 focus-within:ring-destructive/30"
             : "border-border/80 dark:border-border/20 focus-within:ring-primary/25",
@@ -371,7 +376,10 @@ const SupportComposer = memo(function SupportComposer({
           disabled={isSending || !canReplyToSelection}
           rows={1}
           aria-label="Support-Nachricht eingeben"
-          className="w-full flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-[140px] text-xs sm:text-sm placeholder:text-muted-foreground disabled:opacity-50 min-h-[36px] py-2 outline-none leading-relaxed overflow-y-auto"
+          className={cn(
+            "w-full flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-[140px] text-xs sm:text-sm placeholder:text-muted-foreground disabled:opacity-50 outline-none leading-relaxed overflow-y-auto",
+            isMultiline ? "min-h-[36px] py-1" : "min-h-[32px] py-1.5",
+          )}
         />
 
         <Button
@@ -395,7 +403,8 @@ const SupportComposer = memo(function SupportComposer({
               : 'Nachricht senden'
           }
           className={cn(
-            "rounded-full size-8 shrink-0 shadow-none transition-all active:scale-95 text-primary-foreground cursor-pointer mb-0.5",
+            "rounded-full size-8 shrink-0 shadow-none transition-all active:scale-95 text-primary-foreground cursor-pointer",
+            isMultiline ? "mb-0.5" : "my-auto",
             isOverLimit
               ? "bg-destructive hover:bg-destructive/90 disabled:opacity-40"
               : "bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:hover:bg-primary",
@@ -1100,32 +1109,25 @@ export function SupportPanel() {
                     <span>Übersicht</span>
                   </Button>
                   <div className="h-4 w-px bg-border/80 shrink-0" />
-                  <div className="min-w-0 flex-1 flex flex-col justify-center">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <SheetTitle className="truncate text-sm font-bold text-foreground leading-tight">
-                        {isComposingNewTicket
-                          ? 'Neue Support-Anfrage'
-                          : visibleTicket
-                          ? formatTicketTitle(visibleTicket)
-                          : 'Support-Chat'}
-                      </SheetTitle>
-                      {visibleTicket && (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "px-1.5 py-0 text-[10px] font-medium border uppercase tracking-wider shrink-0 h-4.5 flex items-center",
-                            ticketStatusClasses[visibleTicket.status] || 'bg-muted text-muted-foreground',
-                          )}
-                        >
-                          {ticketStatusLabels[visibleTicket.status] || visibleTicket.status}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
-                      {visibleTicket
-                        ? formatRelativeTime(visibleTicket.last_message_at || visibleTicket.created_at)
-                        : 'Mietevo Support Team'}
-                    </p>
+                  <div className="min-w-0 flex-1 flex items-center gap-2">
+                    <SheetTitle className="truncate text-sm font-bold text-foreground leading-tight">
+                      {isComposingNewTicket
+                        ? 'Neue Support-Anfrage'
+                        : visibleTicket
+                        ? formatTicketTitle(visibleTicket)
+                        : 'Support-Chat'}
+                    </SheetTitle>
+                    {visibleTicket && !isComposingNewTicket && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "px-1.5 py-0 text-[10px] font-medium border uppercase tracking-wider shrink-0 h-4.5 flex items-center",
+                          ticketStatusClasses[visibleTicket.status] || 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {ticketStatusLabels[visibleTicket.status] || visibleTicket.status}
+                      </Badge>
+                    )}
                   </div>
                 </>
               ) : (
