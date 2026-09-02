@@ -360,7 +360,10 @@ export async function saveUserMcpAuthorizationAction(
     clientId: string,
     allowedOrgIds: string[],
     allowAll: boolean,
-    scopes?: UserMcpScopes
+    scopes?: UserMcpScopes,
+    clientName?: string,
+    clientIcon?: string,
+    redirectUri?: string
 ): Promise<SaveUserMcpAuthorizationResult> {
     let supabase;
     try {
@@ -384,12 +387,17 @@ export async function saveUserMcpAuthorizationAction(
     const finalScopes = sanitizeScopes(scopes);
 
     try {
-        const { data, error } = await supabase.rpc('save_user_mcp_authorization', {
+        const rpcPayload: Record<string, unknown> = {
             p_client_id: clientId.trim(),
             p_allowed_org_ids: allowedOrgIds.filter(id => typeof id === 'string' && id.trim()),
             p_allow_all: allowAll === true,
             p_scopes: finalScopes,
-        });
+        };
+        if (clientName !== undefined) rpcPayload.p_client_name = clientName;
+        if (clientIcon !== undefined) rpcPayload.p_client_icon = clientIcon;
+        if (redirectUri !== undefined) rpcPayload.p_redirect_uri = redirectUri;
+
+        const { data, error } = await supabase.rpc('save_user_mcp_authorization', rpcPayload);
 
         if (error) {
             console.error('[OAuth] saveUserMcpAuthorization failed:', error.message);
@@ -404,3 +412,97 @@ export async function saveUserMcpAuthorizationAction(
         return { success: false, error: 'Fehler beim Speichern der Organisationsberechtigungen. Bitte versuchen Sie es erneut.' };
     }
 }
+
+export interface UserMcpAuthorizationRecord {
+    id: string;
+    client_id: string;
+    client_name?: string | null;
+    client_icon?: string | null;
+    redirect_uri?: string | null;
+    erlaubte_organisations_ids: string[];
+    alle_erlaubt: boolean;
+    scopes: UserMcpScopes;
+    zuletzt_verwendet_am?: string | null;
+    erstellt_am: string;
+    geaendert_am: string;
+}
+
+/**
+ * Fetches all MCP authorizations granted by the authenticated user across all clients.
+ */
+export async function getUserMcpAuthorizationsAction(): Promise<{
+    success: boolean;
+    data?: UserMcpAuthorizationRecord[];
+    error?: string;
+}> {
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('MCP_Nutzer_Autorisierungen')
+            .select('id, client_id, client_name, client_icon, redirect_uri, erlaubte_organisations_ids, alle_erlaubt, scopes, zuletzt_verwendet_am, erstellt_am, geaendert_am')
+            .order('zuletzt_verwendet_am', { ascending: false, nullsFirst: false });
+
+        if (error) {
+            console.error('[OAuth] getUserMcpAuthorizations failed:', error.message);
+            return { success: false, error: 'Autorisierungen konnten nicht geladen werden.' };
+        }
+
+        return { success: true, data: (data || []) as UserMcpAuthorizationRecord[] };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load user authorizations";
+        console.error('Server Action: getUserMcpAuthorizations failed:', message);
+        return { success: false, error: 'Autorisierungen konnten nicht geladen werden.' };
+    }
+}
+
+/**
+ * Revokes an authorized MCP client for the current user.
+ */
+export async function revokeUserMcpAuthorizationAction(
+    clientId: string
+): Promise<{ success: boolean; error?: string }> {
+    let supabase;
+    try {
+        ({ supabase } = await ensureAuth());
+    } catch (authError: unknown) {
+        const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+        return { success: false, error: errorMessage };
+    }
+
+    if (!clientId || !clientId.trim()) {
+        return { success: false, error: 'Client-ID ist erforderlich' };
+    }
+
+    try {
+        const { error } = await supabase.rpc('revoke_user_mcp_authorization', {
+            p_client_id: clientId.trim(),
+        });
+
+        if (error) {
+            // Fallback to direct RLS DELETE
+            const { error: delError } = await supabase
+                .from('MCP_Nutzer_Autorisierungen')
+                .delete()
+                .eq('client_id', clientId.trim());
+
+            if (delError) {
+                console.error('[OAuth] revokeUserMcpAuthorization fallback failed:', delError.message);
+                return { success: false, error: 'Fehler beim Widerrufen der Autorisierung.' };
+            }
+        }
+
+        return { success: true };
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to revoke user authorization";
+        console.error('Server Action: revokeUserMcpAuthorization failed:', message);
+        return { success: false, error: 'Fehler beim Widerrufen der Autorisierung.' };
+    }
+}
+

@@ -2,11 +2,14 @@ import {
     getAuthorizationDetailsAction,
     submitDecisionAction,
     getUserMcpOrganisationsAction,
-    saveUserMcpAuthorizationAction
+    saveUserMcpAuthorizationAction,
+    getUserMcpAuthorizationsAction,
+    revokeUserMcpAuthorizationAction,
 } from './actions';
 import { ensureAuth } from '@/lib/auth-utils';
 
 const mockRpc = jest.fn();
+const mockFrom = jest.fn();
 
 // Mock ensureAuth
 jest.mock('@/lib/auth-utils', () => ({
@@ -24,6 +27,7 @@ jest.mock('@/lib/auth-utils', () => ({
                 }),
             },
             rpc: mockRpc,
+            from: mockFrom,
         },
     })),
 }));
@@ -348,9 +352,112 @@ describe('OAuth Consent actions', () => {
 
             const result = await saveUserMcpAuthorizationAction('client-1', ['org-1'], false);
             expect(result.success).toBe(false);
-            // Raw DB error message must not be surfaced to the client
             expect(result.error).not.toBe('Constraint violation in save RPC');
             expect(result.error).toContain('Fehler beim Speichern');
+        });
+
+        it('saves with clientName, clientIcon, and redirectUri metadata', async () => {
+            mockRpc.mockResolvedValueOnce({
+                data: { success: true },
+                error: null,
+            });
+
+            const result = await saveUserMcpAuthorizationAction(
+                'claude-desktop',
+                ['org-1'],
+                false,
+                { all: true, write: true },
+                'Claude Desktop',
+                'https://claude.ai/favicon.ico',
+                'claude://oauth/callback'
+            );
+            expect(result.success).toBe(true);
+            expect(mockRpc).toHaveBeenCalledWith('save_user_mcp_authorization', {
+                p_client_id: 'claude-desktop',
+                p_allowed_org_ids: ['org-1'],
+                p_allow_all: false,
+                p_scopes: { all: true, write: true },
+                p_client_name: 'Claude Desktop',
+                p_client_icon: 'https://claude.ai/favicon.ico',
+                p_redirect_uri: 'claude://oauth/callback',
+            });
+        });
+    });
+
+    describe('getUserMcpAuthorizationsAction', () => {
+        it('fetches authorizations ordered by zuletzt_verwendet_am', async () => {
+            const mockData = [
+                {
+                    id: 'auth-1',
+                    client_id: 'notion-mcp',
+                    client_name: 'Notion MCP',
+                    zuletzt_verwendet_am: '2026-09-02T10:00:00Z',
+                },
+            ];
+
+            const mockOrder = jest.fn().mockResolvedValueOnce({
+                data: mockData,
+                error: null,
+            });
+            const mockSelect = jest.fn().mockReturnValue({ order: mockOrder });
+            mockFrom.mockReturnValue({ select: mockSelect });
+
+            const result = await getUserMcpAuthorizationsAction();
+            expect(result.success).toBe(true);
+            expect(result.data).toEqual(mockData);
+            expect(mockFrom).toHaveBeenCalledWith('MCP_Nutzer_Autorisierungen');
+            expect(mockOrder).toHaveBeenCalledWith('zuletzt_verwendet_am', { ascending: false, nullsFirst: false });
+        });
+
+        it('handles error when fetching authorizations', async () => {
+            const mockOrder = jest.fn().mockResolvedValueOnce({
+                data: null,
+                error: { message: 'Database error' },
+            });
+            mockFrom.mockReturnValue({ select: jest.fn().mockReturnValue({ order: mockOrder }) });
+
+            const result = await getUserMcpAuthorizationsAction();
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Autorisierungen konnten nicht geladen werden');
+        });
+    });
+
+    describe('revokeUserMcpAuthorizationAction', () => {
+        it('successfully revokes authorization via RPC', async () => {
+            mockRpc.mockResolvedValueOnce({
+                data: { success: true, client_id: 'notion-mcp', revoked: true },
+                error: null,
+            });
+
+            const result = await revokeUserMcpAuthorizationAction('notion-mcp');
+            expect(result.success).toBe(true);
+            expect(mockRpc).toHaveBeenCalledWith('revoke_user_mcp_authorization', {
+                p_client_id: 'notion-mcp',
+            });
+        });
+
+        it('falls back to direct DELETE if RPC fails', async () => {
+            mockRpc.mockResolvedValueOnce({
+                data: null,
+                error: { message: 'RPC not found' },
+            });
+
+            const mockEq = jest.fn().mockResolvedValueOnce({ error: null });
+            const mockDelete = jest.fn().mockReturnValue({ eq: mockEq });
+            mockFrom.mockReturnValue({ delete: mockDelete });
+
+            const result = await revokeUserMcpAuthorizationAction('notion-mcp');
+            expect(result.success).toBe(true);
+            expect(mockFrom).toHaveBeenCalledWith('MCP_Nutzer_Autorisierungen');
+            expect(mockDelete).toHaveBeenCalled();
+            expect(mockEq).toHaveBeenCalledWith('client_id', 'notion-mcp');
+        });
+
+        it('rejects empty clientId', async () => {
+            const result = await revokeUserMcpAuthorizationAction('');
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Client-ID ist erforderlich');
+            expect(mockRpc).not.toHaveBeenCalled();
         });
     });
 });
