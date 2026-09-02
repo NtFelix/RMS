@@ -50,8 +50,9 @@ const MCP_SERVER_URL = `${process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || "https://mc
 
 function ClientLogo({ src, name }: { src?: string | null; name: string }) {
   const [error, setError] = useState(false);
+  const isSafeUrl = !!src && (/^https:\/\//i.test(src) || /^data:image\//i.test(src));
 
-  if (!src || error) {
+  if (!isSafeUrl || error) {
     return (
       <div className="size-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
         <Bot className="size-5" />
@@ -61,6 +62,7 @@ function ClientLogo({ src, name }: { src?: string | null; name: string }) {
 
   return (
     <div className="size-10 rounded-xl bg-muted/40 border border-border/50 p-1.5 flex items-center justify-center shrink-0 overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={name}
