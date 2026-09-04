@@ -21,7 +21,7 @@ export function SupportLauncher() {
 
   return (
     <>
-      <div className="fixed bottom-24 right-4 z-40 md:bottom-6 md:right-6">
+      <div className="fixed bottom-24 right-4 z-40 md:hidden">
         <SupportButton />
       </div>
       <SupportPanel />

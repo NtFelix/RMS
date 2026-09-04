@@ -281,7 +281,7 @@ interface SupportComposerProps {
   setDraft: React.Dispatch<React.SetStateAction<string>>
   isSending: boolean
   isComposingNewTicket: boolean
-  canReplyToSelection: boolean
+  isTicketClosed: boolean
   isAvailable: boolean
   supportTraitsReady: boolean
   messageError: string | null
@@ -297,7 +297,7 @@ const SupportComposer = memo(function SupportComposer({
   setDraft,
   isSending,
   isComposingNewTicket,
-  canReplyToSelection,
+  isTicketClosed,
   isAvailable,
   supportTraitsReady,
   messageError,
@@ -342,7 +342,11 @@ const SupportComposer = memo(function SupportComposer({
         <div className="mb-2.5 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive animate-in fade-in-50 duration-200">
           <AlertCircle className="size-4 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-xs leading-tight">Nachricht konnte nicht gesendet werden</p>
+            <p className="font-semibold text-xs leading-tight">
+              {messageError.toLowerCase().includes('laden') || messageError.toLowerCase().includes('abruf')
+                ? 'Fehler bei der Aktualisierung'
+                : 'Nachricht konnte nicht gesendet werden'}
+            </p>
             <p className="text-[11px] text-destructive/90 mt-0.5 leading-snug break-words">{messageError}</p>
           </div>
           <Button
@@ -350,22 +354,22 @@ const SupportComposer = memo(function SupportComposer({
             variant="ghost"
             size="icon"
             onClick={onClearMessageError}
-            className="size-5 rounded-md hover:bg-destructive/20 text-destructive shrink-0"
+            className="size-5 rounded-md hover:bg-destructive/20 text-destructive shrink-0 cursor-pointer"
           >
             <X className="size-3" />
           </Button>
         </div>
       )}
 
-      {!canReplyToSelection && (
-        <div className="mb-2.5 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20">
+      {isTicketClosed && (
+        <div className="mb-2.5 flex items-center justify-between rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs text-amber-800 dark:text-amber-300 border border-amber-500/20 animate-in fade-in-50 duration-200">
           <span>Dies ist ein abgeschlossenes Ticket.</span>
           <Button
             type="button"
             variant="link"
             size="sm"
             onClick={onStartNewTicket}
-            className="h-auto p-0 text-xs font-semibold text-amber-800 underline dark:text-amber-300"
+            className="h-auto p-0 text-xs font-semibold text-amber-800 underline dark:text-amber-300 cursor-pointer"
           >
             Neues Ticket erstellen
           </Button>
@@ -422,7 +426,7 @@ const SupportComposer = memo(function SupportComposer({
               ? "Beschreiben Sie Ihr Anliegen..."
               : "Antwort schreiben..."
           }
-          disabled={isSending || !canReplyToSelection}
+          disabled={isSending || isTicketClosed}
           rows={1}
           aria-label="Support-Nachricht eingeben"
           className={cn(
@@ -439,7 +443,7 @@ const SupportComposer = memo(function SupportComposer({
             isSending ||
             !isAvailable ||
             !supportTraitsReady ||
-            !canReplyToSelection ||
+            isTicketClosed ||
             isOverLimit
           }
           size="icon"
@@ -544,11 +548,19 @@ export function SupportPanel() {
   const visibleTicketId = isComposingNewTicket ? null : (selectedTicketId || currentTicketId)
   const visibleTicket = tickets.find((ticket) => ticket.id === visibleTicketId) || null
   const visibleMessages = useMemo(() => normalizeMessages(messages), [messages])
-  const canReplyToSelection = isComposingNewTicket || !selectedTicketId || selectedTicketId === currentTicketId
+
+  const isTicketClosed = useMemo(() => {
+    if (isComposingNewTicket || !visibleTicket) return false
+    const statusKey = normalizeTicketStatusKey(visibleTicket.status)
+    return statusKey === 'resolved' || statusKey === 'closed'
+  }, [isComposingNewTicket, visibleTicket])
+
+  const canReplyToSelection = isComposingNewTicket || !isTicketClosed
   const userDisplay = getUserDisplayData(user)
   const supportTraits = buildSupportTraits(user)
   const prevMessageCountRef = useRef(0)
   const prevTicketIdRef = useRef<string | null>(null)
+  const lastMessageSentTimeRef = useRef<number>(0)
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
@@ -586,6 +598,7 @@ export function SupportPanel() {
     if (storeSelectedTicketId) {
       setIsComposingNewTicket(false)
       setSelectedTicketId(storeSelectedTicketId)
+      setCurrentTicketId(storeSelectedTicketId)
       setViewMode('chat')
       const cached = messagesCacheRef.current[storeSelectedTicketId]
       if (cached && cached.length > 0) {
@@ -595,11 +608,11 @@ export function SupportPanel() {
     }
   }, [storeSelectedTicketId, storeIsComposingNew, setStoreIsComposingNew, setStoreSelectedTicketId])
 
-  // Robust conversations initialization
+  // Robust, fast conversations initialization
   useEffect(() => {
     let cancelled = false
     let attempts = 0
-    const maxAttempts = 6
+    const maxAttempts = 12
 
     const checkAndInit = async () => {
       if (cancelled) return
@@ -623,7 +636,7 @@ export function SupportPanel() {
 
       attempts++
       if (attempts < maxAttempts) {
-        setTimeout(checkAndInit, 1200)
+        setTimeout(checkAndInit, 350)
       } else {
         setAvailabilityTimedOut(true)
       }
@@ -652,23 +665,30 @@ export function SupportPanel() {
 
     if (!user?.id) {
       setIdentityReady(true)
+      void refreshTicketsRef.current(false)
       return
     }
 
     if (lastIdentityUserId.current === user.id) return
 
     lastIdentityUserId.current = user.id
-    void syncSupportIdentity(posthog, user.id).then((identity) => {
-      if (identity) {
+    void syncSupportIdentity(posthog, user.id)
+      .then((identity) => {
+        if (identity) {
+          setIdentityReady(true)
+          void refreshTicketsRef.current(false)
+        }
+      })
+      .catch(() => {
         setIdentityReady(true)
-      }
-    })
+        void refreshTicketsRef.current(false)
+      })
   }, [isAvailable, posthog, user?.id])
 
   const refreshTickets = useCallback(async (isBackground = false) => {
     if (!posthog || !isAvailable || !user?.id) return
 
-    if (!isBackground) {
+    if (!isBackground && tickets.length === 0) {
       setTicketsLoading(true)
     }
     try {
@@ -699,12 +719,17 @@ export function SupportPanel() {
       setUnreadCount(normalizedTickets.reduce((total, ticket) => total + (ticket.unread_count || 0), 0))
       
       const activeTicketId = isComposingNewTicket ? null : posthog.conversations?.getCurrentTicketId?.() || null
-      setCurrentTicketId(activeTicketId)
+      if (activeTicketId) {
+        setCurrentTicketId(activeTicketId)
+      }
 
       if (!selectedTicketIdRef.current && !isComposingNewTicket) {
         const targetId = activeTicketId || normalizedTickets[0]?.id || null
-        setSelectedTicketId(targetId)
-        if (!targetId) {
+        if (targetId) {
+          setSelectedTicketId(targetId)
+          setCurrentTicketId(targetId)
+          void refreshMessages(targetId, true)
+        } else {
           setIsComposingNewTicket(true)
           setViewMode('chat')
         }
@@ -727,13 +752,26 @@ export function SupportPanel() {
     if (!isBackground && (!messagesCacheRef.current[ticketId] || messagesCacheRef.current[ticketId].length === 0)) {
       setMessagesLoading(true)
     }
-    setMessageError(null)
+    if (!isBackground) {
+      setMessageError(null)
+    }
 
     try {
       const response = await loadSupportMessages(posthog, ticketId)
       if (!response) {
         if (!isBackground) setMessages([])
         return
+      }
+
+      // Immediately reflect latest server status in tickets list
+      if (response.ticket_status) {
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === ticketId && t.status !== response.ticket_status
+              ? { ...t, status: response.ticket_status }
+              : t,
+          ),
+        )
       }
 
       const newMessages = (response.messages || []) as SupportMessage[]
@@ -764,13 +802,17 @@ export function SupportPanel() {
         await posthog.conversations.markAsRead(ticketId)
       }
     } catch (error) {
-      setMessageError(getSupportErrorMessage(error))
+      if (!isBackground) {
+        setMessageError(getSupportErrorMessage(error))
+      } else {
+        console.warn('[Support] Background message sync postponed:', error)
+      }
     } finally {
       if (!isBackground) {
         setMessagesLoading(false)
       }
     }
-  }, [isAvailable, posthog, user?.id])
+  }, [isAvailable, posthog, setTickets, user?.id])
 
   const refreshTicketsRef = useRef(refreshTickets)
   refreshTicketsRef.current = refreshTickets
@@ -853,6 +895,16 @@ export function SupportPanel() {
     })
   }, [isAvailable])
 
+  // Immediately refresh tickets and active messages whenever support panel is opened!
+  useEffect(() => {
+    if (isOpen && isAvailable && user?.id) {
+      void refreshTicketsRef.current(true)
+      if (visibleTicketId) {
+        void refreshMessagesRef.current(visibleTicketId, true)
+      }
+    }
+  }, [isOpen, isAvailable, user?.id, visibleTicketId])
+
   useEffect(() => {
     if (!selectedTicketId && currentTicketId) {
       void refreshMessagesRef.current(currentTicketId, true)
@@ -862,7 +914,10 @@ export function SupportPanel() {
       const cached = messagesCacheRef.current[selectedTicketId]
       if (cached && cached.length > 0) {
         setMessages(cached)
-        void refreshMessagesRef.current(selectedTicketId, true)
+        // Avoid immediate duplicate network request if message was just sent (< 4s)
+        if (Date.now() - lastMessageSentTimeRef.current > 4000) {
+          void refreshMessagesRef.current(selectedTicketId, true)
+        }
       } else {
         void refreshMessagesRef.current(selectedTicketId, false)
       }
@@ -890,10 +945,18 @@ export function SupportPanel() {
   const handleSelectTicket = (ticket: SupportTicket) => {
     setIsComposingNewTicket(false)
     setSelectedTicketId(ticket.id)
+    setCurrentTicketId(ticket.id)
     setViewMode('chat')
     setDraft('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
+    }
+
+    if (typeof (posthog?.conversations as any)?.vp === 'function') {
+      (posthog.conversations as any).vp(ticket.id)
+    }
+    if ((posthog?.conversations as any)?.Nf !== undefined) {
+      (posthog.conversations as any).Nf = ticket.id
     }
     
     // Instant display from cache if available (0ms delay)
@@ -951,10 +1014,21 @@ export function SupportPanel() {
         return
       }
 
-      const isNew = isComposingNewTicket || !currentTicketId || selectedTicketId === null
+      const targetTicketId = visibleTicketId || selectedTicketId || currentTicketId
+      const isNew = isComposingNewTicket || !targetTicketId
       const tempMsgId = failedMsgIdToReplace || `temp-msg-${Date.now()}`
-      const tempTicketId = selectedTicketId || currentTicketId || `temp-ticket-${Date.now()}`
+      const tempTicketId = targetTicketId || `temp-ticket-${Date.now()}`
       const nowIso = new Date().toISOString()
+
+      // Ensure PostHog's active ticket is set to the target ticket before sending
+      if (!isNew && targetTicketId) {
+        if (typeof (posthog.conversations as any)?.vp === 'function') {
+          (posthog.conversations as any).vp(targetTicketId)
+        }
+        if ((posthog.conversations as any)?.Nf !== undefined) {
+          (posthog.conversations as any).Nf = targetTicketId
+        }
+      }
 
       const optimisticMessage: SupportMessage = {
         id: tempMsgId,
@@ -1048,10 +1122,13 @@ export function SupportPanel() {
         setSelectedTicketId(realTicketId)
         setCurrentTicketId(realTicketId)
         setIsComposingNewTicket(false)
+        lastMessageSentTimeRef.current = Date.now()
 
-        // Silent background sync without UI flashes
-        void refreshTickets(true)
-        void refreshMessages(realTicketId, true)
+        // Wait 3s before silent background sync so PostHog's ingest has finished processing
+        setTimeout(() => {
+          void refreshTicketsRef.current(true)
+          void refreshMessagesRef.current(realTicketId, true)
+        }, 3000)
       } catch (error) {
         const errorMsg = getSupportErrorMessage(error)
         setMessageError(errorMsg)
@@ -1277,10 +1354,10 @@ export function SupportPanel() {
             ) : viewMode === 'inbox' ? (
               /* INBOX VIEW - All Tickets */
               <div className="flex flex-1 flex-col overflow-hidden">
-                {/* Search & Actions Bar - matching templates modal look */}
-                <div className="shrink-0 pb-3 pt-3 px-3.5 border-b border-border/70 space-y-2.5 bg-background/50">
-                  {/* Single Row: Search, Filter, and Create Button */}
-                  <div className="flex items-center gap-2">
+                {/* Search & Actions Bar - matching modal layout and distances */}
+                <div className="shrink-0 p-4 sm:px-6 border-b border-border/70 space-y-3 bg-background/50">
+                  {/* Single Row: Search and Filter */}
+                  <div className="flex items-center gap-2.5">
                     {/* Search Bar - Takes most space */}
                     <div className="flex-1 min-w-0">
                       <SearchInput
@@ -1289,20 +1366,20 @@ export function SupportPanel() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onClear={() => setSearchQuery("")}
                         mode="modal"
-                        className="h-9 text-xs"
+                        className="h-10 text-xs sm:text-sm"
                         aria-label="Tickets durchsuchen"
                       />
                     </div>
 
                     {/* Status Filter - Select dropdown with Filter icon */}
                     <div className="min-w-0">
-                      <div className="relative w-[125px] sm:w-[145px] min-w-0">
+                      <div className="relative w-[130px] sm:w-[155px] min-w-0">
                         <Select
                           value={statusFilter}
                           onValueChange={(value) => setStatusFilter(value)}
                         >
-                          <SelectTrigger className="w-full h-9 text-xs focus-visible:scale-100 focus:ring-1 border-border/80 px-2.5">
-                            <div className="flex items-center gap-1.5 truncate">
+                          <SelectTrigger className="w-full h-10 text-xs sm:text-sm focus-visible:scale-100 focus:ring-1 border-border/80 px-3">
+                            <div className="flex items-center gap-2 truncate">
                               <Filter className="size-3.5 text-muted-foreground shrink-0" />
                               <SelectValue placeholder="Status" />
                             </div>
@@ -1320,34 +1397,22 @@ export function SupportPanel() {
                         </Select>
                       </div>
                     </div>
-
-                    {/* Create Ticket Button */}
-                    <Button
-                      type="button"
-                      onClick={handleStartNewTicket}
-                      className="shrink-0 h-9 px-3 gap-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-xs hover:bg-primary/95 cursor-pointer"
-                      aria-label="Neues Ticket erstellen"
-                    >
-                      <Plus className="size-3.5" />
-                      <span className="hidden sm:inline">Neues Ticket</span>
-                      <span className="sm:hidden">Neu</span>
-                    </Button>
                   </div>
 
                   {/* Active Filters Row (matching templates modal) */}
                   {(searchQuery || statusFilter !== 'all') && (
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-border/60 animate-in fade-in-50 duration-150">
-                      <span className="text-[11px] text-muted-foreground font-medium">
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60 animate-in fade-in-50 duration-150">
+                      <span className="text-xs text-muted-foreground font-medium">
                         <span className="hidden sm:inline">Aktive Filter:</span>
                         <span className="sm:hidden">Filter:</span>
                       </span>
                       {searchQuery && (
-                        <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-muted/40 py-0 px-2 h-5">
+                        <Badge variant="outline" className="text-xs font-normal gap-1 bg-muted/40 py-0.5 px-2.5 h-6">
                           <span>Suche: "{searchQuery}"</span>
                         </Badge>
                       )}
                       {statusFilter !== 'all' && (
-                        <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-muted/40 py-0 px-2 h-5">
+                        <Badge variant="outline" className="text-xs font-normal gap-1 bg-muted/40 py-0.5 px-2.5 h-6">
                           <span>Status: {statusFilter === 'open' ? 'Offen' : getTicketStatusLabel(statusFilter)}</span>
                         </Badge>
                       )}
@@ -1358,7 +1423,7 @@ export function SupportPanel() {
                           setSearchQuery('')
                           setStatusFilter('all')
                         }}
-                        className="h-5 px-2 text-[11px] text-muted-foreground hover:text-foreground ml-auto rounded-md cursor-pointer"
+                        className="h-6 px-2.5 text-xs text-muted-foreground hover:text-foreground ml-auto rounded-md cursor-pointer"
                       >
                         Zurücksetzen
                       </Button>
@@ -1368,7 +1433,7 @@ export function SupportPanel() {
 
                 {/* Ticket List */}
                 <ScrollArea className="flex-1">
-                  <div className="p-3 space-y-2">
+                  <div className="p-4 sm:p-6 space-y-2.5">
                     {ticketsLoading && tickets.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                         <Loader2 className="size-6 animate-spin mb-3 text-primary" />
@@ -1383,7 +1448,7 @@ export function SupportPanel() {
                         <p className="text-xs text-muted-foreground mt-1 max-w-xs mb-3">
                           {searchQuery || statusFilter !== 'all'
                             ? 'Versuchen Sie andere Suchbegriffe oder Filter.'
-                            : 'Erstellen Sie Ihr erstes Support-Ticket über den Button oben.'}
+                            : 'Erstellen Sie Ihr erstes Support-Ticket über den Button unten.'}
                         </p>
                         {(searchQuery || statusFilter !== 'all') && (
                           <Button
@@ -1413,7 +1478,7 @@ export function SupportPanel() {
                               type="button"
                               onClick={() => handleSelectTicket(ticket)}
                               className={cn(
-                                "group relative flex w-full flex-col gap-1.5 rounded-xl border p-3 text-left transition-all hover:shadow-xs active:scale-99 cursor-pointer",
+                                "group relative flex w-full flex-col gap-2 rounded-xl border p-3.5 text-left transition-all hover:shadow-xs active:scale-[0.995] hover:scale-[1.002] cursor-pointer",
                                 isCurrent
                                   ? "border-primary/40 bg-primary/5 dark:bg-primary/10"
                                   : "border-border/70 bg-card hover:border-border hover:bg-muted/40"
@@ -1485,6 +1550,19 @@ export function SupportPanel() {
                     )}
                   </div>
                 </ScrollArea>
+
+                {/* Bottom Action Footer - matching modal footer spacing & button style */}
+                <div className="shrink-0 px-4 pb-6 pt-3 sm:px-6 sm:pb-8 sm:pt-4 bg-background/95 backdrop-blur-md border-t border-border/70 z-20">
+                  <Button
+                    type="button"
+                    onClick={handleStartNewTicket}
+                    className="w-full gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm h-11 shadow-sm hover:scale-[1.005] active:scale-[0.995] transition-all cursor-pointer"
+                    aria-label="Neues Ticket erstellen"
+                  >
+                    <Plus className="size-4" />
+                    <span>Neues Ticket erstellen</span>
+                  </Button>
+                </div>
               </div>
             ) : (
               /* CHAT VIEW - Conversation Stream */
@@ -1551,7 +1629,7 @@ export function SupportPanel() {
                   setDraft={setDraft}
                   isSending={isSending}
                   isComposingNewTicket={isComposingNewTicket}
-                  canReplyToSelection={canReplyToSelection}
+                  isTicketClosed={isTicketClosed}
                   isAvailable={isAvailable}
                   supportTraitsReady={Boolean(supportTraits)}
                   messageError={messageError}

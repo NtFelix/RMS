@@ -15,7 +15,7 @@ interface SupportState {
   closeSupport: () => void
   setUnreadCount: (count: number) => void
   setIsAvailable: (isAvailable: boolean) => void
-  setTickets: (tickets: SupportTicket[]) => void
+  setTickets: (tickets: SupportTicket[] | ((prev: SupportTicket[]) => SupportTicket[])) => void
   setSelectedTicketId: (ticketId: string | null) => void
   setIsComposingNew: (isComposing: boolean) => void
 }
@@ -34,7 +34,10 @@ export const useSupportStore = create<SupportState>((set) => ({
   closeSupport: () => set({ isOpen: false }),
   setUnreadCount: (unreadCount) => set({ unreadCount }),
   setIsAvailable: (isAvailable) => set({ isAvailable }),
-  setTickets: (tickets) => set({ tickets }),
+  setTickets: (tickets) =>
+    set((state) => ({
+      tickets: typeof tickets === 'function' ? tickets(state.tickets) : tickets,
+    })),
   setSelectedTicketId: (selectedTicketId) => set({ selectedTicketId }),
   setIsComposingNew: (isComposingNew) => set({ isComposingNew }),
 }))

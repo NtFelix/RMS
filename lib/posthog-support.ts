@@ -154,8 +154,8 @@ export async function loadConversationsBundle(): Promise<void> {
   }
 
   const sources = [
-    '/assets/v2/static/conversations.js',
     'https://eu-assets.i.posthog.com/static/conversations.js',
+    '/assets/v2/static/conversations.js',
     'https://us-assets.i.posthog.com/static/conversations.js',
   ]
 

@@ -779,37 +779,64 @@ function SidebarActions({
   if (!supportButtonEnabled && !notificationCenterFeatureEnabled) return null;
 
   return (
-    <m.div 
-      layout
-      transition={layoutTransition}
+    <div 
       className={cn(
-        "flex gap-3 w-full pb-4 shrink-0 transition-colors duration-200",
-        isCollapsed ? "flex-col items-start justify-start px-1" : "flex-row justify-start"
+        "flex flex-col gap-1 w-full pb-2 shrink-0 transition-colors duration-200",
+        isCollapsed ? "items-center px-0" : "px-1.5"
       )}
     >
       {/* Support Popover */}
       {supportButtonEnabled && (
         <Popover open={supportOpen} onOpenChange={setSupportOpen}>
-          <PopoverTrigger asChild>
-            <m.button 
-              layout
-              transition={layoutTransition}
-              type="button"
-              className={cn(
-                "relative flex items-center justify-center rounded-2xl transition-colors duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-                isCollapsed ? "size-10" : "size-11",
-                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-              )}
-            >
-              <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
-              {hasUnreadMessages && (
-                <span className="absolute -top-1 -right-1 flex min-w-5 h-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground px-1 border-2 border-white dark:border-[#181818] shadow-xs">
-                  {supportUnreadCount > 99 ? '99+' : supportUnreadCount}
-                </span>
-              )}
-            </m.button>
-          </PopoverTrigger>
+          {isCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative flex size-10 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group",
+                      "text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50",
+                      "hover:bg-accent/10 dark:hover:bg-accent/15",
+                      supportOpen && "bg-accent/15 text-zinc-950 dark:text-zinc-50 font-semibold"
+                    )}
+                    aria-label="Support & Hilfe öffnen"
+                  >
+                    <MessageCircle className="size-4.5 transition-transform duration-200 group-hover:scale-105" />
+                    {hasUnreadMessages && (
+                      <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-accent ring-2 ring-white dark:ring-[#181818]" />
+                    )}
+                  </button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                Support & Hilfe
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "group flex items-center justify-between w-full h-10 px-3 rounded-xl transition-all duration-200 cursor-pointer select-none active:scale-[0.99]",
+                  "text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50",
+                  "hover:bg-accent/10 dark:hover:bg-accent/15",
+                  supportOpen && "bg-accent/15 text-zinc-950 dark:text-zinc-50 font-medium"
+                )}
+                aria-label="Support & Hilfe öffnen"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <MessageCircle className="size-4.5 shrink-0 text-zinc-500 group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-zinc-100 transition-colors" />
+                  <span className="truncate text-sm font-medium">Support & Hilfe</span>
+                </div>
+                {hasUnreadMessages && (
+                  <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent text-accent-foreground shadow-2xs">
+                    {supportUnreadCount > 99 ? '99+' : supportUnreadCount} neu
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+          )}
           <PopoverContent 
             side="right" 
             align="end" 
@@ -911,21 +938,47 @@ function SidebarActions({
       {/* Notifications Popover */}
       {notificationCenterFeatureEnabled && (
         <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-          <PopoverTrigger asChild>
-            <m.button 
-              layout
-              transition={layoutTransition}
-              type="button"
-              className={cn(
-                "relative flex items-center justify-center rounded-2xl transition-colors duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-                isCollapsed ? "size-10" : "size-11",
-                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-              )}
-            >
-              <Bell className="size-5 transition-transform duration-200 group-hover:scale-110" />
-            </m.button>
-          </PopoverTrigger>
+          {isCollapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative flex size-10 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group",
+                      "text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50",
+                      "hover:bg-accent/10 dark:hover:bg-accent/15",
+                      notificationsOpen && "bg-accent/15 text-zinc-950 dark:text-zinc-50 font-semibold"
+                    )}
+                    aria-label="Benachrichtigungen öffnen"
+                  >
+                    <Bell className="size-4.5 transition-transform duration-200 group-hover:scale-105" />
+                  </button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                Benachrichtigungen
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "group flex items-center justify-between w-full h-10 px-3 rounded-xl transition-all duration-200 cursor-pointer select-none active:scale-[0.99]",
+                  "text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50",
+                  "hover:bg-accent/10 dark:hover:bg-accent/15",
+                  notificationsOpen && "bg-accent/15 text-zinc-950 dark:text-zinc-50 font-medium"
+                )}
+                aria-label="Benachrichtigungen öffnen"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Bell className="size-4.5 shrink-0 text-zinc-500 group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-zinc-100 transition-colors" />
+                  <span className="truncate text-sm font-medium">Benachrichtigungen</span>
+                </div>
+              </button>
+            </PopoverTrigger>
+          )}
           <PopoverContent 
             side="right" 
             align="end" 
@@ -948,7 +1001,7 @@ function SidebarActions({
               </div>
               <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
                 <Link 
-                  href="/settings/notifications"
+                  href="/settings/notifications" 
                   onClick={() => setNotificationsOpen(false)}
                   className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
                 >
@@ -959,6 +1012,7 @@ function SidebarActions({
           </PopoverContent>
         </Popover>
       )}
-    </m.div>
+    </div>
   )
 }
+
