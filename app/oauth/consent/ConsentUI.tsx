@@ -776,7 +776,10 @@ export default function ConsentUI({
                 grant.clientId,
                 grant.priorOrgIds,
                 grant.priorAllowAll,
-                grant.priorScopes ?? { all: false, write: false }
+                grant.priorScopes ?? { all: false, write: false },
+                clientName,
+                clientIcon ?? undefined,
+                redirectUri ?? undefined
             );
         } catch (rollbackErr) {
             console.error('Failed to restore prior MCP authorization after failed consent:', rollbackErr);
@@ -902,7 +905,10 @@ export default function ConsentUI({
                         clientId,
                         orgsToSave,
                         allowAllOrgs,
-                        scopesToSave
+                        scopesToSave,
+                        clientName,
+                        clientIcon ?? undefined,
+                        redirectUri ?? undefined
                     );
 
                     if (!saveResult.success) {
