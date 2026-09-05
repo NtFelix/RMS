@@ -8,9 +8,15 @@ import { cn } from "@/lib/utils"
 import type { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
 import { TaskDndProvider } from "@/components/tasks/task-dnd-provider"
+import dynamic from "next/dynamic"
 import { useAIChatStore } from "@/hooks/use-ai-chat-store"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { TABLET_BREAKPOINT } from "@/lib/constants"
+
+const SupportLauncher = dynamic(
+  () => import("@/components/support/support-launcher").then((mod) => mod.SupportLauncher),
+  { ssr: false },
+)
 
 export function DashboardLayout({
   children,
@@ -144,7 +150,8 @@ export function DashboardLayout({
           </div>
         </main>
 
-        {mounted && isMobile && <MobileBottomNavigation sidebarData={sidebarData} />}
+        {mounted && isMobile && <MobileBottomNavigation />}
+        <SupportLauncher />
       </div>
     </TaskDndProvider>
   )

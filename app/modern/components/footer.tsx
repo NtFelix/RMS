@@ -174,50 +174,83 @@ export default function Footer() {
                       />
                     </button>
                     
-                    {/* AnimatePresence for smooth height transitions on mobile */}
-                    <AnimatePresence initial={false}>
-                      {(isAccordionOpen || typeof window !== 'undefined' && window.innerWidth >= 768) && (
-                        <motion.ul 
-                          initial="collapsed"
-                          animate="open"
-                          exit="collapsed"
-                          variants={{
-                            open: { opacity: 1, height: "auto", marginTop: 12 },
-                            collapsed: { opacity: 0, height: 0, marginTop: 0 }
-                          }}
-                          transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
-                          className="space-y-3 overflow-hidden md:!opacity-100 md:!h-auto md:!mt-0"
-                        >
-                          {links.map((link) => {
-                            const specialLink = specialLinks[link]
-                            const footerCategory = categoryMap[category]
-                            return (
-                              <li key={link}>
-                                {specialLink ? (
-                                  <Link
-                                    href={specialLink.href}
-                                    target={specialLink.target}
-                                    rel={specialLink.rel}
-                                    className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
-                                    onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
-                                  >
-                                    {specialLink.text}
-                                  </Link>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
-                                    onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
-                                  >
-                                    {link}
-                                  </button>
-                                )}
-                              </li>
-                            )
-                          })}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
+                    {/* Mobile collapsible view */}
+                    <div className="md:hidden">
+                      <AnimatePresence initial={false}>
+                        {isAccordionOpen && (
+                          <motion.ul 
+                            initial="collapsed"
+                            animate="open"
+                            exit="collapsed"
+                            variants={{
+                              open: { opacity: 1, height: "auto", marginTop: 12 },
+                              collapsed: { opacity: 0, height: 0, marginTop: 0 }
+                            }}
+                            transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                            className="space-y-3 overflow-hidden"
+                          >
+                            {links.map((link) => {
+                              const specialLink = specialLinks[link]
+                              const footerCategory = categoryMap[category]
+                              return (
+                                <li key={link}>
+                                  {specialLink ? (
+                                    <Link
+                                      href={specialLink.href}
+                                      target={specialLink.target}
+                                      rel={specialLink.rel}
+                                      className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
+                                      onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
+                                    >
+                                      {specialLink.text}
+                                    </Link>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
+                                      onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
+                                    >
+                                      {link}
+                                    </button>
+                                  )}
+                                </li>
+                              )
+                            })}
+                          </motion.ul>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Desktop always visible view */}
+                    <ul className="hidden md:block space-y-3 mt-4">
+                      {links.map((link) => {
+                        const specialLink = specialLinks[link]
+                        const footerCategory = categoryMap[category]
+                        return (
+                          <li key={link}>
+                            {specialLink ? (
+                              <Link
+                                href={specialLink.href}
+                                target={specialLink.target}
+                                rel={specialLink.rel}
+                                className="text-muted-foreground hover:text-foreground transition-colors text-sm hover:underline"
+                                onClick={() => trackFooterLinkClicked(specialLink.text, footerCategory, specialLink.href)}
+                              >
+                                {specialLink.text}
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground transition-colors text-sm text-left hover:underline"
+                                onClick={() => trackFooterLinkClicked(link, footerCategory, "#")}
+                              >
+                                {link}
+                              </button>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
                   </div>
                 )
               })}

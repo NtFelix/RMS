@@ -5,12 +5,19 @@ import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, Suspense, useState, useReducer } from 'react'
 import posthogProxyConfig from '@/lib/posthog-proxy'
+import { syncSupportIdentity } from '@/lib/posthog-support'
 
 const { POSTHOG_PROXY_PATH, POSTHOG_UI_HOST } = posthogProxyConfig
 
 // Initialize PostHog with configuration
 async function initializePostHog(nonce?: string) {
-  if (typeof window === 'undefined' || posthog.__loaded) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  (window as any).posthog = posthog;
+
+  if (posthog.__loaded) {
     return;
   }
 
@@ -82,10 +89,17 @@ async function initializePostHog(nonce?: string) {
       distinctID: undefined, // Will be set when user is identified
     },
     // Ensure feature flags are loaded
-    loaded: function (posthog: any) {
-      posthog.reloadFeatureFlags?.();
+    loaded: function (posthogInstance: any) {
+      if (typeof window !== 'undefined') {
+        (window as any).posthog = posthogInstance;
+      }
+      posthogInstance.reloadFeatureFlags?.();
     }
   } as any);
+
+  if (typeof window !== 'undefined') {
+    (window as any).posthog = posthog;
+  }
 
   // Apply stored consent on load - respects user choice on ALL pages
   const consent = localStorage.getItem('cookieConsent');
@@ -150,6 +164,9 @@ function PostHogPageView() {
               is_anonymous: false,
             });
           }
+
+          // Sync the PostHog Support identity so tickets follow the user across browsers/devices.
+          await syncSupportIdentity(posthog, user.id)
         }
       } catch (error) {
         console.error('Error handling user identification for PostHog:', error);
@@ -222,6 +239,8 @@ function PostHogPageView() {
               user_type: 'authenticated',
               is_anonymous: false,
             })
+
+            void syncSupportIdentity(posthog, user.id)
 
             posthog.capture('user_logged_in', {
               provider: provider || 'email',

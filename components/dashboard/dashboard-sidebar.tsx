@@ -1,11 +1,12 @@
 "use client"
 
+import type React from "react"
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check
+  Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check, Plus
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
 import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"
@@ -348,7 +349,6 @@ function SidebarContent({
   organisations,
   currentOrgId
 }: SidebarContentProps) {
-  const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
   const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
 
   // Combined loop iteration (flatMap/filter optimized into a single pass using reduce)
@@ -411,7 +411,6 @@ function SidebarContent({
         {/* Popover Actions */}
         <SidebarActions
           isCollapsed={isCollapsed}
-          supportButtonEnabled={!!supportButtonEnabled}
           notificationCenterFeatureEnabled={!!notificationCenterFeatureEnabled}
         />
         
@@ -454,7 +453,6 @@ function SidebarHeader({
 }) {
   const { toast } = useToast()
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
-
   const handleSwitchOrg = async (orgId: string | null) => {
     if (orgId === currentOrgId) return;
     setIsSwitchingOrg(true);
@@ -752,133 +750,101 @@ function SidebarNavLink({
   );
 }
 
-// Bottom Popover Actions Subcomponent
+// Bottom Popover Actions Subcomponent (Notifications)
 function SidebarActions({
   isCollapsed,
-  supportButtonEnabled,
   notificationCenterFeatureEnabled
 }: {
   isCollapsed: boolean
-  supportButtonEnabled: boolean
   notificationCenterFeatureEnabled: boolean
 }) {
-  const [supportOpen, setSupportOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
 
-  if (!supportButtonEnabled && !notificationCenterFeatureEnabled) return null;
+  if (!notificationCenterFeatureEnabled) return null;
 
   return (
-    <m.div 
-      layout
-      transition={layoutTransition}
+    <div 
       className={cn(
-        "flex gap-3 w-full pb-4 shrink-0 transition-colors duration-200",
-        isCollapsed ? "flex-col items-start justify-start px-1" : "flex-row justify-start"
+        "flex flex-col gap-1 w-full pb-2 shrink-0 transition-colors duration-200",
+        isCollapsed ? "items-center px-0" : "px-1.5"
       )}
     >
-      {/* Support Popover */}
-      {supportButtonEnabled && (
-        <Popover open={supportOpen} onOpenChange={setSupportOpen}>
-          <PopoverTrigger asChild>
-            <m.button 
-              layout
-              transition={layoutTransition}
-              type="button"
-              className={cn(
-                "relative flex items-center justify-center rounded-2xl transition-colors duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-                isCollapsed ? "size-10" : "size-11",
-                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
-              )}
-            >
-              <MessageCircle className="size-5 transition-transform duration-200 group-hover:scale-110" />
-            </m.button>
-          </PopoverTrigger>
-          <PopoverContent 
-            side="right" 
-            align="end" 
-            sideOffset={12} 
-            className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Support</h3>
-                <span className="text-[10px] font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">0 Offen</span>
-              </div>
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                  <MessageCircle className="size-5 text-zinc-400 dark:text-zinc-500" />
-                </div>
-                <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Keine Support-Anfragen</h4>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
-                  Sobald du Hilfe benötigst oder Fragen hast, kannst du einen neuen Support-Chat starten.
-                </p>
-              </div>
-              <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
-                <Link 
-                  href="/support"
-                  onClick={() => setSupportOpen(false)}
-                  className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
-                >
-                  Support kontaktieren
-                </Link>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-
       {/* Notifications Popover */}
-      {notificationCenterFeatureEnabled && (
-        <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+      <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "relative flex size-10 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group",
+                    "text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50",
+                    "hover:bg-accent/10 dark:hover:bg-accent/15",
+                    notificationsOpen && "bg-accent/15 text-zinc-950 dark:text-zinc-50 font-semibold"
+                  )}
+                  aria-label="Benachrichtigungen öffnen"
+                >
+                  <Bell className="size-4.5 transition-transform duration-200 group-hover:scale-105" />
+                </button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-medium">
+              Benachrichtigungen
+            </TooltipContent>
+          </Tooltip>
+        ) : (
           <PopoverTrigger asChild>
-            <m.button 
-              layout
-              transition={layoutTransition}
+            <button
               type="button"
               className={cn(
-                "relative flex items-center justify-center rounded-2xl transition-colors duration-200 hover:scale-105 active:scale-95 group cursor-pointer",
-                isCollapsed ? "size-10" : "size-11",
-                "bg-white dark:bg-[#181818] hover:bg-zinc-50 dark:hover:bg-zinc-900/60",
-                "border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:shadow-xs animate-in fade-in zoom-in-95 duration-300"
+                "group flex items-center justify-between w-full h-10 px-3 rounded-xl transition-all duration-200 cursor-pointer select-none active:scale-[0.99]",
+                "text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50",
+                "hover:bg-accent/10 dark:hover:bg-accent/15",
+                notificationsOpen && "bg-accent/15 text-zinc-950 dark:text-zinc-50 font-medium"
               )}
+              aria-label="Benachrichtigungen öffnen"
             >
-              <Bell className="size-5 transition-transform duration-200 group-hover:scale-110" />
-            </m.button>
+              <div className="flex items-center gap-3 min-w-0">
+                <Bell className="size-4.5 shrink-0 text-zinc-500 group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-zinc-100 transition-colors" />
+                <span className="truncate text-sm font-medium">Benachrichtigungen</span>
+              </div>
+            </button>
           </PopoverTrigger>
-          <PopoverContent 
-            side="right" 
-            align="end" 
-            sideOffset={12} 
-            className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
-                <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
-              </div>
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
-                  <Bell className="size-5 text-zinc-400 dark:text-zinc-500" />
-                </div>
-                <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
-                  Du bist auf dem neuesten Stand. Hier zeigen wir dir wichtige Updates zu deinen Immobilien.
-                </p>
-              </div>
-              <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
-                <Link 
-                  href="/settings/notifications"
-                  onClick={() => setNotificationsOpen(false)}
-                  className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
-                >
-                  Einstellungen öffnen
-                </Link>
-              </div>
+        )}
+        <PopoverContent 
+          side="right" 
+          align="end" 
+          sideOffset={12} 
+          className="w-80 p-4 border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-[#181818] rounded-2xl shadow-xl z-50 animate-in fade-in-50 slide-in-from-left-4 duration-300"
+        >
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50">Benachrichtigungen</h3>
+              <span className="text-[10px] font-semibold bg-red-500/10 text-red-500 dark:text-red-400 px-2 py-0.5 rounded-full">0 Neu</span>
             </div>
-          </PopoverContent>
-        </Popover>
-      )}
-    </m.div>
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <div className="size-12 rounded-full bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center border border-zinc-100 dark:border-zinc-800/50 mb-3 shadow-inner">
+                <Bell className="size-5 text-zinc-400 dark:text-zinc-500" />
+              </div>
+              <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Alles erledigt!</h4>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">
+                Du bist auf dem neuesten Stand. Hier zeigen wir dir wichtige Updates zu deinen Immobilien.
+              </p>
+            </div>
+            <div className="border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+              <Link 
+                href="/settings/notifications" 
+                onClick={() => setNotificationsOpen(false)}
+                className="flex items-center justify-center w-full py-2 rounded-xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200"
+              >
+                Einstellungen öffnen
+              </Link>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   )
 }
+

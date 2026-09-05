@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { LogOut, Settings, FileText, Trash2 } from "lucide-react"
+import { LogOut, Settings, FileText, Trash2, MessageCircle } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { m } from "framer-motion"
 import { trackLogout } from "@/lib/posthog-auth-events"
+import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { useSupportStore } from "@/hooks/use-support-store"
 
 const layoutTransition = {
   duration: 0
@@ -74,6 +76,8 @@ export function UserSettings({
   const supabase = createClient()
   const { openTemplatesModal, openTrashBinModal } = useModalStore()
   const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
+  const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
+  const { openSupport, unreadCount: supportUnreadCount } = useSupportStore()
 
 
   // Use custom hooks for data fetching
@@ -157,8 +161,7 @@ export function UserSettings({
             aria-label="User menu"
           >
             <m.div 
-              layout
-              transition={layoutTransition}
+              layout={false}
               className="relative shrink-0"
             >
               <Avatar className="size-10 border border-zinc-200/40 dark:border-zinc-800/40 shadow-xs">
@@ -166,6 +169,9 @@ export function UserSettings({
                   {isLoadingUser ? "" : userInitials}
                 </AvatarFallback>
               </Avatar>
+              {supportButtonEnabled && supportUnreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#181818]" />
+              )}
             </m.div>
             {!collapsed && (
               <m.div
@@ -221,6 +227,17 @@ export function UserSettings({
           <CustomDropdownItem onClick={() => openTrashBinModal()}>
             <Trash2 className="mr-2 size-4" />
             <span>Papierkorb</span>
+          </CustomDropdownItem>
+        )}
+        {supportButtonEnabled && (
+          <CustomDropdownItem onClick={() => openSupport()}>
+            <MessageCircle className="mr-2 size-4" />
+            <span>Support</span>
+            {supportUnreadCount > 0 && (
+              <span className="ml-auto text-[10px] font-semibold bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">
+                {supportUnreadCount > 99 ? '99+' : supportUnreadCount} neu
+              </span>
+            )}
           </CustomDropdownItem>
         )}
         <CustomDropdownSeparator />
