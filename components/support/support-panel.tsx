@@ -509,6 +509,37 @@ export function SupportPanel() {
   const [ticketsLoading, setTicketsLoading] = useState(false)
   const [ticketsError, setTicketsError] = useState<string | null>(null)
   
+  // Safeguard: Radix UI DismissableLayer / react-remove-scroll can leak pointer-events: none
+  // or scroll lock when Sheet closes, especially if opened from a dropdown menu.
+  useEffect(() => {
+    if (!isOpen) {
+      const cleanupBodyLocks = () => {
+        if (typeof document !== 'undefined') {
+          if (document.body.style.pointerEvents === 'none') {
+            document.body.style.pointerEvents = ''
+          }
+          if (document.body.hasAttribute('data-scroll-locked')) {
+            document.body.removeAttribute('data-scroll-locked')
+          }
+          if (document.body.style.overflow === 'hidden') {
+            document.body.style.overflow = ''
+          }
+        }
+      }
+
+      cleanupBodyLocks()
+      const t1 = setTimeout(cleanupBodyLocks, 50)
+      const t2 = setTimeout(cleanupBodyLocks, 300)
+      const t3 = setTimeout(cleanupBodyLocks, 600)
+
+      return () => {
+        clearTimeout(t1)
+        clearTimeout(t2)
+        clearTimeout(t3)
+      }
+    }
+  }, [isOpen])
+  
   // View mode: 'inbox' (list of all tickets) | 'chat' (active conversation or new ticket draft)
   const [viewMode, setViewMode] = useState<'inbox' | 'chat'>('chat')
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
@@ -1214,6 +1245,20 @@ export function SupportPanel() {
     <Sheet open={isOpen} onOpenChange={(open) => (open ? undefined : closeSupport())}>
       <SheetContent
         side={isMobile ? "bottom" : "right"}
+        onCloseAutoFocus={(e) => {
+          e.preventDefault()
+          if (typeof document !== 'undefined') {
+            if (document.body.style.pointerEvents === 'none') {
+              document.body.style.pointerEvents = ''
+            }
+            if (document.body.hasAttribute('data-scroll-locked')) {
+              document.body.removeAttribute('data-scroll-locked')
+            }
+            if (document.body.style.overflow === 'hidden') {
+              document.body.style.overflow = ''
+            }
+          }
+        }}
         className={cn(
           "flex h-[100dvh] w-full flex-col gap-0 border-zinc-200/80 bg-background p-0 shadow-2xl dark:border-zinc-800/80 focus:outline-hidden",
           isMobile ? "h-[92vh] max-h-[92vh] max-w-none rounded-t-3xl" : "sm:w-[500px] md:w-[540px] lg:w-[580px] sm:max-w-[92vw]",
