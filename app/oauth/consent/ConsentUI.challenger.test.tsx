@@ -193,7 +193,10 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
                 'client-123',
                 ['org-1', 'org-2'],
                 true,
-                { all: true, write: false }
+                { all: true, write: false },
+                'Claude Desktop',
+                'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg',
+                'https://claude.ai/oauth/callback'
             );
         });
     });
@@ -236,7 +239,10 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
                 'client-123',
                 [],
                 false,
-                { all: false, write: false }
+                { all: false, write: false },
+                'Claude Desktop',
+                'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg',
+                'https://claude.ai/oauth/callback'
             );
         });
     });
@@ -328,7 +334,10 @@ describe('Adversarial Challenge Tests for ConsentUI', () => {
                         properties: { read: true, write: false },
                         finanzen: { read: false, write: false },
                     })
-                })
+                }),
+                'Claude Desktop',
+                'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg',
+                'https://claude.ai/oauth/callback'
             );
         });
     });
