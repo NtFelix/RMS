@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { PAGINATION } from "@/constants";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const sortKey = searchParams.get('sortKey') || 'datum';
     const sortDirection = searchParams.get('sortDirection') as 'asc' | 'desc' || 'desc';
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const wohnungIds = await getAccessibleWohnungIds();
 
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Verboten' }, { status: 403 });
     }
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const data = await request.json();
 
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
@@ -211,7 +211,7 @@ export async function PUT(request: Request) {
 
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const data = await request.json();
 
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
@@ -281,7 +281,7 @@ export async function DELETE(request: Request) {
       });
     }
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const wohnungIds = await getAccessibleWohnungIds();

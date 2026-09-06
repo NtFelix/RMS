@@ -28,6 +28,23 @@ export function SettingsSidebar({ tabs }: SettingsSidebarProps) {
     [tabs, searchQuery],
   )
 
+  const groupedTabs = useMemo(() => {
+    const groups: { name?: string; items: Omit<Tab, 'content'>[] }[] = []
+    const groupMap = new Map<string | undefined, Omit<Tab, 'content'>[]>()
+
+    for (const tab of filteredTabs) {
+      const g = tab.group
+      let list = groupMap.get(g)
+      if (!list) {
+        list = []
+        groupMap.set(g, list)
+        groups.push({ name: g, items: list })
+      }
+      list.push(tab)
+    }
+    return groups
+  }, [filteredTabs])
+
   return (
     <nav className="flex flex-col bg-white dark:bg-[#181818] relative border border-border/50 rounded-2xl shadow-xs w-56">
       {/* Search */}
@@ -52,26 +69,35 @@ export function SettingsSidebar({ tabs }: SettingsSidebarProps) {
 
       {/* Tabs */}
       <div className="relative flex-1 pb-3 px-2 overflow-y-auto">
-        <div className="space-y-0.5">
-          {filteredTabs.map((tab) => {
-            const isActive = activeTab === tab.value
-            return (
-              <Link
-                key={tab.value}
-                href={`/einstellungen/${tab.value}`}
-                className={cn(
-                  "flex items-center gap-2.5 w-full h-9 rounded-lg px-2.5 text-sm font-medium no-underline transition-all duration-150 active:scale-[0.98]",
-                  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-hover-bg hover:text-foreground",
-                )}
-              >
-                <tab.icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{tab.label}</span>
-              </Link>
-            )
-          })}
+        <div className="space-y-3">
+          {groupedTabs.map((grp, idx) => (
+            <div key={grp.name || `group-${idx}`} className="space-y-0.5">
+              {grp.name && (
+                <div className="px-2.5 pt-2 pb-1 text-[11px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                  {grp.name}
+                </div>
+              )}
+              {grp.items.map((tab) => {
+                const isActive = activeTab === tab.value
+                return (
+                  <Link
+                    key={tab.value}
+                    href={`/einstellungen/${tab.value}`}
+                    className={cn(
+                      "flex items-center gap-2.5 w-full h-9 rounded-lg px-2.5 text-sm font-medium no-underline transition-all duration-150 active:scale-[0.98]",
+                      "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-hover-bg hover:text-foreground",
+                    )}
+                  >
+                    <tab.icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{tab.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
         </div>
 
         {searchQuery && filteredTabs.length === 0 && (

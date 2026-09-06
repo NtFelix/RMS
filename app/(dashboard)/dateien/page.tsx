@@ -6,6 +6,11 @@ import { getFolderContents } from "./actions"
 import DateienLoading from './loading'
 
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+
 async function CloudStorageContent({ userId }: { userId: string }) {
     // Load initial files, folders and breadcrumbs on the server using unified RPC
     const initialPath = `user_${userId}`

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
 
@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     const { requireApiPermission } = await import("@/lib/api-permissions");
     await requireApiPermission('mieter', 'loeschen');
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { ids } = await request.json()
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

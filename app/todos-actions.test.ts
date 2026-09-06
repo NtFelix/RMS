@@ -36,8 +36,8 @@ const mockSupabase = {
   rpc: mockRpc,
 };
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => mockSupabase),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => mockSupabase),
 }));
 
 describe('Todos Server Actions', () => {

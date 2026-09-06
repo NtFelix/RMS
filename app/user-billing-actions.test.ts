@@ -3,8 +3,8 @@ import { ensureAuth } from '@/lib/auth-utils';
 import { isTestEnv, isStripeMocked } from '@/lib/test-utils';
 import Stripe from 'stripe';
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn()
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn()
 }));
 
 jest.mock('@/lib/auth-utils', () => ({

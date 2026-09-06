@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations";
 import { logger } from "@/utils/logger";
@@ -9,7 +9,7 @@ export async function GET(
     { params }: { params: Promise<{ tenantId: string }> }
 ) {
     try {
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { tenantId } = await params;
 
         if (!tenantId) {

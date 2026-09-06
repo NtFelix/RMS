@@ -60,8 +60,8 @@ const mockSupabase = {
   },
 };
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => mockSupabase),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => mockSupabase),
 }));
 
 describe('Mieter Server Actions', () => {

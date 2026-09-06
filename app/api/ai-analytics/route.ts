@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_rethrow } from 'next/navigation'
 import { requireAuthenticatedUserForApi } from '@/lib/server/route-access'
 import { evaluatePermission } from '@/lib/permissions-core'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
@@ -112,6 +113,7 @@ export async function GET(request: NextRequest) {
       { headers: NO_CACHE_HEADERS }
     )
   } catch (error) {
+    unstable_rethrow(error)
     console.error('AI analytics error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

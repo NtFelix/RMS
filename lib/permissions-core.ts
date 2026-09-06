@@ -8,7 +8,8 @@ export type Modul =
   | 'dokumente'
   | 'aufgaben'
   | 'vorlagen'
-  | 'organisation';
+  | 'organisation'
+  | 'api_keys';
 
 export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verwalten';
 

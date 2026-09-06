@@ -1,10 +1,10 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const accessibleWohnungIds = await getAccessibleWohnungIds();
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('mieter', 'erstellen');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const m = await request.json();
     console.error('POST /api/mieter payload:', m);
 
@@ -84,7 +84,7 @@ export async function PUT(request: Request) {
       headers: NO_CACHE_HEADERS 
     });
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const m = await request.json();
 
     // Check scope of existing tenant
@@ -142,7 +142,7 @@ export async function DELETE(request: Request) {
       status: 400,
       headers: NO_CACHE_HEADERS 
     });
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // Check scope of existing tenant
     const { data: currentTenant, error: checkError } = await supabase

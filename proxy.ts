@@ -3,6 +3,7 @@ import { updateSession } from "@/utils/supabase/middleware"
 import posthogProxyConfig from "@/lib/posthog-proxy"
 import { createServerClient } from "@supabase/ssr"
 import { evaluatePermission, type Modul } from "@/lib/permissions-core"
+import { getSupabasePublicEnv, sanitizeOrgId, getOrgCookieHeader } from "@/lib/supabase-env"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
@@ -93,7 +94,7 @@ export async function proxy(request: NextRequest) {
   request.headers.set('Content-Security-Policy', csp)
 
   // Initialize empty response to collect cookie mutations from updateSession
-  let response = NextResponse.next()
+  const response = NextResponse.next()
 
   // Ensure Supabase session cookies are refreshed for prolonged client-side idling
   // Only execute logic for non-auth paths to avoid token churn on login flows
@@ -107,15 +108,14 @@ export async function proxy(request: NextRequest) {
 
       if (matchedPrefix) {
         const modul = ROUTE_PERMISSIONS[matchedPrefix]
-        const currentOrgId = request.cookies.get('current_organisation_id')?.value
-        const globalHeaders: Record<string, string> = {}
-        if (currentOrgId) {
-          globalHeaders['Cookie'] = `current_organisation_id=${currentOrgId}`
-        }
+        const rawOrgCookie = request.cookies.get('current_organisation_id')?.value
+        const currentOrgId = sanitizeOrgId(rawOrgCookie)
+        const globalHeaders = getOrgCookieHeader(rawOrgCookie, 'proxy')
 
+        const { url, anonKey } = getSupabasePublicEnv()
         const supabase = createServerClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          url,
+          anonKey,
           {
             global: {
               headers: globalHeaders
@@ -137,10 +137,15 @@ export async function proxy(request: NextRequest) {
         try {
           let orgId = currentOrgId
           if (!orgId) {
-            const { data: resolvedOrgId } = await supabase.rpc('current_organisation_id')
+            const { data: resolvedOrgId, error: rpcError } = await supabase.rpc('current_organisation_id')
+            if (rpcError) {
+              console.error('[Proxy] Failed to resolve fallback organisation for private/unset context:', rpcError.message)
+              throw new Error(`Fallback organisation resolution failed: ${rpcError.message}`)
+            }
             orgId = resolvedOrgId
           }
 
+          // Personal accounts (orgId is null without error) have unrestricted module access
           let hasPerm = true
           if (orgId) {
             hasPerm = await evaluatePermission(supabase, user.id, orgId, modul as Modul, 'ansehen')
@@ -156,7 +161,7 @@ export async function proxy(request: NextRequest) {
             return redirectResponse
           }
         } catch (e) {
-          console.error(`[Proxy] Exception checking permission for ${modul}:`, e)
+          console.error(`[Proxy] Exception checking permission for ${modul} (org: ${currentOrgId ?? 'private'}):`, e)
           const redirectUrl = request.nextUrl.clone()
           redirectUrl.pathname = '/unauthorized'
           const redirectResponse = NextResponse.redirect(redirectUrl)

@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -19,7 +19,7 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // Fetch wohnung_ids of the records to check
     const { data: recordsToCheck, error: fetchError } = await supabase

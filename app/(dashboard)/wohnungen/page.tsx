@@ -1,8 +1,6 @@
 // "use client" directive removed from the top of this file.
 // This file now exports a Server Component by default.
 
-export const dynamic = 'force-dynamic';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchUserProfile } from '@/lib/data-fetching';
 
@@ -10,11 +8,27 @@ import { getPlanDetails } from '@/lib/stripe-server';
 import { isTestEnv } from '@/lib/test-utils';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 // Server Component: Fetches data and passes it to the Client Component
-export default async function WohnungenPage() {
+export default function WohnungenPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <WohnungenContent />
+    </Suspense>
+  );
+}
+
+async function WohnungenContent() {
   const { supabase, user } = await requireAuthenticatedUser();
 
   // Permission check.
@@ -121,7 +135,7 @@ export default async function WohnungenPage() {
   if (housesError) console.error('Fehler beim Laden der Häuser:', housesError);
   const houses = housesData || [];
 
-  const today = new Date();
+  const todayStr = getTodayISOString();
 
   type Tenant = NonNullable<typeof tenants>[number];
   const tenantMap = (tenants ?? []).reduce((map, t) => {
@@ -134,7 +148,7 @@ export default async function WohnungenPage() {
   const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
     const tenant = tenantMap.get(apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
       status = 'vermietet';
     }
     return {

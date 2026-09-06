@@ -1,6 +1,7 @@
 import { type User, type SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { unstable_rethrow } from 'next/navigation';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export type AuthResult = {
   user: User;
@@ -12,7 +13,7 @@ export type AuthResult = {
  * Throws an error if not authenticated.
  */
 export async function ensureAuth(): Promise<AuthResult> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   
   if (error || !user) {
@@ -29,6 +30,7 @@ export async function getAuth() {
   try {
     return await ensureAuth();
   } catch (error) {
+    unstable_rethrow(error);
     return null;
   }
 }
@@ -42,7 +44,7 @@ export type ResolveUserAndOrgResult =
  * Ensures the organization ID is verified against the user's active memberships.
  */
 export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserAndOrgResult> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
@@ -74,7 +76,21 @@ export async function resolveUserAndOrg(req?: NextRequest): Promise<ResolveUserA
   let requestedOrgId: string | null = null;
   if (req) {
     const { searchParams } = new URL(req.url);
-    requestedOrgId = searchParams.get('orgId');
+    requestedOrgId = searchParams.get('orgId') || req.headers.get('x-org-id') || req.headers.get('X-Org-Id');
+    if (!requestedOrgId && req.method !== 'GET' && req.method !== 'HEAD' && !req.bodyUsed) {
+      const contentType = req.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          const clonedReq = req.clone();
+          const body = await clonedReq.json().catch(() => ({}));
+          if (body && typeof body.orgId === 'string') {
+            requestedOrgId = body.orgId;
+          }
+        } catch {
+          // Ignore parse error if body is not JSON or unavailable
+        }
+      }
+    }
   }
 
   let orgId: string | null = null;

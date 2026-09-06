@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -11,6 +9,10 @@ import type {
   OrganisationPolicy,
   HausWithWohnungen,
 } from "@/lib/organisation-types";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
 
 export default async function OrganisationPage() {
   // Get authenticated user first
@@ -27,7 +29,7 @@ export default async function OrganisationPage() {
   const [{ data: org, error: orgError }, { data: personalOrg }] = await Promise.all([
     supabase
       .from('Organisation')
-      .select('id, owner_id, ist_versteckt, einstellungen')
+      .select('id, owner_id, ist_versteckt, einstellungen, mcp_zugriff_aktiviert')
       .eq('id', orgId)
       .single(),
     supabase

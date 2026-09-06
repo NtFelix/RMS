@@ -27,6 +27,13 @@ jest.mock('@/utils/supabase/client', () => ({
   })),
 }))
 
+const mockToast = jest.fn()
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: mockToast,
+  }),
+}))
+
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>
 
 const mockSidebarData: SidebarUserData = {

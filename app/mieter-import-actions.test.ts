@@ -3,8 +3,8 @@ import { ensureAuth } from '@/lib/auth-utils';
 import { hasPermission } from '@/lib/permissions';
 import { posthogLogger } from '@/lib/posthog-logger';
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn()
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn()
 }));
 
 jest.mock('@/lib/auth-utils', () => ({

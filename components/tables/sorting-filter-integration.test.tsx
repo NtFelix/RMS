@@ -19,6 +19,14 @@ jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn()
 }))
 
+// Mock next/navigation
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: jest.fn(),
+    push: jest.fn(),
+  }),
+}))
+
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store', () => ({
   useModalStore: () => ({
@@ -420,7 +428,7 @@ describe('Sorting and Filtering Integration', () => {
       )
 
       // Sort by rent (ascending)
-      const rentHeader = screen.getByText('Miete')
+      const rentHeader = screen.getByText('Miete').closest('button') || screen.getByText('Miete')
       fireEvent.click(rentHeader)
 
       // Change filter but keep same sort

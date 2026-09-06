@@ -1,5 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
 import type {
@@ -171,7 +172,7 @@ export async function GET(request: Request) {
       }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401, headers: NO_CACHE_HEADERS });
@@ -761,6 +762,7 @@ export async function GET(request: Request) {
     });
     
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Search API error:', error);
     
     // Provide more specific error messages

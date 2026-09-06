@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -10,7 +10,7 @@ export async function GET(
     try {
         const { id } = await params;
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { data, error } = await supabase
             .from('Mieter')
             .select('*, Wohnungen(id, name)')
@@ -48,7 +48,7 @@ export async function PATCH(
         await requireApiPermission('mieter', 'bearbeiten');
 
         const body = await request.json();
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
 
         // Check scope of existing tenant
         const { data: currentTenant, error: checkError } = await supabase
@@ -102,7 +102,7 @@ export async function DELETE(
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
         await requireApiPermission('mieter', 'loeschen');
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
 
         // Check scope of existing tenant
         const { data: currentTenant, error: checkError } = await supabase

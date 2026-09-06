@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
@@ -44,7 +44,7 @@ interface Finance {
 export async function GET(request: Request) {
   const requestStartTime = Date.now()
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const {
       data: { user },
       error: userError

@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -18,7 +18,7 @@ export async function GET(
             });
         }
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { data, error } = await supabase
             .from('Haeuser')
             .select('*')
@@ -71,7 +71,7 @@ export async function PATCH(
 
         const body = await request.json();
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { data, error } = await supabase
             .from('Haeuser')
             .update(body)
@@ -127,7 +127,7 @@ export async function DELETE(
             });
         }
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { error } = await supabase.rpc('soft_delete_record', {
             p_table_name: 'Haeuser',
             p_record_id: id,

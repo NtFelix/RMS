@@ -188,16 +188,16 @@ export function ChatInput({
               </SelectTrigger>
               <SelectContent align="end" className={`w-[160px] border-border/10 shadow-xl rounded-xl p-1 ${isDark ? 'bg-[#1A1A1A]/95 text-white' : 'bg-white text-foreground'}`}>
                 <SelectItem
-                  value="gemini-3.1-flash-lite-preview"
-                  className={`font-medium cursor-pointer ${selectedModel === "gemini-3.1-flash-lite-preview" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
+                  value="gemini-3.1-flash-lite"
+                  className={`font-medium cursor-pointer ${selectedModel === "gemini-3.1-flash-lite" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
                 >
                   Flash Lite 3.1
                 </SelectItem>
                 <SelectItem
-                  value="gemini-3-flash-preview"
-                  className={`font-medium cursor-pointer ${selectedModel === "gemini-3-flash-preview" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
+                  value="gemini-2.5-flash"
+                  className={`font-medium cursor-pointer ${selectedModel === "gemini-2.5-flash" ? (isDark ? "bg-white/10" : "bg-black/10") : (isDark ? "hover:bg-white/5 focus:bg-white/5" : "hover:bg-black/5 focus:bg-black/5")}`}
                 >
-                  Flash 3.0
+                  Flash 2.5
                 </SelectItem>
               </SelectContent>
             </Select>

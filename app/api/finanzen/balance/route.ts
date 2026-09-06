@@ -1,5 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 // Helper function to fetch all records with pagination - no limits
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
     const selectedYear = searchParams.get('selectedYear') || '';
     const selectedType = searchParams.get('selectedType') || '';
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const wohnungIds = await getAccessibleWohnungIds();
 
@@ -116,6 +117,7 @@ export async function GET(request: Request) {
       transactionCount
     }, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
+    unstable_rethrow(e);
     console.error('Server error GET /api/finanzen/balance:', e);
     return NextResponse.json({ error: 'Serverfehler bei Balance-Berechnung.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

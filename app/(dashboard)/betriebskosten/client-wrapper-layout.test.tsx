@@ -5,6 +5,11 @@ import { useModalStore } from '@/hooks/use-modal-store';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { deleteNebenkosten } from '@/app/betriebskosten-actions';
+import { createMockRouter } from '@/__tests__/utils/mock-router';
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
@@ -95,14 +100,9 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       toasts: []
     });
 
-    mockUseRouter.mockReturnValue({
+    mockUseRouter.mockReturnValue(createMockRouter({
       refresh: mockRouterRefresh,
-      push: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      prefetch: jest.fn(),
-      replace: jest.fn()
-    });
+    }));
 
     mockDeleteNebenkosten.mockResolvedValue({
       success: true,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { encryptToken } from "@/lib/encryption"
 import { ROUTES } from "@/lib/constants"
 
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   try {
     // SECURITY: Get user ID from the authenticated session, NOT from the state parameter
     // The state parameter should only be used for CSRF protection
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

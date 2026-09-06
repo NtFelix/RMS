@@ -9,10 +9,10 @@ const mockSupabaseClient: any = {
   from: jest.fn(),
 };
 
-// Mock the createClient from server BEFORE any route imports
-jest.mock('@/utils/supabase/server', () => ({
+// Mock the createSupabaseServerClient from server BEFORE any route imports
+jest.mock('@/lib/supabase-server', () => ({
   __esModule: true,
-  createClient: jest.fn(() => Promise.resolve(mockSupabaseClient))
+  createSupabaseServerClient: jest.fn(() => Promise.resolve(mockSupabaseClient))
 }));
 
 // Mock resolveUserAndOrg so it doesn't interfere
