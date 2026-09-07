@@ -36,6 +36,7 @@ jest.mock('@/utils/logger', () => ({
 const mockSelectEq = jest.fn();
 const mockUpdateEq = jest.fn();
 const mockDeleteEq = jest.fn();
+const mockRpc = jest.fn();
 
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
@@ -53,13 +54,14 @@ const mockSupabase = {
     update: mockUpdate,
     delete: mockDelete,
   })),
+  rpc: mockRpc,
   auth: {
     getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null }),
   },
 };
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => mockSupabase),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => mockSupabase),
 }));
 
 describe('Mieter Server Actions', () => {
@@ -112,6 +114,7 @@ describe('Mieter Server Actions', () => {
     // Default leaf resolutions
     mockUpdateEq.mockResolvedValue({ data: null, error: null });
     mockDeleteEq.mockResolvedValue({ data: null, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: null });
     mockSingle.mockResolvedValue({ data: {}, error: null });
   });
 
@@ -168,19 +171,19 @@ describe('Mieter Server Actions', () => {
 
   describe('deleteTenantAction', () => {
     it('should delete a tenant successfully', async () => {
-      mockDeleteEq.mockResolvedValueOnce({ error: null });
+      mockRpc.mockResolvedValueOnce({ error: null });
 
       const result = await deleteTenantAction('tenant-123');
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-      expect(mockDelete).toHaveBeenCalled();
-      expect(mockDeleteEq).toHaveBeenCalledWith('id', 'tenant-123');
-      expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Mieter',
+        p_record_id: 'tenant-123',
+      });
       expect(result).toEqual({ success: true });
     });
 
     it('should return error if delete fails', async () => {
-      mockDeleteEq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+      mockRpc.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
       const result = await deleteTenantAction('tenant-123');
 

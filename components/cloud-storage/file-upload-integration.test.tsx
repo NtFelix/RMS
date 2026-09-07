@@ -171,7 +171,9 @@ describe('File Upload Integration', () => {
     })
     
     // Verify upload status returns to ready
-    expect(screen.getByTestId('upload-status')).toHaveTextContent('Ready')
+    await waitFor(() => {
+      expect(screen.getByTestId('upload-status')).toHaveTextContent('Ready')
+    })
   })
 
   it('validates files before adding to queue', async () => {
@@ -194,7 +196,7 @@ describe('File Upload Integration', () => {
     
     // Verify file was not added to queue due to validation error
     expect(screen.getByTestId('queue-count')).toHaveTextContent('Queue: 0')
-    expect(consoleSpy).toHaveBeenCalledWith('File validation errors:', ['large-file.pdf: File too large'])
+    expect(consoleSpy).toHaveBeenCalledWith('File validation error:', 'large-file.pdf: File too large')
     
     consoleSpy.mockRestore()
   })

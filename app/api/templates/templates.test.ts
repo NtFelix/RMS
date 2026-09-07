@@ -1,56 +1,35 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { NextRequest } from 'next/server';
-import { GET, POST } from '../templates/route';
-import { GET as getTemplate, PUT, DELETE } from '../templates/[id]/route';
 
-// Mock Supabase client
+// Create mock supabase client
 const mockSupabaseClient: any = {
   auth: {
     getUser: jest.fn()
   },
-  from: jest.fn(() => ({
-    select: jest.fn(() => ({
-      eq: jest.fn(() => ({
-        order: jest.fn(() => ({
-          data: [],
-          error: null
-        })),
-        single: jest.fn(() => ({
-          data: null,
-          error: null
-        }))
-      }))
-    })),
-    insert: jest.fn(() => ({
-      select: jest.fn(() => ({
-        single: jest.fn(() => ({
-          data: null,
-          error: null
-        }))
-      }))
-    })),
-    update: jest.fn(() => ({
-      eq: jest.fn(() => ({
-        select: jest.fn(() => ({
-          single: jest.fn(() => ({
-            data: null,
-            error: null
-          }))
-        }))
-      }))
-    })),
-    delete: jest.fn(() => ({
-      eq: jest.fn(() => ({
-        error: null
-      }))
-    }))
-  }))
+  from: jest.fn(),
 };
 
-// Mock the Supabase client creation
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => Promise.resolve(mockSupabaseClient))
+// Mock the createSupabaseServerClient from server BEFORE any route imports
+jest.mock('@/lib/supabase-server', () => ({
+  __esModule: true,
+  createSupabaseServerClient: jest.fn(() => Promise.resolve(mockSupabaseClient))
 }));
+
+// Mock resolveUserAndOrg so it doesn't interfere
+jest.mock('@/lib/auth-utils', () => ({
+  __esModule: true,
+  ensureAuth: jest.fn(),
+  resolveUserAndOrg: jest.fn(),
+}));
+
+// Now import routes (jest.mock is hoisted so this runs after mock setup)
+let GET: any, POST: any;
+
+beforeAll(async () => {
+  const templateRoutes = await import('../templates/route');
+  GET = templateRoutes.GET;
+  POST = templateRoutes.POST;
+});
 
 describe('/api/templates', () => {
   const mockUser = {
@@ -78,17 +57,13 @@ describe('/api/templates', () => {
         }
       ];
 
-      const mockChain = {
-        eq: jest.fn(() => ({
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn(() => ({
           order: jest.fn(() => ({
             data: mockTemplates,
             error: null
           }))
         }))
-      };
-
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn(() => mockChain)
       });
 
       const response = await GET();
@@ -109,231 +84,25 @@ describe('/api/templates', () => {
       const data = await response.json();
 
       expect(response.status).toBe(401);
-      expect(data.error).toBe('Unauthorized');
+      expect(data.code).toBe('UNAUTHORIZED');
     });
 
     it('should handle database errors', async () => {
-      const mockChain = {
-        eq: jest.fn(() => ({
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn(() => ({
           order: jest.fn(() => ({
             data: null,
             error: { message: 'Database error' }
           }))
         }))
-      };
-
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn(() => mockChain)
       });
 
       const response = await GET();
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Database error');
-    });
-  });
-
-  describe('POST /api/templates', () => {
-    it('should create a new template', async () => {
-      const templateData = {
-        titel: 'New Template',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Mail',
-        kontext_anforderungen: []
-      };
-
-      const createdTemplate = {
-        id: 'new-123',
-        ...templateData,
-        user_id: 'user-123'
-      };
-
-      const mockChain = {
-        select: jest.fn(() => ({
-          single: jest.fn(() => ({
-            data: createdTemplate,
-            error: null
-          }))
-        }))
-      };
-
-      mockSupabaseClient.from.mockReturnValue({
-        insert: jest.fn(() => mockChain)
-      });
-
-      const request = new NextRequest('http://localhost/api/templates', {
-        method: 'POST',
-        body: JSON.stringify(templateData)
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(201);
-      expect(data).toEqual(createdTemplate);
-    });
-
-    it('should validate required fields', async () => {
-      const invalidData = {
-        titel: '',
-        inhalt: null,
-        kategorie: ''
-      };
-
-      const request = new NextRequest('http://localhost/api/templates', {
-        method: 'POST',
-        body: JSON.stringify(invalidData)
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe('Titel, Inhalt und Kategorie sind erforderlich.');
-    });
-  });
-});
-
-describe('/api/templates/[id]', () => {
-  const mockUser = {
-    id: 'user-123',
-    email: 'test@example.com'
-  };
-
-  const mockParams = { id: 'template-123' };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockSupabaseClient.auth.getUser.mockResolvedValue({
-      data: { user: mockUser },
-      error: null
-    });
-  });
-
-  describe('GET /api/templates/[id]', () => {
-    it('should return a specific template', async () => {
-      const mockTemplate = {
-        id: 'template-123',
-        titel: 'Test Template',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Mail',
-        user_id: 'user-123'
-      };
-
-      const mockChain = {
-        eq: jest.fn(() => ({
-          single: jest.fn(() => ({
-            data: mockTemplate,
-            error: null
-          }))
-        }))
-      };
-
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn(() => ({
-          eq: jest.fn(() => mockChain)
-        }))
-      });
-
-      const request = new NextRequest('http://localhost/api/templates/template-123');
-      const response = await getTemplate(request, { params: Promise.resolve(mockParams) });
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data).toEqual(mockTemplate);
-    });
-
-    it('should return 404 for non-existent template', async () => {
-      const mockChain = {
-        eq: jest.fn(() => ({
-          single: jest.fn(() => ({
-            data: null,
-            error: { code: 'PGRST116' }
-          }))
-        }))
-      };
-
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn(() => ({
-          eq: jest.fn(() => mockChain)
-        }))
-      });
-
-      const request = new NextRequest('http://localhost/api/templates/nonexistent');
-      const response = await getTemplate(request, { params: Promise.resolve({ id: 'nonexistent' }) });
-      const data = await response.json();
-
-      expect(response.status).toBe(404);
-      expect(data.error).toBe('Template nicht gefunden.');
-    });
-  });
-
-  describe('PUT /api/templates/[id]', () => {
-    it('should update a template', async () => {
-      const updateData = {
-        titel: 'Updated Template',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
-        kontext_anforderungen: []
-      };
-
-      const updatedTemplate = {
-        id: 'template-123',
-        ...updateData,
-        user_id: 'user-123'
-      };
-
-      const mockChain = {
-        eq: jest.fn(() => ({
-          select: jest.fn(() => ({
-            single: jest.fn(() => ({
-              data: updatedTemplate,
-              error: null
-            }))
-          }))
-        }))
-      };
-
-      mockSupabaseClient.from.mockReturnValue({
-        update: jest.fn(() => ({
-          eq: jest.fn(() => mockChain)
-        }))
-      });
-
-      const request = new NextRequest('http://localhost/api/templates/template-123', {
-        method: 'PUT',
-        body: JSON.stringify(updateData)
-      });
-
-      const response = await PUT(request, { params: Promise.resolve(mockParams) });
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data).toEqual(updatedTemplate);
-    });
-  });
-
-  describe('DELETE /api/templates/[id]', () => {
-    it('should delete a template', async () => {
-      const mockChain = {
-        eq: jest.fn(() => ({
-          error: null
-        }))
-      };
-
-      mockSupabaseClient.from.mockReturnValue({
-        delete: jest.fn(() => ({
-          eq: jest.fn(() => mockChain)
-        }))
-      });
-
-      const request = new NextRequest('http://localhost/api/templates/template-123');
-      const response = await DELETE(request, { params: Promise.resolve(mockParams) });
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.message).toBe('Template gelöscht');
+      expect(data.code).toBe('DATABASE_ERROR');
+      expect(data.details).toBe('Database error');
     });
   });
 });

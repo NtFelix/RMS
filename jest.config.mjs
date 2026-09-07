@@ -17,6 +17,7 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  modulePathIgnorePatterns: ['<rootDir>/.next/'],
   moduleNameMapper: {
     // Handle CSS imports (if you use CSS modules)
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
@@ -51,6 +52,14 @@ const customJestConfig = {
   workerIdleMemoryLimit: '256MB', // Restart workers when they use too much memory
   // Increase timeout for slow tests
   testTimeout: 5000,
+  // Exclude Playwright, Workers/Vitest, and agent skill template tests
+  testPathIgnorePatterns: [
+    '/e2e/',
+    '/playwright/',
+    '/\\.agents/',
+    '/agent/',
+    '/workers/',
+  ],
   // Force exit after tests complete
   forceExit: true,
   // Detect open handles that prevent Jest from exiting

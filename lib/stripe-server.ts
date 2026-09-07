@@ -59,7 +59,7 @@ export function parseStorageString(storageString: string | undefined | null): nu
 import { isTestEnv, isStripeMocked } from './test-utils';
 
 export async function getPlanDetails(priceId: string) {
-  if (isStripeMocked() || (isTestEnv() && priceId.includes('mock'))) {
+  if (isStripeMocked() || (isTestEnv() && (priceId?.includes('mock') ?? false))) {
     if (isTestEnv()) {
       console.warn(`STRIPE_SECRET_KEY is not set or mock ID detected (${priceId}), using mock plan details`);
       return {

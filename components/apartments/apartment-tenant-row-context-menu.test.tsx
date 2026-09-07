@@ -1,5 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ApartmentTenantRowContextMenu } from '@/components/apartments/apartment-tenant-row-context-menu'
 import { useModalStore } from '@/hooks/use-modal-store'
 
@@ -63,7 +64,8 @@ describe('ApartmentTenantRowContextMenu', () => {
     expect(screen.getByText('Details anzeigen')).toBeInTheDocument()
   })
 
-  it('calls onEditApartment when apartment edit is clicked', () => {
+  it('calls onEditApartment when apartment edit is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     render(
       <ApartmentTenantRowContextMenu {...mockProps}>
         <div data-testid="child-content">Test Content</div>
@@ -74,12 +76,13 @@ describe('ApartmentTenantRowContextMenu', () => {
     fireEvent.contextMenu(trigger)
 
     const editApartmentItem = screen.getByText('Wohnung bearbeiten')
-    fireEvent.click(editApartmentItem)
+    await user.click(editApartmentItem)
 
     expect(mockProps.onEditApartment).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onEditTenant when tenant edit is clicked and tenant exists', () => {
+  it('calls onEditTenant when tenant edit is clicked and tenant exists', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     render(
       <ApartmentTenantRowContextMenu {...mockProps}>
         <div data-testid="child-content">Test Content</div>
@@ -90,7 +93,7 @@ describe('ApartmentTenantRowContextMenu', () => {
     fireEvent.contextMenu(trigger)
 
     const editTenantItem = screen.getByText('Mieter bearbeiten')
-    fireEvent.click(editTenantItem)
+    await user.click(editTenantItem)
 
     expect(mockProps.onEditTenant).toHaveBeenCalledTimes(1)
   })
@@ -117,7 +120,8 @@ describe('ApartmentTenantRowContextMenu', () => {
     expect(menuItem).toHaveAttribute('data-disabled')
   })
 
-  it('calls onViewDetails when details view is clicked', () => {
+  it('calls onViewDetails when details view is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     render(
       <ApartmentTenantRowContextMenu {...mockProps}>
         <div data-testid="child-content">Test Content</div>
@@ -128,7 +132,7 @@ describe('ApartmentTenantRowContextMenu', () => {
     fireEvent.contextMenu(trigger)
 
     const viewDetailsItem = screen.getByText('Details anzeigen')
-    fireEvent.click(viewDetailsItem)
+    await user.click(viewDetailsItem)
 
     expect(mockProps.onViewDetails).toHaveBeenCalledTimes(1)
   })
@@ -153,7 +157,8 @@ describe('ApartmentTenantRowContextMenu', () => {
     expect(screen.getByText('Details anzeigen')).toBeInTheDocument()
   })
 
-  it('handles context menu without tenant data gracefully', () => {
+  it('handles context menu without tenant data gracefully', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     const propsWithoutTenant = {
       ...mockProps,
       tenantId: undefined,
@@ -177,7 +182,7 @@ describe('ApartmentTenantRowContextMenu', () => {
 
     // Tenant edit should be disabled
     const editTenantItem = screen.getByText('Mieter bearbeiten')
-    fireEvent.click(editTenantItem)
+    await user.click(editTenantItem)
     expect(propsWithoutTenant.onEditTenant).not.toHaveBeenCalled()
   })
 })

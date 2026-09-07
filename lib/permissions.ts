@@ -1,5 +1,5 @@
 import { ensureAuth } from "@/lib/auth-utils";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { evaluatePermission, type Modul, type Aktion } from "./permissions-core";
 export { evaluatePermission, type Modul, type Aktion };
@@ -25,6 +25,7 @@ export async function hasPermission(modul: Modul, aktion: Aktion): Promise<boole
 
     return await evaluatePermission(supabase, user.id, orgId, modul, aktion);
   } catch (error) {
+    unstable_rethrow(error);
     console.error(`Exception checking permission for ${modul}:${aktion}:`, error);
     return false;
   }
@@ -54,6 +55,7 @@ export async function isOrgAdminOrOwner(): Promise<boolean> {
     }
     return !!isAdmin;
   } catch (error) {
+    unstable_rethrow(error);
     console.error("Exception checking isOrgAdminOrOwner:", error);
     return false;
   }

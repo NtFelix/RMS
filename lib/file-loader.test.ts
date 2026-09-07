@@ -2,34 +2,30 @@
  * Tests for file loader
  */
 
-// Mock server actions before importing
-jest.mock('@/app/(dashboard)/dateien/actions', () => ({
-    loadFilesForPath: jest.fn(),
-    getPathContents: jest.fn(),
-    getTotalStorageUsage: jest.fn(),
-}))
+const mockFetchResult = {
+    files: [{ id: '1', name: 'test.pdf' }],
+    folders: [],
+    breadcrumbs: [{ name: 'Root', path: 'user_123', type: 'root' as const }],
+    totalSize: 0,
+}
+
+beforeEach(() => {
+    jest.clearAllMocks()
+    // Mock global fetch to return the expected structure
+    global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockFetchResult),
+    } as any)
+})
+
+afterEach(() => {
+    jest.resetAllMocks()
+    jest.resetModules()
+})
 
 describe('loadFiles', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-    })
-
-    afterEach(() => {
-        jest.resetAllMocks()
-        jest.resetModules()
-    })
-
     it('should deduplicate concurrent requests to the same path', async () => {
         const { loadFiles } = await import('@/lib/file-loader')
-        const { getPathContents } = await import('@/app/(dashboard)/dateien/actions')
-
-        const mockResult = {
-            files: [{ id: '1', name: 'test.pdf' }],
-            folders: [],
-            breadcrumbs: [{ name: 'Root', path: 'user_123', type: 'root' as const }],
-        }
-
-            ; (getPathContents as jest.Mock).mockResolvedValue(mockResult)
 
         // Make multiple concurrent requests
         const requests = [
@@ -42,15 +38,33 @@ describe('loadFiles', () => {
 
         // All should return the same result
         results.forEach(result => {
-            expect(result.files).toEqual(mockResult.files)
+            expect(result.files).toEqual(mockFetchResult.files)
         })
 
-        // But the server action should only be called once
-        expect(getPathContents).toHaveBeenCalledTimes(1)
+        // fetch should only be called once (deduplication)
+        expect(fetch).toHaveBeenCalledTimes(1)
     })
 
     it('should cancel pending load when abort signal is triggered', async () => {
         const { loadFiles } = await import('@/lib/file-loader')
+
+        // Mock fetch to reject with AbortError when the signal is aborted
+        global.fetch = jest.fn().mockImplementation((_url: string, options?: any) => {
+            return new Promise((_resolve, reject) => {
+                const signal = options?.signal
+                if (signal?.aborted) {
+                    const err = new Error('The operation was aborted')
+                    err.name = 'AbortError'
+                    reject(err)
+                    return
+                }
+                signal?.addEventListener('abort', () => {
+                    const err = new Error('The operation was aborted')
+                    err.name = 'AbortError'
+                    reject(err)
+                })
+            })
+        })
 
         const abortController = new AbortController()
 

@@ -1,31 +1,29 @@
 // Remove "use client" from here as this file will be a Server Component
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
 import { fetchHaeuser as fetchHaeuserServer, fetchWithRpcFallback } from "../../../lib/data-fetching";
 import { fetchNebenkostenListOptimized } from "@/app/betriebskosten-actions";
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import BetriebskostenClientView from "./client-wrapper"; // Import the default export
 // Types are still needed for data fetching
-import { Haus } from "../../../lib/data-fetching";
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 import { hasPermission } from "@/lib/permissions";
 import { redirect } from "next/navigation";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
 
 export default async function BetriebskostenPage() {
   const { supabase, user } = await requireAuthenticatedUser();
 
   // Permission check.
-  const [canView, canCreate, canEdit, canDelete, canViewMeters, accessibleHaeuserResult] = await Promise.all([
+  const [canView, canCreate, canEdit, canDelete, canViewMeters] = await Promise.all([
     hasPermission('betriebskosten', 'ansehen'),
     hasPermission('betriebskosten', 'erstellen'),
     hasPermission('betriebskosten', 'bearbeiten'),
     hasPermission('betriebskosten', 'loeschen'),
     hasPermission('zaehler', 'ansehen'),
-    supabase.rpc('get_accessible_haeuser_ids'),
   ]);
-  const accessibleIds = accessibleHaeuserResult.data;
   if (!canView) {
     redirect('/unauthorized');
   }

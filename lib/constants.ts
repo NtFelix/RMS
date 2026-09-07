@@ -30,6 +30,9 @@ export const INFO_EMAIL = "info@mietevo.de";
 // For backward compatibility, CONTACT_EMAIL now aliases INFO_EMAIL (it was previously SUPPORT_EMAIL).
 export const CONTACT_EMAIL = INFO_EMAIL;
 
+// Centralized media query breakpoints
+export const TABLET_BREAKPOINT = '(max-width: 1023px)';
+
 // Base URL - centralized to ensure consistency across all environments
 export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de';
 

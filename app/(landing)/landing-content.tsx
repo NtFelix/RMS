@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { loadStripe } from '@stripe/stripe-js';
 import { trackSectionViewed, type LandingSection } from '@/lib/posthog-landing-events';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, INFO_EMAIL } from '@/lib/constants';
 
 import Hero from '@/app/modern/components/hero';
 import FeatureSections from '@/app/modern/components/feature-sections';
@@ -150,7 +150,8 @@ function LandingPageContent() {
             description="Beginnen Sie noch heute, Ihre Immobilien effizienter zu verwalten und profitieren Sie von einer modernen und benutzerfreundlichen Plattform."
             badgeText="Bereit zur Vereinfachung?"
             primaryButtonText="Jetzt loslegen"
-            secondaryButtonText="Demo anfordern"
+            secondaryButtonText="Kontakt aufnehmen"
+            secondaryButtonHref={`mailto:${INFO_EMAIL}`}
           />
         </div>
       </div>

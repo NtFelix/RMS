@@ -1,6 +1,5 @@
-export const runtime = 'edge';
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { formatNumber } from "@/utils/format"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
@@ -9,7 +8,7 @@ export async function POST(request: Request) {
     const { requireApiPermission } = await import("@/lib/api-permissions")
     await requireApiPermission('haeuser', 'erstellen')
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { name, strasse, ort } = await request.json()
     if (!name || !strasse || !ort) {
       return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { 
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope")
 
   // Apply object scope filtering
@@ -106,15 +105,22 @@ export async function GET() {
       const pricePerSqm = totalSize > 0 ? (totalRent / totalSize) : 0
       
       // Count free apartments (those without a tenant or with a tenant who has moved out)
-      const today = new Date()
+      // Get today's date in YYYY-MM-DD format in local time
+      const now = new Date()
+      const todayStr = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0')
+      ].join('-')
+
       const freeApartments = houseApartments.filter(apt => {
         // Find tenant for this apartment
         const tenant = (tenants || []).find(t => t.wohnung_id === apt.id)
         
         // Apartment is free if:
         // 1. No tenant is assigned, or
-        // 2. Tenant has a move-out date in the past
-        return !tenant || (tenant.auszug && new Date(tenant.auszug) <= today)
+        // 2. Tenant has a move-out date today or in the past
+        return !tenant || (tenant.auszug && tenant.auszug <= todayStr)
       }).length
       
       return {
@@ -142,7 +148,7 @@ export async function DELETE(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions")
     await requireApiPermission('haeuser', 'loeschen')
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 
@@ -192,7 +198,7 @@ export async function PUT(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions")
     await requireApiPermission('haeuser', 'bearbeiten')
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
     const { name, strasse, ort } = await request.json()

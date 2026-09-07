@@ -988,7 +988,6 @@ export default function UtilityCostPage() {
         description="Digitale Verwaltung muss nicht kompliziert sein. Starten Sie jetzt und erstellen Sie Ihre erste Abrechnung in wenigen Minuten."
         badgeText="Jetzt loslegen"
         primaryButtonText="Kostenlos starten"
-        secondaryButtonText="Demo anfordern"
         theme="houses"
       />
     </div>

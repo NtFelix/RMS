@@ -68,7 +68,7 @@ export function FinanceContextMenu({
           description: `Die Transaktion wurde erfolgreich als ${newStatus ? "Einnahme" : "Ausgabe"} markiert.`,
           variant: "success",
         });
-        onRefresh && onRefresh();
+        onRefresh?.();
       } else {
         toast({
           title: "Fehler bei der Aktualisierung",
@@ -100,7 +100,7 @@ export function FinanceContextMenu({
           variant: "success",
         });
         setTimeout(() => {
-          onRefresh && onRefresh();
+          onRefresh?.();
         }, 100); // Delay of 100 milliseconds
       } else {
         toast({

@@ -1,11 +1,11 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
 import { isTestEnv } from '@/lib/test-utils';
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 import { normalizeApartmentLimit } from '@/lib/utils/subscription';
+import { getTodayISOString, isTenantActive } from '@/utils/date-calculations';
 
 
 export async function POST(request: Request) {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('wohnungen', 'erstellen');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     // === BEGIN NEW LOGIC ===
     const userProfile = await fetchUserProfile(); // This already gets user or returns null
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
   const accessibleIds = await getAccessibleHaeuserIds();
 
@@ -206,18 +206,16 @@ export async function GET() {
   }
 
   // Add status and tenant information
-  const today = new Date();
+  const todayStr = getTodayISOString();
+
   const enrichedApartments = (apartments || []).map(apt => {
     // Find tenant for this apartment
     const tenant = (tenants || []).find(t => t.wohnung_id === apt.id);
 
     // Determine if apartment is free or rented
     let status = 'frei';
-    if (tenant) {
-      // If tenant exists with no move-out date or move-out date is in the future
-      if (!tenant.auszug || new Date(tenant.auszug) > today) {
-        status = 'vermietet';
-      }
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
+      status = 'vermietet';
     }
 
     return {
@@ -243,7 +241,7 @@ export async function DELETE(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('wohnungen', 'loeschen');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) {
@@ -297,7 +295,7 @@ export async function PUT(request: Request) {
     const { requireApiPermission, verifyEntityInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('wohnungen', 'bearbeiten');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const { name, groesse, miete, haus_id } = await request.json();

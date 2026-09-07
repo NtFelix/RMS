@@ -81,19 +81,24 @@ describe('Enhanced Error Handling and Logging', () => {
     });
 
     it('should handle timeout errors', async () => {
-      mockSupabaseClient.rpc.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve({ data: null, error: null }), 2000))
-      );
+      jest.useFakeTimers();
 
-      const result = await safeRpcCall(
+      mockSupabaseClient.rpc.mockReturnValue(new Promise(() => {}));
+
+      const promise = safeRpcCall(
         mockSupabaseClient as any,
         'test_function',
         { user_id: 'test-user' },
         { timeoutMs: 1000 }
       );
 
+      jest.advanceTimersByTime(1000);
+      const result = await promise;
+
       expect(result.success).toBe(false);
       expect(result.message).toContain('dauerte zu lange');
+
+      jest.useRealTimers();
     });
 
     it('should handle network errors', async () => {
@@ -112,21 +117,24 @@ describe('Enhanced Error Handling and Logging', () => {
     });
 
     it('should log performance warnings for slow operations', async () => {
+      jest.useFakeTimers();
       const { logger } = require('@/utils/logger');
-      
-      // Mock a slow operation
-      mockSupabaseClient.rpc.mockImplementation(() => 
-        new Promise(resolve => 
+
+      mockSupabaseClient.rpc.mockImplementation(() =>
+        new Promise(resolve =>
           setTimeout(() => resolve({ data: [], error: null }), 4000)
         )
       );
 
-      await safeRpcCall(
+      const promise = safeRpcCall(
         mockSupabaseClient as any,
         'slow_function',
         { user_id: 'test-user' },
         { logPerformance: true }
       );
+
+      jest.advanceTimersByTime(4000);
+      await promise;
 
       expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Slow database operation detected'),
@@ -135,6 +143,8 @@ describe('Enhanced Error Handling and Logging', () => {
           executionTime: expect.any(Number)
         })
       );
+
+      jest.useRealTimers();
     });
   });
 

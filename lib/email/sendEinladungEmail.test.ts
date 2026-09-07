@@ -1,5 +1,15 @@
 import { sendEinladungEmail } from "./sendEinladungEmail";
 
+// Polyfill crypto.subtle for jsdom (not available in test environment)
+if (!globalThis.crypto?.subtle) {
+  const { subtle } = require('crypto').webcrypto;
+  Object.defineProperty(globalThis, 'crypto', {
+    value: { subtle },
+    writable: true,
+    configurable: true,
+  });
+}
+
 const defaultOptions = {
   toEmail: "test@example.com",
   einladerName: "Admin User",
@@ -20,7 +30,8 @@ describe("sendEinladungEmail", () => {
     await sendEinladungEmail(defaultOptions);
 
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("RESEND_API_KEY is not set")
+      expect.stringContaining("RESEND_API_KEY is not set"),
+      expect.any(Object)
     );
   });
 
@@ -63,7 +74,7 @@ describe("sendEinladungEmail", () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Network error"),
-      expect.stringContaining("Network error")
+      expect.any(Object)
     );
   });
 
@@ -78,7 +89,8 @@ describe("sendEinladungEmail", () => {
     await sendEinladungEmail(defaultOptions);
 
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Resend API returned 429")
+      expect.stringContaining("Resend API returned non-OK status"),
+      expect.any(Object)
     );
   });
 

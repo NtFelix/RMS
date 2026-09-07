@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { resolveUserAndOrg } from '@/lib/auth-utils';
+import { proxyToAiService } from '@/lib/ai-service-proxy';
 
 export async function GET(
   req: NextRequest,
@@ -7,20 +8,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user, orgId, userJwt, errorResponse } = await resolveUserAndOrg(req);
+    if (errorResponse) return errorResponse;
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data, error } = await supabase.rpc('get_ki_agent_run_details', { p_run_id: id });
-    if (error) {
-      console.error('[GET /api/agents/runs/[id]] RPC error:', error);
-      return NextResponse.json({ error: 'Run not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(data);
+    return proxyToAiService(`/api/agents/runs/${id}`, req, user.id, orgId, userJwt);
   } catch (err: any) {
     console.error('[GET /api/agents/runs/[id]] Internal error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

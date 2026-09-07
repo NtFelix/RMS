@@ -241,16 +241,12 @@ describe('Error Handling Integration Tests', () => {
           )
         );
 
-        const result = await safeRpcCall(
+        await safeRpcCall(
           mockSupabaseClient as any,
           op.name,
           op.name === 'get_nebenkosten_with_metrics' ? {} : { nebenkosten_id: 'test-nk' },
           { userId: 'test-user', logPerformance: true }
         );
-
-        if (result.performanceMetrics) {
-          PerformanceMonitor.addMetric(result.performanceMetrics);
-        }
       }
 
       // Verify metrics collection

@@ -3,16 +3,15 @@
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
 import { 
   BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, 
-  Menu, X, Folder, Mail, Search, PanelLeft, MessageCircle, Bell, Network, Bot
+  Menu, X, Folder, Mail, Search, MessageCircle, Bell, Network, Bot, ChevronDown, Check
 } from "lucide-react"
 import { LazyMotion, domAnimation, m, Variants } from "framer-motion"
-import { LOGO_URL, ROUTES } from "@/lib/constants"
+import { LOGO_URL, ROUTES, POSTHOG_FEATURE_FLAGS, TABLET_BREAKPOINT } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { UserSettings } from "@/components/common/user-settings"
+import { UserSettings, type OrganisationItem } from "@/components/common/user-settings"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
@@ -21,7 +20,15 @@ import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useOnboardingStore } from "@/hooks/use-onboarding-store"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { useSidebarStore } from "@/hooks/use-sidebar-store"
-import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+import { useMediaQuery } from "@/hooks/use-media-query"
+import { getMyOrganisationsAction, switchOrganisationAction } from "@/app/organisation-actions"
+import { useToast } from "@/hooks/use-toast"
+import {
+  CustomDropdown,
+  CustomDropdownItem,
+  CustomDropdownLabel,
+  CustomDropdownSeparator,
+} from "@/components/ui/custom-dropdown"
 
 type SidebarNavItemType = {
   title: string;
@@ -130,10 +137,7 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
 };
 
 const layoutTransition = {
-  type: "spring",
-  stiffness: 400,
-  damping: 38,
-  mass: 0.8
+  duration: 0
 } as const;
 
 const MotionLink = m(Link);
@@ -145,43 +149,25 @@ const textVariants: Variants = {
     width: "auto",
     marginLeft: "12px",
     display: "block",
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     opacity: 0,
     width: 0,
     marginLeft: "0px",
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    },
-    transitionEnd: {
-      display: "none"
-    }
+    transition: { duration: 0 },
+    transitionEnd: { display: "none" }
   }
 };
 
 const iconVariants: Variants = {
   expanded: {
     scale: 1,
-    transition: {
-      duration: 0.2,
-      ease: [0.2, 0.8, 0.2, 1]
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     scale: 1.1,
-    transition: {
-      duration: 0.2,
-      ease: [0.2, 0.8, 0.2, 1]
-    }
+    transition: { duration: 0 }
   }
 };
 
@@ -189,55 +175,34 @@ const linkVariants: Variants = {
   expanded: {
     width: "100%",
     borderRadius: "20px", // rounded-xl
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     width: "40px",
     borderRadius: "9999px", // rounded-full
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   }
 };
 
 const logoVariants: Variants = {
   expanded: {
     width: "100%",
+    height: "40px",
     borderRadius: "20px", // rounded-xl
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   },
   collapsed: {
     width: "40px",
+    height: "40px",
     borderRadius: "9999px", // rounded-full
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 38,
-      mass: 0.8
-    }
+    transition: { duration: 0 }
   }
 };
 
 export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData }) {
-  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const { preference, setPreference } = useSidebarStore()
-  const [isResponsiveCollapsed, setIsResponsiveCollapsed] = useState(() => 
-    typeof window !== "undefined" ? window.matchMedia('(max-width: 1023px)').matches : false
-  )
+  const { preference } = useSidebarStore()
+  const isResponsiveCollapsed = useMediaQuery(TABLET_BREAKPOINT)
   
   const isCollapsed = isResponsiveCollapsed || preference === 'collapsed'
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
@@ -252,24 +217,47 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
     ['/agenten', !!agentBuilderEnabled],
   ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled]);
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 1023px)');
-    const handleMediaChange = (e: MediaQueryListEvent) => {
-      setIsResponsiveCollapsed(e.matches);
-    };
-    mediaQuery.addEventListener('change', handleMediaChange);
-    return () => mediaQuery.removeEventListener('change', handleMediaChange);
-  }, [])
+  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
 
-  const toggleCollapse = () => {
-    if (preference === 'expanded') {
-      setPreference('collapsed');
-    } else if (preference === 'collapsed') {
-      setPreference('expanded');
-    } else {
-      setPreference(isCollapsed ? 'expanded' : 'collapsed');
+  useEffect(() => {
+    let ignore = false
+    const cacheKey = sidebarData.user?.id ? `cached_organisations:${sidebarData.user.id}` : "cached_organisations:v1"
+
+    const cached = sessionStorage.getItem(cacheKey)
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        setOrganisations(parsed.orgs)
+        if (parsed.currentOrgId !== undefined) {
+          setCurrentOrgId(parsed.currentOrgId ?? null)
+        }
+      } catch {
+        sessionStorage.removeItem(cacheKey)
+      }
     }
-  }
+
+    getMyOrganisationsAction()
+      .then((res) => {
+        if (!ignore && res.success && res.data) {
+          setOrganisations(res.data)
+          setCurrentOrgId(res.currentOrgId ?? null)
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            orgs: res.data,
+            currentOrgId: res.currentOrgId
+          }))
+        }
+      })
+      .catch((e) => {
+        if (!ignore) {
+          console.error("Failed to load organisations:", e)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [sidebarData.user?.id])
 
   return (
     <LazyMotion features={domAnimation}>
@@ -294,19 +282,19 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-4 w-full overflow-visible">
+      <aside className="hidden md:flex flex-col z-30 h-screen sticky top-0 py-0 w-full overflow-visible">
         <div className="hidden md:flex flex-col h-full w-full overflow-visible">
           <SidebarContent
             isCollapsed={isCollapsed}
-            pathname={pathname}
             setOpen={setOpen}
             featureFlags={featureFlags}
             isRouteActive={isRouteActive}
             getActiveStateClasses={getActiveStateClasses}
             isMobile={false}
             setIsOpen={setIsOpen}
-            toggleCollapse={toggleCollapse}
             sidebarData={sidebarData}
+            organisations={organisations}
+            currentOrgId={currentOrgId}
           />
         </div>
       </aside>
@@ -320,7 +308,6 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
       >
         <SidebarContent
           isCollapsed={false}
-          pathname={pathname}
           setOpen={setOpen}
           featureFlags={featureFlags}
           isRouteActive={isRouteActive}
@@ -328,6 +315,8 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
           isMobile={true}
           setIsOpen={setIsOpen}
           sidebarData={sidebarData}
+          organisations={organisations}
+          currentOrgId={currentOrgId}
         />
       </aside>
     </LazyMotion>
@@ -336,28 +325,28 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
 
 interface SidebarContentProps {
   isCollapsed: boolean
-  pathname: string
   setOpen: (open: boolean) => void
   featureFlags: Map<string, boolean>
   isRouteActive: (href: string) => boolean
   getActiveStateClasses: (href: string) => string
   isMobile: boolean
   setIsOpen: (open: boolean) => void
-  toggleCollapse?: () => void
   sidebarData: SidebarUserData
+  organisations: OrganisationItem[]
+  currentOrgId: string | null
 }
 
 function SidebarContent({
   isCollapsed,
-  pathname,
   setOpen,
   featureFlags,
   isRouteActive,
   getActiveStateClasses,
   isMobile,
   setIsOpen,
-  toggleCollapse,
-  sidebarData
+  sidebarData,
+  organisations,
+  currentOrgId
 }: SidebarContentProps) {
   const supportButtonEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.SUPPORT_BUTTON)
   const notificationCenterFeatureEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.NOTIFICATION_CENTER)
@@ -385,18 +374,25 @@ function SidebarContent({
   }, [featureFlags, sidebarData.isOrganisationHidden, sidebarData.modulePermissions]);
 
   return (
-    <div className="h-full w-full flex flex-col relative pl-4 pr-4 md:pr-0 overflow-visible">
-      {/* Header / Brand Logo */}
-      <SidebarHeader
-        isCollapsed={isCollapsed}
-        isMobile={isMobile}
-        toggleCollapse={toggleCollapse}
-        setIsOpen={setIsOpen}
-      />
+    <TooltipProvider delayDuration={100} skipDelayDuration={300}>
+      <div className="h-full w-full flex flex-col relative m-0 p-2.5 overflow-visible">
+        {/* Header / Brand Logo */}
+        <SidebarHeader
+          isCollapsed={isCollapsed}
+          isMobile={isMobile}
+          organisations={organisations}
+          currentOrgId={currentOrgId}
+          userId={sidebarData.user?.id}
+        />
 
-      <div className="flex-1 overflow-y-auto min-h-0 py-2 custom-scrollbar">
-        <nav className="grid gap-1">
-          <TooltipProvider delayDuration={100} skipDelayDuration={300}>
+        <div className={cn(
+          "flex-1 overflow-y-auto min-h-0 custom-scrollbar",
+          isCollapsed && !isMobile ? "flex flex-col items-center px-0 py-1.5" : "p-1.5"
+        )}>
+          <nav className={cn(
+            "grid gap-1.5 w-full",
+            isCollapsed && !isMobile ? "justify-items-center" : ""
+          )}>
             {visibleNavItems.map((item) => (
               <SidebarNavLink
                 key={item.href}
@@ -409,133 +405,220 @@ function SidebarContent({
                 getActiveStateClasses={getActiveStateClasses}
               />
             ))}
-          </TooltipProvider>
-        </nav>
-      </div>
+          </nav>
+        </div>
 
-      {/* Popover Actions */}
-      <SidebarActions
-        isCollapsed={isCollapsed}
-        supportButtonEnabled={!!supportButtonEnabled}
-        notificationCenterFeatureEnabled={!!notificationCenterFeatureEnabled}
-      />
-      
-      {/* User profile / settings */}
-      <div className="pt-2 pb-4 md:pb-0 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible">
-        <UserSettings collapsed={isCollapsed && !isMobile} initialData={sidebarData} />
+        {/* Popover Actions */}
+        <SidebarActions
+          isCollapsed={isCollapsed}
+          supportButtonEnabled={!!supportButtonEnabled}
+          notificationCenterFeatureEnabled={!!notificationCenterFeatureEnabled}
+        />
+        
+        {/* User profile / settings */}
+        <div className={cn(
+          "pt-2.5 pb-2.5 flex flex-col gap-2 border-t border-border shrink-0 overflow-visible",
+          isCollapsed && !isMobile ? "items-center justify-center px-0" : "px-1.5"
+        )}>
+          <UserSettings 
+            collapsed={isCollapsed && !isMobile} 
+            initialData={sidebarData}
+            organisations={organisations}
+            currentOrgId={currentOrgId}
+          />
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
 
-// Brand Logo & Collapse Toggle Subcomponent
+function getRoleLabel(role?: string): string {
+  if (role === 'owner') return 'Eigentümer';
+  if (role === 'admin') return 'Admin';
+  return 'Mitarbeiter';
+}
+
+// Brand Logo & Header Subcomponent
 function SidebarHeader({
   isCollapsed,
   isMobile,
-  toggleCollapse,
-  setIsOpen
+  organisations,
+  currentOrgId,
+  userId
 }: {
   isCollapsed: boolean
   isMobile: boolean
-  toggleCollapse?: () => void
-  setIsOpen: (open: boolean) => void
+  organisations: OrganisationItem[]
+  currentOrgId: string | null
+  userId?: string
 }) {
-  return (
-    <div className="flex items-center h-14 justify-between w-full pb-4 relative overflow-hidden shrink-0">
-      <div className="flex items-center overflow-hidden flex-1 min-w-0">
-        <MotionLink 
-          variants={logoVariants}
-          animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
-          href="/"
-          onClick={(e) => {
-            if (isCollapsed && !isMobile) {
-              e.preventDefault();
-              toggleCollapse?.();
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              if (isCollapsed && !isMobile) {
-                e.preventDefault();
-                toggleCollapse?.();
-              }
-            }
-          }}
-          role={isCollapsed && !isMobile ? "button" : undefined}
-          tabIndex={isCollapsed && !isMobile ? 0 : undefined}
-          className="flex items-center font-semibold overflow-hidden group/logo relative select-none shrink-0 cursor-pointer pl-1 transition-colors duration-200 gap-3 rounded-xl"
-          title={isCollapsed && !isMobile ? "Menü ausklappen" : undefined}
-        >
-          <m.div 
-            layout
-            transition={layoutTransition}
-            className="relative size-8 min-w-8 rounded-full overflow-hidden shadow-xs shrink-0 flex items-center justify-center"
-          >
-            {/* Logo Image */}
-            <div className={cn(
-              "absolute inset-0 transition-[opacity,transform] duration-300",
-              isCollapsed && !isMobile ? "group-hover/logo:opacity-0 group-hover/logo:scale-90" : ""
-            )}>
-              <Image
-                src={LOGO_URL}
-                alt="IV Logo"
-                fill
-                className="object-cover rounded-full"
-                sizes="32px"
-                unoptimized
-              />
-            </div>
-            {/* Hover Collapse Icon (only when collapsed) */}
-            {isCollapsed && !isMobile && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 scale-75 group-hover/logo:scale-100 group-hover/logo:opacity-100 transition-[opacity,transform] duration-300 pointer-events-none">
-                <PanelLeft className="size-5 text-zinc-900 dark:text-zinc-50" />
-              </div>
-            )}
-          </m.div>
-          {!isMobile && (
-            <m.span
-              variants={textVariants}
-              animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
-              className="text-lg whitespace-nowrap overflow-hidden font-bold"
-            >
-              Mietevo
-            </m.span>
-          )}
-          {isMobile && <span className="text-lg font-bold">Mietevo</span>}
-        </MotionLink>
-      </div>
+  const { toast } = useToast()
+  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
 
-      {!isMobile && (
-        <m.button
-          variants={{
-            expanded: {
-              opacity: 1,
-              scale: 1,
-              display: "flex",
-              transition: {
-                duration: 0.2,
-                ease: [0.2, 0.8, 0.2, 1]
-              }
-            },
-            collapsed: {
-              opacity: 0,
-              scale: 0.8,
-              transition: {
-                duration: 0.15,
-                ease: [0.2, 0.8, 0.2, 1]
-              },
-              transitionEnd: { display: "none" }
-            }
-          }}
-          animate={isCollapsed ? "collapsed" : "expanded"}
-          onClick={toggleCollapse}
-          type="button"
-          className="flex items-center justify-center rounded-xl size-10 text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 hover:text-zinc-950 dark:hover:text-zinc-50 transition-colors duration-200 shrink-0 z-50 focus:outline-none cursor-pointer hover:scale-105 active:scale-95"
-          title="Menü einklappen"
-        >
-          <PanelLeft className="size-5" />
-        </m.button>
+  const handleSwitchOrg = async (orgId: string | null) => {
+    if (orgId === currentOrgId) return;
+    setIsSwitchingOrg(true);
+    try {
+      const res = await switchOrganisationAction(orgId);
+      if (res.success) {
+        // Clear cached organisations under the proper user-specific key to prevent stale cache flash on reload
+        const cacheKey = userId ? `cached_organisations:${userId}` : "cached_organisations:v1";
+        sessionStorage.removeItem(cacheKey);
+        window.location.reload();
+      } else {
+        console.error("Failed to switch organisation:", res.error?.message);
+        toast({
+          variant: "destructive",
+          title: "Fehler beim Wechseln",
+          description: "Die Organisation konnte nicht gewechselt werden. Bitte versuche es später erneut.",
+        });
+      }
+    } catch (e) {
+      console.error("Exception switching organisation:", e);
+      toast({
+        variant: "destructive",
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
+      });
+    } finally {
+      setIsSwitchingOrg(false);
+    }
+  };
+
+  const activeOrg = organisations.find(o => o.organisation_id === currentOrgId);
+  const activeName = currentOrgId === null ? "Mietevo" : (activeOrg?.name || "Mietevo");
+  const activeSubtitle = currentOrgId === null 
+    ? "Immobilienverwaltung" 
+    : activeOrg 
+    ? getRoleLabel(activeOrg.rolle)
+    : "Organisation";
+
+  const triggerPill = (
+    <m.div 
+      variants={logoVariants}
+      animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+      aria-label="Organisation menu"
+      data-org-switcher-trigger
+      className={cn(
+        "flex items-center gap-2.5 rounded-xl hover:bg-hover-bg data-[state=open]:bg-hover-bg transition-colors duration-200 group/logo select-none min-h-[40px] cursor-pointer outline-none",
+        isCollapsed && !isMobile ? "justify-center p-1 w-10 h-10" : "w-full pl-1 pr-2 p-1 justify-start"
       )}
+      title={isCollapsed && !isMobile ? "Organisationen wechseln" : undefined}
+    >
+      <m.div 
+        layout={false}
+        className="relative size-8 min-w-8 min-h-8 rounded-lg overflow-hidden shadow-2xs shrink-0 flex items-center justify-center"
+      >
+        {/* Logo Image */}
+        <div className="absolute inset-0 transition-opacity duration-200">
+          <Image
+            src={LOGO_URL}
+            alt="Mietevo Logo"
+            fill
+            className="object-cover rounded-lg"
+            sizes="32px"
+            unoptimized
+          />
+        </div>
+      </m.div>
+
+      {!isMobile && !isCollapsed && (
+        <div className="flex flex-col flex-1 min-w-0 text-left overflow-hidden">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+              {activeName}
+            </span>
+            <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
+          </div>
+          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+            {activeSubtitle}
+          </span>
+        </div>
+      )}
+      {isMobile && (
+        <div className="flex flex-col flex-1 min-w-0 text-left">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate leading-tight">
+              {activeName}
+            </span>
+            <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
+          </div>
+          <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 truncate leading-tight">
+            {activeSubtitle}
+          </span>
+        </div>
+      )}
+    </m.div>
+  );
+
+  return (
+    <div className={cn(
+      "flex items-center justify-between gap-2 w-full mb-2.5 pt-0 pb-1.5 shrink-0",
+      isCollapsed && !isMobile ? "justify-center px-0" : "px-1.5"
+    )}>
+      {/* Organisation Switcher Dropdown */}
+      <CustomDropdown
+        align="start"
+        className="w-60"
+        trigger={triggerPill}
+      >
+        <CustomDropdownLabel className="text-xs text-gray-500 font-semibold uppercase tracking-wider px-3 py-1">
+          Organisationen:
+        </CustomDropdownLabel>
+        <CustomDropdownSeparator />
+        <CustomDropdownItem
+          onClick={() => handleSwitchOrg(null)}
+          disabled={isSwitchingOrg}
+          className="flex items-center cursor-pointer"
+        >
+          {currentOrgId === null ? (
+            <Check className="mr-2 size-4 text-primary shrink-0" />
+          ) : (
+            <div className="mr-2 size-4 shrink-0" />
+          )}
+          <div className="flex flex-col text-left min-w-0">
+            <span className={cn(
+              "truncate font-semibold text-sm leading-snug",
+              currentOrgId === null && "text-primary font-bold"
+            )}>
+              Privat
+            </span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight">
+              Persönlicher Bereich
+            </span>
+          </div>
+        </CustomDropdownItem>
+        {organisations.map((org) => {
+          const isActive = currentOrgId === org.organisation_id;
+          const roleLabel = getRoleLabel(org.rolle);
+
+          return (
+            <CustomDropdownItem
+              key={org.organisation_id}
+              onClick={() => handleSwitchOrg(org.organisation_id)}
+              disabled={isSwitchingOrg}
+              className="flex items-center cursor-pointer"
+            >
+              {isActive ? (
+                <Check className="mr-2 size-4 text-primary shrink-0" />
+              ) : (
+                <div className="mr-2 size-4 shrink-0" />
+              )}
+              <div className="flex flex-col text-left min-w-0">
+                <span className={cn(
+                  "truncate font-semibold text-sm leading-snug",
+                  isActive && "text-primary font-bold"
+                )}>
+                  {org.name}
+                </span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-tight">
+                  {roleLabel}
+                </span>
+              </div>
+            </CustomDropdownItem>
+          )
+        })}
+      </CustomDropdown>
     </div>
   )
 }
@@ -609,7 +692,8 @@ function SidebarNavLink({
         }
       }}
       className={cn(
-        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 px-3 justify-start rounded-xl isolate",
+        "group flex items-center h-10 text-sm font-medium transition-colors duration-200 relative cursor-pointer active:scale-98 hover:z-10 rounded-xl isolate",
+        isCollapsed && !isMobile ? "w-10 h-10 justify-center items-center px-0 mx-auto" : "w-full px-3 justify-start",
         !isActive && "hover:bg-accent/10 dark:hover:bg-accent/15",
         getActiveStateClasses(item.href),
       )}
@@ -629,10 +713,10 @@ function SidebarNavLink({
       ) : (
         <item.icon className={cn(getIconClassName(item.href), "shrink-0")} />
       )}
-      {!isMobile && (
+      {!isMobile && !isCollapsed && (
         <m.span
           variants={textVariants}
-          animate={isCollapsed && !isMobile ? "collapsed" : "expanded"}
+          animate="expanded"
           className="whitespace-nowrap truncate flex-1 overflow-hidden"
         >
           {item.title}
@@ -689,7 +773,7 @@ function SidebarActions({
       transition={layoutTransition}
       className={cn(
         "flex gap-3 w-full pb-4 shrink-0 transition-colors duration-200",
-        isCollapsed ? "flex-col items-start" : "flex-row justify-start"
+        isCollapsed ? "flex-col items-start justify-start px-1" : "flex-row justify-start"
       )}
     >
       {/* Support Popover */}

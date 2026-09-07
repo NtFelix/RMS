@@ -1,12 +1,12 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_rethrow } from 'next/navigation'
 import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
 
     // Get user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    unstable_rethrow(error)
     console.error('Debug API error:', error)
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Unknown error' 

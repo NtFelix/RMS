@@ -11,16 +11,34 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    versioning-strategy: increase
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "patch"
     commit-message:
       prefix: "chore"
       include: "scope"
-    # Group only patch updates to reduce PR noise
-    # Major and minor updates create individual PRs for easier review
+    # Group patch updates, plus group related ecosystem packages together for minor updates
+    # Unmatched minor updates will receive individual PRs
     groups:
+      posthog-ecosystem:
+        patterns:
+          - "posthog*"
+          - "@posthog/*"
+      nextjs-ecosystem:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+          - "@next/*"
+      radix-ui:
+        patterns:
+          - "@radix-ui/*"
+      tiptap:
+        patterns:
+          - "@tiptap/*"
+      opentelemetry:
+        patterns:
+          - "@opentelemetry/*"
       production-patch-updates:
         dependency-type: "production"
         update-types:

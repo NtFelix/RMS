@@ -28,7 +28,7 @@ export function Step4Trigger({ trigger, onChange }: Step4Props) {
     if (type === 'cron') {
       defaultConfig = { cron_expression: '0 8 * * *', timezone: 'Europe/Berlin' };
     } else if (type === 'webhook') {
-      defaultConfig = { secret: typeof crypto !== 'undefined' ? crypto.randomUUID() : 'whsec_default' };
+      defaultConfig = { secret: crypto.randomUUID() };
     } else if (type === 'db_event') {
       defaultConfig = { table: 'Mieter', event: 'INSERT' };
     }

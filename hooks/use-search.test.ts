@@ -2,12 +2,12 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSearch } from './use-search';
 
 // Mock the useDebounce hook
-jest.mock('../use-debounce', () => ({
+jest.mock('./use-debounce', () => ({
   useDebounce: jest.fn()
 }));
 
 // Mock the useSearchAnalytics hook
-jest.mock('../use-search-analytics', () => ({
+jest.mock('./use-search-analytics', () => ({
   useSearchAnalytics: jest.fn(() => ({
     trackSearch: jest.fn()
   }))
@@ -21,10 +21,8 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 // Mock navigator.onLine
-Object.defineProperty(navigator, 'onLine', {
-  writable: true,
-  value: true,
-});
+const onLineSpy = jest.spyOn(navigator, 'onLine', 'get');
+onLineSpy.mockReturnValue(true);
 
 // Mock window event listeners
 const mockAddEventListener = jest.fn();
@@ -68,7 +66,7 @@ describe('useSearch', () => {
     jest.clearAllMocks();
     mockFetch.mockClear();
     mockUseDebounce.mockImplementation((value) => value);
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    onLineSpy.mockReturnValue(true);
     
     // Reset timers
     jest.useFakeTimers();
@@ -441,7 +439,7 @@ describe('useSearch', () => {
 
     it('should implement retry mechanism', async () => {
       // Ensure we're online for this test
-      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+      onLineSpy.mockReturnValue(true);
       mockLocalStorage.getItem.mockReturnValue(null);
       
       mockUseDebounce.mockImplementation((value) => value);
@@ -526,7 +524,7 @@ describe('useSearch', () => {
 
   describe('Network status handling', () => {
     it('should detect offline status', () => {
-      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+      onLineSpy.mockReturnValue(false);
       
       const { result } = renderHook(() => useSearch());
 
@@ -540,7 +538,7 @@ describe('useSearch', () => {
 
       // Simulate going offline
       act(() => {
-        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+        onLineSpy.mockReturnValue(false);
         // Trigger offline event
         const offlineHandler = mockAddEventListener.mock.calls.find(
           call => call[0] === 'offline'
@@ -571,13 +569,13 @@ describe('useSearch', () => {
 
       // Start with offline state and error
       act(() => {
-        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+        onLineSpy.mockReturnValue(false);
         result.current.setQuery('online retry');
       });
 
       // Simulate coming back online
       act(() => {
-        Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+        onLineSpy.mockReturnValue(true);
         const onlineHandler = mockAddEventListener.mock.calls.find(
           call => call[0] === 'online'
         )?.[1];
@@ -632,7 +630,7 @@ describe('useSearch', () => {
       expect(tenantResult.title).toBe('John Doe');
       expect(tenantResult.subtitle).toBe('john@example.com');
       expect(tenantResult.context).toBe('Apt 1 - House 1');
-      expect(tenantResult.actions).toHaveLength(2);
+      expect(tenantResult.actions).toHaveLength(1);
     });
 
     it('should transform finance results correctly', async () => {
@@ -674,7 +672,7 @@ describe('useSearch', () => {
       expect(financeResult.title).toBe('Rent Payment');
       expect(financeResult.subtitle).toBe('+800€');
       expect(financeResult.context).toBe('Apt 1 - House 1');
-      expect(financeResult.actions).toHaveLength(3); // Edit, View, Delete
+      expect(financeResult.actions).toHaveLength(2); // Edit, Delete
     });
   });
 

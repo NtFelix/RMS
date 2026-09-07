@@ -9,6 +9,10 @@ import { CookieConsentBanner } from "@/components/common/cookie-consent-banner"
 import { defaultMetadata } from "@/lib/seo"
 import { PWA_IMAGES_URL, FAVICON_URL } from "@/lib/constants"
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 const inter = Inter({ subsets: ["latin"] })
 
 // Note: runtime = 'edge' removed from root layout to allow landing pages to be static.

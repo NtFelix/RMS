@@ -2,10 +2,6 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-export const runtime = 'edge';
-
-export const dynamic = 'force-dynamic';
-
 export async function PATCH(request: Request) {
   try {
     const { ids, updates } = await request.json();
@@ -24,7 +20,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     
     const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
     await requireApiPermission('finanzen', 'bearbeiten');

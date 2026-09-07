@@ -17,6 +17,7 @@ import { deleteTenantAction } from "@/app/mieter-actions"
 import { toast } from "@/hooks/use-toast"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 
 type TenantSortKey = "name" | "email" | "telefonnummer" | "wohnung" | "nebenkosten" | ""
 type SortDirection = "asc" | "desc"
@@ -530,8 +531,14 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const sortedAndFilteredData = useMemo(() => {
     let result = [...tenants]
 
-    if (filter === "current") result = result.filter(t => !t.auszug)
-    else if (filter === "previous") result = result.filter(t => !!t.auszug)
+    const todayStr = getTodayISOString()
+
+    // Apply filters
+    if (filter === "current") {
+      result = result.filter(t => isTenantActive(t.auszug, todayStr))
+    } else if (filter === "previous") {
+      result = result.filter(t => !isTenantActive(t.auszug, todayStr))
+    }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase()

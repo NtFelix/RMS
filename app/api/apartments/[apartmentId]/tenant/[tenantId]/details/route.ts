@@ -1,5 +1,4 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
@@ -57,7 +56,7 @@ export async function GET(
   let apartmentId: string | undefined;
   let tenantId: string | undefined;
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     // Get the parameters
     const paramsData = await params;
     apartmentId = paramsData.apartmentId;

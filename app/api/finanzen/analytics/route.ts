@@ -1,6 +1,6 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary, type FinanceTransaction } from "@/utils/financeCalculations";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     console.log(`🚀 [Finance Analytics] API called - Action: ${action}, Year: ${year}`);
     const requestStartTime = Date.now();
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     let response: Response;
     switch (action) {
@@ -57,6 +57,7 @@ export async function GET(request: Request) {
     return response;
     
   } catch (error) {
+    unstable_rethrow(error);
     console.error('❌ [Finance Analytics] API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

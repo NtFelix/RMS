@@ -50,9 +50,6 @@ const nextConfig = {
   poweredByHeader: false,
   // Avoid redirecting /assets/v2/ -> /assets/v2 which can break PostHog proxying
   skipTrailingSlashRedirect: true,
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -69,6 +66,7 @@ const nextConfig = {
       },
     ],
   },
+  cacheComponents: true,
   experimental: {
     scrollRestoration: true,
     optimizePackageImports: [

@@ -59,7 +59,7 @@ describe('WasserZaehlerModal - Latest Reading Display', () => {
 
     // Check that the latest reading data is displayed
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
       expect(screen.getByText('01.11.2024')).toBeInTheDocument()
     })
 
@@ -140,8 +140,8 @@ describe('WasserZaehlerModal - Latest Reading Display', () => {
 
     // Check that both readings are displayed
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
-      expect(screen.getByText('456.78 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
+      expect(screen.getByText('456,780 m³')).toBeInTheDocument()
       expect(screen.getByText('01.11.2024')).toBeInTheDocument()
       expect(screen.getByText('15.10.2024')).toBeInTheDocument()
     })
@@ -182,7 +182,7 @@ describe('WasserZaehlerModal - Latest Reading Display', () => {
     // Now expired meter should be visible with its reading
     await waitFor(() => {
       expect(screen.getByText('Expired-Meter')).toBeInTheDocument()
-      expect(screen.getByText('999.99 m³')).toBeInTheDocument()
+      expect(screen.getByText('999,990 m³')).toBeInTheDocument()
       expect(screen.getByText('01.11.2024')).toBeInTheDocument()
     })
   })
@@ -225,7 +225,7 @@ describe('WasserZaehlerModal - Latest Reading Display', () => {
 
     // Check that one has reading and one has placeholder
     await waitFor(() => {
-      expect(screen.getByText('123.45 m³')).toBeInTheDocument()
+      expect(screen.getByText('123,450 m³')).toBeInTheDocument()
       expect(screen.getByText('01.11.2024')).toBeInTheDocument()
       expect(screen.getByText('Noch nicht erfasst')).toBeInTheDocument()
       expect(screen.getByText('Noch keine Ablesung')).toBeInTheDocument()

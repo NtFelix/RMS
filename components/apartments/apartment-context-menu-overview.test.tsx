@@ -1,6 +1,10 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ApartmentContextMenu } from '@/components/apartments/apartment-context-menu';
+import { useModalStore } from '@/hooks/use-modal-store';
+
+const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 // Mock the server action
 jest.mock('@/app/(dashboard)/wohnungen/actions', () => ({
@@ -10,6 +14,11 @@ jest.mock('@/app/(dashboard)/wohnungen/actions', () => ({
 // Mock toast
 jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
+}));
+
+// Mock useModalStore
+jest.mock('@/hooks/use-modal-store', () => ({
+  useModalStore: jest.fn(),
 }));
 
 describe('ApartmentContextMenu', () => {
@@ -28,6 +37,9 @@ describe('ApartmentContextMenu', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseModalStore.mockReturnValue({
+      openZaehlerModal: jest.fn(),
+    } as any);
   });
 
   it('should render the context menu with correct items', () => {
@@ -57,7 +69,8 @@ describe('ApartmentContextMenu', () => {
     expect(deleteItem).toContainElement(deleteItem?.querySelector('svg') as SVGElement | null);
   });
 
-  it('should call onEdit when edit menu item is clicked', () => {
+  it('should call onEdit when edit menu item is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     render(
       <ApartmentContextMenu
         apartment={mockApartment}
@@ -71,7 +84,7 @@ describe('ApartmentContextMenu', () => {
     // Open context menu and click edit
     const trigger = screen.getByText('Test Child');
     fireEvent.contextMenu(trigger);
-    fireEvent.click(screen.getByText('Bearbeiten'));
+    await user.click(screen.getByText('Bearbeiten'));
 
     expect(mockOnEdit).toHaveBeenCalledTimes(1);
   });

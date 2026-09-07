@@ -1,6 +1,5 @@
 import posthogProxyConfig from '@/lib/posthog-proxy'
 
-export const runtime = 'edge'
 
 const { POSTHOG_INGEST_HOST, POSTHOG_ASSETS_HOST } = posthogProxyConfig
 
