@@ -183,7 +183,15 @@ function SpreadsheetHeroTable({
                     return (
                       <td
                         key={j}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedCell(isSelected ? null : { row: i, col: j })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedCell(isSelected ? null : { row: i, col: j });
+                          }
+                        }}
                         className={cn(
                           "h-9 border-r border-b border-border/10 whitespace-nowrap cursor-[cell] transition-colors relative select-none",
                           isSelected && "outline-2 outline-primary outline-offset-[-2px] bg-primary/[0.08] z-10",
@@ -501,7 +509,7 @@ const METER_STEPS = [
     icon: Receipt,
     description: "Erfassen Sie alle angefallenen Ausgaben für Ihre Liegenschaften und weisen Sie diese direkt den passenden Kostenarten zu.",
     mockup: (
-      <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-all duration-300">
+      <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-colors duration-300">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Receipt size={15} />
@@ -531,7 +539,7 @@ const METER_STEPS = [
     icon: FileUp,
     description: "Geben Sie die Zählerstände Ihrer Mieter für Heizung, Wasser oder Strom ein oder importieren Sie diese gesammelt für das gesamte Objekt.",
     mockup: (
-      <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-all duration-300">
+      <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-colors duration-300">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <FileUp size={15} />
@@ -561,7 +569,7 @@ const METER_STEPS = [
     icon: AlertTriangle,
     description: "Lassen Sie das System die Berechnungen automatisch prüfen. Eventuelle Eingabefehler oder extreme Abweichungen werden sofort signalisiert.",
     mockup: (
-      <div className="w-[280px] bg-background border border-destructive/20 shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-destructive/45 transition-all duration-300">
+      <div className="w-[280px] bg-background border border-destructive/20 shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-destructive/45 transition-colors duration-300">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
             <AlertTriangle size={15} />
@@ -591,7 +599,7 @@ const METER_STEPS = [
     icon: FileDown,
     description: "Generieren Sie die fertigen Dokumente mit einem Klick. Exportieren Sie alle PDFs gesammelt in einer Zip-Datei oder wählen Sie einzelne Mieter aus.",
     mockup: (
-      <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-all duration-300">
+      <div className="w-[280px] bg-background border border-border shadow-2xl rounded-2xl p-5 backdrop-blur-md hover:border-primary/30 transition-colors duration-300">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <FileDown size={15} />
@@ -885,8 +893,9 @@ function BentoGridSection() {
                     {DISTRIBUTION_BARS.map((bar, i) => (
                       <m.div
                         key={bar.id}
-                        initial={{ height: 0 }}
-                        whileInView={{ height: `${bar.height}%` }}
+                        style={{ height: `${bar.height}%`, transformOrigin: 'bottom' }}
+                        initial={{ scaleY: 0 }}
+                        whileInView={{ scaleY: 1 }}
                         transition={{ duration: 0.8, delay: i * 0.08, ease: "easeOut" }}
                         className="flex-1 rounded-t-md bg-foreground/10 hover:bg-primary/40 transition-colors duration-300"
                       />
