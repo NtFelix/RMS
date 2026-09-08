@@ -348,7 +348,7 @@ function TransitionQuoteSection() {
           viewport={{ once: true }}
           className="max-w-4xl mx-auto text-center"
         >
-          <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Der Wechsel</span>
+          <span className="text-xs font-semibold text-primary">Der Wechsel</span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mt-3 mb-6">
             Tabellen weg. <span className="text-primary italic">Überblick her.</span>
           </h2>
@@ -376,7 +376,7 @@ function DonutBreakdownSection() {
         >
           {/* Left: Text */}
           <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Transparenz</span>
+            <span className="text-xs font-semibold text-primary">Transparenz</span>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-3 mb-4">
               Jede Kostenart <span className="text-primary italic">im Blick.</span>
             </h2>
@@ -454,7 +454,7 @@ function DonutBreakdownSection() {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-3xl font-bold font-mono">100%</span>
-                <span className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Umlagefähig</span>
+                <span className="text-xs text-muted-foreground mt-1">Umlagefähig</span>
               </div>
             </div>
           </div>
@@ -468,7 +468,7 @@ function DonutBreakdownSection() {
         viewport={{ once: true }}
         className="max-w-4xl mx-auto text-center mt-24 mb-12"
       >
-        <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Immobilien-Dashboard</span>
+        <span className="text-xs font-semibold text-primary">Immobilien-Dashboard</span>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mt-3 mb-6">
           Mehrere Häuser. Mehrere Jahre. <span className="text-primary italic">Ein Dashboard.</span>
         </h2>
@@ -551,7 +551,7 @@ const METER_STEPS = [
         </div>
         <div className="space-y-3">
           <div className="p-2.5 rounded-lg border border-border/60 bg-muted/5">
-            <div className="text-[9px] font-bold text-muted-foreground uppercase">Wasserzähler Küche</div>
+            <div className="text-[9px] font-bold text-muted-foreground">Wasserzähler Küche</div>
             <div className="flex justify-between items-center mt-1">
               <span className="text-xs font-semibold text-foreground">Kaltwasser</span>
               <span className="font-mono text-xs font-bold px-2 py-0.5 bg-foreground/5 rounded border border-border/40">345,20 m³</span>
@@ -575,7 +575,7 @@ const METER_STEPS = [
             <AlertTriangle size={15} />
           </div>
           <div>
-            <div className="text-[11px] font-bold text-destructive uppercase tracking-wider">Plausibilitäts-Warnung</div>
+            <div className="text-[11px] font-bold text-destructive">Plausibilitäts-Warnung</div>
             <div className="text-[9px] text-muted-foreground">Eingabefehler?</div>
           </div>
         </div>
@@ -715,7 +715,7 @@ function TimelineGuideSection() {
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                         <step.icon size={20} />
                       </div>
-                      <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Schritt {index + 1}</span>
+                      <span className="text-xs font-semibold text-primary">Schritt {index + 1}</span>
                     </div>
                     <h3 className="text-2xl font-bold text-foreground mb-3">{step.title}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed max-w-md mx-auto lg:mx-0">
@@ -811,7 +811,7 @@ function BentoGridSection() {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <Receipt size={20} />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Kostenerfassung</span>
+                  <span className="text-xs font-semibold text-primary">Kostenerfassung</span>
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-1">Strukturierte Kostenerfassung</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">Erfassen Sie alle Ausgaben zentral. Weisen Sie Kostenarten und Umlageschlüssel direkt bei der Eingabe zu.</p>
@@ -868,7 +868,7 @@ function BentoGridSection() {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <Calculator size={20} />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Zähler & Verbräuche</span>
+                  <span className="text-xs font-semibold text-primary">Zähler & Verbräuche</span>
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-1">Zählerverwaltung</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">Lückenlose Protokollierung aller Verbräuche mit Plausibilitäts-Check.</p>
@@ -910,7 +910,7 @@ function BentoGridSection() {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <PieChart size={20} />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary/60">Verteilschlüssel</span>
+                  <span className="text-xs font-semibold text-primary">Verteilschlüssel</span>
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-1">Smarte Umlage</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">Variable Schlüssel nach Fläche, Personen oder Verbrauch.</p>
@@ -952,7 +952,7 @@ function BentoGridSection() {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <RefreshCw size={20} />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary/60">AUTOMATION</span>
+                  <span className="text-xs font-semibold text-primary">Automation</span>
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-1">Automatischer Leerstand</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
@@ -1000,7 +1000,7 @@ function BentoGridSection() {
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <FileText size={20} />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary/60">PDF Export</span>
+                  <span className="text-xs font-semibold text-primary">PDF Export</span>
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-1">Professionelle Dokumente</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">Generieren Sie formgerechte Abrechnungen mit nur einem Klick. Klar strukturiert und verständlich.</p>
