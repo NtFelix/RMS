@@ -121,7 +121,7 @@ function SpreadsheetHeroTable({
       <div className="overflow-x-auto max-h-[380px] overflow-y-auto scrollbar-thin">
         <table className="w-full text-xs font-mono border-collapse">
           <thead>
-            <tr className="bg-muted/10 border-b border-border/20 text-muted-foreground sticky top-0 z-20">
+            <tr className="bg-muted/10 border-b border-border/20 text-muted-foreground">
               <th className="w-10 h-8 border-r border-border/20 text-center font-medium bg-muted/30">#</th>
               {COLUMNS.map((col, j) => (
                 <th
