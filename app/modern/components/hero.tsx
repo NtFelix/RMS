@@ -198,7 +198,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           className="relative w-full max-w-[1200px] group perspective-2000 mb-20"
         >
           {/* Main Container */}
-          <div className="relative rounded-[2rem] bg-background/50 backdrop-blur-3xl border border-white/10 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] p-4 sm:p-6 overflow-hidden text-left">
+          <div className="relative rounded-[2rem] sm:rounded-[2.5rem] bg-background/50 backdrop-blur-3xl border border-white/10 dark:border-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] p-4 sm:p-6 overflow-hidden text-left">
 
             {/* App Header */}
             <div className="flex items-center justify-between mb-4 px-2">
@@ -207,7 +207,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                   <Building2 size={16} />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Objekt</div>
+                  <div className="text-xs font-semibold text-muted-foreground">Objekt</div>
                   <div className="text-sm font-bold text-foreground">Schlossallee 21, Berlin</div>
                 </div>
               </div>
