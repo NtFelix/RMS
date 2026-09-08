@@ -218,8 +218,13 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
     ['/agenten', !!agentBuilderEnabled],
   ]), [documentsEnabled, mailsEnabled, agentBuilderEnabled]);
 
-  const [organisations, setOrganisations] = useState<OrganisationItem[]>([])
-  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null)
+  const [{ organisations, currentOrgId }, setOrgState] = useState<{
+    organisations: OrganisationItem[]
+    currentOrgId: string | null
+  }>({
+    organisations: [],
+    currentOrgId: null,
+  })
 
   useEffect(() => {
     let ignore = false
@@ -229,10 +234,10 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
     if (cached) {
       try {
         const parsed = JSON.parse(cached)
-        setOrganisations(parsed.orgs)
-        if (parsed.currentOrgId !== undefined) {
-          setCurrentOrgId(parsed.currentOrgId ?? null)
-        }
+        setOrgState({
+          organisations: parsed.orgs || [],
+          currentOrgId: parsed.currentOrgId ?? null,
+        })
       } catch {
         sessionStorage.removeItem(cacheKey)
       }
@@ -241,8 +246,10 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
     getMyOrganisationsAction()
       .then((res) => {
         if (!ignore && res.success && res.data) {
-          setOrganisations(res.data)
-          setCurrentOrgId(res.currentOrgId ?? null)
+          setOrgState({
+            organisations: res.data,
+            currentOrgId: res.currentOrgId ?? null,
+          })
           sessionStorage.setItem(cacheKey, JSON.stringify({
             orgs: res.data,
             currentOrgId: res.currentOrgId
@@ -275,11 +282,17 @@ export function DashboardSidebar({ sidebarData }: { sidebarData: SidebarUserData
 
       {/* Backdrop */}
       <div
+        role="button"
+        tabIndex={-1}
+        aria-label="Menü schließen"
         className={cn(
           "fixed inset-0 z-30 bg-background/80 backdrop-blur-xs transition-all duration-100 md:hidden",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={() => setIsOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" || e.key === "Enter") setIsOpen(false)
+        }}
       />
 
       {/* Desktop Sidebar */}

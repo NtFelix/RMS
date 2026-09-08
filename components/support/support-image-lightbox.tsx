@@ -26,25 +26,16 @@ interface SupportImageLightboxProps {
   onClose: () => void
 }
 
-export function SupportImageLightbox({ image, onClose }: SupportImageLightboxProps) {
+function SupportImageLightboxModal({ image, onClose }: { image: LightboxImageData; onClose: () => void }) {
   const [zoom, setZoom] = useState(1)
   const [copied, setCopied] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
-
-  useEffect(() => {
-    if (image) {
-      setZoom(1)
-      setImageLoading(true)
-      setCopied(false)
-    }
-  }, [image])
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 3))
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.5))
   const handleResetZoom = () => setZoom(1)
 
   const handleCopyLink = async () => {
-    if (!image?.src) return
     try {
       await navigator.clipboard.writeText(image.src)
       setCopied(true)
@@ -55,7 +46,6 @@ export function SupportImageLightbox({ image, onClose }: SupportImageLightboxPro
   }
 
   const handleDownload = async () => {
-    if (!image?.src) return
     try {
       const response = await fetch(image.src)
       const blob = await response.blob()
@@ -82,18 +72,14 @@ export function SupportImageLightbox({ image, onClose }: SupportImageLightboxPro
   )
 
   useEffect(() => {
-    if (image) {
-      window.addEventListener("keydown", handleKeyDown)
-      return () => window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [image, handleKeyDown])
-
-  if (!image) return null
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [handleKeyDown])
 
   const fileName = image.alt && image.alt !== "image" ? image.alt : "Bildvorschau"
 
   return (
-    <Dialog open={Boolean(image)} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         hideCloseButton
         className="max-w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] max-h-[88vh] p-0 overflow-hidden border border-zinc-800/80 bg-zinc-950/95 backdrop-blur-xl shadow-2xl flex flex-col rounded-2xl"
@@ -230,4 +216,9 @@ export function SupportImageLightbox({ image, onClose }: SupportImageLightboxPro
       </DialogContent>
     </Dialog>
   )
+}
+
+export function SupportImageLightbox({ image, onClose }: SupportImageLightboxProps) {
+  if (!image) return null
+  return <SupportImageLightboxModal key={image.src} image={image} onClose={onClose} />
 }

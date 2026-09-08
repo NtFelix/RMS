@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useSyncExternalStore } from "react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import MobileBottomNavigation from "@/components/common/mobile-bottom-navigation"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,8 @@ import dynamic from "next/dynamic"
 import { useAIChatStore } from "@/hooks/use-ai-chat-store"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { TABLET_BREAKPOINT } from "@/lib/constants"
+
+const emptySubscribe = () => () => {}
 
 const SupportLauncher = dynamic(
   () => import("@/components/support/support-launcher").then((mod) => mod.SupportLauncher),
@@ -25,40 +27,13 @@ export function DashboardLayout({
   children: React.ReactNode
   sidebarData: SidebarUserData
 }) {
-  const [mounted, setMounted] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
+  const isMobile = useMediaQuery("(max-width: 767px)")
   const isTabletCollapsed = useMediaQuery(TABLET_BREAKPOINT)
   const { preference } = useSidebarStore()
   const { isOpen, displayMode } = useAIChatStore()
   const isPushMode = mounted && isOpen && displayMode === 'push' && !isMobile
   const isCollapsed = isTabletCollapsed || preference === 'collapsed'
-
-  // Prevent hydration errors and handle responsive behavior
-  useEffect(() => {
-    setMounted(true)
-
-    // Check initial screen size with proper breakpoint detection
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-
-    checkScreenSize()
-
-    let resizeTimeout: NodeJS.Timeout
-    const handleResize = () => {
-      clearTimeout(resizeTimeout)
-      resizeTimeout = setTimeout(() => {
-        setIsMobile(window.innerWidth < 768)
-      }, 150)
-    }
-
-    window.addEventListener('resize', handleResize, { passive: true })
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      clearTimeout(resizeTimeout)
-    }
-  }, [])
 
   // Render CSS-only fallback during hydration to prevent mismatches
   if (!mounted) {
@@ -95,7 +70,6 @@ export function DashboardLayout({
         {/* Mobile navigation placeholder with enhanced CSS-only responsive behavior */}
         <nav
           className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border mobile-nav-responsive hydration-safe-mobile prevent-layout-shift"
-          role="navigation"
           aria-label="Main mobile navigation"
         >
           {/* Main navigation items placeholder */}

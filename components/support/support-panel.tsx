@@ -1195,9 +1195,13 @@ export function SupportPanel() {
     ],
   )
 
-  const handleSendMessage = () => {
+  const handleClearMessageError = useCallback(() => {
+    setMessageError(null)
+  }, [])
+
+  const handleSendMessage = useCallback(() => {
     void sendMessageContent(draft)
-  }
+  }, [draft, sendMessageContent])
 
   const handleRetryMessage = (failedMsg: SupportMessage) => {
     void sendMessageContent(failedMsg.content, failedMsg.id)
@@ -1678,7 +1682,7 @@ export function SupportPanel() {
                   isAvailable={isAvailable}
                   supportTraitsReady={Boolean(supportTraits)}
                   messageError={messageError}
-                  onClearMessageError={() => setMessageError(null)}
+                  onClearMessageError={handleClearMessageError}
                   onSendMessage={handleSendMessage}
                   onStartNewTicket={handleStartNewTicket}
                   userEmail={userDisplay.userEmail}

@@ -60,10 +60,12 @@ export interface OrganisationItem {
   name: string;
 }
 
+const DEFAULT_ORGANISATIONS: OrganisationItem[] = [];
+
 export function UserSettings({ 
   collapsed,
   initialData,
-  organisations = [],
+  organisations = DEFAULT_ORGANISATIONS,
   currentOrgId = null
 }: { 
   collapsed?: boolean;
