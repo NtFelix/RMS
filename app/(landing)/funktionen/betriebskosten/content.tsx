@@ -52,11 +52,11 @@ const EXCEL_DATA: ExcelRow[] = [
   { objekt: 'Parkallee 8', whg: '6', mieter: 'Julia Fischer', heizung: 1050, wasser: 290, muell: 180, hauswart: 370, gesamt: 1890, differenz: 90 },
   { objekt: 'Blumenweg 5', whg: '7', mieter: 'Thomas Wagner', heizung: 1500, wasser: 420, muell: 260, hauswart: 530, gesamt: 2710, differenz: 190 },
   { objekt: 'Blumenweg 5', whg: '8', mieter: 'Sandra Hoffmann', heizung: 820, wasser: 220, muell: 150, hauswart: 310, gesamt: 1500, differenz: -180 },
-  { objekt: 'Musterstr. 12', whg: '1', mieter: 'Müller (2023)', heizung: 1150, wasser: 320, muell: 200, hauswart: 430, gesamt: 2100, differenz: 60 },
-  { objekt: 'Musterstr. 12', whg: '2', mieter: 'Schmidt (2023)', heizung: 900, wasser: 240, muell: 150, hauswart: 330, gesamt: 1620, differenz: -180 },
-  { objekt: 'Parkallee 8', whg: '4', mieter: 'Braun (2023)', heizung: 1280, wasser: 360, muell: 220, hauswart: 460, gesamt: 2320, differenz: -80 },
-  { objekt: 'Parkallee 8', whg: '6', mieter: 'Fischer (2023)', heizung: 990, wasser: 270, muell: 170, hauswart: 350, gesamt: 1780, differenz: -20 },
-  { objekt: 'Blumenweg 5', whg: '7', mieter: 'Wagner (2023)', heizung: 1420, wasser: 400, muell: 250, hauswart: 510, gesamt: 2580, differenz: 60 },
+  { objekt: 'Musterstr. 12', whg: '1', mieter: 'Müller (2026)', heizung: 1150, wasser: 320, muell: 200, hauswart: 430, gesamt: 2100, differenz: 60 },
+  { objekt: 'Musterstr. 12', whg: '2', mieter: 'Schmidt (2026)', heizung: 900, wasser: 240, muell: 150, hauswart: 330, gesamt: 1620, differenz: -180 },
+  { objekt: 'Parkallee 8', whg: '4', mieter: 'Braun (2026)', heizung: 1280, wasser: 360, muell: 220, hauswart: 460, gesamt: 2320, differenz: -80 },
+  { objekt: 'Parkallee 8', whg: '6', mieter: 'Fischer (2026)', heizung: 990, wasser: 270, muell: 170, hauswart: 350, gesamt: 1780, differenz: -20 },
+  { objekt: 'Blumenweg 5', whg: '7', mieter: 'Wagner (2026)', heizung: 1420, wasser: 400, muell: 250, hauswart: 510, gesamt: 2580, differenz: 60 },
   { objekt: 'Eichenweg 3', whg: '9', mieter: 'Markus Schulz', heizung: 1100, wasser: 310, muell: 190, hauswart: 410, gesamt: 0, differenz: 0, fehler: '#REF!' },
   { objekt: 'Eichenweg 3', whg: '10', mieter: 'Beate Becker', heizung: 1450, wasser: 390, muell: 240, hauswart: 0, gesamt: 0, differenz: 0, fehler: '#DIV/0!' },
 ];
@@ -96,7 +96,7 @@ function SpreadsheetHeroTable({
           <div className="w-3 h-3 rounded-full bg-amber-500/80" />
           <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
           <span className="ml-3 text-xs font-mono text-muted-foreground/80 truncate">
-            betriebskosten_2024_FINAL_v3_kopie.xlsx
+            betriebskosten_2026_FINAL_v3_kopie.xlsx
           </span>
         </div>
         <span className="text-[11px] font-mono font-medium text-destructive/80 bg-destructive/10 px-2 py-0.5 rounded border border-destructive/20 hidden sm:inline-block">
