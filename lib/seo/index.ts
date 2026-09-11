@@ -2,6 +2,7 @@
 export {
     defaultMetadata,
     pageMetadata,
+    privateNoindexMetadata,
 } from './metadata'
 
 export {
