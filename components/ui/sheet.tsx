@@ -60,7 +60,7 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, isDirty, onAttemptClose, ...props }, ref) => {
+>(({ side = "right", className, children, isDirty, onAttemptClose, onCloseAutoFocus, ...props }, ref) => {
   const handleInteraction = (
     event: Parameters<NonNullable<React.ComponentProps<typeof SheetPrimitive.Content>['onInteractOutside']>>[0]
   ) => {
@@ -119,7 +119,21 @@ const SheetContent = React.forwardRef<
           e.preventDefault();
         }}
         onCloseAutoFocus={(e) => {
-          // Intentionally empty: let Radix restore focus to the trigger element.
+          if (onCloseAutoFocus) {
+            onCloseAutoFocus(e);
+          }
+          // Safeguard: Radix DismissableLayer / react-remove-scroll can leak pointer-events: none
+          // or data-scroll-locked on document.body when opened from menus or when focus restore fails.
+          if (typeof document !== "undefined") {
+            setTimeout(() => {
+              if (document.body.style.pointerEvents === "none") {
+                document.body.style.pointerEvents = "";
+              }
+              if (document.body.hasAttribute("data-scroll-locked")) {
+                document.body.removeAttribute("data-scroll-locked");
+              }
+            }, 0);
+          }
         }}
         onFocusOutside={(e) => {
           // Always prevent Radix Dialog from re-trapping focus.

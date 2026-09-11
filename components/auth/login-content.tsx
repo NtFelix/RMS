@@ -21,6 +21,7 @@ import { handleGoogleSignIn, handleMicrosoftSignIn } from "@/lib/auth-helpers"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { MicrosoftIcon } from "@/components/icons/microsoft-icon"
 import { getSafeAuthRedirect } from "@/lib/auth-redirects"
+import { syncSupportIdentity } from "@/lib/posthog-support"
 
 export default function LoginContent() {
   const searchParams = useSearchParams()
@@ -112,6 +113,7 @@ export default function LoginContent() {
           is_anonymous: false,
         })
       }
+      await syncSupportIdentity(posthog, data.user.id)
       // Track login success (GDPR-compliant - checks consent internally)
       trackLoginSuccess('email')
     }

@@ -71,7 +71,11 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
       disabled={disabled}
       onSelect={() => {
         if (onClick) {
-          onClick()
+          // Defer callback so Radix DropdownMenu completes its dismiss lifecycle
+          // before any child dialogs or sheets mount, avoiding conflicting DismissableLayers.
+          setTimeout(() => {
+            onClick()
+          }, 0)
         }
       }}
       className={cn(
