@@ -3,9 +3,9 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-# Cache npm registry between builds
+# Cache npm registry between builds (retry up to 3 times on network failure)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    for i in $(seq 1 3); do npm ci && break || sleep 5; done
 
 # Stage 2: Build the source code
 FROM node:22-alpine AS builder
