@@ -1132,11 +1132,11 @@ export default function ConsentUI({
                             </Button>
                             <Button
                                 variant="outline"
-                                onClick={() => window.open('/einstellungen', '_blank')}
+                                onClick={() => window.open('/einstellungen/mcp', '_blank')}
                                 className="w-full h-12 rounded-xl text-base font-medium"
                             >
                                 <ShieldAlert className="w-4 h-4 mr-2" />
-                                Verwalten
+                                In MCP-Einstellungen verwalten
                             </Button>
                             <Button
                                 variant="ghost"
