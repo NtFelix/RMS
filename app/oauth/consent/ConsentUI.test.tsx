@@ -313,5 +313,34 @@ describe('ConsentUI Component', () => {
         const approveButton = screen.getByRole('button', { name: /Zugriff erlauben/i });
         expect(approveButton).toBeDisabled();
     });
+
+    it('renders manage screen correctly when type is manage and links to MCP settings', () => {
+        const originalOpen = window.open;
+        window.open = jest.fn();
+
+        render(
+            <ConsentUI
+                type="manage"
+                authorizationId="auth_123456789012"
+                initialData={{
+                    id: 'auth_123456789012',
+                    client: { id: 'client-123', name: 'Claude Desktop' },
+                    scopes: ['properties:read'],
+                    redirect_uri: 'https://claude.ai/oauth/callback',
+                }}
+            />
+        );
+
+        expect(screen.getByText('Bereits verbunden')).toBeInTheDocument();
+        expect(screen.getByText(/Claude Desktop/i)).toBeInTheDocument();
+
+        const manageButton = screen.getByRole('button', { name: /In MCP-Einstellungen verwalten/i });
+        expect(manageButton).toBeInTheDocument();
+
+        fireEvent.click(manageButton);
+        expect(window.open).toHaveBeenCalledWith('/einstellungen/mcp', '_blank', 'noopener,noreferrer');
+
+        window.open = originalOpen;
+    });
 });
 

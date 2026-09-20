@@ -31,7 +31,7 @@ import {
     Search
 } from 'lucide-react';
 import Image from 'next/image';
-import { LazyMotion, domAnimation, m, type HTMLMotionProps } from 'framer-motion';
+import { LazyMotion, domMax, m, type HTMLMotionProps } from 'framer-motion';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
@@ -333,7 +333,7 @@ function FullScreenLayout({
     motionProps?: HTMLMotionProps<"div">;
 }) {
     return (
-        <LazyMotion features={domAnimation}>
+        <LazyMotion features={domMax}>
             <div className={cn("min-h-screen flex items-center justify-center bg-background p-4 md:p-8 relative overflow-hidden font-sans", className)}>
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--muted-foreground)/0.15)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black_40%,transparent_100%)]" />
 
@@ -1135,7 +1135,7 @@ export default function ConsentUI({
                             </Button>
                             <Button
                                 variant="outline"
-                                onClick={() => window.open('/einstellungen/mcp', '_blank')}
+                                onClick={() => window.open('/einstellungen/mcp', '_blank', 'noopener,noreferrer')}
                                 className="w-full h-12 rounded-xl text-base font-medium"
                             >
                                 <ShieldAlert className="w-4 h-4 mr-2" />
