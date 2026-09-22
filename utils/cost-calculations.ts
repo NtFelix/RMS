@@ -36,44 +36,73 @@ export function calculateProFlächeDistribution(
     }
   });
 
-  // For each apartment, compute the union of occupied days across all co-tenants.
-  // This caps the apartment's contribution to physical size × occupancyRatio (≤ 1),
-  // regardless of how many tenants share it simultaneously or sequentially.
+  // For each apartment, compute the union of occupied days across all co-tenants
+  // and compute each tenant's day-weighted share (splitting each active day equally among active co-tenants).
   let totalWeightedArea = 0;
   const apartmentWeightedAreas = new Map<string, number>();
+  const tenantApartmentFractions = new Map<string, number>();
 
   apartmentGroups.forEach((group, wohnungId) => {
-    const occupiedDays = new Set<number>();
-    group.tenants.forEach(tenant => {
+    const tenantActiveDayShares = new Map<string, number>();
+    group.tenants.forEach(t => tenantActiveDayShares.set(t.id, 0));
+
+    let apartmentOccupiedDays = 0;
+
+    const tenantsWithDates = group.tenants.map(tenant => {
       const einStart = tenant.einzug ? parseAsUtc(tenant.einzug) : periodStart;
       const auzEnd = tenant.auszug ? parseAsUtc(tenant.auszug) : periodEnd;
-      const effectiveStart = einStart > periodStart ? einStart : periodStart;
-      const effectiveEnd = auzEnd < periodEnd ? auzEnd : periodEnd;
-      
-      for (let d = new Date(effectiveStart.getTime()); d <= effectiveEnd; d.setUTCDate(d.getUTCDate() + 1)) {
-        occupiedDays.add(Math.round((d.getTime() - periodStart.getTime()) / (1000 * 3600 * 24)));
-      }
+      return {
+        tenant,
+        effectiveStart: einStart > periodStart ? einStart : periodStart,
+        effectiveEnd: auzEnd < periodEnd ? auzEnd : periodEnd
+      };
     });
-    const unionRatio = Math.min(occupiedDays.size / totalDays, 1);
+
+    const current = new Date(periodStart.getTime());
+    while (current <= periodEnd) {
+      const active = tenantsWithDates.filter(
+        t => current >= t.effectiveStart && current <= t.effectiveEnd
+      );
+      if (active.length > 0) {
+        apartmentOccupiedDays++;
+        const shareEach = 1 / active.length;
+        active.forEach(t => {
+          tenantActiveDayShares.set(
+            t.tenant.id,
+            (tenantActiveDayShares.get(t.tenant.id) || 0) + shareEach
+          );
+        });
+      }
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    const unionRatio = Math.min(apartmentOccupiedDays / totalDays, 1);
     const weightedArea = group.area * unionRatio;
     totalWeightedArea += weightedArea;
     apartmentWeightedAreas.set(wohnungId, weightedArea);
+
+    // Fraction of the apartment's share that belongs to each tenant
+    group.tenants.forEach(tenant => {
+      const dayShare = tenantActiveDayShares.get(tenant.id) || 0;
+      const fraction = apartmentOccupiedDays > 0 ? dayShare / apartmentOccupiedDays : 0;
+      tenantApartmentFractions.set(tenant.id, fraction);
+    });
   });
 
   const denominator = totalHouseArea !== undefined && totalHouseArea !== null
     ? (totalHouseArea > 0 ? totalHouseArea : totalWeightedArea)
     : totalWeightedArea;
 
-  // Distribute the total cost to each apartment, then split equally among co-tenants.
+  // Distribute the total cost to each apartment, then allocate by tenant's active day share.
   tenants.forEach(tenant => {
     const wohnungId = tenant.wohnung_id || tenant.id;
-    const group = apartmentGroups.get(wohnungId)!;
     const aptWeightedArea = apartmentWeightedAreas.get(wohnungId) || 0;
     const aptShare = denominator > 0 ? (aptWeightedArea / denominator) * totalCost : 0;
+    const tenantFraction = tenantApartmentFractions.get(tenant.id) || 0;
     const tenantOccupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
     distribution[tenant.id] = {
-      amount: aptShare / group.tenants.length,
+      amount: aptShare * tenantFraction,
       occupancyDays: tenantOccupancy.occupancyDays,
       totalDays
     };

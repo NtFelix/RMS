@@ -365,9 +365,14 @@ export function AbrechnungModal({
     return (tenant: Mieter, _pricePerCubicMeter: number): TenantCostDetails => {
       const prepaymentMode = (nebenkostenItem as any).vorauszahlungs_art === 'ist' ? 'actual' : 'scheduled';
 
+      const effectiveNebenkostenItem: Nebenkosten = {
+        ...nebenkostenItem,
+        gesamtFlaeche: totalHouseArea
+      };
+
       const result = calculateCompleteTenantResult(
         tenant,
-        nebenkostenItem!,
+        effectiveNebenkostenItem,
         safeTenants,
         meters,
         readings,
@@ -976,11 +981,14 @@ export function AbrechnungModal({
 
           {/* Export Button with Dropdown - Matches Create New button style */}
           <ExportAbrechnungDropdown
-            onPdfClick={() => handleExportOperation(
-              () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
-              "Fehler bei PDF-Generierung",
-              "Ein Fehler ist beim Erstellen der PDF aufgetreten."
-            )}
+            onPdfClick={() => {
+              const exportNkItem: Nebenkosten = { ...nebenkostenItem!, gesamtFlaeche: totalHouseArea };
+              return handleExportOperation(
+                () => generateSettlementPDF(calculatedTenantData, exportNkItem, ownerName, ownerAddress),
+                "Fehler bei PDF-Generierung",
+                "Ein Fehler ist beim Erstellen der PDF aufgetreten."
+              );
+            }}
             onZipClick={async () => {
               try {
                 if (!calculateCostsForTenant) {
@@ -1000,8 +1008,9 @@ export function AbrechnungModal({
                   calculateCostsForTenant(tenant, pricePerCubicMeter)
                 );
 
+                const exportNkItem: Nebenkosten = { ...nebenkostenItem!, gesamtFlaeche: totalHouseArea };
                 await handleExportOperation(
-                  () => generateSettlementZIP(tenantCosts, nebenkostenItem!, ownerName, ownerAddress),
+                  () => generateSettlementZIP(tenantCosts, exportNkItem, ownerName, ownerAddress),
                   "Fehler bei ZIP-Generierung",
                   "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
                 );

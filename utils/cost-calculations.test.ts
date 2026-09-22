@@ -99,21 +99,88 @@ describe('cost-calculations', () => {
     });
 
     it('handles sequential tenants in the same apartment without overbilling', () => {
-      const t1 = { id: 't1', wohnung_id: 'w1', Wohnungen: { groesse: 100 } } as any;
-      const t2 = { id: 't2', wohnung_id: 'w1', Wohnungen: { groesse: 100 } } as any;
+      const t1 = { id: 't1', wohnung_id: 'w1', einzug: '2023-01-01', auszug: '2023-06-30', Wohnungen: { groesse: 100 } } as any;
+      const t2 = { id: 't2', wohnung_id: 'w1', einzug: '2023-07-01', auszug: '2023-12-31', Wohnungen: { groesse: 100 } } as any;
 
       (calculateTenantOccupancy as jest.Mock)
         .mockImplementation((t) => {
-          if (t.id === 't1') return { occupancyRatio: 0.5, effectivePeriodStart: '2023-01-01', effectivePeriodEnd: '2023-06-30' };
-          if (t.id === 't2') return { occupancyRatio: 0.5, effectivePeriodStart: '2023-07-01', effectivePeriodEnd: '2023-12-31' };
+          if (t.id === 't1') return { occupancyDays: 181, occupancyRatio: 181 / 365, effectivePeriodStart: '2023-01-01', effectivePeriodEnd: '2023-06-30' };
+          if (t.id === 't2') return { occupancyDays: 184, occupancyRatio: 184 / 365, effectivePeriodStart: '2023-07-01', effectivePeriodEnd: '2023-12-31' };
         });
 
-      const result = calculateProFlächeDistribution([t1, t2], 1000, startdatum, enddatum);
+      const result = calculateProFlächeDistribution([t1, t2], 1000, '2023-01-01', '2023-12-31', 100);
 
-      // Union occupancy is 100%. Apartment cost is 1000. 
-      // t1 and t2 each have 0.5 ratio, they should get proportional shares of the apartment's cost.
-      expect(result['t1'].amount).toBe(500);
-      expect(result['t2'].amount).toBe(500);
+      // Union occupancy is 365 days. 
+      // t1 has 181 days, t2 has 184 days.
+      expect(result['t1'].amount).toBeCloseTo((181 / 365) * 1000, 2);
+      expect(result['t2'].amount).toBeCloseTo((184 / 365) * 1000, 2);
+      expect(result['t1'].amount + result['t2'].amount).toBeCloseTo(1000, 2);
+    });
+
+    it('distributes costs proportionally for unequal sequential stays (e.g. 212 days vs 153 days)', () => {
+      const t1 = { id: 'ibald', wohnung_id: 'apt1', einzug: '2025-01-01', auszug: '2025-07-31', Wohnungen: { groesse: 34.5 } } as any;
+      const t2 = { id: 'scheffler', wohnung_id: 'apt1', einzug: '2025-08-01', Wohnungen: { groesse: 34.5 } } as any;
+
+      (calculateTenantOccupancy as jest.Mock)
+        .mockImplementation((t) => {
+          if (t.id === 'ibald') return { occupancyDays: 212, occupancyRatio: 212 / 365 };
+          if (t.id === 'scheffler') return { occupancyDays: 153, occupancyRatio: 153 / 365 };
+        });
+
+      // Total house area = 2313, total cost = 30551.87
+      const result = calculateProFlächeDistribution([t1, t2], 30551.87, '2025-01-01', '2025-12-31', 2313);
+
+      const aptTotal = (34.5 / 2313) * 30551.87; // 455.7023
+      expect(result['ibald'].amount).toBeCloseTo(aptTotal * (212 / 365), 2); // 264.68
+      expect(result['scheffler'].amount).toBeCloseTo(aptTotal * (153 / 365), 2); // 191.02
+      expect(result['ibald'].amount + result['scheffler'].amount).toBeCloseTo(aptTotal, 2);
+    });
+
+    it('accurately divides costs for shared apartments (WGs) with staggered move-in dates', () => {
+      // Apartment size 125 sqm, house area 2313 sqm, total cost 30551.87
+      // Kastenhuber moves in on 2025-04-15 (16 days solo)
+      // Summer & Hofschild move in on 2025-05-01 (245 days all 3 together)
+      const t1 = { id: 'kasten', wohnung_id: 'apt_wg', einzug: '2025-04-15', auszug: '2025-12-31', Wohnungen: { groesse: 125 } } as any;
+      const t2 = { id: 'summer', wohnung_id: 'apt_wg', einzug: '2025-05-01', auszug: '2025-12-31', Wohnungen: { groesse: 125 } } as any;
+      const t3 = { id: 'hofschild', wohnung_id: 'apt_wg', einzug: '2025-05-01', auszug: '2025-12-31', Wohnungen: { groesse: 125 } } as any;
+
+      (calculateTenantOccupancy as jest.Mock)
+        .mockImplementation((t) => {
+          if (t.id === 'kasten') return { occupancyDays: 261, occupancyRatio: 261 / 365 };
+          return { occupancyDays: 245, occupancyRatio: 245 / 365 };
+        });
+
+      const result = calculateProFlächeDistribution([t1, t2, t3], 30551.87, '2025-01-01', '2025-12-31', 2313);
+
+      const dailyRate = (125 / 2313) * (30551.87 / 365); // 4.52356 €/day
+      const solo16Cost = 16 * dailyRate; // 72.38 €
+      const wg245Each = (245 * dailyRate) / 3; // 369.42 €
+
+      expect(result['kasten'].amount).toBeCloseTo(solo16Cost + wg245Each, 2); // 441.80 €
+      expect(result['summer'].amount).toBeCloseTo(wg245Each, 2); // 369.42 €
+      expect(result['hofschild'].amount).toBeCloseTo(wg245Each, 2); // 369.42 €
+      expect(result['summer'].amount).toBeCloseTo(result['hofschild'].amount, 2);
+    });
+
+    it('correctly handles intermediate vacancy between sequential tenants', () => {
+      // 36 sqm apartment, 2313 sqm house, 30551.87 € cost
+      // Tenant 1 leaves May 15 (135 days)
+      // 16 days vacant (May 16 - May 31)
+      // Tenant 2 moves in June 1 (214 days)
+      const t1 = { id: 'kasten_sf', wohnung_id: 'apt_36', einzug: '2021-01-01', auszug: '2025-05-15', Wohnungen: { groesse: 36 } } as any;
+      const t2 = { id: 'kalvelage', wohnung_id: 'apt_36', einzug: '2025-06-01', auszug: '2025-12-31', Wohnungen: { groesse: 36 } } as any;
+
+      (calculateTenantOccupancy as jest.Mock)
+        .mockImplementation((t) => {
+          if (t.id === 'kasten_sf') return { occupancyDays: 135, occupancyRatio: 135 / 365 };
+          return { occupancyDays: 214, occupancyRatio: 214 / 365 };
+        });
+
+      const result = calculateProFlächeDistribution([t1, t2], 30551.87, '2025-01-01', '2025-12-31', 2313);
+
+      const dailyRate = (36 / 2313) * (30551.87 / 365); // 1.30278 €/day
+      expect(result['kasten_sf'].amount).toBeCloseTo(135 * dailyRate, 2); // 175.88 €
+      expect(result['kalvelage'].amount).toBeCloseTo(214 * dailyRate, 2); // 278.80 €
     });
   });
 
