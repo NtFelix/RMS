@@ -2500,7 +2500,8 @@ export async function createAbrechnungCalculationAction(
           meters,
           readings,
           actualPayments,
-          effectivePrepaymentMode
+          effectivePrepaymentMode,
+          rechnungen
         );
 
         tenantCalculations.push(tenantCalculation);
@@ -2770,7 +2771,8 @@ export async function createAbrechnungCalculationOptimizedAction(
           wasserzaehler_meters as any[], // meters from RPC
           wasserzaehler_readings as any[], // readings from RPC
           actualPayments,
-          effectivePrepaymentMode
+          effectivePrepaymentMode,
+          rechnungen
         );
 
         tenantCalculations.push(tenantCalculation);

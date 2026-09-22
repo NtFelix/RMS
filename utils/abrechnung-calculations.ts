@@ -152,7 +152,12 @@ export function calculateTenantCosts(
           const matching = rechnungen?.find(
             r => r.name === costName && r.mieter_id === tenant.id
           );
-          tenantShare = matching?.betrag ?? totalCostForItem;
+          const fullAmount = matching?.betrag ?? totalCostForItem;
+          const rawRatio = occupancy.daysInPeriod > 0
+            ? occupancy.daysOccupied / occupancy.daysInPeriod
+            : (occupancy.percentage / 100);
+          const occupancyRatio = Math.min(Math.max(rawRatio, 0), 1);
+          tenantShare = fullAmount * occupancyRatio;
           distributionBasis = '-';
           break;
         }
@@ -561,7 +566,8 @@ export function calculateAbrechnungSummary(
   meters: Zaehler[],
   readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
-  prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
+  prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
+  rechnungen?: Rechnung[]
 ) {
   let totalAbrechnungVolumen = 0;
   let totalVorauszahlungen = 0;
@@ -576,7 +582,8 @@ export function calculateAbrechnungSummary(
       meters,
       readings,
       actualPayments,
-      prepaymentMode
+      prepaymentMode,
+      rechnungen
     );
 
     totalAbrechnungVolumen += result.totalCosts;

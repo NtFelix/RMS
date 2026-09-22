@@ -138,6 +138,61 @@ describe('abrechnung-calculations', () => {
       expect(result.costItems[1].distributionBasis).toBe('-');
     });
 
+    it('splits nach Rechnung amount proportionally when tenant stays less than a year (e.g. 50% of period)', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Special Invoice'],
+        betrag: [0],
+        berechnungsart: ['nach Rechnung'],
+        startdatum,
+        enddatum
+      } as any;
+
+      const rechnungen = [
+        { name: 'Special Invoice', mieter_id: 't1', betrag: 50 }
+      ] as any[];
+
+      const partialOccupancy = {
+        percentage: 50,
+        daysOccupied: 182.5,
+        daysInPeriod: 365,
+        effectivePeriodStart: '2023-01-01',
+        effectivePeriodEnd: '2023-07-02'
+      };
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, partialOccupancy as any, rechnungen);
+
+      expect(result.costItems[0].calculationType).toBe('nach Rechnung');
+      expect(result.costItems[0].costName).toBe('Special Invoice');
+      // 50 Euro invoice * 50% occupancy = 25 Euro
+      expect(result.costItems[0].tenantShare).toBe(25);
+      expect(result.totalCost).toBe(25);
+    });
+
+    it('splits nach Rechnung fallback amount from betrag[] when tenant has partial occupancy and no rechnungen row', () => {
+      const nebenkosten = {
+        nebenkostenart: ['DirectFee'],
+        betrag: [50],
+        berechnungsart: ['nach Rechnung'],
+        startdatum,
+        enddatum
+      } as any;
+
+      const partialOccupancy = {
+        percentage: 50,
+        daysOccupied: 180,
+        daysInPeriod: 360,
+        effectivePeriodStart: '2023-01-01',
+        effectivePeriodEnd: '2023-06-30'
+      };
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, partialOccupancy as any, []);
+
+      expect(result.costItems[0].calculationType).toBe('nach Rechnung');
+      // Fallback 50 Euro * 50% = 25 Euro
+      expect(result.costItems[0].tenantShare).toBe(25);
+      expect(result.totalCost).toBe(25);
+    });
+
     it('uses nebenkosten.gesamtFlaeche as canonical house area for verteiler', () => {
       const nebenkosten = {
         nebenkostenart: ['General'],
