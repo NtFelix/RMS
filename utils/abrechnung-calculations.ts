@@ -10,7 +10,7 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
-import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
+import { calculateTenantOccupancy, TenantOccupancy, formatLocalDateToIso, getMonthDateRange, germanToIsoDate } from "./date-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { parseISO } from "date-fns";
 import {
@@ -62,8 +62,8 @@ export function calculateOccupancyPercentage(
     daysInPeriod: totalDays,
     moveInDate: tenant.einzug || undefined,
     moveOutDate: tenant.auszug || undefined,
-    effectivePeriodStart: effectiveStart.toISOString().split('T')[0],
-    effectivePeriodEnd: effectiveEnd.toISOString().split('T')[0]
+    effectivePeriodStart: formatLocalDateToIso(effectiveStart),
+    effectivePeriodEnd: formatLocalDateToIso(effectiveEnd)
   };
 }
 
@@ -278,19 +278,32 @@ export function calculatePrepayments(
   let missingScheduleMonths = 0;
 
   // Generate monthly breakdown
-  const startDate = new Date(startdatum);
-  const endDate = new Date(enddatum);
+  const startIso = germanToIsoDate(startdatum) || startdatum;
+  const endIso = germanToIsoDate(enddatum) || enddatum;
 
-  const currentDate = parseISO(startdatum);
-  while (currentDate <= endDate) {
-    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+  const [startYear, startMonth] = startIso.split('-').map(Number);
+  const [endYear, endMonth] = endIso.split('-').map(Number);
+
+  if (!startYear || !startMonth || !endYear || !endMonth || isNaN(startYear) || isNaN(startMonth) || isNaN(endYear) || isNaN(endMonth)) {
+    return {
+      monthlyPayments: [],
+      totalPrepayments: 0,
+      averageMonthlyPayment: 0
+    };
+  }
+
+  let currentYear = startYear;
+  let currentMonth = startMonth;
+
+  while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+    const { startIso: monthStartIso, endIso: monthEndIso } = getMonthDateRange(currentYear, currentMonth);
+    const monthStr = String(currentMonth).padStart(2, '0');
 
     // Calculate occupancy for this month
     const monthOccupancy = calculateTenantOccupancy(
       tenant,
-      monthStart.toISOString().split('T')[0],
-      monthEnd.toISOString().split('T')[0]
+      monthStartIso,
+      monthEndIso
     );
 
     // Use tenant's actual Nebenkosten prepayment data
@@ -299,8 +312,9 @@ export function calculatePrepayments(
     if (mode === 'actual' && actualPayments) {
       const monthPayments = actualPayments.filter(p => {
         if (!p.datum) return false;
-        const pDate = parseISO(p.datum);
-        return pDate >= monthStart && pDate <= monthEnd;
+        const pDate = p.datum.includes('T') ? p.datum.split('T')[0] : p.datum;
+        const pIso = germanToIsoDate(pDate) || pDate;
+        return pIso >= monthStartIso && pIso <= monthEndIso;
       });
       monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
     } else if (mode === 'scheduled') {
@@ -308,8 +322,16 @@ export function calculatePrepayments(
         // Find applicable prepayment for this month.
         // We look for the latest prepayment entry that is valid before or during this month.
         const applicableNK = [...(tenant.nebenkosten || [])]
-          .filter(n => n.date && parseISO(n.date) <= monthEnd)
-          .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())[0];
+          .filter(n => {
+            if (!n.date) return false;
+            const nIso = germanToIsoDate(n.date) || n.date;
+            return nIso.slice(0, 10) <= monthEndIso;
+          })
+          .sort((a, b) => {
+            const aIso = (germanToIsoDate(a.date) || a.date).slice(0, 10);
+            const bIso = (germanToIsoDate(b.date) || b.date).slice(0, 10);
+            return bIso.localeCompare(aIso);
+          })[0];
 
         if (applicableNK) {
           monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
@@ -324,7 +346,7 @@ export function calculatePrepayments(
     }
 
     monthlyPayments.push({
-      month: `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`,
+      month: `${currentYear}-${monthStr}`,
       amount: monthlyAmount,
       isActiveMonth: monthOccupancy.occupancyDays > 0,
       occupancyPercentage: monthOccupancy.occupancyRatio * 100
@@ -333,7 +355,11 @@ export function calculatePrepayments(
     totalPrepayments += monthlyAmount;
 
     // Move to next month
-    currentDate.setMonth(currentDate.getMonth() + 1);
+    currentMonth++;
+    if (currentMonth > 12) {
+      currentMonth = 1;
+      currentYear++;
+    }
   }
 
   const averageMonthlyPayment = monthlyPayments.length > 0

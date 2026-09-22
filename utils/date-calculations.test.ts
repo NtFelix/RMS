@@ -9,6 +9,8 @@ import {
   formatPeriodDuration,
   getTodayISOString,
   isTenantActive,
+  formatLocalDateToIso,
+  getMonthDateRange,
 } from './date-calculations';
 
 describe('Date Calculations Utilities', () => {
@@ -252,4 +254,43 @@ describe('Date Calculations Utilities', () => {
       expect(isTenantActive('invalid-date', '2026-08-13')).toBe(false);
     });
   });
+
+  describe('formatLocalDateToIso', () => {
+    it('formats local Date as YYYY-MM-DD without UTC timezone shift', () => {
+      const d = new Date(2025, 7, 1); // August 1st local
+      expect(formatLocalDateToIso(d)).toBe('2025-08-01');
+    });
+
+    it('formats end of month correctly', () => {
+      const d = new Date(2025, 6, 31); // July 31st local
+      expect(formatLocalDateToIso(d)).toBe('2025-07-31');
+    });
+  });
+
+  describe('getMonthDateRange', () => {
+    it('returns correct start and end ISO strings for 31-day month', () => {
+      const range = getMonthDateRange(2025, 8); // August
+      expect(range.startIso).toBe('2025-08-01');
+      expect(range.endIso).toBe('2025-08-31');
+    });
+
+    it('returns correct start and end ISO strings for February in leap year', () => {
+      const range = getMonthDateRange(2024, 2); // Feb 2024 (leap year)
+      expect(range.startIso).toBe('2024-02-01');
+      expect(range.endIso).toBe('2024-02-29');
+    });
+
+    it('returns correct start and end ISO strings for February in non-leap year', () => {
+      const range = getMonthDateRange(2025, 2); // Feb 2025
+      expect(range.startIso).toBe('2025-02-01');
+      expect(range.endIso).toBe('2025-02-28');
+    });
+
+    it('returns correct start and end ISO strings for 30-day month', () => {
+      const range = getMonthDateRange(2025, 4); // April
+      expect(range.startIso).toBe('2025-04-01');
+      expect(range.endIso).toBe('2025-04-30');
+    });
+  });
 });
+

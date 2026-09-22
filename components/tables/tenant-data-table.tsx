@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast"
 import { DashboardTenantContextMenu } from "@/components/dashboard/dashboard-tenant-context-menu"
 import { formatNumber } from "@/utils/format"
 import { PAYMENT_TAGS } from "@/utils/constants"
+import { getMonthDateRange } from "@/utils/date-calculations"
 
 type TenantDataItem = {
   id: string
@@ -62,8 +63,7 @@ export function TenantDataTable() {
     const currentDate = new Date()
     const currentMonth = currentDate.getMonth() + 1
     const currentYear = currentDate.getFullYear()
-    const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-    const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+    const { startIso: startOfMonth, endIso: endOfMonth } = getMonthDateRange(currentYear, currentMonth)
 
     const { data: finanzData, error: finanzError } = await supabase
       .from("Finanzen")
@@ -133,8 +133,7 @@ export function TenantDataTable() {
         const currentDate = new Date()
         const currentMonth = currentDate.getMonth() + 1
         const currentYear = currentDate.getFullYear()
-        const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-        const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+        const { startIso: startOfMonth, endIso: endOfMonth } = getMonthDateRange(currentYear, currentMonth)
 
         const { data: financeEntries, error: selectError } = await supabase
           .from('Finanzen')

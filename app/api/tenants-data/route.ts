@@ -5,6 +5,7 @@ import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
+import { getMonthDateRange } from "@/utils/date-calculations"
 
 interface Tenant {
   id: string
@@ -204,8 +205,7 @@ export async function GET(request: Request) {
     const currentDate = new Date()
     const currentMonth = currentDate.getMonth() + 1
     const currentYear = currentDate.getFullYear()
-    const currentMonthStart = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-    const currentMonthEnd = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+    const { startIso: currentMonthStart, endIso: currentMonthEnd } = getMonthDateRange(currentYear, currentMonth)
 
     const processedTenants = tenantsData.map(tenant => {
       const tenantId = tenant.wohnung_id || tenant.Wohnungen?.id;

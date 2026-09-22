@@ -283,3 +283,25 @@ export function isTenantActive(
   return moveOutIso > todayStr;
 }
 
+/**
+ * Format a local Date object as YYYY-MM-DD string without timezone conversion
+ */
+export function formatLocalDateToIso(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Get the ISO date strings for the start and end of a given month (1-indexed month: 1 = Jan, 12 = Dec)
+ * Avoids UTC timezone conversion bugs.
+ */
+export function getMonthDateRange(year: number, month: number): { startIso: string; endIso: string } {
+  const monthStr = String(month).padStart(2, '0');
+  const lastDay = new Date(year, month, 0).getDate();
+  const lastDayStr = String(lastDay).padStart(2, '0');
+  return {
+    startIso: `${year}-${monthStr}-01`,
+    endIso: `${year}-${monthStr}-${lastDayStr}`
+  };
+}
+
+

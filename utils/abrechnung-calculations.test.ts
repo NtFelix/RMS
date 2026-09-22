@@ -226,6 +226,45 @@ describe('abrechnung-calculations', () => {
       // Not occupied, so no "missing" data — missingScheduleMonths should be 0 or undefined
       expect(result.missingScheduleMonths ?? 0).toBe(0);
     });
+
+    it('does not charge prepayment for month after move-out date (e.g. moved out 2025-07-31, august prepayment is 0)', () => {
+      // Use actual implementation of calculateTenantOccupancy
+      const { calculateTenantOccupancy: actualCalculateTenantOccupancy } = jest.requireActual('./date-calculations');
+      (calculateTenantOccupancy as jest.Mock).mockImplementation(actualCalculateTenantOccupancy);
+
+      const tenantIbald = {
+        id: 'ibald-1',
+        name: 'Ibald',
+        einzug: '2024-01-01',
+        auszug: '2025-07-31',
+        nebenkosten: [
+          { date: '2024-01-01', amount: '40' },
+          { date: '2024-08-01', amount: '65' }
+        ]
+      } as any;
+
+      const result = calculatePrepayments(tenantIbald, '2025-01-01', '2025-12-31');
+
+      // July 2025 (month 7) should be fully active with 65 EUR
+      const july = result.monthlyPayments.find(m => m.month === '2025-07');
+      expect(july).toBeDefined();
+      expect(july?.isActiveMonth).toBe(true);
+      expect(july?.amount).toBe(65);
+
+      // August 2025 (month 8) should have 0 amount and NOT be active
+      const august = result.monthlyPayments.find(m => m.month === '2025-08');
+      expect(august).toBeDefined();
+      expect(august?.isActiveMonth).toBe(false);
+      expect(august?.amount).toBe(0);
+
+      // Subsequent months (September - December) should also be inactive with 0
+      const sept = result.monthlyPayments.find(m => m.month === '2025-09');
+      expect(sept?.isActiveMonth).toBe(false);
+      expect(sept?.amount).toBe(0);
+
+      // Total prepayments should be 7 months (Jan - Jul) * 65 = 455
+      expect(result.totalPrepayments).toBe(7 * 65);
+    });
   });
 
   describe('calculatePrepayments — actual mode', () => {

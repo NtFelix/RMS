@@ -5,7 +5,7 @@ import { TenantBentoItem } from '@/types/tenant-payment'
 import { FinanceEntryPayload } from '@/types/finanzen'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
-import { getTodayISOString, isTenantActive } from '@/utils/date-calculations'
+import { getTodayISOString, isTenantActive, getMonthDateRange } from '@/utils/date-calculations'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -19,9 +19,10 @@ export function useTenantPayments() {
         const currentDate = new Date()
         const currentMonth = currentDate.getMonth() + 1
         const currentYear = currentDate.getFullYear()
+        const { startIso, endIso } = getMonthDateRange(currentYear, currentMonth)
         return {
-            start: new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0],
-            end: new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+            start: startIso,
+            end: endIso
         }
     }
 
