@@ -77,6 +77,7 @@ export function calculateTenantCosts(
   occupancyData?: OccupancyCalculation,
   rechnungen?: Rechnung[]
 ): OperatingCostBreakdown {
+  const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
   const tenants = allTenants || [tenant]; // For distribution calculations
 
   const costItems: OperatingCostBreakdown['costItems'] = [];
