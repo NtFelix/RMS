@@ -171,7 +171,8 @@ export function OperatingCostsOverviewModal({
       abrechnungData.meters,
       abrechnungData.readings,
       abrechnungData.actualPayments,
-      mode
+      mode,
+      abrechnungData.rechnungen
     );
   }, [abrechnungData, nebenkosten]);
 
