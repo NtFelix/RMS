@@ -113,7 +113,7 @@ describe('abrechnung-calculations', () => {
     it('handles nach Rechnung type from rechnungen array', () => {
       const nebenkosten = {
         nebenkostenart: ['Special', 'Not Invoiced'],
-        betrag: [0, 0], // placeholder 0 in db
+        betrag: [450, 0], // sum of all tenants' Einzelbeträge
         berechnungsart: ['nach Rechnung', 'nach Rechnung'],
         startdatum,
         enddatum
@@ -131,7 +131,7 @@ describe('abrechnung-calculations', () => {
       expect(result.costItems[0].tenantShare).toBe(150); // Exact invoice amount
       expect(result.costItems[0].distributionBasis).toBe('-');
 
-      // For 'Not Invoiced' which doesn't match this tenant, it should use the 0 from betrag[]
+      // For 'Not Invoiced' there is no row for this tenant, so the share is 0
       expect(result.costItems[1].calculationType).toBe('nach Rechnung');
       expect(result.costItems[1].costName).toBe('Not Invoiced');
       expect(result.costItems[1].tenantShare).toBe(0);
@@ -139,9 +139,14 @@ describe('abrechnung-calculations', () => {
     });
 
     it('splits nach Rechnung amount proportionally when tenant stays less than a year (e.g. 50% of period)', () => {
+      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+        occupancyRatio: 0.5,
+        occupancyDays: 182,
+        tenantId: 't1'
+      });
       const nebenkosten = {
         nebenkostenart: ['Special Invoice'],
-        betrag: [0],
+        betrag: [50],
         berechnungsart: ['nach Rechnung'],
         startdatum,
         enddatum
@@ -151,15 +156,7 @@ describe('abrechnung-calculations', () => {
         { name: 'Special Invoice', mieter_id: 't1', betrag: 50 }
       ] as any[];
 
-      const partialOccupancy = {
-        percentage: 50,
-        daysOccupied: 182.5,
-        daysInPeriod: 365,
-        effectivePeriodStart: '2023-01-01',
-        effectivePeriodEnd: '2023-07-02'
-      };
-
-      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, partialOccupancy as any, rechnungen);
+      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, undefined, rechnungen);
 
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
       expect(result.costItems[0].costName).toBe('Special Invoice');
@@ -168,29 +165,71 @@ describe('abrechnung-calculations', () => {
       expect(result.totalCost).toBe(25);
     });
 
-    it('splits nach Rechnung fallback amount from betrag[] when tenant has partial occupancy and no rechnungen row', () => {
+    it('keeps the full nach Rechnung amount for a full-period tenant even if day counts differ (DST)', () => {
+      // occupancyDays and daysInPeriod can differ by one day across DST boundaries
+      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+        occupancyRatio: 1,
+        occupancyDays: 364,
+        tenantId: 't1'
+      });
       const nebenkosten = {
-        nebenkostenart: ['DirectFee'],
-        betrag: [50],
+        nebenkostenart: ['Special Invoice'],
+        betrag: [100],
         berechnungsart: ['nach Rechnung'],
         startdatum,
         enddatum
       } as any;
 
-      const partialOccupancy = {
-        percentage: 50,
-        daysOccupied: 180,
-        daysInPeriod: 360,
-        effectivePeriodStart: '2023-01-01',
-        effectivePeriodEnd: '2023-06-30'
-      };
+      const rechnungen = [
+        { name: 'Special Invoice', mieter_id: 't1', betrag: 100 }
+      ] as any[];
 
-      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, partialOccupancy as any, []);
+      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, undefined, rechnungen);
+
+      expect(result.costItems[0].tenantShare).toBe(100);
+    });
+
+    it('keeps the full nach Rechnung amount for a tenant without Einzugsdatum', () => {
+      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+        occupancyRatio: 0,
+        occupancyDays: 0,
+        tenantId: 't1'
+      });
+      const nebenkosten = {
+        nebenkostenart: ['Special Invoice'],
+        betrag: [80],
+        berechnungsart: ['nach Rechnung'],
+        startdatum,
+        enddatum
+      } as any;
+
+      const rechnungen = [
+        { name: 'Special Invoice', mieter_id: 't1', betrag: 80 }
+      ] as any[];
+
+      const result = calculateTenantCosts({ ...mockTenant, einzug: null }, nebenkosten, undefined, undefined, rechnungen);
+
+      expect(result.costItems[0].tenantShare).toBe(80);
+    });
+
+    it('does not fall back to the betrag[] sum when the tenant has no rechnungen row', () => {
+      const nebenkosten = {
+        nebenkostenart: ['DirectFee'],
+        betrag: [150], // sum of all tenants' Einzelbeträge
+        berechnungsart: ['nach Rechnung'],
+        startdatum,
+        enddatum
+      } as any;
+
+      const rechnungen = [
+        { name: 'DirectFee', mieter_id: 'other', betrag: 150 }
+      ] as any[];
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten, undefined, undefined, rechnungen);
 
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
-      // Fallback 50 Euro * 50% = 25 Euro
-      expect(result.costItems[0].tenantShare).toBe(25);
-      expect(result.totalCost).toBe(25);
+      expect(result.costItems[0].tenantShare).toBe(0);
+      expect(result.totalCost).toBe(0);
     });
 
     it('uses nebenkosten.gesamtFlaeche as canonical house area for verteiler', () => {
@@ -446,6 +485,36 @@ describe('abrechnung-calculations', () => {
 
       // Only payments for w1 should be counted: 100 + 50 = 150
       expect(result.prepayments.totalPrepayments).toBe(150);
+    });
+  });
+
+  describe('calculateCompleteTenantResult — nach Rechnung', () => {
+    it('uses the tenant\'s rechnungen row instead of the betrag[] sum', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Special'],
+        betrag: [450], // sum of all tenants' Einzelbeträge
+        berechnungsart: ['nach Rechnung'],
+        startdatum,
+        enddatum
+      } as any;
+
+      const rechnungen = [
+        { name: 'Special', mieter_id: 't1', betrag: 150 },
+        { name: 'Special', mieter_id: 'other', betrag: 300 }
+      ] as any[];
+
+      const result = calculateCompleteTenantResult(
+        mockTenant,
+        nebenkosten,
+        [mockTenant],
+        [],
+        [],
+        undefined,
+        'scheduled',
+        rechnungen
+      );
+
+      expect(result.operatingCosts.costItems[0].tenantShare).toBe(150);
     });
   });
 

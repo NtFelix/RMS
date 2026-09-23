@@ -17,7 +17,6 @@ import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
-  calculateNachRechnungDistribution,
   calculateWaterCostDistribution as calculateWaterDistribution
 } from "./cost-calculations";
 import {
@@ -148,15 +147,18 @@ export function calculateTenantCosts(
 
         case 'nach Rechnung': {
           // Look up the tenant's specific invoice from Rechnungen by cost name + mieter_id.
-          // The betrag[] in Nebenkosten is a placeholder 0; the real per-tenant amount lives in Rechnungen.
+          // betrag[] in Nebenkosten holds the SUM of all tenants' amounts, so it must not be
+          // used as a per-tenant fallback: a tenant without a Rechnungen row owes nothing.
           const matching = rechnungen?.find(
             r => r.name === costName && r.mieter_id === tenant.id
           );
-          const fullAmount = matching?.betrag ?? totalCostForItem;
-          const rawRatio = occupancy.daysInPeriod > 0
-            ? occupancy.daysOccupied / occupancy.daysInPeriod
-            : (occupancy.percentage / 100);
-          const occupancyRatio = Math.min(Math.max(rawRatio, 0), 1);
+          const fullAmount = matching?.betrag ?? 0;
+          // Use occupancy.percentage (same basis as the other distributions) instead of
+          // daysOccupied / daysInPeriod, whose day counts differ across DST boundaries.
+          // Tenants without an Einzugsdatum have 0 occupancy; keep their entered amount in full.
+          const occupancyRatio = tenant.einzug
+            ? Math.min(Math.max(occupancy.percentage / 100, 0), 1)
+            : 1;
           tenantShare = fullAmount * occupancyRatio;
           distributionBasis = '-';
           break;
