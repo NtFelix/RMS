@@ -4,8 +4,34 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Phone, CheckCircle2, ArrowLeft, Apple, Smartphone } from 'lucide-react';
+import { Phone, CheckCircle2, ArrowLeft, Apple } from 'lucide-react';
 import Link from 'next/link';
+
+// Rendered inline (mirrors lucide-react's `Smartphone` glyph) rather than imported
+// from the lucide-react barrel. The barrel import is rewritten by `optimizePackageImports`
+// into a hoisted per-icon binding, which Turbopack can co-bundle into a shared SSR chunk
+// for the `'use client'` landing pages where the binding is undefined — throwing
+// `ReferenceError: Smartphone is not defined` during SSR. Inlining removes that binding.
+function SmartphoneIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+      <path d="M12 18h.01" />
+    </svg>
+  );
+}
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlagRedirect } from '@/hooks/use-feature-flag-redirect';
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/constants';
@@ -113,7 +139,7 @@ export default function MobileAppWaitlistPage() {
                 <p className="text-sm text-muted-foreground">Verfügbar für:</p>
                 <div className="flex items-center space-x-3">
                   <Apple className="w-6 h-6 text-muted-foreground" />
-                  <Smartphone className="w-6 h-6 text-muted-foreground" />
+                  <SmartphoneIcon className="w-6 h-6 text-muted-foreground" />
                 </div>
               </div>
             </div>
