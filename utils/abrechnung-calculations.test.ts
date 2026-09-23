@@ -31,7 +31,8 @@ jest.mock('./cost-calculations', () => ({
   calculateProFlächeDistribution: jest.fn(),
   calculateProMieterDistribution: jest.fn(),
   calculateProWohnungDistribution: jest.fn(),
-  calculateMeterCostDistribution: jest.fn()
+  calculateMeterCostDistribution: jest.fn(),
+  sumUniqueApartmentAreas: jest.requireActual('./cost-calculations').sumUniqueApartmentAreas
 }));
 
 jest.mock('./water-cost-calculations', () => ({
@@ -210,8 +211,34 @@ describe('abrechnung-calculations', () => {
       // totalHouseArea used for verteiler should be 2313 m²
       expect(result.costItems[0].distributionBasis).toBe('2313 m²');
 
-      // pricePerSqm should use tenantShare / (tenantArea * occupancyRatio) = 100 / (50 * 1.0) = 2
-      expect(result.costItems[0].pricePerSqm).toBe(2);
+      // pricePerSqm is the house-wide rate for this cost item: totalCostForItem / totalHouseArea
+      // = 1000 / 2313 = 0.4323 (rounded to 4 decimals)
+      expect(result.costItems[0].pricePerSqm).toBeCloseTo(1000 / 2313, 4);
+    });
+
+    it('shows the same pricePerSqm for a WG tenant as for a solo tenant in an identical apartment', () => {
+      // A WG tenant's tenantShare is already divided among co-tenants by calculateProFlächeDistribution.
+      // pricePerSqm must NOT be re-derived from that reduced share — it should reflect the
+      // undivided, house-wide rate for this cost item, so every tenant in the house sees the
+      // same €/m² for the same cost item regardless of how many people share their apartment.
+      const nebenkosten = {
+        nebenkostenart: ['Heizung'],
+        betrag: [1000],
+        berechnungsart: ['pro Fläche'],
+        startdatum,
+        enddatum,
+        gesamtFlaeche: 2313
+      } as any;
+
+      const wgTenant = { ...mockTenant, id: 'wg1', Wohnungen: { groesse: 125, name: 'WG Apt' } };
+      // Simulate a WG co-tenant's share: only 1/3 of the apartment's cost share, due to 2 co-tenants.
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ wg1: { amount: 369.42 } });
+
+      const result = calculateTenantCosts(wgTenant, nebenkosten, [wgTenant]);
+
+      // Same rate as the solo-tenant test above: totalCostForItem / totalHouseArea = 1000 / 2313,
+      // independent of the tenant's own area, occupancy, or co-tenant count.
+      expect(result.costItems[0].pricePerSqm).toBeCloseTo(1000 / 2313, 4);
     });
   });
 
