@@ -316,8 +316,8 @@ export function calculatePrepayments(
     } else if (mode === 'scheduled') {
       if (occupancyDays > 0) {
         // Find applicable prepayment for this month.
-        // We look for the latest prepayment entry that is valid before or during this month.
-        const applicableNK = nebenkostenSchedule.find(n => n.iso <= monthEndIso);
+        // We look for the latest prepayment entry that is valid before or during the billed part of this month.
+        const applicableNK = nebenkostenSchedule.find(n => n.iso <= rangeEndIso);
 
         if (applicableNK) {
           monthlyAmount = (Number(applicableNK.amount) || 0) * occupancyRatio;

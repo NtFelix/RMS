@@ -290,6 +290,23 @@ describe('abrechnung-calculations', () => {
         expect(result.averageMonthlyPayment).toBeCloseTo(62);
       });
 
+      it('ignores schedule entries dated after the billing period end in a partial last month', () => {
+        const tenant = {
+          id: 't-late',
+          einzug: '2024-01-01',
+          auszug: null,
+          nebenkosten: [
+            { date: '2024-01-01', amount: '100' },
+            { date: '2024-12-20', amount: '200' } // starts after the period ends on 2024-12-15
+          ]
+        } as any;
+
+        const result = calculatePrepayments(tenant, '2024-01-01', '2024-12-15');
+
+        const december = result.monthlyPayments.find(m => m.month === '2024-12');
+        expect(december?.amount).toBeCloseTo(100 * 15 / 31);
+      });
+
       it('returns no months for a reversed period within one month', () => {
         const tenant = { id: 't-rev', einzug: '2024-01-01', auszug: null, nebenkosten: [{ date: '2024-01-01', amount: '62' }] } as any;
 
