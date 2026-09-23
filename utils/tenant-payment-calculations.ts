@@ -1,5 +1,5 @@
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
-import { getMonthDateRange } from "@/utils/date-calculations"
+import { getCurrentMonthRange, getMonthDateRange } from "@/utils/date-calculations"
 
 export const getLatestNebenkostenAmount = (entries?: any[] | null): number => {
     if (!Array.isArray(entries)) return 0
@@ -63,7 +63,8 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
     const einzugStr = String(tenant.einzug).split('T')[0]
     const [y, m, d] = einzugStr.split('-').map(Number)
     const moveInDate = new Date(y, m - 1, d)
-    const currentDate = new Date()
+    // Current month in the app timezone, so the server (UTC) and browser agree at month boundaries
+    const [currentYear, currentMonth] = getCurrentMonthRange().startIso.split('-').map(Number)
 
     let missedRentMonths = 0
     let missedNebenkostenMonths = 0
@@ -71,12 +72,12 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
     const details: { date: string, type: 'rent' | 'nebenkosten', amount: number }[] = []
 
     // Check each month from move-in to current
-    for (let year = moveInDate.getFullYear(); year <= currentDate.getFullYear(); year++) {
+    for (let year = moveInDate.getFullYear(); year <= currentYear; year++) {
         const startMonth = (year === moveInDate.getFullYear()) ? moveInDate.getMonth() : 0
-        const endMonth = (year === currentDate.getFullYear()) ? currentDate.getMonth() : 11
+        const endMonth = (year === currentYear) ? currentMonth - 1 : 11
 
         for (let month = startMonth; month <= endMonth; month++) {
-            const { startIso: monthStart, endIso: monthEnd } = getMonthDateRange(year, month + 1)
+            const { startIso: monthStart, endIso: monthEnd, daysInMonth } = getMonthDateRange(year, month + 1)
 
             // Calculate expected amounts (pro-rated for move-in month)
             let expectedRent = mieteRaw
@@ -89,7 +90,6 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
                 const moveInDay = moveInDate.getDate()
                 // If moved in after the 1st, pro-rate the amounts
                 if (moveInDay > 1) {
-                    const daysInMonth = Number(monthEnd.slice(8))
                     const occupiedDays = daysInMonth - moveInDay + 1
                     const factor = occupiedDays / daysInMonth
 

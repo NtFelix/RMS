@@ -5,7 +5,7 @@ import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
-import { APP_TIME_ZONE, getCurrentMonthRange } from "@/utils/date-calculations"
+import { getCurrentMonthRange } from "@/utils/date-calculations"
 
 interface Tenant {
   id: string
@@ -202,7 +202,7 @@ export async function GET(request: Request) {
     }
 
     // Calculate current month range for payment status
-    const { startIso: currentMonthStart, endIso: currentMonthEnd } = getCurrentMonthRange(APP_TIME_ZONE)
+    const { startIso: currentMonthStart, endIso: currentMonthEnd } = getCurrentMonthRange()
 
     const processedTenants = tenantsData.map(tenant => {
       const tenantId = tenant.wohnung_id || tenant.Wohnungen?.id;

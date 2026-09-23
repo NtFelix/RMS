@@ -10,7 +10,7 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
-import { calculateTenantOccupancy, TenantOccupancy, getMonthDateRange, toIsoDateOnly } from "./date-calculations";
+import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { parseISO } from "date-fns";
 import {
@@ -44,14 +44,11 @@ export function calculateOccupancyPercentage(
 ): OccupancyCalculation {
   const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
-  // Calculate total days in period
   const startIso = toIsoDateOnly(startdatum);
   const endIso = toIsoDateOnly(enddatum);
-  const startDate = parseISO(startIso);
-  const endDate = parseISO(endIso);
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
+  const totalDays = calculateTotalDays(startIso, endIso);
 
-  // Determine effective period dates (YYYY-MM-DD strings compare chronologically)
+  // Determine effective period dates
   const tenantStartIso = tenant.einzug ? toIsoDateOnly(tenant.einzug) : startIso;
   const tenantEndIso = tenant.auszug ? toIsoDateOnly(tenant.auszug) : endIso;
 
@@ -61,8 +58,8 @@ export function calculateOccupancyPercentage(
     daysInPeriod: totalDays,
     moveInDate: tenant.einzug || undefined,
     moveOutDate: tenant.auszug || undefined,
-    effectivePeriodStart: tenantStartIso > startIso ? tenantStartIso : startIso,
-    effectivePeriodEnd: tenantEndIso < endIso ? tenantEndIso : endIso
+    effectivePeriodStart: maxIsoDate(tenantStartIso, startIso),
+    effectivePeriodEnd: minIsoDate(tenantEndIso, endIso)
   };
 }
 
@@ -298,12 +295,12 @@ export function calculatePrepayments(
 
   const lastMonthIndex = endYear * 12 + endMonth - 1;
   for (let monthIndex = startYear * 12 + startMonth - 1; monthIndex <= lastMonthIndex; monthIndex++) {
-    const { startIso: monthStartIso, endIso: monthEndIso } = getMonthDateRange(Math.floor(monthIndex / 12), monthIndex % 12 + 1);
+    const { startIso: monthStartIso, endIso: monthEndIso, daysInMonth } = getMonthDateRange(Math.floor(monthIndex / 12), monthIndex % 12 + 1);
 
     // Clip the first/last month to the billing period so partial months are prorated, not charged in full
-    const rangeStartIso = periodStartIso > monthStartIso ? periodStartIso : monthStartIso;
-    const rangeEndIso = periodEndIso < monthEndIso ? periodEndIso : monthEndIso;
-    const monthShare = (Number(rangeEndIso.slice(8)) - Number(rangeStartIso.slice(8)) + 1) / Number(monthEndIso.slice(8));
+    const rangeStartIso = maxIsoDate(periodStartIso, monthStartIso);
+    const rangeEndIso = minIsoDate(periodEndIso, monthEndIso);
+    const monthShare = calculateTotalDays(rangeStartIso, rangeEndIso) / daysInMonth;
 
     // Calculate occupancy for the part of this month inside the billing period
     const rangeOccupancy = calculateTenantOccupancy(tenant, rangeStartIso, rangeEndIso);

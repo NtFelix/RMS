@@ -251,10 +251,11 @@ export const calculateTotalDays = (startdatum: string, enddatum: string): number
 };
 
 /**
- * Get today's local date as a YYYY-MM-DD string
+ * Get today's date in the app timezone (or the given IANA timezone) as a YYYY-MM-DD string
  */
-export function getTodayISOString(): string {
-  return formatLocalDateToIso(new Date());
+export function getTodayISOString(timeZone: string = APP_TIME_ZONE): string {
+  const { year, month, day } = getZonedDateParts(timeZone);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 /**
@@ -289,32 +290,41 @@ export function formatLocalDateToIso(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+/** Later of two YYYY-MM-DD strings (they compare chronologically as strings) */
+export const maxIsoDate = (a: string, b: string): string => (a > b ? a : b);
+
+/** Earlier of two YYYY-MM-DD strings (they compare chronologically as strings) */
+export const minIsoDate = (a: string, b: string): string => (a < b ? a : b);
+
 /**
  * Get the ISO date strings for the start and end of a given month (1-indexed month: 1 = Jan, 12 = Dec)
  * Avoids UTC timezone conversion bugs.
  */
-export function getMonthDateRange(year: number, month: number): { startIso: string; endIso: string } {
+export function getMonthDateRange(year: number, month: number): { startIso: string; endIso: string; daysInMonth: number } {
+  const lastDay = new Date(year, month, 0);
   return {
     startIso: formatLocalDateToIso(new Date(year, month - 1, 1)),
-    endIso: formatLocalDateToIso(new Date(year, month, 0))
+    endIso: formatLocalDateToIso(lastDay),
+    daysInMonth: lastDay.getDate()
   };
 }
 
 /**
- * Timezone the business dates (rent months, payment dates) refer to.
- * Use it on the server, where the process timezone is usually UTC.
+ * Timezone the business dates (rent months, payment dates, "today") refer to.
+ * Used as default so server code (process timezone usually UTC) and browsers agree.
  */
 export const APP_TIME_ZONE = 'Europe/Berlin';
 
+function getZonedDateParts(timeZone: string): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date());
+  const part = (type: 'year' | 'month' | 'day') => Number(parts.find(p => p.type === type)?.value);
+  return { year: part('year'), month: part('month'), day: part('day') };
+}
+
 /**
- * Get the ISO date range of the current month, in the local timezone or the given IANA timezone
+ * Get the ISO date range of the current month in the app timezone (or the given IANA timezone)
  */
-export function getCurrentMonthRange(timeZone?: string): { startIso: string; endIso: string } {
-  const now = new Date();
-  if (!timeZone) {
-    return getMonthDateRange(now.getFullYear(), now.getMonth() + 1);
-  }
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric' }).formatToParts(now);
-  const part = (type: 'year' | 'month') => Number(parts.find(p => p.type === type)?.value);
-  return getMonthDateRange(part('year'), part('month'));
+export function getCurrentMonthRange(timeZone: string = APP_TIME_ZONE): { startIso: string; endIso: string; daysInMonth: number } {
+  const { year, month } = getZonedDateParts(timeZone);
+  return getMonthDateRange(year, month);
 }

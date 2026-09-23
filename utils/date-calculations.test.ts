@@ -11,6 +11,7 @@ import {
   isTenantActive,
   formatLocalDateToIso,
   getMonthDateRange,
+  getCurrentMonthRange,
 } from './date-calculations';
 
 describe('Date Calculations Utilities', () => {
@@ -290,6 +291,28 @@ describe('Date Calculations Utilities', () => {
       const range = getMonthDateRange(2025, 4); // April
       expect(range.startIso).toBe('2025-04-01');
       expect(range.endIso).toBe('2025-04-30');
+      expect(range.daysInMonth).toBe(30);
+    });
+  });
+
+  describe('app timezone defaults', () => {
+    beforeEach(() => {
+      // 23:30 UTC on July 31st is already August 1st in Berlin (CEST, UTC+2)
+      jest.useFakeTimers().setSystemTime(new Date('2025-07-31T23:30:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('getTodayISOString uses Europe/Berlin by default, not the process timezone', () => {
+      expect(getTodayISOString()).toBe('2025-08-01');
+      expect(getTodayISOString('UTC')).toBe('2025-07-31');
+    });
+
+    it('getCurrentMonthRange uses Europe/Berlin by default, not the process timezone', () => {
+      expect(getCurrentMonthRange()).toEqual({ startIso: '2025-08-01', endIso: '2025-08-31', daysInMonth: 31 });
+      expect(getCurrentMonthRange('UTC').startIso).toBe('2025-07-01');
     });
   });
 });
