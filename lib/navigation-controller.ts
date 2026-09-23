@@ -282,17 +282,28 @@ async function processNavigationRequest(
         draft.lastError = null // Clear last error on new navigation attempt
     })
 
+    // A navigation timeout is an expected, handled outcome (a slow file loader),
+    // not an exceptional error. We resolve the race with this sentinel instead of
+    // rejecting with `new Error('Navigation timeout')` so the timeout never surfaces
+    // as a thrown exception that pollutes error tracking.
+    const TIMEOUT = Symbol('navigation-timeout')
+
+    // Track the timer and abort listener so we can always tear them down once the
+    // race settles - otherwise every attempt leaks a dangling 15s timer, and these
+    // compound across retries.
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    let onAbort: (() => void) | undefined
+
     try {
-        // Create timeout promise
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error('Navigation timeout')), timeout)
+        // Create timeout promise (resolves with a sentinel - handled, not thrown)
+        const timeoutPromise = new Promise<typeof TIMEOUT>((resolve) => {
+            timeoutId = setTimeout(() => resolve(TIMEOUT), timeout)
         })
 
         // Create abort promise
         const abortPromise = new Promise<never>((_, reject) => {
-            request.abortController.signal.addEventListener('abort', () => {
-                reject(new Error('Navigation cancelled'))
-            })
+            onAbort = () => reject(new Error('Navigation cancelled'))
+            request.abortController.signal.addEventListener('abort', onAbort)
         })
 
         // Import and call the file loader
@@ -308,6 +319,12 @@ async function processNavigationRequest(
         // Execute the request with timeout and abort handling
         const dataPromise = loadFiles(userId, request.path, request.abortController.signal)
         const result = await Promise.race([dataPromise, timeoutPromise, abortPromise])
+
+        // Timeout won the race: treat it as a handled failure and retry/surface it
+        // through the same path as other failures, without ever throwing an Error.
+        if (result === TIMEOUT) {
+            return await handleNavigationFailure(request, timeout, get, set, 'Navigation timeout', startTime)
+        }
 
         const loadTime = performance.now() - startTime
 
@@ -363,65 +380,88 @@ async function processNavigationRequest(
         return navigationResult
 
     } catch (error) {
-        const loadTime = performance.now() - startTime
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        return await handleNavigationFailure(request, timeout, get, set, errorMessage, startTime)
+    } finally {
+        // Always tear down the timeout timer and abort listener once the race has
+        // settled so we never leak a dangling timer (or its listener) past a
+        // successful, cancelled, or failed navigation.
+        if (timeoutId !== undefined) {
+            clearTimeout(timeoutId)
+        }
+        if (onAbort) {
+            request.abortController.signal.removeEventListener('abort', onAbort)
+        }
+    }
+}
 
-        // Check if we should retry
-        if (
-            request.retryCount < request.maxRetries &&
-            !errorMessage.includes('cancelled') &&
-            !request.abortController.signal.aborted
-        ) {
-            const newRetryCount = request.retryCount + 1
-            const retryDelay = get().retryDelay * Math.pow(2, newRetryCount - 1)
+// Shared failure handling: retry with exponential backoff, or surface the final
+// failure. Used for both thrown errors and the (non-throwing) navigation timeout.
+async function handleNavigationFailure(
+    request: NavigationRequest,
+    timeout: number,
+    get: () => NavigationControllerState,
+    set: (updater: (draft: NavigationControllerState) => void) => void,
+    errorMessage: string,
+    startTime: number
+): Promise<NavigationResult> {
+    const loadTime = performance.now() - startTime
 
-            console.warn(`Navigation retry ${newRetryCount}/${request.maxRetries} for ${request.path} in ${retryDelay}ms`)
+    // Check if we should retry
+    if (
+        request.retryCount < request.maxRetries &&
+        !errorMessage.includes('cancelled') &&
+        !request.abortController.signal.aborted
+    ) {
+        const newRetryCount = request.retryCount + 1
+        const retryDelay = get().retryDelay * Math.pow(2, newRetryCount - 1)
 
-            // Create a new request object with updated retryCount instead of mutating
-            const retryRequest: NavigationRequest = {
-                ...request,
-                retryCount: newRetryCount,
-            }
+        console.warn(`Navigation retry ${newRetryCount}/${request.maxRetries} for ${request.path} in ${retryDelay}ms`)
 
-            // Update the pending request in the store
-            set((draft) => {
-                draft.pendingRequests.set(request.path, retryRequest)
-                if (draft.activeRequest?.id === request.id) {
-                    draft.activeRequest = retryRequest
-                }
-            })
-
-            await new Promise(resolve => setTimeout(resolve, retryDelay))
-            return processNavigationRequest(retryRequest, timeout, get, set)
+        // Create a new request object with updated retryCount instead of mutating
+        const retryRequest: NavigationRequest = {
+            ...request,
+            retryCount: newRetryCount,
         }
 
-        // Final failure
-        const navigationResult: NavigationResult = {
-            success: false,
-            error: errorMessage,
-            fromCache: false,
-            loadTime,
-        }
-
+        // Update the pending request in the store
         set((draft) => {
-            draft.navigationState = 'error'
-            draft.activeRequest = null
-            draft.pendingRequests.delete(request.path)
-            draft.errorCount++
-            draft.lastError = errorMessage
+            draft.pendingRequests.set(request.path, retryRequest)
+            if (draft.activeRequest?.id === request.id) {
+                draft.activeRequest = retryRequest
+            }
         })
 
-        // Reset to idle after showing error
-        setTimeout(() => {
-            set((draft) => {
-                if (draft.navigationState === 'error') {
-                    draft.navigationState = 'idle'
-                }
-            })
-        }, 3000)
-
-        return navigationResult
+        await new Promise(resolve => setTimeout(resolve, retryDelay))
+        return processNavigationRequest(retryRequest, timeout, get, set)
     }
+
+    // Final failure
+    const navigationResult: NavigationResult = {
+        success: false,
+        error: errorMessage,
+        fromCache: false,
+        loadTime,
+    }
+
+    set((draft) => {
+        draft.navigationState = 'error'
+        draft.activeRequest = null
+        draft.pendingRequests.delete(request.path)
+        draft.errorCount++
+        draft.lastError = errorMessage
+    })
+
+    // Reset to idle after showing error
+    setTimeout(() => {
+        set((draft) => {
+            if (draft.navigationState === 'error') {
+                draft.navigationState = 'idle'
+            }
+        })
+    }, 3000)
+
+    return navigationResult
 }
 
 // React hook for using navigation controller
