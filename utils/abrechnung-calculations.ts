@@ -77,7 +77,6 @@ export function calculateTenantCosts(
   occupancyData?: OccupancyCalculation,
   rechnungen?: Rechnung[]
 ): OperatingCostBreakdown {
-  const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
   const tenants = allTenants || [tenant]; // For distribution calculations
 
   const costItems: OperatingCostBreakdown['costItems'] = [];
@@ -88,8 +87,6 @@ export function calculateTenantCosts(
   // consistent with what the overview modal shows.
   const totalHouseArea = (nebenkosten as any).gesamtFlaeche
     || tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
-
-  const tenantArea = tenant.Wohnungen?.groesse || 0;
 
   // Process each cost item
   if (nebenkosten.nebenkostenart && nebenkosten.betrag && nebenkosten.berechnungsart) {
@@ -114,11 +111,11 @@ export function calculateTenantCosts(
             totalHouseArea
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
-          // Self-consistent per-tenant rate: pricePerSqm × area × occupancyRatio = tenantShare
-          // This avoids the stacking problem (sequential tenants in same apartment).
-          const rawPrice = (tenantArea > 0 && occupancy.percentage > 0)
-            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
-            : undefined;
+          // House-wide rate for this cost item (total cost ÷ total house area), not derived
+          // back from tenantShare — that would divide the rate itself by the number of
+          // co-tenants sharing an apartment, showing WG tenants a misleadingly low €/m²
+          // even though the underlying rate is the same for every tenant in the house.
+          const rawPrice = totalHouseArea > 0 ? totalCostForItem / totalHouseArea : undefined;
           pricePerSqm = rawPrice !== undefined ? Math.round(rawPrice * 10000) / 10000 : undefined;
           // Verteiler shows physical area vs total house area (for PDF column)
           distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
@@ -168,9 +165,7 @@ export function calculateTenantCosts(
             totalHouseArea
           );
           tenantShare = defaultDistribution[tenant.id]?.amount || 0;
-          const rawDefaultPrice = (tenantArea > 0 && occupancy.percentage > 0)
-            ? tenantShare / (tenantArea * (occupancy.percentage / 100))
-            : undefined;
+          const rawDefaultPrice = totalHouseArea > 0 ? totalCostForItem / totalHouseArea : undefined;
           pricePerSqm = rawDefaultPrice !== undefined ? Math.round(rawDefaultPrice * 10000) / 10000 : undefined;
           distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
       }
