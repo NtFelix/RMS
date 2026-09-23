@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-import { normalizeBerechnungsart } from "@/utils/betriebskosten";
+import { normalizeBerechnungsart, isSameCostName, findDuplicateNachRechnungName } from "@/utils/betriebskosten";
 
 
 import {
@@ -94,7 +94,7 @@ const SuccessStep = ({ data, onClose, onOverview }: { data: OptimizedNebenkosten
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md pt-4">
-        <Button variant="outline" onClick={onClose} className="h-12 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all">
+        <Button variant="outline" onClick={onClose} className="h-12 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
           Schließen
         </Button>
         <Button onClick={onOverview} className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 border-none transition-all active:scale-[0.98]">
@@ -169,7 +169,7 @@ function MeterCostItem({
           placeholder="0,00"
           step="0.01"
           disabled={isSaving || isFormLoading}
-          className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-all font-medium text-lg"
+          className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-[border-color,box-shadow] font-medium text-lg"
         />
         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">€</span>
       </div>
@@ -536,22 +536,18 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           const newRechnungen: Record<string, RechnungEinzel[]> = {};
           const rechnungenFromApi = latest.Rechnungen || [];
 
-          // Create a map of cost item names to their new IDs for easier lookup
-          const costItemMap = new Map<string, string>();
-          items.forEach((item: CostItem) => {
-            costItemMap.set(item.art, item.id);
-          });
-
-          // Process all 'nach Rechnung' items from the latest entry
+          // Process all 'nach Rechnung' items from the latest entry.
+          // items[idx] is the new cost item for latest.nebenkostenart[idx], so map by index
+          // (mapping by name would collapse items that share a name).
           latest.berechnungsart?.forEach((berechnungsart: string, idx: number) => {
             if (berechnungsart === 'nach Rechnung') {
               const costItemArt = latest.nebenkostenart?.[idx];
-              const costItemId = costItemArt ? costItemMap.get(costItemArt) : null;
+              const costItemId = items[idx]?.id;
 
               if (costItemId && costItemArt) {
                 // Filter rechnungen for this cost item by name
                 const itemRechnungen = rechnungenFromApi
-                  .filter((r: RechnungSql) => r.name === costItemArt)
+                  .filter((r: RechnungSql) => isSameCostName(r.name, costItemArt))
                   .map((r: RechnungSql) => ({
                     mieterId: r.mieter_id,
                     betrag: r.betrag !== null ? r.betrag.toString() : ''
@@ -583,17 +579,11 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           // Ensure all 'nach Rechnung' items have entries in rechnungen
           items.forEach((item: CostItem) => {
             if (item.berechnungsart === 'nach Rechnung' && !newRechnungen[item.id] && currentTenants.length > 0) {
-              newRechnungen[item.id] = currentTenants.map(mieter => {
-                // Try to find existing value for this tenant in any cost item
-                const existing = Object.values(currentRechnungen)
-                  .flat()
-                  .find(r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== '');
-
-                return {
-                  mieterId: mieter.id,
-                  betrag: existing ? existing.betrag : ''
-                };
-              });
+              // Don't borrow amounts from other cost items; start empty
+              newRechnungen[item.id] = currentTenants.map(mieter => ({
+                mieterId: mieter.id,
+                betrag: ''
+              }));
             }
           });
 
@@ -816,18 +806,15 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       currentCostItems.forEach(costItem => {
         if (costItem.berechnungsart === 'nach Rechnung') {
           newRechnungenState[costItem.id] = currentTenants.map(tenant => {
-            const dbRechnungForTenant = dbRechnungenSource?.find(
-              dbR => dbR.mieter_id === tenant.id && dbR.name === costItem.art
-            );
             const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
-
-            let betragToSet = '';
-            if (dbRechnungForTenant) {
-              betragToSet = dbRechnungForTenant.betrag.toString();
-            } else if (existingEntryInState) {
-              betragToSet = existingEntryInState.betrag;
+            // Keep what is already in state (it may hold the user's edits); seed from the DB only once
+            if (existingEntryInState) {
+              return { mieterId: tenant.id, betrag: existingEntryInState.betrag };
             }
-            return { mieterId: tenant.id, betrag: betragToSet };
+            const dbRechnungForTenant = dbRechnungenSource?.find(
+              dbR => dbR.mieter_id === tenant.id && isSameCostName(dbR.name, costItem.art)
+            );
+            return { mieterId: tenant.id, betrag: dbRechnungForTenant?.betrag?.toString() ?? '' };
           });
         }
       });
@@ -952,6 +939,14 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       berechnungsartArray.push(berechnungsart);
     }
 
+    // Einzelrechnungen are matched to their cost item by name, so 'nach Rechnung' names must be unique
+    const duplicateName = findDuplicateNachRechnungName(nebenkostenartArray, berechnungsartArray);
+    if (duplicateName) {
+      toast({ title: "Validierungsfehler", description: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.`, variant: "destructive" });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
+    }
+
     // Convert German dates to ISO format for database
     const startIso = germanToIsoDate(startdatum.trim());
     const endIso = germanToIsoDate(enddatum.trim());
@@ -1001,7 +996,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                   nebenkosten_id: nebenkosten_id,
                   mieter_id: rechnungEinzel.mieterId,
                   betrag: parsedAmount,
-                  name: item.art,
+                  name: item.art.trim(),
                 });
               }
             });

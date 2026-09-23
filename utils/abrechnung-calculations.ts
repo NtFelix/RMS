@@ -11,13 +11,13 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
+import { isSameCostName } from "./betriebskosten";
 import { roundToNearest5 } from "@/lib/utils";
 import { parseISO } from "date-fns";
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
-  calculateNachRechnungDistribution,
   calculateWaterCostDistribution as calculateWaterDistribution
 } from "./cost-calculations";
 import {
@@ -139,11 +139,16 @@ export function calculateTenantCosts(
 
         case 'nach Rechnung': {
           // Look up the tenant's specific invoice from Rechnungen by cost name + mieter_id.
-          // The betrag[] in Nebenkosten is a placeholder 0; the real per-tenant amount lives in Rechnungen.
+          // betrag[] in Nebenkosten holds the SUM of all tenants' amounts, so it must not be
+          // used as a per-tenant fallback: a tenant without a Rechnungen row owes nothing.
           const matching = rechnungen?.find(
-            r => r.name === costName && r.mieter_id === tenant.id
+            r => isSameCostName(r.name, costName) && r.mieter_id === tenant.id
           );
-          tenantShare = matching?.betrag ?? totalCostForItem;
+          // Use occupancy.percentage (same basis as the other distributions) instead of
+          // daysOccupied / daysInPeriod, whose day counts differ across DST boundaries.
+          // Tenants without an Einzugsdatum have 0 occupancy; keep their entered amount in full.
+          const occupancyRatio = tenant.einzug ? occupancy.percentage / 100 : 1;
+          tenantShare = (matching?.betrag ?? 0) * occupancyRatio;
           distributionBasis = '-';
           break;
         }
@@ -566,7 +571,8 @@ export function calculateAbrechnungSummary(
   meters: Zaehler[],
   readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
-  prepaymentMode: 'scheduled' | 'actual' = 'scheduled'
+  prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
+  rechnungen?: Rechnung[]
 ) {
   let totalAbrechnungVolumen = 0;
   let totalVorauszahlungen = 0;
@@ -581,7 +587,8 @@ export function calculateAbrechnungSummary(
       meters,
       readings,
       actualPayments,
-      prepaymentMode
+      prepaymentMode,
+      rechnungen
     );
 
     totalAbrechnungVolumen += result.totalCosts;
