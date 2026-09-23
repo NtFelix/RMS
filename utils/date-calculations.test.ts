@@ -12,6 +12,7 @@ import {
   formatLocalDateToIso,
   getMonthDateRange,
   getCurrentMonthRange,
+  isDateInPeriod,
 } from './date-calculations';
 
 describe('Date Calculations Utilities', () => {
@@ -335,6 +336,27 @@ describe('Date Calculations Utilities', () => {
     it('getCurrentMonthRange uses Europe/Berlin by default, not the process timezone', () => {
       expect(getCurrentMonthRange()).toEqual({ startIso: '2025-08-01', endIso: '2025-08-31', daysInMonth: 31 });
       expect(getCurrentMonthRange('UTC').startIso).toBe('2025-07-01');
+    });
+  });
+
+  describe('isDateInPeriod', () => {
+    it('includes both period boundaries', () => {
+      expect(isDateInPeriod('2025-01-01', '2025-01-01', '2025-12-31')).toBe(true);
+      expect(isDateInPeriod('2025-12-31', '2025-01-01', '2025-12-31')).toBe(true);
+      expect(isDateInPeriod('2026-01-01', '2025-01-01', '2025-12-31')).toBe(false);
+    });
+
+    it('keeps a timestamp on the last day inside the period', () => {
+      expect(isDateInPeriod('2025-12-31T10:00:00+00:00', '2025-01-01', '2025-12-31')).toBe(true);
+    });
+
+    it('accepts German dates for the date and the period', () => {
+      expect(isDateInPeriod('15.06.2025', '01.01.2025', '31.12.2025')).toBe(true);
+      expect(isDateInPeriod('2025-06-15', '01.01.2025', '31.12.2025')).toBe(true);
+    });
+
+    it('returns false for a missing date', () => {
+      expect(isDateInPeriod(null, '2025-01-01', '2025-12-31')).toBe(false);
     });
   });
 });

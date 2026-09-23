@@ -81,6 +81,15 @@ describe('wg-cost-calculations', () => {
     });
   });
 
+  describe('isTenantActiveInMonth date formats', () => {
+    it('handles German dates and time components like the other calculations', () => {
+      expect(isTenantActiveInMonth(createMockTenant({ einzug: '15.03.2023', auszug: null }), 2023, 2)).toBe(true);
+      expect(isTenantActiveInMonth(createMockTenant({ einzug: '01.01.2023', auszug: '28.02.2023' }), 2023, 2)).toBe(false);
+      // Move-out on the 1st with a time part still counts for that month
+      expect(isTenantActiveInMonth(createMockTenant({ einzug: '2023-01-01', auszug: '2023-03-01T00:00:00+02:00' }), 2023, 2)).toBe(true);
+    });
+  });
+
   describe('getApartmentOccupants', () => {
     it('should return occupants for a specific apartment', () => {
       const tenants = [

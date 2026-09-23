@@ -9,7 +9,7 @@
  */
 
 import type { Mieter, ZaehlerAblesung, Zaehler } from "@/lib/types";
-import { calculateTenantOccupancy, parseAsUtc } from "./date-calculations";
+import { calculateTenantOccupancy, isDateInPeriod, parseAsUtc } from "./date-calculations";
 
 /**
  * Represents a water reading with associated tenant and period information
@@ -64,29 +64,6 @@ export interface TenantMeterCost {
       share: number; // Percentage
     }>;
   };
-}
-
-/**
- * Calculate if a date falls within a tenant's occupancy period
- */
-function isTenantActiveOnDate(
-  tenant: Mieter,
-  date: string
-): boolean {
-  const checkDate = new Date(date);
-  const moveInDate = tenant.einzug ? new Date(tenant.einzug) : null;
-  const moveOutDate = tenant.auszug ? new Date(tenant.auszug) : null;
-
-  // If no move-in date, tenant is not active
-  if (!moveInDate) return false;
-
-  // Check if date is after move-in
-  if (checkDate < moveInDate) return false;
-
-  // Check if date is before move-out (if move-out exists)
-  if (moveOutDate && checkDate > moveOutDate) return false;
-
-  return true;
 }
 
 /**
@@ -199,17 +176,17 @@ export function calculateTenantMeterConsumption(
 
     aptMeters.forEach(meter => {
       // Find readings for this meter within the period
+      // Compared as YYYY-MM-DD so German dates or a time component on the last day don't drop a reading
       const meterReadings = readings.filter(reading =>
         reading.zaehler_id === meter.id &&
-        reading.ablese_datum >= periodStart &&
-        reading.ablese_datum <= periodEnd
+        isDateInPeriod(reading.ablese_datum, periodStart, periodEnd)
       );
 
       if (meterReadings.length === 0) return;
 
       // Sort readings chronologically
       const sortedReadings = [...meterReadings].sort((a, b) =>
-        new Date(a.ablese_datum).getTime() - new Date(b.ablese_datum).getTime()
+        parseAsUtc(a.ablese_datum).getTime() - parseAsUtc(b.ablese_datum).getTime()
       );
 
       const meterType = meter.zaehler_typ || 'unknown';

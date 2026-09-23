@@ -1,5 +1,5 @@
 import type { Mieter } from "@/lib/types";
-import { parseAsUtc, calculateTotalDays } from "./date-calculations";
+import { parseAsUtc, calculateTotalDays, getMonthDateRange, toIsoDateOnly } from "./date-calculations";
 
 // Get all occupants of an apartment by its ID
 export function getApartmentOccupants(tenants: Mieter[], apartmentId: string | null): Mieter[] {
@@ -19,22 +19,19 @@ export function groupTenantsByApartment(tenants: Mieter[]): Map<string, Mieter[]
   return groups;
 }
 
-// Determine if a tenant is active in the given month of the year (UTC based)
+// Determine if a tenant is active in the given month (0-indexed monthIndex) of the year.
+// Compares YYYY-MM-DD strings, so German dates and time components are handled like elsewhere.
 export function isTenantActiveInMonth(tenant: Mieter, year: number, monthIndex: number): boolean {
-  const monthStart = new Date(Date.UTC(year, monthIndex, 1));
-  const monthEnd = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
+  const { startIso, endIso } = getMonthDateRange(year, monthIndex + 1);
+  const einzugIso = toIsoDateOnly(tenant.einzug);
+  const auszugIso = toIsoDateOnly(tenant.auszug);
 
-  const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
-  const auszugDateRaw = tenant.auszug ? new Date(tenant.auszug) : null;
-  const auszugDate = auszugDateRaw && !isNaN(auszugDateRaw.getTime()) ? auszugDateRaw : null;
-
-  if (!einzugDate || isNaN(einzugDate.getTime())) return false;
-
-  return (
-    einzugDate <= monthEnd &&
-    (!auszugDate || auszugDate >= monthStart)
-  );
+  if (!ISO_DATE.test(einzugIso)) return false;
+  // An invalid move-out date is treated as "still living there"
+  return einzugIso <= endIso && (!ISO_DATE.test(auszugIso) || auszugIso >= startIso);
 }
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Compute the WG factor for each tenant: the fraction of an apartment's share
 // that should be borne by the tenant, splitting each active period equally among active roommates.
