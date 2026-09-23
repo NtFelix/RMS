@@ -286,8 +286,11 @@ export function AbrechnungModal({
     }
   };
 
-  // Guard: ensure we always work with an array for tenants
-  const safeTenants = Array.isArray(tenants) ? tenants : [];
+  // Guard: ensure we always work with an array for tenants. Memoized so the
+  // fallback `[]` is a stable reference across renders when tenants is not
+  // an array — otherwise every memo/effect depending on safeTenants would
+  // recompute on every render.
+  const safeTenants = useMemo(() => Array.isArray(tenants) ? tenants : [], [tenants]);
 
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
@@ -342,18 +345,6 @@ export function AbrechnungModal({
     if (totalUsage <= 0) return 0;
     return totalCost / totalUsage;
   }, [nebenkostenItem?.zaehlerkosten, nebenkostenItem?.zaehlerverbrauch]);
-
-  // Use the correct house size from database (gesamtFlaeche) with fallback calculation
-  const totalHouseArea = useMemo(() => {
-    // First try to use the gesamtFlaeche from nebenkostenItem (from database)
-    if (nebenkostenItem?.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0) {
-      return nebenkostenItem.gesamtFlaeche;
-    }
-
-    // Fallback: calculate from tenants data if gesamtFlaeche is not available
-    if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
-    return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
-  }, [nebenkostenItem?.gesamtFlaeche, tenants]);
 
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
@@ -414,7 +405,7 @@ export function AbrechnungModal({
         missingScheduleMonths: result.prepayments.missingScheduleMonths
       };
     };
-  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments]);
+  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments, rechnungen]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {

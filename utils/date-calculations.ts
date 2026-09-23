@@ -242,8 +242,9 @@ export const parseAsUtc = (dateStr: string): Date => {
     const [day, month, year] = dateStr.split('.');
     isoStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
-  const cleanStr = isoStr.includes('T') ? isoStr : `${isoStr}T00:00:00Z`;
-  return new Date(cleanStr);
+  // Drop any time component ('T…' or ' …') so the result is always that calendar day at 00:00:00Z
+  const dayMatch = isoStr.match(/^\d{4}-\d{2}-\d{2}/);
+  return new Date(dayMatch ? `${dayMatch[0]}T00:00:00Z` : isoStr);
 };
 
 /**

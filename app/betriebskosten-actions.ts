@@ -2276,8 +2276,9 @@ async function getAbrechnungModalDataFallback(
   }
 
   // Aggregate basic metrics for the modal (compatible with component expectations)
-  const totalArea = nebenkostenData.Haeuser?.groesse ||
-    (tenants || []).reduce((sum: number, t: any) => sum + (t.Wohnungen?.groesse || 0), 0);
+  // Count each apartment once (WG / sequential tenants share the same Wohnung)
+  const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
+  const totalArea = nebenkostenData.Haeuser?.groesse || sumUniqueApartmentAreas(tenants || []);
   const apartmentCount = new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
 
   const modalData: AbrechnungModalData = {

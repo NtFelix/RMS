@@ -1,9 +1,22 @@
 import type { Mieter } from "@/lib/types";
+import { parseAsUtc, calculateTotalDays } from "./date-calculations";
 
 // Get all occupants of an apartment by its ID
 export function getApartmentOccupants(tenants: Mieter[], apartmentId: string | null): Mieter[] {
   if (!apartmentId) return [];
   return tenants.filter(tenant => tenant.wohnung_id === apartmentId);
+}
+
+// Group tenants by apartment (fallback to tenant.id if wohnung_id is null)
+export function groupTenantsByApartment(tenants: Mieter[]): Map<string, Mieter[]> {
+  const groups = new Map<string, Mieter[]>();
+  for (const t of tenants) {
+    const key = t.wohnung_id || t.id;
+    const group = groups.get(key);
+    if (group) group.push(t);
+    else groups.set(key, [t]);
+  }
+  return groups;
 }
 
 // Determine if a tenant is active in the given month of the year (UTC based)
@@ -32,66 +45,45 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   const wgFactors: Record<string, number> = {};
 
   // Handle both year-based (backward compatibility) and date-range based calls
-  let startDate: Date;
-  let endDate: Date;
-
-  if (typeof yearOrStartdatum === 'number') {
-    // Year-based call (backward compatibility)
-    const year = yearOrStartdatum;
-    startDate = new Date(year, 0, 1); // January 1st
-    endDate = new Date(year, 11, 31); // December 31st
-  } else {
-    // Date-range based call
-    if (!enddatum) {
-      throw new Error('End date is required when using date range');
-    }
-    startDate = new Date(yearOrStartdatum);
-    endDate = new Date(enddatum);
+  if (typeof yearOrStartdatum !== 'number' && !enddatum) {
+    throw new Error('End date is required when using date range');
   }
+  const [from, to] = typeof yearOrStartdatum === 'number'
+    ? [`${yearOrStartdatum}-01-01`, `${yearOrStartdatum}-12-31`]
+    : [yearOrStartdatum, enddatum!];
 
-  // Group tenants by apartment (fallback to tenant.id if wohnung_id is null)
-  const groups = new Map<string, Mieter[]>();
-  for (const t of tenants) {
-    const key = t.wohnung_id || t.id;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(t);
-  }
+  // parseAsUtc yields UTC calendar days, so DST and time-of-day components never shift a day
+  const periodStart = parseAsUtc(from).getTime();
+  const periodEnd = parseAsUtc(to).getTime();
+  const totalDays = calculateTotalDays(from, to);
 
-  for (const [_aptId, group] of groups) {
-    const tenantShares: Record<string, number> = {};
-    for (const t of group) tenantShares[t.id] = 0;
+  for (const group of groupTenantsByApartment(tenants).values()) {
+    const ranges = group.map(t => ({
+      id: t.id,
+      start: t.einzug ? parseAsUtc(t.einzug).getTime() : periodStart,
+      end: t.auszug ? parseAsUtc(t.auszug).getTime() : periodEnd,
+      share: 0
+    }));
 
-    // Calculate total days in the billing period
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
-
-    // For each day in the period, calculate who was active
+    // For each day in the period, split the day equally among the active roommates
     for (let day = 0; day < totalDays; day++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + day);
+      const time = periodStart + day * DAY_MS;
+      const isActive = (r: { start: number; end: number }) => time >= r.start && time <= r.end;
 
-      const activeTenants = group.filter((t) => isTenantActiveOnDate(t, currentDate));
-      const count = activeTenants.length;
-
+      let count = 0;
+      for (const r of ranges) if (isActive(r)) count++;
       if (count === 0) continue;
 
-      const shareEach = 1 / count;
-      for (const t of activeTenants) {
-        tenantShares[t.id] += shareEach;
-      }
+      for (const r of ranges) if (isActive(r)) r.share += 1 / count;
     }
 
     // Normalize by total days to get the factor (0-1 range)
-    for (const t of group) {
-      wgFactors[t.id] = totalDays > 0 ? (tenantShares[t.id] || 0) / totalDays : 0;
+    for (const r of ranges) {
+      wgFactors[r.id] = totalDays > 0 ? r.share / totalDays : 0;
     }
   }
 
   return wgFactors;
 }
 
-function isTenantActiveOnDate(tenant: Mieter, date: Date): boolean {
-  const einzugDate = tenant.einzug ? new Date(tenant.einzug) : new Date('1900-01-01');
-  const auszugDate = tenant.auszug ? new Date(tenant.auszug) : new Date('9999-12-31'); // Far future date for active tenants
-
-  return date >= einzugDate && date <= auszugDate;
-}
+const DAY_MS = 1000 * 3600 * 24;
