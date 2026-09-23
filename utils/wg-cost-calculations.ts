@@ -1,4 +1,5 @@
 import type { Mieter } from "@/lib/types";
+import { parseAsUtc } from "./date-calculations";
 
 // Get all occupants of an apartment by its ID
 export function getApartmentOccupants(tenants: Mieter[], apartmentId: string | null): Mieter[] {
@@ -32,22 +33,27 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   const wgFactors: Record<string, number> = {};
 
   // Handle both year-based (backward compatibility) and date-range based calls
-  let startDate: Date;
-  let endDate: Date;
+  let startdatum: string;
+  let enddatumStr: string;
 
   if (typeof yearOrStartdatum === 'number') {
     // Year-based call (backward compatibility)
-    const year = yearOrStartdatum;
-    startDate = new Date(year, 0, 1); // January 1st
-    endDate = new Date(year, 11, 31); // December 31st
+    startdatum = `${yearOrStartdatum}-01-01`;
+    enddatumStr = `${yearOrStartdatum}-12-31`;
   } else {
     // Date-range based call
     if (!enddatum) {
       throw new Error('End date is required when using date range');
     }
-    startDate = new Date(yearOrStartdatum);
-    endDate = new Date(enddatum);
+    startdatum = yearOrStartdatum;
+    enddatumStr = enddatum;
   }
+
+  // All dates are compared as UTC calendar days so DST and time-of-day components
+  // (e.g. '2025-04-15T10:00:00Z') never shift a move-in/move-out onto another day.
+  const periodStart = parseUtcDay(startdatum);
+  const periodEnd = parseUtcDay(enddatumStr);
+  const totalDays = Math.round((periodEnd - periodStart) / DAY_MS) + 1;
 
   // Group tenants by apartment (fallback to tenant.id if wohnung_id is null)
   const groups = new Map<string, Mieter[]>();
@@ -58,26 +64,24 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   }
 
   for (const [_aptId, group] of groups) {
+    const ranges = group.map(t => ({
+      id: t.id,
+      start: t.einzug ? parseUtcDay(t.einzug) : periodStart,
+      end: t.auszug ? parseUtcDay(t.auszug) : periodEnd
+    }));
     const tenantShares: Record<string, number> = {};
-    for (const t of group) tenantShares[t.id] = 0;
+    for (const r of ranges) tenantShares[r.id] = 0;
 
-    // Calculate total days in the billing period
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
-
-    // For each day in the period, calculate who was active
+    // For each day in the period, split the day equally among the active roommates
     for (let day = 0; day < totalDays; day++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + day);
+      const time = periodStart + day * DAY_MS;
 
-      const activeTenants = group.filter((t) => isTenantActiveOnDate(t, currentDate));
-      const count = activeTenants.length;
-
+      let count = 0;
+      for (const r of ranges) if (time >= r.start && time <= r.end) count++;
       if (count === 0) continue;
 
       const shareEach = 1 / count;
-      for (const t of activeTenants) {
-        tenantShares[t.id] += shareEach;
-      }
+      for (const r of ranges) if (time >= r.start && time <= r.end) tenantShares[r.id] += shareEach;
     }
 
     // Normalize by total days to get the factor (0-1 range)
@@ -89,9 +93,9 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   return wgFactors;
 }
 
-function isTenantActiveOnDate(tenant: Mieter, date: Date): boolean {
-  const einzugDate = tenant.einzug ? new Date(tenant.einzug) : new Date('1900-01-01');
-  const auszugDate = tenant.auszug ? new Date(tenant.auszug) : new Date('9999-12-31'); // Far future date for active tenants
+const DAY_MS = 1000 * 3600 * 24;
 
-  return date >= einzugDate && date <= auszugDate;
+// Parse an ISO/German date (ignoring any time component) as a UTC midnight timestamp.
+function parseUtcDay(value: string): number {
+  return parseAsUtc(value.split('T')[0]).getTime();
 }

@@ -4,7 +4,8 @@ import {
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
   calculateNachRechnungDistribution,
-  calculateWaterCostDistribution
+  calculateWaterCostDistribution,
+  sumUniqueApartmentAreas
 } from './cost-calculations';
 import { calculateTenantOccupancy } from './date-calculations';
 
@@ -31,6 +32,18 @@ describe('cost-calculations', () => {
       occupancyDays: 365,
       effectivePeriodStart: startdatum,
       effectivePeriodEnd: enddatum
+    });
+  });
+
+  describe('sumUniqueApartmentAreas', () => {
+    it('counts each apartment once for WG and sequential tenants', () => {
+      const tenants = [
+        { id: 'a', wohnung_id: 'wg', Wohnungen: { groesse: 125 } },
+        { id: 'b', wohnung_id: 'wg', Wohnungen: { groesse: 125 } },
+        { id: 'c', wohnung_id: 'flat', Wohnungen: { groesse: 34.5 } },
+        { id: 'd', wohnung_id: 'flat', Wohnungen: { groesse: 34.5 } }
+      ] as any;
+      expect(sumUniqueApartmentAreas(tenants)).toBe(159.5);
     });
   });
 

@@ -250,6 +250,15 @@ describe('wg-cost-calculations', () => {
         expect(factors['tenant1']).toBeLessThan(0.6);
       });
 
+      it('should count the move-in day when einzug carries a time component', () => {
+        const tenants = [
+          createMockTenant({ id: 'tenant1', wohnung_id: 'apt1', einzug: '2023-06-16T10:00:00Z', auszug: null })
+        ];
+
+        const factors = computeWgFactorsByTenant(tenants, '2023-06-01', '2023-06-30');
+        expect(factors['tenant1']).toBeCloseTo(15 / 30, 5);
+      });
+
       it('should throw error if end date is missing', () => {
         const tenants = [createMockTenant()];
         expect(() => {

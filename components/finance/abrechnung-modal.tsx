@@ -343,18 +343,6 @@ export function AbrechnungModal({
     return totalCost / totalUsage;
   }, [nebenkostenItem?.zaehlerkosten, nebenkostenItem?.zaehlerverbrauch]);
 
-  // Use the correct house size from database (gesamtFlaeche) with fallback calculation
-  const totalHouseArea = useMemo(() => {
-    // First try to use the gesamtFlaeche from nebenkostenItem (from database)
-    if (nebenkostenItem?.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0) {
-      return nebenkostenItem.gesamtFlaeche;
-    }
-
-    // Fallback: calculate from tenants data if gesamtFlaeche is not available
-    if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
-    return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
-  }, [nebenkostenItem?.gesamtFlaeche, tenants]);
-
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
     if (!nebenkostenItem) return null;
@@ -365,14 +353,9 @@ export function AbrechnungModal({
     return (tenant: Mieter, _pricePerCubicMeter: number): TenantCostDetails => {
       const prepaymentMode = (nebenkostenItem as any).vorauszahlungs_art === 'ist' ? 'actual' : 'scheduled';
 
-      const effectiveNebenkostenItem: Nebenkosten = {
-        ...nebenkostenItem,
-        gesamtFlaeche: totalHouseArea
-      };
-
       const result = calculateCompleteTenantResult(
         tenant,
-        effectiveNebenkostenItem,
+        nebenkostenItem!,
         safeTenants,
         meters,
         readings,
@@ -419,7 +402,7 @@ export function AbrechnungModal({
         missingScheduleMonths: result.prepayments.missingScheduleMonths
       };
     };
-  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments]);
+  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments, rechnungen]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
@@ -981,14 +964,11 @@ export function AbrechnungModal({
 
           {/* Export Button with Dropdown - Matches Create New button style */}
           <ExportAbrechnungDropdown
-            onPdfClick={() => {
-              const exportNkItem: Nebenkosten = { ...nebenkostenItem!, gesamtFlaeche: totalHouseArea };
-              return handleExportOperation(
-                () => generateSettlementPDF(calculatedTenantData, exportNkItem, ownerName, ownerAddress),
-                "Fehler bei PDF-Generierung",
-                "Ein Fehler ist beim Erstellen der PDF aufgetreten."
-              );
-            }}
+            onPdfClick={() => handleExportOperation(
+              () => generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress),
+              "Fehler bei PDF-Generierung",
+              "Ein Fehler ist beim Erstellen der PDF aufgetreten."
+            )}
             onZipClick={async () => {
               try {
                 if (!calculateCostsForTenant) {
@@ -1008,9 +988,8 @@ export function AbrechnungModal({
                   calculateCostsForTenant(tenant, pricePerCubicMeter)
                 );
 
-                const exportNkItem: Nebenkosten = { ...nebenkostenItem!, gesamtFlaeche: totalHouseArea };
                 await handleExportOperation(
-                  () => generateSettlementZIP(tenantCosts, exportNkItem, ownerName, ownerAddress),
+                  () => generateSettlementZIP(tenantCosts, nebenkostenItem!, ownerName, ownerAddress),
                   "Fehler bei ZIP-Generierung",
                   "Ein Fehler ist beim Erstellen der ZIP-Datei aufgetreten."
                 );

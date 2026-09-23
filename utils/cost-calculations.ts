@@ -3,7 +3,42 @@
  */
 
 import type { Mieter } from "@/lib/types";
-import { calculateTenantOccupancy, TenantOccupancy, parseAsUtc, calculateTotalDays } from "./date-calculations";
+import { calculateTenantOccupancy, TenantOccupancy, calculateTotalDays } from "./date-calculations";
+import { computeWgFactorsByTenant } from "./wg-cost-calculations";
+
+// Day-share factors depend only on the tenant list and period, not on the cost amount,
+// so compute them once per tenant list instead of once per cost item and tenant.
+const wgFactorCache = new WeakMap<Mieter[], Map<string, Record<string, number>>>();
+
+function getCachedWgFactors(tenants: Mieter[], startdatum: string, enddatum: string): Record<string, number> {
+  let byPeriod = wgFactorCache.get(tenants);
+  if (!byPeriod) {
+    byPeriod = new Map();
+    wgFactorCache.set(tenants, byPeriod);
+  }
+  const key = `${startdatum}|${enddatum}`;
+  let factors = byPeriod.get(key);
+  if (!factors) {
+    factors = computeWgFactorsByTenant(tenants, startdatum, enddatum);
+    byPeriod.set(key, factors);
+  }
+  return factors;
+}
+
+/**
+ * Sum of physical apartment areas, counting each apartment once even when it has
+ * several (WG or sequential) tenants. Fallback when the house area (gesamtFlaeche) is unknown.
+ */
+export function sumUniqueApartmentAreas(tenants: Mieter[]): number {
+  const areas = new Map<string, number>();
+  tenants.forEach(t => {
+    const wohnungId = t.wohnung_id || t.id;
+    if (!areas.has(wohnungId)) areas.set(wohnungId, t.Wohnungen?.groesse || 0);
+  });
+  let sum = 0;
+  areas.forEach(area => { sum += area; });
+  return sum;
+}
 
 /**
  * Calculate cost distribution based on area (pro Flaeche) with day-based weighting
@@ -18,8 +53,6 @@ export function calculateProFlächeDistribution(
 ): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
   const distribution: Record<string, { amount: number; occupancyDays: number; totalDays: number }> = {};
 
-  const periodStart = parseAsUtc(startdatum);
-  const periodEnd = parseAsUtc(enddatum);
   const totalDays = calculateTotalDays(startdatum, enddatum);
 
   // Group tenants by wohnung_id so WG members sharing the same apartment
@@ -36,73 +69,29 @@ export function calculateProFlächeDistribution(
     }
   });
 
-  // For each apartment, compute the union of occupied days across all co-tenants
-  // and compute each tenant's day-weighted share (splitting each active day equally among active co-tenants).
+  // Each tenant's share of their apartment, splitting every day equally among the
+  // co-tenants active that day (vacant days belong to no one).
+  const wgFactors = getCachedWgFactors(tenants, startdatum, enddatum);
+
+  // An apartment's occupied-day ratio is the sum of its tenants' factors (each occupied
+  // day contributes exactly 1). Only needed when no total house area is given.
   let totalWeightedArea = 0;
-  const apartmentWeightedAreas = new Map<string, number>();
-  const tenantApartmentFractions = new Map<string, number>();
-
-  apartmentGroups.forEach((group, wohnungId) => {
-    const tenantActiveDayShares = new Map<string, number>();
-    group.tenants.forEach(t => tenantActiveDayShares.set(t.id, 0));
-
-    let apartmentOccupiedDays = 0;
-
-    const tenantsWithDates = group.tenants.map(tenant => {
-      const einStart = tenant.einzug ? parseAsUtc(tenant.einzug) : periodStart;
-      const auzEnd = tenant.auszug ? parseAsUtc(tenant.auszug) : periodEnd;
-      return {
-        tenant,
-        effectiveStart: einStart > periodStart ? einStart : periodStart,
-        effectiveEnd: auzEnd < periodEnd ? auzEnd : periodEnd
-      };
-    });
-
-    const current = new Date(periodStart.getTime());
-    while (current <= periodEnd) {
-      const active = tenantsWithDates.filter(
-        t => current >= t.effectiveStart && current <= t.effectiveEnd
-      );
-      if (active.length > 0) {
-        apartmentOccupiedDays++;
-        const shareEach = 1 / active.length;
-        active.forEach(t => {
-          tenantActiveDayShares.set(
-            t.tenant.id,
-            (tenantActiveDayShares.get(t.tenant.id) || 0) + shareEach
-          );
-        });
-      }
-      current.setUTCDate(current.getUTCDate() + 1);
-    }
-
-    const unionRatio = Math.min(apartmentOccupiedDays / totalDays, 1);
-    const weightedArea = group.area * unionRatio;
-    totalWeightedArea += weightedArea;
-    apartmentWeightedAreas.set(wohnungId, weightedArea);
-
-    // Fraction of the apartment's share that belongs to each tenant
-    group.tenants.forEach(tenant => {
-      const dayShare = tenantActiveDayShares.get(tenant.id) || 0;
-      const fraction = apartmentOccupiedDays > 0 ? dayShare / apartmentOccupiedDays : 0;
-      tenantApartmentFractions.set(tenant.id, fraction);
-    });
+  apartmentGroups.forEach(group => {
+    const unionRatio = Math.min(group.tenants.reduce((sum, t) => sum + (wgFactors[t.id] || 0), 0), 1);
+    totalWeightedArea += group.area * unionRatio;
   });
 
   const denominator = totalHouseArea !== undefined && totalHouseArea !== null
     ? (totalHouseArea > 0 ? totalHouseArea : totalWeightedArea)
     : totalWeightedArea;
 
-  // Distribute the total cost to each apartment, then allocate by tenant's active day share.
+  // Apartment cost (area ÷ denominator × totalCost) allocated by the tenant's day share.
   tenants.forEach(tenant => {
-    const wohnungId = tenant.wohnung_id || tenant.id;
-    const aptWeightedArea = apartmentWeightedAreas.get(wohnungId) || 0;
-    const aptShare = denominator > 0 ? (aptWeightedArea / denominator) * totalCost : 0;
-    const tenantFraction = tenantApartmentFractions.get(tenant.id) || 0;
+    const area = apartmentGroups.get(tenant.wohnung_id || tenant.id)!.area;
     const tenantOccupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
     distribution[tenant.id] = {
-      amount: aptShare * tenantFraction,
+      amount: denominator > 0 ? (area / denominator) * totalCost * (wgFactors[tenant.id] || 0) : 0,
       occupancyDays: tenantOccupancy.occupancyDays,
       totalDays
     };

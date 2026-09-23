@@ -32,7 +32,8 @@ jest.mock('./cost-calculations', () => ({
   calculateProMieterDistribution: jest.fn(),
   calculateProWohnungDistribution: jest.fn(),
   calculateNachRechnungDistribution: jest.fn(),
-  calculateMeterCostDistribution: jest.fn()
+  calculateMeterCostDistribution: jest.fn(),
+  sumUniqueApartmentAreas: jest.requireActual('./cost-calculations').sumUniqueApartmentAreas
 }));
 
 jest.mock('./water-cost-calculations', () => ({
