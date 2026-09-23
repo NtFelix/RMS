@@ -152,14 +152,11 @@ export function calculateTenantCosts(
           const matching = rechnungen?.find(
             r => r.name === costName && r.mieter_id === tenant.id
           );
-          const fullAmount = matching?.betrag ?? 0;
           // Use occupancy.percentage (same basis as the other distributions) instead of
           // daysOccupied / daysInPeriod, whose day counts differ across DST boundaries.
           // Tenants without an Einzugsdatum have 0 occupancy; keep their entered amount in full.
-          const occupancyRatio = tenant.einzug
-            ? Math.min(Math.max(occupancy.percentage / 100, 0), 1)
-            : 1;
-          tenantShare = fullAmount * occupancyRatio;
+          const occupancyRatio = tenant.einzug ? occupancy.percentage / 100 : 1;
+          tenantShare = (matching?.betrag ?? 0) * occupancyRatio;
           distributionBasis = '-';
           break;
         }
