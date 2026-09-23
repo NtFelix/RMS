@@ -93,12 +93,9 @@ export function calculateTenantOccupancy(
   startdatum: string,
   enddatum: string
 ): TenantOccupancy {
-  // Convert German dates to ISO if needed
-  const startIso = germanToIsoDate(startdatum) || startdatum;
-  const endIso = germanToIsoDate(enddatum) || enddatum;
-  
-  const periodStart = parseISO(startIso);
-  const periodEnd = parseISO(endIso);
+  // Normalize German dates / timestamps to YYYY-MM-DD
+  const periodStart = parseISO(toIsoDateOnly(startdatum));
+  const periodEnd = parseISO(toIsoDateOnly(enddatum));
   const totalPeriodDays = calculateDaysBetween(periodStart, periodEnd);
   
   // If no move-in date, return 0 occupancy
@@ -106,10 +103,10 @@ export function calculateTenantOccupancy(
     return { tenantId: tenant.id, occupancyDays: 0, occupancyRatio: 0 };
   }
   
-  // Parse ISO date strings (YYYY-MM-DD) to Date objects
-  const tenantStart = parseISO(tenant.einzug);
+  // Parse tenant dates (German or ISO, optionally with time) to Date objects
+  const tenantStart = parseISO(toIsoDateOnly(tenant.einzug));
   // Default tenant end to period end if no move-out date (still living there)
-  const tenantEnd = tenant.auszug ? parseISO(tenant.auszug) : periodEnd;
+  const tenantEnd = tenant.auszug ? parseISO(toIsoDateOnly(tenant.auszug)) : periodEnd;
   
   // Calculate overlap between tenant occupancy and billing period
   const overlapStart = new Date(Math.max(periodStart.getTime(), tenantStart.getTime()));
@@ -304,9 +301,20 @@ export function getMonthDateRange(year: number, month: number): { startIso: stri
 }
 
 /**
- * Get the ISO date range of the current local month
+ * Timezone the business dates (rent months, payment dates) refer to.
+ * Use it on the server, where the process timezone is usually UTC.
  */
-export function getCurrentMonthRange(): { startIso: string; endIso: string } {
+export const APP_TIME_ZONE = 'Europe/Berlin';
+
+/**
+ * Get the ISO date range of the current month, in the local timezone or the given IANA timezone
+ */
+export function getCurrentMonthRange(timeZone?: string): { startIso: string; endIso: string } {
   const now = new Date();
-  return getMonthDateRange(now.getFullYear(), now.getMonth() + 1);
+  if (!timeZone) {
+    return getMonthDateRange(now.getFullYear(), now.getMonth() + 1);
+  }
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric' }).formatToParts(now);
+  const part = (type: 'year' | 'month') => Number(parts.find(p => p.type === type)?.value);
+  return getMonthDateRange(part('year'), part('month'));
 }

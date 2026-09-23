@@ -1,4 +1,5 @@
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
+import { getMonthDateRange } from "@/utils/date-calculations"
 
 export const getLatestNebenkostenAmount = (entries?: any[] | null): number => {
     if (!Array.isArray(entries)) return 0
@@ -75,10 +76,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
         const endMonth = (year === currentDate.getFullYear()) ? currentDate.getMonth() : 11
 
         for (let month = startMonth; month <= endMonth; month++) {
-            // Construct dates manually to avoid timezone issues with toISOString()
-            const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
-            const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
-            const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${lastDayOfMonth}`
+            const { startIso: monthStart, endIso: monthEnd } = getMonthDateRange(year, month + 1)
 
             // Calculate expected amounts (pro-rated for move-in month)
             let expectedRent = mieteRaw
@@ -91,7 +89,7 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
                 const moveInDay = moveInDate.getDate()
                 // If moved in after the 1st, pro-rate the amounts
                 if (moveInDay > 1) {
-                    const daysInMonth = lastDayOfMonth
+                    const daysInMonth = Number(monthEnd.slice(8))
                     const occupiedDays = daysInMonth - moveInDay + 1
                     const factor = occupiedDays / daysInMonth
 
