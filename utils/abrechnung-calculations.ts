@@ -12,6 +12,7 @@ import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
 import { isSameCostName } from "./betriebskosten";
+import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { parseISO } from "date-fns";
 import {
@@ -90,6 +91,12 @@ export function calculateTenantCosts(
   const totalHouseArea = (nebenkosten as any).gesamtFlaeche
     || sumUniqueApartmentAreas(tenants);
 
+  // WG day-share factors depend only on the tenants and period, so compute them at most once
+  // for all area-based cost items instead of once per item.
+  let wgFactors: Record<string, number> | undefined;
+  const getWgFactors = () =>
+    wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum);
+
   // Process each cost item
   if (nebenkosten.nebenkostenart && nebenkosten.betrag && nebenkosten.berechnungsart) {
     for (let i = 0; i < nebenkosten.nebenkostenart.length; i++) {
@@ -105,12 +112,14 @@ export function calculateTenantCosts(
       switch (calculationType) {
         case 'pro Fläche':
         case 'pro Flaeche':
+        default: { // Unknown calculation types default to area-based distribution
           const flächeDistribution = calculateProFlächeDistribution(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
             nebenkosten.enddatum,
-            totalHouseArea
+            totalHouseArea,
+            getWgFactors()
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
           // House-wide rate for this cost item (total cost ÷ total house area), not derived
@@ -118,11 +127,13 @@ export function calculateTenantCosts(
           // co-tenants sharing an apartment, showing WG tenants a misleadingly low €/m²
           // even though the underlying rate is the same for every tenant in the house.
           // Not shown for tenants without occupied days (their share is 0).
-          const rawPrice = (totalHouseArea > 0 && occupancy.percentage > 0) ? totalCostForItem / totalHouseArea : undefined;
-          pricePerSqm = rawPrice !== undefined ? Math.round(rawPrice * 10000) / 10000 : undefined;
+          pricePerSqm = (totalHouseArea > 0 && occupancy.percentage > 0)
+            ? Math.round((totalCostForItem / totalHouseArea) * 10000) / 10000
+            : undefined;
           // Verteiler shows physical area vs total house area (for PDF column)
           distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
           break;
+        }
 
         case 'pro Mieter':
           const mieterDistribution = calculateProMieterDistribution(
@@ -161,21 +172,6 @@ export function calculateTenantCosts(
           distributionBasis = '-';
           break;
         }
-
-
-        default:
-          // Default to area-based distribution
-          const defaultDistribution = calculateProFlächeDistribution(
-            tenants,
-            totalCostForItem,
-            nebenkosten.startdatum,
-            nebenkosten.enddatum,
-            totalHouseArea
-          );
-          tenantShare = defaultDistribution[tenant.id]?.amount || 0;
-          const rawDefaultPrice = (totalHouseArea > 0 && occupancy.percentage > 0) ? totalCostForItem / totalHouseArea : undefined;
-          pricePerSqm = rawDefaultPrice !== undefined ? Math.round(rawDefaultPrice * 10000) / 10000 : undefined;
-          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
       }
 
       costItems.push({
