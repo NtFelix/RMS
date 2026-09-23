@@ -95,6 +95,25 @@ describe('abrechnung-calculations', () => {
       expect(result.costItems[2].tenantShare).toBe(1500);
     });
 
+    it('passes the house apartment count to the pro Wohnung distribution', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Lift'],
+        betrag: [3000],
+        berechnungsart: ['pro Wohnung'],
+        startdatum,
+        enddatum,
+        anzahlWohnungen: 4
+      } as any;
+
+      (calculateProWohnungDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 750 } });
+
+      calculateTenantCosts(mockTenant, nebenkosten);
+
+      expect(calculateProWohnungDistribution).toHaveBeenCalledWith(
+        [mockTenant], 3000, startdatum, enddatum, 4, expect.any(Object)
+      );
+    });
+
     it('defaults to pro Fläche for unknown type', () => {
       const nebenkosten = {
         nebenkostenart: ['Unknown'],

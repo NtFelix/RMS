@@ -460,6 +460,37 @@ describe('Abrechnung actions — nach Rechnung', () => {
     expect(result.data?.rechnungen).toEqual([]);
   });
 
+  it('counts all house apartments incl. vacant ones in the fallback path', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: { ...nebenkosten, berechnungsart: ['pro Wohnung'], Haeuser: { name: 'H', groesse: null } }, error: null },
+      Mieter: { data: tenants, error: null },
+      // wa and wb are occupied, wc is vacant
+      Wohnungen: { data: [{ id: 'wa', groesse: 50 }, { id: 'wb', groesse: 50 }, { id: 'wc', groesse: 70 }], error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(3);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(170);
+  });
+
+  it('falls back to the tenant apartments when the house apartments cannot be loaded', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: { ...nebenkosten, berechnungsart: ['pro Wohnung'], Haeuser: { name: 'H', groesse: null } }, error: null },
+      Mieter: { data: tenants, error: null },
+      Wohnungen: { data: null, error: { message: 'timeout' } }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(2);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(100);
+  });
+
   it.each([
     [
       'createAbrechnungCalculationAction',
