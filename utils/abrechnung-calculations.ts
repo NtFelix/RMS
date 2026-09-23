@@ -10,7 +10,7 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
-import { calculateTenantOccupancy, TenantOccupancy, formatLocalDateToIso, getMonthDateRange, germanToIsoDate } from "./date-calculations";
+import { calculateTenantOccupancy, TenantOccupancy, formatLocalDateToIso, getMonthDateRange, toIsoDateOnly } from "./date-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { parseISO } from "date-fns";
 import {
@@ -278,13 +278,10 @@ export function calculatePrepayments(
   let missingScheduleMonths = 0;
 
   // Generate monthly breakdown
-  const startIso = germanToIsoDate(startdatum) || startdatum;
-  const endIso = germanToIsoDate(enddatum) || enddatum;
+  const [startYear, startMonth] = toIsoDateOnly(startdatum).split('-').map(Number);
+  const [endYear, endMonth] = toIsoDateOnly(enddatum).split('-').map(Number);
 
-  const [startYear, startMonth] = startIso.split('-').map(Number);
-  const [endYear, endMonth] = endIso.split('-').map(Number);
-
-  if (!startYear || !startMonth || !endYear || !endMonth || isNaN(startYear) || isNaN(startMonth) || isNaN(endYear) || isNaN(endMonth)) {
+  if ([startYear, startMonth, endYear, endMonth].some(n => !n)) {
     return {
       monthlyPayments: [],
       totalPrepayments: 0,
@@ -292,12 +289,17 @@ export function calculatePrepayments(
     };
   }
 
+  // Prepayment schedule normalized once, newest entry first
+  const nebenkostenSchedule = (Array.isArray(tenant.nebenkosten) ? tenant.nebenkosten : [])
+    .filter(n => n.date)
+    .map(n => ({ iso: toIsoDateOnly(n.date), amount: n.amount }))
+    .sort((a, b) => b.iso.localeCompare(a.iso));
+
   let currentYear = startYear;
   let currentMonth = startMonth;
 
   while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
     const { startIso: monthStartIso, endIso: monthEndIso } = getMonthDateRange(currentYear, currentMonth);
-    const monthStr = String(currentMonth).padStart(2, '0');
 
     // Calculate occupancy for this month
     const monthOccupancy = calculateTenantOccupancy(
@@ -312,26 +314,15 @@ export function calculatePrepayments(
     if (mode === 'actual' && actualPayments) {
       const monthPayments = actualPayments.filter(p => {
         if (!p.datum) return false;
-        const pDate = p.datum.includes('T') ? p.datum.split('T')[0] : p.datum;
-        const pIso = germanToIsoDate(pDate) || pDate;
+        const pIso = toIsoDateOnly(p.datum);
         return pIso >= monthStartIso && pIso <= monthEndIso;
       });
       monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
     } else if (mode === 'scheduled') {
-      if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
+      if (monthOccupancy.occupancyDays > 0) {
         // Find applicable prepayment for this month.
         // We look for the latest prepayment entry that is valid before or during this month.
-        const applicableNK = [...(tenant.nebenkosten || [])]
-          .filter(n => {
-            if (!n.date) return false;
-            const nIso = germanToIsoDate(n.date) || n.date;
-            return nIso.slice(0, 10) <= monthEndIso;
-          })
-          .sort((a, b) => {
-            const aIso = (germanToIsoDate(a.date) || a.date).slice(0, 10);
-            const bIso = (germanToIsoDate(b.date) || b.date).slice(0, 10);
-            return bIso.localeCompare(aIso);
-          })[0];
+        const applicableNK = nebenkostenSchedule.find(n => n.iso <= monthEndIso);
 
         if (applicableNK) {
           monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
@@ -346,7 +337,7 @@ export function calculatePrepayments(
     }
 
     monthlyPayments.push({
-      month: `${currentYear}-${monthStr}`,
+      month: monthStartIso.slice(0, 7),
       amount: monthlyAmount,
       isActiveMonth: monthOccupancy.occupancyDays > 0,
       occupancyPercentage: monthOccupancy.occupancyRatio * 100

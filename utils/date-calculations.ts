@@ -257,8 +257,7 @@ export const calculateTotalDays = (startdatum: string, enddatum: string): number
  * Get today's local date as a YYYY-MM-DD string
  */
 export function getTodayISOString(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return formatLocalDateToIso(new Date());
 }
 
 /**
@@ -270,17 +269,20 @@ export function isTenantActive(
   todayStr: string = getTodayISOString()
 ): boolean {
   if (!auszug) return true;
-  let moveOutIso = auszug.trim();
-  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(moveOutIso)) {
-    const [day, month, year] = moveOutIso.split('.');
-    moveOutIso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  } else {
-    moveOutIso = moveOutIso.slice(0, 10);
-  }
+  const moveOutIso = toIsoDateOnly(auszug);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(moveOutIso)) {
     return false;
   }
   return moveOutIso > todayStr;
+}
+
+/**
+ * Normalize a German (DD.MM.YYYY) or ISO date string, optionally with a time part,
+ * to its YYYY-MM-DD prefix. Invalid input is returned truncated, not validated.
+ */
+export function toIsoDateOnly(date: string): string {
+  const trimmed = date.trim();
+  return germanToIsoDate(trimmed) || trimmed.slice(0, 10);
 }
 
 /**
@@ -295,13 +297,16 @@ export function formatLocalDateToIso(date: Date): string {
  * Avoids UTC timezone conversion bugs.
  */
 export function getMonthDateRange(year: number, month: number): { startIso: string; endIso: string } {
-  const monthStr = String(month).padStart(2, '0');
-  const lastDay = new Date(year, month, 0).getDate();
-  const lastDayStr = String(lastDay).padStart(2, '0');
   return {
-    startIso: `${year}-${monthStr}-01`,
-    endIso: `${year}-${monthStr}-${lastDayStr}`
+    startIso: formatLocalDateToIso(new Date(year, month - 1, 1)),
+    endIso: formatLocalDateToIso(new Date(year, month, 0))
   };
 }
 
-
+/**
+ * Get the ISO date range of the current local month
+ */
+export function getCurrentMonthRange(): { startIso: string; endIso: string } {
+  const now = new Date();
+  return getMonthDateRange(now.getFullYear(), now.getMonth() + 1);
+}

@@ -5,7 +5,7 @@ import { TenantBentoItem } from '@/types/tenant-payment'
 import { FinanceEntryPayload } from '@/types/finanzen'
 import { getLatestNebenkostenAmount } from '@/utils/tenant-payment-calculations'
 import { PAYMENT_KEYWORDS, PAYMENT_TAGS } from '@/utils/constants'
-import { getTodayISOString, isTenantActive, getMonthDateRange } from '@/utils/date-calculations'
+import { getTodayISOString, isTenantActive, getCurrentMonthRange } from '@/utils/date-calculations'
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -14,17 +14,6 @@ export function useTenantPayments() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
-
-    const getCurrentMonthRange = () => {
-        const currentDate = new Date()
-        const currentMonth = currentDate.getMonth() + 1
-        const currentYear = currentDate.getFullYear()
-        const { startIso, endIso } = getMonthDateRange(currentYear, currentMonth)
-        return {
-            start: startIso,
-            end: endIso
-        }
-    }
 
     const fetchData = useCallback(async () => {
         try {
@@ -101,7 +90,7 @@ export function useTenantPayments() {
                 )
             )
 
-            const { start, end } = getCurrentMonthRange()
+            const { startIso: start, endIso: end } = getCurrentMonthRange()
             const supabase = createClient()
 
             if (tenant.paid) {
@@ -141,7 +130,7 @@ export function useTenantPayments() {
                     {
                         wohnung_id: tenant.apartmentId,
                         name: `${capitalize(PAYMENT_KEYWORDS.RENT)} ${tenant.apartment}`,
-                        datum: new Date().toISOString().split('T')[0],
+                        datum: getTodayISOString(),
                         betrag: tenant.mieteRaw,
                         ist_einnahmen: true,
                         notiz: `${capitalize(PAYMENT_KEYWORDS.RENT)} von ${tenant.tenant}`,
@@ -153,7 +142,7 @@ export function useTenantPayments() {
                     entries.push({
                         wohnung_id: tenant.apartmentId,
                         name: `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)} ${tenant.apartment}`,
-                        datum: new Date().toISOString().split('T')[0],
+                        datum: getTodayISOString(),
                         betrag: tenant.nebenkostenRaw,
                         ist_einnahmen: true,
                         notiz: `${capitalize(PAYMENT_KEYWORDS.NEBENKOSTEN)}-Vorauszahlung von ${tenant.tenant}`,

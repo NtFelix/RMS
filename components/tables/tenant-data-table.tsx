@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast"
 import { DashboardTenantContextMenu } from "@/components/dashboard/dashboard-tenant-context-menu"
 import { formatNumber } from "@/utils/format"
 import { PAYMENT_TAGS } from "@/utils/constants"
-import { getMonthDateRange } from "@/utils/date-calculations"
+import { getCurrentMonthRange, getTodayISOString } from "@/utils/date-calculations"
 
 type TenantDataItem = {
   id: string
@@ -60,10 +60,7 @@ export function TenantDataTable() {
     }
 
     // Finanzdaten für Mietstatus abrufen
-    const currentDate = new Date()
-    const currentMonth = currentDate.getMonth() + 1
-    const currentYear = currentDate.getFullYear()
-    const { startIso: startOfMonth, endIso: endOfMonth } = getMonthDateRange(currentYear, currentMonth)
+    const { startIso: startOfMonth, endIso: endOfMonth } = getCurrentMonthRange()
 
     const { data: finanzData, error: finanzError } = await supabase
       .from("Finanzen")
@@ -130,10 +127,7 @@ export function TenantDataTable() {
 
       if (tenant.status === 'Miete bezahlt') {
         // Lösche Mietzahlung aus Finanzen für den aktuellen Monat
-        const currentDate = new Date()
-        const currentMonth = currentDate.getMonth() + 1
-        const currentYear = currentDate.getFullYear()
-        const { startIso: startOfMonth, endIso: endOfMonth } = getMonthDateRange(currentYear, currentMonth)
+        const { startIso: startOfMonth, endIso: endOfMonth } = getCurrentMonthRange()
 
         const { data: financeEntries, error: selectError } = await supabase
           .from('Finanzen')
@@ -164,7 +158,7 @@ export function TenantDataTable() {
         })
       } else {
         // Füge Mietzahlung zu Finanzen hinzu
-        const currentDate = new Date().toISOString().split('T')[0]
+        const currentDate = getTodayISOString()
 
         const { error } = await supabase
           .from('Finanzen')
