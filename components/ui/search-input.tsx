@@ -42,7 +42,7 @@ export function SearchInput({
         sizeVariant={sizeVariant}
         className={cn(
           "pl-10 focus-visible:scale-100 [&::-webkit-search-cancel-button]:hidden",
-          showClearButton ? "pr-10" : "",
+          showClearButton ? "pr-12" : "",
           className
         )}
         {...props}
@@ -52,7 +52,7 @@ export function SearchInput({
         <button
           type="button"
           onClick={onClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors z-10"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 hover:scale-110 active:scale-90 transition-all"
         >
           <X className="size-4" />
           <span className="sr-only">Suche löschen</span>
