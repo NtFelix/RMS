@@ -94,7 +94,7 @@ const SuccessStep = ({ data, onClose, onOverview }: { data: OptimizedNebenkosten
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md pt-4">
-        <Button variant="outline" onClick={onClose} className="h-12 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all">
+        <Button variant="outline" onClick={onClose} className="h-12 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
           Schließen
         </Button>
         <Button onClick={onOverview} className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 border-none transition-all active:scale-[0.98]">
@@ -169,7 +169,7 @@ function MeterCostItem({
           placeholder="0,00"
           step="0.01"
           disabled={isSaving || isFormLoading}
-          className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-all font-medium text-lg"
+          className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-[border-color,box-shadow] font-medium text-lg"
         />
         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">€</span>
       </div>
