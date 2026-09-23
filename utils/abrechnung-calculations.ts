@@ -11,6 +11,7 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
+import { isSameCostName } from "./betriebskosten";
 import { roundToNearest5 } from "@/lib/utils";
 import { parseISO } from "date-fns";
 import {
@@ -100,8 +101,6 @@ export function calculateTenantCosts(
       let tenantShare = 0;
       let pricePerSqm: number | undefined;
       let distributionBasis: string | number | undefined;
-      // Total shown on the tenant's statement; differs from totalCostForItem only for 'nach Rechnung'
-      let displayedTotal = totalCostForItem;
 
       // Calculate tenant share based on calculation type
       switch (calculationType) {
@@ -152,15 +151,13 @@ export function calculateTenantCosts(
           // betrag[] in Nebenkosten holds the SUM of all tenants' amounts, so it must not be
           // used as a per-tenant fallback: a tenant without a Rechnungen row owes nothing.
           const matching = rechnungen?.find(
-            r => r.name === costName && r.mieter_id === tenant.id
+            r => isSameCostName(r.name, costName) && r.mieter_id === tenant.id
           );
           // Use occupancy.percentage (same basis as the other distributions) instead of
           // daysOccupied / daysInPeriod, whose day counts differ across DST boundaries.
           // Tenants without an Einzugsdatum have 0 occupancy; keep their entered amount in full.
           const occupancyRatio = tenant.einzug ? occupancy.percentage / 100 : 1;
-          // Show the tenant's own Einzelbetrag, not the sum of all tenants' amounts
-          displayedTotal = matching?.betrag ?? 0;
-          tenantShare = displayedTotal * occupancyRatio;
+          tenantShare = (matching?.betrag ?? 0) * occupancyRatio;
           distributionBasis = '-';
           break;
         }
@@ -185,7 +182,7 @@ export function calculateTenantCosts(
 
       costItems.push({
         costName,
-        totalCostForItem: displayedTotal,
+        totalCostForItem,
         calculationType,
         tenantShare,
         pricePerSqm,

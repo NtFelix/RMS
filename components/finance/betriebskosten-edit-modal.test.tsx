@@ -327,19 +327,23 @@ describe('BetriebskostenEditModal', () => {
       });
     });
 
-    const nachRechnungEntry = (nebenkostenart: string[]) => ({
+    const nachRechnungEntry = (
+      nebenkostenart: string[],
+      Rechnungen: any[] = [],
+      berechnungsart: string[] = nebenkostenart.map(() => 'nach Rechnung')
+    ) => ({
       id: 'test-id-123',
       startdatum: '2023-01-01',
       enddatum: '2023-12-31',
       haeuser_id: 'h1',
       nebenkostenart,
       betrag: nebenkostenart.map(() => 0),
-      berechnungsart: nebenkostenart.map(() => 'nach Rechnung'),
+      berechnungsart,
       zaehlerkosten: {},
       zaehlerverbrauch: {},
       Haeuser: { name: 'Haus A' },
       erstellt_von: 'u1',
-      Rechnungen: [],
+      Rechnungen,
     });
 
     async function openEditStep2(user: ReturnType<typeof userEvent.setup>, entry: any) {
@@ -391,6 +395,52 @@ describe('BetriebskostenEditModal', () => {
       expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-123', expect.objectContaining({
         nebenkostenart: ['Schornstein'],
       }));
+    });
+
+    it('loads and keeps Einzelrechnungen saved with surrounding whitespace in the name', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(
+        ['Schornstein'],
+        [{ id: 'r1', mieter_id: 'm1', name: 'Schornstein ', betrag: 500 }]
+      ));
+
+      await waitFor(() => expect(screen.getByLabelText('Mieter Eins')).toHaveValue('500'));
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateRechnungenBatch).toHaveBeenCalledWith([
+          expect.objectContaining({ mieter_id: 'm1', name: 'Schornstein', betrag: 500 })
+        ]);
+      });
+    });
+
+    it('keeps an edited Einzelbetrag when other fields change', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(
+        ['Schornstein', 'Strom'],
+        [{ id: 'r1', mieter_id: 'm1', name: 'Schornstein', betrag: 100 }],
+        ['nach Rechnung', 'pauschal']
+      ));
+
+      await waitFor(() => expect(screen.getByLabelText('Mieter Eins')).toHaveValue('100'));
+      const tenantInput = screen.getByLabelText('Mieter Eins');
+      await user.clear(tenantInput);
+      await user.type(tenantInput, '150');
+
+      // Editing another cost item re-runs the Rechnungen sync
+      const stromBetrag = screen.getAllByPlaceholderText('Betrag (€)').find(el => el.id.startsWith('betrag-'))!;
+      await user.type(stromBetrag, '20');
+
+      expect(screen.getByLabelText('Mieter Eins')).toHaveValue('150');
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateRechnungenBatch).toHaveBeenCalledWith([
+          expect.objectContaining({ mieter_id: 'm1', name: 'Schornstein', betrag: 150 })
+        ]);
+      });
     });
 
     it('shows error toast on submission failure', async () => {
