@@ -128,12 +128,15 @@ describe('abrechnung-calculations', () => {
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
       expect(result.costItems[0].costName).toBe('Special');
       expect(result.costItems[0].tenantShare).toBe(150); // Exact invoice amount
+      // totalCostForItem stays the building total (sum of all tenants' Einzelbeträge)
+      expect(result.costItems[0].totalCostForItem).toBe(450);
       expect(result.costItems[0].distributionBasis).toBe('-');
 
       // For 'Not Invoiced' there is no row for this tenant, so the share is 0
       expect(result.costItems[1].calculationType).toBe('nach Rechnung');
       expect(result.costItems[1].costName).toBe('Not Invoiced');
       expect(result.costItems[1].tenantShare).toBe(0);
+      expect(result.costItems[1].totalCostForItem).toBe(0);
       expect(result.costItems[1].distributionBasis).toBe('-');
     });
 
@@ -159,7 +162,16 @@ describe('abrechnung-calculations', () => {
 
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
       expect(result.costItems[0].tenantShare).toBe(expected);
+      expect(result.costItems[0].totalCostForItem).toBe(amount);
       expect(result.totalCost).toBe(expected);
+    });
+
+    it('matches Rechnungen rows saved with surrounding whitespace in the name', () => {
+      const rechnungen = [{ name: 'Special Invoice ', mieter_id: 't1', betrag: 70 }] as any[];
+
+      const result = calculateTenantCosts(mockTenant, nachRechnungItem(70), undefined, undefined, rechnungen);
+
+      expect(result.costItems[0].tenantShare).toBe(70);
     });
 
     it('does not fall back to the betrag[] sum when the tenant has no rechnungen row', () => {

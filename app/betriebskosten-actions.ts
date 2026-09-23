@@ -28,6 +28,7 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
+import { findDuplicateNachRechnungName } from '@/utils/betriebskosten';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { posthogLogger } from '@/lib/posthog-logger';
 
@@ -68,6 +69,22 @@ export interface RechnungData {
   // user_id will be added by the action itself
 }
 
+/**
+ * Trims cost names and rejects duplicate 'nach Rechnung' names, because Einzelrechnungen
+ * are matched to their cost item by name. Returns an error message or the normalized data.
+ */
+function normalizeCostItemNames<T extends Partial<Pick<NebenkostenFormData, 'nebenkostenart' | 'berechnungsart'>>>(
+  formData: T
+): { data: T; error: null } | { data: null; error: string } {
+  if (!formData.nebenkostenart) return { data: formData, error: null };
+  const nebenkostenart = formData.nebenkostenart.map(name => name.trim());
+  const duplicateName = findDuplicateNachRechnungName(nebenkostenart, formData.berechnungsart ?? []);
+  if (duplicateName) {
+    return { data: null, error: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.` };
+  }
+  return { data: { ...formData, nebenkostenart }, error: null };
+}
+
 // Implement createNebenkosten function
 // Note: wasserverbrauch is automatically calculated by database trigger
 export async function createNebenkosten(formData: NebenkostenFormData) {
@@ -99,9 +116,15 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
     }
   }
 
+  const normalized = normalizeCostItemNames(formData);
+  if (normalized.error !== null) {
+    logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: normalized.error });
+    return { success: false, message: normalized.error, data: null };
+  }
+
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .insert([formData])
+    .insert([normalized.data])
     .select()
     .single();
 
@@ -158,9 +181,15 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
     }
   }
 
+  const normalized = normalizeCostItemNames(formData);
+  if (normalized.error !== null) {
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: normalized.error });
+    return { success: false, message: normalized.error, data: null };
+  }
+
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .update(formData)
+    .update(normalized.data)
     .eq("id", id)
     .select()
     .single();
@@ -322,7 +351,8 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
   const { data, error } = await supabase
     .from("Rechnungen")
-    .insert(rechnungen)
+    // Names must match the trimmed nebenkostenart of the cost item
+    .insert(rechnungen.map(r => ({ ...r, name: r.name.trim() })))
     .select(); // .select() returns the inserted rows
 
   if (data) {
@@ -2191,6 +2221,10 @@ async function getAbrechnungModalDataFallback(
       userId,
       nebenkostenId
     });
+    // Without Rechnungen every 'nach Rechnung' share would silently be 0 €
+    if (nebenkostenData.berechnungsart?.includes('nach Rechnung')) {
+      return { success: false, message: "Fehler beim Laden der Einzelrechnungen." };
+    }
   }
 
   // Legacy wasserzaehler readings are no longer used - replaced by new water meter structure
