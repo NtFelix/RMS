@@ -204,35 +204,6 @@ export function calculateProWohnungDistribution(
 }
 
 /**
- * Apply individual amounts (nach Rechnung) with occupancy-based weighting
- */
-export function calculateNachRechnungDistribution(
-  individualAmounts: Record<string, number>, // tenantId -> amount
-  tenants: Mieter[],
-  startdatum: string,
-  enddatum: string
-): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
-  const distribution: Record<string, { amount: number; occupancyDays: number; totalDays: number }> = {};
-  const totalPeriodDays = calculateTotalDays(startdatum, enddatum);
-
-  tenants.forEach(tenant => {
-    const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
-    const individualAmount = individualAmounts[tenant.id] || 0;
-
-    // Apply the individual amount proportionally to occupancy
-    const amount = individualAmount * occupancy.occupancyRatio;
-
-    distribution[tenant.id] = {
-      amount,
-      occupancyDays: occupancy.occupancyDays,
-      totalDays: totalPeriodDays
-    };
-  });
-
-  return distribution;
-}
-
-/**
  * Calculate water consumption costs with day-based distribution
  */
 export function calculateWaterCostDistribution(

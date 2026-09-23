@@ -3,7 +3,6 @@ import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
-  calculateNachRechnungDistribution,
   calculateWaterCostDistribution,
   sumUniqueApartmentAreas
 } from './cost-calculations';
@@ -232,28 +231,6 @@ describe('cost-calculations', () => {
       expect(result['t1'].amount).toBeCloseTo(400);
       expect(result['t2'].amount).toBeCloseTo(400);
       expect(result['t3'].amount).toBeCloseTo(400);
-    });
-  });
-
-  describe('calculateNachRechnungDistribution', () => {
-    it('distributes individual amounts weighted by occupancy', () => {
-      const individualAmounts = { 't1': 100, 't2': 200 };
-
-      // Full occupancy
-      const result = calculateNachRechnungDistribution(individualAmounts, mockTenants, startdatum, enddatum);
-      expect(result['t1'].amount).toBe(100);
-      expect(result['t2'].amount).toBe(200);
-    });
-
-    it('reduces amount for partial occupancy', () => {
-      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
-        occupancyRatio: 0.5,
-        occupancyDays: 180
-      });
-
-      const individualAmounts = { 't1': 100 };
-      const result = calculateNachRechnungDistribution(individualAmounts, [mockTenant1], startdatum, enddatum);
-      expect(result['t1'].amount).toBe(50);
     });
   });
 
