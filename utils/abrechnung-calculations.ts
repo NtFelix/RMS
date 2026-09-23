@@ -10,11 +10,10 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
-import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
+import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, isDateInPeriod, maxIsoDate, minIsoDate, parseAsUtc, toIsoDateOnly } from "./date-calculations";
 import { isSameCostName } from "./betriebskosten";
 import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
-import { parseISO } from "date-fns";
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -83,7 +82,7 @@ export function calculateTenantCosts(
     || sumUniqueApartmentAreas(tenants);
 
   // WG day-share factors depend only on the tenants and period, so compute them at most once
-  // for all area-based cost items instead of once per item.
+  // for all area- and apartment-based cost items instead of once per item.
   let wgFactors: Record<string, number> | undefined;
   const getWgFactors = () =>
     wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum);
@@ -142,7 +141,8 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            getWgFactors()
           );
           tenantShare = wohnungDistribution[tenant.id]?.amount || 0;
           distributionBasis = '1 Wohnung';
@@ -230,8 +230,8 @@ export function calculateMeterCostDistribution(
     const apartmentMeterIds = apartmentMeters.map(m => m.id);
     const relevantReadings = readings
       .filter(r => apartmentMeterIds.includes(r.zaehler_id || ''))
-      .filter(r => r.ablese_datum >= nebenkosten.startdatum && r.ablese_datum <= nebenkosten.enddatum)
-      .sort((a, b) => parseISO(b.ablese_datum).getTime() - parseISO(a.ablese_datum).getTime());
+      .filter(r => isDateInPeriod(r.ablese_datum, nebenkosten.startdatum, nebenkosten.enddatum))
+      .sort((a, b) => parseAsUtc(b.ablese_datum).getTime() - parseAsUtc(a.ablese_datum).getTime());
 
     if (relevantReadings.length > 0) {
       const latestReading = relevantReadings[0];
@@ -403,7 +403,9 @@ export function validateCalculationData(
     errors.push('Start- und Enddatum sind erforderlich');
   }
 
-  if (parseISO(nebenkosten.enddatum) <= parseISO(nebenkosten.startdatum)) {
+  // Compared as YYYY-MM-DD so German dates are validated too (parseISO rejects them)
+  if (nebenkosten.startdatum && nebenkosten.enddatum &&
+    toIsoDateOnly(nebenkosten.enddatum) <= toIsoDateOnly(nebenkosten.startdatum)) {
     errors.push('Enddatum muss nach dem Startdatum liegen');
   }
 
@@ -457,8 +459,7 @@ export function validateCalculationData(
       waterMeters.forEach(meter => {
         const meterReadings = waterReadings.filter(r =>
           r.zaehler_id === meter.id &&
-          r.ablese_datum >= nebenkosten.startdatum &&
-          r.ablese_datum <= nebenkosten.enddatum
+          isDateInPeriod(r.ablese_datum, nebenkosten.startdatum, nebenkosten.enddatum)
         );
 
         if (meterReadings.length === 0) {

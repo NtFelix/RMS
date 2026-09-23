@@ -108,57 +108,29 @@ export function calculateProWohnungDistribution(
   tenants: Mieter[],
   totalCost: number,
   startdatum: string,
-  enddatum: string
+  enddatum: string,
+  // Precomputed computeWgFactorsByTenant(tenants, startdatum, enddatum); pass it when
+  // distributing several cost items over the same tenants to avoid recomputing it.
+  wgFactors: Record<string, number> = computeWgFactorsByTenant(tenants, startdatum, enddatum)
 ): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
   const distribution: Record<string, { amount: number; occupancyDays: number; totalDays: number }> = {};
 
-  // Group tenants by apartment and calculate total occupancy per apartment
-  const apartmentOccupancy: Record<string, {
-    tenants: Mieter[];
-    totalOccupancyDays: number;
-  }> = {};
+  // Tenants without an apartment can't be billed per apartment
+  const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id);
+  const apartmentCount = groupTenantsByApartment(apartmentTenants).size;
+  const totalDays = calculateTotalDays(startdatum, enddatum);
 
-  tenants.forEach(tenant => {
-    const wohnungId = tenant.wohnung_id;
-    if (!wohnungId) return;
+  // Every apartment gets the same share, split by day among the co-tenants active that day
+  // (WG or sequential tenants). The factors of one apartment sum to its occupied-day ratio,
+  // so a WG never counts as several apartments and the landlord bears vacant days.
+  apartmentTenants.forEach(tenant => {
+    const tenantOccupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
-    if (!apartmentOccupancy[wohnungId]) {
-      apartmentOccupancy[wohnungId] = {
-        tenants: [],
-        totalOccupancyDays: 0
-      };
-    }
-
-    const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
-    apartmentOccupancy[wohnungId].tenants.push(tenant);
-    apartmentOccupancy[wohnungId].totalOccupancyDays += occupancy.occupancyDays;
-  });
-
-  // Calculate total weighted occupancy across all apartments
-  let totalWeightedOccupancy = 0;
-  Object.values(apartmentOccupancy).forEach(apt => {
-    totalWeightedOccupancy += apt.totalOccupancyDays;
-  });
-
-  const totalPeriodDays = calculateTotalDays(startdatum, enddatum);
-
-  Object.entries(apartmentOccupancy).forEach(([wohnungId, apt]) => {
-    const apartmentShare = totalWeightedOccupancy > 0
-      ? (apt.totalOccupancyDays / totalWeightedOccupancy) * totalCost
-      : 0;
-
-    // Split apartment share equally among tenants in the apartment
-    const costPerTenant = apt.tenants.length > 0 ? apartmentShare / apt.tenants.length : 0;
-
-    apt.tenants.forEach(tenant => {
-      const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
-
-      distribution[tenant.id] = {
-        amount: costPerTenant,
-        occupancyDays: occupancy.occupancyDays,
-        totalDays: totalPeriodDays
-      };
-    });
+    distribution[tenant.id] = {
+      amount: apartmentCount > 0 ? (totalCost / apartmentCount) * (wgFactors[tenant.id] || 0) : 0,
+      occupancyDays: tenantOccupancy.occupancyDays,
+      totalDays
+    };
   });
 
   return distribution;
