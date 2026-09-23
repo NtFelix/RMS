@@ -286,8 +286,11 @@ export function AbrechnungModal({
     }
   };
 
-  // Guard: ensure we always work with an array for tenants
-  const safeTenants = Array.isArray(tenants) ? tenants : [];
+  // Guard: ensure we always work with an array for tenants. Memoized so the
+  // fallback `[]` is a stable reference across renders when tenants is not
+  // an array — otherwise every memo/effect depending on safeTenants would
+  // recompute on every render.
+  const safeTenants = useMemo(() => Array.isArray(tenants) ? tenants : [], [tenants]);
 
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
