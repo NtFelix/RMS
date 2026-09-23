@@ -327,6 +327,72 @@ describe('BetriebskostenEditModal', () => {
       });
     });
 
+    const nachRechnungEntry = (nebenkostenart: string[]) => ({
+      id: 'test-id-123',
+      startdatum: '2023-01-01',
+      enddatum: '2023-12-31',
+      haeuser_id: 'h1',
+      nebenkostenart,
+      betrag: nebenkostenart.map(() => 0),
+      berechnungsart: nebenkostenart.map(() => 'nach Rechnung'),
+      zaehlerkosten: {},
+      zaehlerverbrauch: {},
+      Haeuser: { name: 'Haus A' },
+      erstellt_von: 'u1',
+      Rechnungen: [],
+    });
+
+    async function openEditStep2(user: ReturnType<typeof userEvent.setup>, entry: any) {
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: entry });
+      mockGetMieterByHausIdAction.mockResolvedValue({ success: true, data: [{ id: 'm1', name: 'Mieter Eins' }] as any });
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-123' },
+      });
+
+      render(<BetriebskostenEditModal />);
+      await waitFor(() => {
+        expect(screen.getByText('Haus A')).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /Weiter/ }));
+      expect(await screen.findByText('Kostenaufstellung')).toBeInTheDocument();
+    }
+
+    it('rejects duplicate names among nach Rechnung cost items', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(['Reparatur', 'Reparatur ']));
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+          title: 'Validierungsfehler',
+          description: expect.stringContaining('"Reparatur" ist mehrfach'),
+        }));
+      });
+      expect(mockUpdateNebenkosten).not.toHaveBeenCalled();
+    });
+
+    it('saves Einzelrechnungen under the trimmed cost name', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(['Schornstein ']));
+
+      const tenantInput = await screen.findByLabelText('Mieter Eins');
+      await user.click(tenantInput);
+      await user.keyboard('50');
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateRechnungenBatch).toHaveBeenCalledWith([
+          expect.objectContaining({ mieter_id: 'm1', name: 'Schornstein', betrag: 50 })
+        ]);
+      });
+      expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-123', expect.objectContaining({
+        nebenkostenart: ['Schornstein'],
+      }));
+    });
+
     it('shows error toast on submission failure', async () => {
       const user = userEvent.setup();
       mockCreateNebenkosten.mockResolvedValueOnce({

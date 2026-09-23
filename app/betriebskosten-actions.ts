@@ -2191,6 +2191,10 @@ async function getAbrechnungModalDataFallback(
       userId,
       nebenkostenId
     });
+    // Without Rechnungen every 'nach Rechnung' share would silently be 0 €
+    if (nebenkostenData.berechnungsart?.includes('nach Rechnung')) {
+      return { success: false, message: "Fehler beim Laden der Einzelrechnungen." };
+    }
   }
 
   // Legacy wasserzaehler readings are no longer used - replaced by new water meter structure

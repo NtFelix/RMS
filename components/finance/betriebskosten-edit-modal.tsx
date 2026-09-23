@@ -937,6 +937,15 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       }
 
       if (item.berechnungsart === 'nach Rechnung') {
+        // Einzelrechnungen are matched to their cost item by name, so names must be unique
+        const isDuplicateName = costItems.some(other =>
+          other !== item && other.berechnungsart === 'nach Rechnung' && other.art.trim() === art
+        );
+        if (isDuplicateName) {
+          toast({ title: "Validierungsfehler", description: `Die Kostenart "${art}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.`, variant: "destructive" });
+          setIsSaving(false); setBetriebskostenModalDirty(true);
+          return;
+        }
         const individualRechnungen = rechnungen[item.id] || [];
         currentBetragValue = individualRechnungen.reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0);
       } else {
@@ -1001,7 +1010,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                   nebenkosten_id: nebenkosten_id,
                   mieter_id: rechnungEinzel.mieterId,
                   betrag: parsedAmount,
-                  name: item.art,
+                  name: item.art.trim(),
                 });
               }
             });

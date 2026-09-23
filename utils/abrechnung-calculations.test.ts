@@ -128,12 +128,15 @@ describe('abrechnung-calculations', () => {
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
       expect(result.costItems[0].costName).toBe('Special');
       expect(result.costItems[0].tenantShare).toBe(150); // Exact invoice amount
+      // Statement shows the tenant's own Einzelbetrag, not the sum of all tenants (450)
+      expect(result.costItems[0].totalCostForItem).toBe(150);
       expect(result.costItems[0].distributionBasis).toBe('-');
 
       // For 'Not Invoiced' there is no row for this tenant, so the share is 0
       expect(result.costItems[1].calculationType).toBe('nach Rechnung');
       expect(result.costItems[1].costName).toBe('Not Invoiced');
       expect(result.costItems[1].tenantShare).toBe(0);
+      expect(result.costItems[1].totalCostForItem).toBe(0);
       expect(result.costItems[1].distributionBasis).toBe('-');
     });
 
@@ -159,6 +162,7 @@ describe('abrechnung-calculations', () => {
 
       expect(result.costItems[0].calculationType).toBe('nach Rechnung');
       expect(result.costItems[0].tenantShare).toBe(expected);
+      expect(result.costItems[0].totalCostForItem).toBe(amount);
       expect(result.totalCost).toBe(expected);
     });
 

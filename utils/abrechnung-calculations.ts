@@ -100,6 +100,8 @@ export function calculateTenantCosts(
       let tenantShare = 0;
       let pricePerSqm: number | undefined;
       let distributionBasis: string | number | undefined;
+      // Total shown on the tenant's statement; differs from totalCostForItem only for 'nach Rechnung'
+      let displayedTotal = totalCostForItem;
 
       // Calculate tenant share based on calculation type
       switch (calculationType) {
@@ -156,7 +158,9 @@ export function calculateTenantCosts(
           // daysOccupied / daysInPeriod, whose day counts differ across DST boundaries.
           // Tenants without an Einzugsdatum have 0 occupancy; keep their entered amount in full.
           const occupancyRatio = tenant.einzug ? occupancy.percentage / 100 : 1;
-          tenantShare = (matching?.betrag ?? 0) * occupancyRatio;
+          // Show the tenant's own Einzelbetrag, not the sum of all tenants' amounts
+          displayedTotal = matching?.betrag ?? 0;
+          tenantShare = displayedTotal * occupancyRatio;
           distributionBasis = '-';
           break;
         }
@@ -181,7 +185,7 @@ export function calculateTenantCosts(
 
       costItems.push({
         costName,
-        totalCostForItem,
+        totalCostForItem: displayedTotal,
         calculationType,
         tenantShare,
         pricePerSqm,
