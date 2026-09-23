@@ -86,6 +86,8 @@ export interface TenantOccupancy {
   tenantId: string;
   occupancyDays: number;
   occupancyRatio: number; // occupancyDays / totalPeriodDays
+  overlapStartIso?: string; // YYYY-MM-DD, only set when occupancyDays > 0
+  overlapEndIso?: string;
 }
 
 export function calculateTenantOccupancy(
@@ -93,12 +95,9 @@ export function calculateTenantOccupancy(
   startdatum: string,
   enddatum: string
 ): TenantOccupancy {
-  // Convert German dates to ISO if needed
-  const startIso = germanToIsoDate(startdatum) || startdatum;
-  const endIso = germanToIsoDate(enddatum) || enddatum;
-  
-  const periodStart = parseISO(startIso);
-  const periodEnd = parseISO(endIso);
+  // Normalize German dates / timestamps to YYYY-MM-DD
+  const periodStart = parseISO(toIsoDateOnly(startdatum));
+  const periodEnd = parseISO(toIsoDateOnly(enddatum));
   const totalPeriodDays = calculateDaysBetween(periodStart, periodEnd);
   
   // If no move-in date, return 0 occupancy
@@ -106,10 +105,10 @@ export function calculateTenantOccupancy(
     return { tenantId: tenant.id, occupancyDays: 0, occupancyRatio: 0 };
   }
   
-  // Parse ISO date strings (YYYY-MM-DD) to Date objects
-  const tenantStart = parseISO(tenant.einzug);
+  // Parse tenant dates (German or ISO, optionally with time) to Date objects
+  const tenantStart = parseISO(toIsoDateOnly(tenant.einzug));
   // Default tenant end to period end if no move-out date (still living there)
-  const tenantEnd = tenant.auszug ? parseISO(tenant.auszug) : periodEnd;
+  const tenantEnd = tenant.auszug ? parseISO(toIsoDateOnly(tenant.auszug)) : periodEnd;
   
   // Calculate overlap between tenant occupancy and billing period
   const overlapStart = new Date(Math.max(periodStart.getTime(), tenantStart.getTime()));
@@ -122,7 +121,10 @@ export function calculateTenantOccupancy(
   return {
     tenantId: tenant.id,
     occupancyDays,
-    occupancyRatio: totalPeriodDays > 0 ? occupancyDays / totalPeriodDays : 0
+    occupancyRatio: totalPeriodDays > 0 ? occupancyDays / totalPeriodDays : 0,
+    ...(occupancyDays > 0
+      ? { overlapStartIso: formatLocalDateToIso(overlapStart), overlapEndIso: formatLocalDateToIso(overlapEnd) }
+      : {})
   };
 }
 
@@ -255,11 +257,13 @@ export const calculateTotalDays = (startdatum: string, enddatum: string): number
 };
 
 /**
- * Get today's local date as a YYYY-MM-DD string
+ * Get today's date in the app timezone (or the given IANA timezone) as a YYYY-MM-DD string.
+ * Deliberately NOT the browser/process timezone: all users are treated as being in APP_TIME_ZONE,
+ * so a user elsewhere near midnight sees the Berlin date. Pass a timeZone to opt out.
  */
-export function getTodayISOString(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+export function getTodayISOString(timeZone: string = APP_TIME_ZONE): string {
+  const { year, month, day } = getZonedDateParts(timeZone);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 /**
@@ -271,16 +275,72 @@ export function isTenantActive(
   todayStr: string = getTodayISOString()
 ): boolean {
   if (!auszug) return true;
-  let moveOutIso = auszug.trim();
-  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(moveOutIso)) {
-    const [day, month, year] = moveOutIso.split('.');
-    moveOutIso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  } else {
-    moveOutIso = moveOutIso.slice(0, 10);
-  }
+  const moveOutIso = toIsoDateOnly(auszug);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(moveOutIso)) {
     return false;
   }
   return moveOutIso > todayStr;
 }
 
+/**
+ * Normalize a German (DD.MM.YYYY) or ISO date string, optionally with a time part,
+ * to its YYYY-MM-DD prefix. Invalid input is returned truncated, not validated.
+ */
+export function toIsoDateOnly(date: string | null | undefined): string {
+  if (!date) return '';
+  const trimmed = String(date).trim();
+  return germanToIsoDate(trimmed) || trimmed.slice(0, 10);
+}
+
+/**
+ * Format a local Date object as YYYY-MM-DD string without timezone conversion
+ */
+export function formatLocalDateToIso(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/** Later of two YYYY-MM-DD strings (they compare chronologically as strings) */
+export const maxIsoDate = (a: string, b: string): string => (a > b ? a : b);
+
+/** Earlier of two YYYY-MM-DD strings (they compare chronologically as strings) */
+export const minIsoDate = (a: string, b: string): string => (a < b ? a : b);
+
+/**
+ * Get the ISO date strings for the start and end of a given month (1-indexed month: 1 = Jan, 12 = Dec)
+ * Avoids UTC timezone conversion bugs.
+ */
+export function getMonthDateRange(year: number, month: number): { startIso: string; endIso: string; daysInMonth: number } {
+  const lastDay = new Date(year, month, 0);
+  return {
+    startIso: formatLocalDateToIso(new Date(year, month - 1, 1)),
+    endIso: formatLocalDateToIso(lastDay),
+    daysInMonth: lastDay.getDate()
+  };
+}
+
+/**
+ * Timezone the business dates (rent months, payment dates, "today") refer to.
+ * Used as default so server code (process timezone usually UTC) and browsers agree.
+ */
+export const APP_TIME_ZONE = 'Europe/Berlin';
+
+const zonedDateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function getZonedDateParts(timeZone: string): { year: number; month: number; day: number } {
+  let formatter = zonedDateFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' });
+    zonedDateFormatters.set(timeZone, formatter);
+  }
+  const parts = formatter.formatToParts(new Date());
+  const part = (type: 'year' | 'month' | 'day') => Number(parts.find(p => p.type === type)?.value);
+  return { year: part('year'), month: part('month'), day: part('day') };
+}
+
+/**
+ * Get the ISO date range of the current month in the app timezone (or the given IANA timezone)
+ */
+export function getCurrentMonthRange(timeZone: string = APP_TIME_ZONE): { startIso: string; endIso: string; daysInMonth: number } {
+  const { year, month } = getZonedDateParts(timeZone);
+  return getMonthDateRange(year, month);
+}

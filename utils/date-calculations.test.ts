@@ -9,6 +9,9 @@ import {
   formatPeriodDuration,
   getTodayISOString,
   isTenantActive,
+  formatLocalDateToIso,
+  getMonthDateRange,
+  getCurrentMonthRange,
 } from './date-calculations';
 
 describe('Date Calculations Utilities', () => {
@@ -250,6 +253,88 @@ describe('Date Calculations Utilities', () => {
 
     it('handles invalid date strings by returning false', () => {
       expect(isTenantActive('invalid-date', '2026-08-13')).toBe(false);
+    });
+  });
+
+  describe('formatLocalDateToIso', () => {
+    it('formats local Date as YYYY-MM-DD without UTC timezone shift', () => {
+      const d = new Date(2025, 7, 1); // August 1st local
+      expect(formatLocalDateToIso(d)).toBe('2025-08-01');
+    });
+
+    it('formats end of month correctly', () => {
+      const d = new Date(2025, 6, 31); // July 31st local
+      expect(formatLocalDateToIso(d)).toBe('2025-07-31');
+    });
+  });
+
+  describe('getMonthDateRange', () => {
+    it('returns correct start and end ISO strings for 31-day month', () => {
+      const range = getMonthDateRange(2025, 8); // August
+      expect(range.startIso).toBe('2025-08-01');
+      expect(range.endIso).toBe('2025-08-31');
+    });
+
+    it('returns correct start and end ISO strings for February in leap year', () => {
+      const range = getMonthDateRange(2024, 2); // Feb 2024 (leap year)
+      expect(range.startIso).toBe('2024-02-01');
+      expect(range.endIso).toBe('2024-02-29');
+    });
+
+    it('returns correct start and end ISO strings for February in non-leap year', () => {
+      const range = getMonthDateRange(2025, 2); // Feb 2025
+      expect(range.startIso).toBe('2025-02-01');
+      expect(range.endIso).toBe('2025-02-28');
+    });
+
+    it('returns correct start and end ISO strings for 30-day month', () => {
+      const range = getMonthDateRange(2025, 4); // April
+      expect(range.startIso).toBe('2025-04-01');
+      expect(range.endIso).toBe('2025-04-30');
+      expect(range.daysInMonth).toBe(30);
+    });
+  });
+
+  describe('app timezone defaults', () => {
+    beforeEach(() => {
+      // 23:30 UTC on July 31st is already August 1st in Berlin (CEST, UTC+2)
+      jest.useFakeTimers().setSystemTime(new Date('2025-07-31T23:30:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    // jest pins the process TZ to Europe/Berlin, so the result alone can't tell the default zone apart
+    // from process-local time; assert the zone each helper builds its formatter with instead.
+    const zonesUsedBy = (helper: 'getTodayISOString' | 'getCurrentMonthRange'): string[] => {
+      const spy = jest.spyOn(Intl, 'DateTimeFormat');
+      try {
+        // Fresh module instance so the per-timezone formatter cache is empty
+        jest.isolateModules(() => {
+          require('./date-calculations')[helper]();
+        });
+        return spy.mock.calls.map(([, options]) => options?.timeZone as string);
+      } finally {
+        spy.mockRestore();
+      }
+    };
+
+    it.each(['getTodayISOString', 'getCurrentMonthRange'] as const)(
+      '%s formats with the Europe/Berlin zone by default instead of process-local time',
+      (helper) => {
+        expect(zonesUsedBy(helper)).toEqual(['Europe/Berlin']);
+      }
+    );
+
+    it('getTodayISOString uses Europe/Berlin by default, not the process timezone', () => {
+      expect(getTodayISOString()).toBe('2025-08-01');
+      expect(getTodayISOString('UTC')).toBe('2025-07-31');
+    });
+
+    it('getCurrentMonthRange uses Europe/Berlin by default, not the process timezone', () => {
+      expect(getCurrentMonthRange()).toEqual({ startIso: '2025-08-01', endIso: '2025-08-31', daysInMonth: 31 });
+      expect(getCurrentMonthRange('UTC').startIso).toBe('2025-07-01');
     });
   });
 });

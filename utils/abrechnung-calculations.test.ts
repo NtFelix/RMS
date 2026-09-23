@@ -10,7 +10,7 @@ import {
   calculateCompleteTenantResult
 } from './abrechnung-calculations';
 import type { Finanzen } from '@/lib/types';
-import { calculateTenantOccupancy } from './date-calculations';
+import { calculateTenantOccupancy, calculateTotalDays } from './date-calculations';
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -53,11 +53,12 @@ describe('abrechnung-calculations', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+    // Full occupancy of whatever range is requested (days consistent with the range)
+    (calculateTenantOccupancy as jest.Mock).mockImplementation((_tenant, start: string, end: string) => ({
       occupancyRatio: 1,
-      occupancyDays: 365,
+      occupancyDays: calculateTotalDays(start, end),
       tenantId: 't1'
-    });
+    }));
   });
 
   describe('calculateOccupancyPercentage', () => {
@@ -272,11 +273,11 @@ describe('abrechnung-calculations', () => {
       } as any;
 
       // Mock half-month occupancy
-      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+      (calculateTenantOccupancy as jest.Mock).mockImplementation((_tenant, start: string, end: string) => ({
         occupancyRatio: 0.5,
-        occupancyDays: 15,
+        occupancyDays: calculateTotalDays(start, end) / 2,
         tenantId: 't1'
-      });
+      }));
 
       const result = calculatePrepayments(tenantWithSchedule, startdatum, enddatum);
 
@@ -297,6 +298,115 @@ describe('abrechnung-calculations', () => {
       expect(result.totalPrepayments).toBe(0);
       // Not occupied, so no "missing" data — missingScheduleMonths should be 0 or undefined
       expect(result.missingScheduleMonths ?? 0).toBe(0);
+    });
+
+    // Relies on jest.config.mjs pinning TZ=Europe/Berlin: the UTC-shift bug only shows up east of UTC
+    describe('with real occupancy', () => {
+      beforeEach(() => {
+        const { calculateTenantOccupancy: actualCalculateTenantOccupancy } = jest.requireActual('./date-calculations');
+        (calculateTenantOccupancy as jest.Mock).mockImplementation(actualCalculateTenantOccupancy);
+      });
+
+      it('does not charge prepayment for month after move-out date (e.g. moved out 2025-07-31, august prepayment is 0)', () => {
+        const tenantIbald = {
+          id: 'ibald-1',
+          name: 'Ibald',
+          einzug: '2024-01-01',
+          auszug: '2025-07-31',
+          nebenkosten: [
+            { date: '2024-01-01', amount: '40' },
+            { date: '2024-08-01', amount: '65' }
+          ]
+        } as any;
+
+        const result = calculatePrepayments(tenantIbald, '2025-01-01', '2025-12-31');
+
+        // July 2025 (month 7) should be fully active with 65 EUR
+        const july = result.monthlyPayments.find(m => m.month === '2025-07');
+        expect(july).toBeDefined();
+        expect(july?.isActiveMonth).toBe(true);
+        expect(july?.amount).toBe(65);
+
+        // August 2025 (month 8) should have 0 amount and NOT be active
+        const august = result.monthlyPayments.find(m => m.month === '2025-08');
+        expect(august).toBeDefined();
+        expect(august?.isActiveMonth).toBe(false);
+        expect(august?.amount).toBe(0);
+
+        // Subsequent months (September - December) should also be inactive with 0
+        const sept = result.monthlyPayments.find(m => m.month === '2025-09');
+        expect(sept?.isActiveMonth).toBe(false);
+        expect(sept?.amount).toBe(0);
+
+        // Total prepayments should be 7 months (Jan - Jul) * 65 = 455
+        expect(result.totalPrepayments).toBe(7 * 65);
+      });
+
+      it('prorates partial first/last months of a billing period that does not start on the 1st', () => {
+        const tenant = {
+          id: 't-mid',
+          einzug: '2024-01-01',
+          auszug: null,
+          nebenkosten: [{ date: '2024-01-01', amount: '62' }]
+        } as any;
+
+        const result = calculatePrepayments(tenant, '2025-01-15', '2026-01-14');
+
+        expect(result.monthlyPayments).toHaveLength(13);
+        // 2025-01-15..31 = 17/31 of January, 2026-01-01..14 = 14/31 of January
+        expect(result.monthlyPayments[0].amount).toBeCloseTo(62 * 17 / 31);
+        expect(result.monthlyPayments[12].amount).toBeCloseTo(62 * 14 / 31);
+        // Together exactly 12 months of prepayment, not 13
+        expect(result.totalPrepayments).toBeCloseTo(12 * 62);
+        // Average counts the partial months by their share, not as whole months
+        expect(result.averageMonthlyPayment).toBeCloseTo(62);
+      });
+
+      it('ignores schedule entries dated after the billing period end in a partial last month', () => {
+        const tenant = {
+          id: 't-late',
+          einzug: '2024-01-01',
+          auszug: null,
+          nebenkosten: [
+            { date: '2024-01-01', amount: '100' },
+            { date: '2024-12-20', amount: '200' } // starts after the period ends on 2024-12-15
+          ]
+        } as any;
+
+        const result = calculatePrepayments(tenant, '2024-01-01', '2024-12-15');
+
+        const december = result.monthlyPayments.find(m => m.month === '2024-12');
+        expect(december?.amount).toBeCloseTo(100 * 15 / 31);
+      });
+
+      it('returns no months for a reversed period within one month', () => {
+        const tenant = { id: 't-rev', einzug: '2024-01-01', auszug: null, nebenkosten: [{ date: '2024-01-01', amount: '62' }] } as any;
+
+        const result = calculatePrepayments(tenant, '2025-01-20', '2025-01-10');
+
+        expect(result.monthlyPayments).toHaveLength(0);
+        expect(result.totalPrepayments).toBe(0);
+      });
+
+      it('returns empty prepayments instead of throwing for a missing period date', () => {
+        const tenant = { id: 't-null', einzug: '2024-01-01', auszug: null } as any;
+
+        expect(calculatePrepayments(tenant, null as any, '2025-12-31').totalPrepayments).toBe(0);
+      });
+
+      it('only counts actual payments made inside the billing period', () => {
+        const tenant = { id: 't-mid', einzug: '2024-01-01', auszug: null } as any;
+        const payments = [
+          { datum: '2025-01-03', betrag: 62 }, // before period start
+          { datum: '2025-02-03', betrag: 62 },
+          { datum: '2026-01-03', betrag: 62 },
+          { datum: '2026-01-20', betrag: 62 } // after period end
+        ] as any[];
+
+        const result = calculatePrepayments(tenant, '2025-01-15', '2026-01-14', payments, 'actual');
+
+        expect(result.totalPrepayments).toBe(2 * 62);
+      });
     });
   });
 

@@ -10,7 +10,7 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
-import { calculateTenantOccupancy, TenantOccupancy } from "./date-calculations";
+import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
 import { isSameCostName } from "./betriebskosten";
 import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
@@ -46,17 +46,7 @@ export function calculateOccupancyPercentage(
 ): OccupancyCalculation {
   const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
-  // Calculate total days in period
-  const startDate = parseISO(startdatum);
-  const endDate = parseISO(enddatum);
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
-
-  // Determine effective period dates
-  const tenantStart = tenant.einzug ? parseISO(tenant.einzug) : startDate;
-  const tenantEnd = tenant.auszug ? parseISO(tenant.auszug) : endDate;
-
-  const effectiveStart = new Date(Math.max(startDate.getTime(), tenantStart.getTime()));
-  const effectiveEnd = new Date(Math.min(endDate.getTime(), tenantEnd.getTime()));
+  const totalDays = calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
 
   return {
     percentage: occupancy.occupancyRatio * 100,
@@ -64,8 +54,9 @@ export function calculateOccupancyPercentage(
     daysInPeriod: totalDays,
     moveInDate: tenant.einzug || undefined,
     moveOutDate: tenant.auszug || undefined,
-    effectivePeriodStart: effectiveStart.toISOString().split('T')[0],
-    effectivePeriodEnd: effectiveEnd.toISOString().split('T')[0]
+    // Empty when the tenant does not occupy any part of the period (consistent with 0% occupancy)
+    effectivePeriodStart: occupancy.overlapStartIso ?? '',
+    effectivePeriodEnd: occupancy.overlapEndIso ?? ''
   };
 }
 
@@ -275,22 +266,41 @@ export function calculatePrepayments(
   const monthlyPayments: PrepaymentBreakdown['monthlyPayments'] = [];
   let totalPrepayments = 0;
   let missingScheduleMonths = 0;
+  // Number of billed months, counting partial first/last months by their share
+  let totalMonthShare = 0;
 
   // Generate monthly breakdown
-  const startDate = new Date(startdatum);
-  const endDate = new Date(enddatum);
+  const periodStartIso = toIsoDateOnly(startdatum);
+  const periodEndIso = toIsoDateOnly(enddatum);
+  const [startYear, startMonth] = periodStartIso.split('-').map(Number);
+  const [endYear, endMonth] = periodEndIso.split('-').map(Number);
 
-  const currentDate = parseISO(startdatum);
-  while (currentDate <= endDate) {
-    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+  if ([startYear, startMonth, endYear, endMonth].some(n => !n) || periodEndIso < periodStartIso) {
+    return {
+      monthlyPayments: [],
+      totalPrepayments: 0,
+      averageMonthlyPayment: 0
+    };
+  }
 
-    // Calculate occupancy for this month
-    const monthOccupancy = calculateTenantOccupancy(
-      tenant,
-      monthStart.toISOString().split('T')[0],
-      monthEnd.toISOString().split('T')[0]
-    );
+  // Prepayment schedule normalized once, newest entry first
+  const nebenkostenSchedule = (Array.isArray(tenant.nebenkosten) ? tenant.nebenkosten : [])
+    .filter(n => n.date)
+    .map(n => ({ iso: toIsoDateOnly(n.date), amount: n.amount }))
+    .sort((a, b) => b.iso.localeCompare(a.iso));
+
+  const lastMonthIndex = endYear * 12 + endMonth - 1;
+  for (let monthIndex = startYear * 12 + startMonth - 1; monthIndex <= lastMonthIndex; monthIndex++) {
+    const { startIso: monthStartIso, endIso: monthEndIso, daysInMonth } = getMonthDateRange(Math.floor(monthIndex / 12), monthIndex % 12 + 1);
+
+    // Clip the first/last month to the billing period so partial months are prorated, not charged in full
+    const rangeStartIso = maxIsoDate(periodStartIso, monthStartIso);
+    const rangeEndIso = minIsoDate(periodEndIso, monthEndIso);
+    totalMonthShare += calculateTotalDays(rangeStartIso, rangeEndIso) / daysInMonth;
+
+    // Occupancy for the part of this month inside the billing period, relative to the full calendar month
+    const { occupancyDays } = calculateTenantOccupancy(tenant, rangeStartIso, rangeEndIso);
+    const occupancyRatio = occupancyDays / daysInMonth;
 
     // Use tenant's actual Nebenkosten prepayment data
     let monthlyAmount = 0;
@@ -298,45 +308,40 @@ export function calculatePrepayments(
     if (mode === 'actual' && actualPayments) {
       const monthPayments = actualPayments.filter(p => {
         if (!p.datum) return false;
-        const pDate = parseISO(p.datum);
-        return pDate >= monthStart && pDate <= monthEnd;
+        const pIso = toIsoDateOnly(p.datum);
+        return pIso >= rangeStartIso && pIso <= rangeEndIso;
       });
       monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
     } else if (mode === 'scheduled') {
-      if (monthOccupancy.occupancyDays > 0 && tenant.nebenkosten && Array.isArray(tenant.nebenkosten)) {
+      if (occupancyDays > 0) {
         // Find applicable prepayment for this month.
-        // We look for the latest prepayment entry that is valid before or during this month.
-        const applicableNK = [...(tenant.nebenkosten || [])]
-          .filter(n => n.date && parseISO(n.date) <= monthEnd)
-          .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())[0];
+        // We look for the latest prepayment entry that is valid before or during the billed part of this month.
+        const applicableNK = nebenkostenSchedule.find(n => n.iso <= rangeEndIso);
 
         if (applicableNK) {
-          monthlyAmount = (Number(applicableNK.amount) || 0) * monthOccupancy.occupancyRatio;
+          monthlyAmount = (Number(applicableNK.amount) || 0) * occupancyRatio;
         }
       }
 
       // Track months where the tenant was occupied but no schedule entry exists.
       // We do NOT inject a fallback value — missing data should be surfaced explicitly.
-      if (monthlyAmount === 0 && monthOccupancy.occupancyDays > 0) {
+      if (monthlyAmount === 0 && occupancyDays > 0) {
         missingScheduleMonths++;
       }
     }
 
     monthlyPayments.push({
-      month: `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`,
+      month: monthStartIso.slice(0, 7),
       amount: monthlyAmount,
-      isActiveMonth: monthOccupancy.occupancyDays > 0,
-      occupancyPercentage: monthOccupancy.occupancyRatio * 100
+      isActiveMonth: occupancyDays > 0,
+      occupancyPercentage: occupancyRatio * 100
     });
 
     totalPrepayments += monthlyAmount;
-
-    // Move to next month
-    currentDate.setMonth(currentDate.getMonth() + 1);
   }
 
-  const averageMonthlyPayment = monthlyPayments.length > 0
-    ? totalPrepayments / monthlyPayments.length
+  const averageMonthlyPayment = totalMonthShare > 0
+    ? totalPrepayments / totalMonthShare
     : 0;
 
   return {
