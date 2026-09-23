@@ -51,7 +51,7 @@ export function TenantDataTable() {
           miete
         )
       `)
-      .or(`auszug.is.null,auszug.gt.${new Date().toISOString()}`)
+      .or(`auszug.is.null,auszug.gt.${getTodayISOString()}`)
 
     if (mieterError) {
       console.error("Fehler beim Abrufen der Mieter:", mieterError)

@@ -305,6 +305,28 @@ describe('Date Calculations Utilities', () => {
       jest.useRealTimers();
     });
 
+    // jest pins the process TZ to Europe/Berlin, so the result alone can't tell the default zone apart
+    // from process-local time; assert the zone each helper builds its formatter with instead.
+    const zonesUsedBy = (helper: 'getTodayISOString' | 'getCurrentMonthRange'): string[] => {
+      const spy = jest.spyOn(Intl, 'DateTimeFormat');
+      try {
+        // Fresh module instance so the per-timezone formatter cache is empty
+        jest.isolateModules(() => {
+          require('./date-calculations')[helper]();
+        });
+        return spy.mock.calls.map(([, options]) => options?.timeZone as string);
+      } finally {
+        spy.mockRestore();
+      }
+    };
+
+    it.each(['getTodayISOString', 'getCurrentMonthRange'] as const)(
+      '%s formats with the Europe/Berlin zone by default instead of process-local time',
+      (helper) => {
+        expect(zonesUsedBy(helper)).toEqual(['Europe/Berlin']);
+      }
+    );
+
     it('getTodayISOString uses Europe/Berlin by default, not the process timezone', () => {
       expect(getTodayISOString()).toBe('2025-08-01');
       expect(getTodayISOString('UTC')).toBe('2025-07-31');

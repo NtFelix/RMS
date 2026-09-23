@@ -86,6 +86,8 @@ export interface TenantOccupancy {
   tenantId: string;
   occupancyDays: number;
   occupancyRatio: number; // occupancyDays / totalPeriodDays
+  overlapStartIso?: string; // YYYY-MM-DD, only set when occupancyDays > 0
+  overlapEndIso?: string;
 }
 
 export function calculateTenantOccupancy(
@@ -119,7 +121,10 @@ export function calculateTenantOccupancy(
   return {
     tenantId: tenant.id,
     occupancyDays,
-    occupancyRatio: totalPeriodDays > 0 ? occupancyDays / totalPeriodDays : 0
+    occupancyRatio: totalPeriodDays > 0 ? occupancyDays / totalPeriodDays : 0,
+    ...(occupancyDays > 0
+      ? { overlapStartIso: formatLocalDateToIso(overlapStart), overlapEndIso: formatLocalDateToIso(overlapEnd) }
+      : {})
   };
 }
 
@@ -251,7 +256,9 @@ export const calculateTotalDays = (startdatum: string, enddatum: string): number
 };
 
 /**
- * Get today's date in the app timezone (or the given IANA timezone) as a YYYY-MM-DD string
+ * Get today's date in the app timezone (or the given IANA timezone) as a YYYY-MM-DD string.
+ * Deliberately NOT the browser/process timezone: all users are treated as being in APP_TIME_ZONE,
+ * so a user elsewhere near midnight sees the Berlin date. Pass a timeZone to opt out.
  */
 export function getTodayISOString(timeZone: string = APP_TIME_ZONE): string {
   const { year, month, day } = getZonedDateParts(timeZone);
@@ -278,8 +285,9 @@ export function isTenantActive(
  * Normalize a German (DD.MM.YYYY) or ISO date string, optionally with a time part,
  * to its YYYY-MM-DD prefix. Invalid input is returned truncated, not validated.
  */
-export function toIsoDateOnly(date: string): string {
-  const trimmed = date.trim();
+export function toIsoDateOnly(date: string | null | undefined): string {
+  if (!date) return '';
+  const trimmed = String(date).trim();
   return germanToIsoDate(trimmed) || trimmed.slice(0, 10);
 }
 
@@ -315,8 +323,15 @@ export function getMonthDateRange(year: number, month: number): { startIso: stri
  */
 export const APP_TIME_ZONE = 'Europe/Berlin';
 
+const zonedDateFormatters = new Map<string, Intl.DateTimeFormat>();
+
 function getZonedDateParts(timeZone: string): { year: number; month: number; day: number } {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date());
+  let formatter = zonedDateFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' });
+    zonedDateFormatters.set(timeZone, formatter);
+  }
+  const parts = formatter.formatToParts(new Date());
   const part = (type: 'year' | 'month' | 'day') => Number(parts.find(p => p.type === type)?.value);
   return { year: part('year'), month: part('month'), day: part('day') };
 }

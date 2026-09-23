@@ -10,7 +10,7 @@ import {
   calculateCompleteTenantResult
 } from './abrechnung-calculations';
 import type { Finanzen } from '@/lib/types';
-import { calculateTenantOccupancy } from './date-calculations';
+import { calculateTenantOccupancy, calculateTotalDays } from './date-calculations';
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -53,11 +53,12 @@ describe('abrechnung-calculations', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+    // Full occupancy of whatever range is requested (days consistent with the range)
+    (calculateTenantOccupancy as jest.Mock).mockImplementation((_tenant, start: string, end: string) => ({
       occupancyRatio: 1,
-      occupancyDays: 365,
+      occupancyDays: calculateTotalDays(start, end),
       tenantId: 't1'
-    });
+    }));
   });
 
   describe('calculateOccupancyPercentage', () => {
@@ -200,11 +201,11 @@ describe('abrechnung-calculations', () => {
       } as any;
 
       // Mock half-month occupancy
-      (calculateTenantOccupancy as jest.Mock).mockReturnValue({
+      (calculateTenantOccupancy as jest.Mock).mockImplementation((_tenant, start: string, end: string) => ({
         occupancyRatio: 0.5,
-        occupancyDays: 15,
+        occupancyDays: calculateTotalDays(start, end) / 2,
         tenantId: 't1'
-      });
+      }));
 
       const result = calculatePrepayments(tenantWithSchedule, startdatum, enddatum);
 
@@ -285,6 +286,23 @@ describe('abrechnung-calculations', () => {
         expect(result.monthlyPayments[12].amount).toBeCloseTo(62 * 14 / 31);
         // Together exactly 12 months of prepayment, not 13
         expect(result.totalPrepayments).toBeCloseTo(12 * 62);
+        // Average counts the partial months by their share, not as whole months
+        expect(result.averageMonthlyPayment).toBeCloseTo(62);
+      });
+
+      it('returns no months for a reversed period within one month', () => {
+        const tenant = { id: 't-rev', einzug: '2024-01-01', auszug: null, nebenkosten: [{ date: '2024-01-01', amount: '62' }] } as any;
+
+        const result = calculatePrepayments(tenant, '2025-01-20', '2025-01-10');
+
+        expect(result.monthlyPayments).toHaveLength(0);
+        expect(result.totalPrepayments).toBe(0);
+      });
+
+      it('returns empty prepayments instead of throwing for a missing period date', () => {
+        const tenant = { id: 't-null', einzug: '2024-01-01', auszug: null } as any;
+
+        expect(calculatePrepayments(tenant, null as any, '2025-12-31').totalPrepayments).toBe(0);
       });
 
       it('only counts actual payments made inside the billing period', () => {
