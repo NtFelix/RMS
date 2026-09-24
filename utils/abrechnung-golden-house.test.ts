@@ -8,7 +8,10 @@
  * "RMS Golden house 2025: hand calculation" (https://app.notion.com/p/3e581e55ec3c81f7b53fcd426fb35061).
  *
  * Expected values are literal numbers, never formulas copied from the implementation.
- * Money is asserted to within 0.0005 € (toBeCloseTo(x, 3)), well below one cent.
+ * Money is asserted to within 0.0005 € (toBeCloseTo(x, 3)), well below one cent, and water
+ * volumes to within 0.00005 m³ (toBeCloseTo(x, 4)). The code rounds allocated m³ to 5 decimals,
+ * so thirds of a reading (apt-201) differ from the exact values by up to 0.00005 € — keep the
+ * tolerances at least this loose.
  */
 import {
   calculateAbrechnungSummary,
@@ -247,6 +250,20 @@ describe('Golden house 2025 — full Abrechnung without mocks', () => {
     it.each(TENANT_IDS)('%s: operating cost total', id => {
       expect(results[id].operatingCosts.totalCost).toBeCloseTo(EXPECTED[id].operating, EUR);
     });
+
+    it('accounts for every euro: billed to tenants + left over = the 9,795 € of cost items', () => {
+      const leftOver = (key: CostKey) => COST_ITEMS[key].betrag - sum(TENANT_IDS.map(id => tenantShare(results[id], key)));
+
+      expect(leftOver('grundsteuer')).toBeCloseTo(875.5, EUR); // vacancy
+      expect(leftOver('versicherung')).toBeCloseTo(239.863014, EUR); // vacancy
+      expect(leftOver('muell')).toBeCloseTo(0, EUR); // pro Mieter bills everything
+      expect(leftOver('hauswart')).toBeCloseTo(485, EUR); // vacancy
+      expect(leftOver('garten')).toBeCloseTo(122.6, EUR); // invoices prorated by occupancy
+
+      const billed = sum(TENANT_IDS.map(id => results[id].operatingCosts.totalCost));
+      expect(billed).toBeCloseTo(8072.036986, EUR);
+      expect(sum(COST_KEYS.map(leftOver))).toBeCloseTo(1722.963014, EUR);
+    });
   });
 
   describe('meter costs', () => {
@@ -279,6 +296,15 @@ describe('Golden house 2025 — full Abrechnung without mocks', () => {
       expect(billed('kaltwasser')).toBeCloseTo(291.6, 4);
       expect(billed('warmwasser')).toBeCloseTo(136.55, 4);
       expect(meterCosts.find(m => m.apartmentId === 'apt-301')).toBeUndefined();
+    });
+
+    it('accounts for every euro of water: billed to tenants + not billed = 2,630 €', () => {
+      const billed = sum(meterCosts.map(m => m.costShare));
+      const buildingCost = NEBENKOSTEN.zaehlerkosten!.kaltwasser + NEBENKOSTEN.zaehlerkosten!.warmwasser;
+
+      // Not billed: 28.4 m³ cold × 4 € + 13.45 m³ warm × 9 € (vacancy plus shared use at the main meter)
+      expect(billed).toBeCloseTo(2395.35, EUR);
+      expect(buildingCost - billed).toBeCloseTo(234.65, EUR);
     });
 
     it('marks WG and sequential tenants as sharing an apartment', () => {
@@ -369,7 +395,7 @@ describe('Golden house 2025 — full Abrechnung without mocks', () => {
         .prepayments.totalPrepayments;
     };
 
-    it('counts only payments dated inside the period (tenant S: 12 × 75 €)', () => {
+    it('counts payments on both period boundaries but not one day outside (tenant S: 12 × 75 €)', () => {
       expect(actual('tenant-s')).toBeCloseTo(900, EUR);
     });
 

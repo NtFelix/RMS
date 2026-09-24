@@ -190,8 +190,11 @@ export const ACTUAL_PAYMENTS: Finanzen[] = [
   ...monthly('apt-101', [1, 2], 50),
   ...monthly('apt-101', [3, 4, 5, 6, 7], 60),
   ...monthly('apt-101', [8, 9, 10, 11, 12], 70),
-  // apt-302: 12 × 75 = 900 € inside the period, plus one payment before and one after it
-  ...monthly('apt-302', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 75),
-  payment('apt-302', '2024-12-03', 75),
-  payment('apt-302', '2026-01-03', 85),
+  // apt-302: 12 × 75 = 900 € inside the period. The first and last fall exactly on the period
+  // boundaries (both count); the payments one day before and one day after it don't.
+  payment('apt-302', '2024-12-31', 75),
+  payment('apt-302', '2025-01-01', 75),
+  ...monthly('apt-302', [2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 75),
+  payment('apt-302', '2025-12-31', 75),
+  payment('apt-302', '2026-01-01', 85),
 ];
