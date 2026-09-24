@@ -53,7 +53,8 @@ import { isoToGermanDate } from "@/utils/date-calculations"; // New import for n
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
-import { calculateCompleteTenantResult } from "@/utils/abrechnung-calculations";
+import { calculateCompleteTenantResult, findUnrecognisedBerechnungsarten, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
+import { sumUniqueApartmentAreas } from "@/utils/cost-calculations";
 import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 
 
@@ -610,6 +611,22 @@ export function AbrechnungModal({
     })), [tenants]
   );
 
+  // A stored house area below the occupied apartments' area makes the pro Fläche shares sum to
+  // more than the cost, so tell the user to correct it
+  const areaMismatch = useMemo(() => {
+    const houseArea = nebenkostenItem?.gesamtFlaeche || 0;
+    const hasAreaItems = (nebenkostenItem?.berechnungsart || []).some(isAreaBasedBerechnungsart);
+    if (!hasAreaItems || houseArea <= 0) return null;
+    const occupiedArea = sumUniqueApartmentAreas(safeTenants);
+    return occupiedArea > houseArea ? { houseArea, occupiedArea } : null;
+  }, [nebenkostenItem?.berechnungsart, nebenkostenItem?.gesamtFlaeche, safeTenants]);
+
+  // Cost items with an unknown Berechnungsart are billed by area; tell the user to fix them
+  const unrecognisedBerechnungsarten = useMemo(
+    () => nebenkostenItem ? findUnrecognisedBerechnungsarten(nebenkostenItem) : [],
+    [nebenkostenItem]
+  );
+
   if (!isOpen || !nebenkostenItem) {
     return null;
   }
@@ -636,6 +653,16 @@ export function AbrechnungModal({
             {tenants.length > 0 && (
               <span className="block text-sm text-green-600 mt-1">
                 ✓ Daten für {tenants.length} Mieter erfolgreich geladen
+              </span>
+            )}
+            {areaMismatch && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Die hinterlegte Hausfläche ({formatNumber(areaMismatch.houseArea)} m²) ist kleiner als die Fläche der im Zeitraum vermieteten Wohnungen ({formatNumber(areaMismatch.occupiedArea)} m²). Kosten „pro Fläche“ werden trotzdem mit der hinterlegten Hausfläche berechnet, dadurch wird mehr als der Gesamtbetrag umgelegt. Bitte die Hausgröße prüfen.
+              </span>
+            )}
+            {unrecognisedBerechnungsarten.length > 0 && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Für {unrecognisedBerechnungsarten.map(item => `„${item.costName}“`).join(', ')} ist keine gültige Berechnungsart hinterlegt. Diese Kosten werden „pro Fläche“ verteilt. Bitte die Berechnungsart in den Betriebskosten prüfen.
               </span>
             )}
           </DialogDescription>

@@ -13,6 +13,7 @@ import {
   OptimizedNebenkosten,
   MeterModalData,
   AbrechnungModalData,
+  HouseApartment,
   OptimizedActionResponse,
   SafeRpcCallResult,
   AbrechnungCalculationResult,
@@ -28,7 +29,8 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
-import { findDuplicateNachRechnungName } from '@/utils/betriebskosten';
+import { findDuplicateNachRechnungName, normalizeBerechnungsart } from '@/utils/betriebskosten';
+import { BERECHNUNGSART_OPTIONS } from '@/lib/constants';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { posthogLogger } from '@/lib/posthog-logger';
 
@@ -70,19 +72,46 @@ export interface RechnungData {
 }
 
 /**
- * Trims cost names and rejects duplicate 'nach Rechnung' names, because Einzelrechnungen
- * are matched to their cost item by name. Returns an error message or the normalized data.
+ * Trims cost names, maps legacy Berechnungsart spellings to their canonical value and rejects
+ * unknown ones (the calculation would bill them by area), and rejects duplicate 'nach Rechnung'
+ * names, because Einzelrechnungen are matched to their cost item by name.
+ * Returns an error message or the normalized data.
  */
 function normalizeCostItemNames<T extends Partial<Pick<NebenkostenFormData, 'nebenkostenart' | 'berechnungsart'>>>(
   formData: T
 ): { data: T; error: null } | { data: null; error: string } {
-  if (!formData.nebenkostenart) return { data: formData, error: null };
-  const nebenkostenart = formData.nebenkostenart.map(name => name.trim());
-  const duplicateName = findDuplicateNachRechnungName(nebenkostenart, formData.berechnungsart ?? []);
-  if (duplicateName) {
-    return { data: null, error: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.` };
+  const nebenkostenart = formData.nebenkostenart?.map(name => name.trim());
+  const berechnungsart = formData.berechnungsart?.map(art => normalizeBerechnungsart(art ?? ''));
+
+  // Cost items and their Berechnungsart are saved together, so they must match in length
+  if (nebenkostenart && nebenkostenart.length !== (berechnungsart ?? []).length) {
+    return { data: null, error: 'Jede Kostenart braucht genau eine Berechnungsart.' };
   }
-  return { data: { ...formData, nebenkostenart }, error: null };
+  const invalidIndex = berechnungsart?.findIndex(art => !art) ?? -1;
+  if (invalidIndex !== -1) {
+    const costName = nebenkostenart?.[invalidIndex];
+    const allowed = BERECHNUNGSART_OPTIONS.map(opt => opt.label).join(', ');
+    return {
+      data: null,
+      error: `Ungültige Berechnungsart "${formData.berechnungsart?.[invalidIndex] ?? ''}"${costName ? ` für Kostenart "${costName}"` : ''}. Erlaubt sind: ${allowed}.`
+    };
+  }
+
+  if (nebenkostenart) {
+    const duplicateName = findDuplicateNachRechnungName(nebenkostenart, berechnungsart ?? []);
+    if (duplicateName) {
+      return { data: null, error: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.` };
+    }
+  }
+
+  return {
+    data: {
+      ...formData,
+      ...(nebenkostenart && { nebenkostenart }),
+      ...(berechnungsart && { berechnungsart })
+    },
+    error: null
+  };
 }
 
 // Implement createNebenkosten function
@@ -2097,22 +2126,24 @@ export async function getAbrechnungModalDataAction(
 
       // Workaround for vorauszahlungs_art removed - database functions now include it.
 
-      // The RPC returns no apartment count; pro Wohnung needs the house's, vacant apartments included
-      if (modalData.nebenkosten_data.anzahlWohnungen == null) {
-        modalData.nebenkosten_data.anzahlWohnungen =
-          await fetchHouseApartmentCount(supabase, modalData.nebenkosten_data.haeuser_id);
+      // All apartments of the house for the vacancy costs, and the house totals the RPC doesn't
+      // return yet (TODO: drop the totals fill once mietevo-db#48 is deployed), so every consumer
+      // of this data leaves vacancy with the landlord. Actual payments ('ist' mode) don't depend
+      // on them, so load both in parallel.
+      const nk = modalData.nebenkosten_data;
+      const [houseApartments, actualPayments] = await Promise.all([
+        fetchHouseApartments(supabase, nk.haeuser_id),
+        (nk as any).vorauszahlungs_art === 'ist'
+          ? resolveActualPaymentsData(supabase, nk, modalData.tenants, {}, nebenkostenId)
+          : undefined
+      ]);
+      if (houseApartments) {
+        const houseTotals = sumHouseApartments(houseApartments);
+        nk.anzahlWohnungen ??= houseTotals.count;
+        nk.gesamtFlaeche ||= houseTotals.area;
+        modalData.houseApartments = houseApartments;
       }
-
-      // Fetch actual payments if mode is 'ist'
-      if ((modalData.nebenkosten_data as any).vorauszahlungs_art === 'ist') {
-        modalData.actualPayments = await resolveActualPaymentsData(
-          supabase,
-          modalData.nebenkosten_data,
-          modalData.tenants,
-          {},
-          nebenkostenId
-        );
-      }
+      if (actualPayments) modalData.actualPayments = actualPayments;
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
         userId: user.id,
@@ -2157,16 +2188,34 @@ export async function getAbrechnungModalDataAction(
 }
 
 /**
- * Number of apartments in a house, vacant ones included: the pro Wohnung denominator.
- * Returns undefined on error so callers fall back to the tenant-derived count.
+ * ALL apartments of a house (vacant ones included), like get_abrechnung_modal_data counts them.
+ * Returns undefined when the query fails or finds none, so callers fall back to the tenants'
+ * apartments.
  */
-async function fetchHouseApartmentCount(supabase: any, haeuserId: string | null | undefined): Promise<number | undefined> {
+async function fetchHouseApartments(
+  supabase: any,
+  haeuserId: string | null | undefined
+): Promise<HouseApartment[] | undefined> {
   if (!haeuserId) return undefined;
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from("Wohnungen")
-    .select("id", { count: "exact", head: true })
+    .select("id, name, groesse")
     .eq("haus_id", haeuserId);
-  return error ? undefined : count ?? undefined;
+
+  if (error) {
+    logger.warn('Failed to fetch house apartments, using tenant apartments', { haeuserId, error: error.message });
+    return undefined;
+  }
+  // An empty result can't be right while tenants live in the house, so treat it like an error
+  return data?.length ? data : undefined;
+}
+
+/** Number and summed area of the house apartments */
+function sumHouseApartments(apartments: HouseApartment[]): { count: number; area: number } {
+  return {
+    count: apartments.length,
+    area: apartments.reduce((sum, w) => sum + (w.groesse || 0), 0)
+  };
 }
 
 /**
@@ -2205,21 +2254,26 @@ async function getAbrechnungModalDataFallback(
     return { success: false, message: "Nebenkosten-Eintrag nicht gefunden." };
   }
 
-  // Fetch tenants overlapping the billing period for the same house
-  const { data: tenants, error: tenantsError } = await supabase
-    .from("Mieter")
-    .select(`
-      *,
-      Wohnungen!inner (
-        name,
-        groesse,
-        miete,
-        haus_id
-      )
-    `)
-    .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
-    .lte("einzug", nebenkostenData.enddatum)
-    .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
+  // Fetch tenants overlapping the billing period for the same house, and ALL apartments of
+  // the house (incl. vacant ones) for the apartment count and area fallback
+  const [{ data: tenants, error: tenantsError }, houseApartments] = await Promise.all([
+    supabase
+      .from("Mieter")
+      .select(`
+        *,
+        Wohnungen!inner (
+          name,
+          groesse,
+          miete,
+          haus_id
+        )
+      `)
+      .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
+      .lte("einzug", nebenkostenData.enddatum)
+      .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`),
+    fetchHouseApartments(supabase, nebenkostenData.haeuser_id)
+  ]);
+  const houseTotals = houseApartments && sumHouseApartments(houseApartments);
 
   if (tenantsError) {
     logger.error('Failed to fetch tenants in fallback', tenantsError || undefined, {
@@ -2294,12 +2348,11 @@ async function getAbrechnungModalDataFallback(
     }
   }
 
-  // Aggregate basic metrics for the modal (compatible with component expectations)
-  // Count each apartment once (WG / sequential tenants share the same Wohnung)
+  // Aggregate basic metrics for the modal (compatible with component expectations).
+  // Without the house apartments, count each tenant apartment once.
   const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
-  const totalArea = nebenkostenData.Haeuser?.groesse || sumUniqueApartmentAreas(tenants || []);
-  const apartmentCount = await fetchHouseApartmentCount(supabase, nebenkostenData.haeuser_id)
-    ?? new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+  const apartmentCount = houseTotals?.count ?? new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+  const totalArea = nebenkostenData.Haeuser?.groesse || houseTotals?.area || sumUniqueApartmentAreas(tenants || []);
 
   const modalData: AbrechnungModalData = {
     nebenkosten_data: {
@@ -2311,7 +2364,8 @@ async function getAbrechnungModalDataFallback(
     tenants: tenants || [],
     rechnungen: rechnungen || [],
     meters: waterMeters,
-    readings: waterReadings
+    readings: waterReadings,
+    houseApartments
   };
 
   // Fetch actual payments if mode is 'ist'
@@ -2355,13 +2409,14 @@ async function getAbrechnungModalDataFallback(
  * - Recommended prepayment calculations for next period
  * - Comprehensive validation and error handling
  * 
- * **Calculation Types Supported**:
- * - `pro qm` / `qm` / `pro flaeche`: Distributed by apartment size
- * - `nach rechnung`: Individual bills per tenant
- * - `pro mieter` / `pro person`: Equal distribution among tenants
- * - `pro wohnung`: Equal distribution among apartments
- * - `fix` / `pro einheit`: Fixed amount per tenant
- * - `nach verbrauch`: Water costs based on consumption
+ * **Calculation Types Supported** (`berechnungsart`, normalised via `normalizeBerechnungsart`,
+ * so legacy spellings like `pro person`, `pro qm`/`qm` or lowercase variants are accepted):
+ * - `pro Fläche` / `pro Flaeche`: Distributed by apartment area
+ * - `pro Mieter`: Distributed per tenant
+ * - `pro Wohnung`: Distributed per apartment
+ * - `nach Rechnung`: Individual amounts per tenant (Rechnungen)
+ * - Any other or empty value is billed like `pro Fläche`; `validateCalculationData` warns about it
+ * Water/meter costs (`zaehlerkosten`) are distributed by consumption, separate from `berechnungsart`.
  * 
  * **Database Function**: Uses `get_abrechnung_calculation_data` for optimized data fetching
  * 

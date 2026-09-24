@@ -106,7 +106,7 @@ describe('betriebskosten-actions', () => {
       enddatum: '2023-12-31',
       nebenkostenart: ['Grundsteuer'],
       betrag: [100],
-      berechnungsart: ['qm'],
+      berechnungsart: ['pro Flaeche'],
       haeuser_id: 'house1',
     };
 
@@ -142,6 +142,39 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.insert).toHaveBeenCalledWith([
         expect.objectContaining({ nebenkostenart: ['Grundsteuer'] })
       ]);
+    });
+
+    it('stores legacy Berechnungsart spellings as their canonical value', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      await createNebenkosten({
+        ...mockFormData,
+        nebenkostenart: ['Grundsteuer', 'Müll'],
+        betrag: [100, 200],
+        berechnungsart: ['qm', 'pro person'],
+      });
+
+      expect(mockSupabase.insert).toHaveBeenCalledWith([
+        expect.objectContaining({ berechnungsart: ['pro Flaeche', 'pro Mieter'] })
+      ]);
+    });
+
+    it.each([['fix'], ['']])('rejects unknown Berechnungsart "%s"', async (berechnungsart) => {
+      const result = await createNebenkosten({ ...mockFormData, berechnungsart: [berechnungsart] });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain(`Ungültige Berechnungsart "${berechnungsart}" für Kostenart "Grundsteuer"`);
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['an empty list', []],
+      ['no list', undefined],
+    ])('rejects %s of Berechnungsart for the cost items', async (_name, berechnungsart) => {
+      const result = await createNebenkosten({ ...mockFormData, berechnungsart: berechnungsart as any });
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
     });
 
     it('rejects duplicate nach Rechnung names', async () => {
@@ -209,6 +242,21 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.update).toHaveBeenCalledWith({ wasserkosten: 50 });
       expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'nb1');
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+    });
+
+    it('rejects cost items without their Berechnungsart on update', async () => {
+      const result = await updateNebenkosten('nb1', { nebenkostenart: ['Grundsteuer'], betrag: [100] });
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects unknown Berechnungsart on update', async () => {
+      const result = await updateNebenkosten('nb1', { berechnungsart: ['nach verbrauch'] });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Ungültige Berechnungsart "nach verbrauch"');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
     });
 
     it('rejects duplicate nach Rechnung names on update', async () => {
@@ -391,6 +439,10 @@ const tenants = [
   { id: 'b', name: 'B', einzug: '2020-01-01', auszug: null, wohnung_id: 'wb', Wohnungen: { name: 'WB', groesse: 50, haus_id: 'h1' } }
 ];
 
+// wa and wb are occupied, wc is vacant
+const houseApartments = [{ id: 'wa', groesse: 50 }, { id: 'wb', groesse: 50 }, { id: 'wc', groesse: 70 }];
+const proWohnungNebenkosten = { ...nebenkosten, berechnungsart: ['pro Wohnung'], Haeuser: { name: 'H', groesse: null } };
+
 const rechnungen = [
   { id: 'r1', nebenkosten_id: 'nk1', mieter_id: 'a', name: 'Schornstein', betrag: 100 },
   { id: 'r2', nebenkosten_id: 'nk1', mieter_id: 'b', name: 'Schornstein', betrag: 200 }
@@ -458,6 +510,74 @@ describe('Abrechnung actions — nach Rechnung', () => {
 
     expect(result.success).toBe(true);
     expect(result.data?.rechnungen).toEqual([]);
+  });
+
+  it('counts all house apartments incl. vacant ones in the fallback path', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: proWohnungNebenkosten, error: null },
+      Mieter: { data: tenants, error: null },
+      Wohnungen: { data: houseApartments, error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(3);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(170);
+    expect(result.data?.houseApartments).toEqual(houseApartments);
+  });
+
+  it('falls back to the tenant apartments when the house apartments cannot be loaded', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: proWohnungNebenkosten, error: null },
+      Mieter: { data: tenants, error: null },
+      Wohnungen: { data: null, error: { message: 'timeout' } }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(2);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(100);
+  });
+
+  it('fills missing house totals from all house apartments in the database function path', async () => {
+    // RPC without mietevo-db#48: no apartment count, no area when the house has none set
+    mockSupabaseWithTables({
+      Wohnungen: { data: houseApartments, error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [{ nebenkosten_data: { ...nebenkosten, gesamtFlaeche: null }, tenants, rechnungen: [], meters: [], readings: [] }]
+    });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(3);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(170);
+  });
+
+  it('keeps the house totals the database function returns', async () => {
+    mockSupabaseWithTables({
+      Wohnungen: { data: houseApartments, error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [{
+        nebenkosten_data: { ...nebenkosten, gesamtFlaeche: 200, anzahlWohnungen: 4 },
+        tenants, rechnungen: [], meters: [], readings: []
+      }]
+    });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(4);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(200);
+    // The apartment list is still returned for the vacancy costs
+    expect(result.data?.houseApartments).toEqual(houseApartments);
   });
 
   it.each([
