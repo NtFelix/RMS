@@ -2097,28 +2097,23 @@ export async function getAbrechnungModalDataAction(
 
       // Workaround for vorauszahlungs_art removed - database functions now include it.
 
-      // Without mietevo-db#48 the RPC returns no apartment count and no area when the house has
-      // none set. Fill both from all house apartments (vacant ones included), so every consumer
-      // (Abrechnung modal, overview, server calculation) leaves vacancy with the landlord.
+      // Fill house totals the RPC doesn't return yet (TODO: drop once mietevo-db#48 is deployed),
+      // so every consumer of this data leaves vacancy with the landlord. Actual payments ('ist'
+      // mode) don't depend on them, so load both in parallel.
       const nk = modalData.nebenkosten_data;
-      if (nk.anzahlWohnungen == null || !nk.gesamtFlaeche) {
-        const houseTotals = await fetchHouseApartmentTotals(supabase, nk.haeuser_id);
-        if (houseTotals) {
-          nk.anzahlWohnungen ??= houseTotals.count;
-          nk.gesamtFlaeche ||= houseTotals.area;
-        }
+      const [houseTotals, actualPayments] = await Promise.all([
+        nk.anzahlWohnungen == null || !nk.gesamtFlaeche
+          ? fetchHouseApartmentTotals(supabase, nk.haeuser_id)
+          : undefined,
+        (nk as any).vorauszahlungs_art === 'ist'
+          ? resolveActualPaymentsData(supabase, nk, modalData.tenants, {}, nebenkostenId)
+          : undefined
+      ]);
+      if (houseTotals) {
+        nk.anzahlWohnungen ??= houseTotals.count;
+        nk.gesamtFlaeche ||= houseTotals.area;
       }
-
-      // Fetch actual payments if mode is 'ist'
-      if ((modalData.nebenkosten_data as any).vorauszahlungs_art === 'ist') {
-        modalData.actualPayments = await resolveActualPaymentsData(
-          supabase,
-          modalData.nebenkosten_data,
-          modalData.tenants,
-          {},
-          nebenkostenId
-        );
-      }
+      if (actualPayments) modalData.actualPayments = actualPayments;
 
       logger.info('Successfully fetched Abrechnung modal data (optimized)', {
         userId: user.id,
@@ -2319,11 +2314,10 @@ async function getAbrechnungModalDataFallback(
   }
 
   // Aggregate basic metrics for the modal (compatible with component expectations).
-  // Count ALL apartments of the house (incl. vacant ones) like get_abrechnung_modal_data,
-  // so vacancy stays with the landlord; without them, count each tenant apartment once.
+  // Without the house apartments, count each tenant apartment once.
   const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
   const apartmentCount = houseTotals?.count ?? new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
-  const totalArea = nebenkostenData.Haeuser?.groesse || (houseTotals?.area ?? sumUniqueApartmentAreas(tenants || []));
+  const totalArea = nebenkostenData.Haeuser?.groesse || houseTotals?.area || sumUniqueApartmentAreas(tenants || []);
 
   const modalData: AbrechnungModalData = {
     nebenkosten_data: {

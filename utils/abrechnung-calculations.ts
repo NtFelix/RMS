@@ -59,6 +59,20 @@ export function calculateOccupancyPercentage(
   };
 }
 
+// Cost types with their own key; every other type is split by area (the switch's default)
+const NON_AREA_BERECHNUNGSARTEN = ['pro Mieter', 'pro Wohnung', 'nach Rechnung'];
+
+/** Whether a cost type is split by area: 'pro Fläche' and any unknown type */
+export const isAreaBasedBerechnungsart = (art: string): boolean => !NON_AREA_BERECHNUNGSARTEN.includes(art);
+
+/**
+ * House area for 'pro Fläche': the stored area (gesamtFlaeche), but never less than the
+ * occupied apartments' area, so a stale house area can't make shares sum to more than 100 %.
+ */
+export function effectiveHouseArea(gesamtFlaeche: number | null | undefined, tenants: Mieter[]): number {
+  return Math.max(gesamtFlaeche || 0, sumUniqueApartmentAreas(tenants));
+}
+
 /**
  * Calculate operating costs for a tenant (excluding water costs)
  */
@@ -79,9 +93,8 @@ export function calculateTenantCosts(
 
   // For the verteiler display in the PDF: show tenant area vs total physical house area.
   // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse),
-  // consistent with what the overview modal shows. Never less than the occupied apartments'
-  // area, so a stale house area can't overcharge (shares would sum to more than 100 %).
-  const totalHouseArea = Math.max((nebenkosten as any).gesamtFlaeche || 0, sumUniqueApartmentAreas(tenants));
+  // consistent with what the overview modal shows.
+  const totalHouseArea = effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
 
   // WG day-share factors depend only on the tenants and period, so compute them at most once
   // for all area- and apartment-based cost items instead of once per item.

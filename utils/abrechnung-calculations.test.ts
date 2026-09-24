@@ -114,44 +114,28 @@ describe('abrechnung-calculations', () => {
       );
     });
 
-    it('never uses a house area below the occupied apartments area for pro Fläche', () => {
-      // Stale house area (40 m²) below the tenant's apartment (50 m²)
+    it.each([
+      // Stale house area (40 m²) below the tenant's apartment (50 m²): the apartment area is used
+      ['never uses a house area below the occupied apartments area', 40, 50],
+      ['keeps a house area above the occupied apartments area', 200, 200]
+    ])('%s for pro Fläche', (_name, gesamtFlaeche, expectedArea) => {
       const nebenkosten = {
         nebenkostenart: ['Hausmeister'],
         betrag: [1000],
         berechnungsart: ['pro Fläche'],
         startdatum,
         enddatum,
-        gesamtFlaeche: 40
-      } as any;
-
-      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 1000 } });
-
-      const result = calculateTenantCosts(mockTenant, nebenkosten);
-
-      expect(calculateProFlächeDistribution).toHaveBeenCalledWith(
-        [mockTenant], 1000, startdatum, enddatum, 50, expect.any(Object)
-      );
-      expect(result.costItems[0].distributionBasis).toBe('50 m²');
-    });
-
-    it('keeps a house area above the occupied apartments area for pro Fläche', () => {
-      const nebenkosten = {
-        nebenkostenart: ['Hausmeister'],
-        betrag: [1000],
-        berechnungsart: ['pro Fläche'],
-        startdatum,
-        enddatum,
-        gesamtFlaeche: 200
+        gesamtFlaeche
       } as any;
 
       (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 250 } });
 
-      calculateTenantCosts(mockTenant, nebenkosten);
+      const result = calculateTenantCosts(mockTenant, nebenkosten);
 
       expect(calculateProFlächeDistribution).toHaveBeenCalledWith(
-        [mockTenant], 1000, startdatum, enddatum, 200, expect.any(Object)
+        [mockTenant], 1000, startdatum, enddatum, expectedArea, expect.any(Object)
       );
+      expect(result.costItems[0].distributionBasis).toBe(`${expectedArea} m²`);
     });
 
     it('defaults to pro Fläche for unknown type', () => {

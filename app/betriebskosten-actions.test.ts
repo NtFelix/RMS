@@ -391,6 +391,10 @@ const tenants = [
   { id: 'b', name: 'B', einzug: '2020-01-01', auszug: null, wohnung_id: 'wb', Wohnungen: { name: 'WB', groesse: 50, haus_id: 'h1' } }
 ];
 
+// wa and wb are occupied, wc is vacant
+const houseApartments = [{ id: 'wa', groesse: 50 }, { id: 'wb', groesse: 50 }, { id: 'wc', groesse: 70 }];
+const proWohnungNebenkosten = { ...nebenkosten, berechnungsart: ['pro Wohnung'], Haeuser: { name: 'H', groesse: null } };
+
 const rechnungen = [
   { id: 'r1', nebenkosten_id: 'nk1', mieter_id: 'a', name: 'Schornstein', betrag: 100 },
   { id: 'r2', nebenkosten_id: 'nk1', mieter_id: 'b', name: 'Schornstein', betrag: 200 }
@@ -462,10 +466,9 @@ describe('Abrechnung actions — nach Rechnung', () => {
 
   it('counts all house apartments incl. vacant ones in the fallback path', async () => {
     mockSupabaseWithTables({
-      Nebenkosten: { data: { ...nebenkosten, berechnungsart: ['pro Wohnung'], Haeuser: { name: 'H', groesse: null } }, error: null },
+      Nebenkosten: { data: proWohnungNebenkosten, error: null },
       Mieter: { data: tenants, error: null },
-      // wa and wb are occupied, wc is vacant
-      Wohnungen: { data: [{ id: 'wa', groesse: 50 }, { id: 'wb', groesse: 50 }, { id: 'wc', groesse: 70 }], error: null }
+      Wohnungen: { data: houseApartments, error: null }
     });
     (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
 
@@ -478,7 +481,7 @@ describe('Abrechnung actions — nach Rechnung', () => {
 
   it('falls back to the tenant apartments when the house apartments cannot be loaded', async () => {
     mockSupabaseWithTables({
-      Nebenkosten: { data: { ...nebenkosten, berechnungsart: ['pro Wohnung'], Haeuser: { name: 'H', groesse: null } }, error: null },
+      Nebenkosten: { data: proWohnungNebenkosten, error: null },
       Mieter: { data: tenants, error: null },
       Wohnungen: { data: null, error: { message: 'timeout' } }
     });
@@ -494,7 +497,7 @@ describe('Abrechnung actions — nach Rechnung', () => {
   it('fills missing house totals from all house apartments in the database function path', async () => {
     // RPC without mietevo-db#48: no apartment count, no area when the house has none set
     mockSupabaseWithTables({
-      Wohnungen: { data: [{ id: 'wa', groesse: 50 }, { id: 'wb', groesse: 50 }, { id: 'wc', groesse: 70 }], error: null }
+      Wohnungen: { data: houseApartments, error: null }
     });
     (safeRpcCall as jest.Mock).mockResolvedValue({
       success: true,

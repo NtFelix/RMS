@@ -53,8 +53,7 @@ import { isoToGermanDate } from "@/utils/date-calculations"; // New import for n
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
-import { calculateCompleteTenantResult } from "@/utils/abrechnung-calculations";
-import { sumUniqueApartmentAreas } from "@/utils/cost-calculations";
+import { calculateCompleteTenantResult, effectiveHouseArea, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
 import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 
 
@@ -611,16 +610,14 @@ export function AbrechnungModal({
     })), [tenants]
   );
 
-  // Stored house area below the occupied apartments' area: the calculation uses the larger
-  // value for 'pro Fläche' items (incl. unknown types, which default to area), so tell the user
+  // The calculation replaces a stored house area below the occupied apartments' area for
+  // area-based items, so tell the user to correct it
   const areaMismatch = useMemo(() => {
-    const hasAreaItems = (nebenkostenItem?.berechnungsart || []).some(
-      art => !['pro Mieter', 'pro Wohnung', 'nach Rechnung'].includes(art)
-    );
+    const hasAreaItems = (nebenkostenItem?.berechnungsart || []).some(isAreaBasedBerechnungsart);
     const houseArea = nebenkostenItem?.gesamtFlaeche || 0;
-    const occupiedArea = sumUniqueApartmentAreas(Array.isArray(tenants) ? tenants : []);
+    const occupiedArea = effectiveHouseArea(houseArea, safeTenants);
     return hasAreaItems && houseArea > 0 && occupiedArea > houseArea ? { houseArea, occupiedArea } : null;
-  }, [nebenkostenItem?.berechnungsart, nebenkostenItem?.gesamtFlaeche, tenants]);
+  }, [nebenkostenItem?.berechnungsart, nebenkostenItem?.gesamtFlaeche, safeTenants]);
 
   if (!isOpen || !nebenkostenItem) {
     return null;
