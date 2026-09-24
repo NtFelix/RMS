@@ -491,6 +491,40 @@ describe('Abrechnung actions — nach Rechnung', () => {
     expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(100);
   });
 
+  it('fills missing house totals from all house apartments in the database function path', async () => {
+    // RPC without mietevo-db#48: no apartment count, no area when the house has none set
+    mockSupabaseWithTables({
+      Wohnungen: { data: [{ id: 'wa', groesse: 50 }, { id: 'wb', groesse: 50 }, { id: 'wc', groesse: 70 }], error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [{ nebenkosten_data: { ...nebenkosten, gesamtFlaeche: null }, tenants, rechnungen: [], meters: [], readings: [] }]
+    });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(3);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(170);
+  });
+
+  it('keeps the house totals the database function returns', async () => {
+    const supabase = mockSupabaseWithTables({});
+    (safeRpcCall as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [{
+        nebenkosten_data: { ...nebenkosten, gesamtFlaeche: 200, anzahlWohnungen: 4 },
+        tenants, rechnungen: [], meters: [], readings: []
+      }]
+    });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(4);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(200);
+    expect(supabase.from).not.toHaveBeenCalledWith('Wohnungen');
+  });
+
   it.each([
     [
       'createAbrechnungCalculationAction',

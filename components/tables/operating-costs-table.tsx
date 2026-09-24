@@ -84,18 +84,6 @@ export function OperatingCostsTable({
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
   const [abrechnungModalData, setAbrechnungModalData] = useState<AbrechnungModalData | null>(null);
   const [isLoadingAbrechnungData, setIsLoadingAbrechnungData] = useState(false);
-
-  // The modal data's DB function may not return the house totals (mietevo-db#48 not deployed);
-  // fill them from the table row, which counts all apartments incl. vacant ones like the overview
-  const abrechnungNebenkosten = useMemo(() => {
-    const data = abrechnungModalData?.nebenkosten_data;
-    if (!data || !selectedNebenkostenForAbrechnung) return data || selectedNebenkostenForAbrechnung;
-    return {
-      ...data,
-      anzahlWohnungen: data.anzahlWohnungen ?? selectedNebenkostenForAbrechnung.anzahl_wohnungen,
-      gesamtFlaeche: data.gesamtFlaeche ?? selectedNebenkostenForAbrechnung.gesamt_flaeche
-    };
-  }, [abrechnungModalData, selectedNebenkostenForAbrechnung]);
   const [sortKey, setSortKey] = useState<OperatingCostsSortKey>("zeitraum")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [internalSelectedItems, setInternalSelectedItems] = useState<Set<string>>(new Set())
@@ -655,7 +643,7 @@ export function OperatingCostsTable({
         <AbrechnungModal
           isOpen={isAbrechnungModalOpen}
           onClose={handleCloseAbrechnungModal}
-          nebenkostenItem={abrechnungNebenkosten}
+          nebenkostenItem={abrechnungModalData?.nebenkosten_data || selectedNebenkostenForAbrechnung}
           tenants={abrechnungModalData.tenants ?? []}
           rechnungen={abrechnungModalData.rechnungen ?? []}
           meters={abrechnungModalData.meters ?? []}

@@ -2097,10 +2097,16 @@ export async function getAbrechnungModalDataAction(
 
       // Workaround for vorauszahlungs_art removed - database functions now include it.
 
-      // The RPC returns no apartment count; pro Wohnung needs the house's, vacant apartments included
-      if (modalData.nebenkosten_data.anzahlWohnungen == null) {
-        modalData.nebenkosten_data.anzahlWohnungen =
-          await fetchHouseApartmentCount(supabase, modalData.nebenkosten_data.haeuser_id);
+      // Without mietevo-db#48 the RPC returns no apartment count and no area when the house has
+      // none set. Fill both from all house apartments (vacant ones included), so every consumer
+      // (Abrechnung modal, overview, server calculation) leaves vacancy with the landlord.
+      const nk = modalData.nebenkosten_data;
+      if (nk.anzahlWohnungen == null || !nk.gesamtFlaeche) {
+        const houseTotals = await fetchHouseApartmentTotals(supabase, nk.haeuser_id);
+        if (houseTotals) {
+          nk.anzahlWohnungen ??= houseTotals.count;
+          nk.gesamtFlaeche ||= houseTotals.area;
+        }
       }
 
       // Fetch actual payments if mode is 'ist'
@@ -2157,16 +2163,30 @@ export async function getAbrechnungModalDataAction(
 }
 
 /**
- * Number of apartments in a house, vacant ones included: the pro Wohnung denominator.
- * Returns undefined on error so callers fall back to the tenant-derived count.
+ * Count and summed area of ALL apartments of a house (vacant ones included), like
+ * get_abrechnung_modal_data. Returns undefined when the query fails or finds none,
+ * so callers fall back to the tenants' apartments.
  */
-async function fetchHouseApartmentCount(supabase: any, haeuserId: string | null | undefined): Promise<number | undefined> {
+async function fetchHouseApartmentTotals(
+  supabase: any,
+  haeuserId: string | null | undefined
+): Promise<{ count: number; area: number } | undefined> {
   if (!haeuserId) return undefined;
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from("Wohnungen")
-    .select("id", { count: "exact", head: true })
+    .select("id, groesse")
     .eq("haus_id", haeuserId);
-  return error ? undefined : count ?? undefined;
+
+  if (error) {
+    logger.warn('Failed to fetch house apartments, using tenant apartments', { haeuserId, error: error.message });
+    return undefined;
+  }
+  // An empty result can't be right while tenants live in the house, so treat it like an error
+  if (!data?.length) return undefined;
+  return {
+    count: data.length,
+    area: data.reduce((sum: number, w: { groesse: number | null }) => sum + (w.groesse || 0), 0)
+  };
 }
 
 /**
@@ -2207,10 +2227,7 @@ async function getAbrechnungModalDataFallback(
 
   // Fetch tenants overlapping the billing period for the same house, and ALL apartments of
   // the house (incl. vacant ones) for the apartment count and area fallback
-  const [
-    { data: tenants, error: tenantsError },
-    { data: houseApartments, error: houseApartmentsError }
-  ] = await Promise.all([
+  const [{ data: tenants, error: tenantsError }, houseTotals] = await Promise.all([
     supabase
       .from("Mieter")
       .select(`
@@ -2225,10 +2242,7 @@ async function getAbrechnungModalDataFallback(
       .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
       .lte("einzug", nebenkostenData.enddatum)
       .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`),
-    supabase
-      .from("Wohnungen")
-      .select("id, groesse")
-      .eq("haus_id", nebenkostenData.haeuser_id)
+    fetchHouseApartmentTotals(supabase, nebenkostenData.haeuser_id)
   ]);
 
   if (tenantsError) {
@@ -2306,28 +2320,10 @@ async function getAbrechnungModalDataFallback(
 
   // Aggregate basic metrics for the modal (compatible with component expectations).
   // Count ALL apartments of the house (incl. vacant ones) like get_abrechnung_modal_data,
-  // so vacancy stays with the landlord; fall back to the tenants' apartments on error.
-  if (houseApartmentsError) {
-    logger.warn('Failed to fetch house apartments in fallback, using tenant apartments', {
-      userId,
-      nebenkostenId,
-      error: houseApartmentsError.message
-    });
-  }
-
-  let apartmentCount: number;
-  let apartmentArea: number;
-  // An empty result can't be right while tenants live in the house, so treat it like an error
-  if (houseApartments?.length) {
-    apartmentCount = houseApartments.length;
-    apartmentArea = houseApartments.reduce((sum: number, w: any) => sum + (w.groesse || 0), 0);
-  } else {
-    // Count each apartment once (WG / sequential tenants share the same Wohnung)
-    const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
-    apartmentCount = new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
-    apartmentArea = sumUniqueApartmentAreas(tenants || []);
-  }
-  const totalArea = nebenkostenData.Haeuser?.groesse || apartmentArea;
+  // so vacancy stays with the landlord; without them, count each tenant apartment once.
+  const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
+  const apartmentCount = houseTotals?.count ?? new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+  const totalArea = nebenkostenData.Haeuser?.groesse || (houseTotals?.area ?? sumUniqueApartmentAreas(tenants || []));
 
   const modalData: AbrechnungModalData = {
     nebenkosten_data: {
