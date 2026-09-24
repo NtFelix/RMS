@@ -9,6 +9,8 @@ describe('Betriebskosten Utilities', () => {
       expect(normalizeBerechnungsart('pro flaeche')).toBe('pro Flaeche');
       expect(normalizeBerechnungsart('pro qm')).toBe('pro Flaeche');
       expect(normalizeBerechnungsart('pro wohnung')).toBe('pro Wohnung');
+      expect(normalizeBerechnungsart('pro Fläche')).toBe('pro Flaeche');
+      expect(normalizeBerechnungsart(' pro Mieter ')).toBe('pro Mieter');
     });
 
     it('should return valid values as is', () => {
@@ -18,6 +20,8 @@ describe('Betriebskosten Utilities', () => {
 
     it('should return empty string for unknown values', () => {
       expect(normalizeBerechnungsart('unknown')).toBe('');
+      expect(normalizeBerechnungsart('fix')).toBe('');
+      expect(normalizeBerechnungsart('')).toBe('');
     });
   });
 

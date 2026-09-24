@@ -7,7 +7,8 @@ import {
   calculateMeterCostDistribution,
   calculateRecommendedPrepayment,
   formatCurrency,
-  calculateCompleteTenantResult
+  calculateCompleteTenantResult,
+  isAreaBasedBerechnungsart
 } from './abrechnung-calculations';
 import type { Finanzen } from '@/lib/types';
 import { calculateTenantOccupancy, calculateTotalDays } from './date-calculations';
@@ -152,6 +153,46 @@ describe('abrechnung-calculations', () => {
       const result = calculateTenantCosts(mockTenant, nebenkosten);
       expect(result.costItems[0].calculationType).toBe('unknown');
       expect(calculateProFlächeDistribution).toHaveBeenCalled();
+    });
+
+    it.each([
+      ['pro person'],
+      ['pro mieter'],
+      ['Pro Mieter '],
+    ])('bills legacy value "%s" per tenant, not by area', (berechnungsart) => {
+      const nebenkosten = {
+        nebenkostenart: ['Müll'],
+        betrag: [2000],
+        berechnungsart: [berechnungsart],
+        startdatum,
+        enddatum
+      } as any;
+
+      (calculateProMieterDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 1000 } });
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten);
+
+      expect(calculateProMieterDistribution).toHaveBeenCalledWith([mockTenant], 2000, startdatum, enddatum);
+      expect(calculateProFlächeDistribution).not.toHaveBeenCalled();
+      expect(result.costItems[0].calculationType).toBe('pro Mieter');
+      expect(result.costItems[0].tenantShare).toBe(1000);
+    });
+
+    it('bills legacy lowercase "pro wohnung" per apartment', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Lift'],
+        betrag: [3000],
+        berechnungsart: ['pro wohnung'],
+        startdatum,
+        enddatum
+      } as any;
+
+      (calculateProWohnungDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 750 } });
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten);
+
+      expect(calculateProFlächeDistribution).not.toHaveBeenCalled();
+      expect(result.costItems[0].tenantShare).toBe(750);
     });
 
     it('handles nach Rechnung type from rechnungen array', () => {
@@ -649,7 +690,43 @@ describe('abrechnung-calculations', () => {
     });
   });
 
+  describe('isAreaBasedBerechnungsart', () => {
+    it.each([
+      ['pro Fläche', true],
+      ['pro Flaeche', true],
+      ['pro qm', true],
+      ['fix', true], // unknown: billed by area
+      ['', true],
+      ['pro Mieter', false],
+      ['pro person', false],
+      ['pro mieter', false],
+      ['pro wohnung', false],
+      ['nach rechnung', false],
+    ])('"%s" → %s', (art, expected) => {
+      expect(isAreaBasedBerechnungsart(art)).toBe(expected);
+    });
+  });
+
   describe('validateCalculationData', () => {
+    it('warns about unknown or missing Berechnungsart, which is billed by area', () => {
+      const nebenkosten = {
+        startdatum,
+        enddatum,
+        nebenkostenart: ['Grundsteuer', 'Müll', 'Wartung', 'Strom'],
+        betrag: [100, 200, 300, 400],
+        berechnungsart: ['pro Flaeche', 'pro person', 'fix', '']
+      } as any;
+
+      const result = validateCalculationData(nebenkosten, [mockTenant]);
+
+      expect(result.isValid).toBe(true);
+      expect(result.warnings).toEqual(expect.arrayContaining([
+        'Kostenart "Wartung": Unbekannte Berechnungsart "fix", wird pro Fläche verteilt',
+        'Kostenart "Strom": Keine Berechnungsart angegeben, wird pro Fläche verteilt'
+      ]));
+      expect(result.warnings.some(w => w.includes('Grundsteuer') || w.includes('Müll'))).toBe(false);
+    });
+
     it('returns valid for correct data', () => {
       const nebenkosten = {
         startdatum,

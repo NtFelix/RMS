@@ -106,7 +106,7 @@ describe('betriebskosten-actions', () => {
       enddatum: '2023-12-31',
       nebenkostenart: ['Grundsteuer'],
       betrag: [100],
-      berechnungsart: ['qm'],
+      berechnungsart: ['pro Flaeche'],
       haeuser_id: 'house1',
     };
 
@@ -142,6 +142,36 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.insert).toHaveBeenCalledWith([
         expect.objectContaining({ nebenkostenart: ['Grundsteuer'] })
       ]);
+    });
+
+    it('stores legacy Berechnungsart spellings as their canonical value', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      await createNebenkosten({
+        ...mockFormData,
+        nebenkostenart: ['Grundsteuer', 'Müll'],
+        betrag: [100, 200],
+        berechnungsart: ['qm', 'pro person'],
+      });
+
+      expect(mockSupabase.insert).toHaveBeenCalledWith([
+        expect.objectContaining({ berechnungsart: ['pro Flaeche', 'pro Mieter'] })
+      ]);
+    });
+
+    it.each([['fix'], ['']])('rejects unknown Berechnungsart "%s"', async (berechnungsart) => {
+      const result = await createNebenkosten({ ...mockFormData, berechnungsart: [berechnungsart] });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain(`Ungültige Berechnungsart "${berechnungsart}" für Kostenart "Grundsteuer"`);
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a Berechnungsart list that does not match the cost items', async () => {
+      const result = await createNebenkosten({ ...mockFormData, berechnungsart: [] });
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
     });
 
     it('rejects duplicate nach Rechnung names', async () => {
@@ -209,6 +239,14 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.update).toHaveBeenCalledWith({ wasserkosten: 50 });
       expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'nb1');
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+    });
+
+    it('rejects unknown Berechnungsart on update', async () => {
+      const result = await updateNebenkosten('nb1', { berechnungsart: ['nach verbrauch'] });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Ungültige Berechnungsart "nach verbrauch"');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
     });
 
     it('rejects duplicate nach Rechnung names on update', async () => {

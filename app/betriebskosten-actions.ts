@@ -28,7 +28,8 @@ import {
 
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
-import { findDuplicateNachRechnungName } from '@/utils/betriebskosten';
+import { findDuplicateNachRechnungName, normalizeBerechnungsart } from '@/utils/betriebskosten';
+import { BERECHNUNGSART_OPTIONS } from '@/lib/constants';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { posthogLogger } from '@/lib/posthog-logger';
 
@@ -70,19 +71,45 @@ export interface RechnungData {
 }
 
 /**
- * Trims cost names and rejects duplicate 'nach Rechnung' names, because Einzelrechnungen
- * are matched to their cost item by name. Returns an error message or the normalized data.
+ * Trims cost names, maps legacy Berechnungsart spellings to their canonical value and rejects
+ * unknown ones (the calculation would bill them by area), and rejects duplicate 'nach Rechnung'
+ * names, because Einzelrechnungen are matched to their cost item by name.
+ * Returns an error message or the normalized data.
  */
 function normalizeCostItemNames<T extends Partial<Pick<NebenkostenFormData, 'nebenkostenart' | 'berechnungsart'>>>(
   formData: T
 ): { data: T; error: null } | { data: null; error: string } {
-  if (!formData.nebenkostenart) return { data: formData, error: null };
-  const nebenkostenart = formData.nebenkostenart.map(name => name.trim());
-  const duplicateName = findDuplicateNachRechnungName(nebenkostenart, formData.berechnungsart ?? []);
-  if (duplicateName) {
-    return { data: null, error: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.` };
+  const nebenkostenart = formData.nebenkostenart?.map(name => name.trim());
+  const berechnungsart = formData.berechnungsart?.map(art => normalizeBerechnungsart(art ?? ''));
+
+  if (nebenkostenart && berechnungsart && nebenkostenart.length !== berechnungsart.length) {
+    return { data: null, error: 'Jede Kostenart braucht genau eine Berechnungsart.' };
   }
-  return { data: { ...formData, nebenkostenart }, error: null };
+  const invalidIndex = berechnungsart?.findIndex(art => !art) ?? -1;
+  if (invalidIndex !== -1) {
+    const costName = nebenkostenart?.[invalidIndex];
+    const allowed = BERECHNUNGSART_OPTIONS.map(opt => opt.label).join(', ');
+    return {
+      data: null,
+      error: `Ungültige Berechnungsart "${formData.berechnungsart?.[invalidIndex] ?? ''}"${costName ? ` für Kostenart "${costName}"` : ''}. Erlaubt sind: ${allowed}.`
+    };
+  }
+
+  if (nebenkostenart) {
+    const duplicateName = findDuplicateNachRechnungName(nebenkostenart, berechnungsart ?? []);
+    if (duplicateName) {
+      return { data: null, error: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.` };
+    }
+  }
+
+  return {
+    data: {
+      ...formData,
+      ...(nebenkostenart && { nebenkostenart }),
+      ...(berechnungsart && { berechnungsart })
+    },
+    error: null
+  };
 }
 
 // Implement createNebenkosten function
@@ -2373,13 +2400,14 @@ async function getAbrechnungModalDataFallback(
  * - Recommended prepayment calculations for next period
  * - Comprehensive validation and error handling
  * 
- * **Calculation Types Supported**:
- * - `pro qm` / `qm` / `pro flaeche`: Distributed by apartment size
- * - `nach rechnung`: Individual bills per tenant
- * - `pro mieter` / `pro person`: Equal distribution among tenants
- * - `pro wohnung`: Equal distribution among apartments
- * - `fix` / `pro einheit`: Fixed amount per tenant
- * - `nach verbrauch`: Water costs based on consumption
+ * **Calculation Types Supported** (`berechnungsart`, normalised via `normalizeBerechnungsart`,
+ * so legacy spellings like `pro person`, `pro qm`/`qm` or lowercase variants are accepted):
+ * - `pro Fläche` / `pro Flaeche`: Distributed by apartment area
+ * - `pro Mieter`: Distributed per tenant
+ * - `pro Wohnung`: Distributed per apartment
+ * - `nach Rechnung`: Individual amounts per tenant (Rechnungen)
+ * - Any other or empty value is billed like `pro Fläche`; `validateCalculationData` warns about it
+ * Water/meter costs (`zaehlerkosten`) are distributed by consumption, separate from `berechnungsart`.
  * 
  * **Database Function**: Uses `get_abrechnung_calculation_data` for optimized data fetching
  * 

@@ -53,7 +53,7 @@ import { isoToGermanDate } from "@/utils/date-calculations"; // New import for n
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
-import { calculateCompleteTenantResult, effectiveHouseArea, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
+import { calculateCompleteTenantResult, effectiveHouseArea, findUnrecognisedBerechnungsarten, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
 import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 
 
@@ -619,6 +619,12 @@ export function AbrechnungModal({
     return hasAreaItems && houseArea > 0 && occupiedArea > houseArea ? { houseArea, occupiedArea } : null;
   }, [nebenkostenItem?.berechnungsart, nebenkostenItem?.gesamtFlaeche, safeTenants]);
 
+  // Cost items with an unknown Berechnungsart are billed by area; tell the user to fix them
+  const unrecognisedBerechnungsarten = useMemo(
+    () => nebenkostenItem ? findUnrecognisedBerechnungsarten(nebenkostenItem) : [],
+    [nebenkostenItem]
+  );
+
   if (!isOpen || !nebenkostenItem) {
     return null;
   }
@@ -650,6 +656,11 @@ export function AbrechnungModal({
             {areaMismatch && (
               <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
                 ⚠ Die hinterlegte Hausfläche ({formatNumber(areaMismatch.houseArea)} m²) ist kleiner als die Fläche der im Zeitraum vermieteten Wohnungen ({formatNumber(areaMismatch.occupiedArea)} m²). Für Kosten „pro Fläche“ werden {formatNumber(areaMismatch.occupiedArea)} m² verwendet. Bitte die Hausgröße prüfen.
+              </span>
+            )}
+            {unrecognisedBerechnungsarten.length > 0 && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Für {unrecognisedBerechnungsarten.map(item => `„${item.costName}“`).join(', ')} ist keine gültige Berechnungsart hinterlegt. Diese Kosten werden „pro Fläche“ verteilt. Bitte die Berechnungsart in den Betriebskosten prüfen.
               </span>
             )}
           </DialogDescription>

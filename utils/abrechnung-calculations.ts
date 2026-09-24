@@ -11,7 +11,7 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, isDateInPeriod, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
-import { isSameCostName } from "./betriebskosten";
+import { isSameCostName, normalizeBerechnungsart } from "./betriebskosten";
 import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import {
@@ -62,8 +62,29 @@ export function calculateOccupancyPercentage(
 // Cost types with their own key; every other type is split by area (the switch's default)
 const NON_AREA_BERECHNUNGSARTEN = ['pro Mieter', 'pro Wohnung', 'nach Rechnung'];
 
+/**
+ * Cost type used for billing: legacy spellings ('pro person', 'pro mieter', …) are mapped to
+ * their canonical value. An empty or unrecognised value is returned as-is ('pro Fläche' when
+ * empty) and billed by area; findUnrecognisedBerechnungsarten reports those items.
+ */
+export const resolveBerechnungsart = (art: string | null | undefined): string =>
+  normalizeBerechnungsart(art || '') || art || 'pro Fläche';
+
 /** Whether a cost type is split by area: 'pro Fläche' and any unknown type */
-export const isAreaBasedBerechnungsart = (art: string): boolean => !NON_AREA_BERECHNUNGSARTEN.includes(art);
+export const isAreaBasedBerechnungsart = (art: string): boolean =>
+  !NON_AREA_BERECHNUNGSARTEN.includes(resolveBerechnungsart(art));
+
+/**
+ * Cost items whose Berechnungsart is empty or not recognised even after normalising.
+ * The calculation bills them by area, so callers should warn the user.
+ */
+export function findUnrecognisedBerechnungsarten(
+  nebenkosten: Pick<Nebenkosten, 'nebenkostenart' | 'berechnungsart'>
+): { costName: string; berechnungsart: string }[] {
+  return (nebenkosten.nebenkostenart || [])
+    .map((costName, i) => ({ costName, berechnungsart: nebenkosten.berechnungsart?.[i] || '' }))
+    .filter(item => !normalizeBerechnungsart(item.berechnungsart));
+}
 
 /**
  * House area for 'pro Fläche': the stored area (gesamtFlaeche), but never less than the
@@ -107,7 +128,7 @@ export function calculateTenantCosts(
     for (let i = 0; i < nebenkosten.nebenkostenart.length; i++) {
       const costName = nebenkosten.nebenkostenart[i];
       const totalCostForItem = nebenkosten.betrag[i] || 0;
-      const calculationType = nebenkosten.berechnungsart[i] || 'pro Fläche';
+      const calculationType = resolveBerechnungsart(nebenkosten.berechnungsart[i]);
 
       let tenantShare = 0;
       let pricePerSqm: number | undefined;
@@ -117,7 +138,7 @@ export function calculateTenantCosts(
       switch (calculationType) {
         case 'pro Fläche':
         case 'pro Flaeche':
-        default: { // Unknown calculation types default to area-based distribution
+        default: { // Unknown calculation types default to area-based distribution (validateCalculationData warns)
           const flächeDistribution = calculateProFlächeDistribution(
             tenants,
             totalCostForItem,
@@ -431,6 +452,13 @@ export function validateCalculationData(
     nebenkosten.nebenkostenart.length !== nebenkosten.betrag.length) {
     errors.push('Anzahl der Nebenkostenarten muss mit Anzahl der Beträge übereinstimmen');
   }
+
+  // Unknown cost types are billed by area; say so instead of doing it silently
+  findUnrecognisedBerechnungsarten(nebenkosten).forEach(({ costName, berechnungsart }) => {
+    warnings.push(berechnungsart
+      ? `Kostenart "${costName}": Unbekannte Berechnungsart "${berechnungsart}", wird pro Fläche verteilt`
+      : `Kostenart "${costName}": Keine Berechnungsart angegeben, wird pro Fläche verteilt`);
+  });
 
   // Validate tenants
   if (!tenants || tenants.length === 0) {

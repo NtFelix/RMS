@@ -12,8 +12,8 @@ export const normalizeBerechnungsart = (rawValue: string): BerechnungsartValue =
     'nach rechnung': 'nach Rechnung',
   };
 
-  const lower = rawValue.toLowerCase();
-  const normalized = berechnungsartMap[lower] || rawValue;
+  const trimmed = rawValue.trim();
+  const normalized = berechnungsartMap[trimmed.toLowerCase()] || trimmed;
   return (BERECHNUNGSART_OPTIONS.find(opt => opt.value === normalized)?.value as BerechnungsartValue) || '';
 };
 
