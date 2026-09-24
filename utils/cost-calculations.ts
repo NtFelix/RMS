@@ -40,7 +40,7 @@ export function calculateProFlächeDistribution(
   // Precomputed computeWgFactorsByTenant(tenants, startdatum, enddatum); pass it when
   // distributing several cost items over the same tenants to avoid recomputing it.
   wgFactors: Record<string, number> = computeWgFactorsByTenant(tenants, startdatum, enddatum)
-): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
+): Record<string, { amount: number }> {
   // Each tenant's share of their apartment, splitting every day equally among the
   // co-tenants active that day (vacant days belong to no one). The factors of one
   // apartment sum to its occupied-day ratio (<= 1), so area × factor never stacks
@@ -52,7 +52,7 @@ export function calculateProFlächeDistribution(
     ? (totalHouseArea > 0 ? totalHouseArea : totalWeightedArea)
     : totalWeightedArea;
 
-  return distributeByApartmentWeight(tenants, totalCost, startdatum, enddatum, areaOf, denominator, wgFactors);
+  return distributeByApartmentWeight(tenants, totalCost, areaOf, denominator, wgFactors);
 }
 
 /**
@@ -62,22 +62,15 @@ export function calculateProFlächeDistribution(
 function distributeByApartmentWeight(
   tenants: Mieter[],
   totalCost: number,
-  startdatum: string,
-  enddatum: string,
   weightOf: (tenant: Mieter) => number,
   denominator: number,
   wgFactors: Record<string, number>
-): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
-  const distribution: Record<string, { amount: number; occupancyDays: number; totalDays: number }> = {};
-  const totalDays = calculateTotalDays(startdatum, enddatum);
+): Record<string, { amount: number }> {
+  const distribution: Record<string, { amount: number }> = {};
 
   tenants.forEach(tenant => {
-    const tenantOccupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
-
     distribution[tenant.id] = {
-      amount: denominator > 0 ? (weightOf(tenant) / denominator) * totalCost * (wgFactors[tenant.id] || 0) : 0,
-      occupancyDays: tenantOccupancy.occupancyDays,
-      totalDays
+      amount: denominator > 0 ? (weightOf(tenant) / denominator) * totalCost * (wgFactors[tenant.id] || 0) : 0
     };
   });
 
@@ -93,8 +86,8 @@ export function calculateProMieterDistribution(
   totalCost: number,
   startdatum: string,
   enddatum: string
-): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
-  const distribution: Record<string, { amount: number; occupancyDays: number; totalDays: number }> = {};
+): Record<string, { amount: number }> {
+  const distribution: Record<string, { amount: number }> = {};
 
   // Calculate total occupancy days across all tenants
   let totalOccupancyDays = 0;
@@ -109,16 +102,10 @@ export function calculateProMieterDistribution(
     tenantOccupancies.push({ tenant, occupancy });
   });
 
-  const totalPeriodDays = calculateTotalDays(startdatum, enddatum);
-
   tenantOccupancies.forEach(({ tenant, occupancy }) => {
     const amount = totalOccupancyDays > 0 ? (occupancy.occupancyDays / totalOccupancyDays) * totalCost : 0;
 
-    distribution[tenant.id] = {
-      amount,
-      occupancyDays: occupancy.occupancyDays,
-      totalDays: totalPeriodDays
-    };
+    distribution[tenant.id] = { amount };
   });
 
   return distribution;
@@ -137,7 +124,7 @@ export function calculateProWohnungDistribution(
   // Precomputed computeWgFactorsByTenant(tenants, startdatum, enddatum); pass it when
   // distributing several cost items over the same tenants to avoid recomputing it.
   wgFactors: Record<string, number> = computeWgFactorsByTenant(tenants, startdatum, enddatum)
-): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
+): Record<string, { amount: number }> {
   // Tenants without an apartment can't be billed per apartment
   const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id);
   const apartmentCount = effectiveApartmentCount(totalApartmentCount, apartmentTenants);
@@ -145,7 +132,7 @@ export function calculateProWohnungDistribution(
   // Every apartment gets the same share, split by day among the co-tenants active that day
   // (WG or sequential tenants). The factors of one apartment sum to its occupied-day ratio,
   // so a WG never counts as several apartments and the landlord bears vacant days.
-  return distributeByApartmentWeight(apartmentTenants, totalCost, startdatum, enddatum, () => 1, apartmentCount, wgFactors);
+  return distributeByApartmentWeight(apartmentTenants, totalCost, () => 1, apartmentCount, wgFactors);
 }
 
 /**

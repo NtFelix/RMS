@@ -12,7 +12,7 @@ import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, isDateInPeriod, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
 import { isSameCostName, normalizeBerechnungsart } from "./betriebskosten";
-import { computeWgFactorsByTenant, getApartmentOccupants } from "./wg-cost-calculations";
+import { computeWgFactorsByTenant, getApartmentOccupants, resolveWgFactors } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import {
@@ -134,7 +134,7 @@ export function calculateVacancyCosts(
   const houseArea = effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
   const apartmentCount = effectiveApartmentCount(nebenkosten.anzahlWohnungen, tenants);
   const periodDays = calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
-  const wgFactors = precomputedWgFactors ?? computeWgFactorsByTenant(tenants, startdatum, enddatum);
+  const wgFactors = resolveWgFactors(tenants, startdatum, enddatum, precomputedWgFactors);
 
   // The house's apartments, plus any tenant apartment the list doesn't have
   const apartments = new Map<string, { name: string; area: number }>();

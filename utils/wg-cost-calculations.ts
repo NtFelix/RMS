@@ -70,4 +70,16 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   return wgFactors;
 }
 
+// Reuses already-computed WG factors when passed, otherwise computes them for the period.
+// Callers that need computeWgFactorsByTenant's "dates required" error to surface earlier
+// should still guard startdatum/enddatum themselves before calling this.
+export function resolveWgFactors(
+  tenants: Mieter[],
+  startdatum: string,
+  enddatum: string,
+  precomputed?: Record<string, number>
+): Record<string, number> {
+  return precomputed ?? computeWgFactorsByTenant(tenants, startdatum, enddatum);
+}
+
 const DAY_MS = 1000 * 3600 * 24;
