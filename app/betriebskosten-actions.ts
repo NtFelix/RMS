@@ -2205,21 +2205,31 @@ async function getAbrechnungModalDataFallback(
     return { success: false, message: "Nebenkosten-Eintrag nicht gefunden." };
   }
 
-  // Fetch tenants overlapping the billing period for the same house
-  const { data: tenants, error: tenantsError } = await supabase
-    .from("Mieter")
-    .select(`
-      *,
-      Wohnungen!inner (
-        name,
-        groesse,
-        miete,
-        haus_id
-      )
-    `)
-    .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
-    .lte("einzug", nebenkostenData.enddatum)
-    .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
+  // Fetch tenants overlapping the billing period for the same house, and ALL apartments of
+  // the house (incl. vacant ones) for the apartment count and area fallback
+  const [
+    { data: tenants, error: tenantsError },
+    { data: houseApartments, error: houseApartmentsError }
+  ] = await Promise.all([
+    supabase
+      .from("Mieter")
+      .select(`
+        *,
+        Wohnungen!inner (
+          name,
+          groesse,
+          miete,
+          haus_id
+        )
+      `)
+      .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
+      .lte("einzug", nebenkostenData.enddatum)
+      .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`),
+    supabase
+      .from("Wohnungen")
+      .select("id, groesse")
+      .eq("haus_id", nebenkostenData.haeuser_id)
+  ]);
 
   if (tenantsError) {
     logger.error('Failed to fetch tenants in fallback', tenantsError || undefined, {
@@ -2297,11 +2307,6 @@ async function getAbrechnungModalDataFallback(
   // Aggregate basic metrics for the modal (compatible with component expectations).
   // Count ALL apartments of the house (incl. vacant ones) like get_abrechnung_modal_data,
   // so vacancy stays with the landlord; fall back to the tenants' apartments on error.
-  const { data: houseApartments, error: houseApartmentsError } = await supabase
-    .from("Wohnungen")
-    .select("id, groesse")
-    .eq("haus_id", nebenkostenData.haeuser_id);
-
   if (houseApartmentsError) {
     logger.warn('Failed to fetch house apartments in fallback, using tenant apartments', {
       userId,
@@ -2310,17 +2315,19 @@ async function getAbrechnungModalDataFallback(
     });
   }
 
+  let apartmentCount: number;
+  let apartmentArea: number;
   // An empty result can't be right while tenants live in the house, so treat it like an error
-  const allApartments = houseApartments && houseApartments.length > 0 ? houseApartments : null;
-
-  // Count each apartment once (WG / sequential tenants share the same Wohnung)
-  const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
-  const totalArea = nebenkostenData.Haeuser?.groesse || (allApartments
-    ? allApartments.reduce((sum: number, w: { groesse: number | null }) => sum + (w.groesse || 0), 0)
-    : sumUniqueApartmentAreas(tenants || []));
-  const apartmentCount = allApartments
-    ? allApartments.length
-    : new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+  if (houseApartments?.length) {
+    apartmentCount = houseApartments.length;
+    apartmentArea = houseApartments.reduce((sum: number, w: any) => sum + (w.groesse || 0), 0);
+  } else {
+    // Count each apartment once (WG / sequential tenants share the same Wohnung)
+    const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
+    apartmentCount = new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+    apartmentArea = sumUniqueApartmentAreas(tenants || []);
+  }
+  const totalArea = nebenkostenData.Haeuser?.groesse || apartmentArea;
 
   const modalData: AbrechnungModalData = {
     nebenkosten_data: {
