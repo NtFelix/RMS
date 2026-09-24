@@ -14,6 +14,7 @@ import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonth
 import { isSameCostName, normalizeBerechnungsart } from "./betriebskosten";
 import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
+import { BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -59,20 +60,19 @@ export function calculateOccupancyPercentage(
   };
 }
 
-// Cost types with their own key; every other type is split by area (the switch's default)
-const NON_AREA_BERECHNUNGSARTEN = ['pro Mieter', 'pro Wohnung', 'nach Rechnung'];
-
 /**
  * Cost type used for billing: legacy spellings ('pro person', 'pro mieter', …) are mapped to
  * their canonical value. An empty or unrecognised value is returned as-is ('pro Fläche' when
  * empty) and billed by area; findUnrecognisedBerechnungsarten reports those items.
  */
-export const resolveBerechnungsart = (art: string | null | undefined): string =>
+const resolveBerechnungsart = (art: string | null | undefined): string =>
   normalizeBerechnungsart(art || '') || art || 'pro Fläche';
 
-/** Whether a cost type is split by area: 'pro Fläche' and any unknown type */
-export const isAreaBasedBerechnungsart = (art: string): boolean =>
-  !NON_AREA_BERECHNUNGSARTEN.includes(resolveBerechnungsart(art));
+/** Whether a cost type is split by area: 'pro Fläche' and any empty or unknown type */
+export const isAreaBasedBerechnungsart = (art: string): boolean => {
+  const normalized = normalizeBerechnungsart(art || '');
+  return !normalized || normalized === 'pro Flaeche';
+};
 
 /**
  * Cost items whose Berechnungsart is empty or not recognised even after normalising.
@@ -113,9 +113,11 @@ export function calculateTenantCosts(
   let totalCost = 0;
 
   // For the verteiler display in the PDF: show tenant area vs total physical house area.
-  // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse),
-  // consistent with what the overview modal shows.
-  const totalHouseArea = effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
+  // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse).
+  // Only area-based items need it, so compute it at most once and only when needed.
+  let totalHouseArea: number | undefined;
+  const getTotalHouseArea = () =>
+    totalHouseArea ??= effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
 
   // WG day-share factors depend only on the tenants and period, so compute them at most once
   // for all area- and apartment-based cost items instead of once per item.
@@ -124,11 +126,12 @@ export function calculateTenantCosts(
     wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum);
 
   // Process each cost item
-  if (nebenkosten.nebenkostenart && nebenkosten.betrag && nebenkosten.berechnungsart) {
+  // A missing Berechnungsart is billed by area like an empty one (findUnrecognisedBerechnungsarten warns)
+  if (nebenkosten.nebenkostenart && nebenkosten.betrag) {
     for (let i = 0; i < nebenkosten.nebenkostenart.length; i++) {
       const costName = nebenkosten.nebenkostenart[i];
       const totalCostForItem = nebenkosten.betrag[i] || 0;
-      const calculationType = resolveBerechnungsart(nebenkosten.berechnungsart[i]);
+      const calculationType = resolveBerechnungsart(nebenkosten.berechnungsart?.[i]);
 
       let tenantShare = 0;
       let pricePerSqm: number | undefined;
@@ -139,12 +142,13 @@ export function calculateTenantCosts(
         case 'pro Fläche':
         case 'pro Flaeche':
         default: { // Unknown calculation types default to area-based distribution (validateCalculationData warns)
+          const houseArea = getTotalHouseArea();
           const flächeDistribution = calculateProFlächeDistribution(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
             nebenkosten.enddatum,
-            totalHouseArea,
+            houseArea,
             getWgFactors()
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
@@ -153,11 +157,11 @@ export function calculateTenantCosts(
           // co-tenants sharing an apartment, showing WG tenants a misleadingly low €/m²
           // even though the underlying rate is the same for every tenant in the house.
           // Not shown for tenants without occupied days (their share is 0).
-          pricePerSqm = (totalHouseArea > 0 && occupancy.percentage > 0)
-            ? Math.round((totalCostForItem / totalHouseArea) * 10000) / 10000
+          pricePerSqm = (houseArea > 0 && occupancy.percentage > 0)
+            ? Math.round((totalCostForItem / houseArea) * 10000) / 10000
             : undefined;
           // Verteiler shows physical area vs total house area (for PDF column)
-          distributionBasis = totalHouseArea > 0 ? `${totalHouseArea} m²` : '-';
+          distributionBasis = houseArea > 0 ? `${houseArea} m²` : '-';
           break;
         }
 
@@ -205,7 +209,8 @@ export function calculateTenantCosts(
       costItems.push({
         costName,
         totalCostForItem,
-        calculationType,
+        // Shown to the user, so use the option label ('pro Fläche', not 'pro Flaeche')
+        calculationType: BERECHNUNGSART_OPTIONS.find(opt => opt.value === calculationType)?.label ?? calculationType,
         tenantShare,
         pricePerSqm,
         distributionBasis

@@ -1,19 +1,20 @@
 import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "../lib/constants";
 
-export const normalizeBerechnungsart = (rawValue: string): BerechnungsartValue => {
-  const berechnungsartMap: Record<string, BerechnungsartValue> = {
-    'pro person': 'pro Mieter',
-    'pro mieter': 'pro Mieter',
-    'pro flaeche': 'pro Flaeche',
-    'pro fläche': 'pro Flaeche',
-    'pro qm': 'pro Flaeche',
-    'qm': 'pro Flaeche',
-    'pro wohnung': 'pro Wohnung',
-    'nach rechnung': 'nach Rechnung',
-  };
+// Legacy and lowercase spellings of the canonical Berechnungsart values
+const BERECHNUNGSART_ALIASES: Record<string, BerechnungsartValue> = {
+  'pro person': 'pro Mieter',
+  'pro mieter': 'pro Mieter',
+  'pro flaeche': 'pro Flaeche',
+  'pro fläche': 'pro Flaeche',
+  'pro qm': 'pro Flaeche',
+  'qm': 'pro Flaeche',
+  'pro wohnung': 'pro Wohnung',
+  'nach rechnung': 'nach Rechnung',
+};
 
+export const normalizeBerechnungsart = (rawValue: string): BerechnungsartValue => {
   const trimmed = rawValue.trim();
-  const normalized = berechnungsartMap[trimmed.toLowerCase()] || trimmed;
+  const normalized = BERECHNUNGSART_ALIASES[trimmed.toLowerCase()] || trimmed;
   return (BERECHNUNGSART_OPTIONS.find(opt => opt.value === normalized)?.value as BerechnungsartValue) || '';
 };
 

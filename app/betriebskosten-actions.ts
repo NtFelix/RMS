@@ -82,7 +82,8 @@ function normalizeCostItemNames<T extends Partial<Pick<NebenkostenFormData, 'neb
   const nebenkostenart = formData.nebenkostenart?.map(name => name.trim());
   const berechnungsart = formData.berechnungsart?.map(art => normalizeBerechnungsart(art ?? ''));
 
-  if (nebenkostenart && berechnungsart && nebenkostenart.length !== berechnungsart.length) {
+  // Cost items and their Berechnungsart are saved together, so they must match in length
+  if (nebenkostenart && nebenkostenart.length !== (berechnungsart ?? []).length) {
     return { data: null, error: 'Jede Kostenart braucht genau eine Berechnungsart.' };
   }
   const invalidIndex = berechnungsart?.findIndex(art => !art) ?? -1;

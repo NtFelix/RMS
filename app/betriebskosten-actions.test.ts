@@ -167,8 +167,11 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.insert).not.toHaveBeenCalled();
     });
 
-    it('rejects a Berechnungsart list that does not match the cost items', async () => {
-      const result = await createNebenkosten({ ...mockFormData, berechnungsart: [] });
+    it.each([
+      ['an empty list', []],
+      ['no list', undefined],
+    ])('rejects %s of Berechnungsart for the cost items', async (_name, berechnungsart) => {
+      const result = await createNebenkosten({ ...mockFormData, berechnungsart: berechnungsart as any });
 
       expect(result.success).toBe(false);
       expect(mockSupabase.insert).not.toHaveBeenCalled();
@@ -239,6 +242,13 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.update).toHaveBeenCalledWith({ wasserkosten: 50 });
       expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'nb1');
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
+    });
+
+    it('rejects cost items without their Berechnungsart on update', async () => {
+      const result = await updateNebenkosten('nb1', { nebenkostenart: ['Grundsteuer'], betrag: [100] });
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.update).not.toHaveBeenCalled();
     });
 
     it('rejects unknown Berechnungsart on update', async () => {
