@@ -2,8 +2,8 @@
  * Golden billing case: one fictional house, one calendar-year Abrechnung (2025, 365 days).
  *
  * Every name, id and address is invented. The expected results for this data are worked
- * out by hand in the Notion page "RMS Golden house 2025: hand calculation"
- * (https://app.notion.com/p/3e581e55ec3c81f7b53fcd426fb35061) and asserted in ../abrechnung-golden-house.test.ts.
+ * out by hand in the Notion page "RMS Abrechnung golden tests: hand calculation", case 1
+ * (https://app.notion.com/p/3e581e55ec3c81f7b53fcd426fb35061), and asserted in ../abrechnung-golden-house.test.ts.
  *
  * Apartments (house area 400 m², 6 apartments):
  * - apt-101  50 m²  seamless handover: A moves out 31.07., B moves in 01.08.
@@ -14,6 +14,7 @@
  * - apt-302  40 m²  control case: one tenant all year
  */
 import type { Finanzen, Mieter, Nebenkosten, Rechnung, Zaehler, ZaehlerAblesung, ZaehlerTyp } from '@/lib/types';
+import { buildMeter, buildPayment, buildReading, buildRechnung, buildTenant } from './abrechnung-builders';
 
 export const PERIOD = { startdatum: '2025-01-01', enddatum: '2025-12-31', days: 365 } as const;
 
@@ -30,27 +31,11 @@ export const APARTMENTS = {
 
 type ApartmentId = keyof typeof APARTMENTS;
 
-const tenant = (
-  id: string,
-  wohnung_id: ApartmentId,
-  einzug: string,
-  auszug: string | null,
-  schedule: Array<[date: string, amount: string]>
-): Mieter => ({
-  id,
-  wohnung_id,
-  name: id,
-  einzug,
-  auszug,
-  email: null,
-  telefonnummer: null,
-  notiz: null,
-  nebenkosten: schedule.map(([date, amount], i) => ({ id: `${id}-nk-${i + 1}`, date, amount })),
-  erstellt_von: 'user-test',
-  Wohnungen: { ...APARTMENTS[wohnung_id] },
-});
+const tenant = (id: string, wohnung_id: ApartmentId, einzug: string, auszug: string | null, schedule: Array<[string, string]>) =>
+  buildTenant(id, wohnung_id, APARTMENTS[wohnung_id], einzug, auszug, schedule);
 
-// Prepayment schedules: the newest entry dated on or before a month's end applies to that month.
+// Prepayment schedules: a month uses the newest entry dated on or before the end of the billed
+// part of that month (the month's end, or the period end if the period ends mid-month).
 export const TENANTS: Mieter[] = [
   tenant('tenant-a', 'apt-101', '2024-01-01', '2025-07-31', [['2024-01-01', '50'], ['2025-03-01', '60']]),
   tenant('tenant-b', 'apt-101', '2025-08-01', null, [['2025-08-01', '70']]),
@@ -96,15 +81,8 @@ export const NEBENKOSTEN: Nebenkosten = {
   vorauszahlungs_art: 'soll',
 };
 
-const rechnung = (id: string, mieter_id: string, name: string, betrag: number): Rechnung => ({
-  id,
-  erstellt_von: 'user-test',
-  organisation_id: 'org-test',
-  nebenkosten_id: NEBENKOSTEN.id,
-  mieter_id,
-  name,
-  betrag,
-});
+const rechnung = (id: string, mieter_id: string, name: string, betrag: number) =>
+  buildRechnung(id, NEBENKOSTEN.id, mieter_id, name, betrag);
 
 export const RECHNUNGEN: Rechnung[] = [
   rechnung('re-a', 'tenant-a', 'Gartenpflege', 146),
@@ -117,17 +95,7 @@ export const RECHNUNGEN: Rechnung[] = [
   rechnung('re-b-other', 'tenant-b', 'Winterdienst', 999),
 ];
 
-const meter = (id: string, wohnung_id: ApartmentId, zaehler_typ: ZaehlerTyp): Zaehler => ({
-  id,
-  custom_id: id.toUpperCase(),
-  wohnung_id,
-  erstellungsdatum: '2020-01-01',
-  eichungsdatum: null,
-  zaehler_typ,
-  einheit: 'm³',
-  ist_aktiv: true,
-  erstellt_von: 'user-test',
-});
+const meter = (id: string, wohnung_id: ApartmentId, zaehler_typ: ZaehlerTyp) => buildMeter(id, wohnung_id, zaehler_typ);
 
 export const METERS: Zaehler[] = [
   meter('kw-101', 'apt-101', 'kaltwasser'), meter('ww-101', 'apt-101', 'warmwasser'),
@@ -139,15 +107,7 @@ export const METERS: Zaehler[] = [
   meter('kw-302', 'apt-302', 'kaltwasser'), meter('ww-302', 'apt-302', 'warmwasser'),
 ];
 
-const reading = (zaehler_id: string, ablese_datum: string, zaehlerstand: number, verbrauch: number): ZaehlerAblesung => ({
-  id: `${zaehler_id}@${ablese_datum}`,
-  zaehler_id,
-  ablese_datum,
-  zaehlerstand,
-  verbrauch,
-  erstellt_von: 'user-test',
-  organisation_id: 'org-test',
-});
+const reading = buildReading;
 
 // A reading's verbrauch covers the days since the previous reading (the first one: since period start).
 export const READINGS: ZaehlerAblesung[] = [
@@ -168,18 +128,7 @@ export const READINGS: ZaehlerAblesung[] = [
   reading('kw-302', '2025-12-31', 1100, 45), reading('ww-302', '2025-12-31', 520, 20),
 ];
 
-const payment = (wohnung_id: ApartmentId, datum: string, betrag: number): Finanzen => ({
-  id: `pay-${wohnung_id}-${datum}`,
-  wohnung_id,
-  name: 'Nebenkostenvorauszahlung',
-  datum,
-  betrag,
-  ist_einnahmen: true,
-  notiz: null,
-  erstellt_von: 'user-test',
-  dokument_id: null,
-  tags: ['Nebenkosten', 'Vorauszahlung'],
-});
+const payment = (wohnung_id: ApartmentId, datum: string, betrag: number) => buildPayment(wohnung_id, datum, betrag);
 
 const monthly = (wohnung_id: ApartmentId, months: number[], betrag: number) =>
   months.map(m => payment(wohnung_id, `2025-${String(m).padStart(2, '0')}-03`, betrag));

@@ -5,7 +5,7 @@
  * calculation chain — occupancy → WG day shares → cost distribution → meter costs →
  * prepayments → settlement — with nothing mocked. Every expected value was calculated
  * by hand, independently of the code; the derivation is in the Notion page
- * "RMS Golden house 2025: hand calculation" (https://app.notion.com/p/3e581e55ec3c81f7b53fcd426fb35061).
+ * "RMS Abrechnung golden tests: hand calculation", case 1 (https://app.notion.com/p/3e581e55ec3c81f7b53fcd426fb35061).
  *
  * Expected values are literal numbers, never formulas copied from the implementation.
  * Money is asserted to within 0.0005 € (toBeCloseTo(x, 3)), well below one cent, and water
