@@ -16,6 +16,7 @@ import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import {
+  effectiveApartmentCount,
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
@@ -28,7 +29,8 @@ import {
   PrepaymentBreakdown,
   OccupancyCalculation,
   TenantCalculationResult,
-  CalculationValidationResult
+  CalculationValidationResult,
+  HouseApartment
 } from "@/types/optimized-betriebskosten";
 import {
   calculateTenantMeterCosts,
@@ -93,6 +95,76 @@ export function findUnrecognisedBerechnungsarten(
  */
 export function effectiveHouseArea(gesamtFlaeche: number | null | undefined, tenants: Mieter[]): number {
   return gesamtFlaeche || sumUniqueApartmentAreas(tenants);
+}
+
+export type VacancyCost = {
+  apartmentId: string;
+  apartmentName: string;
+  vacantDays: number;
+  amount: number;
+};
+
+/**
+ * Operating costs the landlord bears because apartments were empty, per apartment. Computed like
+ * the tenants' shares: for the days nobody lived in an apartment, its area share of the
+ * pro Fläche items and its apartment share of the pro Wohnung items. pro Mieter and
+ * nach Rechnung items go to tenants only; meter costs aren't included.
+ * Without houseApartments only the tenants' apartments are known, so apartments that were empty
+ * all period are missing.
+ */
+export function calculateVacancyCosts(
+  nebenkosten: Nebenkosten,
+  tenants: Mieter[],
+  houseApartments?: HouseApartment[],
+  // Precomputed computeWgFactorsByTenant(tenants, startdatum, enddatum)
+  precomputedWgFactors?: Record<string, number>
+): { total: number; apartments: VacancyCost[] } {
+  const { startdatum, enddatum } = nebenkosten;
+  if (!startdatum || !enddatum) return { total: 0, apartments: [] };
+
+  let areaCosts = 0;
+  let apartmentCosts = 0;
+  (nebenkosten.nebenkostenart || []).forEach((_, i) => {
+    const art = nebenkosten.berechnungsart?.[i] || '';
+    const betrag = nebenkosten.betrag?.[i] || 0;
+    if (isAreaBasedBerechnungsart(art)) areaCosts += betrag;
+    else if (normalizeBerechnungsart(art) === 'pro Wohnung') apartmentCosts += betrag;
+  });
+
+  const houseArea = effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
+  const apartmentCount = effectiveApartmentCount(nebenkosten.anzahlWohnungen, tenants);
+  const periodDays = calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
+  const wgFactors = precomputedWgFactors ?? computeWgFactorsByTenant(tenants, startdatum, enddatum);
+
+  // The house's apartments, plus any tenant apartment the list doesn't have
+  const apartments = new Map<string, { name: string; area: number }>();
+  for (const apartment of houseApartments ?? []) {
+    apartments.set(apartment.id, { name: apartment.name, area: apartment.groesse || 0 });
+  }
+  const occupiedShare = new Map<string, number>();
+  for (const tenant of tenants) {
+    if (!tenant.wohnung_id) continue;
+    if (!apartments.has(tenant.wohnung_id)) {
+      apartments.set(tenant.wohnung_id, { name: tenant.Wohnungen?.name || '', area: tenant.Wohnungen?.groesse || 0 });
+    }
+    // The WG factors of one apartment sum to its occupied share of the period
+    occupiedShare.set(tenant.wohnung_id, (occupiedShare.get(tenant.wohnung_id) || 0) + (wgFactors[tenant.id] || 0));
+  }
+
+  const result: VacancyCost[] = [];
+  for (const [apartmentId, { name, area }] of apartments) {
+    const vacantShare = Math.max(0, 1 - (occupiedShare.get(apartmentId) || 0));
+    const amount = vacantShare * (
+      (houseArea > 0 ? (area / houseArea) * areaCosts : 0) +
+      (apartmentCount > 0 ? apartmentCosts / apartmentCount : 0)
+    );
+    if (amount > 0.005) {
+      result.push({ apartmentId, apartmentName: name, vacantDays: Math.round(vacantShare * periodDays), amount });
+    }
+  }
+  result.sort((a, b) => b.amount - a.amount);
+
+  return { total: result.reduce((sum, apartment) => sum + apartment.amount, 0), apartments: result };
 }
 
 /**

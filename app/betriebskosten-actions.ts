@@ -13,6 +13,7 @@ import {
   OptimizedNebenkosten,
   MeterModalData,
   AbrechnungModalData,
+  HouseApartment,
   OptimizedActionResponse,
   SafeRpcCallResult,
   AbrechnungCalculationResult,
@@ -2125,21 +2126,22 @@ export async function getAbrechnungModalDataAction(
 
       // Workaround for vorauszahlungs_art removed - database functions now include it.
 
-      // Fill house totals the RPC doesn't return yet (TODO: drop once mietevo-db#48 is deployed),
-      // so every consumer of this data leaves vacancy with the landlord. Actual payments ('ist'
-      // mode) don't depend on them, so load both in parallel.
+      // All apartments of the house for the vacancy costs, and the house totals the RPC doesn't
+      // return yet (TODO: drop the totals fill once mietevo-db#48 is deployed), so every consumer
+      // of this data leaves vacancy with the landlord. Actual payments ('ist' mode) don't depend
+      // on them, so load both in parallel.
       const nk = modalData.nebenkosten_data;
-      const [houseTotals, actualPayments] = await Promise.all([
-        nk.anzahlWohnungen == null || !nk.gesamtFlaeche
-          ? fetchHouseApartmentTotals(supabase, nk.haeuser_id)
-          : undefined,
+      const [houseApartments, actualPayments] = await Promise.all([
+        fetchHouseApartments(supabase, nk.haeuser_id),
         (nk as any).vorauszahlungs_art === 'ist'
           ? resolveActualPaymentsData(supabase, nk, modalData.tenants, {}, nebenkostenId)
           : undefined
       ]);
-      if (houseTotals) {
+      if (houseApartments) {
+        const houseTotals = sumHouseApartments(houseApartments);
         nk.anzahlWohnungen ??= houseTotals.count;
         nk.gesamtFlaeche ||= houseTotals.area;
+        modalData.houseApartments = houseApartments;
       }
       if (actualPayments) modalData.actualPayments = actualPayments;
 
@@ -2186,18 +2188,18 @@ export async function getAbrechnungModalDataAction(
 }
 
 /**
- * Count and summed area of ALL apartments of a house (vacant ones included), like
- * get_abrechnung_modal_data. Returns undefined when the query fails or finds none,
- * so callers fall back to the tenants' apartments.
+ * ALL apartments of a house (vacant ones included), like get_abrechnung_modal_data counts them.
+ * Returns undefined when the query fails or finds none, so callers fall back to the tenants'
+ * apartments.
  */
-async function fetchHouseApartmentTotals(
+async function fetchHouseApartments(
   supabase: any,
   haeuserId: string | null | undefined
-): Promise<{ count: number; area: number } | undefined> {
+): Promise<HouseApartment[] | undefined> {
   if (!haeuserId) return undefined;
   const { data, error } = await supabase
     .from("Wohnungen")
-    .select("id, groesse")
+    .select("id, name, groesse")
     .eq("haus_id", haeuserId);
 
   if (error) {
@@ -2205,10 +2207,14 @@ async function fetchHouseApartmentTotals(
     return undefined;
   }
   // An empty result can't be right while tenants live in the house, so treat it like an error
-  if (!data?.length) return undefined;
+  return data?.length ? data : undefined;
+}
+
+/** Number and summed area of the house apartments */
+function sumHouseApartments(apartments: HouseApartment[]): { count: number; area: number } {
   return {
-    count: data.length,
-    area: data.reduce((sum: number, w: { groesse: number | null }) => sum + (w.groesse || 0), 0)
+    count: apartments.length,
+    area: apartments.reduce((sum, w) => sum + (w.groesse || 0), 0)
   };
 }
 
@@ -2250,7 +2256,7 @@ async function getAbrechnungModalDataFallback(
 
   // Fetch tenants overlapping the billing period for the same house, and ALL apartments of
   // the house (incl. vacant ones) for the apartment count and area fallback
-  const [{ data: tenants, error: tenantsError }, houseTotals] = await Promise.all([
+  const [{ data: tenants, error: tenantsError }, houseApartments] = await Promise.all([
     supabase
       .from("Mieter")
       .select(`
@@ -2265,8 +2271,9 @@ async function getAbrechnungModalDataFallback(
       .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
       .lte("einzug", nebenkostenData.enddatum)
       .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`),
-    fetchHouseApartmentTotals(supabase, nebenkostenData.haeuser_id)
+    fetchHouseApartments(supabase, nebenkostenData.haeuser_id)
   ]);
+  const houseTotals = houseApartments && sumHouseApartments(houseApartments);
 
   if (tenantsError) {
     logger.error('Failed to fetch tenants in fallback', tenantsError || undefined, {
@@ -2357,7 +2364,8 @@ async function getAbrechnungModalDataFallback(
     tenants: tenants || [],
     rechnungen: rechnungen || [],
     meters: waterMeters,
-    readings: waterReadings
+    readings: waterReadings,
+    houseApartments
   };
 
   // Fetch actual payments if mode is 'ist'

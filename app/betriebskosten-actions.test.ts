@@ -525,6 +525,7 @@ describe('Abrechnung actions — nach Rechnung', () => {
     expect(result.success).toBe(true);
     expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(3);
     expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(170);
+    expect(result.data?.houseApartments).toEqual(houseApartments);
   });
 
   it('falls back to the tenant apartments when the house apartments cannot be loaded', async () => {
@@ -560,7 +561,9 @@ describe('Abrechnung actions — nach Rechnung', () => {
   });
 
   it('keeps the house totals the database function returns', async () => {
-    const supabase = mockSupabaseWithTables({});
+    mockSupabaseWithTables({
+      Wohnungen: { data: houseApartments, error: null }
+    });
     (safeRpcCall as jest.Mock).mockResolvedValue({
       success: true,
       data: [{
@@ -573,7 +576,8 @@ describe('Abrechnung actions — nach Rechnung', () => {
 
     expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(4);
     expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(200);
-    expect(supabase.from).not.toHaveBeenCalledWith('Wohnungen');
+    // The apartment list is still returned for the vacancy costs
+    expect(result.data?.houseApartments).toEqual(houseApartments);
   });
 
   it.each([
