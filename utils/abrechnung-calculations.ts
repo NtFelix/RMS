@@ -291,6 +291,30 @@ export function calculateMeterCostDistribution(
   };
 }
 
+type PrepaymentSchedule = { iso: string; amount: number | string }[];
+
+/** A tenant's prepayment schedule (Soll), newest entry first */
+const getPrepaymentSchedule = (tenant: Mieter): PrepaymentSchedule =>
+  (Array.isArray(tenant.nebenkosten) ? tenant.nebenkosten : [])
+    .filter(n => n.date)
+    .map(n => ({ iso: toIsoDateOnly(n.date), amount: n.amount }))
+    .sort((a, b) => b.iso.localeCompare(a.iso));
+
+/**
+ * Soll prepayment for the billed part of a month: the newest schedule entry dated on or before
+ * the end of that part, prorated by the days the tenant lived there in the calendar month.
+ */
+const scheduledMonthlyAmount = (
+  schedule: PrepaymentSchedule,
+  rangeEndIso: string,
+  occupancyDays: number,
+  daysInMonth: number
+): number => {
+  if (occupancyDays <= 0) return 0;
+  const applicable = schedule.find(n => n.iso <= rangeEndIso);
+  return applicable ? (Number(applicable.amount) || 0) * (occupancyDays / daysInMonth) : 0;
+};
+
 /**
  * Calculate prepayments for a tenant during the billing period
  */
@@ -299,7 +323,11 @@ export function calculatePrepayments(
   startdatum: string,
   enddatum: string,
   actualPayments?: Finanzen[],
-  mode: 'scheduled' | 'actual' = 'scheduled'
+  mode: 'scheduled' | 'actual' = 'scheduled',
+  // All tenants of the house/apartment, needed only in 'actual' mode to split a month's
+  // apartment payment(s) between the tenants living there that month.
+  // Falls back to treating the tenant as the sole occupant when omitted.
+  allTenants?: Mieter[]
 ): PrepaymentBreakdown {
   const monthlyPayments: PrepaymentBreakdown['monthlyPayments'] = [];
   let totalPrepayments = 0;
@@ -322,10 +350,17 @@ export function calculatePrepayments(
   }
 
   // Prepayment schedule normalized once, newest entry first
-  const nebenkostenSchedule = (Array.isArray(tenant.nebenkosten) ? tenant.nebenkosten : [])
-    .filter(n => n.date)
-    .map(n => ({ iso: toIsoDateOnly(n.date), amount: n.amount }))
-    .sort((a, b) => b.iso.localeCompare(a.iso));
+  const nebenkostenSchedule = getPrepaymentSchedule(tenant);
+
+  // 'actual' mode: the tenant first, then everyone else in the same apartment, with their schedules
+  const occupants = mode === 'actual'
+    ? [
+      { tenant, schedule: nebenkostenSchedule },
+      ...(allTenants ?? [])
+        .filter(t => t.id !== tenant.id && t.wohnung_id && t.wohnung_id === tenant.wohnung_id)
+        .map(t => ({ tenant: t, schedule: getPrepaymentSchedule(t) }))
+    ]
+    : [];
 
   const lastMonthIndex = endYear * 12 + endMonth - 1;
   for (let monthIndex = startYear * 12 + startMonth - 1; monthIndex <= lastMonthIndex; monthIndex++) {
@@ -345,17 +380,32 @@ export function calculatePrepayments(
 
     if (mode === 'actual' && actualPayments) {
       const monthPayments = actualPayments.filter(p => isDateInPeriod(p.datum, rangeStartIso, rangeEndIso));
-      monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
-    } else if (mode === 'scheduled') {
-      if (occupancyDays > 0) {
-        // Find applicable prepayment for this month.
-        // We look for the latest prepayment entry that is valid before or during the billed part of this month.
-        const applicableNK = nebenkostenSchedule.find(n => n.iso <= rangeEndIso);
+      const monthTotal = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
 
-        if (applicableNK) {
-          monthlyAmount = (Number(applicableNK.amount) || 0) * occupancyRatio;
-        }
+      // A tenant who did not occupy the apartment during this month owes nothing from it,
+      // mirroring the 'scheduled' branch's occupancyDays > 0 gate below.
+      if (occupancyDays > 0 && monthTotal !== 0) {
+        // Payments belong to the apartment, not to a tenant (Finanzen has no mieter_id). Split a
+        // month's payments between the tenants living there that month (a WG, or a handover
+        // within the month) in proportion to what each should have prepaid (Soll, prorated by
+        // days); if none of them has a Soll that month, by occupied days.
+        // Known limitation (accepted for now): a roommate without a Soll gets none of the payment
+        // while others have one, even if they paid. Fixing it needs payments linked to a tenant.
+        const shares = occupants.map(({ tenant: occupant, schedule }) => {
+          const days = occupant.id === tenant.id
+            ? occupancyDays
+            : calculateTenantOccupancy(occupant, rangeStartIso, rangeEndIso).occupancyDays;
+          return { days, soll: scheduledMonthlyAmount(schedule, rangeEndIso, days, daysInMonth) };
+        });
+        const totalSoll = shares.reduce((sum, share) => sum + share.soll, 0);
+        const totalDays = shares.reduce((sum, share) => sum + share.days, 0);
+
+        monthlyAmount = totalSoll > 0
+          ? monthTotal * (shares[0].soll / totalSoll)
+          : monthTotal * (occupancyDays / totalDays);
       }
+    } else if (mode === 'scheduled') {
+      monthlyAmount = scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, occupancyDays, daysInMonth);
 
       // Track months where the tenant was occupied but no schedule entry exists.
       // We do NOT inject a fallback value — missing data should be surfaced explicitly.
@@ -546,10 +596,13 @@ export function calculateCompleteTenantResult(
     readings
   );
 
-  // Pre-filter actual payments for this tenant if in actual mode
-  // This improves performance by avoiding repeated building-wide filtering inside the monthly loop
-  const tenantActualPayments = (prepaymentMode === 'actual' && actualPayments && tenant.wohnung_id)
-    ? actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id)
+  // Pre-filter actual payments for this tenant if in actual mode.
+  // This improves performance by avoiding repeated building-wide filtering inside the monthly loop.
+  // A tenant without an apartment (no wohnung_id) gets an empty list, never the unfiltered
+  // building-wide payments — apartment payments must never be assigned to a tenant with no
+  // apartment to tie them to.
+  const tenantActualPayments = (prepaymentMode === 'actual' && actualPayments)
+    ? (tenant.wohnung_id ? actualPayments.filter(p => p.wohnung_id === tenant.wohnung_id) : [])
     : actualPayments;
 
   // Calculate prepayments
@@ -558,7 +611,8 @@ export function calculateCompleteTenantResult(
     nebenkosten.startdatum,
     nebenkosten.enddatum,
     tenantActualPayments,
-    prepaymentMode
+    prepaymentMode,
+    allTenants
   );
 
   // Calculate totals

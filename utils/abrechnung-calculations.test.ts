@@ -561,6 +561,67 @@ describe('abrechnung-calculations', () => {
 
       expect(result.totalPrepayments).toBe(0);
     });
+
+    // Uses real occupancy instead of the full-occupancy mock above, since these tests depend on
+    // a tenant's occupancy actually varying (a move-out, or two tenants overlapping unequally).
+    describe('with real occupancy', () => {
+      beforeEach(() => {
+        const { calculateTenantOccupancy: actualCalculateTenantOccupancy } = jest.requireActual('./date-calculations');
+        (calculateTenantOccupancy as jest.Mock).mockImplementation(actualCalculateTenantOccupancy);
+      });
+
+      it('credits nothing for a month the tenant no longer occupied, even though the apartment has a payment that month', () => {
+        // Moved out at the end of January; the payment below is dated in February.
+        const tenant = { id: 't-out', wohnung_id: 'w1', einzug: '2023-01-01', auszug: '2023-01-31' } as any;
+        const payments = [makePayment('2023-02-10', 100)];
+
+        const result = calculatePrepayments(tenant, '2023-01-01', '2023-02-28', payments, 'actual');
+
+        expect(result.totalPrepayments).toBe(0);
+      });
+
+      it('splits a shared month\'s apartment payment by each tenant\'s Soll when allTenants is given', () => {
+        // January 2023 has 31 days. X: 100 €/month, whole month → Soll 100 €. Y: 62 €/month,
+        // moves in on the 21st (11 days) → Soll 62 × 11/31 = 22 €. Together 122 €.
+        const tenantX = { id: 'x', wohnung_id: 'w1', einzug: '2023-01-01', auszug: null, nebenkosten: [{ date: '2023-01-01', amount: '100' }] } as any;
+        const tenantY = { id: 'y', wohnung_id: 'w1', einzug: '2023-01-21', auszug: null, nebenkosten: [{ date: '2023-01-21', amount: '62' }] } as any;
+        const payments = [makePayment('2023-01-15', 244)];
+        const allTenants = [tenantX, tenantY];
+
+        const resultX = calculatePrepayments(tenantX, '2023-01-01', '2023-01-31', payments, 'actual', allTenants);
+        const resultY = calculatePrepayments(tenantY, '2023-01-01', '2023-01-31', payments, 'actual', allTenants);
+
+        // X: 244 € × 100/122 = 200 €, Y: 244 € × 22/122 = 44 €
+        expect(resultX.totalPrepayments).toBeCloseTo(200, 5);
+        expect(resultY.totalPrepayments).toBeCloseTo(44, 5);
+      });
+
+      it('splits by occupied days when none of the tenants has a Soll that month', () => {
+        // January 2023 has 31 days. X occupies the whole month (31 days); Y moves in on the
+        // 21st and occupies the last 11 days (21..31 inclusive) — 42 occupied days combined.
+        const tenantX = { id: 'x', wohnung_id: 'w1', einzug: '2023-01-01', auszug: null } as any;
+        const tenantY = { id: 'y', wohnung_id: 'w1', einzug: '2023-01-21', auszug: null } as any;
+        const payments = [makePayment('2023-01-15', 420)];
+        const allTenants = [tenantX, tenantY];
+
+        const resultX = calculatePrepayments(tenantX, '2023-01-01', '2023-01-31', payments, 'actual', allTenants);
+        const resultY = calculatePrepayments(tenantY, '2023-01-01', '2023-01-31', payments, 'actual', allTenants);
+
+        // X: 420 € × 31/42 = 310 €, Y: 420 € × 11/42 = 110 € — together the full 420 €
+        expect(resultX.totalPrepayments).toBeCloseTo(310, 5);
+        expect(resultY.totalPrepayments).toBeCloseTo(110, 5);
+        expect(resultX.totalPrepayments + resultY.totalPrepayments).toBeCloseTo(420, 5);
+      });
+
+      it('without allTenants, treats the tenant as the sole occupant (back-compat: full payment credited)', () => {
+        const tenant = { id: 'solo', wohnung_id: 'w1', einzug: '2023-01-01', auszug: null } as any;
+        const payments = [makePayment('2023-01-15', 200)];
+
+        const result = calculatePrepayments(tenant, '2023-01-01', '2023-01-31', payments, 'actual');
+
+        expect(result.totalPrepayments).toBe(200);
+      });
+    });
   });
 
   describe('calculateCompleteTenantResult — prepaymentMode', () => {

@@ -399,12 +399,84 @@ describe('Golden house 2025 — full Abrechnung without mocks', () => {
       expect(actual('tenant-s')).toBeCloseTo(900, EUR);
     });
 
-    // KNOWN BUG: actual payments are matched by apartment only, so every tenant of apt-101 is
-    // credited with all 750 € paid into that apartment — A gets B's payments and vice versa.
-    // When this starts passing, the bug is fixed: turn it.failing into it.
-    it.failing('credits each payment to only one tenant after a handover (A: 400 €, B: 350 €)', () => {
+    // Payments are matched by apartment only (Finanzen has no mieter_id), so a payment is
+    // credited to whichever tenant's occupancy actually covers its month, not to every tenant
+    // who ever lived in that apartment.
+    it('credits each payment to only one tenant after a handover (A: 400 €, B: 350 €)', () => {
       expect(actual('tenant-a')).toBeCloseTo(400, EUR);
       expect(actual('tenant-b')).toBeCloseTo(350, EUR);
+    });
+
+    // Payments belong to the apartment, so a month's payment is split between the tenants living
+    // there that month by what each should have prepaid (Soll, prorated by days).
+    // apt-201 (WG 201): tenant-wg1 alone 15.-30.04. (16 days), then wg1+wg2+wg3 together from
+    // 01.05. onward. ACTUAL_PAYMENTS has no apt-201 rows, so each test adds one payment.
+    describe('WG apartment: splits a shared payment by each tenant\'s Soll', () => {
+      // April: only wg1 is in apt-201 (16 of 30 days occupied, no roommates yet) — a single
+      // payment in that month is entirely wg1's, independent of amount, since wg1 is the sole
+      // occupant of record for the month (roommates' occupancyDays for April are 0).
+      it('single occupant that month: wg1 gets the full April payment', () => {
+        const wgApartmentPayments = [
+          ...ACTUAL_PAYMENTS,
+          { id: 'pay-apt201-04', wohnung_id: 'apt-201', datum: '2025-04-10', betrag: 240, ist_einnahmen: true, notiz: null, erstellt_von: 'user-test', dokument_id: null, tags: ['Nebenkosten', 'Vorauszahlung'] },
+        ] as typeof ACTUAL_PAYMENTS;
+
+        const result = calculateCompleteTenantResult(
+          TENANTS.find(t => t.id === 'tenant-wg1')!, NEBENKOSTEN, TENANTS, METERS, READINGS, wgApartmentPayments, 'actual', RECHNUNGEN
+        );
+        // wg1 is the only tenant living there in April (15.-30.04.), so the payment is all wg1's
+        expect(result.prepayments.totalPrepayments).toBeCloseTo(240, EUR);
+      });
+
+      // May: wg1, wg2 and wg3 all live there the entire month, but their Soll differs:
+      // wg1 80 €, wg2 65 €, wg3 has no schedule (0 €) — together 145 €.
+      it('three simultaneous occupants: a May payment splits by Soll, not evenly', () => {
+        const wgApartmentPayments = [
+          ...ACTUAL_PAYMENTS,
+          { id: 'pay-apt201-05', wohnung_id: 'apt-201', datum: '2025-05-10', betrag: 300, ist_einnahmen: true, notiz: null, erstellt_von: 'user-test', dokument_id: null, tags: ['Nebenkosten', 'Vorauszahlung'] },
+        ] as typeof ACTUAL_PAYMENTS;
+
+        const shareOf = (id: string) => calculateCompleteTenantResult(
+          TENANTS.find(t => t.id === id)!, NEBENKOSTEN, TENANTS, METERS, READINGS, wgApartmentPayments, 'actual', RECHNUNGEN
+        ).prepayments.totalPrepayments;
+
+        // wg1 300 × 80/145 = 165.517241 €, wg2 300 × 65/145 = 134.482759 €, wg3 0 € (no Soll)
+        expect(shareOf('tenant-wg1')).toBeCloseTo(300 * 80 / 145, EUR);
+        expect(shareOf('tenant-wg2')).toBeCloseTo(300 * 65 / 145, EUR);
+        expect(shareOf('tenant-wg3')).toBe(0);
+      });
+
+      // apt-202 (WG 202): wg4 all year, wg5 out 31.03., wg6 in 01.05. — April has only wg4
+      // present (wg5 already out, wg6 not yet in), so an April payment there is wg4's alone.
+      // March has wg4 (31 days) and wg5 (31 days, out on the last day) together.
+      it('equal Soll: a March apt-202 payment splits evenly', () => {
+        const wgApartmentPayments = [
+          ...ACTUAL_PAYMENTS,
+          { id: 'pay-apt202-03', wohnung_id: 'apt-202', datum: '2025-03-10', betrag: 200, ist_einnahmen: true, notiz: null, erstellt_von: 'user-test', dokument_id: null, tags: ['Nebenkosten', 'Vorauszahlung'] },
+        ] as typeof ACTUAL_PAYMENTS;
+
+        const shareOf = (id: string) => calculateCompleteTenantResult(
+          TENANTS.find(t => t.id === id)!, NEBENKOSTEN, TENANTS, METERS, READINGS, wgApartmentPayments, 'actual', RECHNUNGEN
+        ).prepayments.totalPrepayments;
+
+        // March 2025: wg4 and wg5 both live there all 31 days (wg5 moves out on 31.03.) and both
+        // have a Soll of 90 € ⇒ 200 € × 90/180 = 100 € each.
+        expect(shareOf('tenant-wg4')).toBeCloseTo(100, EUR);
+        expect(shareOf('tenant-wg5')).toBeCloseTo(100, EUR);
+      });
+    });
+
+    // tenant-s has wohnung_id apt-302; a tenant with no apartment at all must never be credited
+    // with any apartment's payments, even though ACTUAL_PAYMENTS contains real house payments.
+    it('a tenant with no wohnung_id gets 0 apartment prepayments', () => {
+      const tenantWithoutApartment = { ...TENANTS.find(t => t.id === 'tenant-s')!, wohnung_id: null };
+      const tenantsWithSwap = TENANTS.map(t => t.id === 'tenant-s' ? tenantWithoutApartment : t);
+
+      const result = calculateCompleteTenantResult(
+        tenantWithoutApartment, NEBENKOSTEN, tenantsWithSwap, METERS, READINGS, ACTUAL_PAYMENTS, 'actual', RECHNUNGEN
+      );
+
+      expect(result.prepayments.totalPrepayments).toBe(0);
     });
   });
 });
