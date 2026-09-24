@@ -364,7 +364,9 @@ export function AbrechnungModal({
         readings,
         actualPayments,
         prepaymentMode,
-        rechnungen
+        rechnungen,
+        // wgFactors falls back to the current year without a date range; only reuse it for a real period
+        nebenkostenItem!.startdatum && nebenkostenItem!.enddatum ? wgFactors : undefined
       );
 
       return {
@@ -405,7 +407,7 @@ export function AbrechnungModal({
         missingScheduleMonths: result.prepayments.missingScheduleMonths
       };
     };
-  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments, rechnungen]);
+  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments, rechnungen, wgFactors]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {

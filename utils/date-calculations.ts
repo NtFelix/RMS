@@ -4,6 +4,11 @@ import { parseISO } from "date-fns";
  * Utility functions for date-based calculations in the Betriebskosten system
  */
 
+const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Whether a string is exactly a YYYY-MM-DD date (no time part) */
+export const isIsoDateOnly = (date: string): boolean => ISO_DATE_ONLY.test(date);
+
 /**
  * Convert German date format (DD.MM.YYYY) to ISO format (YYYY-MM-DD)
  */
@@ -11,7 +16,7 @@ export function germanToIsoDate(germanDate: string): string {
   if (!germanDate) return '';
   
   // Check if it's already in ISO format
-  if (/^\d{4}-\d{2}-\d{2}$/.test(germanDate)) {
+  if (isIsoDateOnly(germanDate)) {
     return germanDate;
   }
   
@@ -276,7 +281,7 @@ export function isTenantActive(
 ): boolean {
   if (!auszug) return true;
   const moveOutIso = toIsoDateOnly(auszug);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(moveOutIso)) {
+  if (!isIsoDateOnly(moveOutIso)) {
     return false;
   }
   return moveOutIso > todayStr;

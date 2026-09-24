@@ -176,7 +176,6 @@ export function calculateTenantMeterConsumption(
 
     aptMeters.forEach(meter => {
       // Find readings for this meter within the period
-      // Compared as YYYY-MM-DD so German dates or a time component on the last day don't drop a reading
       const meterReadings = readings.filter(reading =>
         reading.zaehler_id === meter.id &&
         isDateInPeriod(reading.ablese_datum, periodStart, periodEnd)
