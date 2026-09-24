@@ -12,7 +12,7 @@ import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, isDateInPeriod, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
 import { isSameCostName, normalizeBerechnungsart } from "./betriebskosten";
-import { computeWgFactorsByTenant } from "./wg-cost-calculations";
+import { computeWgFactorsByTenant, getApartmentOccupants } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
 import { BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import {
@@ -357,14 +357,11 @@ export function calculatePrepayments(
   // Prepayment schedule normalized once, newest entry first
   const nebenkostenSchedule = getPrepaymentSchedule(tenant);
 
-  // 'actual' mode: the tenant first, then everyone else in the same apartment, with their schedules
-  const occupants = mode === 'actual'
-    ? [
-      { tenant, schedule: nebenkostenSchedule },
-      ...(allTenants ?? [])
-        .filter(t => t.id !== tenant.id && t.wohnung_id && t.wohnung_id === tenant.wohnung_id)
-        .map(t => ({ tenant: t, schedule: getPrepaymentSchedule(t) }))
-    ]
+  // 'actual' mode: the other tenants of the same apartment, with their schedules
+  const roommates = mode === 'actual'
+    ? getApartmentOccupants(allTenants ?? [], tenant.wohnung_id)
+      .filter(t => t.id !== tenant.id)
+      .map(t => ({ tenant: t, schedule: getPrepaymentSchedule(t) }))
     : [];
 
   const lastMonthIndex = endYear * 12 + endMonth - 1;
@@ -396,17 +393,17 @@ export function calculatePrepayments(
         // days); if none of them has a Soll that month, by occupied days.
         // Known limitation (accepted for now): a roommate without a Soll gets none of the payment
         // while others have one, even if they paid. Fixing it needs payments linked to a tenant.
-        const shares = occupants.map(({ tenant: occupant, schedule }) => {
-          const days = occupant.id === tenant.id
-            ? occupancyDays
-            : calculateTenantOccupancy(occupant, rangeStartIso, rangeEndIso).occupancyDays;
-          return { days, soll: scheduledMonthlyAmount(schedule, rangeEndIso, days, daysInMonth) };
-        });
-        const totalSoll = shares.reduce((sum, share) => sum + share.soll, 0);
-        const totalDays = shares.reduce((sum, share) => sum + share.days, 0);
+        const ownSoll = scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, occupancyDays, daysInMonth);
+        let totalSoll = ownSoll;
+        let totalDays = occupancyDays;
+        for (const roommate of roommates) {
+          const { occupancyDays: days } = calculateTenantOccupancy(roommate.tenant, rangeStartIso, rangeEndIso);
+          totalSoll += scheduledMonthlyAmount(roommate.schedule, rangeEndIso, days, daysInMonth);
+          totalDays += days;
+        }
 
         monthlyAmount = totalSoll > 0
-          ? monthTotal * (shares[0].soll / totalSoll)
+          ? monthTotal * (ownSoll / totalSoll)
           : monthTotal * (occupancyDays / totalDays);
       }
     } else if (mode === 'scheduled') {
