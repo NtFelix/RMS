@@ -87,11 +87,12 @@ export function findUnrecognisedBerechnungsarten(
 }
 
 /**
- * House area for 'pro Fläche': the stored area (gesamtFlaeche), but never less than the
- * occupied apartments' area, so a stale house area can't make shares sum to more than 100 %.
+ * House area for 'pro Fläche': the stored area (gesamtFlaeche), or the occupied apartments' area
+ * when none is stored. A stored area below the occupied area is used as it is, so the shares
+ * sum to more than 100 %; the Abrechnung modal warns about it.
  */
 export function effectiveHouseArea(gesamtFlaeche: number | null | undefined, tenants: Mieter[]): number {
-  return Math.max(gesamtFlaeche || 0, sumUniqueApartmentAreas(tenants));
+  return gesamtFlaeche || sumUniqueApartmentAreas(tenants);
 }
 
 /**

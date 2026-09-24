@@ -611,8 +611,8 @@ export function AbrechnungModal({
     })), [tenants]
   );
 
-  // The calculation replaces a stored house area below the occupied apartments' area for
-  // area-based items, so tell the user to correct it
+  // A stored house area below the occupied apartments' area makes the pro Fläche shares sum to
+  // more than the cost, so tell the user to correct it
   const areaMismatch = useMemo(() => {
     const houseArea = nebenkostenItem?.gesamtFlaeche || 0;
     const hasAreaItems = (nebenkostenItem?.berechnungsart || []).some(isAreaBasedBerechnungsart);
@@ -657,7 +657,7 @@ export function AbrechnungModal({
             )}
             {areaMismatch && (
               <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
-                ⚠ Die hinterlegte Hausfläche ({formatNumber(areaMismatch.houseArea)} m²) ist kleiner als die Fläche der im Zeitraum vermieteten Wohnungen ({formatNumber(areaMismatch.occupiedArea)} m²). Für Kosten „pro Fläche“ werden {formatNumber(areaMismatch.occupiedArea)} m² verwendet. Bitte die Hausgröße prüfen.
+                ⚠ Die hinterlegte Hausfläche ({formatNumber(areaMismatch.houseArea)} m²) ist kleiner als die Fläche der im Zeitraum vermieteten Wohnungen ({formatNumber(areaMismatch.occupiedArea)} m²). Kosten „pro Fläche“ werden trotzdem mit der hinterlegten Hausfläche berechnet, dadurch wird mehr als der Gesamtbetrag umgelegt. Bitte die Hausgröße prüfen.
               </span>
             )}
             {unrecognisedBerechnungsarten.length > 0 && (

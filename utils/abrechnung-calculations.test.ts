@@ -116,8 +116,8 @@ describe('abrechnung-calculations', () => {
     });
 
     it.each([
-      // Stale house area (40 m²) below the tenant's apartment (50 m²): the apartment area is used
-      ['never uses a house area below the occupied apartments area', 40, 50],
+      // Stale house area (40 m²) below the tenant's apartment (50 m²): still used (the modal warns)
+      ['keeps a stored house area below the occupied apartments area', 40, 40],
       ['keeps a house area above the occupied apartments area', 200, 200]
     ])('%s for pro Fläche', (_name, gesamtFlaeche, expectedArea) => {
       const nebenkosten = {
