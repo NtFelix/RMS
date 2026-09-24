@@ -19,23 +19,6 @@ export function groupTenantsByApartment(tenants: Mieter[]): Map<string, Mieter[]
   return groups;
 }
 
-// Determine if a tenant is active in the given month of the year (UTC based)
-export function isTenantActiveInMonth(tenant: Mieter, year: number, monthIndex: number): boolean {
-  const monthStart = new Date(Date.UTC(year, monthIndex, 1));
-  const monthEnd = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
-
-  const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
-  const auszugDateRaw = tenant.auszug ? new Date(tenant.auszug) : null;
-  const auszugDate = auszugDateRaw && !isNaN(auszugDateRaw.getTime()) ? auszugDateRaw : null;
-
-  if (!einzugDate || isNaN(einzugDate.getTime())) return false;
-
-  return (
-    einzugDate <= monthEnd &&
-    (!auszugDate || auszugDate >= monthStart)
-  );
-}
-
 // Compute the WG factor for each tenant: the fraction of an apartment's share
 // that should be borne by the tenant, splitting each active period equally among active roommates.
 // The factors per apartment sum to ~1 across roommates, considering periods with no occupants are ignored.
@@ -60,7 +43,8 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
   for (const group of groupTenantsByApartment(tenants).values()) {
     const ranges = group.map(t => ({
       id: t.id,
-      start: t.einzug ? parseAsUtc(t.einzug).getTime() : periodStart,
+      // No move-in date means no occupancy, as in calculateTenantOccupancy
+      start: t.einzug ? parseAsUtc(t.einzug).getTime() : Infinity,
       end: t.auszug ? parseAsUtc(t.auszug).getTime() : periodEnd,
       share: 0
     }));

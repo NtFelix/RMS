@@ -18,8 +18,8 @@ jest.mock('./date-calculations', () => {
 });
 
 describe('cost-calculations', () => {
-  const mockTenant1 = { id: 't1', wohnung_id: 'w1', Wohnungen: { groesse: 50 } } as any;
-  const mockTenant2 = { id: 't2', wohnung_id: 'w2', Wohnungen: { groesse: 50 } } as any;
+  const mockTenant1 = { id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', Wohnungen: { groesse: 50 } } as any;
+  const mockTenant2 = { id: 't2', wohnung_id: 'w2', einzug: '2020-01-01', Wohnungen: { groesse: 50 } } as any;
   const mockTenants = [mockTenant1, mockTenant2];
   const startdatum = '2023-01-01';
   const enddatum = '2023-12-31';
@@ -86,9 +86,9 @@ describe('cost-calculations', () => {
       // Apartment weight should be 50 * 1 = 50. Both tenants share 50. Cost is 1000. Each pays 500.
       // With the old bug, weight was 100, cost 1000, each pays 500 but calculation was wrong mechanically in house context.
 
-      const wgTenant1 = { id: 'wg1', wohnung_id: 'w_shared', Wohnungen: { groesse: 80 } } as any;
-      const wgTenant2 = { id: 'wg2', wohnung_id: 'w_shared', Wohnungen: { groesse: 80 } } as any;
-      const singleTenant = { id: 's1', wohnung_id: 'w_single', Wohnungen: { groesse: 20 } } as any;
+      const wgTenant1 = { id: 'wg1', wohnung_id: 'w_shared', einzug: '2020-01-01', Wohnungen: { groesse: 80 } } as any;
+      const wgTenant2 = { id: 'wg2', wohnung_id: 'w_shared', einzug: '2020-01-01', Wohnungen: { groesse: 80 } } as any;
+      const singleTenant = { id: 's1', wohnung_id: 'w_single', einzug: '2020-01-01', Wohnungen: { groesse: 20 } } as any;
 
       (calculateTenantOccupancy as jest.Mock)
         .mockImplementation((t) => {
@@ -215,22 +215,97 @@ describe('cost-calculations', () => {
   });
 
   describe('calculateProWohnungDistribution', () => {
-    it('distributes per apartment then per tenant', () => {
-      // Two tenants in one apartment, one in another
-      const t1 = { id: 't1', wohnung_id: 'w1' } as any;
-      const t2 = { id: 't2', wohnung_id: 'w1' } as any;
-      const t3 = { id: 't3', wohnung_id: 'w2' } as any;
+    const tenant = (id: string, wohnung_id: string | null, einzug: string | null = '2020-01-01', auszug: string | null = null) =>
+      ({ id, wohnung_id, einzug, auszug }) as any;
 
-      const result = calculateProWohnungDistribution([t1, t2, t3], 1200, startdatum, enddatum);
+    it('gives every apartment the same share and splits a WG share among its flatmates', () => {
+      // Two flatmates in w1, one tenant in w2: each apartment pays 600, not 2/3 vs 1/3
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1'), tenant('t2', 'w1'), tenant('t3', 'w2')], 1200, startdatum, enddatum
+      );
 
-      // Based on current implementation (which weights by tenant occupancy sum per apartment):
-      // w1 total days = 730 (2 tenants). w2 total days = 365 (1 tenant).
-      // Total = 1095. w1 gets 730/1095 = 2/3. w2 gets 1/3.
-      // w1 (800) -> split by 2 tenants = 400 each.
-      // w2 (400) -> 400.
-      expect(result['t1'].amount).toBeCloseTo(400);
-      expect(result['t2'].amount).toBeCloseTo(400);
-      expect(result['t3'].amount).toBeCloseTo(400);
+      expect(result['t1'].amount).toBeCloseTo(300);
+      expect(result['t2'].amount).toBeCloseTo(300);
+      expect(result['t3'].amount).toBeCloseTo(600);
+    });
+
+    it('splits the apartment share of sequential tenants by their days', () => {
+      // 2023: t1 Jan-Mar (90 days), t2 Apr-Dec (275 days) in w1
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1', '2020-01-01', '2023-03-31'), tenant('t2', 'w1', '2023-04-01'), tenant('t3', 'w2')],
+        1000, startdatum, enddatum
+      );
+
+      expect(result['t1'].amount).toBeCloseTo(500 * 90 / 365);
+      expect(result['t2'].amount).toBeCloseTo(500 * 275 / 365);
+      expect(result['t1'].amount + result['t2'].amount).toBeCloseTo(500);
+      expect(result['t3'].amount).toBeCloseTo(500);
+    });
+
+    it('splits the shared days of a staggered WG equally', () => {
+      // t1 all year; t2 joins on 2023-07-01: t1 alone for 181 days, both share 184 days
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1'), tenant('t2', 'w1', '2023-07-01'), tenant('t3', 'w2')], 1000, startdatum, enddatum
+      );
+
+      expect(result['t1'].amount).toBeCloseTo(500 * (181 + 92) / 365);
+      expect(result['t2'].amount).toBeCloseTo(500 * 92 / 365);
+      expect(result['t3'].amount).toBeCloseTo(500);
+    });
+
+    it('leaves the vacant days of an apartment with the landlord', () => {
+      // w1 is vacant until 2023-07-01 (184 occupied days); w2 still pays only its own share
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1', '2023-07-01'), tenant('t3', 'w2')], 1000, startdatum, enddatum
+      );
+
+      expect(result['t1'].amount).toBeCloseTo(500 * 184 / 365);
+      expect(result['t3'].amount).toBeCloseTo(500);
+    });
+
+    it('leaves an apartment vacant all period with the landlord when the house count is given', () => {
+      // House has 3 apartments, w3 has no tenant: w1 and w2 pay a third each, not half
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1'), tenant('t2', 'w2')], 900, startdatum, enddatum, 3
+      );
+
+      expect(result['t1'].amount).toBeCloseTo(300);
+      expect(result['t2'].amount).toBeCloseTo(300);
+    });
+
+    it('never uses a house count below the apartments the tenants live in', () => {
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1'), tenant('t2', 'w2')], 900, startdatum, enddatum, 1
+      );
+
+      expect(result['t1'].amount).toBeCloseTo(450);
+      expect(result['t2'].amount).toBeCloseTo(450);
+    });
+
+    it('bills nothing to a tenant without a move-in date and does not dilute flatmates', () => {
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1'), tenant('t2', 'w1', null), tenant('t3', 'w2', null)], 1000, startdatum, enddatum
+      );
+
+      expect(result['t1'].amount).toBeCloseTo(500);
+      expect(result['t2'].amount).toBe(0);
+      expect(result['t3'].amount).toBe(0);
+    });
+
+    it('skips tenants without an apartment', () => {
+      const result = calculateProWohnungDistribution([tenant('t1', 'w1'), tenant('t2', null)], 1000, startdatum, enddatum);
+
+      expect(result['t1'].amount).toBeCloseTo(1000);
+      expect(result['t2']).toBeUndefined();
+    });
+
+    it('uses precomputed WG factors when given', () => {
+      const result = calculateProWohnungDistribution(
+        [tenant('t1', 'w1'), tenant('t2', 'w2')], 1000, startdatum, enddatum, undefined, { t1: 0.25, t2: 1 }
+      );
+
+      expect(result['t1'].amount).toBeCloseTo(125);
+      expect(result['t2'].amount).toBeCloseTo(500);
     });
   });
 

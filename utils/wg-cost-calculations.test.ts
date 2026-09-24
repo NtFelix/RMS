@@ -1,4 +1,4 @@
-import { getApartmentOccupants, isTenantActiveInMonth, computeWgFactorsByTenant } from './wg-cost-calculations';
+import { getApartmentOccupants, computeWgFactorsByTenant } from './wg-cost-calculations';
 import { Mieter } from '@/lib/data-fetching';
 
 describe('wg-cost-calculations', () => {
@@ -15,70 +15,6 @@ describe('wg-cost-calculations', () => {
     nebenkosten: null,
     erstellt_von: 'user-123',
     ...overrides
-  });
-
-  describe('isTenantActiveInMonth', () => {
-    it('should return true if tenant is active for the entire month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: null
-      });
-      // Check for March 2023 (Year 2023, Month Index 2)
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
-
-    it('should return false if tenant moved in after the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-04-01',
-        auszug: null
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(false);
-    });
-
-    it('should return false if tenant moved out before the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: '2023-02-28'
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(false);
-    });
-
-    it('should return true if tenant moved in during the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-03-15',
-        auszug: null
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
-
-    it('should return true if tenant moved out during the month', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: '2023-03-15'
-      });
-      // Check for March 2023
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
-
-    it('should return false if einzug is null', () => {
-      const tenant = createMockTenant({
-        einzug: null,
-        auszug: null
-      });
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(false);
-    });
-
-    it('should handle invalid auszug date gracefully', () => {
-      const tenant = createMockTenant({
-        einzug: '2023-01-01',
-        auszug: 'invalid-date'
-      });
-      // Should still be active since invalid auszug is treated as null
-      expect(isTenantActiveInMonth(tenant, 2023, 2)).toBe(true);
-    });
   });
 
   describe('getApartmentOccupants', () => {
@@ -299,8 +235,8 @@ describe('wg-cost-calculations', () => {
         ];
 
         const factors = computeWgFactorsByTenant(tenants, 2023);
-        // Tenant with null einzug is treated as if they started very early
-        expect(factors['tenant1']).toBeDefined();
+        // No move-in date means no occupancy, matching calculateTenantOccupancy
+        expect(factors['tenant1']).toBe(0);
       });
     });
   });

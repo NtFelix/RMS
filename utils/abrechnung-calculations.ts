@@ -10,11 +10,10 @@ import type { Mieter, Nebenkosten, Zaehler, ZaehlerAblesung, Finanzen, Rechnung 
 
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
-import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
+import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonthDateRange, isDateInPeriod, maxIsoDate, minIsoDate, toIsoDateOnly } from "./date-calculations";
 import { isSameCostName } from "./betriebskosten";
 import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
-import { parseISO } from "date-fns";
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -68,7 +67,9 @@ export function calculateTenantCosts(
   nebenkosten: Nebenkosten,
   allTenants?: Mieter[],
   occupancyData?: OccupancyCalculation,
-  rechnungen?: Rechnung[]
+  rechnungen?: Rechnung[],
+  // Precomputed computeWgFactorsByTenant(allTenants, startdatum, enddatum), shared across tenants
+  precomputedWgFactors?: Record<string, number>
 ): OperatingCostBreakdown {
   const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
   const tenants = allTenants || [tenant]; // For distribution calculations
@@ -83,8 +84,8 @@ export function calculateTenantCosts(
     || sumUniqueApartmentAreas(tenants);
 
   // WG day-share factors depend only on the tenants and period, so compute them at most once
-  // for all area-based cost items instead of once per item.
-  let wgFactors: Record<string, number> | undefined;
+  // for all area- and apartment-based cost items instead of once per item.
+  let wgFactors = precomputedWgFactors;
   const getWgFactors = () =>
     wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum);
 
@@ -142,7 +143,9 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            nebenkosten.anzahlWohnungen,
+            getWgFactors()
           );
           tenantShare = wohnungDistribution[tenant.id]?.amount || 0;
           distributionBasis = '1 Wohnung';
@@ -228,13 +231,14 @@ export function calculateMeterCostDistribution(
     // Find the most recent reading for this tenant's apartment
     const apartmentMeters = meters.filter(m => m.wohnung_id === tenant.wohnung_id);
     const apartmentMeterIds = apartmentMeters.map(m => m.id);
-    const relevantReadings = readings
+    // Latest reading in the period (YYYY-MM-DD strings compare chronologically)
+    const latestReading = readings
       .filter(r => apartmentMeterIds.includes(r.zaehler_id || ''))
-      .filter(r => r.ablese_datum >= nebenkosten.startdatum && r.ablese_datum <= nebenkosten.enddatum)
-      .sort((a, b) => parseISO(b.ablese_datum).getTime() - parseISO(a.ablese_datum).getTime());
+      .filter(r => isDateInPeriod(r.ablese_datum, nebenkosten.startdatum, nebenkosten.enddatum))
+      .reduce<ZaehlerAblesung | undefined>((latest, r) =>
+        !latest || toIsoDateOnly(r.ablese_datum) > toIsoDateOnly(latest.ablese_datum) ? r : latest, undefined);
 
-    if (relevantReadings.length > 0) {
-      const latestReading = relevantReadings[0];
+    if (latestReading) {
       meterReading = {
         previousReading: 0, // Would need historical data
         currentReading: latestReading.zaehlerstand || 0,
@@ -306,11 +310,7 @@ export function calculatePrepayments(
     let monthlyAmount = 0;
 
     if (mode === 'actual' && actualPayments) {
-      const monthPayments = actualPayments.filter(p => {
-        if (!p.datum) return false;
-        const pIso = toIsoDateOnly(p.datum);
-        return pIso >= rangeStartIso && pIso <= rangeEndIso;
-      });
+      const monthPayments = actualPayments.filter(p => isDateInPeriod(p.datum, rangeStartIso, rangeEndIso));
       monthlyAmount = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
     } else if (mode === 'scheduled') {
       if (occupancyDays > 0) {
@@ -401,9 +401,8 @@ export function validateCalculationData(
   // Validate Nebenkosten data
   if (!nebenkosten.startdatum || !nebenkosten.enddatum) {
     errors.push('Start- und Enddatum sind erforderlich');
-  }
-
-  if (parseISO(nebenkosten.enddatum) <= parseISO(nebenkosten.startdatum)) {
+  } else if (toIsoDateOnly(nebenkosten.enddatum) <= toIsoDateOnly(nebenkosten.startdatum)) {
+    // Compared as YYYY-MM-DD so German dates are validated too (parseISO rejects them)
     errors.push('Enddatum muss nach dem Startdatum liegen');
   }
 
@@ -457,8 +456,7 @@ export function validateCalculationData(
       waterMeters.forEach(meter => {
         const meterReadings = waterReadings.filter(r =>
           r.zaehler_id === meter.id &&
-          r.ablese_datum >= nebenkosten.startdatum &&
-          r.ablese_datum <= nebenkosten.enddatum
+          isDateInPeriod(r.ablese_datum, nebenkosten.startdatum, nebenkosten.enddatum)
         );
 
         if (meterReadings.length === 0) {
@@ -486,13 +484,16 @@ export function calculateCompleteTenantResult(
   readings: ZaehlerAblesung[],
   actualPayments?: Finanzen[],
   prepaymentMode: 'scheduled' | 'actual' = 'scheduled',
-  rechnungen?: Rechnung[]
+  rechnungen?: Rechnung[],
+  // Precomputed computeWgFactorsByTenant(allTenants, startdatum, enddatum); compute it once
+  // per billing run instead of once per tenant
+  wgFactors?: Record<string, number>
 ): TenantCalculationResult {
   // Calculate occupancy
   const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
 
   // Calculate operating costs
-  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy, rechnungen);
+  const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy, rechnungen, wgFactors);
 
 
   // Calculate meter costs using new system
@@ -570,6 +571,9 @@ export function calculateAbrechnungSummary(
 ) {
   let totalAbrechnungVolumen = 0;
   let totalVorauszahlungen = 0;
+  const wgFactors = nebenkosten.startdatum && nebenkosten.enddatum
+    ? computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum)
+    : undefined;
 
   tenants.forEach(tenant => {
     // We can reuse the complete tenant result calculation which encapsulates all logic
@@ -582,7 +586,8 @@ export function calculateAbrechnungSummary(
       readings,
       actualPayments,
       prepaymentMode,
-      rechnungen
+      rechnungen,
+      wgFactors
     );
 
     totalAbrechnungVolumen += result.totalCosts;

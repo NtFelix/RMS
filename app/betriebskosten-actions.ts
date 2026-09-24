@@ -2097,6 +2097,12 @@ export async function getAbrechnungModalDataAction(
 
       // Workaround for vorauszahlungs_art removed - database functions now include it.
 
+      // The RPC returns no apartment count; pro Wohnung needs the house's, vacant apartments included
+      if (modalData.nebenkosten_data.anzahlWohnungen == null) {
+        modalData.nebenkosten_data.anzahlWohnungen =
+          await fetchHouseApartmentCount(supabase, modalData.nebenkosten_data.haeuser_id);
+      }
+
       // Fetch actual payments if mode is 'ist'
       if ((modalData.nebenkosten_data as any).vorauszahlungs_art === 'ist') {
         modalData.actualPayments = await resolveActualPaymentsData(
@@ -2148,6 +2154,19 @@ export async function getAbrechnungModalDataAction(
       message: userMessage
     };
   }
+}
+
+/**
+ * Number of apartments in a house, vacant ones included: the pro Wohnung denominator.
+ * Returns undefined on error so callers fall back to the tenant-derived count.
+ */
+async function fetchHouseApartmentCount(supabase: any, haeuserId: string | null | undefined): Promise<number | undefined> {
+  if (!haeuserId) return undefined;
+  const { count, error } = await supabase
+    .from("Wohnungen")
+    .select("id", { count: "exact", head: true })
+    .eq("haus_id", haeuserId);
+  return error ? undefined : count ?? undefined;
 }
 
 /**
@@ -2279,7 +2298,8 @@ async function getAbrechnungModalDataFallback(
   // Count each apartment once (WG / sequential tenants share the same Wohnung)
   const { sumUniqueApartmentAreas } = await import('@/utils/cost-calculations');
   const totalArea = nebenkostenData.Haeuser?.groesse || sumUniqueApartmentAreas(tenants || []);
-  const apartmentCount = new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
+  const apartmentCount = await fetchHouseApartmentCount(supabase, nebenkostenData.haeuser_id)
+    ?? new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
 
   const modalData: AbrechnungModalData = {
     nebenkosten_data: {
@@ -2523,8 +2543,10 @@ export async function createAbrechnungCalculationAction(
       nebenkostenId
     );
 
-    // Calculate costs for each tenant
+    // Calculate costs for each tenant; WG factors depend only on tenants and period, so compute them once
     const tenantCalculations: TenantCalculationResult[] = [];
+    const { computeWgFactorsByTenant } = await import('@/utils/wg-cost-calculations');
+    const wgFactors = computeWgFactorsByTenant(tenants, nebenkosten_data.startdatum, nebenkosten_data.enddatum);
 
     for (const tenant of tenants) {
       try {
@@ -2536,7 +2558,8 @@ export async function createAbrechnungCalculationAction(
           readings,
           actualPayments,
           effectivePrepaymentMode,
-          rechnungen
+          rechnungen,
+          wgFactors
         );
 
         tenantCalculations.push(tenantCalculation);
@@ -2762,6 +2785,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     // Ensure gesamtFlaeche is set on nebenkosten_data for calculations to use
     if (nebenkosten_data && house_metrics) {
       nebenkosten_data.gesamtFlaeche = house_metrics.totalArea;
+      nebenkosten_data.anzahlWohnungen = house_metrics.apartmentCount;
     }
 
     // Validate that we have the necessary data
@@ -2792,8 +2816,12 @@ export async function createAbrechnungCalculationOptimizedAction(
       nebenkostenId
     );
 
-    // Process each tenant using pre-calculated occupancy data
+    // Process each tenant using pre-calculated occupancy data; WG factors are shared by all tenants
     const tenantCalculations: TenantCalculationResult[] = [];
+    const { computeWgFactorsByTenant } = await import('@/utils/wg-cost-calculations');
+    const wgFactors = nebenkosten_data.startdatum && nebenkosten_data.enddatum
+      ? computeWgFactorsByTenant(tenants_with_occupancy, nebenkosten_data.startdatum, nebenkosten_data.enddatum)
+      : undefined;
 
     for (const tenant of tenants_with_occupancy) {
       try {
@@ -2807,7 +2835,8 @@ export async function createAbrechnungCalculationOptimizedAction(
           wasserzaehler_readings as any[], // readings from RPC
           actualPayments,
           effectivePrepaymentMode,
-          rechnungen
+          rechnungen,
+          wgFactors
         );
 
         tenantCalculations.push(tenantCalculation);
