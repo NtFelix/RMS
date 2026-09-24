@@ -18,6 +18,7 @@ import {
   calculateCompleteTenantResult,
   calculateOccupancyPercentage,
   calculatePrepayments,
+  calculateVacancyCosts,
   validateCalculationData,
 } from './abrechnung-calculations';
 import { calculateTenantMeterCosts } from './water-cost-calculations';
@@ -457,6 +458,31 @@ describe('Golden house 2025 — full Abrechnung without mocks', () => {
       );
 
       expect(result.prepayments.totalPrepayments).toBe(0);
+    });
+  });
+
+  // Section 2 of the Notion page: what each cost item leaves with the landlord for vacancy
+  describe('vacancy costs', () => {
+    const houseApartments = Object.entries(APARTMENTS).map(([id, apartment]) => ({ id, ...apartment }));
+    const vacancy = calculateVacancyCosts(NEBENKOSTEN, TENANTS, houseApartments);
+
+    it('charges each empty apartment its pro Fläche and pro Wohnung share of the empty days', () => {
+      // apt-301 365 d: Grundsteuer 547.50 + Versicherung 150.00 + Hauswart 365.00
+      // apt-201 104 d: Grundsteuer 312.00 + Versicherung 85.479452 + Hauswart 104.00
+      // apt-102  16 d: Grundsteuer  16.00 + Versicherung  4.383562 + Hauswart  16.00
+      expect(vacancy.apartments.map(a => [a.apartmentId, a.vacantDays])).toEqual([
+        ['apt-301', 365],
+        ['apt-201', 104],
+        ['apt-102', 16],
+      ]);
+      expect(vacancy.apartments[0].amount).toBeCloseTo(1062.5, EUR);
+      expect(vacancy.apartments[1].amount).toBeCloseTo(501.479452, EUR);
+      expect(vacancy.apartments[2].amount).toBeCloseTo(36.383562, EUR);
+    });
+
+    it('matches the landlord\'s vacancy share in the reconciliation', () => {
+      // Grundsteuer 875.50 + Gebäudeversicherung 239.863014 + Hauswart 485.00
+      expect(vacancy.total).toBeCloseTo(1600.363014, EUR);
     });
   });
 });

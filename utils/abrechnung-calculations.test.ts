@@ -645,6 +645,33 @@ describe('abrechnung-calculations', () => {
         expect(resultX.totalPrepayments + resultY.totalPrepayments).toBeCloseTo(420, 5);
       });
 
+      it('credits a tenant without a move-in date in months nobody else lived there', () => {
+        const tenant = { id: 'no-date', wohnung_id: 'w1', einzug: null, auszug: null } as any;
+        const payments = [makePayment('2023-01-15', 100)];
+
+        const result = calculatePrepayments(tenant, '2023-01-01', '2023-01-31', payments, 'actual', [tenant]);
+
+        expect(result.totalPrepayments).toBe(100);
+      });
+
+      it('gives the payment to the roommate who lived there, not the tenant without a move-in date', () => {
+        const noDate = { id: 'no-date', wohnung_id: 'w1', einzug: null, auszug: null } as any;
+        const living = { id: 'living', wohnung_id: 'w1', einzug: '2023-01-01', auszug: null } as any;
+        const payments = [makePayment('2023-01-15', 100)];
+        const allTenants = [noDate, living];
+
+        expect(calculatePrepayments(noDate, '2023-01-01', '2023-01-31', payments, 'actual', allTenants).totalPrepayments).toBe(0);
+        expect(calculatePrepayments(living, '2023-01-01', '2023-01-31', payments, 'actual', allTenants).totalPrepayments).toBe(100);
+      });
+
+      it('splits a month nobody lived in between two tenants without a move-in date', () => {
+        const first = { id: 'first', wohnung_id: 'w1', einzug: null, auszug: null } as any;
+        const second = { id: 'second', wohnung_id: 'w1', einzug: null, auszug: null } as any;
+        const payments = [makePayment('2023-01-15', 100)];
+
+        expect(calculatePrepayments(first, '2023-01-01', '2023-01-31', payments, 'actual', [first, second]).totalPrepayments).toBe(50);
+      });
+
       it('without allTenants, treats the tenant as the sole occupant (back-compat: full payment credited)', () => {
         const tenant = { id: 'solo', wohnung_id: 'w1', einzug: '2023-01-01', auszug: null } as any;
         const payments = [makePayment('2023-01-15', 200)];

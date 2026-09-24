@@ -458,8 +458,9 @@ export function calculatePrepayments(
       const monthTotal = monthPayments.reduce((sum, p) => sum + Number(p.betrag), 0);
 
       // A tenant who did not occupy the apartment during this month owes nothing from it,
-      // mirroring the 'scheduled' branch's occupancyDays > 0 gate below.
-      if (occupancyDays > 0 && monthTotal !== 0) {
+      // mirroring the 'scheduled' branch's occupancyDays > 0 gate below. A tenant without a
+      // move-in date has no occupied days, but is still credited in months nobody lived there.
+      if ((occupancyDays > 0 || !tenant.einzug) && monthTotal !== 0) {
         // Payments belong to the apartment, not to a tenant (Finanzen has no mieter_id). Split a
         // month's payments between the tenants living there that month (a WG, or a handover
         // within the month) in proportion to what each should have prepaid (Soll, prorated by
@@ -475,9 +476,15 @@ export function calculatePrepayments(
           totalDays += days;
         }
 
-        monthlyAmount = totalSoll > 0
-          ? monthTotal * (ownSoll / totalSoll)
-          : monthTotal * (occupancyDays / totalDays);
+        if (totalDays === 0) {
+          // Nobody lived there that month: the payment belongs to the tenants without a move-in date
+          const withoutMoveIn = 1 + roommates.filter(roommate => !roommate.tenant.einzug).length;
+          monthlyAmount = monthTotal / withoutMoveIn;
+        } else {
+          monthlyAmount = totalSoll > 0
+            ? monthTotal * (ownSoll / totalSoll)
+            : monthTotal * (occupancyDays / totalDays);
+        }
       }
     } else if (mode === 'scheduled') {
       monthlyAmount = scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, occupancyDays, daysInMonth);
