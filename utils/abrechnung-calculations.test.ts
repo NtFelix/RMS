@@ -178,6 +178,38 @@ describe('abrechnung-calculations', () => {
       expect(result.costItems[0].tenantShare).toBe(1000);
     });
 
+    it('bills items by area when the Berechnungsart array is missing', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Grundsteuer'],
+        betrag: [1000],
+        berechnungsart: null,
+        startdatum,
+        enddatum
+      } as any;
+
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 250 } });
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten);
+
+      expect(result.costItems).toHaveLength(1);
+      expect(result.costItems[0].tenantShare).toBe(250);
+      expect(result.costItems[0].calculationType).toBe('pro Fläche');
+    });
+
+    it('shows the option label for the stored value pro Flaeche', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Grundsteuer'],
+        betrag: [1000],
+        berechnungsart: ['pro Flaeche'],
+        startdatum,
+        enddatum
+      } as any;
+
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 250 } });
+
+      expect(calculateTenantCosts(mockTenant, nebenkosten).costItems[0].calculationType).toBe('pro Fläche');
+    });
+
     it('bills legacy lowercase "pro wohnung" per apartment', () => {
       const nebenkosten = {
         nebenkostenart: ['Lift'],

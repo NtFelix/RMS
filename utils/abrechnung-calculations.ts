@@ -14,6 +14,7 @@ import { calculateTenantOccupancy, calculateTotalDays, TenantOccupancy, getMonth
 import { isSameCostName, normalizeBerechnungsart } from "./betriebskosten";
 import { computeWgFactorsByTenant } from "./wg-cost-calculations";
 import { roundToNearest5 } from "@/lib/utils";
+import { BERECHNUNGSART_OPTIONS } from "@/lib/constants";
 import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
@@ -125,11 +126,12 @@ export function calculateTenantCosts(
     wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum);
 
   // Process each cost item
-  if (nebenkosten.nebenkostenart && nebenkosten.betrag && nebenkosten.berechnungsart) {
+  // A missing Berechnungsart is billed by area like an empty one (findUnrecognisedBerechnungsarten warns)
+  if (nebenkosten.nebenkostenart && nebenkosten.betrag) {
     for (let i = 0; i < nebenkosten.nebenkostenart.length; i++) {
       const costName = nebenkosten.nebenkostenart[i];
       const totalCostForItem = nebenkosten.betrag[i] || 0;
-      const calculationType = resolveBerechnungsart(nebenkosten.berechnungsart[i]);
+      const calculationType = resolveBerechnungsart(nebenkosten.berechnungsart?.[i]);
 
       let tenantShare = 0;
       let pricePerSqm: number | undefined;
@@ -207,7 +209,8 @@ export function calculateTenantCosts(
       costItems.push({
         costName,
         totalCostForItem,
-        calculationType,
+        // Shown to the user, so use the option label ('pro Fläche', not 'pro Flaeche')
+        calculationType: BERECHNUNGSART_OPTIONS.find(opt => opt.value === calculationType)?.label ?? calculationType,
         tenantShare,
         pricePerSqm,
         distributionBasis
