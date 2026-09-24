@@ -79,9 +79,9 @@ export function calculateTenantCosts(
 
   // For the verteiler display in the PDF: show tenant area vs total physical house area.
   // gesamtFlaeche is the canonical value set by the server action (Haeuser.groesse),
-  // consistent with what the overview modal shows.
-  const totalHouseArea = (nebenkosten as any).gesamtFlaeche
-    || sumUniqueApartmentAreas(tenants);
+  // consistent with what the overview modal shows. Never less than the occupied apartments'
+  // area, so a stale house area can't overcharge (shares would sum to more than 100 %).
+  const totalHouseArea = Math.max((nebenkosten as any).gesamtFlaeche || 0, sumUniqueApartmentAreas(tenants));
 
   // WG day-share factors depend only on the tenants and period, so compute them at most once
   // for all area- and apartment-based cost items instead of once per item.

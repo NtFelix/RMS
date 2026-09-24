@@ -114,6 +114,46 @@ describe('abrechnung-calculations', () => {
       );
     });
 
+    it('never uses a house area below the occupied apartments area for pro Fläche', () => {
+      // Stale house area (40 m²) below the tenant's apartment (50 m²)
+      const nebenkosten = {
+        nebenkostenart: ['Hausmeister'],
+        betrag: [1000],
+        berechnungsart: ['pro Fläche'],
+        startdatum,
+        enddatum,
+        gesamtFlaeche: 40
+      } as any;
+
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 1000 } });
+
+      const result = calculateTenantCosts(mockTenant, nebenkosten);
+
+      expect(calculateProFlächeDistribution).toHaveBeenCalledWith(
+        [mockTenant], 1000, startdatum, enddatum, 50, expect.any(Object)
+      );
+      expect(result.costItems[0].distributionBasis).toBe('50 m²');
+    });
+
+    it('keeps a house area above the occupied apartments area for pro Fläche', () => {
+      const nebenkosten = {
+        nebenkostenart: ['Hausmeister'],
+        betrag: [1000],
+        berechnungsart: ['pro Fläche'],
+        startdatum,
+        enddatum,
+        gesamtFlaeche: 200
+      } as any;
+
+      (calculateProFlächeDistribution as jest.Mock).mockReturnValue({ 't1': { amount: 250 } });
+
+      calculateTenantCosts(mockTenant, nebenkosten);
+
+      expect(calculateProFlächeDistribution).toHaveBeenCalledWith(
+        [mockTenant], 1000, startdatum, enddatum, 200, expect.any(Object)
+      );
+    });
+
     it('defaults to pro Fläche for unknown type', () => {
       const nebenkosten = {
         nebenkostenart: ['Unknown'],

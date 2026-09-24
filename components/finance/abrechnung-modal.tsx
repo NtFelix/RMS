@@ -54,6 +54,7 @@ import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost
 import { formatNumber } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
 import { calculateCompleteTenantResult } from "@/utils/abrechnung-calculations";
+import { sumUniqueApartmentAreas } from "@/utils/cost-calculations";
 import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
 
 
@@ -610,6 +611,17 @@ export function AbrechnungModal({
     })), [tenants]
   );
 
+  // Stored house area below the occupied apartments' area: the calculation uses the larger
+  // value for 'pro Fläche' items (incl. unknown types, which default to area), so tell the user
+  const areaMismatch = useMemo(() => {
+    const hasAreaItems = (nebenkostenItem?.berechnungsart || []).some(
+      art => !['pro Mieter', 'pro Wohnung', 'nach Rechnung'].includes(art)
+    );
+    const houseArea = nebenkostenItem?.gesamtFlaeche || 0;
+    const occupiedArea = sumUniqueApartmentAreas(Array.isArray(tenants) ? tenants : []);
+    return hasAreaItems && houseArea > 0 && occupiedArea > houseArea ? { houseArea, occupiedArea } : null;
+  }, [nebenkostenItem?.berechnungsart, nebenkostenItem?.gesamtFlaeche, tenants]);
+
   if (!isOpen || !nebenkostenItem) {
     return null;
   }
@@ -636,6 +648,11 @@ export function AbrechnungModal({
             {tenants.length > 0 && (
               <span className="block text-sm text-green-600 mt-1">
                 ✓ Daten für {tenants.length} Mieter erfolgreich geladen
+              </span>
+            )}
+            {areaMismatch && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Die hinterlegte Hausfläche ({formatNumber(areaMismatch.houseArea)} m²) ist kleiner als die Fläche der im Zeitraum vermieteten Wohnungen ({formatNumber(areaMismatch.occupiedArea)} m²). Für Kosten „pro Fläche“ werden {formatNumber(areaMismatch.occupiedArea)} m² verwendet. Bitte die Hausgröße prüfen.
               </span>
             )}
           </DialogDescription>
