@@ -19,6 +19,15 @@ export function sumUniqueApartmentAreas(tenants: Mieter[]): number {
 }
 
 /**
+ * Apartments for 'pro Wohnung': the house's count (vacant ones included), but never fewer than
+ * the apartments the tenants live in, so a stale house count can't over-bill.
+ */
+export function effectiveApartmentCount(totalApartmentCount: number | null | undefined, tenants: Mieter[]): number {
+  const tenantApartments = new Set(tenants.filter(tenant => tenant.wohnung_id).map(tenant => tenant.wohnung_id));
+  return Math.max(totalApartmentCount || 0, tenantApartments.size);
+}
+
+/**
  * Calculate cost distribution based on area (pro Flaeche) with day-based weighting
  */
 
@@ -131,11 +140,7 @@ export function calculateProWohnungDistribution(
 ): Record<string, { amount: number; occupancyDays: number; totalDays: number }> {
   // Tenants without an apartment can't be billed per apartment
   const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id);
-  // Never fewer than the apartments the tenants live in, so a stale house count can't over-bill
-  const apartmentCount = Math.max(
-    totalApartmentCount || 0,
-    new Set(apartmentTenants.map(tenant => tenant.wohnung_id)).size
-  );
+  const apartmentCount = effectiveApartmentCount(totalApartmentCount, apartmentTenants);
 
   // Every apartment gets the same share, split by day among the co-tenants active that day
   // (WG or sequential tenants). The factors of one apartment sum to its occupied-day ratio,

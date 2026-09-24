@@ -83,6 +83,14 @@ export type AbrechnungModalData = {
   meters: Zaehler[];        // From Zaehler table (generic)
   readings: ZaehlerAblesung[];     // From Zaehler_Ablesungen table (generic)
   actualPayments?: Finanzen[];    // Actual financial entries if in IST mode
+  houseApartments?: HouseApartment[]; // All apartments of the house, vacant ones included
+};
+
+/** An apartment of the house, as needed for vacancy costs */
+export type HouseApartment = {
+  id: string;
+  name: string;
+  groesse: number | null;
 };
 
 /**

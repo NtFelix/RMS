@@ -3,6 +3,12 @@ import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { OperatingCostsOverviewModal } from './operating-costs-overview-modal';
 import { OptimizedNebenkosten } from '@/types/optimized-betriebskosten';
+import { getAbrechnungModalDataAction } from '@/app/betriebskosten-actions';
+
+// The modal loads its tenant data on open; tests that don't set it keep it loading
+jest.mock('@/app/betriebskosten-actions', () => ({
+  getAbrechnungModalDataAction: jest.fn(() => new Promise(() => {})),
+}));
 
 // Default props for the modal
 const defaultProps = {
@@ -99,5 +105,32 @@ describe('OperatingCostsOverviewModal', () => {
     if (!zählerkostenSection) return;
 
     expect(within(zählerkostenSection).getByText('Keine Zählerkosten erfasst.')).toBeInTheDocument();
+  });
+
+  test('shows the vacancy costs of an empty apartment', async () => {
+    const mockData = createMockNebenkosten();
+    (getAbrechnungModalDataAction as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: {
+        // Apartment B (40 of 100 m²) is empty all year: 40/100 × 200 € Grundsteuer = 80 €
+        nebenkosten_data: {
+          ...mockData,
+          nebenkostenart: ['Grundsteuer'],
+          betrag: [200],
+          berechnungsart: ['pro Flaeche'],
+          gesamtFlaeche: 100,
+          anzahlWohnungen: 2,
+        },
+        tenants: [{ id: 't1', name: 'A', wohnung_id: 'wa', einzug: '2022-01-01', auszug: null, Wohnungen: { name: 'A', groesse: 60 } }],
+        rechnungen: [],
+        meters: [],
+        readings: [],
+        houseApartments: [{ id: 'wa', name: 'A', groesse: 60 }, { id: 'wb', name: 'B', groesse: 40 }],
+      },
+    });
+
+    render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
+
+    expect(await screen.findByRole('button', { name: /Leerstandskosten 80,00/ })).toBeInTheDocument();
   });
 });

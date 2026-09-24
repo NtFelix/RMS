@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { FileDown, Wallet, Coins, Scale, Ruler, Home, Users, Gauge, ArrowRight, TrendingUp, TrendingDown, Building2, Euro, Droplets, Thermometer, Flame, Zap, Fuel } from "lucide-react"
+import { FileDown, Wallet, Coins, Scale, Ruler, Home, Users, Gauge, ArrowRight, TrendingUp, TrendingDown, Building2, Euro, Droplets, Thermometer, Flame, Zap, Fuel, DoorOpen } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import type { Nebenkosten } from "@/lib/types";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types"
@@ -16,9 +16,10 @@ import { useEffect, useMemo } from "react"
 import { getAbrechnungModalDataAction } from "@/app/betriebskosten-actions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 
-import { calculateAbrechnungSummary } from "@/utils/abrechnung-calculations"
+import { calculateAbrechnungSummary, calculateVacancyCosts } from "@/utils/abrechnung-calculations"
 import type { AbrechnungModalData } from "@/types/optimized-betriebskosten"
 import type { Mieter } from "@/lib/types"
 
@@ -173,6 +174,16 @@ export function OperatingCostsOverviewModal({
       abrechnungData.actualPayments,
       mode,
       abrechnungData.rechnungen
+    );
+  }, [abrechnungData, nebenkosten]);
+
+  // Operating costs the landlord bears for empty apartments, per apartment
+  const vacancyCosts = useMemo(() => {
+    if (!abrechnungData) return null;
+    return calculateVacancyCosts(
+      abrechnungData.nebenkosten_data || nebenkosten,
+      abrechnungData.tenants || [],
+      abrechnungData.houseApartments
     );
   }, [abrechnungData, nebenkosten]);
 
@@ -351,6 +362,58 @@ export function OperatingCostsOverviewModal({
                     </TableRow>
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Vacancy costs, with the apartments on hover */}
+              <div className="rounded-2xl shadow-md border bg-card p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <DoorOpen className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <div className="font-medium">Leerstandskosten</div>
+                    <div className="text-xs text-muted-foreground">
+                      Trägt der Vermieter: Anteile „pro Fläche“ und „pro Wohnung“ leerstehender Wohnungen, ohne Zählerkosten
+                    </div>
+                  </div>
+                </div>
+                {isLoadingData || !vacancyCosts ? (
+                  <Skeleton className="h-6 w-24 shrink-0" />
+                ) : (
+                  <HoverCard openDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <button
+                        type="button"
+                        className="shrink-0 font-semibold underline decoration-dotted underline-offset-4 cursor-help"
+                        aria-label={`Leerstandskosten ${formatCurrency(vacancyCosts.total)}, Aufschlüsselung nach Wohnungen`}
+                      >
+                        {formatCurrency(vacancyCosts.total)}
+                      </button>
+                    </HoverCardTrigger>
+                    <HoverCardContent align="end" className="w-80">
+                      {vacancyCosts.apartments.length > 0 ? (
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs text-muted-foreground">
+                              <th className="text-left font-normal pb-1">Wohnung</th>
+                              <th className="text-right font-normal pb-1">Leerstand</th>
+                              <th className="text-right font-normal pb-1">Kosten</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vacancyCosts.apartments.map(apartment => (
+                              <tr key={apartment.apartmentId}>
+                                <td className="py-0.5 pr-2">{apartment.apartmentName || 'Ohne Namen'}</td>
+                                <td className="py-0.5 text-right text-muted-foreground whitespace-nowrap">{apartment.vacantDays} Tage</td>
+                                <td className="py-0.5 pl-2 text-right font-medium whitespace-nowrap">{formatCurrency(apartment.amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Kein Leerstand im Zeitraum.</p>
+                      )}
+                    </HoverCardContent>
+                  </HoverCard>
+                )}
               </div>
             </div>
 
