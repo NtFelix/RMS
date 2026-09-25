@@ -3,8 +3,10 @@
  */
 
 import type { Mieter } from "@/lib/types";
-import { calculateTenantOccupancy, TenantOccupancy, calculateTotalDays } from "./date-calculations";
+import { calculateTenantOccupancy } from "./date-calculations";
 import { computeWgFactorsByTenant, groupTenantsByApartment } from "./wg-cost-calculations";
+
+type AmountDistribution = Record<string, { amount: number }>;
 
 /**
  * Sum of physical apartment areas, counting each apartment once even when it has
@@ -40,7 +42,7 @@ export function calculateProFlächeDistribution(
   // Precomputed computeWgFactorsByTenant(tenants, startdatum, enddatum); pass it when
   // distributing several cost items over the same tenants to avoid recomputing it.
   wgFactors: Record<string, number> = computeWgFactorsByTenant(tenants, startdatum, enddatum)
-): Record<string, { amount: number }> {
+): AmountDistribution {
   // Each tenant's share of their apartment, splitting every day equally among the
   // co-tenants active that day (vacant days belong to no one). The factors of one
   // apartment sum to its occupied-day ratio (<= 1), so area × factor never stacks
@@ -65,8 +67,8 @@ function distributeByApartmentWeight(
   weightOf: (tenant: Mieter) => number,
   denominator: number,
   wgFactors: Record<string, number>
-): Record<string, { amount: number }> {
-  const distribution: Record<string, { amount: number }> = {};
+): AmountDistribution {
+  const distribution: AmountDistribution = {};
 
   tenants.forEach(tenant => {
     distribution[tenant.id] = {
@@ -86,24 +88,24 @@ export function calculateProMieterDistribution(
   totalCost: number,
   startdatum: string,
   enddatum: string
-): Record<string, { amount: number }> {
-  const distribution: Record<string, { amount: number }> = {};
+): AmountDistribution {
+  const distribution: AmountDistribution = {};
 
   // Calculate total occupancy days across all tenants
   let totalOccupancyDays = 0;
   const tenantOccupancies: Array<{
     tenant: Mieter;
-    occupancy: TenantOccupancy;
+    occupancyDays: number;
   }> = [];
 
   tenants.forEach(tenant => {
-    const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
-    totalOccupancyDays += occupancy.occupancyDays;
-    tenantOccupancies.push({ tenant, occupancy });
+    const occupancyDays = calculateTenantOccupancy(tenant, startdatum, enddatum).occupancyDays;
+    totalOccupancyDays += occupancyDays;
+    tenantOccupancies.push({ tenant, occupancyDays });
   });
 
-  tenantOccupancies.forEach(({ tenant, occupancy }) => {
-    const amount = totalOccupancyDays > 0 ? (occupancy.occupancyDays / totalOccupancyDays) * totalCost : 0;
+  tenantOccupancies.forEach(({ tenant, occupancyDays }) => {
+    const amount = totalOccupancyDays > 0 ? (occupancyDays / totalOccupancyDays) * totalCost : 0;
 
     distribution[tenant.id] = { amount };
   });
@@ -124,7 +126,7 @@ export function calculateProWohnungDistribution(
   // Precomputed computeWgFactorsByTenant(tenants, startdatum, enddatum); pass it when
   // distributing several cost items over the same tenants to avoid recomputing it.
   wgFactors: Record<string, number> = computeWgFactorsByTenant(tenants, startdatum, enddatum)
-): Record<string, { amount: number }> {
+): AmountDistribution {
   // Tenants without an apartment can't be billed per apartment
   const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id);
   const apartmentCount = effectiveApartmentCount(totalApartmentCount, apartmentTenants);
@@ -133,52 +135,4 @@ export function calculateProWohnungDistribution(
   // (WG or sequential tenants). The factors of one apartment sum to its occupied-day ratio,
   // so a WG never counts as several apartments and the landlord bears vacant days.
   return distributeByApartmentWeight(apartmentTenants, totalCost, () => 1, apartmentCount, wgFactors);
-}
-
-/**
- * Calculate water consumption costs with day-based distribution
- */
-export function calculateWaterCostDistribution(
-  tenants: Mieter[],
-  totalWaterCost: number,
-  waterReadings: Record<string, number>, // tenantId -> consumption
-  startdatum: string,
-  enddatum: string
-): Record<string, { amount: number; occupancyDays: number; totalDays: number; consumption?: number }> {
-  const distribution: Record<string, { amount: number; occupancyDays: number; totalDays: number; consumption?: number }> = {};
-
-  // Calculate total weighted consumption (consumption * occupancy ratio)
-  let totalWeightedConsumption = 0;
-  const tenantData: Array<{
-    tenant: Mieter;
-    occupancy: TenantOccupancy;
-    consumption: number;
-    weightedConsumption: number;
-  }> = [];
-
-  tenants.forEach(tenant => {
-    const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
-    const consumption = waterReadings[tenant.id] || 0;
-    const weightedConsumption = consumption * occupancy.occupancyRatio;
-
-    totalWeightedConsumption += weightedConsumption;
-    tenantData.push({ tenant, occupancy, consumption, weightedConsumption });
-  });
-
-  const totalPeriodDays = calculateTotalDays(startdatum, enddatum);
-
-  tenantData.forEach(({ tenant, occupancy, consumption, weightedConsumption }) => {
-    const amount = totalWeightedConsumption > 0
-      ? (weightedConsumption / totalWeightedConsumption) * totalWaterCost
-      : 0;
-
-    distribution[tenant.id] = {
-      amount,
-      occupancyDays: occupancy.occupancyDays,
-      totalDays: totalPeriodDays,
-      consumption
-    };
-  });
-
-  return distribution;
 }

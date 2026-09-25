@@ -3,7 +3,6 @@ import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
-  calculateWaterCostDistribution,
   sumUniqueApartmentAreas
 } from './cost-calculations';
 import { calculateTenantOccupancy } from './date-calculations';
@@ -306,24 +305,6 @@ describe('cost-calculations', () => {
 
       expect(result['t1'].amount).toBeCloseTo(125);
       expect(result['t2'].amount).toBeCloseTo(500);
-    });
-  });
-
-  describe('calculateWaterCostDistribution', () => {
-    it('distributes based on consumption', () => {
-      const waterReadings = { 't1': 10, 't2': 30 };
-      const result = calculateWaterCostDistribution(mockTenants, 100, waterReadings, startdatum, enddatum);
-
-      // Total consumption = 40. t1 = 1/4, t2 = 3/4
-      expect(result['t1'].amount).toBeCloseTo(25);
-      expect(result['t2'].amount).toBeCloseTo(75);
-    });
-
-    it('handles zero total consumption', () => {
-      const waterReadings = { 't1': 0, 't2': 0 };
-      const result = calculateWaterCostDistribution(mockTenants, 100, waterReadings, startdatum, enddatum);
-      expect(result['t1'].amount).toBe(0);
-      expect(result['t2'].amount).toBe(0);
     });
   });
 });
