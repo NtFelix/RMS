@@ -20,7 +20,6 @@ import {
   calculateProFlächeDistribution,
   calculateProMieterDistribution,
   calculateProWohnungDistribution,
-  calculateWaterCostDistribution as calculateWaterDistribution,
   sumUniqueApartmentAreas
 } from "./cost-calculations";
 import {
