@@ -1,13 +1,10 @@
 import type { PropsWithChildren } from "react"
 import type { Metadata } from "next"
-import { privateNoindexMetadata } from "@/lib/seo"
+import { pageMetadata } from "@/lib/seo/metadata"
 
 export const instant = false
 
-export const metadata: Metadata = {
-    ...privateNoindexMetadata,
-    title: "Einladung annehmen | Mietevo",
-}
+export const metadata: Metadata = pageMetadata.einladungAnnehmen
 
 export default function EinladungAnnehmenLayout({ children }: PropsWithChildren) {
     return children

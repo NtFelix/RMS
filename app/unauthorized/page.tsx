@@ -12,7 +12,7 @@ export const instant = false;
 
 export const metadata: Metadata = {
   ...privateNoindexMetadata,
-  title: "Kein Zugriff | Mietevo",
+  title: "Kein Zugriff",
   description: "Sie haben keine Berechtigung für diese Seite."
 };
 

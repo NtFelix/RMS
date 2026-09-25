@@ -1,17 +1,9 @@
 import type { Metadata } from 'next';
 import { requireAuthenticatedUser } from '@/lib/server/route-access';
+import { privateNoindexMetadata } from '@/lib/seo';
 
 // Prevent this private dashboard page from being indexed by search engines
-export const metadata: Metadata = {
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true,
-    googleBot: {
-      noimageindex: true,
-    },
-  },
-};
+export const metadata: Metadata = privateNoindexMetadata;
 
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

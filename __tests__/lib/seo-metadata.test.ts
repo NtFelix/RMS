@@ -50,7 +50,11 @@ describe('SEO & Metadata Configuration', () => {
                 const rules = Array.isArray(robotsResult.rules) ? robotsResult.rules[0] : robotsResult.rules
                 expect(rules?.disallow).toBe('/')
             } finally {
-                process.env.ROBOTS_INDEXING = originalEnv
+                if (originalEnv === undefined) {
+                    delete process.env.ROBOTS_INDEXING
+                } else {
+                    process.env.ROBOTS_INDEXING = originalEnv
+                }
             }
         })
     })

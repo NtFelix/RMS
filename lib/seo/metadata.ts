@@ -102,6 +102,22 @@ export const defaultMetadata: Metadata = {
  *    - Tells search engines which URL is the "main" version
  */
 
+/**
+ * Standard metadata configuration for private/protected pages that must NOT be indexed.
+ */
+export const privateNoindexMetadata: Metadata = {
+    robots: {
+        index: false,
+        follow: false,
+        nocache: true,
+        googleBot: {
+            index: false,
+            follow: false,
+            noimageindex: true,
+        },
+    },
+}
+
 export const pageMetadata = {
     // Homepage
     home: {
@@ -388,7 +404,7 @@ export const pageMetadata = {
 
     // Warteliste - Browser-Erweiterung
     wartelisteBrowserErweiterung: {
-        title: 'Warteliste: Browser-Erweiterung | Mietevo',
+        title: 'Warteliste: Browser-Erweiterung',
         description: 'Melden Sie sich für die Warteliste unserer Browser-Erweiterung an. Schneller Zugriff auf Mietverwaltung und Abrechnungen direkt im Browser.',
         openGraph: {
             title: 'Warteliste: Browser-Erweiterung | Mietevo',
@@ -402,7 +418,7 @@ export const pageMetadata = {
 
     // Warteliste - Mobile App
     wartelisteMobileApp: {
-        title: 'Warteliste: Mobile App | Mietevo',
+        title: 'Warteliste: Mobile App',
         description: 'Melden Sie sich für die Warteliste der mobilen Mietevo-App an. Immobilienverwaltung, Zählerstände und Aufgaben von unterwegs verwalten.',
         openGraph: {
             title: 'Warteliste: Mobile App | Mietevo',
@@ -413,21 +429,23 @@ export const pageMetadata = {
             canonical: '/warteliste/mobile-app',
         },
     } satisfies Metadata,
-}
 
-/**
- * Standard metadata configuration for private/protected pages that must NOT be indexed.
- */
-export const privateNoindexMetadata: Metadata = {
-    robots: {
-        index: false,
-        follow: false,
-        nocache: true,
-        googleBot: {
-            index: false,
-            follow: false,
-            noimageindex: true,
-        },
-    },
+    // Checkout - noindex (private, transactional)
+    checkout: {
+        ...privateNoindexMetadata,
+        title: 'Checkout',
+    } satisfies Metadata,
+
+    // Subscription locked - noindex (private)
+    subscriptionLocked: {
+        ...privateNoindexMetadata,
+        title: 'Abo gesperrt',
+    } satisfies Metadata,
+
+    // Einladung annehmen - noindex (private)
+    einladungAnnehmen: {
+        ...privateNoindexMetadata,
+        title: 'Einladung annehmen',
+    } satisfies Metadata,
 }
 

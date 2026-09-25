@@ -1,13 +1,10 @@
 import type { PropsWithChildren } from "react"
 import type { Metadata } from "next"
-import { privateNoindexMetadata } from "@/lib/seo"
+import { pageMetadata } from "@/lib/seo/metadata"
 
 export const instant = false
 
-export const metadata: Metadata = {
-    ...privateNoindexMetadata,
-    title: "Checkout | Mietevo",
-}
+export const metadata: Metadata = pageMetadata.checkout
 
 export default function CheckoutLayout({ children }: PropsWithChildren) {
     return children
