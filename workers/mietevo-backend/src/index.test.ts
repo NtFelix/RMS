@@ -170,7 +170,8 @@ describe('Backend Worker Tests', () => {
             );
 
             expect(response.status).toBe(200);
-            expect(text).toContain('Zeitraum: 01.01.2026 - 31.12.2026');
+            expect(text).toContain('Zeitraum');
+            expect(text).toContain('01.01.2026 – 31.12.2026');
             expect(text).not.toContain('gerechnet mit 360 Tagen');
             expect(text).not.toContain('Rechentage:');
             expect(text).not.toContain('Rechenbasis: Jeder Monat');
@@ -213,14 +214,14 @@ describe('Backend Worker Tests', () => {
             );
 
             expect(response.status).toBe(200);
-            expect(text).toContain('Zeitraum: 01.01.2026 - 31.12.2026 (gerechnet mit 360 Tagen, 30-Tage-Monate)');
-            expect(text).toContain('Rechentage: 285 von 360 (gerechnet vom 16.03.2026 bis 31.12.2026)');
-            expect(text).toContain('Rechenbasis: Jeder Monat zählt 30 Rechentage, das Jahr 360.');
-            expect(text).toContain('Die Wasserkosten werden tagesgenau nach Zählerstand abgerechnet.');
-            expect(text).toContain('Einzug 10.03.2026, gerechnet ab 16.03.2026.');
+            expect(text).toContain('Zeitraum');
+            expect(text).toContain('16.03.2026 – 31.12.2026');
+            expect(text).not.toContain('Rechentage');
+            expect(text).not.toContain('gerechnet mit 360 Tagen');
+            expect(text).not.toContain('Rechenbasis: Jeder Monat');
         });
 
-        it('should not name billed days in the single-tenant PDF when a tenant has 0 Rechentage', async () => {
+        it('should omit Rechentage in the single-tenant PDF even when a tenant has 0 Rechentage', async () => {
             const request = new Request('https://worker.com/export', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -257,7 +258,9 @@ describe('Backend Worker Tests', () => {
             );
 
             expect(response.status).toBe(200);
-            expect(text).toContain('Rechentage: 0 von 360');
+            expect(text).toContain('Zeitraum');
+            expect(text).toContain('01.01.2026 – 31.12.2026');
+            expect(text).not.toContain('Rechentage');
             expect(text).not.toContain('gerechnet vom');
         });
 
