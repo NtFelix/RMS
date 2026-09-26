@@ -63,9 +63,6 @@ export const defaultMetadata: Metadata = {
         creator: '@Mietevo',
         images: [OG_IMAGE_URL],
     },
-    alternates: {
-        canonical: '/',
-    },
     verification: {
         // Add your verification codes here when available
         // google: 'your-google-verification-code',
@@ -104,6 +101,22 @@ export const defaultMetadata: Metadata = {
  *    - Prevents duplicate content issues
  *    - Tells search engines which URL is the "main" version
  */
+
+/**
+ * Standard metadata configuration for private/protected pages that must NOT be indexed.
+ */
+export const privateNoindexMetadata: Metadata = {
+    robots: {
+        index: false,
+        follow: false,
+        nocache: true,
+        googleBot: {
+            index: false,
+            follow: false,
+            noimageindex: true,
+        },
+    },
+}
 
 export const pageMetadata = {
     // Homepage
@@ -388,4 +401,51 @@ export const pageMetadata = {
             nocache: true,
         },
     } satisfies Metadata,
+
+    // Warteliste - Browser-Erweiterung
+    wartelisteBrowserErweiterung: {
+        title: 'Warteliste: Browser-Erweiterung',
+        description: 'Melden Sie sich für die Warteliste unserer Browser-Erweiterung an. Schneller Zugriff auf Mietverwaltung und Abrechnungen direkt im Browser.',
+        openGraph: {
+            title: 'Warteliste: Browser-Erweiterung | Mietevo',
+            description: 'Melden Sie sich für die Warteliste unserer Browser-Erweiterung an.',
+            url: `${BASE_URL}/warteliste/browser-erweiterung`,
+        },
+        alternates: {
+            canonical: '/warteliste/browser-erweiterung',
+        },
+    } satisfies Metadata,
+
+    // Warteliste - Mobile App
+    wartelisteMobileApp: {
+        title: 'Warteliste: Mobile App',
+        description: 'Melden Sie sich für die Warteliste der mobilen Mietevo-App an. Immobilienverwaltung, Zählerstände und Aufgaben von unterwegs verwalten.',
+        openGraph: {
+            title: 'Warteliste: Mobile App | Mietevo',
+            description: 'Melden Sie sich für die Warteliste der mobilen Mietevo-App an.',
+            url: `${BASE_URL}/warteliste/mobile-app`,
+        },
+        alternates: {
+            canonical: '/warteliste/mobile-app',
+        },
+    } satisfies Metadata,
+
+    // Checkout - noindex (private, transactional)
+    checkout: {
+        ...privateNoindexMetadata,
+        title: 'Checkout',
+    } satisfies Metadata,
+
+    // Subscription locked - noindex (private)
+    subscriptionLocked: {
+        ...privateNoindexMetadata,
+        title: 'Abo gesperrt',
+    } satisfies Metadata,
+
+    // Einladung annehmen - noindex (private)
+    einladungAnnehmen: {
+        ...privateNoindexMetadata,
+        title: 'Einladung annehmen',
+    } satisfies Metadata,
 }
+
