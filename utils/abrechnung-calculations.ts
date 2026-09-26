@@ -36,15 +36,51 @@ import {
   getTenantMeterCost,
   type TenantMeterCost
 } from "./water-cost-calculations";
+import {
+  isRechenbasis360,
+  isValid360Period,
+  calculateTenantRechentage,
+  rechentageInMonth,
+  getRechentagePeriod,
+  calculateTotalRechentage,
+  RECHENTAGE_PRO_MONAT,
+  type Rechenbasis
+} from "./rechentage";
 
 /**
- * Calculate occupancy percentage for a tenant during the billing period
+ * Calculate occupancy percentage for a tenant during the billing period.
+ * On the 360-day basis, daysOccupied/daysInPeriod are Rechentage (not calendar days),
+ * effectivePeriodStart/End are the rounded, billed days, and rechentage carries the details.
  */
 export function calculateOccupancyPercentage(
   tenant: Mieter,
   startdatum: string,
-  enddatum: string
+  enddatum: string,
+  rechenbasis?: Rechenbasis
 ): OccupancyCalculation {
+  if (isRechenbasis360({ rechenbasis })) {
+    const r = calculateTenantRechentage(tenant, startdatum, enddatum);
+    return {
+      percentage: r.ratio * 100,
+      daysOccupied: r.rechentage,
+      daysInPeriod: r.totalRechentage,
+      moveInDate: tenant.einzug || undefined,
+      moveOutDate: tenant.auszug || undefined,
+      effectivePeriodStart: r.billedFromIso ?? '',
+      effectivePeriodEnd: r.billedToIso ?? '',
+      rechentage: {
+        rechentage: r.rechentage,
+        totalRechentage: r.totalRechentage,
+        billedFromIso: r.billedFromIso ?? '',
+        billedToIso: r.billedToIso ?? '',
+        einzugGerundet: r.einzugGerundet,
+        auszugGerundet: r.auszugGerundet,
+        ...(r.einzugGerundetIso ? { einzugGerundetIso: r.einzugGerundetIso } : {}),
+        ...(r.auszugGerundetIso ? { auszugGerundetIso: r.auszugGerundetIso } : {})
+      }
+    };
+  }
+
   const occupancy = calculateTenantOccupancy(tenant, startdatum, enddatum);
 
   const totalDays = calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
@@ -132,8 +168,11 @@ export function calculateVacancyCosts(
 
   const houseArea = effectiveHouseArea((nebenkosten as any).gesamtFlaeche, tenants);
   const apartmentCount = effectiveApartmentCount(nebenkosten.anzahlWohnungen, tenants);
-  const periodDays = calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
-  const wgFactors = precomputedWgFactors ?? computeWgFactorsByTenant(tenants, startdatum, enddatum);
+  // On the 360-day basis the period length is Rechentage (e.g. 360), so vacantDays below are too
+  const periodDays = isRechenbasis360(nebenkosten)
+    ? calculateTotalRechentage(startdatum, enddatum)
+    : calculateTotalDays(toIsoDateOnly(startdatum), toIsoDateOnly(enddatum));
+  const wgFactors = precomputedWgFactors ?? computeWgFactorsByTenant(tenants, startdatum, enddatum, nebenkosten.rechenbasis);
 
   // The house's apartments, plus any tenant apartment the list doesn't have
   const apartments = new Map<string, { name: string; area: number }>();
@@ -178,7 +217,9 @@ export function calculateTenantCosts(
   // Precomputed computeWgFactorsByTenant(allTenants, startdatum, enddatum), shared across tenants
   precomputedWgFactors?: Record<string, number>
 ): OperatingCostBreakdown {
-  const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
+  // The 360-day basis is a property of the settlement (Nebenkosten), not of an individual call
+  const rechenbasis = nebenkosten.rechenbasis;
+  const occupancy = occupancyData || calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum, rechenbasis);
   const tenants = allTenants || [tenant]; // For distribution calculations
 
   const costItems: OperatingCostBreakdown['costItems'] = [];
@@ -195,7 +236,7 @@ export function calculateTenantCosts(
   // for all area- and apartment-based cost items instead of once per item.
   let wgFactors = precomputedWgFactors;
   const getWgFactors = () =>
-    wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum);
+    wgFactors ??= computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum, rechenbasis);
 
   // Process each cost item
   // A missing Berechnungsart is billed by area like an empty one (findUnrecognisedBerechnungsarten warns)
@@ -221,7 +262,8 @@ export function calculateTenantCosts(
             nebenkosten.startdatum,
             nebenkosten.enddatum,
             houseArea,
-            getWgFactors()
+            getWgFactors(),
+            rechenbasis
           );
           tenantShare = flächeDistribution[tenant.id]?.amount || 0;
           // House-wide rate for this cost item (total cost ÷ total house area), not derived
@@ -242,7 +284,8 @@ export function calculateTenantCosts(
             tenants,
             totalCostForItem,
             nebenkosten.startdatum,
-            nebenkosten.enddatum
+            nebenkosten.enddatum,
+            rechenbasis
           );
           tenantShare = mieterDistribution[tenant.id]?.amount || 0;
           distributionBasis = '1 Mieter';
@@ -255,7 +298,8 @@ export function calculateTenantCosts(
             nebenkosten.startdatum,
             nebenkosten.enddatum,
             nebenkosten.anzahlWohnungen,
-            getWgFactors()
+            getWgFactors(),
+            rechenbasis
           );
           tenantShare = wohnungDistribution[tenant.id]?.amount || 0;
           distributionBasis = '1 Wohnung';
@@ -393,7 +437,13 @@ const scheduledMonthlyAmount = (
 };
 
 /**
- * Calculate prepayments for a tenant during the billing period
+ * Calculate prepayments for a tenant during the billing period.
+ *
+ * On the 360-day basis the 'actual' (Ist) assignment of a month's real payments stays ENTIRELY
+ * on calendar days: the calendar Soll computed here is only an internal distribution key, and
+ * switching it to Rechentage would make a real payment vanish (e.g. a move-in on 28.03. has 0
+ * Rechentage in March, so the gate below would credit nobody). Only the 'scheduled' (Soll) amount
+ * and the reported isActiveMonth/occupancyPercentage switch to Rechentage.
  */
 export function calculatePrepayments(
   tenant: Mieter,
@@ -404,8 +454,13 @@ export function calculatePrepayments(
   // All tenants of the house/apartment, needed only in 'actual' mode to split a month's
   // apartment payment(s) between the tenants living there that month.
   // Falls back to treating the tenant as the sole occupant when omitted.
-  allTenants?: Mieter[]
+  allTenants?: Mieter[],
+  rechenbasis?: Rechenbasis
 ): PrepaymentBreakdown {
+  const is360 = isRechenbasis360({ rechenbasis });
+  // The tenant's Rechentage range, computed once and intersected with each month below
+  const rechentage360 = is360 ? calculateTenantRechentage(tenant, startdatum, enddatum) : null;
+  const period360 = is360 ? getRechentagePeriod(startdatum, enddatum) : null;
   const monthlyPayments: PrepaymentBreakdown['monthlyPayments'] = [];
   let totalPrepayments = 0;
   let missingScheduleMonths = 0;
@@ -438,16 +493,22 @@ export function calculatePrepayments(
 
   const lastMonthIndex = endYear * 12 + endMonth - 1;
   for (let monthIndex = startYear * 12 + startMonth - 1; monthIndex <= lastMonthIndex; monthIndex++) {
-    const { startIso: monthStartIso, endIso: monthEndIso, daysInMonth } = getMonthDateRange(Math.floor(monthIndex / 12), monthIndex % 12 + 1);
+    const monthYear = Math.floor(monthIndex / 12);
+    const month = monthIndex % 12 + 1;
+    const { startIso: monthStartIso, endIso: monthEndIso, daysInMonth } = getMonthDateRange(monthYear, month);
 
     // Clip the first/last month to the billing period so partial months are prorated, not charged in full
     const rangeStartIso = maxIsoDate(periodStartIso, monthStartIso);
     const rangeEndIso = minIsoDate(periodEndIso, monthEndIso);
     totalMonthShare += calculateTotalDays(rangeStartIso, rangeEndIso) / daysInMonth;
 
-    // Occupancy for the part of this month inside the billing period, relative to the full calendar month
+    // Occupancy for the part of this month inside the billing period, relative to the full calendar month.
+    // This calendar occupancy stays the 'actual' mode's distribution key even on the 360 basis (see above).
     const { occupancyDays } = calculateTenantOccupancy(tenant, rangeStartIso, rangeEndIso);
     const occupancyRatio = occupancyDays / daysInMonth;
+
+    // Rechentage of this tenant in this calendar month of the period (0, 15 or 30), only on the 360 basis
+    const rechentageMonth = rechentage360 ? rechentageInMonth(rechentage360, period360, monthYear, month) : 0;
 
     // Use tenant's actual Nebenkosten prepayment data
     let monthlyAmount = 0;
@@ -486,11 +547,14 @@ export function calculatePrepayments(
         }
       }
     } else if (mode === 'scheduled') {
-      monthlyAmount = scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, occupancyDays, daysInMonth);
+      // On the 360-day basis the Soll is prorated by Rechentage / 30 instead of calendar days
+      monthlyAmount = is360
+        ? scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, rechentageMonth, RECHENTAGE_PRO_MONAT)
+        : scheduledMonthlyAmount(nebenkostenSchedule, rangeEndIso, occupancyDays, daysInMonth);
 
       // Track months where the tenant was occupied but no schedule entry exists.
       // We do NOT inject a fallback value — missing data should be surfaced explicitly.
-      if (monthlyAmount === 0 && occupancyDays > 0) {
+      if (monthlyAmount === 0 && (is360 ? rechentageMonth > 0 : occupancyDays > 0)) {
         missingScheduleMonths++;
       }
     }
@@ -498,8 +562,10 @@ export function calculatePrepayments(
     monthlyPayments.push({
       month: monthStartIso.slice(0, 7),
       amount: monthlyAmount,
-      isActiveMonth: occupancyDays > 0,
-      occupancyPercentage: occupancyRatio * 100
+      // Reported occupancy always reflects the settlement's basis, even in 'actual' mode where
+      // the money itself is still assigned by calendar days (see function comment)
+      isActiveMonth: is360 ? rechentageMonth > 0 : occupancyDays > 0,
+      occupancyPercentage: is360 ? (rechentageMonth / RECHENTAGE_PRO_MONAT) * 100 : occupancyRatio * 100
     });
 
     totalPrepayments += monthlyAmount;
@@ -569,6 +635,10 @@ export function validateCalculationData(
   } else if (toIsoDateOnly(nebenkosten.enddatum) <= toIsoDateOnly(nebenkosten.startdatum)) {
     // Compared as YYYY-MM-DD so German dates are validated too (parseISO rejects them)
     errors.push('Enddatum muss nach dem Startdatum liegen');
+  } else if (isRechenbasis360(nebenkosten) && !isValid360Period(nebenkosten.startdatum, nebenkosten.enddatum)) {
+    // The 360-day basis assumes 12 whole months (30 Rechentage each); anything else leaves the
+    // denominator inconsistent with the 30-day months the rest of the calculation assumes
+    warnings.push('360-Tage-Basis: Der Abrechnungszeitraum besteht nicht aus 12 ganzen Monaten (vom 1. eines Monats bis zum Monatsletzten zwölf Monate später)');
   }
 
   if (!nebenkosten.nebenkostenart || nebenkosten.nebenkostenart.length === 0) {
@@ -662,7 +732,7 @@ export function calculateCompleteTenantResult(
   wgFactors?: Record<string, number>
 ): TenantCalculationResult {
   // Calculate occupancy
-  const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum);
+  const occupancy = calculateOccupancyPercentage(tenant, nebenkosten.startdatum, nebenkosten.enddatum, nebenkosten.rechenbasis);
 
   // Calculate operating costs
   const operatingCosts = calculateTenantCosts(tenant, nebenkosten, allTenants, occupancy, rechnungen, wgFactors);
@@ -693,7 +763,8 @@ export function calculateCompleteTenantResult(
     nebenkosten.enddatum,
     tenantActualPayments,
     prepaymentMode,
-    allTenants
+    allTenants,
+    nebenkosten.rechenbasis
   );
 
   // Calculate totals
@@ -729,7 +800,9 @@ export function calculateCompleteTenantResult(
     totalCosts,
     prepayments,
     finalSettlement,
-    recommendedPrepayment
+    recommendedPrepayment,
+    // Set on the 360-day basis; daysOccupied/daysInPeriod above are then Rechentage
+    ...(occupancy.rechentage ? { rechentage: occupancy.rechentage } : {})
   };
 }
 
@@ -748,7 +821,7 @@ export function calculateAbrechnungSummary(
   let totalAbrechnungVolumen = 0;
   let totalVorauszahlungen = 0;
   const wgFactors = nebenkosten.startdatum && nebenkosten.enddatum
-    ? computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum)
+    ? computeWgFactorsByTenant(tenants, nebenkosten.startdatum, nebenkosten.enddatum, nebenkosten.rechenbasis)
     : undefined;
 
   tenants.forEach(tenant => {

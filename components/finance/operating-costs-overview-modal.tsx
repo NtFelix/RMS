@@ -8,6 +8,7 @@ import { FileDown, Wallet, Coins, Scale, Ruler, Home, Users, Gauge, ArrowRight, 
 import { Separator } from "@/components/ui/separator"
 import type { Nebenkosten } from "@/lib/types";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types"
+import { isRechenbasis360, calculateTotalRechentage } from "@/utils/rechentage"
 import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten"
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { toast } from "@/hooks/use-toast"
@@ -148,14 +149,21 @@ export function OperatingCostsOverviewModal({
     }
   }
 
-  // Calculate days in period
+  // The 360-day basis lives on the nebenkosten_data the modal loads (falls back to the list item
+  // before that finishes), see utils/rechentage.
+  const is360 = isRechenbasis360(abrechnungData?.nebenkosten_data || nebenkosten)
+
+  // Calculate days (or, on the 360-day basis, Rechentage) in period
   const periodDays = useMemo(() => {
     if (!nebenkosten.startdatum || !nebenkosten.enddatum) return 0
+    if (is360) {
+      return calculateTotalRechentage(nebenkosten.startdatum, nebenkosten.enddatum)
+    }
     const start = new Date(nebenkosten.startdatum)
     const end = new Date(nebenkosten.enddatum)
     const diffTime = Math.abs(end.getTime() - start.getTime())
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-  }, [nebenkosten.startdatum, nebenkosten.enddatum])
+  }, [nebenkosten.startdatum, nebenkosten.enddatum, is360])
 
   // Calculate summary totals using the shared utility function
   const summaryTotals = useMemo(() => {
@@ -288,7 +296,14 @@ export function OperatingCostsOverviewModal({
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2 text-muted-foreground"><ArrowRight className="h-4 w-4" /> Zeitraum</span>
-                    <span className="font-medium">{periodDays} Tage</span>
+                    <span className="font-medium text-right">
+                      {periodDays} {is360 ? 'Rechentage' : 'Tage'}
+                      {is360 && (
+                        <span className="block text-[11px] text-muted-foreground font-normal">
+                          (gerechnet mit 360 Tagen, 30-Tage-Monate)
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2 text-muted-foreground"><Coins className="h-4 w-4" /> Ø Kosten / m²</span>

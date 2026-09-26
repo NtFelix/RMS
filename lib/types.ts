@@ -1,6 +1,7 @@
 // Types for data fetching - can be imported by both client and server components
 import { NebenkostenEntry } from "../types/Tenant";
 import type { LucideIcon } from "lucide-react";
+import type { Rechenbasis } from "@/utils/rechentage";
 
 export type Wohnung = {
     id: string;
@@ -72,6 +73,7 @@ export type Nebenkosten = {
     anzahlWohnungen?: number;
     anzahlMieter?: number;
     vorauszahlungs_art?: 'soll' | 'ist'; // 'soll' (default) or 'ist' (actual payments)
+    rechenbasis?: Rechenbasis; // 'kalendertage' (default) or '360_tage' (30-day months)
 };
 
 export type NebenkostenChartData = {

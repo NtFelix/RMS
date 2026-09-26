@@ -43,12 +43,26 @@ interface QueueTask {
 }
 
 
-import { formatCurrency, isoToGermanDate, roundToNearest5 } from './utils';
+import { formatCurrency, isoToGermanDate, roundToNearest5, isRechenbasis360 } from './utils';
 
 // --- Constants ---
 const QUEUE_VISIBILITY_TIMEOUT = 60;
 
 // --- PDF Generation Functions (Preserved) ---
+
+// How a tenant's Rechentage came about on the 360-day basis ("30/360"), for the settlement's
+// explanation of its distribution key (BGH VIII ZR 84/07). Mirrors (a subset of) the app's
+// RechentageDetails (types/optimized-betriebskosten.ts); this worker cannot import app types.
+interface TenantDataRechentage {
+    rechentage: number;
+    totalRechentage: number;
+    billedFromIso: string;
+    billedToIso: string;
+    einzugGerundet?: boolean;
+    auszugGerundet?: boolean;
+    einzugGerundetIso?: string;
+    auszugGerundetIso?: string;
+}
 
 interface TenantData {
     apartmentName?: string;
@@ -69,6 +83,11 @@ interface TenantData {
     vorauszahlungen?: number;
     finalSettlement?: number;
     recommendedPrepayment?: number;
+    /** Tenant's raw move-in / move-out date, only needed to explain 360-basis rounding */
+    einzug?: string | null;
+    auszug?: string | null;
+    /** Set on the 360-day basis ('360_tage'); daysOccupied above is then Rechentage */
+    rechentage?: TenantDataRechentage;
 }
 
 interface NebenkostenItem {
@@ -77,6 +96,8 @@ interface NebenkostenItem {
     Haeuser?: { name: string };
     zaehlerkosten?: Record<string, number>;
     zaehlerverbrauch?: Record<string, number>;
+    /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */
+    rechenbasis?: 'kalendertage' | '360_tage';
 }
 
 export interface SingleTenantPayload {
@@ -96,6 +117,8 @@ export interface SingleTenantPayload {
 function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
     let startY = 20;
+    const is360 = isRechenbasis360(nebenkostenItem);
+    const maxTextWidth = doc.internal.pageSize.getWidth() - 40;
 
     let displayAddress = ownerAddress || '';
     let displayCity = houseCity || '';
@@ -133,8 +156,15 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
-    startY += 6;
+    if (is360) {
+        const zeitraumText = `Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)} (gerechnet mit 360 Tagen, 30-Tage-Monate)`;
+        const zeitraumLines = doc.splitTextToSize(zeitraumText, maxTextWidth);
+        doc.text(zeitraumLines, 20, startY);
+        startY += zeitraumLines.length * 6;
+    } else {
+        doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
+        startY += 6;
+    }
 
     const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
     doc.text(propertyDetails, 20, startY);
@@ -143,6 +173,35 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);
     startY += 10;
+
+    if (is360 && tenantData.rechentage) {
+        const { rechentage, totalRechentage, billedFromIso, billedToIso, einzugGerundet, auszugGerundet, einzugGerundetIso, auszugGerundetIso } = tenantData.rechentage;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        // Without Rechentage there are no billed days to name
+        doc.text(rechentage > 0
+            ? `Rechentage: ${rechentage} von ${totalRechentage} (gerechnet vom ${isoToGermanDate(billedFromIso)} bis ${isoToGermanDate(billedToIso)})`
+            : `Rechentage: 0 von ${totalRechentage}`, 20, startY);
+        startY += 8;
+
+        let explanationText = "Rechenbasis: Jeder Monat zählt 30 Rechentage, das Jahr 360. Ein- und Auszug werden auf den Monatsanfang, die Monatsmitte (zwischen dem 15. und 16.) oder das Monatsende gerundet, je nachdem was näher liegt; bei gleichem Abstand gilt der frühere Zeitpunkt. Die Wasserkosten werden tagesgenau nach Zählerstand abgerechnet.";
+        if (einzugGerundet && einzugGerundetIso && tenantData.einzug) {
+            explanationText += ` Einzug ${isoToGermanDate(tenantData.einzug)}, gerechnet ab ${isoToGermanDate(einzugGerundetIso)}.`;
+        }
+        if (auszugGerundet && auszugGerundetIso && tenantData.auszug) {
+            explanationText += ` Auszug ${isoToGermanDate(tenantData.auszug)}, gerechnet bis ${isoToGermanDate(auszugGerundetIso)}.`;
+        }
+
+        doc.setFontSize(8);
+        doc.setTextColor(90, 90, 90);
+        const explanationLines = doc.splitTextToSize(explanationText, maxTextWidth);
+        doc.text(explanationLines, 20, startY);
+        startY += explanationLines.length * 3.5 + 6;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+    }
 
     const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
     const tableRows: unknown[][] = [];
@@ -293,6 +352,8 @@ export interface HouseOverviewPayload {
         betrag?: (number | null)[];
         zaehlerkosten?: Record<string, number>;
         zaehlerverbrauch?: Record<string, number>;
+        /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */
+        rechenbasis?: 'kalendertage' | '360_tage';
     };
     totalArea: number;
     totalCosts: number;
@@ -302,6 +363,7 @@ export interface HouseOverviewPayload {
 function generateHouseOverviewPDF(doc: jsPDF, payload: HouseOverviewPayload) {
     const { nebenkosten, totalArea, totalCosts, costPerSqm } = payload;
     let startY = 20;
+    const is360 = isRechenbasis360(nebenkosten);
 
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
@@ -310,8 +372,16 @@ function generateHouseOverviewPDF(doc: jsPDF, payload: HouseOverviewPayload) {
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY);
-    startY += 6;
+    if (is360) {
+        const zeitraumText = `Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)} (gerechnet mit 360 Tagen, 30-Tage-Monate)`;
+        const maxTextWidth = doc.internal.pageSize.getWidth() - 40;
+        const zeitraumLines = doc.splitTextToSize(zeitraumText, maxTextWidth);
+        doc.text(zeitraumLines, 20, startY);
+        startY += zeitraumLines.length * 6;
+    } else {
+        doc.text(`Zeitraum: ${isoToGermanDate(nebenkosten.startdatum)} bis ${isoToGermanDate(nebenkosten.enddatum)}`, 20, startY);
+        startY += 6;
+    }
     if (nebenkosten.haus_name) {
         doc.text(`Haus: ${nebenkosten.haus_name}`, 20, startY);
         startY += 6;

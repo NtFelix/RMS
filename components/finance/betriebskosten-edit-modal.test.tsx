@@ -15,6 +15,13 @@ import { useToast } from '@/hooks/use-toast';
 
 jest.mock('@/app/mieter-actions');
 
+// The 360-Tage switch (Radix Switch) measures its thumb via ResizeObserver, which JSDOM lacks
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // Mock framer-motion to avoid animation issues in JSDOM
 jest.mock('framer-motion', () => ({
   motion: {
@@ -510,6 +517,175 @@ describe('BetriebskostenEditModal', () => {
       await user.click(screen.getByText('+1 Jahr'));
 
       expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('360-Tage-Rechenbasis', () => {
+    it('disables the date fields and shows the month/year steppers when switched on, and re-enables them when switched off', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+
+      expect(screen.getByLabelText('Startdatum *')).toBeEnabled();
+      expect(screen.queryByText('Startmonat')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByLabelText('Startdatum *')).toBeDisabled();
+      expect(screen.getByLabelText('Enddatum *')).toBeDisabled();
+      expect(screen.getByText('Startmonat')).toBeInTheDocument();
+      expect(screen.getByText('Startjahr')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByLabelText('Startdatum *')).toBeEnabled();
+      expect(screen.getByLabelText('Enddatum *')).toBeEnabled();
+      expect(screen.queryByText('Startmonat')).not.toBeInTheDocument();
+    });
+
+    it('wraps the Startmonat stepper from Januar to Dezember of the previous year, and back', async () => {
+      const user = userEvent.setup();
+      const currentYear = new Date().getFullYear();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+
+      // The default period starts on 01.01. of the current year
+      expect(screen.getByText('Januar')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear))).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Vorheriger Monat'));
+
+      expect(screen.getByText('Dezember')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear - 1))).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`01.12.${currentYear - 1}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`30.11.${currentYear}`)).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Nächster Monat'));
+
+      expect(screen.getByText('Januar')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear))).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`01.01.${currentYear}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${currentYear}`)).toBeInTheDocument();
+    });
+
+    it('steps the Startjahr independently of the month', async () => {
+      const user = userEvent.setup();
+      const currentYear = new Date().getFullYear();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+      await user.click(screen.getByLabelText('Nächstes Jahr'));
+
+      expect(screen.getByText('Januar')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear + 1))).toBeInTheDocument();
+    });
+
+    it('shows no warning when switching it on for a new (unsaved) entry', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+    });
+
+    it('warns that amounts change when switching it on for an existing settlement, and clears the warning on switching off', async () => {
+      const user = userEvent.setup();
+      const mockEntry = {
+        id: 'test-id-123',
+        startdatum: '2023-03-01',
+        enddatum: '2023-12-31',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom'],
+        betrag: [100],
+        berechnungsart: ['pauschal'],
+        zaehlerkosten: {},
+        zaehlerverbrauch: {},
+        Haeuser: { name: 'Haus A' },
+        erstellt_von: 'u1',
+        Rechnungen: [],
+        rechenbasis: 'kalendertage',
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry as any });
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-123' },
+      });
+
+      render(<BetriebskostenEditModal />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Haus A')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByText(/Achtung.*Beträge dieser Abrechnung/)).toBeInTheDocument();
+      // Snaps to the 12-month window starting in the month of the existing startdatum (March)
+      expect(screen.getByText('März')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+    });
+
+    it('warns that amounts change when switching a saved 360-day settlement back to calendar days', async () => {
+      const user = userEvent.setup();
+      const mockEntry = {
+        id: 'test-id-360',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom'],
+        betrag: [100],
+        berechnungsart: ['pauschal'],
+        zaehlerkosten: {},
+        zaehlerverbrauch: {},
+        Haeuser: { name: 'Haus A' },
+        erstellt_von: 'u1',
+        Rechnungen: [],
+        rechenbasis: '360_tage',
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry as any });
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-360' },
+      });
+
+      render(<BetriebskostenEditModal />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Haus A')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByText(/Achtung: Ohne die 360-Tage-Rechenbasis/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+    });
+
+    it('includes rechenbasis in the submitted data', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+      await user.click(screen.getByRole('button', { name: /Weiter/ }));
+      expect(await screen.findByText('Kostenaufstellung')).toBeInTheDocument();
+
+      await fillCostItem(user);
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateNebenkosten).toHaveBeenCalledWith(
+          expect.objectContaining({ rechenbasis: '360_tage' })
+        );
+      });
     });
   });
 });

@@ -239,5 +239,81 @@ describe('wg-cost-calculations', () => {
         expect(factors['tenant1']).toBe(0);
       });
     });
+
+    // All expected values are worked out by hand from the Rechentage rules (rechentage.ts)
+    describe('360-day basis (Rechentage)', () => {
+      const P2026 = ['2026-01-01', '2026-12-31'] as const;
+
+      it('gives a full-year tenant a factor of 1', () => {
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null })];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBe(1);
+      });
+
+      it('splits a full-year WG equally', () => {
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null }),
+          createMockTenant({ id: 't2', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBe(0.5);
+        expect(factors['t2']).toBe(0.5);
+      });
+
+      it('splits a seamless month-aligned handover without a gap or overlap', () => {
+        // t1 leaves on 30.06. (end of the month), t2 moves in on 01.07.: no shared or missing day
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: '2026-06-30' }),
+          createMockTenant({ id: 't2', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBeCloseTo(0.5, 10);
+        expect(factors['t2']).toBeCloseTo(0.5, 10);
+        expect(factors['t1'] + factors['t2']).toBeCloseTo(1, 10);
+      });
+
+      it('splits an overlapping WG: solo Rechentage full, shared Rechentage by half', () => {
+        // t1 all year (360 Rechentage). t2 joins 01.07. and stays (180 Rechentage).
+        // Jan-Jun (180) solo for t1; Jul-Dec (180) shared: t1 = 180 + 90 = 270, t2 = 90
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null }),
+          createMockTenant({ id: 't2', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBeCloseTo(270 / 360, 10);
+        expect(factors['t2']).toBeCloseTo(90 / 360, 10);
+      });
+
+      it('leaves vacant Rechentage with the landlord (factor stays below 1)', () => {
+        // Tenant moves in 01.07.: only the second half of the year (180 of 360) is occupied
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBeCloseTo(0.5, 10);
+      });
+
+      it('treats tenants in different apartments independently', () => {
+        const tenants = [
+          createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null }),
+          createMockTenant({ id: 't2', wohnung_id: 'w2', einzug: '2026-07-01', auszug: null })
+        ];
+        const factors = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        expect(factors['t1']).toBe(1);
+        expect(factors['t2']).toBeCloseTo(0.5, 10);
+      });
+
+      it('gives a tenant without a move-in date a factor of 0, as on the calendar basis', () => {
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: null, auszug: null })];
+        expect(computeWgFactorsByTenant(tenants, ...P2026, '360_tage')['t1']).toBe(0);
+      });
+
+      it('defaults to the calendar basis when rechenbasis is omitted', () => {
+        const tenants = [createMockTenant({ id: 't1', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null })];
+        const calendarFactor = computeWgFactorsByTenant(tenants, ...P2026);
+        const rechentageFactor = computeWgFactorsByTenant(tenants, ...P2026, '360_tage');
+        // 2026-07-01..12-31 is 184 of 365 calendar days, but exactly half (180/360) of the Rechentage
+        expect(calendarFactor['t1']).toBeCloseTo(184 / 365, 10);
+        expect(rechentageFactor['t1']).toBeCloseTo(0.5, 10);
+      });
+    });
   });
 });

@@ -34,9 +34,30 @@ export async function generateZIP(data: Record<string, unknown[]> | unknown[], f
     return safeFetch({ data, filename, type: 'zip' });
 }
 
+/**
+ * How a tenant's Rechentage came about on the 360-day basis ("30/360"), passed through to the
+ * worker's PDF so it can explain its distribution key (BGH VIII ZR 84/07). Only present when
+ * nebenkostenItem.rechenbasis is '360_tage'; see utils/rechentage.ts's isRechenbasis360.
+ */
+type WorkerRechentage = {
+    rechentage: number;
+    totalRechentage: number;
+    billedFromIso: string;
+    billedToIso: string;
+    einzugGerundet?: boolean;
+    auszugGerundet?: boolean;
+    einzugGerundetIso?: string;
+    auszugGerundetIso?: string;
+};
+
 export async function generatePDF(payload: {
-    tenantData: any;
-    nebenkostenItem: any;
+    tenantData: any & {
+        /** Tenant's raw move-in / move-out date, only needed to explain 360-basis rounding */
+        einzug?: string | null;
+        auszug?: string | null;
+        rechentage?: WorkerRechentage;
+    };
+    nebenkostenItem: any & { rechenbasis?: 'kalendertage' | '360_tage' };
     ownerName: string;
     ownerAddress: string;
     houseCity?: string;
@@ -51,7 +72,7 @@ export async function generatePdfZIP(data: any[], filename?: string): Promise<Re
 }
 
 export async function generateHouseOverviewPDF(payload: {
-    nebenkosten: any;
+    nebenkosten: any & { rechenbasis?: 'kalendertage' | '360_tage' };
     totalArea: number;
     totalCosts: number;
     costPerSqm: number;
