@@ -155,18 +155,18 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     startY += 18;
 
     // 2. Zentrierter Titelblock (Überschrift + Zeitraum)
-    doc.setFontSize(15);
+    doc.setFontSize(17);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
     doc.text("Jahresabrechnung", pageWidth / 2, startY, { align: "center" });
-    startY += 8;
+    startY += 8.5;
 
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setFont("helvetica", "normal");
     doc.text("Zeitraum", pageWidth / 2, startY, { align: "center" });
-    startY += 5.5;
+    startY += 6.5;
 
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     const zeitraumDates = `${isoToGermanDate(nebenkostenItem.startdatum)} – ${isoToGermanDate(nebenkostenItem.enddatum)}`;
     doc.text(zeitraumDates, pageWidth / 2, startY, { align: "center" });
     startY += 12;
