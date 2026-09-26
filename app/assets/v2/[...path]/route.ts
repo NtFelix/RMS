@@ -4,7 +4,7 @@ import posthogProxyConfig from '@/lib/posthog-proxy'
 const { POSTHOG_INGEST_HOST, POSTHOG_ASSETS_HOST } = posthogProxyConfig
 
 function buildTargetUrl(request: Request, pathname: string): URL {
-  const baseHost = pathname.startsWith('static/')
+  const baseHost = pathname.startsWith('static/') || pathname.startsWith('array/')
     ? POSTHOG_ASSETS_HOST
     : POSTHOG_INGEST_HOST
 
@@ -20,8 +20,32 @@ async function proxy(request: Request, paramsPromise: Promise<{ path: string[] }
   const pathname = path?.join('/') ?? ''
   const targetUrl = buildTargetUrl(request, pathname)
 
-  const headers = new Headers(request.headers)
-  headers.delete('host')
+  const allowedHeaders = [
+    'accept',
+    'accept-encoding',
+    'accept-language',
+    'authorization',
+    'cache-control',
+    'content-type',
+    'content-length',
+    'if-none-match',
+    'if-modified-since',
+    'origin',
+    'pragma',
+    'referer',
+    'user-agent',
+    'x-conversations-token',
+    'x-widget-session-id',
+    'x-posthog-token',
+    'x-requested-with',
+  ]
+  const headers = new Headers()
+  for (const [key, value] of request.headers.entries()) {
+    const lowerKey = key.toLowerCase()
+    if (allowedHeaders.includes(lowerKey) || lowerKey.startsWith('x-')) {
+      headers.set(key, value)
+    }
+  }
 
   const method = request.method
   const hasBody = method !== 'GET' && method !== 'HEAD'
