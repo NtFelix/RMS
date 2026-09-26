@@ -196,7 +196,7 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
             pricePerSqm?: number;
             tenantShare: number;
         }) => {
-            let verteilerVal = item.verteiler ? String(item.verteiler).replace(/\s*(m²|qm)/gi, '').trim() : '';
+            let verteilerVal = item.verteiler ? String(item.verteiler).replace(/m²|qm/gi, '').trim() : '';
             if (!verteilerVal || verteilerVal === '-') {
                 verteilerVal = 'Rechnung';
             }
