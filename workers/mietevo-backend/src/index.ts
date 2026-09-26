@@ -167,7 +167,13 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     startY += 6.5;
 
     doc.setFontSize(12);
-    const zeitraumDates = `${isoToGermanDate(nebenkostenItem.startdatum)} – ${isoToGermanDate(nebenkostenItem.enddatum)}`;
+    const startDate = (tenantData.rechentage?.billedFromIso && tenantData.rechentage.billedFromIso.trim() !== '')
+        ? tenantData.rechentage.billedFromIso
+        : nebenkostenItem.startdatum;
+    const endDate = (tenantData.rechentage?.billedToIso && tenantData.rechentage.billedToIso.trim() !== '')
+        ? tenantData.rechentage.billedToIso
+        : nebenkostenItem.enddatum;
+    const zeitraumDates = `${isoToGermanDate(startDate)} – ${isoToGermanDate(endDate)}`;
     doc.text(zeitraumDates, pageWidth / 2, startY, { align: "center" });
     startY += 12;
 
@@ -179,17 +185,6 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);
     startY += 10;
-
-    if (is360 && tenantData.rechentage) {
-        const { rechentage, totalRechentage, billedFromIso, billedToIso } = tenantData.rechentage;
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text(rechentage > 0
-            ? `Rechentage: ${rechentage} von ${totalRechentage} (gerechnet vom ${isoToGermanDate(billedFromIso)} bis ${isoToGermanDate(billedToIso)})`
-            : `Rechentage: 0 von ${totalRechentage}`, 20, startY);
-        startY += 8;
-    }
 
     // 4. Tabelle
     const tableColumn = ["Leistungsart", "Gesamtkosten\nIn €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
