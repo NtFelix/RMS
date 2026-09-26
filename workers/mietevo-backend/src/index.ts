@@ -43,7 +43,7 @@ interface QueueTask {
 }
 
 
-import { formatCurrency, isoToGermanDate, roundToNearest5, isRechenbasis360 } from './utils';
+import { formatCurrency, formatNumberDe, isoToGermanDate, roundToNearest5, isRechenbasis360 } from './utils';
 
 // --- Constants ---
 const QUEUE_VISIBILITY_TIMEOUT = 60;
@@ -114,22 +114,25 @@ export interface SingleTenantPayload {
     houseCity?: string;
 }
 
-function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
+export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
     let startY = 20;
     const is360 = isRechenbasis360(nebenkostenItem);
-    const maxTextWidth = doc.internal.pageSize.getWidth() - 40;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const tableWidth = pageWidth - 40;
+    const maxTextWidth = tableWidth;
 
     let displayAddress = ownerAddress || '';
     let displayCity = houseCity || '';
 
     if (!displayCity && ownerAddress) {
         const parts = ownerAddress.split(',').map((p: string) => p.trim());
-        const potentialCity = parts.find((p: string) => !/^\d{5}$/.test(p) && p.length > 2);
-        if (potentialCity) {
-            displayCity = potentialCity;
-        } else if (parts.length > 0) {
-            displayCity = parts[parts.length - 1];
+        const lastPart = parts[parts.length - 1] || '';
+        const cleanedCity = lastPart.replace(/^\d{5}\s*/, '').trim();
+        if (cleanedCity) {
+            displayCity = cleanedCity;
+        } else if (parts.length > 1) {
+            displayCity = parts[parts.length - 2];
         }
     }
 
@@ -143,32 +146,38 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
         }
     }
 
-    doc.setFontSize(10);
-    doc.text(ownerName || '', 20, startY);
-    startY += 6;
-    doc.text(displayAddress, 20, startY);
-    startY += 10;
+    // 1. Absender einzeilig links oben mit mehr Raum zum Atmen
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(40, 40, 40);
+    const senderLine = [ownerName, displayAddress].filter(Boolean).join(', ');
+    doc.text(senderLine, 20, startY);
+    startY += 18;
 
-    doc.setFontSize(16);
+    // 2. Zentrierter Titelblock (Überschrift + Zeitraum)
+    doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
-    doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
-    startY += 10;
+    doc.setTextColor(0, 0, 0);
+    doc.text("Jahresabrechnung", pageWidth / 2, startY, { align: "center" });
+    startY += 7;
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    if (is360) {
-        const zeitraumText = `Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)} (gerechnet mit 360 Tagen, 30-Tage-Monate)`;
-        const zeitraumLines = doc.splitTextToSize(zeitraumText, maxTextWidth);
-        doc.text(zeitraumLines, 20, startY);
-        startY += zeitraumLines.length * 6;
-    } else {
-        doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
-        startY += 6;
-    }
+    doc.text("Zeitraum", pageWidth / 2, startY, { align: "center" });
+    startY += 5;
 
+    const zeitraumDates = `${isoToGermanDate(nebenkostenItem.startdatum)} – ${isoToGermanDate(nebenkostenItem.enddatum)}`;
+    if (is360) {
+        doc.text(`${zeitraumDates} (gerechnet mit 360 Tagen, 30-Tage-Monate)`, pageWidth / 2, startY, { align: "center" });
+    } else {
+        doc.text(zeitraumDates, pageWidth / 2, startY, { align: "center" });
+    }
+    startY += 12;
+
+    // 3. Objekt & Mieter
     const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
     doc.text(propertyDetails, 20, startY);
-    startY += 6;
+    startY += 5.5;
 
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);
@@ -179,7 +188,6 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        // Without Rechentage there are no billed days to name
         doc.text(rechentage > 0
             ? `Rechentage: ${rechentage} von ${totalRechentage} (gerechnet vom ${isoToGermanDate(billedFromIso)} bis ${isoToGermanDate(billedToIso)})`
             : `Rechentage: 0 von ${totalRechentage}`, 20, startY);
@@ -203,7 +211,8 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
         doc.setFontSize(10);
     }
 
-    const tableColumn = ["Leistungsart", "Gesamtkosten\nin €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
+    // 4. Tabelle
+    const tableColumn = ["Leistungsart", "Gesamtkosten\nIn €", "Verteiler\nEinheit/ qm", "Kosten\nPro qm", "Kostenanteil\nIn €"];
     const tableRows: unknown[][] = [];
 
     if (tenantData.costItems) {
@@ -214,11 +223,16 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
             pricePerSqm?: number;
             tenantShare: number;
         }) => {
+            let verteilerVal = item.verteiler ? String(item.verteiler).replace(/\s*(m²|qm)/gi, '').trim() : '';
+            if (!verteilerVal || verteilerVal === '-') {
+                verteilerVal = 'Rechnung';
+            }
+
             tableRows.push([
                 item.costName,
                 formatCurrency(item.totalCostForItem),
-                item.verteiler || '-',
-                item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
+                verteilerVal,
+                item.pricePerSqm ? formatNumberDe(item.pricePerSqm, 2) : '',
                 formatCurrency(item.tenantShare)
             ]);
         });
@@ -234,12 +248,14 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
             textColor: [0, 0, 0],
             fontStyle: 'bold',
             lineWidth: { bottom: 0.3 },
-            lineColor: [0, 0, 0]
+            lineColor: [0, 0, 0],
+            cellPadding: { top: 2.5, bottom: 3, left: 1, right: 1 }
         },
         styles: {
             fontSize: 9,
-            cellPadding: 1.5,
-            lineWidth: 0
+            cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+            lineWidth: 0,
+            textColor: [0, 0, 0]
         },
         bodyStyles: {
             lineWidth: { bottom: 0.1 },
@@ -258,7 +274,7 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
                 d.cell.styles.halign = 'right';
             }
         },
-        tableWidth: doc.internal.pageSize.getWidth() - 40,
+        tableWidth: tableWidth,
         margin: { left: 20, right: 20 }
     });
 
@@ -268,69 +284,78 @@ function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const sumOfTotalCostForItem = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { totalCostForItem: number }) => sum + item.totalCostForItem, 0) : 0;
     const sumOfTenantSharesFromCostItems = tenantData.costItems ? tenantData.costItems.reduce((sum: number, item: { tenantShare: number }) => sum + item.tenantShare, 0) : 0;
 
-    startY += 8;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const tableWidth = pageWidth - 40;
     const leftMargin = 20;
     const col1Start = leftMargin;
     const col3Start = leftMargin + (tableWidth * 0.45);
     const col4Start = leftMargin + (tableWidth * 0.65);
     const col5End = leftMargin + tableWidth;
 
+    // 5. Betriebskosten gesamt (ohne Doppelpunkt)
+    startY += 4;
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
-    doc.text("Betriebskosten gesamt:", col1Start, startY, { align: 'left' });
+
+    doc.text("Betriebskosten gesamt", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(sumOfTotalCostForItem), col3Start + 15.65, startY, { align: 'right' });
     doc.text(formatCurrency(sumOfTenantSharesFromCostItems), col5End, startY, { align: 'right' });
 
-    startY += 12;
-
+    // 6. Wasserverbrauch / Wasserkosten
+    startY += 10;
     const tenantWaterShare = tenantData.waterCost?.tenantShare || 0;
     const tenantWaterConsumption = tenantData.waterCost?.consumption || 0;
-
-    // Price per unit shown on PDF is the weighted average across all meter types (for display only)
-    // The actual tenant cost (tenantWaterShare) is already calculated per-type upstream
     const pricePerCubicMeterCalc = tenantWaterConsumption > 0 ? tenantWaterShare / tenantWaterConsumption : 0;
 
-    doc.text("Wasserkosten:", col1Start, startY, { align: 'left' });
-    doc.text(`${tenantWaterConsumption} m³`, col3Start + 15.65, startY, { align: 'right' });
-    doc.text(`${formatCurrency(pricePerCubicMeterCalc)} / m3`, col4Start + 15, startY, { align: 'right' });
+    doc.setFont("helvetica", "normal");
+    doc.text("Wasserverbrauch m³", col1Start, startY, { align: 'left' });
+    doc.text(formatNumberDe(tenantWaterConsumption, 2), col3Start + 15.65, startY, { align: 'right' });
+    doc.text(`${formatNumberDe(pricePerCubicMeterCalc, 2)}/ m3`, col4Start + 15, startY, { align: 'right' });
     doc.text(formatCurrency(tenantWaterShare), col5End, startY, { align: 'right' });
 
-    startY += 16;
+    // 7. Gesamt, bereits geleistete Zahlungen, Nachzahlung / Guthaben
+    startY += 14;
     const totalTenantCosts = sumOfTenantSharesFromCostItems + tenantWaterShare;
-    doc.text("Gesamt:", col1Start, startY, { align: 'left' });
+    doc.setFont("helvetica", "bold");
+    doc.text("Gesamt", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(totalTenantCosts), col5End, startY, { align: 'right' });
 
     startY += 8;
-    doc.text("Vorauszahlungen:", col1Start, startY, { align: 'left' });
+    doc.setFont("helvetica", "normal");
+    doc.text("bereits geleistete Zahlungen", col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(tenantData.vorauszahlungen || 0), col5End, startY, { align: 'right' });
 
     startY += 8;
     const isPositiveSettlement = (tenantData.finalSettlement || 0) >= 0;
-    const settlementLabel = isPositiveSettlement ? "Nachzahlung:" : "Guthaben:";
+    const settlementLabel = isPositiveSettlement ? "Nachzahlung" : "Guthaben";
     const settlementAmount = Math.abs(tenantData.finalSettlement || 0);
+    doc.setFont("helvetica", "bold");
     doc.text(settlementLabel, col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
 
-    startY += 8;
+    // 8. Zukünftige Vorauszahlung als dezenter Kommentar/Hinweis
     const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
     const monthlyVorauszahlung = suggestedVorauszahlung / 12;
 
+    if (monthlyVorauszahlung > 0) {
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        const formattedDate = nextMonth.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        startY += 10;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(90, 90, 90);
+        doc.text(`Hinweis: Die angepasste monatliche Vorauszahlung beträgt ab ${formattedDate} ${formatCurrency(monthlyVorauszahlung)}.`, col1Start, startY);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9.5);
+    }
+
+    // 9. Datum unten
+    startY += 26;
     const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    const formattedDate = nextMonth.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`Vorauszahlung ab ${formattedDate}`, col1Start, startY, { align: 'left' });
-    doc.text(formatCurrency(monthlyVorauszahlung), col5End, startY, { align: 'right' });
-
+    const formattedToday = today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     doc.setFont("helvetica", "normal");
-    startY += 25;
-
-    doc.text(`${displayCity}, den ${today.toLocaleDateString('de-DE')}`, col1Start, startY);
+    doc.text(`${displayCity}, den ${formattedToday}`, col1Start, startY);
 }
 
 const ZAEHLER_CONFIG = {
