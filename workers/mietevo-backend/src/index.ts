@@ -159,19 +159,16 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
     doc.text("Jahresabrechnung", pageWidth / 2, startY, { align: "center" });
-    startY += 7;
+    startY += 8;
 
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     doc.text("Zeitraum", pageWidth / 2, startY, { align: "center" });
-    startY += 5;
+    startY += 5.5;
 
+    doc.setFontSize(10);
     const zeitraumDates = `${isoToGermanDate(nebenkostenItem.startdatum)} – ${isoToGermanDate(nebenkostenItem.enddatum)}`;
-    if (is360) {
-        doc.text(`${zeitraumDates} (gerechnet mit 360 Tagen, 30-Tage-Monate)`, pageWidth / 2, startY, { align: "center" });
-    } else {
-        doc.text(zeitraumDates, pageWidth / 2, startY, { align: "center" });
-    }
+    doc.text(zeitraumDates, pageWidth / 2, startY, { align: "center" });
     startY += 12;
 
     // 3. Objekt & Mieter
@@ -184,7 +181,7 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     startY += 10;
 
     if (is360 && tenantData.rechentage) {
-        const { rechentage, totalRechentage, billedFromIso, billedToIso, einzugGerundet, auszugGerundet, einzugGerundetIso, auszugGerundetIso } = tenantData.rechentage;
+        const { rechentage, totalRechentage, billedFromIso, billedToIso } = tenantData.rechentage;
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
@@ -192,23 +189,6 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
             ? `Rechentage: ${rechentage} von ${totalRechentage} (gerechnet vom ${isoToGermanDate(billedFromIso)} bis ${isoToGermanDate(billedToIso)})`
             : `Rechentage: 0 von ${totalRechentage}`, 20, startY);
         startY += 8;
-
-        let explanationText = "Rechenbasis: Jeder Monat zählt 30 Rechentage, das Jahr 360. Ein- und Auszug werden auf den Monatsanfang, die Monatsmitte (zwischen dem 15. und 16.) oder das Monatsende gerundet, je nachdem was näher liegt; bei gleichem Abstand gilt der frühere Zeitpunkt. Die Wasserkosten werden tagesgenau nach Zählerstand abgerechnet.";
-        if (einzugGerundet && einzugGerundetIso && tenantData.einzug) {
-            explanationText += ` Einzug ${isoToGermanDate(tenantData.einzug)}, gerechnet ab ${isoToGermanDate(einzugGerundetIso)}.`;
-        }
-        if (auszugGerundet && auszugGerundetIso && tenantData.auszug) {
-            explanationText += ` Auszug ${isoToGermanDate(tenantData.auszug)}, gerechnet bis ${isoToGermanDate(auszugGerundetIso)}.`;
-        }
-
-        doc.setFontSize(8);
-        doc.setTextColor(90, 90, 90);
-        const explanationLines = doc.splitTextToSize(explanationText, maxTextWidth);
-        doc.text(explanationLines, 20, startY);
-        startY += explanationLines.length * 3.5 + 6;
-
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(10);
     }
 
     // 4. Tabelle
@@ -332,25 +312,7 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     doc.text(settlementLabel, col1Start, startY, { align: 'left' });
     doc.text(formatCurrency(settlementAmount), col5End, startY, { align: 'right' });
 
-    // 8. Zukünftige Vorauszahlung als dezenter Kommentar/Hinweis
-    const suggestedVorauszahlung = tenantData.recommendedPrepayment ? roundToNearest5(tenantData.recommendedPrepayment) : 0;
-    const monthlyVorauszahlung = suggestedVorauszahlung / 12;
-
-    if (monthlyVorauszahlung > 0) {
-        const today = new Date();
-        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        const formattedDate = nextMonth.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-        startY += 10;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8.5);
-        doc.setTextColor(90, 90, 90);
-        doc.text(`Hinweis: Die angepasste monatliche Vorauszahlung beträgt ab ${formattedDate} ${formatCurrency(monthlyVorauszahlung)}.`, col1Start, startY);
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(9.5);
-    }
-
-    // 9. Datum unten
+    // 8. Datum unten
     startY += 26;
     const today = new Date();
     const formattedToday = today.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
