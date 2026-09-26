@@ -153,6 +153,22 @@ export function calculateTenantMeterConsumption(
       };
     });
 
+    // A reading dated d is the new tenant's starting value ("Zwischenstand für den Mieterwechsel"),
+    // not the previous tenant's end-of-day meter state, when a tenant of THIS apartment moves in
+    // exactly on day d and d is after the period start. In that case the reading's interval ends on
+    // d - 1, so day d itself falls into the NEXT interval and is split among the tenants active that
+    // day by the existing day-by-day allocation below - this also covers a same-day handover (one
+    // tenant's auszug and the other's einzug both on d): the leaving tenant still gets the interval
+    // ending d - 1, and d is split between both tenants as part of the next interval.
+    // A reading dated exactly on the period start always keeps the end-of-day behaviour, since there
+    // is no prior interval for it to shift a day into.
+    const isMoveInReadingDate = (readingDateUtc: Date): boolean => {
+      if (readingDateUtc.getTime() <= startPeriodUtc.getTime()) return false;
+      return tenantsWithDates.some(({ tenant }) =>
+        tenant.einzug != null && parseAsUtc(tenant.einzug).getTime() === readingDateUtc.getTime()
+      );
+    };
+
     // Initialize map of consumption fields for each tenant in this apartment
     const tenantAllocations = new Map<string, {
       total: number;
@@ -190,31 +206,40 @@ export function calculateTenantMeterConsumption(
 
       const meterType = meter.zaehler_typ || 'unknown';
 
+      // Effective end of each reading's interval: normally the reading date itself (today's
+      // end-of-day meter state), except for a move-in reading, whose interval ends the day before
+      // (see isMoveInReadingDate above).
+      const effectiveEnds = sortedReadings.map(reading => {
+        const readingDateUtc = parseAsUtc(reading.ablese_datum);
+        return isMoveInReadingDate(readingDateUtc) ? addDaysUtc(readingDateUtc, -1) : readingDateUtc;
+      });
+
       // Allocate each reading's consumption to the tenants active during that reading's specific interval
       sortedReadings.forEach((reading, index) => {
-        const endReadingUtc = parseAsUtc(reading.ablese_datum);
+        const readingDateUtc = parseAsUtc(reading.ablese_datum); // real ablese_datum, used for detail.readingDate below
+        const endIntervalUtc = effectiveEnds[index];
         let startReadingUtc = (index === 0)
           ? startPeriodUtc
-          : addDaysUtc(parseAsUtc(sortedReadings[index - 1].ablese_datum), 1);
+          : addDaysUtc(effectiveEnds[index - 1], 1);
 
-        // Clamp: if start is after end (e.g., same-date readings), run a single-day interval
-        if (startReadingUtc > endReadingUtc) {
-          startReadingUtc = new Date(endReadingUtc.getTime());
+        // Clamp: if start is after end (e.g., same-date readings, or a move-in reading whose
+        // effective end lands before the interval's start), run a single-day interval
+        if (startReadingUtc > endIntervalUtc) {
+          startReadingUtc = new Date(endIntervalUtc.getTime());
         }
 
-        let totalIntervalDays = Math.round((endReadingUtc.getTime() - startReadingUtc.getTime()) / (1000 * 3600 * 24)) + 1;
+        let totalIntervalDays = Math.round((endIntervalUtc.getTime() - startReadingUtc.getTime()) / (1000 * 3600 * 24)) + 1;
         if (totalIntervalDays <= 0) {
           totalIntervalDays = 1;
         }
 
         const consumptionPerDay = reading.verbrauch / totalIntervalDays;
-        const readingDateUtc = endReadingUtc;
 
         // Iterate day-by-day in UTC to allocate consumption exactly to the active tenants of each day
         const current = new Date(startReadingUtc.getTime());
         const maxDays = 366 * 3;
         let dayCount = 0;
-        while (current <= endReadingUtc && dayCount < maxDays) {
+        while (current <= endIntervalUtc && dayCount < maxDays) {
           // Find all tenants active on this specific day
           const activeTenants = tenantsWithDates
             .filter(t => current >= t.effectiveStart && current <= t.effectiveEnd)
