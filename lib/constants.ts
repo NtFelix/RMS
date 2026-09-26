@@ -10,6 +10,12 @@ export type BerechnungsartValue = typeof BERECHNUNGSART_OPTIONS[number]['value']
 // You can also export an array of the values if that's useful
 export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value);
 
+// German month names (Januar … Dezember), shared across the finance/betriebskosten UI
+export const GERMAN_MONTHS = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+] as const;
+
 // Supabase PWA images storage URL
 export const PWA_IMAGES_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images';
 

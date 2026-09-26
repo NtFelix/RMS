@@ -41,6 +41,10 @@ jest.mock('@/lib/constants', () => ({
     { value: 'pauschal', label: 'pauschal' },
     { value: 'nach Rechnung', label: 'nach Rechnung' },
   ],
+  GERMAN_MONTHS: [
+    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+  ],
 }));
 
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;

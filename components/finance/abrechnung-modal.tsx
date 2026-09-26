@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import type { Nebenkosten, Mieter, Wohnung, Rechnung, Zaehler, ZaehlerAblesung } from "@/lib/types";
+import { GERMAN_MONTHS } from "@/lib/constants";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { getTenantMeterCost } from "@/utils/water-cost-calculations";
@@ -51,12 +52,13 @@ const fetchCustomerBillingAddress = async () => {
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
-import { formatNumber } from "@/utils/format"; // New import for number formatting
+import { formatNumber, formatMonthlyPrepayment } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
 import { calculateCompleteTenantResult, findUnrecognisedBerechnungsarten, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
 import { sumUniqueApartmentAreas } from "@/utils/cost-calculations";
 import { isRechenbasis360 } from "@/utils/rechentage";
 import type { TenantCalculationResult, RechentageDetails } from "@/types/optimized-betriebskosten";
+import type { SingleTenantPdfPayload } from "@/lib/worker-client";
 
 
 // Defined in Step 1:
@@ -68,11 +70,6 @@ const formatCurrency = (value: number | null | undefined) => {
   if (value == null) return "-";
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 };
-
-const GERMAN_MONTHS = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember"
-];
 
 /**
  * Extracts city from an address string.
@@ -562,8 +559,11 @@ export function AbrechnungModal({
     // If we can find a valid city, pass it directly; otherwise the worker will derive it
     const houseCity = extractCityFromAddress(ownerAddress);
 
-    // Prepare data for the worker: array of { name, data }
-    const zipData = tenantDataArray.map(tenant => ({
+    // Prepare data for the worker: array of { name, data }. Typed against the same payload
+    // generatePDF uses (minus filename, which the ZIP entry's own `name` covers) so a mismatch
+    // with what the worker reads is caught here too, even though generatePdfZIP itself still
+    // takes `data: any[]`.
+    const zipData: Array<{ name: string; data: Omit<SingleTenantPdfPayload, 'filename'> }> = tenantDataArray.map(tenant => ({
       name: `Abrechnung_${currentPeriod}_${tenant.tenantName.replace(/\s+/g, '_')}`,
       data: {
         tenantData: tenant,
@@ -928,7 +928,7 @@ export function AbrechnungModal({
                         <div key={payment.monthName} className="flex justify-between py-0.5">
                           <span className="text-xs">{payment.monthName}</span>
                           <span className="text-xs font-medium">
-                            {payment.isActiveMonth ? formatCurrency(payment.amount) : "-"}
+                            {formatMonthlyPrepayment(payment, formatCurrency)}
                           </span>
                         </div>
                       ))}

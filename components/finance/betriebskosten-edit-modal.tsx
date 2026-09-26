@@ -52,7 +52,7 @@ function ConfettiSideCannons() {
 import type { Mieter, Nebenkosten, RechnungSql } from "@/lib/types";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types";
 import { convertZaehlerkostenToStrings } from "@/lib/zaehler-utils";
-import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "@/lib/constants";
+import { BerechnungsartValue, BERECHNUNGSART_OPTIONS, GERMAN_MONTHS } from "@/lib/constants";
 import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
 import { generateId } from "@/lib/utils/generate-id";
 import {
@@ -72,20 +72,11 @@ import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import { CustomCombobox, type ComboboxOption } from "@/components/ui/custom-combobox";
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
+import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration, parseIsoYearMonth } from "@/utils/date-calculations";
 import { type Rechenbasis, RECHENBASIS_KALENDERTAGE, RECHENBASIS_360_TAGE, isValid360Period, get360PeriodEnd } from "@/utils/rechentage";
-
-const MONATE_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
 // Kept in sync with the server-side check in app/betriebskosten-actions.ts (validateRechenbasis)
 const RECHENBASIS_360_ERROR = "Mit 360 Tagen muss der Abrechnungszeitraum aus 12 ganzen Monaten bestehen (vom 1. eines Monats bis zum Monatsletzten zwölf Monate später).";
-
-/** Year and month (1-12) of an ISO date, or null when it doesn't parse */
-function parseIsoYearMonth(iso: string): { year: number; month: number } | null {
-  const match = iso.match(/^(\d{4})-(\d{2})-\d{2}$/);
-  if (!match) return null;
-  return { year: parseInt(match[1], 10), month: parseInt(match[2], 10) };
-}
 
 const SuccessStep = ({ data, onClose, onOverview }: { data: OptimizedNebenkosten | null, onClose: () => void, onOverview: () => void }) => {
   return (
@@ -1355,7 +1346,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                       >
                                         <ArrowLeft className="w-4 h-4" />
                                       </Button>
-                                      <span className="font-semibold w-24 text-center">{MONATE_DE[parsed360Start.month - 1]}</span>
+                                      <span className="font-semibold w-24 text-center">{GERMAN_MONTHS[parsed360Start.month - 1]}</span>
                                       <Button
                                         type="button"
                                         variant="outline"

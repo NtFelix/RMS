@@ -13,6 +13,7 @@ import {
   getMonthDateRange,
   getCurrentMonthRange,
   isDateInPeriod,
+  parseIsoYearMonth,
 } from './date-calculations';
 
 describe('Date Calculations Utilities', () => {
@@ -357,6 +358,19 @@ describe('Date Calculations Utilities', () => {
 
     it('returns false for a missing date', () => {
       expect(isDateInPeriod(null, '2025-01-01', '2025-12-31')).toBe(false);
+    });
+  });
+
+  describe('parseIsoYearMonth', () => {
+    it('extracts the year and month from an ISO date', () => {
+      expect(parseIsoYearMonth('2025-03-15')).toEqual({ year: 2025, month: 3 });
+      expect(parseIsoYearMonth('2024-12-01')).toEqual({ year: 2024, month: 12 });
+    });
+
+    it('returns null for a non-ISO or malformed string', () => {
+      expect(parseIsoYearMonth('15.03.2025')).toBeNull();
+      expect(parseIsoYearMonth('2025-3-15')).toBeNull();
+      expect(parseIsoYearMonth('not a date')).toBeNull();
     });
   });
 });

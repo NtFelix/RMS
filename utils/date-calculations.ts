@@ -297,6 +297,13 @@ export function toIsoDateOnly(date: string | null | undefined): string {
   return germanToIsoDate(trimmed) || trimmed.slice(0, 10);
 }
 
+/** Year and month (1-12) of an ISO date, or null when it doesn't parse */
+export function parseIsoYearMonth(iso: string): { year: number; month: number } | null {
+  const match = iso.match(/^(\d{4})-(\d{2})-\d{2}$/);
+  if (!match) return null;
+  return { year: parseInt(match[1], 10), month: parseInt(match[2], 10) };
+}
+
 /**
  * Format a local Date object as YYYY-MM-DD string without timezone conversion
  */
