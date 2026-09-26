@@ -43,7 +43,7 @@ interface QueueTask {
 }
 
 
-import { formatCurrency, formatNumberDe, isoToGermanDate, roundToNearest5, isRechenbasis360 } from './utils';
+import { formatCurrency, formatNumberDe, isoToGermanDate, isRechenbasis360 } from './utils';
 
 // --- Constants ---
 const QUEUE_VISIBILITY_TIMEOUT = 60;
@@ -117,10 +117,8 @@ export interface SingleTenantPayload {
 export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload) {
     const { tenantData, nebenkostenItem, ownerName, ownerAddress, billingAddress, houseCity } = payload;
     let startY = 20;
-    const is360 = isRechenbasis360(nebenkostenItem);
     const pageWidth = doc.internal.pageSize.getWidth();
     const tableWidth = pageWidth - 40;
-    const maxTextWidth = tableWidth;
 
     let displayAddress = ownerAddress || '';
     let displayCity = houseCity || '';
