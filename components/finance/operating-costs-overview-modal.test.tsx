@@ -107,6 +107,22 @@ describe('OperatingCostsOverviewModal', () => {
     expect(within(zählerkostenSection).getByText('Keine Zählerkosten erfasst.')).toBeInTheDocument();
   });
 
+  test('shows calendar days for a settlement on the default (kalendertage) basis', () => {
+    const mockData = createMockNebenkosten({ rechenbasis: 'kalendertage' });
+    render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
+
+    expect(screen.getByText('365 Tage')).toBeInTheDocument();
+    expect(screen.queryByText(/gerechnet mit 360 Tagen/)).not.toBeInTheDocument();
+  });
+
+  test('shows Rechentage and the 360-day note for a settlement on the 360-day basis', () => {
+    const mockData = createMockNebenkosten({ rechenbasis: '360_tage' });
+    render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
+
+    expect(screen.getByText('360 Rechentage')).toBeInTheDocument();
+    expect(screen.getByText(/gerechnet mit 360 Tagen, 30-Tage-Monate/)).toBeInTheDocument();
+  });
+
   test('shows the vacancy costs of an empty apartment', async () => {
     const mockData = createMockNebenkosten();
     (getAbrechnungModalDataAction as jest.Mock).mockResolvedValueOnce({

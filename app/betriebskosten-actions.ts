@@ -30,6 +30,7 @@ import {
 // Import logger for performance monitoring
 import { logger } from '@/utils/logger';
 import { findDuplicateNachRechnungName, normalizeBerechnungsart } from '@/utils/betriebskosten';
+import { type Rechenbasis, RECHENBASIS_KALENDERTAGE, RECHENBASIS_360_TAGE, isValid360Period } from '@/utils/rechentage';
 import { BERECHNUNGSART_OPTIONS } from '@/lib/constants';
 import { getPostHogServer } from '@/app/posthog-server.mjs';
 import { posthogLogger } from '@/lib/posthog-logger';
@@ -61,6 +62,7 @@ export type NebenkostenFormData = {
   zaehlerkosten?: Record<string, number> | null; // New JSONB: { [zaehlerTyp]: cost }
   haeuser_id: string;
   vorauszahlungs_art?: 'soll' | 'ist'; // 'soll' (default) = scheduled prepayments, 'ist' = actual payments
+  rechenbasis?: Rechenbasis; // 'kalendertage' (default) or '360_tage' (30-day months, see utils/rechentage)
 };
 
 export interface RechnungData {
@@ -114,6 +116,29 @@ function normalizeCostItemNames<T extends Partial<Pick<NebenkostenFormData, 'neb
   };
 }
 
+/**
+ * Validates the optional Rechenbasis: rejects unknown values, and for '360_tage' requires the
+ * billing period to span exactly 12 whole months (see isValid360Period in utils/rechentage).
+ * `rechenbasis === undefined` is valid (the DB column defaults to 'kalendertage'); the date
+ * check is skipped when either date isn't part of this call (e.g. a partial update that doesn't
+ * touch the period), since existing behaviour is unaffected until the period is changed too.
+ * Returns an error message, or null when the data is valid.
+ */
+function validateRechenbasis(
+  rechenbasis: string | undefined,
+  startdatum: string | undefined,
+  enddatum: string | undefined
+): string | null {
+  if (rechenbasis === undefined) return null;
+  if (rechenbasis !== RECHENBASIS_KALENDERTAGE && rechenbasis !== RECHENBASIS_360_TAGE) {
+    return `Ungültige Rechenbasis "${rechenbasis}". Erlaubt sind: Kalendertage, 360 Tage.`;
+  }
+  if (rechenbasis === RECHENBASIS_360_TAGE && startdatum && enddatum && !isValid360Period(startdatum, enddatum)) {
+    return "Mit 360 Tagen muss der Abrechnungszeitraum aus 12 ganzen Monaten bestehen (vom 1. eines Monats bis zum Monatsletzten zwölf Monate später).";
+  }
+  return null;
+}
+
 // Implement createNebenkosten function
 // Note: wasserverbrauch is automatically calculated by database trigger
 export async function createNebenkosten(formData: NebenkostenFormData) {
@@ -149,6 +174,12 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   if (normalized.error !== null) {
     logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: normalized.error });
     return { success: false, message: normalized.error, data: null };
+  }
+
+  const rechenbasisError = validateRechenbasis(formData.rechenbasis, formData.startdatum, formData.enddatum);
+  if (rechenbasisError) {
+    logAction(actionName, 'error', { house_id: formData.haeuser_id, error_message: rechenbasisError });
+    return { success: false, message: rechenbasisError, data: null };
   }
 
   const { data, error } = await supabase
@@ -214,6 +245,39 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   if (normalized.error !== null) {
     logAction(actionName, 'error', { nebenkosten_id: id, error_message: normalized.error });
     return { success: false, message: normalized.error, data: null };
+  }
+
+  const invalidValueError = validateRechenbasis(formData.rechenbasis, undefined, undefined);
+  if (invalidValueError) {
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: invalidValueError });
+    return { success: false, message: invalidValueError, data: null };
+  }
+
+  // A partial update can change only the basis or only the period: validate the resulting record,
+  // so a 360 settlement can't end up with a period that isn't 12 whole months
+  let rechenbasisToCheck = formData.rechenbasis;
+  let startdatumToCheck = formData.startdatum;
+  let enddatumToCheck = formData.enddatum;
+  const touchesRechenbasis = formData.rechenbasis !== undefined || formData.startdatum !== undefined || formData.enddatum !== undefined;
+  if (touchesRechenbasis && (rechenbasisToCheck === undefined || !startdatumToCheck || !enddatumToCheck)) {
+    const { data: existing, error: existingError } = await supabase
+      .from("Nebenkosten")
+      .select("rechenbasis, startdatum, enddatum")
+      .eq("id", id)
+      .single();
+    if (existingError || !existing) {
+      logAction(actionName, 'error', { nebenkosten_id: id, error_message: existingError?.message ?? 'Nebenkosten nicht gefunden' });
+      return { success: false, message: "Die Betriebskostenabrechnung konnte nicht geladen werden.", data: null };
+    }
+    rechenbasisToCheck ??= existing.rechenbasis ?? undefined;
+    startdatumToCheck ||= existing.startdatum;
+    enddatumToCheck ||= existing.enddatum;
+  }
+
+  const rechenbasisError = validateRechenbasis(rechenbasisToCheck, startdatumToCheck, enddatumToCheck);
+  if (rechenbasisError) {
+    logAction(actionName, 'error', { nebenkosten_id: id, error_message: rechenbasisError });
+    return { success: false, message: rechenbasisError, data: null };
   }
 
   const { data, error } = await supabase
@@ -1987,7 +2051,7 @@ async function resolveActualPaymentsData(
  * - Water meter readings for consumption calculations
  * - Pre-calculated house metrics (area, apartment count, tenant count)
  * 
- * **Database Function**: `get_abrechnung_modal_data(nebenkosten_id, user_id)`
+ * **Database Function**: `get_abrechnung_modal_data(nebenkosten_id uuid)`
  * 
  * **Expected Performance**:
  * - Reduces modal open time from 4-6s to 1-2s
@@ -2601,7 +2665,7 @@ export async function createAbrechnungCalculationAction(
     // Calculate costs for each tenant; WG factors depend only on tenants and period, so compute them once
     const tenantCalculations: TenantCalculationResult[] = [];
     const { computeWgFactorsByTenant } = await import('@/utils/wg-cost-calculations');
-    const wgFactors = computeWgFactorsByTenant(tenants, nebenkosten_data.startdatum, nebenkosten_data.enddatum);
+    const wgFactors = computeWgFactorsByTenant(tenants, nebenkosten_data.startdatum, nebenkosten_data.enddatum, nebenkosten_data.rechenbasis);
 
     for (const tenant of tenants) {
       try {
@@ -2875,7 +2939,7 @@ export async function createAbrechnungCalculationOptimizedAction(
     const tenantCalculations: TenantCalculationResult[] = [];
     const { computeWgFactorsByTenant } = await import('@/utils/wg-cost-calculations');
     const wgFactors = nebenkosten_data.startdatum && nebenkosten_data.enddatum
-      ? computeWgFactorsByTenant(tenants_with_occupancy, nebenkosten_data.startdatum, nebenkosten_data.enddatum)
+      ? computeWgFactorsByTenant(tenants_with_occupancy, nebenkosten_data.startdatum, nebenkosten_data.enddatum, nebenkosten_data.rechenbasis)
       : undefined;
 
     for (const tenant of tenants_with_occupancy) {

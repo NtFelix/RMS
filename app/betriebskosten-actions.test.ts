@@ -205,6 +205,54 @@ describe('betriebskosten-actions', () => {
       });
     });
 
+    it('defaults to kalendertage: creating without rechenbasis does not add the field', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      await createNebenkosten(mockFormData);
+
+      expect(mockSupabase.insert).toHaveBeenCalledWith([mockFormData]);
+    });
+
+    it('accepts a 360-day settlement whose period is a valid 12-month window', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      const result = await createNebenkosten({
+        ...mockFormData,
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.insert).toHaveBeenCalledWith([
+        expect.objectContaining({ rechenbasis: '360_tage' })
+      ]);
+    });
+
+    it('rejects a 360-day settlement whose period is not 12 whole months (02.01.-31.12.)', async () => {
+      const result = await createNebenkosten({
+        ...mockFormData,
+        startdatum: '2023-01-02',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown Rechenbasis value', async () => {
+      const result = await createNebenkosten({
+        ...mockFormData,
+        rechenbasis: 'jaehrlich' as any,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Ungültige Rechenbasis "jaehrlich"');
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
     it('should handle insert error', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: { id: 'user123' } },
@@ -282,6 +330,76 @@ describe('betriebskosten-actions', () => {
         message: 'Update failed',
         data: null,
       });
+    });
+
+    it('accepts switching to the 360-day basis when the period is a valid 12-month window', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      const result = await updateNebenkosten('nb1', {
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.update).toHaveBeenCalledWith(expect.objectContaining({ rechenbasis: '360_tage' }));
+    });
+
+    it('rejects switching to the 360-day basis when the period is not 12 whole months', async () => {
+      const result = await updateNebenkosten('nb1', {
+        startdatum: '2023-01-02',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('validates a period-only update against the stored 360-day basis', async () => {
+      mockSupabase.single.mockResolvedValueOnce({
+        data: { rechenbasis: '360_tage', startdatum: '2023-01-01', enddatum: '2023-12-31' },
+        error: null,
+      });
+
+      const result = await updateNebenkosten('nb1', { enddatum: '2023-12-30' });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('validates a basis-only update against the stored period', async () => {
+      mockSupabase.single.mockResolvedValueOnce({
+        data: { rechenbasis: 'kalendertage', startdatum: '2023-01-15', enddatum: '2024-01-14' },
+        error: null,
+      });
+
+      const result = await updateNebenkosten('nb1', { rechenbasis: '360_tage' });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('allows a period-only update of a calendar-day settlement', async () => {
+      mockSupabase.single
+        .mockResolvedValueOnce({ data: { rechenbasis: 'kalendertage', startdatum: '2023-01-01', enddatum: '2023-12-31' }, error: null })
+        .mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      const result = await updateNebenkosten('nb1', { enddatum: '2023-12-30' });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.update).toHaveBeenCalledWith({ enddatum: '2023-12-30' });
+    });
+
+    it('rejects an unknown Rechenbasis value on update', async () => {
+      const result = await updateNebenkosten('nb1', { rechenbasis: 'jaehrlich' as any });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Ungültige Rechenbasis "jaehrlich"');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
     });
   });
 

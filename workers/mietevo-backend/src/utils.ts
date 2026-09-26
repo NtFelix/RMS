@@ -25,3 +25,10 @@ export const sumZaehlerValues = (obj: Record<string, unknown> | null | undefined
 export const roundToNearest5 = (value: number) => {
     return Math.round(value / 5) * 5;
 };
+
+// 360-day basis ("30/360") marker, mirrored here since this worker package cannot
+// import from the app's utils/rechentage.ts.
+export const RECHENBASIS_360_TAGE = '360_tage';
+
+export const isRechenbasis360 = (item: { rechenbasis?: string | null } | null | undefined): boolean =>
+    item?.rechenbasis === RECHENBASIS_360_TAGE;

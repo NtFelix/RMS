@@ -307,4 +307,54 @@ describe('cost-calculations', () => {
       expect(result['t2'].amount).toBeCloseTo(500);
     });
   });
+
+  // computeWgFactorsByTenant and calculateTenantRechentage are the real (unmocked) implementations
+  // here, so these Rechentage figures are worked out by hand from the rules in rechentage.ts,
+  // not derived from the mocked calculateTenantOccupancy used by the calendar-basis tests above.
+  describe('360-day basis (Rechentage)', () => {
+    const P2026 = { startdatum: '2026-01-01', enddatum: '2026-12-31' };
+
+    describe('calculateProFlächeDistribution', () => {
+      it('uses the Rechentage share instead of the calendar-day WG factor', () => {
+        // Single tenant (50 m²) in a 100 m² house; moves in on 01.07. => 180 of 360 Rechentage (0.5 exactly)
+        const t1 = { id: 't1', wohnung_id: 'w1', einzug: '2026-07-01', auszug: null, Wohnungen: { groesse: 50 } } as any;
+
+        const result360 = calculateProFlächeDistribution([t1], 1000, P2026.startdatum, P2026.enddatum, 100, undefined, '360_tage');
+        // weight/denominator × totalCost × factor = 50/100 × 1000 × 0.5
+        expect(result360['t1'].amount).toBeCloseTo(250, 10);
+
+        // On the calendar basis the same move-in date gives 184/365 of the year, not exactly half
+        const resultCalendar = calculateProFlächeDistribution([t1], 1000, P2026.startdatum, P2026.enddatum, 100);
+        expect(resultCalendar['t1'].amount).not.toBeCloseTo(250, 6);
+      });
+    });
+
+    describe('calculateProMieterDistribution', () => {
+      it('splits by Rechentage, not by calendar days', () => {
+        // t1 full year (360 Rechentage), t2 moves in 01.07. (180 Rechentage)
+        const t1 = { id: 't1', einzug: '2020-01-01', auszug: null } as any;
+        const t2 = { id: 't2', einzug: '2026-07-01', auszug: null } as any;
+
+        const result = calculateProMieterDistribution([t1, t2], 1000, P2026.startdatum, P2026.enddatum, '360_tage');
+
+        expect(result['t1'].amount).toBeCloseTo(1000 * 360 / 540, 10);
+        expect(result['t2'].amount).toBeCloseTo(1000 * 180 / 540, 10);
+        expect(result['t1'].amount + result['t2'].amount).toBeCloseTo(1000, 10);
+      });
+    });
+
+    describe('calculateProWohnungDistribution', () => {
+      it('leaves the vacant Rechentage of a partially occupied apartment with the landlord', () => {
+        // Two apartments, each pays 500. w1's tenant is there all year (factor 1) => full 500.
+        // w2's tenant moves in 01.07. (factor 0.5, exactly half the year in Rechentage) => 250.
+        const t1 = { id: 't1', wohnung_id: 'w1', einzug: '2020-01-01', auszug: null } as any;
+        const t2 = { id: 't2', wohnung_id: 'w2', einzug: '2026-07-01', auszug: null } as any;
+
+        const result = calculateProWohnungDistribution([t1, t2], 1000, P2026.startdatum, P2026.enddatum, undefined, undefined, '360_tage');
+
+        expect(result['t1'].amount).toBeCloseTo(500, 10);
+        expect(result['t2'].amount).toBeCloseTo(250, 10);
+      });
+    });
+  });
 });

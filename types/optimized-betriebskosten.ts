@@ -13,6 +13,7 @@
  */
 
 import type { Nebenkosten, Mieter, Zaehler, ZaehlerAblesung, Rechnung, Finanzen } from "@/lib/types";
+import type { Rechenbasis } from "@/utils/rechentage";
 
 /**
  * OptimizedNebenkosten extends the existing Nebenkosten type with calculated fields
@@ -44,6 +45,7 @@ export type OptimizedNebenkosten = {
   anzahlWohnungen?: number;
   anzahlMieter?: number;
   vorauszahlungs_art?: 'soll' | 'ist';
+  rechenbasis?: Rechenbasis;
 };
 
 /**
@@ -277,6 +279,29 @@ export type OccupancyCalculation = {
   moveOutDate?: string;
   effectivePeriodStart: string;
   effectivePeriodEnd: string;
+  /**
+   * Set on the 360-day basis ('360_tage'). daysOccupied and daysInPeriod are then Rechentage
+   * (e.g. 75 of 360), and effectivePeriodStart/End are the rounded, billed days.
+   */
+  rechentage?: RechentageDetails;
+};
+
+/**
+ * How a tenant's Rechentage came about, for the rounding note in the dialog and the PDF
+ * (a settlement must explain its distribution key, BGH VIII ZR 84/07).
+ */
+export type RechentageDetails = {
+  rechentage: number;
+  totalRechentage: number;
+  /** Inclusive calendar days the Rechentage stand for; empty when rechentage is 0 */
+  billedFromIso: string;
+  billedToIso: string;
+  /** Whether rounding moved the move-in / move-out date */
+  einzugGerundet: boolean;
+  auszugGerundet: boolean;
+  /** Rounded move-in (first billed day) / move-out (last billed day), when inside the period */
+  einzugGerundetIso?: string;
+  auszugGerundetIso?: string;
 };
 
 /**
@@ -296,6 +321,8 @@ export type TenantCalculationResult = {
   prepayments: PrepaymentBreakdown;
   finalSettlement: number;
   recommendedPrepayment?: number;
+  /** Set on the 360-day basis; daysOccupied / daysInPeriod are then Rechentage */
+  rechentage?: RechentageDetails;
 };
 
 /**

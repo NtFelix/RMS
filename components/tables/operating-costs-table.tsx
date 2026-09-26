@@ -27,6 +27,7 @@ import {
 import type { Nebenkosten, Mieter, ZaehlerAblesung, Rechnung, Haus } from "@/lib/types";
 import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed WasserzaehlerModalData
 import { isoToGermanDate } from "@/utils/date-calculations"
+import { isRechenbasis360 } from "@/utils/rechentage"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
 
 // Lazy load modals to reduce bundle size
@@ -311,7 +312,7 @@ export function OperatingCostsTable({
     const selectedItemsData = nebenkosten.filter(item => selectedItems.has(item.id))
 
     // Create CSV header
-    const headers = ['Zeitraum', 'Haus', 'Kostenarten', 'Beträge', 'Berechnungsarten', 'Zählerkosten']
+    const headers = ['Zeitraum', 'Haus', 'Kostenarten', 'Beträge', 'Berechnungsarten', 'Zählerkosten', 'Rechenbasis']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
 
     // Create CSV rows with proper escaping
@@ -330,7 +331,8 @@ export function OperatingCostsTable({
         betraege,
         berechnungsarten,
         // Sum zaehlerkosten JSONB values
-        formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null)
+        formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null),
+        isRechenbasis360(item) ? '360 Tage' : 'Kalendertage'
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
@@ -484,10 +486,19 @@ export function OperatingCostsTable({
                             />
                           </TableCell>
                           <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
-                            {item.startdatum && item.enddatum
-                              ? `${isoToGermanDate(item.startdatum)} bis ${isoToGermanDate(item.enddatum)}`
-                              : '-'
-                            }
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {item.startdatum && item.enddatum
+                                  ? `${isoToGermanDate(item.startdatum)} bis ${isoToGermanDate(item.enddatum)}`
+                                  : '-'
+                                }
+                              </span>
+                              {isRechenbasis360(item) && (
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400">
+                                  360 Tage
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{item.haus_name || 'N/A'}</TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
