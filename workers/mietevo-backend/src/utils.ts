@@ -3,6 +3,11 @@ export const formatCurrency = (value: number | null | undefined) => {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 };
 
+export const formatNumberDe = (value: number | null | undefined, decimals = 2) => {
+    if (value == null) return "-";
+    return value.toLocaleString('de-DE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
+
 export const isoToGermanDate = (isoString: string | null | undefined) => {
     if (!isoString) return "N/A";
     try {
