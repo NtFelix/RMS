@@ -47,10 +47,6 @@ const WasserzaehlerModal = dynamic(
   () => import("@/components/water-meters/wasserzaehler-modal").then((mod) => mod.WasserzaehlerModal),
   { ssr: false },
 )
-const HausOverviewModal = dynamic(
-  () => import("@/components/houses/haus-overview-modal").then((mod) => mod.HausOverviewModal),
-  { ssr: false },
-)
 const WohnungOverviewModal = dynamic(
   () => import("@/components/apartments/wohnung-overview-modal").then((mod) => mod.WohnungOverviewModal),
   { ssr: false },
@@ -169,7 +165,6 @@ export default function DashboardOverlayHost() {
       <ZaehlerModal />
       <WasserzaehlerModal />
       <AblesungenModal />
-      <HausOverviewModal />
       <WohnungOverviewModal />
       <ApartmentTenantDetailsModal />
       <FileUploadModal />

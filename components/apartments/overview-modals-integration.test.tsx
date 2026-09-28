@@ -21,7 +21,6 @@ jest.mock('@/app/(dashboard)/layout-inner', () => {
       const { AuthProvider } = require('@/components/auth/auth-provider');
       const { CommandMenu } = require('@/components/search/command-menu');
       const { DashboardLayout } = require('@/components/dashboard/dashboard-layout');
-      const { HausOverviewModal } = require('@/components/houses/haus-overview-modal');
       const { WohnungOverviewModal } = require('@/components/apartments/wohnung-overview-modal');
       const { ApartmentTenantDetailsModal } = require('@/components/apartments/apartment-tenant-details-modal');
       const { TenantEditModal } = require('@/components/tenants/tenant-edit-modal');
@@ -48,7 +47,6 @@ jest.mock('@/app/(dashboard)/layout-inner', () => {
       return React.createElement(AuthProvider, null,
         React.createElement(CommandMenu),
         React.createElement(DashboardLayout, null, children),
-        React.createElement(HausOverviewModal),
         React.createElement(WohnungOverviewModal),
         React.createElement(ApartmentTenantDetailsModal),
         React.createElement(TenantEditModal),
@@ -78,10 +76,6 @@ jest.mock('@/hooks/use-toast', () => ({
 }));
 
 // Mock all the modal components
-jest.mock('@/components/houses/haus-overview-modal', () => ({
-  HausOverviewModal: () => <div data-testid="haus-overview-modal">Haus Overview Modal</div>
-}));
-
 jest.mock('@/components/apartments/wohnung-overview-modal', () => ({
   WohnungOverviewModal: () => <div data-testid="wohnung-overview-modal">Wohnung Overview Modal</div>
 }));
@@ -211,13 +205,6 @@ describe('Overview Modals Integration', () => {
     closeConfirmationModal: jest.fn(),
     
     // Overview modals - these are the ones we're testing
-    isHausOverviewModalOpen: false,
-    hausOverviewData: undefined,
-    hausOverviewLoading: false,
-    hausOverviewError: undefined,
-    openHausOverviewModal: jest.fn(),
-    closeHausOverviewModal: jest.fn(),
-    
     isWohnungOverviewModalOpen: false,
     wohnungOverviewData: undefined,
     wohnungOverviewLoading: false,
@@ -247,9 +234,8 @@ describe('Overview Modals Integration', () => {
 
     // Dynamic imports need async resolution
     await waitFor(() => {
-      expect(screen.getByTestId('haus-overview-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('wohnung-overview-modal')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('wohnung-overview-modal')).toBeInTheDocument();
     expect(screen.getByTestId('apartment-tenant-details-modal')).toBeInTheDocument();
     
     // Verify other components are also rendered
@@ -278,7 +264,6 @@ describe('Overview Modals Integration', () => {
     expect(screen.getByTestId('kaution-dialog')).toBeInTheDocument();
     
     // Verify overview modals are also rendered
-    expect(screen.getByTestId('haus-overview-modal')).toBeInTheDocument();
     expect(screen.getByTestId('wohnung-overview-modal')).toBeInTheDocument();
     expect(screen.getByTestId('apartment-tenant-details-modal')).toBeInTheDocument();
   });
@@ -332,9 +317,8 @@ describe('Overview Modals Integration', () => {
     
     // Dynamic imports need async resolution
     await waitFor(() => {
-      expect(screen.getByTestId('haus-overview-modal')).toBeInTheDocument();
+      expect(screen.getByTestId('wohnung-overview-modal')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('wohnung-overview-modal')).toBeInTheDocument();
     expect(screen.getByTestId('apartment-tenant-details-modal')).toBeInTheDocument();
   });
 });
