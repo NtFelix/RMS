@@ -7,6 +7,7 @@ interface HausOverviewResponse {
   id: string;
   name: string;
   strasse?: string;
+  plz?: number | null;
   ort: string;
   size?: string;
   totalArea: number;
@@ -97,6 +98,7 @@ export async function GET(
         id,
         name,
         strasse,
+        plz,
         ort,
         groesse,
         Wohnungen (
@@ -230,6 +232,7 @@ export async function GET(
       id: hausData.id,
       name: hausData.name,
       strasse: hausData.strasse || undefined,
+      plz: hausData.plz ?? undefined,
       ort: hausData.ort,
       size: hausData.groesse?.toString(),
       totalArea: Math.round(totalArea * 100) / 100,

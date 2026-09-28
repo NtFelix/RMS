@@ -27,6 +27,7 @@ export interface House {
   id: string
   name: string
   strasse?: string
+  plz?: number | string | null
   ort: string
   size?: string
   rent?: string

@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { formatPlzOrt } from "@/lib/address";
 
 interface ApartmentTenantDetailsResponse {
   apartment: {
@@ -91,6 +92,7 @@ export async function GET(
         Haeuser!inner(
           name,
           strasse,
+          plz,
           ort
         )
       `)
@@ -173,9 +175,10 @@ export async function GET(
 
     // Build house address string
     const hausData = apartment.Haeuser as any;
-    const hausAddress = hausData?.strasse && hausData?.ort 
-      ? `${hausData.strasse}, ${hausData.ort}`
-      : hausData?.ort || undefined;
+    const plzOrt = formatPlzOrt(hausData?.plz, hausData?.ort);
+    const hausAddress = hausData?.strasse && plzOrt
+      ? `${hausData.strasse}, ${plzOrt}`
+      : plzOrt || undefined;
 
     // Parse kaution data if available
     let kautionData;

@@ -2,12 +2,14 @@
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
+import { parsePlz } from '@/lib/address';
 
 // Update function signature to accept id as the first parameter
 // Define the expected fields and their types
 interface HouseData {
   name: string;
   ort: string;
+  plz?: number | null;
   strasse?: string | null;
   groesse: number | null;
   user_id?: string;
@@ -58,6 +60,15 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
 
+    // Process plz field
+    // An absent key leaves the stored PLZ untouched; an empty value clears it
+    const parsedPlz = parsePlz(formData.get("plz"));
+    if ('error' in parsedPlz) {
+      logAction(actionName, 'failed', { ...(id && { house_id: id }), error_message: parsedPlz.error });
+      return { success: false, error: { message: parsedPlz.error } };
+    }
+    const processedPlz = formData.has("plz") ? parsedPlz.value : undefined;
+
     // Get form data
     const name = formData.get('name')?.toString();
     const ort = formData.get('ort')?.toString() || '';
@@ -72,6 +83,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     const houseData: HouseData = {
       name,
       ort,
+      plz: processedPlz,
       strasse: formData.get('strasse')?.toString() || null,
       groesse: processedGroesse,
     };

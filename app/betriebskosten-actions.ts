@@ -2304,6 +2304,9 @@ async function getAbrechnungModalDataFallback(
       *,
       Haeuser (
         name,
+        strasse,
+        plz,
+        ort,
         groesse
       )
     `)
