@@ -321,7 +321,7 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
             contextMenuRefs.current.delete(house.id)
           }
         }}
-        className={`relative ${flags.canEdit ? 'cursor-pointer' : ''} transition-all duration-200 ease-out transform hover:scale-[1.005] active:scale-[0.998] ${isSelected
+        className={`relative transition-all duration-200 ease-out transform ${flags.canEdit ? 'cursor-pointer hover:scale-[1.005] active:scale-[0.998]' : ''} ${isSelected
           ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
           : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
         }`}

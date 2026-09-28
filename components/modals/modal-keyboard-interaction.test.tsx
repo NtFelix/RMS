@@ -24,20 +24,6 @@ jest.mock('@/components/common/summary-card', () => ({
   )
 }));
 
-jest.mock('@/components/apartments/apartment-tenant-row', () => ({
-  ApartmentTenantRow: ({ apartment }: { apartment: any }) => (
-    <div data-testid="apartment-tenant-row">{apartment.name}</div>
-  )
-}));
-
-jest.mock('@/components/apartments/apartment-tenant-row-context-menu', () => ({
-  ApartmentTenantRowContextMenu: () => <div data-testid="context-menu" />
-}));
-
-jest.mock('@/components/apartments/apartment-tenant-row-skeleton', () => ({
-  ApartmentTenantRowSkeleton: () => <div data-testid="skeleton" />
-}));
-
 describe('Modal Keyboard and Click Interactions', () => {
   const mockCloseWohnungOverview = jest.fn();
   const mockCloseApartmentTenantDetails = jest.fn();
@@ -247,5 +233,4 @@ describe('Modal Keyboard and Click Interactions', () => {
       expect(screen.getByText('Test Apartment')).toBeInTheDocument();
     });
   });
-
 });

@@ -54,6 +54,7 @@ export function HouseContextMenu({
 }: HouseContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
