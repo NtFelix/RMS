@@ -127,7 +127,7 @@ function ResizeHandle({
       )}
     >
       <div className={cn(
-        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-all duration-150 ease-in-out",
+        "absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-colors duration-150 ease-in-out",
         isResizing ? "bg-primary" : "bg-transparent group-hover/resize-handle:bg-primary/40"
       )} />
     </button>
@@ -247,7 +247,7 @@ function FormFields({
                 onChange={onFieldChange}
                 placeholder="Straße und Hausnummer"
                 disabled={isSubmitting}
-                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
               />
             </div>
 
@@ -265,7 +265,7 @@ function FormFields({
                 onChange={onFieldChange}
                 placeholder="Postleitzahl"
                 disabled={isSubmitting}
-                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
               />
             </div>
 
@@ -283,7 +283,7 @@ function FormFields({
                 onChange={onFieldChange}
                 placeholder="Stadt"
                 disabled={isSubmitting}
-                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
               />
             </div>
           </div>
@@ -334,7 +334,7 @@ function FormFields({
                     onChange={onManualGroesseChange}
                     disabled={isSubmitting}
                     placeholder="Manuelle Größe..."
-                    className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+                    className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
                   />
                 </div>
               </div>
