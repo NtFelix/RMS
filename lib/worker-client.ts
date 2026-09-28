@@ -83,7 +83,12 @@ type PdfTenantData = {
 type PdfNebenkostenItem = {
     startdatum: string;
     enddatum: string;
-    Haeuser?: { name: string } | null;
+    Haeuser?: {
+        name: string;
+        strasse?: string | null;
+        plz?: number | string | null;
+        ort?: string | null;
+    } | null;
     zaehlerkosten?: Record<string, number> | null;
     zaehlerverbrauch?: Record<string, number> | null;
     /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */

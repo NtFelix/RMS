@@ -41,6 +41,7 @@ interface House {
   id: string;
   name: string;
   strasse?: string;
+  plz?: number | string | null;
   ort: string;
   groesse?: number | null;
 }
@@ -48,6 +49,7 @@ interface House {
 interface HouseFormData {
   name: string;
   strasse: string;
+  plz: string;
   ort: string;
   groesse: number | null;
 }
@@ -252,6 +254,24 @@ function FormFields({
             <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
               <PropertyHeader
                 icon={MapPin}
+                label="PLZ"
+                htmlFor="plz"
+                infoText="Geben Sie die Postleitzahl des Hauses ein."
+              />
+              <Input
+                id="plz"
+                name="plz"
+                value={formData.plz}
+                onChange={onFieldChange}
+                placeholder="Postleitzahl"
+                disabled={isSubmitting}
+                className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
+              />
+            </div>
+
+            <div className="sm:grid sm:grid-cols-[140px_1fr] sm:items-center sm:gap-4 space-y-1 sm:space-y-0">
+              <PropertyHeader
+                icon={MapPin}
                 label="Ort"
                 htmlFor="ort"
                 infoText="Geben Sie den Ort des Hauses ein. Die Ortsangabe erscheint in den offiziellen Dokumenten."
@@ -261,7 +281,7 @@ function FormFields({
                 name="ort"
                 value={formData.ort}
                 onChange={onFieldChange}
-                placeholder="PLZ und Stadt"
+                placeholder="Stadt"
                 disabled={isSubmitting}
                 className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-all h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
               />
@@ -505,6 +525,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const [formData, setFormData] = useState<HouseFormData>({
     name: "",
     strasse: "",
+    plz: "",
     ort: "",
     groesse: null,
   });
@@ -515,6 +536,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
         setFormData({
           name: houseInitialData.name,
           strasse: houseInitialData.strasse || "",
+          plz: houseInitialData.plz != null ? String(houseInitialData.plz) : "",
           ort: houseInitialData.ort,
           groesse: houseInitialData.groesse ?? null,
         });
@@ -526,7 +548,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
           setManualGroesse('');
         }
       } else {
-        setFormData({ name: "", strasse: "", ort: "", groesse: null });
+        setFormData({ name: "", strasse: "", plz: "", ort: "", groesse: null });
         setAutomaticSize(true);
         setManualGroesse('');
       }
@@ -612,6 +634,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
     const form = new FormData();
     form.append("name", formData.name);
     form.append("strasse", formData.strasse);
+    form.append("plz", formData.plz);
     form.append("ort", formData.ort);
 
     if (automaticSize) {

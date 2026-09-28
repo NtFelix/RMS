@@ -8,6 +8,7 @@ import { logAction } from '@/lib/logging-middleware';
 interface HouseData {
   name: string;
   ort: string;
+  plz?: number | null;
   strasse?: string | null;
   groesse: number | null;
   user_id?: string;
@@ -58,6 +59,16 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
 
+    // Process plz field
+    const plzValue = formData.get("plz");
+    let processedPlz: number | null = null;
+    if (typeof plzValue === 'string' && plzValue.trim() !== '') {
+      const num = parseInt(plzValue.trim(), 10);
+      if (!isNaN(num)) {
+        processedPlz = num;
+      }
+    }
+
     // Get form data
     const name = formData.get('name')?.toString();
     const ort = formData.get('ort')?.toString() || '';
@@ -72,6 +83,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     const houseData: HouseData = {
       name,
       ort,
+      plz: processedPlz,
       strasse: formData.get('strasse')?.toString() || null,
       groesse: processedGroesse,
     };

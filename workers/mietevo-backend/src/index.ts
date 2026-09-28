@@ -93,7 +93,12 @@ interface TenantData {
 interface NebenkostenItem {
     startdatum: string;
     enddatum: string;
-    Haeuser?: { name: string };
+    Haeuser?: {
+        name: string;
+        strasse?: string | null;
+        plz?: number | string | null;
+        ort?: string | null;
+    };
     zaehlerkosten?: Record<string, number>;
     zaehlerverbrauch?: Record<string, number>;
     /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */
@@ -176,9 +181,26 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     startY += 12;
 
     // 3. Objekt & Mieter
-    const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
-    doc.text(propertyDetails, 20, startY);
-    startY += 5.5;
+    const street = nebenkostenItem.Haeuser?.strasse?.trim();
+    const rawPlz = nebenkostenItem.Haeuser?.plz;
+    const plz = rawPlz != null && String(rawPlz).trim() !== '' ? String(rawPlz).trim() : '';
+    const ort = nebenkostenItem.Haeuser?.ort?.trim();
+    const plzOrt = [plz, ort].filter(Boolean).join(' ');
+    const houseName = nebenkostenItem.Haeuser?.name?.trim();
+
+    const addressParts: string[] = [];
+    if (street) addressParts.push(street);
+    if (plzOrt) addressParts.push(plzOrt);
+    if (houseName) addressParts.push(houseName);
+    else if (addressParts.length === 0) addressParts.push('N/A');
+
+    if (tenantData.apartmentName) addressParts.push(tenantData.apartmentName);
+    if (tenantData.apartmentSize != null) addressParts.push(`${tenantData.apartmentSize} qm`);
+
+    const propertyDetails = `Objekt: ${addressParts.join(', ')}`;
+    const propertyLines = doc.splitTextToSize(propertyDetails, tableWidth);
+    doc.text(propertyLines, 20, startY);
+    startY += propertyLines.length * 5.5;
 
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);

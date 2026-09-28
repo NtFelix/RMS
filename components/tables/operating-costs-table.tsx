@@ -666,7 +666,8 @@ export function OperatingCostsTable({
             if (!selectedHaus) {
               return "Platzhalter Adresse";
             }
-            const addressParts = [selectedHaus.strasse, selectedHaus.ort].filter(Boolean);
+            const plzOrt = [selectedHaus.plz, selectedHaus.ort].filter(Boolean).join(' ');
+            const addressParts = [selectedHaus.strasse, plzOrt].filter(Boolean);
             return addressParts.length > 0 ? addressParts.join(', ') : "Platzhalter Adresse";
           })()}
         />

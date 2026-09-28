@@ -15,6 +15,7 @@ export type Wohnung = {
 export type Haus = {
     id: string;
     ort: string | null;
+    plz?: number | null;
     name: string;
     erstellt_von: string;
     strasse: string | null;
@@ -67,7 +68,12 @@ export type Nebenkosten = {
     zaehlerverbrauch: Record<string, number> | null;
     haeuser_id: string;
     erstellt_von: string;
-    Haeuser?: { name: string } | null;
+    Haeuser?: {
+        name: string;
+        strasse?: string | null;
+        plz?: number | string | null;
+        ort?: string | null;
+    } | null;
     Rechnungen?: RechnungSql[] | null;
     gesamtFlaeche?: number;
     anzahlWohnungen?: number;

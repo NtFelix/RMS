@@ -177,6 +177,42 @@ describe('Backend Worker Tests', () => {
             expect(text).not.toContain('Rechenbasis: Jeder Monat');
         });
 
+        it('should format object address with street, plz + ort, and object name in single-tenant PDF', async () => {
+            const request = new Request('https://worker.com/export', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'pdf',
+                    tenantData: {
+                        tenantName: 'Erika Musterfrau',
+                        apartmentName: 'Wohnung 2',
+                        apartmentSize: 60,
+                        costItems: [],
+                        waterCost: { tenantShare: 0, consumption: 0 }
+                    },
+                    nebenkostenItem: {
+                        startdatum: '2026-01-01',
+                        enddatum: '2026-12-31',
+                        Haeuser: {
+                            name: 'Haus Sonnenschein',
+                            strasse: 'Hauptstraße 10',
+                            plz: 10115,
+                            ort: 'Berlin'
+                        }
+                    },
+                    ownerName: 'Owner',
+                    ownerAddress: 'Vermieterweg 5, 20095 Hamburg',
+                    filename: 'test.pdf'
+                })
+            });
+
+            const { response, text } = await collectPdfText(() =>
+                handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext)
+            );
+
+            expect(response.status).toBe(200);
+            expect(text).toContain('Objekt: Hauptstraße 10, 10115 Berlin, Haus Sonnenschein, Wohnung 2, 60 qm');
+        });
+
         it('should add the 360-day basis texts to the single-tenant PDF for rechenbasis 360_tage', async () => {
             const request = new Request('https://worker.com/export', {
                 method: 'POST',

@@ -63,6 +63,7 @@ describe('House Actions', () => {
         const formData = new FormData();
         formData.append('name', 'Test House');
         formData.append('ort', 'Berlin');
+        formData.append('plz', '10115');
         formData.append('strasse', 'Test Street 1');
         formData.append('groesse', '150.5');
 
@@ -76,12 +77,33 @@ describe('House Actions', () => {
         expect(builder.insert).toHaveBeenCalledWith({
           name: 'Test House',
           ort: 'Berlin',
+          plz: 10115,
           strasse: 'Test Street 1',
           groesse: 150.5,
         });
         expect(builder.select).toHaveBeenCalledWith('id');
         expect(builder.single).toHaveBeenCalled();
         expect(mockRevalidatePath).toHaveBeenCalledWith('/haeuser');
+        expect(result).toEqual({ success: true });
+      });
+
+      it('creates house with null plz when plz is not provided', async () => {
+        const formData = new FormData();
+        formData.append('name', 'Test House No PLZ');
+        formData.append('ort', 'Berlin');
+
+        const builder = mockSupabase.from();
+        builder.single.mockResolvedValue({ data: { id: 'new-uuid' }, error: null });
+
+        const result = await handleSubmit(null, formData);
+
+        expect(builder.insert).toHaveBeenCalledWith({
+          name: 'Test House No PLZ',
+          ort: 'Berlin',
+          plz: null,
+          strasse: null,
+          groesse: null,
+        });
         expect(result).toEqual({ success: true });
       });
 
@@ -111,6 +133,7 @@ describe('House Actions', () => {
         const formData = new FormData();
         formData.append('name', 'Updated House');
         formData.append('ort', 'Hamburg');
+        formData.append('plz', '20095');
         formData.append('strasse', 'Updated Street 2');
         formData.append('groesse', '200');
 
@@ -120,6 +143,7 @@ describe('House Actions', () => {
         expect(builder.update).toHaveBeenCalledWith({
           name: 'Updated House',
           ort: 'Hamburg',
+          plz: 20095,
           strasse: 'Updated Street 2',
           groesse: 200,
         });

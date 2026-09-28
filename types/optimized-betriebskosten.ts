@@ -40,7 +40,12 @@ export type OptimizedNebenkosten = {
   anzahl_mieter: number;
 
   // Compatibility fields for existing components
-  Haeuser?: { name: string } | null;
+  Haeuser?: {
+    name: string;
+    strasse?: string | null;
+    plz?: number | string | null;
+    ort?: string | null;
+  } | null;
   gesamtFlaeche?: number;
   anzahlWohnungen?: number;
   anzahlMieter?: number;
