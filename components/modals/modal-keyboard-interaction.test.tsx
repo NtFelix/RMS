@@ -8,9 +8,6 @@ import { ApartmentTenantDetailsModal } from '@/components/apartments/apartment-t
 jest.mock('@/hooks/use-modal-store');
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
-// Mock fetch for API calls
-global.fetch = jest.fn();
-
 // Mock format utilities
 jest.mock('@/utils/format', () => ({
   formatCurrency: (value: number) => `€${value}`,
