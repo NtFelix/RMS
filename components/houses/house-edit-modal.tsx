@@ -22,9 +22,9 @@ import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb, Eye, Trash2, type LucideIcon } from "lucide-react";
+import { Building2, MapPin, Ruler, Info, Home, MoreHorizontal, Lightbulb, Trash2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CustomDropdown, CustomDropdownItem, CustomDropdownSeparator } from "@/components/ui/custom-dropdown";
+import { CustomDropdown, CustomDropdownItem } from "@/components/ui/custom-dropdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -138,11 +138,9 @@ function ResizeHandle({
 
 function TopBar({
   houseInitialData,
-  onOverviewClick,
   onDeleteRequest,
 }: {
   houseInitialData: House | null;
-  onOverviewClick: () => void;
   onDeleteRequest: () => void;
 }) {
   if (!houseInitialData) return null;
@@ -162,11 +160,6 @@ function TopBar({
         }
         align="end"
       >
-        <CustomDropdownItem onClick={onOverviewClick}>
-          <Eye className="h-4 w-4 mr-2" />
-          <span>Übersicht</span>
-        </CustomDropdownItem>
-        <CustomDropdownSeparator />
         <CustomDropdownItem onClick={onDeleteRequest} className="text-red-600 focus:text-red-600">
           <Trash2 className="h-4 w-4 mr-2" />
           <span>Löschen</span>
@@ -523,7 +516,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
     houseModalOnSuccess,
     isHouseModalDirty,
     setHouseModalDirty,
-    openHausOverviewModal,
   } = useModalStore();
 
   const [formData, setFormData] = useState<HouseFormData>({
@@ -720,7 +712,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
 
         <TopBar
           houseInitialData={houseInitialData}
-          onOverviewClick={() => houseInitialData && openHausOverviewModal(houseInitialData.id)}
           onDeleteRequest={handleDeleteStart}
         />
 

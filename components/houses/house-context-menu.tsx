@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, Eye, Home, Trash2 } from "lucide-react"
+import { Edit, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
-import { useModalStore } from "@/hooks/use-modal-store"
 import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 export interface House {
@@ -55,14 +54,6 @@ export function HouseContextMenu({
 }: HouseContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
-  const { openHausOverviewModal } = useModalStore()
-
-  const handleOverview = () => {
-    setTimeout(() => {
-      openHausOverviewModal(house.id);
-    }, 0);
-  };
-
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
@@ -106,10 +97,6 @@ export function HouseContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={handleOverview} className="flex items-center gap-2 cursor-pointer">
-            <Eye className="h-4 w-4" />
-            <span>Übersicht</span>
-          </ContextMenuItem>
           <ContextMenuItem 
             onClick={() => {
               setTimeout(() => {
