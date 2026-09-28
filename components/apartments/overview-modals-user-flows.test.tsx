@@ -1,27 +1,11 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 import { useModalStore } from '@/hooks/use-modal-store'
-import type { ModalState } from '@/hooks/use-modal-store'
 import { ApartmentTenantDetailsModal } from '@/components/apartments/apartment-tenant-details-modal'
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store')
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
-
-// Define the mock store type
-type MockModalStore = Partial<{
-  [K in keyof ModalState]: ModalState[K] extends (...args: any[]) => any 
-    ? jest.Mock<ReturnType<ModalState[K]>, Parameters<ModalState[K]>> 
-    : ModalState[K];
-}> & {
-  // Add any additional mock functions not in ModalState
-  [key: string]: unknown;
-};
-
-// Mock fetch for API calls
-global.fetch = jest.fn()
-const mockFetch = fetch as jest.MockedFunction<typeof fetch>
 
 // Mock format utilities
 jest.mock('@/utils/format', () => ({
@@ -35,25 +19,6 @@ jest.mock('@/hooks/use-toast', () => ({
 }))
 
 describe('Overview Modals User Flows', () => {
-  const mockWohnungData = {
-    id: '1',
-    name: 'Wohnung 1A',
-    groesse: 75,
-    miete: 1200,
-    hausName: 'Test Haus',
-    mieter: [
-      {
-        id: '1',
-        name: 'Max Mustermann',
-        email: 'max@example.com',
-        telefon: '+49123456789',
-        einzug: '2023-01-01',
-        auszug: null,
-        status: 'active' as const,
-      },
-    ],
-  }
-
   const mockApartmentTenantDetails = {
     apartment: {
       id: '1',
@@ -108,14 +73,6 @@ describe('Overview Modals User Flows', () => {
     mockUseModalStore.mockImplementation(
       () => mockModalStore as unknown as ReturnType<typeof useModalStore>
     )
-    mockFetch.mockClear()
-  })
-
-  describe('Modal Store Integration', () => {
-    it('calls modal store functions correctly', () => {
-      // Test that modal store functions are available
-      expect(mockModalStore.openApartmentTenantDetailsModal).toBeDefined()
-    })
   })
 
   describe('Details Modal Integration', () => {

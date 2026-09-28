@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { useModalStore } from '@/hooks/use-modal-store';
 
 // Mock the async server component layout and inner layout to render modals directly

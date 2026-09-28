@@ -1,15 +1,11 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { WohnungOverviewModal } from '@/components/apartments/wohnung-overview-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store');
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
-
-// Mock fetch
-global.fetch = jest.fn();
-const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
 // Mock toast
 jest.mock('@/hooks/use-toast', () => ({
