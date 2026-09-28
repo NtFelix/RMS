@@ -125,6 +125,56 @@ export async function timed<T>(name: string, fn: () => Promise<T>, attributes?: 
     }
 }
 
+export type ActionStatus = 'success' | 'failed' | 'error';
+
+/**
+ * Record one server action run as `server_action.duration` (ms), tagged with the
+ * action name and outcome. The action name must be a fixed string, never user input.
+ */
+export function recordActionDuration(action: string, durationMs: number, status: ActionStatus): void {
+    histogram('server_action.duration', durationMs, { action, status }, { unit: 'ms' });
+}
+
+/**
+ * Time a server action. `success: false` results (the repo's error convention) are
+ * recorded as `failed`; thrown errors as `error` and rethrown unchanged.
+ */
+export async function timedAction<T>(action: string, fn: () => Promise<T>): Promise<T> {
+    const start = performance.now();
+    let status: ActionStatus = 'success';
+    try {
+        const result = await fn();
+        if ((result as { success?: unknown } | null)?.success === false) status = 'failed';
+        return result;
+    } catch (error) {
+        status = 'error';
+        throw error;
+    } finally {
+        recordActionDuration(action, performance.now() - start, status);
+    }
+}
+
+/**
+ * Record one call to the Cloudflare backend worker. `generationMs` and `pages` come
+ * from the worker's own X-PDF-Generation-Time / X-PDF-Page-Count response headers.
+ */
+export function recordWorkerCall(
+    attrs: { type: string; template: string; status: 'ok' | 'error' },
+    roundTripMs: number,
+    generationMs?: number,
+    pages?: number,
+): void {
+    count('worker.requests', 1, attrs);
+    histogram('worker.request.duration', roundTripMs, attrs, { unit: 'ms' });
+    if (generationMs !== undefined && Number.isFinite(generationMs)) {
+        histogram('worker.pdf.generation.duration', generationMs, { type: attrs.type, template: attrs.template }, { unit: 'ms' });
+    }
+    // The worker sends "0" for non-PDF responses (CSV, ZIP), which would only skew the distribution.
+    if (pages !== undefined && Number.isFinite(pages) && pages > 0) {
+        histogram('worker.pdf.pages', pages, { type: attrs.type, template: attrs.template }, { unit: 'pages' });
+    }
+}
+
 /** Force-export pending metrics (short-lived scripts, before process exit). */
 export async function flushMetrics(): Promise<void> {
     await meterProvider?.forceFlush();
@@ -140,5 +190,5 @@ export async function shutdownMetrics(): Promise<void> {
     await provider.shutdown();
 }
 
-export const posthogMetrics = { count, gauge, histogram, timed, flush: flushMetrics };
+export const posthogMetrics = { count, gauge, histogram, timed, timedAction, recordActionDuration, recordWorkerCall, flush: flushMetrics };
 export default posthogMetrics;

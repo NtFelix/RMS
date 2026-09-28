@@ -6,6 +6,7 @@
  */
 
 import { posthogLogger } from './posthog-logger';
+import { recordActionDuration } from './posthog-metrics';
 import {
     LogAttributes,
     POSTHOG_API_KEY,
@@ -153,6 +154,8 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
             const result = await action(...args);
             const duration = Date.now() - startTime;
 
+            recordActionDuration(actionName, duration, result.success ? 'success' : 'failed');
+
             // Log based on result
             if (result.success) {
                 posthogLogger.info(`Action completed: ${actionName}`, {
@@ -172,6 +175,7 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
             return result;
         } catch (error: any) {
             const duration = Date.now() - startTime;
+            recordActionDuration(actionName, duration, 'error');
 
             // Log unexpected error
             posthogLogger.error(`Action error: ${actionName}`, {

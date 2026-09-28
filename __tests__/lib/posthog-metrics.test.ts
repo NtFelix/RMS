@@ -28,7 +28,17 @@ jest.mock('@/lib/otlp-utils', () => ({
   POSTHOG_HOST: 'https://eu.i.posthog.com/',
 }))
 
-import { count, gauge, histogram, timed, getMetricsEndpoint, initMetrics, flushMetrics } from '@/lib/posthog-metrics'
+import {
+  count,
+  gauge,
+  histogram,
+  timed,
+  timedAction,
+  recordWorkerCall,
+  getMetricsEndpoint,
+  initMetrics,
+  flushMetrics,
+} from '@/lib/posthog-metrics'
 
 describe('posthog-metrics', () => {
   beforeEach(() => jest.clearAllMocks())
@@ -62,6 +72,35 @@ describe('posthog-metrics', () => {
   it('timed records error status and rethrows', async () => {
     await expect(timed('op.fail', async () => { throw new Error('boom') })).rejects.toThrow('boom')
     expect(record).toHaveBeenCalledWith(expect.any(Number), { status: 'error' })
+  })
+
+  it('timedAction records success for successful results', async () => {
+    await timedAction('someAction', async () => ({ success: true }))
+    expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'someAction', status: 'success' })
+  })
+
+  it('timedAction records failed for success:false results and returns them', async () => {
+    const result = { success: false, message: 'nope' }
+    await expect(timedAction('someAction', async () => result)).resolves.toBe(result)
+    expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'someAction', status: 'failed' })
+  })
+
+  it('timedAction records error and rethrows', async () => {
+    await expect(timedAction('someAction', async () => { throw new Error('boom') })).rejects.toThrow('boom')
+    expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'someAction', status: 'error' })
+  })
+
+  it('recordWorkerCall records request, generation time and page count', () => {
+    recordWorkerCall({ type: 'pdf', template: 'none', status: 'ok' }, 900, 120, 3)
+    expect(add).toHaveBeenCalledWith(1, { type: 'pdf', template: 'none', status: 'ok' })
+    expect(record).toHaveBeenCalledWith(900, { type: 'pdf', template: 'none', status: 'ok' })
+    expect(record).toHaveBeenCalledWith(120, { type: 'pdf', template: 'none' })
+    expect(record).toHaveBeenCalledWith(3, { type: 'pdf', template: 'none' })
+  })
+
+  it('recordWorkerCall skips missing generation time and zero page counts', () => {
+    recordWorkerCall({ type: 'csv', template: 'none', status: 'ok' }, 50, undefined, 0)
+    expect(record).toHaveBeenCalledTimes(1)
   })
 
   it('init is a no-op without a project token and flush does not throw', async () => {

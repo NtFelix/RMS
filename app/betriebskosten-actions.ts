@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
 import { logAction } from '@/lib/logging-middleware';
+import { timedAction } from '@/lib/posthog-metrics';
 import { type SupabaseClient } from "@supabase/supabase-js";
 
 // Import optimized types from centralized location
@@ -588,12 +589,11 @@ export async function fetchOptimizedNebenkostenById(id: string): Promise<{ succe
   }
 }
 
-export async function getNebenkostenDetailsAction(id: string): Promise<{
+async function getNebenkostenDetailsActionImpl(id: string): Promise<{
   success: boolean;
   data?: Nebenkosten | null;
   message?: string;
 }> {
-  "use server";
   try {
     let user, supabase;
     try {
@@ -1427,8 +1427,7 @@ export async function saveMeterReadingsOptimized(
  * @see {@link docs/database-functions.md#get_nebenkosten_with_metrics} Database function documentation
  * @see {@link .kiro/specs/betriebskosten-performance-optimization/design.md} Performance optimization design
  */
-export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
-  "use server";
+async function fetchNebenkostenListOptimizedImpl(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
 
   let user, supabase;
   try {
@@ -1637,10 +1636,9 @@ export async function getLatestBetriebskostenByHausId(hausId: string) {
   }
 }
 
-export async function getMeterModalDataAction(
+async function getMeterModalDataActionImpl(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<MeterModalData[]>> {
-  "use server";
 
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to getWasserzaehlerModalDataAction', {
@@ -2087,10 +2085,9 @@ async function resolveActualPaymentsData(
  * @see {@link docs/database-functions.md#get_abrechnung_modal_data} Database function documentation
  * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
-export async function getAbrechnungModalDataAction(
+async function getAbrechnungModalDataActionImpl(
   nebenkostenId: string
 ): Promise<OptimizedActionResponse<AbrechnungModalData>> {
-  "use server";
 
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to getAbrechnungModalDataAction', {
@@ -2546,7 +2543,7 @@ function detectMissingPrepaymentSchedules(
   return warning;
 }
 
-export async function createAbrechnungCalculationAction(
+async function createAbrechnungCalculationActionImpl(
   nebenkostenId: string,
   options: {
     includeRecommendations?: boolean;
@@ -2555,7 +2552,6 @@ export async function createAbrechnungCalculationAction(
     prepaymentMode?: 'scheduled' | 'actual';
   } = {}
 ): Promise<OptimizedActionResponse<AbrechnungCalculationResult>> {
-  "use server";
 
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to createAbrechnungCalculationAction', {
@@ -2788,7 +2784,7 @@ export async function createAbrechnungCalculationAction(
  * @param {AbrechnungCalculationOptions} options - Calculation options
  * @returns {Promise<OptimizedActionResponse<AbrechnungCalculationResult>>} Complete calculation results
  */
-export async function createAbrechnungCalculationOptimizedAction(
+async function createAbrechnungCalculationOptimizedActionImpl(
   nebenkostenId: string,
   options: {
     includeRecommendations?: boolean;
@@ -2797,7 +2793,6 @@ export async function createAbrechnungCalculationOptimizedAction(
     prepaymentMode?: 'scheduled' | 'actual';
   } = {}
 ): Promise<OptimizedActionResponse<AbrechnungCalculationResult>> {
-  "use server";
 
   if (!nebenkostenId || nebenkostenId.trim() === '') {
     logger.warn('Invalid nebenkosten ID provided to createAbrechnungCalculationOptimizedAction', {
@@ -3039,5 +3034,46 @@ export async function createAbrechnungCalculationOptimizedAction(
       message: userMessage
     };
   }
+}
+
+// --- Timed server actions -------------------------------------------------------------------
+// Public entry points for the heaviest actions. Each records `server_action.duration` in PostHog
+// Metrics (see lib/posthog-metrics.ts). Nested calls (e.g. the Optimized calculation delegating to
+// the plain one) are timed at each level, so their durations overlap by design.
+
+export async function getNebenkostenDetailsAction(
+  ...args: Parameters<typeof getNebenkostenDetailsActionImpl>
+): ReturnType<typeof getNebenkostenDetailsActionImpl> {
+  return timedAction('getNebenkostenDetailsAction', () => getNebenkostenDetailsActionImpl(...args));
+}
+
+export async function fetchNebenkostenListOptimized(
+  ...args: Parameters<typeof fetchNebenkostenListOptimizedImpl>
+): ReturnType<typeof fetchNebenkostenListOptimizedImpl> {
+  return timedAction('fetchNebenkostenListOptimized', () => fetchNebenkostenListOptimizedImpl(...args));
+}
+
+export async function getMeterModalDataAction(
+  ...args: Parameters<typeof getMeterModalDataActionImpl>
+): ReturnType<typeof getMeterModalDataActionImpl> {
+  return timedAction('getMeterModalDataAction', () => getMeterModalDataActionImpl(...args));
+}
+
+export async function getAbrechnungModalDataAction(
+  ...args: Parameters<typeof getAbrechnungModalDataActionImpl>
+): ReturnType<typeof getAbrechnungModalDataActionImpl> {
+  return timedAction('getAbrechnungModalDataAction', () => getAbrechnungModalDataActionImpl(...args));
+}
+
+export async function createAbrechnungCalculationAction(
+  ...args: Parameters<typeof createAbrechnungCalculationActionImpl>
+): ReturnType<typeof createAbrechnungCalculationActionImpl> {
+  return timedAction('createAbrechnungCalculationAction', () => createAbrechnungCalculationActionImpl(...args));
+}
+
+export async function createAbrechnungCalculationOptimizedAction(
+  ...args: Parameters<typeof createAbrechnungCalculationOptimizedActionImpl>
+): ReturnType<typeof createAbrechnungCalculationOptimizedActionImpl> {
+  return timedAction('createAbrechnungCalculationOptimizedAction', () => createAbrechnungCalculationOptimizedActionImpl(...args));
 }
 
