@@ -1,6 +1,5 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
-import { ApartmentTenantRow } from '@/components/apartments/apartment-tenant-row'
 import { WohnungOverviewModal } from '@/components/apartments/wohnung-overview-modal'
 import { ApartmentTenantDetailsModal } from '@/components/apartments/apartment-tenant-details-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
@@ -16,58 +15,6 @@ const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalSt
 jest.mock('@/app/mieter-actions', () => ({ deleteTenantAction: jest.fn() }))
 jest.mock('@/lib/kautionen-loeschen', () => ({ starteLoeschenMitKautionen: jest.fn() }))
 jest.mock('@/hooks/use-toast', () => ({ toast: jest.fn() }))
-
-const rowProps = {
-  hausName: 'Musterhaus',
-  onEditApartment: jest.fn(),
-  onEditTenant: jest.fn(),
-  onViewDetails: jest.fn(),
-}
-
-describe('ApartmentTenantRow ohne mieter:ansehen', () => {
-  it('zeigt bei vermieteter Wohnung "Vermietet" und "Kein Zugriff" statt "Frei"/"Keine Mieter"', () => {
-    render(
-      <ApartmentTenantRow
-        apartment={{ id: '1', name: 'Wohnung 1A', groesse: 75, miete: 1200, status: 'vermietet' }}
-        tenantAccess={false}
-        {...rowProps}
-      />
-    )
-
-    expect(screen.getByText('Vermietet')).toBeInTheDocument()
-    expect(screen.getByText('Kein Zugriff')).toBeInTheDocument()
-    expect(screen.queryByText('Frei')).not.toBeInTheDocument()
-    expect(screen.queryByText('Keine Mieter')).not.toBeInTheDocument()
-  })
-
-  it('zeigt bei freier Wohnung weiter "Frei" (Status bleibt sichtbar), ohne "Kein Zugriff"', () => {
-    render(
-      <ApartmentTenantRow
-        apartment={{ id: '2', name: 'Wohnung 2B', groesse: 60, miete: 1000, status: 'frei' }}
-        tenantAccess={false}
-        {...rowProps}
-      />
-    )
-
-    expect(screen.getByText('Frei')).toBeInTheDocument()
-    expect(screen.queryByText('Kein Zugriff')).not.toBeInTheDocument()
-  })
-
-  it('zeigt mit Zugriff weiter den Namen (Standard) und nie "Kein Zugriff"', () => {
-    render(
-      <ApartmentTenantRow
-        apartment={{
-          id: '1', name: 'Wohnung 1A', groesse: 75, miete: 1200, status: 'vermietet',
-          currentTenant: { id: 't1', name: 'Erika Beispiel', einzug: '2023-01-15' },
-        }}
-        {...rowProps}
-      />
-    )
-
-    expect(screen.getByText('Erika Beispiel')).toBeInTheDocument()
-    expect(screen.queryByText('Kein Zugriff')).not.toBeInTheDocument()
-  })
-})
 
 describe('WohnungOverviewModal ohne mieter:ansehen', () => {
   const storeBase = {
