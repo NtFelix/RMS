@@ -2,7 +2,7 @@
 import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
-import { PLZ_PATTERN } from '@/lib/address';
+import { parsePlz } from '@/lib/address';
 
 // Update function signature to accept id as the first parameter
 // Define the expected fields and their types
@@ -61,17 +61,12 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     }
 
     // Process plz field
-    const plzValue = formData.get("plz");
-    let processedPlz: number | null = null;
-    if (typeof plzValue === 'string' && plzValue.trim() !== '') {
-      if (!PLZ_PATTERN.test(plzValue.trim())) {
-        const message = 'Die Postleitzahl muss aus genau 5 Ziffern bestehen.';
-        logAction(actionName, 'failed', { ...(id && { house_id: id }), error_message: message });
-        return { success: false, error: { message } };
-      }
-      // The DB column is numeric, so leading zeros are restored when formatting (see formatPlzOrt)
-      processedPlz = Number(plzValue.trim());
+    const parsedPlz = parsePlz(formData.get("plz"));
+    if ('error' in parsedPlz) {
+      logAction(actionName, 'failed', { ...(id && { house_id: id }), error_message: parsedPlz.error });
+      return { success: false, error: { message: parsedPlz.error } };
     }
+    const processedPlz = parsedPlz.value;
 
     // Get form data
     const name = formData.get('name')?.toString();

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { formatNumber } from "@/utils/format"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
-import { PLZ_PATTERN } from "@/lib/address"
+import { parsePlz } from "@/lib/address"
 
 export async function POST(request: Request) {
   try {
@@ -17,13 +17,15 @@ export async function POST(request: Request) {
         headers: NO_CACHE_HEADERS
       })
     }
-    if (plz != null && plz !== '' && !PLZ_PATTERN.test(String(plz))) {
-      return NextResponse.json({ error: "Die Postleitzahl muss aus genau 5 Ziffern bestehen." }, {
+    const parsedPlz = parsePlz(plz)
+    if ('error' in parsedPlz) {
+      return NextResponse.json({ error: parsedPlz.error }, {
         status: 400,
         headers: NO_CACHE_HEADERS
       })
     }
-    const plzValue = plz != null && plz !== '' ? Number(plz) : undefined
+    // Absent key leaves the stored PLZ untouched; an explicit null/'' clears it
+    const plzValue = plz === undefined ? undefined : parsedPlz.value
     const { data, error } = await supabase.from('Haeuser').insert({ name, strasse, ort, plz: plzValue })
     if (error) {
       console.error("Supabase Insert Error:", error)
@@ -223,13 +225,15 @@ export async function PUT(request: Request) {
         headers: NO_CACHE_HEADERS
       })
     }
-    if (plz != null && plz !== '' && !PLZ_PATTERN.test(String(plz))) {
-      return NextResponse.json({ error: "Die Postleitzahl muss aus genau 5 Ziffern bestehen." }, {
+    const parsedPlz = parsePlz(plz)
+    if ('error' in parsedPlz) {
+      return NextResponse.json({ error: parsedPlz.error }, {
         status: 400,
         headers: NO_CACHE_HEADERS
       })
     }
-    const plzValue = plz != null && plz !== '' ? Number(plz) : undefined
+    // Absent key leaves the stored PLZ untouched; an explicit null/'' clears it
+    const plzValue = plz === undefined ? undefined : parsedPlz.value
 
     if (!(await verifyEntityInScope(id))) {
       return NextResponse.json({ error: "Permission denied" }, { 

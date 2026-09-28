@@ -181,19 +181,15 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     startY += 12;
 
     // 3. Objekt & Mieter
-    const street = nebenkostenItem.Haeuser?.strasse?.trim();
-    const plzOrt = formatPlzOrt(nebenkostenItem.Haeuser?.plz, nebenkostenItem.Haeuser?.ort);
-    const houseName = nebenkostenItem.Haeuser?.name?.trim();
-
-    // House name first (as before), followed by the address when available
-    const addressParts: string[] = [];
-    if (houseName) addressParts.push(houseName);
-    if (street) addressParts.push(street);
-    if (plzOrt) addressParts.push(plzOrt);
-    if (addressParts.length === 0) addressParts.push('N/A');
-
-    if (tenantData.apartmentName) addressParts.push(tenantData.apartmentName);
-    if (tenantData.apartmentSize != null) addressParts.push(`${tenantData.apartmentSize} qm`);
+    // House name first, followed by the address when available
+    const haus = nebenkostenItem.Haeuser;
+    const objekt = [haus?.name?.trim(), haus?.strasse?.trim(), formatPlzOrt(haus?.plz, haus?.ort)]
+        .filter(Boolean).join(', ') || 'N/A';
+    const addressParts = [
+        objekt,
+        tenantData.apartmentName,
+        tenantData.apartmentSize != null ? `${tenantData.apartmentSize} qm` : '',
+    ].filter(Boolean);
 
     const propertyDetails = `Objekt: ${addressParts.join(', ')}`;
     const propertyLines = doc.splitTextToSize(propertyDetails, tableWidth);

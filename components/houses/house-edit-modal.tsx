@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
-import { PLZ_PATTERN } from "@/lib/address";
+import { padPlz, parsePlz } from "@/lib/address";
 
 interface House {
   id: string;
@@ -266,7 +266,6 @@ function FormFields({
                 onChange={onFieldChange}
                 inputMode="numeric"
                 maxLength={5}
-                pattern="\d{5}"
                 placeholder="Postleitzahl"
                 disabled={isSubmitting}
                 className="bg-transparent border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-muted/10 focus:bg-muted/20 px-2 py-1 -mx-2 rounded-lg transition-colors h-auto text-sm focus-visible:scale-100 hover:border-transparent focus:border-transparent"
@@ -540,7 +539,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
         setFormData({
           name: houseInitialData.name,
           strasse: houseInitialData.strasse || "",
-          plz: houseInitialData.plz != null ? String(houseInitialData.plz).padStart(5, "0") : "",
+          plz: padPlz(houseInitialData.plz),
           ort: houseInitialData.ort,
           groesse: houseInitialData.groesse ?? null,
         });
@@ -633,11 +632,11 @@ export function HouseEditModal(props: HouseEditModalProps) {
       return;
     }
 
-    const trimmedPlz = formData.plz.trim();
-    if (trimmedPlz !== '' && !PLZ_PATTERN.test(trimmedPlz)) {
+    const parsedPlz = parsePlz(formData.plz);
+    if ('error' in parsedPlz) {
       toast({
         title: "Eingabefehler",
-        description: "Die Postleitzahl muss aus genau 5 Ziffern bestehen.",
+        description: parsedPlz.error,
         variant: "destructive",
       });
       return;
@@ -648,7 +647,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
     const form = new FormData();
     form.append("name", formData.name);
     form.append("strasse", formData.strasse);
-    form.append("plz", trimmedPlz);
+    form.append("plz", formData.plz.trim());
     form.append("ort", formData.ort);
 
     if (automaticSize) {
