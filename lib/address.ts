@@ -8,7 +8,8 @@ export const PLZ_ERROR = 'Die Postleitzahl muss aus genau 5 Ziffern bestehen.';
  * so a valid PLZ is returned as a number; leading zeros are restored by `padPlz`/`formatPlzOrt`.
  */
 export function parsePlz(raw: unknown): { value: number | null } | { error: string } {
-  const trimmed = raw == null ? '' : String(raw).trim();
+  // Numbers come from the numeric DB column (e.g. a GET result), so their leading zero is restored first
+  const trimmed = typeof raw === 'number' ? padPlz(raw) : raw == null ? '' : String(raw).trim();
   if (trimmed === '') return { value: null };
   return PLZ_PATTERN.test(trimmed) ? { value: Number(trimmed) } : { error: PLZ_ERROR };
 }

@@ -632,7 +632,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
       return;
     }
 
-    const parsedPlz = parsePlz(formData.plz);
+    // Only validate (and send) the PLZ when it was changed, so houses with a legacy value can still be saved
+    const plzChanged = formData.plz.trim() !== padPlz(houseInitialData?.plz);
+    const parsedPlz = plzChanged ? parsePlz(formData.plz) : { value: null };
     if ('error' in parsedPlz) {
       toast({
         title: "Eingabefehler",
@@ -647,7 +649,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
     const form = new FormData();
     form.append("name", formData.name);
     form.append("strasse", formData.strasse);
-    form.append("plz", formData.plz.trim());
+    if (plzChanged) form.append("plz", formData.plz.trim());
     form.append("ort", formData.ort);
 
     if (automaticSize) {

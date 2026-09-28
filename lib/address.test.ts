@@ -42,6 +42,9 @@ describe('parsePlz', () => {
     expect(parsePlz('10115')).toEqual({ value: 10115 });
     expect(parsePlz(' 01067 ')).toEqual({ value: 1067 });
     expect(parsePlz(10115)).toEqual({ value: 10115 });
+    // numbers from the numeric DB column lost their leading zero
+    expect(parsePlz(1067)).toEqual({ value: 1067 });
+    expect(parsePlz('1067')).toEqual({ error: PLZ_ERROR });
   });
 
   it('rejects invalid input', () => {

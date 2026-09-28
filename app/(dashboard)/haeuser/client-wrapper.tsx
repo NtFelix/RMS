@@ -12,6 +12,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatCard } from "@/components/common/stat-card";
 import { HouseTable, House } from "@/components/tables/house-table";
+import { formatPlzOrt } from "@/lib/address";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
@@ -442,10 +443,10 @@ function PropertyDistributionCard({ enrichedHaeuser, summary }: { enrichedHaeuse
                     <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
                       {h.name}
                     </span>
-                    {h.ort && (
+                    {formatPlzOrt(h.plz, h.ort) && (
                       <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
                         <MapPin className="size-3 shrink-0 text-muted-foreground/70" />
-                        {h.ort}
+                        {formatPlzOrt(h.plz, h.ort)}
                       </span>
                     )}
                   </div>
@@ -787,7 +788,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           size: sizeNum,
           rentPerSqm,
           percentageOfTarget: Math.min(Math.round((rentPerSqm / TARGET_SQM_RENT) * 100), 100),
-          ort: h.ort,
+          ort: formatPlzOrt(h.plz, h.ort),
           totalApartments: h.totalApartments || 0,
           freeApartments: h.freeApartments || 0
         });
@@ -834,7 +835,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     const csvRows = selectedHousesData.map(h => {
       const row = [
         h.name,
-        h.ort || '',
+        formatPlzOrt(h.plz, h.ort),
         h.size || '',
         h.rent || '',
         h.pricePerSqm || '',

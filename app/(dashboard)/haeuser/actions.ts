@@ -61,12 +61,13 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     }
 
     // Process plz field
+    // An absent key leaves the stored PLZ untouched; an empty value clears it
     const parsedPlz = parsePlz(formData.get("plz"));
     if ('error' in parsedPlz) {
       logAction(actionName, 'failed', { ...(id && { house_id: id }), error_message: parsedPlz.error });
       return { success: false, error: { message: parsedPlz.error } };
     }
-    const processedPlz = parsedPlz.value;
+    const processedPlz = formData.has("plz") ? parsedPlz.value : undefined;
 
     // Get form data
     const name = formData.get('name')?.toString();

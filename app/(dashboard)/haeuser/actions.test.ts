@@ -87,7 +87,7 @@ describe('House Actions', () => {
         expect(result).toEqual({ success: true });
       });
 
-      it('creates house with null plz when plz is not provided', async () => {
+      it('creates house without a plz value when plz is not provided', async () => {
         const formData = new FormData();
         formData.append('name', 'Test House No PLZ');
         formData.append('ort', 'Berlin');
@@ -100,11 +100,23 @@ describe('House Actions', () => {
         expect(builder.insert).toHaveBeenCalledWith({
           name: 'Test House No PLZ',
           ort: 'Berlin',
-          plz: null,
           strasse: null,
           groesse: null,
         });
         expect(result).toEqual({ success: true });
+      });
+
+      it('does not touch the stored plz on update when the plz key is absent', async () => {
+        const formData = new FormData();
+        formData.append('name', 'Updated House');
+        formData.append('ort', 'Hamburg');
+
+        const builder = mockSupabase.from();
+        await handleSubmit('house-1', formData);
+
+        const payload = builder.update.mock.calls[0][0];
+        expect(payload).not.toHaveProperty('plz', null);
+        expect(payload.plz).toBeUndefined();
       });
 
       it('rejects an invalid plz without touching the database', async () => {
