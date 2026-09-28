@@ -210,7 +210,135 @@ describe('Backend Worker Tests', () => {
             );
 
             expect(response.status).toBe(200);
-            expect(text).toContain('Objekt: Hauptstraße 10, 10115 Berlin, Haus Sonnenschein, Wohnung 2, 60 qm');
+            expect(text).toContain('Objekt: Haus Sonnenschein, Hauptstraße 10, 10115 Berlin, Wohnung 2, 60 qm');
+        });
+
+        it('should omit missing street in the Objekt line', async () => {
+            const request = new Request('https://worker.com/export', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'pdf',
+                    tenantData: {
+                        tenantName: 'Erika Musterfrau',
+                        apartmentName: 'Wohnung 2',
+                        apartmentSize: 60,
+                        costItems: [],
+                        waterCost: { tenantShare: 0, consumption: 0 }
+                    },
+                    nebenkostenItem: {
+                        startdatum: '2026-01-01',
+                        enddatum: '2026-12-31',
+                        Haeuser: { name: 'Haus Sonnenschein', plz: 10115, ort: 'Berlin' }
+                    },
+                    ownerName: 'Owner',
+                    ownerAddress: 'Vermieterweg 5, 20095 Hamburg',
+                    filename: 'test.pdf'
+                })
+            });
+
+            const { response, text } = await collectPdfText(() =>
+                handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext)
+            );
+
+            expect(response.status).toBe(200);
+            expect(text).toContain('Objekt: Haus Sonnenschein, 10115 Berlin, Wohnung 2, 60 qm');
+            expect(text).not.toContain('null');
+        });
+
+        it('should omit missing plz in the Objekt line', async () => {
+            const request = new Request('https://worker.com/export', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'pdf',
+                    tenantData: {
+                        tenantName: 'Erika Musterfrau',
+                        apartmentName: 'Wohnung 2',
+                        apartmentSize: 60,
+                        costItems: [],
+                        waterCost: { tenantShare: 0, consumption: 0 }
+                    },
+                    nebenkostenItem: {
+                        startdatum: '2026-01-01',
+                        enddatum: '2026-12-31',
+                        Haeuser: { name: 'Haus Sonnenschein', strasse: 'Hauptstraße 10', ort: 'Berlin', plz: null }
+                    },
+                    ownerName: 'Owner',
+                    ownerAddress: 'Vermieterweg 5, 20095 Hamburg',
+                    filename: 'test.pdf'
+                })
+            });
+
+            const { response, text } = await collectPdfText(() =>
+                handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext)
+            );
+
+            expect(response.status).toBe(200);
+            expect(text).toContain('Objekt: Haus Sonnenschein, Hauptstraße 10, Berlin, Wohnung 2, 60 qm');
+            expect(text).not.toContain('null');
+        });
+
+        it('should left-pad the plz and not repeat a plz already contained in ort', async () => {
+            const request = new Request('https://worker.com/export', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'pdf',
+                    tenantData: {
+                        tenantName: 'Erika Musterfrau',
+                        apartmentName: 'Wohnung 2',
+                        apartmentSize: 60,
+                        costItems: [],
+                        waterCost: { tenantShare: 0, consumption: 0 }
+                    },
+                    nebenkostenItem: {
+                        startdatum: '2026-01-01',
+                        enddatum: '2026-12-31',
+                        Haeuser: { name: 'Haus A', strasse: 'Weg 1', plz: 1067, ort: '01067 Dresden' }
+                    },
+                    ownerName: 'Owner',
+                    ownerAddress: 'Vermieterweg 5, 20095 Hamburg',
+                    filename: 'test.pdf'
+                })
+            });
+
+            const { response, text } = await collectPdfText(() =>
+                handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext)
+            );
+
+            expect(response.status).toBe(200);
+            expect(text).toContain('Objekt: Haus A, Weg 1, 01067 Dresden, Wohnung 2, 60 qm');
+            expect(text).not.toContain('null');
+        });
+
+        it('should fall back to the address when the house name is empty', async () => {
+            const request = new Request('https://worker.com/export', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'pdf',
+                    tenantData: {
+                        tenantName: 'Erika Musterfrau',
+                        apartmentName: 'Wohnung 2',
+                        apartmentSize: 60,
+                        costItems: [],
+                        waterCost: { tenantShare: 0, consumption: 0 }
+                    },
+                    nebenkostenItem: {
+                        startdatum: '2026-01-01',
+                        enddatum: '2026-12-31',
+                        Haeuser: { name: '', strasse: 'Hauptstraße 10', plz: 10115, ort: 'Berlin' }
+                    },
+                    ownerName: 'Owner',
+                    ownerAddress: 'Vermieterweg 5, 20095 Hamburg',
+                    filename: 'test.pdf'
+                })
+            });
+
+            const { response, text } = await collectPdfText(() =>
+                handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext)
+            );
+
+            expect(response.status).toBe(200);
+            expect(text).toContain('Objekt: Hauptstraße 10, 10115 Berlin, Wohnung 2, 60 qm');
+            expect(text).not.toContain('null');
         });
 
         it('should add the 360-day basis texts to the single-tenant PDF for rechenbasis 360_tage', async () => {

@@ -46,6 +46,7 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
 import { sumAllZaehlerValues } from "@/lib/zaehler-utils"
+import { formatPlzOrt } from "@/lib/address"
 
 // Define sortable fields for operating costs table
 type OperatingCostsSortKey = "zeitraum" | "haus" | "zaehlerkosten" | ""
@@ -666,7 +667,7 @@ export function OperatingCostsTable({
             if (!selectedHaus) {
               return "Platzhalter Adresse";
             }
-            const plzOrt = [selectedHaus.plz, selectedHaus.ort].filter(Boolean).join(' ');
+            const plzOrt = formatPlzOrt(selectedHaus.plz, selectedHaus.ort);
             const addressParts = [selectedHaus.strasse, plzOrt].filter(Boolean);
             return addressParts.length > 0 ? addressParts.join(', ') : "Platzhalter Adresse";
           })()}

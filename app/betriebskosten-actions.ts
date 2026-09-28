@@ -570,7 +570,7 @@ export async function fetchOptimizedNebenkostenById(id: string): Promise<{ succe
 
     if (!record) {
       // Fallback: if not found in the optimized list (rare), fetch raw record
-      const { data: rawData } = await supabase.from('Nebenkosten').select('*, Haeuser(name)').eq('id', id).single();
+      const { data: rawData } = await supabase.from('Nebenkosten').select('*, Haeuser(name, strasse, plz, ort)').eq('id', id).single();
       return { success: true, data: rawData as any };
     }
 
@@ -627,7 +627,10 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
       .select(`
         *,
         Haeuser (
-          name
+          name,
+          strasse,
+          plz,
+          ort
         ),
         Rechnungen (
           id,

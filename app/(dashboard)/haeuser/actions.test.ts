@@ -107,6 +107,22 @@ describe('House Actions', () => {
         expect(result).toEqual({ success: true });
       });
 
+      it('rejects an invalid plz without touching the database', async () => {
+        const formData = new FormData();
+        formData.append('name', 'Test House');
+        formData.append('ort', 'Berlin');
+        formData.append('plz', '10115abc');
+
+        const builder = mockSupabase.from();
+        const result = await handleSubmit(null, formData);
+
+        expect(builder.insert).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          success: false,
+          error: { message: 'Die Postleitzahl muss aus genau 5 Ziffern bestehen.' },
+        });
+      });
+
       it('returns error when insert fails', async () => {
         const errorMessage = 'Database constraint violation';
         const builder = mockSupabase.from();

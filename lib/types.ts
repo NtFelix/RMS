@@ -12,10 +12,18 @@ export type Wohnung = {
     haus_id: string | null;
 };
 
+/** House name and address as embedded in Nebenkosten / settlement data. plz is numeric in the DB. */
+export type HaeuserAddress = {
+    name: string;
+    strasse?: string | null;
+    plz?: number | string | null;
+    ort?: string | null;
+};
+
 export type Haus = {
     id: string;
     ort: string | null;
-    plz?: number | null;
+    plz?: number | string | null;
     name: string;
     erstellt_von: string;
     strasse: string | null;
@@ -68,12 +76,7 @@ export type Nebenkosten = {
     zaehlerverbrauch: Record<string, number> | null;
     haeuser_id: string;
     erstellt_von: string;
-    Haeuser?: {
-        name: string;
-        strasse?: string | null;
-        plz?: number | string | null;
-        ort?: string | null;
-    } | null;
+    Haeuser?: HaeuserAddress | null;
     Rechnungen?: RechnungSql[] | null;
     gesamtFlaeche?: number;
     anzahlWohnungen?: number;

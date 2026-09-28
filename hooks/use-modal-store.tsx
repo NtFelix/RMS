@@ -12,6 +12,7 @@ interface HausWithWohnungen {
   id: string;
   name: string;
   strasse?: string;
+  plz?: number | string | null;
   ort: string;
   size?: string;
   totalArea: number;
