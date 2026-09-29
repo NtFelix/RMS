@@ -183,12 +183,19 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     // 3. Objekt & Mieter
     // House name first, followed by the address when available
     const haus = nebenkostenItem.Haeuser;
-    const objekt = [haus?.name?.trim(), haus?.strasse?.trim(), formatPlzOrt(haus?.plz, haus?.ort)]
+    // Skip the house name when it is just the street (e.g. name "Musterweg" + strasse "Musterweg 1")
+    const hausName = haus?.name?.trim();
+    const hausStrasse = haus?.strasse?.trim();
+    const nameRepeatsStreet = !!hausName && !!hausStrasse
+        && hausStrasse.toLowerCase().includes(hausName.toLowerCase());
+    const objekt = [nameRepeatsStreet ? '' : hausName, hausStrasse, formatPlzOrt(haus?.plz, haus?.ort)]
         .filter(Boolean).join(', ') || 'N/A';
     const addressParts = [
         objekt,
         tenantData.apartmentName,
-        tenantData.apartmentSize != null ? `${tenantData.apartmentSize} qm` : '',
+        tenantData.apartmentSize != null
+            ? `${tenantData.apartmentSize.toLocaleString('de-DE', { maximumFractionDigits: 2 })} qm`
+            : '',
     ].filter(Boolean);
 
     const propertyDetails = `Objekt: ${addressParts.join(', ')}`;
