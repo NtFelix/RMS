@@ -3,6 +3,10 @@ import type { Rechenbasis } from "@/utils/rechentage";
 
 export const MIETEVO_BACKEND_URL = (process.env.MIETEVO_BACKEND_URL || process.env.NEXT_PUBLIC_MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
 
+/** `type` / `template` values this client sends; lib/worker-metrics.ts uses them as the metric label allowlist. */
+export const WORKER_REQUEST_TYPES = ['pdf', 'zip', 'csv'] as const;
+export const WORKER_TEMPLATES = ['pdf', 'house-overview'] as const;
+
 const isBrowser = typeof window !== 'undefined';
 
 async function safeFetch(body: any): Promise<Response> {

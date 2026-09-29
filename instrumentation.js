@@ -20,7 +20,7 @@ export async function register() {
     const { initTracing } = await import('./lib/posthog-tracing');
     initTracing();
 
-    const { initMetrics } = await import('./lib/posthog-metrics');
+    const { initMetrics } = await import('./lib/posthog-metrics-init');
     initMetrics();
 
     const { initLogger, posthogLogger } = await import('./lib/posthog-logger');

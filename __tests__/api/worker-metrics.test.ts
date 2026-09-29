@@ -2,9 +2,13 @@
  * @jest-environment node
  */
 
-const recordWorkerCall = jest.fn()
+const count = jest.fn()
+const histogram = jest.fn()
 
-jest.mock('@/lib/posthog-metrics', () => ({ recordWorkerCall: (...a: unknown[]) => recordWorkerCall(...a) }))
+jest.mock('@/lib/posthog-metrics', () => ({
+  count: (...a: unknown[]) => count(...a),
+  histogram: (...a: unknown[]) => histogram(...a),
+}))
 jest.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: async () => ({
     auth: { getUser: async () => ({ data: { user: { id: 'u1' } }, error: null }) },
@@ -40,38 +44,35 @@ describe('/api/worker metrics', () => {
     jest.clearAllMocks()
   })
 
-  it('records worker generation time and page count from the response headers', async () => {
+  it('records the round trip, worker generation time and page count from the response headers', async () => {
     global.fetch = jest.fn().mockResolvedValue(
       workerResponse(200, { 'X-PDF-Generation-Time': '120', 'X-PDF-Page-Count': '3' }),
     )
     await POST(request({ type: 'pdf', template: 'house-overview' }))
-    expect(recordWorkerCall).toHaveBeenCalledWith(
-      { type: 'pdf', template: 'house-overview', status: 'ok' },
-      expect.any(Number),
-      120,
-      3,
-    )
+
+    const labels = { type: 'pdf', template: 'house-overview' }
+    const attrs = { ...labels, status: 'ok' }
+    expect(count).toHaveBeenCalledWith('worker.requests', 1, attrs)
+    expect(histogram).toHaveBeenCalledWith('worker.request.duration', expect.any(Number), attrs, 'ms')
+    expect(histogram).toHaveBeenCalledWith('worker.pdf.generation.duration', 120, labels, 'ms')
+    expect(histogram).toHaveBeenCalledWith('worker.pdf.pages', 3, labels, 'pages')
+  })
+
+  it('skips page count for non-PDF responses and missing headers', async () => {
+    global.fetch = jest.fn().mockResolvedValue(workerResponse(200, { 'X-PDF-Page-Count': '0' }))
+    await POST(request({ type: 'csv' }))
+    expect(histogram).toHaveBeenCalledTimes(1) // only worker.request.duration
   })
 
   it('never uses unknown request values as metric labels', async () => {
     global.fetch = jest.fn().mockResolvedValue(workerResponse(200))
     await POST(request({ type: 'user-supplied-value' }))
-    expect(recordWorkerCall).toHaveBeenCalledWith(
-      { type: 'other', template: 'none', status: 'ok' },
-      expect.any(Number),
-      undefined,
-      undefined,
-    )
+    expect(count).toHaveBeenCalledWith('worker.requests', 1, { type: 'other', template: 'none', status: 'ok' })
   })
 
   it('records an error status for failed worker responses', async () => {
     global.fetch = jest.fn().mockResolvedValue(workerResponse(500))
     await POST(request({ type: 'pdf' }))
-    expect(recordWorkerCall).toHaveBeenCalledWith(
-      { type: 'pdf', template: 'none', status: 'error' },
-      expect.any(Number),
-      undefined,
-      undefined,
-    )
+    expect(count).toHaveBeenCalledWith('worker.requests', 1, { type: 'pdf', template: 'none', status: 'error' })
   })
 })

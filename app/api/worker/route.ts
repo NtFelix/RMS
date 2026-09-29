@@ -2,23 +2,7 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
-import { recordWorkerCall } from '@/lib/posthog-metrics';
-
-// Metric labels come from the request body, so only known values are passed through
-// (keeps cardinality bounded and never puts user input into attributes).
-const WORKER_TYPES = ['pdf', 'zip', 'csv'];
-const WORKER_TEMPLATES = ['pdf', 'house-overview', 'standard'];
-
-function safeMetricLabel(value: unknown, allowed: string[]): string {
-    if (value === undefined || value === null) return 'none';
-    return typeof value === 'string' && allowed.includes(value) ? value : 'other';
-}
-
-function parseHeaderNumber(value: string | null): number | undefined {
-    if (value === null) return undefined;
-    const n = Number(value);
-    return Number.isFinite(n) ? n : undefined;
-}
+import { recordWorkerCall } from '@/lib/worker-metrics';
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -93,10 +77,6 @@ export async function POST(request: Request) {
             });
         }
 
-        const metricAttrs = {
-            type: safeMetricLabel(body?.type, WORKER_TYPES),
-            template: safeMetricLabel(body?.template, WORKER_TEMPLATES),
-        };
         const workerStart = performance.now();
 
         let response: Response;
@@ -110,18 +90,11 @@ export async function POST(request: Request) {
                 body: JSON.stringify(body),
             });
         } catch (fetchErr) {
-            recordWorkerCall({ ...metricAttrs, status: 'error' }, performance.now() - workerStart);
+            recordWorkerCall(body, performance.now() - workerStart);
             throw fetchErr;
         }
 
-        // The worker reports its own PDF generation time and page count via response headers,
-        // so no worker change is needed to measure them here.
-        recordWorkerCall(
-            { ...metricAttrs, status: response.ok ? 'ok' : 'error' },
-            performance.now() - workerStart,
-            parseHeaderNumber(response.headers.get('X-PDF-Generation-Time')),
-            parseHeaderNumber(response.headers.get('X-PDF-Page-Count')),
-        );
+        recordWorkerCall(body, performance.now() - workerStart, response);
 
         if (!response.ok) {
             const errorText = await response.text();

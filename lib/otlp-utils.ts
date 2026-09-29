@@ -45,6 +45,14 @@ export function getLogsEndpoint(): string {
 }
 
 /**
+ * Get the PostHog metrics endpoint from the configured host
+ */
+export function getMetricsEndpoint(): string {
+    const host = POSTHOG_HOST.replace(/\/$/, '');
+    return `${host}/i/v1/metrics`;
+}
+
+/**
  * Convert severity text to OpenTelemetry severity number
  */
 export function getSeverityNumber(severity: string): number {
