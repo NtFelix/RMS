@@ -7,8 +7,10 @@ const record = jest.fn()
 const createCounter = jest.fn(() => ({ add }))
 const createHistogram = jest.fn(() => ({ record }))
 
+let mockProvider = { getMeter: () => ({ createCounter, createHistogram }) }
+
 jest.mock('@opentelemetry/api', () => ({
-  metrics: { getMeter: () => ({ createCounter, createHistogram }) },
+  metrics: { getMeterProvider: () => mockProvider },
 }))
 
 import { count, histogram, timedAction, withTiming } from '@/lib/posthog-metrics'
@@ -22,6 +24,15 @@ describe('posthog-metrics', () => {
     expect(createCounter).toHaveBeenCalledTimes(1)
     expect(add).toHaveBeenNthCalledWith(1, 1, undefined)
     expect(add).toHaveBeenNthCalledWith(2, 2, { plan: 'pro' })
+  })
+
+  it('recreates instruments when the global provider changes (no-op instruments are not pinned)', () => {
+    count('late.init')
+    expect(createCounter).toHaveBeenCalledTimes(1)
+
+    mockProvider = { getMeter: () => ({ createCounter, createHistogram }) } // e.g. initMetrics() registered the real provider
+    count('late.init')
+    expect(createCounter).toHaveBeenCalledTimes(2)
   })
 
   it('records histograms with their unit', () => {

@@ -45,6 +45,28 @@ export function getLogsEndpoint(): string {
 }
 
 /**
+ * Resource attributes shared by the trace and metric SDKs, so both describe the same service.
+ */
+export function getSdkResourceAttributes(): Record<string, string> {
+    return {
+        'service.name': SERVICE_NAME,
+        'deployment.environment': process.env.NODE_ENV || 'development',
+        'service.version': process.env.npm_package_version || '1.0.0',
+    };
+}
+
+/**
+ * Run `shutdown` (flush + close an SDK) on SIGTERM/SIGINT.
+ */
+export function registerShutdownHandler(shutdown: () => Promise<void>): void {
+    const handleShutdown = () => {
+        shutdown().catch(() => {});
+    };
+    process.on('SIGTERM', handleShutdown);
+    process.on('SIGINT', handleShutdown);
+}
+
+/**
  * Get the PostHog metrics endpoint from the configured host
  */
 export function getMetricsEndpoint(): string {

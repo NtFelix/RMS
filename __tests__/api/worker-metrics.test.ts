@@ -54,7 +54,7 @@ describe('/api/worker metrics', () => {
     const attrs = { ...labels, status: 'ok' }
     expect(count).toHaveBeenCalledWith('worker.requests', 1, attrs)
     expect(histogram).toHaveBeenCalledWith('worker.request.duration', expect.any(Number), attrs, 'ms')
-    expect(histogram).toHaveBeenCalledWith('worker.pdf.generation.duration', 120, labels, 'ms')
+    expect(histogram).toHaveBeenCalledWith('worker.generation.duration', 120, labels, 'ms')
     expect(histogram).toHaveBeenCalledWith('worker.pdf.pages', 3, labels, 'pages')
   })
 
@@ -68,6 +68,36 @@ describe('/api/worker metrics', () => {
     global.fetch = jest.fn().mockResolvedValue(workerResponse(200))
     await POST(request({ type: 'user-supplied-value' }))
     expect(count).toHaveBeenCalledWith('worker.requests', 1, { type: 'other', template: 'none', status: 'ok' })
+  })
+
+  it('counts retries and times only the final attempt', async () => {
+    jest.useFakeTimers()
+    try {
+      global.fetch = jest
+        .fn()
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValue(workerResponse(200))
+      const pending = POST(request({ type: 'pdf' }))
+      await jest.advanceTimersByTimeAsync(1000 + 2000)
+      await pending
+
+      expect(count).toHaveBeenCalledWith('worker.retries', 2, { type: 'pdf', template: 'none' })
+      const durationCall = histogram.mock.calls.find(([name]) => name === 'worker.request.duration')
+      expect(durationCall?.[1]).toBeLessThan(1000) // backoff sleeps (1s + 2s) are not part of it
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('does not break the proxy response when recording metrics throws', async () => {
+    global.fetch = jest.fn().mockResolvedValue(workerResponse(400))
+    count.mockImplementation(() => {
+      throw new Error('metrics down')
+    })
+    const response = await POST(request({ type: 'pdf' }))
+    expect(response.status).toBe(400) // the worker's own status, not a masked 500 'Proxy failed'
+    count.mockReset()
   })
 
   it('records an error status for failed worker responses', async () => {

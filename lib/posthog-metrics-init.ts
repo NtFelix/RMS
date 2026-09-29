@@ -14,7 +14,7 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 
-import { SERVICE_NAME, POSTHOG_API_KEY, getMetricsEndpoint } from './otlp-utils';
+import { POSTHOG_API_KEY, getMetricsEndpoint, getSdkResourceAttributes, registerShutdownHandler } from './otlp-utils';
 
 const EXPORT_INTERVAL_MS = 10_000;
 const EXPORT_TIMEOUT_MS = 5_000;
@@ -32,11 +32,7 @@ export function initMetrics(): void {
     const endpoint = getMetricsEndpoint();
 
     meterProvider = new MeterProvider({
-        resource: resourceFromAttributes({
-            'service.name': SERVICE_NAME,
-            'deployment.environment': process.env.NODE_ENV || 'development',
-            'service.version': process.env.npm_package_version || '1.0.0',
-        }),
+        resource: resourceFromAttributes(getSdkResourceAttributes()),
         readers: [
             new PeriodicExportingMetricReader({
                 exporter: new OTLPMetricExporter({
@@ -49,15 +45,17 @@ export function initMetrics(): void {
         ],
     });
 
-    metrics.setGlobalMeterProvider(meterProvider);
+    // Returns false when another MeterProvider already owns the global slot; metrics would then
+    // never reach PostHog, so don't claim to be initialized.
+    if (!metrics.setGlobalMeterProvider(meterProvider)) {
+        console.warn('[PostHog Metrics] ⚠️ A global MeterProvider is already registered — metrics disabled');
+        shutdownMetrics().catch(() => {});
+        return;
+    }
 
     console.log('[PostHog Metrics] ✅ Initialized — exporting metrics to', endpoint);
 
-    const handleShutdown = () => {
-        shutdownMetrics().catch(() => {});
-    };
-    process.on('SIGTERM', handleShutdown);
-    process.on('SIGINT', handleShutdown);
+    registerShutdownHandler(shutdownMetrics);
 }
 
 /** Force-export pending metrics (short-lived scripts, before process exit). */

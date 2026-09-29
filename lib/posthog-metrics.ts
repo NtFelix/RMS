@@ -19,6 +19,21 @@ import { SERVICE_NAME } from './otlp-utils';
 const counters = new Map<string, Counter>();
 const histograms = new Map<string, Histogram>();
 
+// The API's default provider is a no-op (not a proxy that upgrades later), so instruments
+// created before initMetrics() registers the real provider would stay no-ops forever.
+// Drop the caches whenever the global provider changes.
+let cachedProvider: unknown;
+
+function getMeter() {
+    const provider = metrics.getMeterProvider();
+    if (provider !== cachedProvider) {
+        counters.clear();
+        histograms.clear();
+        cachedProvider = provider;
+    }
+    return provider.getMeter(SERVICE_NAME);
+}
+
 function getOrCreate<T>(cache: Map<string, T>, name: string, create: () => T): T {
     let instrument = cache.get(name);
     if (!instrument) {
@@ -30,15 +45,22 @@ function getOrCreate<T>(cache: Map<string, T>, name: string, create: () => T): T
 
 /** Increment a monotonically increasing value (requests, completions). */
 export function count(name: string, value = 1, attributes?: Attributes): void {
-    getOrCreate(counters, name, () => metrics.getMeter(SERVICE_NAME).createCounter(name)).add(value, attributes);
+    const meter = getMeter();
+    getOrCreate(counters, name, () => meter.createCounter(name)).add(value, attributes);
 }
 
 /** Record a sample of a distribution (request duration, payload size). `unit` applies when the instrument is first created. */
 export function histogram(name: string, value: number, attributes?: Attributes, unit?: string): void {
-    getOrCreate(histograms, name, () => metrics.getMeter(SERVICE_NAME).createHistogram(name, { unit })).record(value, attributes);
+    const meter = getMeter();
+    getOrCreate(histograms, name, () => meter.createHistogram(name, { unit })).record(value, attributes);
 }
 
 type ActionStatus = 'success' | 'failed' | 'error';
+
+/** Outcome of an action result under the repo's convention: `success: false` means failed. */
+export function actionStatus(result: unknown): 'success' | 'failed' {
+    return (result as { success?: unknown } | null)?.success === false ? 'failed' : 'success';
+}
 
 /**
  * Record one server action run as `server_action.duration` (ms), tagged with the
@@ -57,7 +79,7 @@ export async function timedAction<T>(action: string, fn: () => Promise<T>): Prom
     let status: ActionStatus = 'success';
     try {
         const result = await fn();
-        if ((result as { success?: unknown } | null)?.success === false) status = 'failed';
+        status = actionStatus(result);
         return result;
     } catch (error) {
         status = 'error';
