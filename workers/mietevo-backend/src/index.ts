@@ -181,15 +181,11 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     startY += 12;
 
     // 3. Objekt & Mieter
-    // House name first, followed by the address when available
+    // Address only (street, PLZ Ort); the internal house name is irrelevant for the billing
+    // and often repeats the street. It is only used as a fallback when no address data exists.
     const haus = nebenkostenItem.Haeuser;
-    // Skip the house name when it is just the street (e.g. name "Musterweg" + strasse "Musterweg 1")
-    const hausName = haus?.name?.trim();
-    const hausStrasse = haus?.strasse?.trim();
-    const nameRepeatsStreet = !!hausName && !!hausStrasse
-        && hausStrasse.toLowerCase().includes(hausName.toLowerCase());
-    const objekt = [nameRepeatsStreet ? '' : hausName, hausStrasse, formatPlzOrt(haus?.plz, haus?.ort)]
-        .filter(Boolean).join(', ') || 'N/A';
+    const objekt = [haus?.strasse?.trim(), formatPlzOrt(haus?.plz, haus?.ort)]
+        .filter(Boolean).join(', ') || haus?.name?.trim() || 'N/A';
     const addressParts = [
         objekt,
         tenantData.apartmentName,
