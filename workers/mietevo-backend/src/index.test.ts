@@ -187,11 +187,13 @@ describe('Backend Worker Tests', () => {
         });
 
         it.each([
-            ['full address', { name: 'Haus Sonnenschein', strasse: 'Hauptstraße 10', plz: 10115, ort: 'Berlin' }, 'Objekt: Haus Sonnenschein, Hauptstraße 10, 10115 Berlin, Wohnung 2, 60 qm'],
-            ['missing street', { name: 'Haus Sonnenschein', plz: 10115, ort: 'Berlin' }, 'Objekt: Haus Sonnenschein, 10115 Berlin, Wohnung 2, 60 qm'],
-            ['missing plz', { name: 'Haus Sonnenschein', strasse: 'Hauptstraße 10', ort: 'Berlin', plz: null }, 'Objekt: Haus Sonnenschein, Hauptstraße 10, Berlin, Wohnung 2, 60 qm'],
-            ['plz that must be left-padded and is already part of ort', { name: 'Haus A', strasse: 'Weg 1', plz: 1067, ort: '01067 Dresden' }, 'Objekt: Haus A, Weg 1, 01067 Dresden, Wohnung 2, 60 qm'],
+            ['full address without house name', { name: 'Haus Sonnenschein', strasse: 'Hauptstraße 10', plz: 10115, ort: 'Berlin' }, 'Objekt: Hauptstraße 10, 10115 Berlin, Wohnung 2, 60 qm'],
+            ['missing street', { name: 'Haus Sonnenschein', plz: 10115, ort: 'Berlin' }, 'Objekt: 10115 Berlin, Wohnung 2, 60 qm'],
+            ['missing plz', { name: 'Haus Sonnenschein', strasse: 'Hauptstraße 10', ort: 'Berlin', plz: null }, 'Objekt: Hauptstraße 10, Berlin, Wohnung 2, 60 qm'],
+            ['plz that must be left-padded and is already part of ort', { name: 'Haus A', strasse: 'Weg 1', plz: 1067, ort: '01067 Dresden' }, 'Objekt: Weg 1, 01067 Dresden, Wohnung 2, 60 qm'],
             ['empty house name', { name: '', strasse: 'Hauptstraße 10', plz: 10115, ort: 'Berlin' }, 'Objekt: Hauptstraße 10, 10115 Berlin, Wohnung 2, 60 qm'],
+            ['house name repeats the street', { name: 'Musterweg', strasse: 'Musterweg 1', plz: 12345, ort: 'Musterstadt' }, 'Objekt: Musterweg 1, 12345 Musterstadt, Wohnung 2, 60 qm'],
+            ['no address data falls back to house name', { name: 'Haus Sonnenschein' }, 'Objekt: Haus Sonnenschein, Wohnung 2, 60 qm'],
         ])('should format the Objekt line in the single-tenant PDF: %s', async (_case, haeuser, expected) => {
             const request = new Request('https://worker.com/export', {
                 method: 'POST',
