@@ -20,8 +20,6 @@ export interface StorageUsageState {
   hasLimit: boolean;
   /** The plan explicitly includes no storage (limit 0). */
   hasNoStorageAccess: boolean;
-  /** The plan has no storage limit (limit null). */
-  isUnlimited: boolean;
   isOverLimit: boolean;
   isNearLimit: boolean;
 }
@@ -36,11 +34,10 @@ export function getStorageUsageState(
 ): StorageUsageState {
   const hasLimit = typeof limitBytes === 'number' && limitBytes > 0;
   const hasNoStorageAccess = limitBytes === 0;
-  const isUnlimited = limitBytes === null || limitBytes === undefined;
 
   const percentage = hasLimit ? Math.min((usedBytes / limitBytes) * 100, 100) : 0;
   const isOverLimit = (hasLimit && usedBytes >= limitBytes) || hasNoStorageAccess;
   const isNearLimit = hasLimit && !isOverLimit && percentage >= STORAGE_NEAR_LIMIT_PERCENTAGE;
 
-  return { percentage, hasLimit, hasNoStorageAccess, isUnlimited, isOverLimit, isNearLimit };
+  return { percentage, hasLimit, hasNoStorageAccess, isOverLimit, isNearLimit };
 }

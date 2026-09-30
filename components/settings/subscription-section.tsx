@@ -13,6 +13,97 @@ import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import { formatFileSize, getStorageUsageState } from "@/lib/storage-usage";
 import { cn } from "@/lib/utils";
 
+const STORAGE_SECTION_TITLE = "Speichernutzung";
+const STORAGE_SECTION_DESCRIPTION = "Dokumentenspeicher Ihrer gesamten Organisation";
+
+const STORAGE_TONES = {
+  over: { text: "text-destructive", bar: "bg-destructive", icon: "text-destructive" },
+  near: { text: "text-amber-500", bar: "bg-amber-500", icon: "text-amber-500" },
+  ok: { text: "", bar: "bg-primary", icon: "text-muted-foreground" },
+} as const;
+
+interface StorageUsageProps {
+  /** Undefined when the statistics could not be loaded */
+  usedBytes?: number;
+  documentCount?: number;
+  /** Plan limit in bytes, 0 = no storage included, null/undefined = unlimited */
+  limit?: number | null;
+}
+
+const StorageUsage = ({ usedBytes, documentCount, limit }: StorageUsageProps) => {
+  if (usedBytes === undefined || documentCount === undefined) {
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="storage-usage">
+        Die Speichernutzung konnte nicht geladen werden.
+      </p>
+    );
+  }
+
+  const state = getStorageUsageState(usedBytes, limit);
+  const tone = STORAGE_TONES[state.isOverLimit ? "over" : state.isNearLimit ? "near" : "ok"];
+  const percentage = Math.round(state.percentage);
+
+  return (
+    <div className="space-y-4" data-testid="storage-usage">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-muted-foreground">Speicher genutzt</div>
+          {state.hasNoStorageAccess ? (
+            <div className="text-2xl font-bold text-destructive">Nicht verfügbar</div>
+          ) : (
+            <div className={cn("text-2xl font-bold", tone.text)}>
+              {formatFileSize(usedBytes)}
+              {state.hasLimit && (
+                <span className="text-sm font-normal text-muted-foreground ml-1">
+                  / {formatFileSize(limit as number)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <HardDrive aria-hidden="true" className={cn("h-5 w-5 shrink-0", tone.icon)} />
+      </div>
+      {state.hasLimit && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>Auslastung</span>
+            <span>{percentage}%</span>
+          </div>
+          <div
+            className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"
+            role="progressbar"
+            aria-label="Speicherauslastung"
+            aria-valuenow={percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className={cn("h-2 rounded-full transition-all duration-300", tone.bar)}
+              style={{ width: `${state.percentage}%` }}
+            />
+          </div>
+        </div>
+      )}
+      <div className="h-px bg-border" />
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Dokumente</span>
+        <span className="font-medium">{documentCount.toLocaleString("de-DE")}</span>
+      </div>
+      {state.hasNoStorageAccess ? (
+        <p className="text-sm text-destructive">
+          Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten.
+        </p>
+      ) : state.isOverLimit ? (
+        <p className="text-sm text-destructive">
+          Ihr Speicherlimit ist erreicht. Löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.
+        </p>
+      ) : state.isNearLimit ? (
+        <p className="text-sm text-amber-600 dark:text-amber-500">Ihr Speicher ist fast voll.</p>
+      ) : null}
+    </div>
+  );
+};
+
 const SubscriptionSection = () => {
   const { toast } = useToast()
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
@@ -23,7 +114,7 @@ const SubscriptionSection = () => {
   const refreshUserProfile = async () => {
     setIsFetchingStatus(true);
     try {
-      const userProfileData = await getUserProfileForSettings();
+      const userProfileData = await getUserProfileForSettings({ includeStorage: true });
       if ('error' in userProfileData && userProfileData.error) {
         toast({
           title: "Fehler",
@@ -130,13 +221,6 @@ const SubscriptionSection = () => {
     ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')
     : null;
 
-  const storageUsedBytes = profile?.storageUsedBytes ?? 0;
-  const documentCount = profile?.documentCount ?? 0;
-  const storageState = getStorageUsageState(
-    storageUsedBytes,
-    profile?.activePlan ? profile.activePlan.storageLimit : 0
-  );
-
   return (
     <div className="space-y-6">
       {isFetchingStatus ? (
@@ -182,10 +266,7 @@ const SubscriptionSection = () => {
               </div>
             </SettingsCard>
           </SettingsSection>
-          <SettingsSection
-            title="Speichernutzung"
-            description="Dokumentenspeicher Ihrer gesamten Organisation"
-          >
+          <SettingsSection title={STORAGE_SECTION_TITLE} description={STORAGE_SECTION_DESCRIPTION}>
             <SettingsCard className="space-y-4">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-4 w-32" />
@@ -409,85 +490,13 @@ const SubscriptionSection = () => {
               )}
             </SettingsCard>
           </SettingsSection>
-          <SettingsSection
-            title="Speichernutzung"
-            description="Dokumentenspeicher Ihrer gesamten Organisation"
-          >
+          <SettingsSection title={STORAGE_SECTION_TITLE} description={STORAGE_SECTION_DESCRIPTION}>
             <SettingsCard>
-              <div className="space-y-4" data-testid="storage-usage">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-muted-foreground">Speicher genutzt</div>
-                    {storageState.hasNoStorageAccess ? (
-                      <div className="text-2xl font-bold text-destructive">Nicht verfügbar</div>
-                    ) : (
-                      <div
-                        className={cn(
-                          "text-2xl font-bold",
-                          storageState.isOverLimit && "text-destructive",
-                          storageState.isNearLimit && "text-amber-500"
-                        )}
-                      >
-                        {formatFileSize(storageUsedBytes)}
-                        {storageState.hasLimit && profile.activePlan?.storageLimit ? (
-                          <span className="text-sm font-normal text-muted-foreground ml-1">
-                            / {formatFileSize(profile.activePlan.storageLimit)}
-                          </span>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                  <HardDrive
-                    aria-hidden="true"
-                    className={cn(
-                      "h-5 w-5 shrink-0",
-                      storageState.isOverLimit ? "text-destructive" : storageState.isNearLimit ? "text-amber-500" : "text-muted-foreground"
-                    )}
-                  />
-                </div>
-                {storageState.hasLimit && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Auslastung</span>
-                      <span className="text-muted-foreground">{Math.round(storageState.percentage)}%</span>
-                    </div>
-                    <div
-                      className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"
-                      role="progressbar"
-                      aria-label="Speicherauslastung"
-                      aria-valuenow={Math.round(storageState.percentage)}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className={cn(
-                          "h-2 rounded-full transition-all duration-300",
-                          storageState.isOverLimit ? "bg-destructive" : storageState.isNearLimit ? "bg-amber-500" : "bg-primary"
-                        )}
-                        style={{ width: `${storageState.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <div className="h-px bg-border" />
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Dokumente</span>
-                  <span className="font-medium">{documentCount.toLocaleString('de-DE')}</span>
-                </div>
-                {storageState.hasNoStorageAccess ? (
-                  <p className="text-sm text-destructive">
-                    Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten.
-                  </p>
-                ) : storageState.isOverLimit ? (
-                  <p className="text-sm text-destructive">
-                    Ihr Speicherlimit ist erreicht. Löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.
-                  </p>
-                ) : storageState.isNearLimit ? (
-                  <p className="text-sm text-amber-600 dark:text-amber-500">
-                    Ihr Speicher ist fast voll.
-                  </p>
-                ) : null}
-              </div>
+              <StorageUsage
+                usedBytes={profile.storageUsedBytes}
+                documentCount={profile.documentCount}
+                limit={profile.activePlan ? profile.activePlan.storageLimit : 0}
+              />
             </SettingsCard>
           </SettingsSection>
           <SettingsSection

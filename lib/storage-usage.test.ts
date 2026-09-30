@@ -27,7 +27,6 @@ describe('getStorageUsageState', () => {
     expect(state).toMatchObject({
       hasLimit: true,
       hasNoStorageAccess: false,
-      isUnlimited: false,
       isOverLimit: false,
       isNearLimit: false,
     });
@@ -58,7 +57,6 @@ describe('getStorageUsageState', () => {
     for (const limit of [null, undefined]) {
       const state = getStorageUsageState(10 * GB, limit);
       expect(state).toMatchObject({
-        isUnlimited: true,
         hasLimit: false,
         hasNoStorageAccess: false,
         isOverLimit: false,

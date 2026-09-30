@@ -5,7 +5,7 @@ import { Upload, FolderPlus, HardDrive, Lock } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { formatFileSize } from "@/lib/storage-usage"
+import { formatFileSize, getStorageUsageState } from "@/lib/storage-usage"
 import {
   Tooltip,
   TooltipContent,
@@ -36,16 +36,17 @@ export function DocumentsSummaryCards({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
 
-  // Calculate usage percentage and warning states
-  // hasLimit means there's a positive storage limit (> 0)
-  const hasLimit = typeof storageLimit === 'number' && storageLimit > 0
-  const hasNoStorageAccess = typeof storageLimit === 'number' && storageLimit === 0
-  const usagePercentage = hasLimit ? Math.min((totalSize / storageLimit!) * 100, 100) : (hasNoStorageAccess ? 100 : 0)
-  const isOverLimit = (hasLimit && totalSize >= storageLimit!) || hasNoStorageAccess
-  const isNearLimit = hasLimit && usagePercentage >= 80 && !isOverLimit
+  // hasLimit means there's a positive storage limit (> 0), 0 means no storage access
+  const {
+    hasLimit,
+    hasNoStorageAccess,
+    percentage: usagePercentage,
+    isOverLimit,
+    isNearLimit,
+  } = getStorageUsageState(totalSize, storageLimit)
 
   // Upload is disabled when no storage access or storage is full
-  const isUploadDisabled = hasNoStorageAccess || (hasLimit && totalSize >= storageLimit!)
+  const isUploadDisabled = isOverLimit
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()

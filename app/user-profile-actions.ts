@@ -33,9 +33,10 @@ export interface UserProfileForSettings extends SupabaseProfile {
   } | null | undefined;
   hasActiveSubscription: boolean;
   currentWohnungenCount: number;
-  // Pre-computed storage statistics of the organisation (Organisation.speicher_bytes / dokumente_anzahl)
-  storageUsedBytes: number;
-  documentCount: number;
+  // Pre-computed storage statistics of the organisation (Organisation.speicher_bytes / dokumente_anzahl),
+  // only set when requested with `includeStorage` and loaded successfully
+  storageUsedBytes?: number;
+  documentCount?: number;
   // Explicitly add fields expected by SettingsModal and other parts of the system
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
@@ -45,7 +46,9 @@ export interface UserProfileForSettings extends SupabaseProfile {
   stripe_cancel_at_period_end?: boolean | null;
 }
 
-export async function getUserProfileForSettings(): Promise<UserProfileForSettings | { error: string; details?: any }> {
+export async function getUserProfileForSettings(
+  { includeStorage = false }: { includeStorage?: boolean } = {}
+): Promise<UserProfileForSettings | { error: string; details?: any }> {
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());
@@ -66,32 +69,39 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
       return { error: 'Profile not found', details: profileError?.message };
     }
 
-    // Use the new utility function to get the count of Wohnungen
-    const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
-
-    // Read the pre-computed storage statistics instead of aggregating the documents table
-    let storageUsedBytes = 0;
-    let documentCount = 0;
-    const { data: storageStats, error: storageStatsError } = await supabase
-      .rpc('get_organisation_storage_stats');
-    if (storageStatsError) {
-      console.error('Storage stats error in getUserProfileForSettings:', storageStatsError);
-    } else {
-      const row = Array.isArray(storageStats) ? storageStats[0] : storageStats;
-      storageUsedBytes = Number(row?.speicher_bytes ?? 0);
-      documentCount = Number(row?.dokumente_anzahl ?? 0);
-    }
-
-    let planDetails = null;
-    if (profile.stripe_price_id &&
-      (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
+    const loadPlanDetails = async () => {
+      if (!profile.stripe_price_id ||
+        !(profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
+        return null;
+      }
       try {
-        planDetails = await getPlanDetails(profile.stripe_price_id);
+        return await getPlanDetails(profile.stripe_price_id);
       } catch (stripeError) {
         console.error('Stripe API error in getUserProfileForSettings:', stripeError);
         // Not returning error here, just means plan details couldn't be fetched
         // The client can decide how to handle missing planDetails
+        return null;
       }
+    };
+
+    // The three lookups are independent of each other. The storage statistics are the
+    // pre-computed Organisation.speicher_bytes / dokumente_anzahl and only loaded on request.
+    const [currentWohnungenCount, storageResult, planDetails] = await Promise.all([
+      getCurrentWohnungenCount(supabase, user.id),
+      includeStorage ? supabase.rpc('get_organisation_storage_stats') : Promise.resolve(null),
+      loadPlanDetails(),
+    ]);
+
+    // Stays undefined when the statistics were not requested or could not be loaded,
+    // so the UI does not present a failed lookup as "0 B".
+    let storageUsedBytes: number | undefined;
+    let documentCount: number | undefined;
+    if (storageResult?.error) {
+      console.error('Storage stats error in getUserProfileForSettings:', storageResult.error);
+    } else if (storageResult) {
+      const row = storageResult.data?.[0];
+      storageUsedBytes = Number(row?.speicher_bytes ?? 0);
+      documentCount = Number(row?.dokumente_anzahl ?? 0);
     }
 
     const hasActiveSubscription = !!planDetails &&

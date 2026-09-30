@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import SubscriptionSection from '@/components/settings/subscription-section';
 import { getUserProfileForSettings } from '@/app/user-profile-actions';
 
@@ -24,6 +24,16 @@ jest.mock('@/hooks/use-toast', () => ({
 
 const GB = 1024 ** 3;
 
+const basePlan = {
+  priceId: 'price_1',
+  name: 'Pro',
+  price: 1000,
+  currency: 'eur',
+  features: [],
+  limit_wohnungen: 10,
+  storageLimit: GB,
+};
+
 function mockProfile(overrides: Record<string, unknown> = {}) {
   (getUserProfileForSettings as jest.Mock).mockResolvedValue({
     id: 'user-1',
@@ -33,15 +43,7 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
     currentWohnungenCount: 2,
     storageUsedBytes: 0.5 * GB,
     documentCount: 1234,
-    activePlan: {
-      priceId: 'price_1',
-      name: 'Pro',
-      price: 1000,
-      currency: 'eur',
-      features: [],
-      limit_wohnungen: 10,
-      storageLimit: GB,
-    },
+    activePlan: basePlan,
     ...overrides,
   });
 }
@@ -49,6 +51,14 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
 describe('SubscriptionSection storage usage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('requests the storage statistics together with the profile', async () => {
+    mockProfile();
+    render(<SubscriptionSection />);
+
+    await screen.findByTestId('storage-usage');
+    expect(getUserProfileForSettings).toHaveBeenCalledWith({ includeStorage: true });
   });
 
   it('shows used storage, limit, percentage and document count', async () => {
@@ -64,18 +74,14 @@ describe('SubscriptionSection storage usage', () => {
     expect(section).not.toHaveTextContent('fast voll');
   });
 
-  it('warns when the storage is almost full', async () => {
-    mockProfile({ storageUsedBytes: 0.9 * GB });
+  it.each([
+    ['almost full', 0.9 * GB, /Ihr Speicher ist fast voll/],
+    ['at the limit', GB, /Ihr Speicherlimit ist erreicht/],
+  ])('shows a warning when the storage is %s', async (_label, usedBytes, message) => {
+    mockProfile({ storageUsedBytes: usedBytes });
     render(<SubscriptionSection />);
 
-    expect(await screen.findByText('Ihr Speicher ist fast voll.')).toBeInTheDocument();
-  });
-
-  it('shows the limit reached message at 100 percent', async () => {
-    mockProfile({ storageUsedBytes: GB });
-    render(<SubscriptionSection />);
-
-    expect(await screen.findByText(/Ihr Speicherlimit ist erreicht/)).toBeInTheDocument();
+    expect(await screen.findByText(message)).toBeInTheDocument();
   });
 
   it('shows that storage is not included without an active plan', async () => {
@@ -88,27 +94,26 @@ describe('SubscriptionSection storage usage', () => {
     });
     render(<SubscriptionSection />);
 
-    await waitFor(() => expect(screen.getByTestId('storage-usage')).toBeInTheDocument());
+    await screen.findByTestId('storage-usage');
     expect(screen.getByText('Nicht verfügbar')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar', { name: 'Speicherauslastung' })).not.toBeInTheDocument();
   });
 
   it('shows usage without a progress bar for unlimited plans', async () => {
-    mockProfile({
-      activePlan: {
-        priceId: 'price_1',
-        name: 'Unlimited',
-        price: 1000,
-        currency: 'eur',
-        features: [],
-        limit_wohnungen: null,
-        storageLimit: null,
-      },
-    });
+    mockProfile({ activePlan: { ...basePlan, limit_wohnungen: null, storageLimit: null } });
     render(<SubscriptionSection />);
 
     const section = await screen.findByTestId('storage-usage');
     expect(section).toHaveTextContent('512.00 MB');
     expect(screen.queryByRole('progressbar', { name: 'Speicherauslastung' })).not.toBeInTheDocument();
+  });
+
+  it('does not present missing statistics as 0 B', async () => {
+    mockProfile({ storageUsedBytes: undefined, documentCount: undefined });
+    render(<SubscriptionSection />);
+
+    const section = await screen.findByTestId('storage-usage');
+    expect(section).toHaveTextContent('konnte nicht geladen werden');
+    expect(section).not.toHaveTextContent('0 B');
   });
 });

@@ -134,7 +134,7 @@ describe('User Profile Actions', () => {
             error: null
         });
 
-        const result = await getUserProfileForSettings();
+        const result = await getUserProfileForSettings({ includeStorage: true });
 
         if ('error' in result) throw new Error(result.error);
 
@@ -144,19 +144,51 @@ describe('User Profile Actions', () => {
         expect(result.activePlan?.storageLimit).toBe(1073741824);
     });
 
-    it('should fall back to zero storage values if the statistics cannot be loaded', async () => {
+    it('should leave the storage values undefined if the statistics cannot be loaded', async () => {
         (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
         (getPlanDetails as jest.Mock).mockResolvedValue(null);
         mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } });
         const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-        const result = await getUserProfileForSettings();
+        const result = await getUserProfileForSettings({ includeStorage: true });
         consoleSpy.mockRestore();
 
         if ('error' in result) throw new Error(result.error);
 
+        expect(result.storageUsedBytes).toBeUndefined();
+        expect(result.documentCount).toBeUndefined();
+    });
+
+    it('should not query the storage statistics unless requested', async () => {
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue(null);
+
+        const result = await getUserProfileForSettings();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(mockRpc).not.toHaveBeenCalled();
+        expect(result.storageUsedBytes).toBeUndefined();
+        expect(result.documentCount).toBeUndefined();
+    });
+
+    it('should keep returning the profile if the plan lookup fails', async () => {
+        mockSingle.mockResolvedValue({
+            data: { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'active' },
+            error: null
+        });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockRejectedValue(new Error('stripe down'));
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const result = await getUserProfileForSettings({ includeStorage: true });
+        consoleSpy.mockRestore();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(result.activePlan).toBeNull();
+        expect(result.hasActiveSubscription).toBe(false);
         expect(result.storageUsedBytes).toBe(0);
-        expect(result.documentCount).toBe(0);
     });
 
     it('should return error if not authenticated', async () => {
