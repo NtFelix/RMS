@@ -41,7 +41,8 @@ const StorageUsage = ({ usedBytes, documentCount, limit }: StorageUsageProps) =>
 
   const state = getStorageUsageState(usedBytes, limit);
   const tone = STORAGE_TONES[state.isOverLimit ? "over" : state.isNearLimit ? "near" : "ok"];
-  const percentage = Math.round(state.percentage);
+  // Only show 100% once the limit is actually reached (99.6% must not read as full)
+  const percentage = state.isOverLimit ? 100 : Math.floor(state.percentage);
 
   return (
     <div className="space-y-4" data-testid="storage-usage">
@@ -217,6 +218,9 @@ const SubscriptionSection = () => {
   };
 
   const subscriptionStatus = profile?.stripe_subscription_status;
+  const planLookupFailed =
+    !profile?.activePlan &&
+    (subscriptionStatus === 'active' || subscriptionStatus === 'trialing' || subscriptionStatus === 'error');
   const currentPeriodEnd = profile?.stripe_current_period_end
     ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')
     : null;
@@ -495,7 +499,13 @@ const SubscriptionSection = () => {
               <StorageUsage
                 usedBytes={profile.storageUsedBytes}
                 documentCount={profile.documentCount}
-                limit={profile.activePlan ? profile.activePlan.storageLimit : 0}
+                limit={
+                  profile.activePlan
+                    ? profile.activePlan.storageLimit
+                    // A subscription that should have a plan but has none means the plan lookup failed
+                    // (e.g. Stripe error): the limit is unknown, not "no storage included".
+                    : planLookupFailed ? undefined : 0
+                }
               />
             </SettingsCard>
           </SettingsSection>

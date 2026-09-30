@@ -47,8 +47,10 @@ export interface UserProfileForSettings extends SupabaseProfile {
 }
 
 export async function getUserProfileForSettings(
-  { includeStorage = false }: { includeStorage?: boolean } = {}
+  options?: { includeStorage?: boolean }
 ): Promise<UserProfileForSettings | { error: string; details?: any }> {
+  // Server Action arguments come from the client, so read them defensively (null is possible)
+  const includeStorage = options?.includeStorage === true;
   let user, supabase;
   try {
     ({ user, supabase } = await ensureAuth());

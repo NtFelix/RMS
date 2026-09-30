@@ -99,6 +99,28 @@ describe('SubscriptionSection storage usage', () => {
     expect(screen.queryByRole('progressbar', { name: 'Speicherauslastung' })).not.toBeInTheDocument();
   });
 
+  it('does not claim that storage is missing from the plan when the plan lookup failed', async () => {
+    mockProfile({
+      activePlan: null,
+      hasActiveSubscription: false,
+      stripe_subscription_status: 'active',
+    });
+    render(<SubscriptionSection />);
+
+    const section = await screen.findByTestId('storage-usage');
+    expect(section).toHaveTextContent('512.00 MB');
+    expect(section).not.toHaveTextContent('Nicht verfügbar');
+    expect(section).not.toHaveTextContent('nicht enthalten');
+  });
+
+  it('does not show 100% before the limit is reached', async () => {
+    mockProfile({ storageUsedBytes: 0.996 * GB });
+    render(<SubscriptionSection />);
+
+    await screen.findByTestId('storage-usage');
+    expect(screen.getByRole('progressbar', { name: 'Speicherauslastung' })).toHaveAttribute('aria-valuenow', '99');
+  });
+
   it('shows usage without a progress bar for unlimited plans', async () => {
     mockProfile({ activePlan: { ...basePlan, limit_wohnungen: null, storageLimit: null } });
     render(<SubscriptionSection />);

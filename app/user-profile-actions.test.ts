@@ -159,6 +159,16 @@ describe('User Profile Actions', () => {
         expect(result.documentCount).toBeUndefined();
     });
 
+    it('should tolerate a null options argument from the client', async () => {
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue(null);
+
+        const result = await getUserProfileForSettings(null as any);
+
+        expect('error' in result).toBe(false);
+        expect(mockRpc).not.toHaveBeenCalled();
+    });
+
     it('should not query the storage statistics unless requested', async () => {
         (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
         (getPlanDetails as jest.Mock).mockResolvedValue(null);
