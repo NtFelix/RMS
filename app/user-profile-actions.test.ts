@@ -16,10 +16,12 @@ jest.mock('@/lib/stripe-server', () => ({
 // Mock Supabase
 const mockSingle = jest.fn();
 const mockSelect = jest.fn();
+const mockRpc = jest.fn();
 const mockSupabase = {
   from: jest.fn(() => ({
     select: mockSelect,
   })),
+  rpc: mockRpc,
   auth: {
     getUser: jest.fn(),
   },
@@ -66,6 +68,9 @@ describe('User Profile Actions', () => {
     });
 
     mockSingle.mockResolvedValue({ data: { id: 'user-1', stripe_customer_id: 'cus_123' }, error: null });
+
+    mockRpc.mockReset();
+    mockRpc.mockResolvedValue({ data: [{ dokumente_anzahl: 0, speicher_bytes: 0 }], error: null });
 
     // Default Stripe mocks
     mockStripeCustomersRetrieve.mockResolvedValue({
@@ -115,6 +120,43 @@ describe('User Profile Actions', () => {
         expect(result.currentWohnungenCount).toBe(5);
         expect(result.activePlan?.name).toBe('Pro Plan');
         expect(result.hasActiveSubscription).toBe(true);
+    });
+
+    it('should return the pre-computed storage statistics of the organisation', async () => {
+        mockSingle.mockResolvedValue({
+            data: { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'active' },
+            error: null
+        });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue({ name: 'Pro Plan', storageLimit: 1073741824 });
+        mockRpc.mockResolvedValue({
+            data: [{ dokumente_anzahl: 42, speicher_bytes: 5242880 }],
+            error: null
+        });
+
+        const result = await getUserProfileForSettings();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(mockRpc).toHaveBeenCalledWith('get_organisation_storage_stats');
+        expect(result.storageUsedBytes).toBe(5242880);
+        expect(result.documentCount).toBe(42);
+        expect(result.activePlan?.storageLimit).toBe(1073741824);
+    });
+
+    it('should fall back to zero storage values if the statistics cannot be loaded', async () => {
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue(null);
+        mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } });
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const result = await getUserProfileForSettings();
+        consoleSpy.mockRestore();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(result.storageUsedBytes).toBe(0);
+        expect(result.documentCount).toBe(0);
     });
 
     it('should return error if not authenticated', async () => {

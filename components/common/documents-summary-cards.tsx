@@ -5,6 +5,7 @@ import { Upload, FolderPlus, HardDrive, Lock } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { formatFileSize } from "@/lib/storage-usage"
 import {
   Tooltip,
   TooltipContent,
@@ -21,14 +22,6 @@ interface DocumentsSummaryCardsProps {
   isLoadingLimit?: boolean
   onUpload: (files: File[]) => void
   onCreateFolder: () => void
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
 }
 
 export function DocumentsSummaryCards({

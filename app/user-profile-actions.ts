@@ -29,9 +29,13 @@ export interface UserProfileForSettings extends SupabaseProfile {
     interval_count?: number | null;
     features: string[];
     limit_wohnungen: number | null;
+    storageLimit?: number | null; // Storage limit in bytes, 0 = no storage included, null = unlimited
   } | null | undefined;
   hasActiveSubscription: boolean;
   currentWohnungenCount: number;
+  // Pre-computed storage statistics of the organisation (Organisation.speicher_bytes / dokumente_anzahl)
+  storageUsedBytes: number;
+  documentCount: number;
   // Explicitly add fields expected by SettingsModal and other parts of the system
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
@@ -65,6 +69,19 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
     // Use the new utility function to get the count of Wohnungen
     const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
 
+    // Read the pre-computed storage statistics instead of aggregating the documents table
+    let storageUsedBytes = 0;
+    let documentCount = 0;
+    const { data: storageStats, error: storageStatsError } = await supabase
+      .rpc('get_organisation_storage_stats');
+    if (storageStatsError) {
+      console.error('Storage stats error in getUserProfileForSettings:', storageStatsError);
+    } else {
+      const row = Array.isArray(storageStats) ? storageStats[0] : storageStats;
+      storageUsedBytes = Number(row?.speicher_bytes ?? 0);
+      documentCount = Number(row?.dokumente_anzahl ?? 0);
+    }
+
     let planDetails = null;
     if (profile.stripe_price_id &&
       (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
@@ -89,6 +106,8 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
       activePlan: planDetails,
       hasActiveSubscription,
       currentWohnungenCount,
+      storageUsedBytes,
+      documentCount,
     };
 
     return responseData;
