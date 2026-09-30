@@ -236,7 +236,7 @@ export function DocumentsSummaryCards({
               </h3>
               <HardDrive className={cn(
                 "h-4 w-4",
-                isOverLimit || hasNoStorageAccess ? "text-destructive" : isNearLimit ? "text-amber-500" : "text-muted-foreground"
+                isOverLimit ? "text-destructive" : isNearLimit ? "text-amber-500" : "text-muted-foreground"
               )} />
             </div>
             <div>

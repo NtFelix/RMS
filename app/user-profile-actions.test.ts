@@ -139,9 +139,8 @@ describe('User Profile Actions', () => {
         if ('error' in result) throw new Error(result.error);
 
         expect(mockRpc).toHaveBeenCalledWith('get_organisation_storage_stats');
-        expect(result.storageUsedBytes).toBe(5242880);
-        expect(result.documentCount).toBe(42);
-        expect(result.activePlan?.storageLimit).toBe(1073741824);
+        expect(result.storage).toEqual({ usedBytes: 5242880, documentCount: 42 });
+        expect(result.storageLimit).toBe(1073741824);
     });
 
     it('should leave the storage values undefined if the statistics cannot be loaded', async () => {
@@ -155,8 +154,7 @@ describe('User Profile Actions', () => {
 
         if ('error' in result) throw new Error(result.error);
 
-        expect(result.storageUsedBytes).toBeUndefined();
-        expect(result.documentCount).toBeUndefined();
+        expect(result.storage).toBeUndefined();
     });
 
     it('should tolerate a null options argument from the client', async () => {
@@ -178,8 +176,7 @@ describe('User Profile Actions', () => {
         if ('error' in result) throw new Error(result.error);
 
         expect(mockRpc).not.toHaveBeenCalled();
-        expect(result.storageUsedBytes).toBeUndefined();
-        expect(result.documentCount).toBeUndefined();
+        expect(result.storage).toBeUndefined();
     });
 
     it('should keep returning the profile if the plan lookup fails', async () => {
@@ -198,7 +195,9 @@ describe('User Profile Actions', () => {
 
         expect(result.activePlan).toBeNull();
         expect(result.hasActiveSubscription).toBe(false);
-        expect(result.storageUsedBytes).toBe(0);
+        // A failed plan lookup means the limit is unknown, not "no storage included"
+        expect(result.storageLimit).toBeUndefined();
+        expect(result.storage).toEqual({ usedBytes: 0, documentCount: 0 });
     });
 
     it('should return error if not authenticated', async () => {

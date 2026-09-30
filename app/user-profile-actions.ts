@@ -35,8 +35,9 @@ export interface UserProfileForSettings extends SupabaseProfile {
   currentWohnungenCount: number;
   // Pre-computed storage statistics of the organisation (Organisation.speicher_bytes / dokumente_anzahl),
   // only set when requested with `includeStorage` and loaded successfully
-  storageUsedBytes?: number;
-  documentCount?: number;
+  storage?: { usedBytes: number; documentCount: number };
+  // Plan storage limit in bytes: 0 = no storage included, null = unlimited, undefined = unknown (plan lookup failed)
+  storageLimit?: number | null;
   // Explicitly add fields expected by SettingsModal and other parts of the system
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
@@ -49,7 +50,7 @@ export interface UserProfileForSettings extends SupabaseProfile {
 export async function getUserProfileForSettings(
   options?: { includeStorage?: boolean }
 ): Promise<UserProfileForSettings | { error: string; details?: any }> {
-  // Server Action arguments come from the client, so read them defensively (null is possible)
+  // Arguments of a Server Action come from the client, so `options` may be null
   const includeStorage = options?.includeStorage === true;
   let user, supabase;
   try {
@@ -71,13 +72,13 @@ export async function getUserProfileForSettings(
       return { error: 'Profile not found', details: profileError?.message };
     }
 
+    const planExpected = !!profile.stripe_price_id &&
+      (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing');
+
     const loadPlanDetails = async () => {
-      if (!profile.stripe_price_id ||
-        !(profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
-        return null;
-      }
+      if (!planExpected) return null;
       try {
-        return await getPlanDetails(profile.stripe_price_id);
+        return await getPlanDetails(profile.stripe_price_id!);
       } catch (stripeError) {
         console.error('Stripe API error in getUserProfileForSettings:', stripeError);
         // Not returning error here, just means plan details couldn't be fetched
@@ -86,25 +87,24 @@ export async function getUserProfileForSettings(
       }
     };
 
-    // The three lookups are independent of each other. The storage statistics are the
-    // pre-computed Organisation.speicher_bytes / dokumente_anzahl and only loaded on request.
+    // The three lookups are independent of each other
     const [currentWohnungenCount, storageResult, planDetails] = await Promise.all([
       getCurrentWohnungenCount(supabase, user.id),
       includeStorage ? supabase.rpc('get_organisation_storage_stats') : Promise.resolve(null),
       loadPlanDetails(),
     ]);
 
-    // Stays undefined when the statistics were not requested or could not be loaded,
-    // so the UI does not present a failed lookup as "0 B".
-    let storageUsedBytes: number | undefined;
-    let documentCount: number | undefined;
+    // Stays undefined when not requested or when the lookup failed, so a failure is not shown as "0 B"
+    let storage: UserProfileForSettings['storage'];
     if (storageResult?.error) {
       console.error('Storage stats error in getUserProfileForSettings:', storageResult.error);
-    } else if (storageResult) {
-      const row = storageResult.data?.[0];
-      storageUsedBytes = Number(row?.speicher_bytes ?? 0);
-      documentCount = Number(row?.dokumente_anzahl ?? 0);
+    } else if (storageResult?.data?.[0]) {
+      const row = storageResult.data[0];
+      storage = { usedBytes: row.speicher_bytes, documentCount: row.dokumente_anzahl };
     }
+
+    // Unknown (undefined) when a plan was expected but could not be loaded, e.g. because of a Stripe error
+    const storageLimit = planDetails ? planDetails.storageLimit : planExpected ? undefined : 0;
 
     const hasActiveSubscription = !!planDetails &&
       (profile.stripe_subscription_status === 'active' ||
@@ -118,8 +118,8 @@ export async function getUserProfileForSettings(
       activePlan: planDetails,
       hasActiveSubscription,
       currentWohnungenCount,
-      storageUsedBytes,
-      documentCount,
+      storage,
+      storageLimit,
     };
 
     return responseData;

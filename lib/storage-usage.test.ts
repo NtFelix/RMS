@@ -29,12 +29,13 @@ describe('getStorageUsageState', () => {
       hasNoStorageAccess: false,
       isOverLimit: false,
       isNearLimit: false,
+      level: 'ok',
     });
     expect(state.percentage).toBeCloseTo(50);
   });
 
   it('flags near-limit usage from 80 percent', () => {
-    expect(getStorageUsageState(0.8 * GB, GB).isNearLimit).toBe(true);
+    expect(getStorageUsageState(0.8 * GB, GB)).toMatchObject({ isNearLimit: true, level: 'near' });
     expect(getStorageUsageState(0.79 * GB, GB).isNearLimit).toBe(false);
   });
 
@@ -42,6 +43,7 @@ describe('getStorageUsageState', () => {
     const state = getStorageUsageState(2 * GB, GB);
     expect(state.isOverLimit).toBe(true);
     expect(state.isNearLimit).toBe(false);
+    expect(state.level).toBe('over');
     expect(state.percentage).toBe(100);
     expect(getStorageUsageState(GB, GB).isOverLimit).toBe(true);
   });

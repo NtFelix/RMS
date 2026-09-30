@@ -18,20 +18,19 @@ const STORAGE_SECTION_DESCRIPTION = "Dokumentenspeicher Ihrer gesamten Organisat
 
 const STORAGE_TONES = {
   over: { text: "text-destructive", bar: "bg-destructive", icon: "text-destructive" },
-  near: { text: "text-amber-500", bar: "bg-amber-500", icon: "text-amber-500" },
+  near: { text: "text-amber-600 dark:text-amber-500", bar: "bg-amber-500", icon: "text-amber-600 dark:text-amber-500" },
   ok: { text: "", bar: "bg-primary", icon: "text-muted-foreground" },
 } as const;
 
 interface StorageUsageProps {
   /** Undefined when the statistics could not be loaded */
-  usedBytes?: number;
-  documentCount?: number;
-  /** Plan limit in bytes, 0 = no storage included, null/undefined = unlimited */
+  storage?: { usedBytes: number; documentCount: number };
+  /** Plan limit in bytes, 0 = no storage included, null/undefined = unlimited or unknown */
   limit?: number | null;
 }
 
-const StorageUsage = ({ usedBytes, documentCount, limit }: StorageUsageProps) => {
-  if (usedBytes === undefined || documentCount === undefined) {
+const StorageUsage = ({ storage, limit }: StorageUsageProps) => {
+  if (!storage) {
     return (
       <p className="text-sm text-muted-foreground" data-testid="storage-usage">
         Die Speichernutzung konnte nicht geladen werden.
@@ -39,8 +38,9 @@ const StorageUsage = ({ usedBytes, documentCount, limit }: StorageUsageProps) =>
     );
   }
 
+  const { usedBytes, documentCount } = storage;
   const state = getStorageUsageState(usedBytes, limit);
-  const tone = STORAGE_TONES[state.isOverLimit ? "over" : state.isNearLimit ? "near" : "ok"];
+  const tone = STORAGE_TONES[state.level];
   // Only show 100% once the limit is actually reached (99.6% must not read as full)
   const percentage = state.isOverLimit ? 100 : Math.floor(state.percentage);
 
@@ -99,7 +99,7 @@ const StorageUsage = ({ usedBytes, documentCount, limit }: StorageUsageProps) =>
           Ihr Speicherlimit ist erreicht. Löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.
         </p>
       ) : state.isNearLimit ? (
-        <p className="text-sm text-amber-600 dark:text-amber-500">Ihr Speicher ist fast voll.</p>
+        <p className={cn("text-sm", tone.text)}>Ihr Speicher ist fast voll.</p>
       ) : null}
     </div>
   );
@@ -218,9 +218,6 @@ const SubscriptionSection = () => {
   };
 
   const subscriptionStatus = profile?.stripe_subscription_status;
-  const planLookupFailed =
-    !profile?.activePlan &&
-    (subscriptionStatus === 'active' || subscriptionStatus === 'trialing' || subscriptionStatus === 'error');
   const currentPeriodEnd = profile?.stripe_current_period_end
     ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')
     : null;
@@ -496,17 +493,7 @@ const SubscriptionSection = () => {
           </SettingsSection>
           <SettingsSection title={STORAGE_SECTION_TITLE} description={STORAGE_SECTION_DESCRIPTION}>
             <SettingsCard>
-              <StorageUsage
-                usedBytes={profile.storageUsedBytes}
-                documentCount={profile.documentCount}
-                limit={
-                  profile.activePlan
-                    ? profile.activePlan.storageLimit
-                    // A subscription that should have a plan but has none means the plan lookup failed
-                    // (e.g. Stripe error): the limit is unknown, not "no storage included".
-                    : planLookupFailed ? undefined : 0
-                }
-              />
+              <StorageUsage storage={profile.storage} limit={profile.storageLimit} />
             </SettingsCard>
           </SettingsSection>
           <SettingsSection

@@ -41,8 +41,8 @@ function mockProfile(overrides: Record<string, unknown> = {}) {
     stripe_subscription_status: 'active',
     hasActiveSubscription: true,
     currentWohnungenCount: 2,
-    storageUsedBytes: 0.5 * GB,
-    documentCount: 1234,
+    storage: { usedBytes: 0.5 * GB, documentCount: 1234 },
+    storageLimit: GB,
     activePlan: basePlan,
     ...overrides,
   });
@@ -78,7 +78,7 @@ describe('SubscriptionSection storage usage', () => {
     ['almost full', 0.9 * GB, /Ihr Speicher ist fast voll/],
     ['at the limit', GB, /Ihr Speicherlimit ist erreicht/],
   ])('shows a warning when the storage is %s', async (_label, usedBytes, message) => {
-    mockProfile({ storageUsedBytes: usedBytes });
+    mockProfile({ storage: { usedBytes, documentCount: 1 } });
     render(<SubscriptionSection />);
 
     expect(await screen.findByText(message)).toBeInTheDocument();
@@ -89,8 +89,8 @@ describe('SubscriptionSection storage usage', () => {
       activePlan: null,
       hasActiveSubscription: false,
       stripe_subscription_status: 'inactive',
-      storageUsedBytes: 0,
-      documentCount: 0,
+      storage: { usedBytes: 0, documentCount: 0 },
+      storageLimit: 0,
     });
     render(<SubscriptionSection />);
 
@@ -104,6 +104,7 @@ describe('SubscriptionSection storage usage', () => {
       activePlan: null,
       hasActiveSubscription: false,
       stripe_subscription_status: 'active',
+      storageLimit: undefined,
     });
     render(<SubscriptionSection />);
 
@@ -114,7 +115,7 @@ describe('SubscriptionSection storage usage', () => {
   });
 
   it('does not show 100% before the limit is reached', async () => {
-    mockProfile({ storageUsedBytes: 0.996 * GB });
+    mockProfile({ storage: { usedBytes: 0.996 * GB, documentCount: 1 } });
     render(<SubscriptionSection />);
 
     await screen.findByTestId('storage-usage');
@@ -122,7 +123,7 @@ describe('SubscriptionSection storage usage', () => {
   });
 
   it('shows usage without a progress bar for unlimited plans', async () => {
-    mockProfile({ activePlan: { ...basePlan, limit_wohnungen: null, storageLimit: null } });
+    mockProfile({ activePlan: { ...basePlan, limit_wohnungen: null, storageLimit: null }, storageLimit: null });
     render(<SubscriptionSection />);
 
     const section = await screen.findByTestId('storage-usage');
@@ -131,7 +132,7 @@ describe('SubscriptionSection storage usage', () => {
   });
 
   it('does not present missing statistics as 0 B', async () => {
-    mockProfile({ storageUsedBytes: undefined, documentCount: undefined });
+    mockProfile({ storage: undefined });
     render(<SubscriptionSection />);
 
     const section = await screen.findByTestId('storage-usage');

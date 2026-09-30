@@ -3,7 +3,7 @@
  * The used bytes come pre-computed from `Organisation.speicher_bytes`.
  */
 
-export const STORAGE_NEAR_LIMIT_PERCENTAGE = 80;
+const STORAGE_NEAR_LIMIT_PERCENTAGE = 80;
 
 export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -22,6 +22,7 @@ export interface StorageUsageState {
   hasNoStorageAccess: boolean;
   isOverLimit: boolean;
   isNearLimit: boolean;
+  level: 'over' | 'near' | 'ok';
 }
 
 /**
@@ -39,5 +40,7 @@ export function getStorageUsageState(
   const isOverLimit = (hasLimit && usedBytes >= limitBytes) || hasNoStorageAccess;
   const isNearLimit = hasLimit && !isOverLimit && percentage >= STORAGE_NEAR_LIMIT_PERCENTAGE;
 
-  return { percentage, hasLimit, hasNoStorageAccess, isOverLimit, isNearLimit };
+  const level = isOverLimit ? 'over' : isNearLimit ? 'near' : 'ok';
+
+  return { percentage, hasLimit, hasNoStorageAccess, isOverLimit, isNearLimit, level };
 }
