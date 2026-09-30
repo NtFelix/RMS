@@ -121,6 +121,12 @@ const nextConfig = {
       },
     ];
   },
+  turbopack: {
+    resolveAlias: {
+      // Turbopack counterpart of the webpack `ws` stub below (client bundle only)
+      ws: { browser: './lib/empty-module.js' },
+    },
+  },
   webpack: (config, { isServer, webpack }) => {
     // Stub ws module on the client side only to prevent breaking server components
     if (!isServer) {
