@@ -29,7 +29,6 @@ export interface UserProfileForSettings extends SupabaseProfile {
     interval_count?: number | null;
     features: string[];
     limit_wohnungen: number | null;
-    storageLimit?: number | null; // Storage limit in bytes, 0 = no storage included, null = unlimited
   } | null | undefined;
   hasActiveSubscription: boolean;
   currentWohnungenCount: number;

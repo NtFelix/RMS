@@ -71,6 +71,9 @@ export function CreateFolderModal({
       const result = await response.json()
 
       if (!response.ok) {
+        if (result.details) {
+          throw new Error(`${result.error} ${JSON.stringify(result.details)}`)
+        }
         throw new Error(result.error || 'Failed to create folder')
       }
 

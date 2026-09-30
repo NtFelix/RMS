@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
           dateipfad: newFolderPath,
           dateiname: '.keep',
           dateigroesse: 0,
-          mime_type: 'text/plain',
-          user_id: user.id
+          mime_type: 'text/plain'
+          // organisation_id and erstellt_von are set by column defaults
         })
 
       if (dbInsertError) {
@@ -121,8 +121,18 @@ export async function POST(request: NextRequest) {
         console.error('CRITICAL: Failed to cleanup orphaned .keep file:', keepFilePath, cleanupError)
       }
 
+      // Expose DB error details for debugging in development only
+      const details = process.env.NODE_ENV === 'development' && dbError && typeof dbError === 'object'
+        ? {
+            code: (dbError as { code?: string }).code,
+            message: (dbError as { message?: string }).message,
+            details: (dbError as { details?: string }).details,
+            hint: (dbError as { hint?: string }).hint,
+          }
+        : undefined
+
       return NextResponse.json(
-        { error: 'Failed to save folder metadata' },
+        { error: 'Failed to save folder metadata', ...(details && { details }) },
         {
           status: 500,
           headers: NO_CACHE_HEADERS,

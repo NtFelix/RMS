@@ -87,12 +87,12 @@ const StorageUsage = ({ storage, limit }: StorageUsageProps) => {
       )}
       <div className="h-px bg-border" />
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Dokumente</span>
+        <span className="text-muted-foreground">Dokumente (inkl. Papierkorb)</span>
         <span className="font-medium">{documentCount.toLocaleString("de-DE")}</span>
       </div>
       {state.hasNoStorageAccess ? (
         <p className="text-sm text-destructive">
-          Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten.
+          Mit Ihrem aktuellen Abonnement steht kein Dokumentenspeicher zur Verfügung. Prüfen Sie Ihren Tarif und offene Zahlungen.
         </p>
       ) : state.isOverLimit ? (
         <p className="text-sm text-destructive">

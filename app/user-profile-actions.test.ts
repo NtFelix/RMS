@@ -157,6 +157,36 @@ describe('User Profile Actions', () => {
         expect(result.storage).toBeUndefined();
     });
 
+    it.each([
+        ['an inactive subscription', { id: 'user-1', stripe_subscription_status: 'inactive' }],
+        ['a past_due subscription', { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'past_due' }],
+    ])('should resolve storageLimit 0 (no storage) for %s', async (_label, profile) => {
+        mockSingle.mockResolvedValue({ data: profile, error: null });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+
+        const result = await getUserProfileForSettings();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(getPlanDetails).not.toHaveBeenCalled();
+        expect(result.storageLimit).toBe(0);
+    });
+
+    it('should keep a storage limit of 0 from the plan instead of treating it as unknown', async () => {
+        mockSingle.mockResolvedValue({
+            data: { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'active' },
+            error: null
+        });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue({ name: 'Basic', storageLimit: 0 });
+
+        const result = await getUserProfileForSettings();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(result.storageLimit).toBe(0);
+    });
+
     it('should tolerate a null options argument from the client', async () => {
         (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
         (getPlanDetails as jest.Mock).mockResolvedValue(null);

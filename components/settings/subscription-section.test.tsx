@@ -31,7 +31,6 @@ const basePlan = {
   currency: 'eur',
   features: [],
   limit_wohnungen: 10,
-  storageLimit: GB,
 };
 
 function mockProfile(overrides: Record<string, unknown> = {}) {
@@ -69,6 +68,7 @@ describe('SubscriptionSection storage usage', () => {
     expect(section).toHaveTextContent('512.00 MB');
     expect(section).toHaveTextContent('/ 1.00 GB');
     expect(section).toHaveTextContent('50%');
+    expect(section).toHaveTextContent('Dokumente (inkl. Papierkorb)');
     expect(section).toHaveTextContent('1.234');
     expect(screen.getByRole('progressbar', { name: 'Speicherauslastung' })).toHaveAttribute('aria-valuenow', '50');
     expect(section).not.toHaveTextContent('fast voll');
@@ -94,8 +94,10 @@ describe('SubscriptionSection storage usage', () => {
     });
     render(<SubscriptionSection />);
 
-    await screen.findByTestId('storage-usage');
+    const section = await screen.findByTestId('storage-usage');
     expect(screen.getByText('Nicht verfügbar')).toBeInTheDocument();
+    expect(section).toHaveTextContent('kein Dokumentenspeicher zur Verfügung');
+    expect(section).not.toHaveTextContent('nicht enthalten');
     expect(screen.queryByRole('progressbar', { name: 'Speicherauslastung' })).not.toBeInTheDocument();
   });
 
@@ -123,7 +125,7 @@ describe('SubscriptionSection storage usage', () => {
   });
 
   it('shows usage without a progress bar for unlimited plans', async () => {
-    mockProfile({ activePlan: { ...basePlan, limit_wohnungen: null, storageLimit: null }, storageLimit: null });
+    mockProfile({ activePlan: { ...basePlan, limit_wohnungen: null }, storageLimit: null });
     render(<SubscriptionSection />);
 
     const section = await screen.findByTestId('storage-usage');

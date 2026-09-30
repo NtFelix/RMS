@@ -11,8 +11,6 @@ export interface SubscriptionPlan {
   interval_count?: number | null;
   features: string[];
   limit_wohnungen: number | null;
-  /** Storage limit in bytes, 0 = no storage included, null/undefined = unlimited */
-  storageLimit?: number | null;
 }
 
 export interface UserProfileWithSubscription extends SupabaseProfile {
