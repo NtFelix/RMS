@@ -113,4 +113,34 @@ describe('useStorageUsage', () => {
 
     expect(hook.result.current.usage).toBe(2500);
   });
+
+  it('does not write the result of a previous user after the user changed', async () => {
+    // user-1 has a 1 GB plan, user-2 a 2 GB plan
+    mockSingle.mockReset();
+    mockSingle
+      .mockResolvedValueOnce({ data: { stripe_subscription_status: 'active', stripe_price_id: 'price_1' }, error: null })
+      .mockResolvedValueOnce({ data: { stripe_subscription_status: 'active', stripe_price_id: 'price_2' }, error: null });
+    global.fetch = jest.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => ({ storageLimit: url.endsWith('price_2') ? 2 * GB : GB }),
+    })) as unknown as typeof fetch;
+
+    let resolveOldUsage: (value: { data: number; error: null }) => void = () => {};
+    mockRpc.mockReturnValueOnce(new Promise(resolve => { resolveOldUsage = resolve; }));
+    const otherUser = { id: 'user-2' } as User;
+
+    const hook = renderHook(({ current }) => useStorageUsage(current), { initialProps: { current: user } });
+
+    mockRpc.mockResolvedValue({ data: 700, error: null });
+    hook.rerender({ current: otherUser });
+    await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
+    expect(hook.result.current.limit).toBe(2 * GB);
+
+    await act(async () => {
+      resolveOldUsage({ data: 9999, error: null }); // late answer for the first user
+    });
+
+    expect(hook.result.current.usage).toBe(700);
+    expect(hook.result.current.limit).toBe(2 * GB);
+  });
 });

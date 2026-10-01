@@ -63,6 +63,9 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
             return;
         }
 
+        // Set by the cleanup: a result for a previous user (or an unmounted component) must not be written
+        let cancelled = false;
+
         const fetchStorageData = async () => {
             try {
                 setState(prev => (prev.isLoading ? prev : { ...prev, isLoading: true }));
@@ -106,6 +109,8 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                     }
                 }
 
+                if (cancelled) return;
+
                 // A newer refresh() may have finished while the plan was loading: keep its usage
                 const usageIsCurrent = lookup >= appliedLookup.current;
                 if (usageIsCurrent) appliedLookup.current = lookup;
@@ -116,6 +121,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                     error: null,
                 }));
             } catch (error) {
+                if (cancelled) return;
                 console.error('Error fetching storage data:', error);
                 setState(prev => ({
                     ...prev,
@@ -127,6 +133,10 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
         };
 
         fetchStorageData();
+
+        return () => {
+            cancelled = true;
+        };
     }, [user, supabase]);
 
     return {
