@@ -51,13 +51,20 @@ const StorageUsage = ({ storage, limit }: StorageUsageProps) => {
         <div className="space-y-1">
           <div className="text-sm font-medium text-muted-foreground">Speicher genutzt</div>
           {state.hasNoStorageAccess ? (
-            <div className="text-2xl font-bold text-destructive">Nicht verfügbar</div>
+            <>
+              <div className="text-2xl font-bold text-destructive">Nicht verfügbar</div>
+              {usedBytes > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {formatFileSize(usedBytes)} belegt
+                </div>
+              )}
+            </>
           ) : (
             <div className={cn("text-2xl font-bold", tone.text)}>
               {formatFileSize(usedBytes)}
-              {state.hasLimit && (
+              {state.limitBytes !== null && (
                 <span className="text-sm font-normal text-muted-foreground ml-1">
-                  / {formatFileSize(limit as number)}
+                  / {formatFileSize(state.limitBytes)}
                 </span>
               )}
             </div>

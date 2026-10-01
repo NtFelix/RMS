@@ -89,7 +89,7 @@ describe('SubscriptionSection storage usage', () => {
       activePlan: null,
       hasActiveSubscription: false,
       stripe_subscription_status: 'inactive',
-      storage: { usedBytes: 0, documentCount: 0 },
+      storage: { usedBytes: 3 * GB, documentCount: 7 },
       storageLimit: 0,
     });
     render(<SubscriptionSection />);
@@ -97,6 +97,7 @@ describe('SubscriptionSection storage usage', () => {
     const section = await screen.findByTestId('storage-usage');
     expect(screen.getByText('Nicht verfügbar')).toBeInTheDocument();
     expect(section).toHaveTextContent('kein Dokumentenspeicher zur Verfügung');
+    expect(section).toHaveTextContent('3.00 GB belegt');
     expect(section).not.toHaveTextContent('nicht enthalten');
     expect(screen.queryByRole('progressbar', { name: 'Speicherauslastung' })).not.toBeInTheDocument();
   });

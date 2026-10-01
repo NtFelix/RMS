@@ -14,7 +14,7 @@ export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  const i = Math.max(0, Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1));
   return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
 }
 
@@ -23,6 +23,8 @@ export interface StorageUsageState {
   percentage: number;
   /** A positive storage limit exists. */
   hasLimit: boolean;
+  /** The positive limit in bytes, null when there is none (no access, unlimited or unknown). */
+  limitBytes: number | null;
   /** The plan explicitly includes no storage (limit 0). */
   hasNoStorageAccess: boolean;
   isOverLimit: boolean;
@@ -47,5 +49,13 @@ export function getStorageUsageState(
 
   const level = isOverLimit ? 'over' : isNearLimit ? 'near' : 'ok';
 
-  return { percentage, hasLimit, hasNoStorageAccess, isOverLimit, isNearLimit, level };
+  return {
+    percentage,
+    hasLimit,
+    limitBytes: hasLimit ? (limitBytes as number) : null,
+    hasNoStorageAccess,
+    isOverLimit,
+    isNearLimit,
+    level,
+  };
 }

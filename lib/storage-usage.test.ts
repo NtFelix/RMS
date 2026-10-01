@@ -14,6 +14,10 @@ describe('formatFileSize', () => {
     expect(formatFileSize(1024 ** 3)).toBe('1.00 GB');
   });
 
+  it('never renders an undefined unit for fractions of a byte', () => {
+    expect(formatFileSize(0.5)).toBe('0.50 B');
+  });
+
   it('does not exceed the largest unit', () => {
     expect(formatFileSize(1024 ** 5)).toBe('1024.00 TB');
   });
@@ -30,6 +34,7 @@ describe('getStorageUsageState', () => {
       isOverLimit: false,
       isNearLimit: false,
       level: 'ok',
+      limitBytes: GB,
     });
     expect(state.percentage).toBeCloseTo(50);
   });
