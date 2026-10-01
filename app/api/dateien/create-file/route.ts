@@ -98,15 +98,19 @@ export async function POST(request: NextRequest) {
 
     // Insert into Dokumente_Metadaten
     try {
-      await supabase
+      const { error: dbInsertError } = await supabase
         .from('Dokumente_Metadaten')
         .insert({
           dateipfad: filePath,
           dateiname: fileName,
           dateigroesse: new Blob([content]).size,
-          mime_type: 'text/markdown',
-          user_id: user.id
+          mime_type: 'text/markdown'
+          // organisation_id and erstellt_von are set by column defaults
         })
+
+      if (dbInsertError) {
+        throw dbInsertError
+      }
     } catch (dbError) {
       console.error('Failed to insert into Dokumente_Metadaten:', dbError)
 
