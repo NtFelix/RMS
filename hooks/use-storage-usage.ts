@@ -1,23 +1,28 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 
 export interface StorageUsage {
-    usage: number; // Current usage in bytes
+    usage: number; // Current usage in bytes (pre-computed Organisation.speicher_bytes)
     limit: number; // Limit in bytes, 0 means no storage access
     isLoading: boolean;
     error: string | null;
-    percentage: number; // Usage percentage (0-100)
-    isOverLimit: boolean;
-    isNearLimit: boolean; // Over 80% usage
-    hasNoStorageAccess: boolean; // True if limit is 0 (no storage access)
+    refresh: () => Promise<void>; // Re-reads the pre-computed usage, e.g. after an upload or delete
+}
+
+/** Reads the pre-computed storage usage of the organisation in bytes. */
+async function readUsage(supabase: ReturnType<typeof createClient>): Promise<number> {
+    const { data, error } = await supabase.rpc('calculate_storage_usage');
+    if (error) throw error;
+    return Number(data) || 0;
 }
 
 /**
  * Hook to fetch and track storage usage against subscription limits.
  * Defaults to 0 storage (no access) if no valid limit is found.
+ * Derive over-limit / near-limit states with getStorageUsageState (lib/storage-usage.ts).
  */
 export function useStorageUsage(user: User | null, initialUsage?: number): StorageUsage {
     const [state, setState] = useState<{
@@ -34,6 +39,16 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
 
     const supabase = useMemo(() => createClient(), []);
 
+    const refresh = useCallback(async () => {
+        try {
+            const usage = await readUsage(supabase);
+            // Keep the same state object when nothing changed to avoid a re-render
+            setState(prev => (prev.usage === usage ? prev : { ...prev, usage }));
+        } catch (error) {
+            console.error('Error refreshing storage usage:', error);
+        }
+    }, [supabase]);
+
     useEffect(() => {
         if (!user) {
             setState(prev => ({ ...prev, isLoading: false, limit: 0 }));
@@ -44,11 +59,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
             try {
                 setState(prev => ({ ...prev, isLoading: true }));
 
-                // Fetch storage usage via RPC
-                const { data: usageData, error: usageError } = await supabase
-                    .rpc('calculate_storage_usage');
-
-                if (usageError) throw usageError;
+                const usage = await readUsage(supabase);
 
                 // Fetch storage limit from profile and plan details
                 const { data: profile, error: profileError } = await supabase
@@ -73,7 +84,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                         if (response.ok) {
                             const planDetails = await response.json();
 
-                            // The planDetails from /api/stripe/plans/[priceId] uses storageLimit 
+                            // The planDetails from /api/stripe/plans/[priceId] uses storageLimit
                             // (matching the getPlanDetails return type)
                             if (planDetails && typeof planDetails.storageLimit === 'number') {
                                 storageLimit = planDetails.storageLimit;
@@ -86,7 +97,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                 }
 
                 setState({
-                    usage: Number(usageData) || 0,
+                    usage,
                     limit: storageLimit,
                     isLoading: false,
                     error: null,
@@ -105,20 +116,11 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
         fetchStorageData();
     }, [user, supabase]);
 
-    const hasNoStorageAccess = state.limit === 0;
-    const percentage = state.limit > 0 ? Math.min((state.usage / state.limit) * 100, 100) : 100;
-    const isOverLimit = state.usage >= state.limit;
-    const isNearLimit = !hasNoStorageAccess && percentage >= 80 && !isOverLimit;
-
     return {
         usage: state.usage,
         limit: state.limit,
         isLoading: state.isLoading,
         error: state.error,
-        percentage,
-        isOverLimit,
-        isNearLimit,
-        hasNoStorageAccess,
+        refresh,
     };
 }
-
