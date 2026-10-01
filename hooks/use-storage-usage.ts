@@ -39,14 +39,17 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
 
     const supabase = useMemo(() => createClient(), []);
 
-    // Only the newest usage lookup may write the usage, so slower, older responses cannot overwrite it
-    const latestLookup = useRef(0);
+    // A usage lookup is ignored once a newer lookup has already been applied, so slower, older
+    // responses cannot overwrite a fresher value. A newer lookup that failed does not block an older one.
+    const issuedLookup = useRef(0);
+    const appliedLookup = useRef(0);
 
     const refresh = useCallback(async () => {
-        const lookup = ++latestLookup.current;
+        const lookup = ++issuedLookup.current;
         try {
             const usage = await readUsage(supabase);
-            if (lookup !== latestLookup.current) return;
+            if (lookup < appliedLookup.current) return;
+            appliedLookup.current = lookup;
             // Keep the same state object when nothing changed to avoid a re-render
             setState(prev => (prev.usage === usage ? prev : { ...prev, usage }));
         } catch (error) {
@@ -65,7 +68,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                 setState(prev => (prev.isLoading ? prev : { ...prev, isLoading: true }));
 
                 // Usage and profile are independent, only the plan lookup needs the profile
-                const lookup = ++latestLookup.current;
+                const lookup = ++issuedLookup.current;
                 const [usage, { data: profile, error: profileError }] = await Promise.all([
                     readUsage(supabase),
                     supabase
@@ -103,9 +106,11 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                     }
                 }
 
+                // A newer refresh() may have finished while the plan was loading: keep its usage
+                const usageIsCurrent = lookup >= appliedLookup.current;
+                if (usageIsCurrent) appliedLookup.current = lookup;
                 setState(prev => ({
-                    // A newer refresh() may have finished while the plan was loading: keep its usage
-                    usage: lookup === latestLookup.current ? usage : prev.usage,
+                    usage: usageIsCurrent ? usage : prev.usage,
                     limit: storageLimit,
                     isLoading: false,
                     error: null,

@@ -93,4 +93,24 @@ describe('useStorageUsage', () => {
 
     expect(result.current.usage).toBe(3000);
   });
+
+  it('applies the mount lookup when a newer refresh() failed', async () => {
+    let resolveMountUsage: (value: { data: number; error: null }) => void = () => {};
+    mockRpc.mockReturnValueOnce(new Promise(resolve => { resolveMountUsage = resolve; }));
+    const hook = renderHook(() => useStorageUsage(user));
+
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'rpc failed' } });
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await act(async () => {
+      await hook.result.current.refresh(); // started after the mount lookup, fails
+    });
+    consoleSpy.mockRestore();
+
+    await act(async () => {
+      resolveMountUsage({ data: 2500, error: null });
+    });
+    await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
+
+    expect(hook.result.current.usage).toBe(2500);
+  });
 });
