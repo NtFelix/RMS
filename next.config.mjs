@@ -121,31 +121,6 @@ const nextConfig = {
       },
     ];
   },
-  turbopack: {
-    resolveAlias: {
-      // Turbopack counterpart of the webpack `ws` stub below (client bundle only)
-      ws: { browser: './lib/empty-module.js' },
-    },
-  },
-  webpack: (config, { isServer, webpack }) => {
-    // Stub ws module on the client side only to prevent breaking server components
-    if (!isServer) {
-      config.resolve = {
-        ...(config.resolve || {}),
-        alias: {
-          ...(config.resolve.alias || {}),
-          ws: false,
-        },
-        fallback: {
-          ...(config.resolve.fallback || {}),
-          ws: false,
-        },
-      };
-      config.plugins = config.plugins || [];
-      config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
-    }
-    return config;
-  },
 };
 
 export default withPostHogConfig(nextConfig, {
