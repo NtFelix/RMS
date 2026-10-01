@@ -29,7 +29,7 @@ import { CloudStorageQuickActions } from "@/components/cloud-storage/cloud-stora
 import { CloudStorageItemCard } from "@/components/cloud-storage/cloud-storage-item-card"
 import { DocumentsSummaryCards } from "@/components/common/documents-summary-cards"
 import { useStorageUsage } from "@/hooks/use-storage-usage"
-import { getStorageUsageState } from "@/lib/storage-usage"
+import { getStorageUsageState, NO_STORAGE_MESSAGE, STORAGE_FULL_MESSAGE } from "@/lib/storage-usage"
 import { useUserProfile } from "@/hooks/use-user-profile"
 
 interface CloudStorageProps {
@@ -383,14 +383,6 @@ export function CloudStorage({
         [sortItems, filteredFolders]
     )
 
-    const formatFileSize = useCallback((bytes: number): string => {
-        if (bytes === 0) return '0 B'
-        const k = 1024
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-        const i = Math.floor(Math.log(bytes) / Math.log(k))
-        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
-    }, [])
-
     const documentStats = useMemo(() => {
         const totalFiles = files.length
         
@@ -653,11 +645,7 @@ export function CloudStorage({
                                     onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
                                     onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
                                     isUploadDisabled={isUploadDisabled}
-                                    storageDisabledMessage={
-                                        hasNoStorageAccess
-                                            ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
-                                            : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
-                                    }
+                                    storageDisabledMessage={hasNoStorageAccess ? NO_STORAGE_MESSAGE : STORAGE_FULL_MESSAGE}
                                 />
 
                                 {/* Breadcrumb Navigation */}

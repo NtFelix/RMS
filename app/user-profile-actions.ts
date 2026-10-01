@@ -105,9 +105,8 @@ export async function getUserProfileForSettings(
     // Unknown (undefined) when a plan was expected but could not be loaded, e.g. because of a Stripe error
     const storageLimit = planDetails ? planDetails.storageLimit : planExpected ? undefined : 0;
 
-    const hasActiveSubscription = !!planDetails &&
-      (profile.stripe_subscription_status === 'active' ||
-        profile.stripe_subscription_status === 'trialing');
+    // planDetails is only loaded for an active or trialing subscription
+    const hasActiveSubscription = !!planDetails;
 
     // Construct the response, ensuring it matches UserProfileForSettings
     const responseData: UserProfileForSettings = {

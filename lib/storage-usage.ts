@@ -5,6 +5,11 @@
 
 const STORAGE_NEAR_LIMIT_PERCENTAGE = 80;
 
+export const NO_STORAGE_MESSAGE =
+  'Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif.';
+export const STORAGE_FULL_MESSAGE =
+  'Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.';
+
 export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
   const k = 1024;

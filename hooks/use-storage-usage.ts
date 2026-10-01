@@ -57,16 +57,17 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
 
         const fetchStorageData = async () => {
             try {
-                setState(prev => ({ ...prev, isLoading: true }));
+                setState(prev => (prev.isLoading ? prev : { ...prev, isLoading: true }));
 
-                const usage = await readUsage(supabase);
-
-                // Fetch storage limit from profile and plan details
-                const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('stripe_subscription_status, stripe_price_id')
-                    .eq('id', user.id)
-                    .single();
+                // Usage and profile are independent, only the plan lookup needs the profile
+                const [usage, { data: profile, error: profileError }] = await Promise.all([
+                    readUsage(supabase),
+                    supabase
+                        .from('profiles')
+                        .select('stripe_subscription_status, stripe_price_id')
+                        .eq('id', user.id)
+                        .single(),
+                ]);
 
                 if (profileError) throw profileError;
 

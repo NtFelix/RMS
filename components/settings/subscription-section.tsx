@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import { formatFileSize, getStorageUsageState } from "@/lib/storage-usage";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/utils/format";
 
 const STORAGE_SECTION_TITLE = "Speichernutzung";
 const STORAGE_SECTION_DESCRIPTION = "Dokumentenspeicher Ihrer gesamten Organisation";
@@ -88,7 +89,7 @@ const StorageUsage = ({ storage, limit }: StorageUsageProps) => {
       <div className="h-px bg-border" />
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">Dokumente (inkl. Papierkorb)</span>
-        <span className="font-medium">{documentCount.toLocaleString("de-DE")}</span>
+        <span className="font-medium">{formatNumber(documentCount, 0)}</span>
       </div>
       {state.hasNoStorageAccess ? (
         <p className="text-sm text-destructive">

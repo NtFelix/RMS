@@ -5,16 +5,13 @@ import { Upload, FolderPlus, HardDrive, Lock } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { formatFileSize, getStorageUsageState } from "@/lib/storage-usage"
+import { formatFileSize, getStorageUsageState, NO_STORAGE_MESSAGE, STORAGE_FULL_MESSAGE } from "@/lib/storage-usage"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-
-const NO_STORAGE_MESSAGE = "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif.";
-const STORAGE_FULL_MESSAGE = "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.";
 
 interface DocumentsSummaryCardsProps {
   totalSize: number
