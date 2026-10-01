@@ -71,4 +71,26 @@ describe('useStorageUsage', () => {
 
     expect(result.current.usage).toBe(1000);
   });
+
+  it('ignores an older refresh() response that arrives after a newer one', async () => {
+    const result = await renderLoaded(1000);
+
+    let resolveOld: (value: { data: number; error: null }) => void = () => {};
+    mockRpc.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }));
+    mockRpc.mockResolvedValueOnce({ data: 3000, error: null });
+
+    let oldRefresh!: Promise<void>;
+    await act(async () => {
+      oldRefresh = result.current.refresh(); // started first, finishes last
+      await result.current.refresh();
+    });
+    expect(result.current.usage).toBe(3000);
+
+    await act(async () => {
+      resolveOld({ data: 2000, error: null });
+      await oldRefresh;
+    });
+
+    expect(result.current.usage).toBe(3000);
+  });
 });

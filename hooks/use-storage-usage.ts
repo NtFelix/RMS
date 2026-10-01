@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 
@@ -39,9 +39,14 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
 
     const supabase = useMemo(() => createClient(), []);
 
+    // Only the newest usage lookup may write the usage, so slower, older responses cannot overwrite it
+    const latestLookup = useRef(0);
+
     const refresh = useCallback(async () => {
+        const lookup = ++latestLookup.current;
         try {
             const usage = await readUsage(supabase);
+            if (lookup !== latestLookup.current) return;
             // Keep the same state object when nothing changed to avoid a re-render
             setState(prev => (prev.usage === usage ? prev : { ...prev, usage }));
         } catch (error) {
@@ -60,6 +65,7 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                 setState(prev => (prev.isLoading ? prev : { ...prev, isLoading: true }));
 
                 // Usage and profile are independent, only the plan lookup needs the profile
+                const lookup = ++latestLookup.current;
                 const [usage, { data: profile, error: profileError }] = await Promise.all([
                     readUsage(supabase),
                     supabase
@@ -97,12 +103,13 @@ export function useStorageUsage(user: User | null, initialUsage?: number): Stora
                     }
                 }
 
-                setState({
-                    usage,
+                setState(prev => ({
+                    // A newer refresh() may have finished while the plan was loading: keep its usage
+                    usage: lookup === latestLookup.current ? usage : prev.usage,
                     limit: storageLimit,
                     isLoading: false,
                     error: null,
-                });
+                }));
             } catch (error) {
                 console.error('Error fetching storage data:', error);
                 setState(prev => ({
