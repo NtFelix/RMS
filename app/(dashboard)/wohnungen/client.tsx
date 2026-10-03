@@ -24,6 +24,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -210,14 +211,15 @@ export default function WohnungenClientView({
         throw new Error(errorData.error || 'Fehler beim Löschen der Wohnungen.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution in der Wohnung): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
 
       setShowBulkDeleteConfirm(false);
       setSelectedApartments(new Set());
 
       toast({
         title: "Erfolg",
-        description: `${successCount} Wohnungen erfolgreich gelöscht.`,
+        description: `${successCount} Wohnungen erfolgreich gelöscht${formatBulkDeleteSuffix(selectedIds.length - successCount, reasons)}`,
         variant: "success",
       });
 
