@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
+import { recordWorkerCall } from '@/lib/worker-metrics';
+
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
+/** Filled in by fetchWithRetry so callers can time the final attempt and count retries for metrics. */
+interface AttemptStats {
+    startedAt: number;
+    retries: number;
+}
+
+async function fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    retries = MAX_RETRIES,
+    stats: AttemptStats = { startedAt: 0, retries: 0 }
+): Promise<Response> {
     try {
+        stats.startedAt = performance.now();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
@@ -32,7 +46,8 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
         if (shouldRetry) {
             console.warn(`[WorkerProxy] Fetch failed (${errorName}), retrying... (${MAX_RETRIES - retries + 1}/${MAX_RETRIES})`);
             await new Promise(resolve => setTimeout(resolve, INITIAL_RETRY_DELAY * (MAX_RETRIES - retries + 1)));
-            return fetchWithRetry(url, options, retries - 1);
+            stats.retries++;
+            return fetchWithRetry(url, options, retries - 1, stats);
         }
         throw error;
     }
@@ -75,14 +90,24 @@ export async function POST(request: Request) {
             });
         }
 
-        const response = await fetchWithRetry(backendUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(workerAuthKey ? { 'x-worker-auth': workerAuthKey } : {})
-            },
-            body: JSON.stringify(body),
-        });
+        const attempt: AttemptStats = { startedAt: 0, retries: 0 };
+
+        let response: Response;
+        try {
+            response = await fetchWithRetry(backendUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(workerAuthKey ? { 'x-worker-auth': workerAuthKey } : {})
+                },
+                body: JSON.stringify(body),
+            }, MAX_RETRIES, attempt);
+        } catch (fetchErr) {
+            recordWorkerCall(body, performance.now() - attempt.startedAt, attempt.retries);
+            throw fetchErr;
+        }
+
+        recordWorkerCall(body, performance.now() - attempt.startedAt, attempt.retries, response);
 
         if (!response.ok) {
             const errorText = await response.text();

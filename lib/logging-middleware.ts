@@ -6,6 +6,7 @@
  */
 
 import { posthogLogger } from './posthog-logger';
+import { actionStatus, recordActionDuration } from './posthog-metrics';
 import {
     LogAttributes,
     POSTHOG_API_KEY,
@@ -120,7 +121,7 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
 ): (...args: TArgs) => Promise<TResult> {
     return async (...args: TArgs): Promise<TResult> => {
         const requestId = generateRequestId();
-        const startTime = Date.now();
+        const startTime = performance.now();
 
         // Get user ID if provided
         let userId: string | undefined;
@@ -151,7 +152,9 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
         try {
             // Execute the action
             const result = await action(...args);
-            const duration = Date.now() - startTime;
+            const duration = Math.round(performance.now() - startTime);
+
+            recordActionDuration(actionName, duration, actionStatus(result));
 
             // Log based on result
             if (result.success) {
@@ -171,7 +174,8 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
 
             return result;
         } catch (error: any) {
-            const duration = Date.now() - startTime;
+            const duration = Math.round(performance.now() - startTime);
+            recordActionDuration(actionName, duration, 'error');
 
             // Log unexpected error
             posthogLogger.error(`Action error: ${actionName}`, {

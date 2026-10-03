@@ -1,5 +1,6 @@
 import { withLogging, logAction, logApiRoute } from '@/lib/logging-middleware';
 import { posthogLogger } from '@/lib/posthog-logger';
+import { recordActionDuration } from '@/lib/posthog-metrics';
 import { getLogsEndpoint, buildOTLPPayloadSingle } from '@/lib/otlp-utils';
 
 // Mock dependencies
@@ -9,6 +10,11 @@ jest.mock('@/lib/posthog-logger', () => ({
     warn: jest.fn(),
     error: jest.fn(),
   },
+}));
+
+jest.mock('@/lib/posthog-metrics', () => ({
+  recordActionDuration: jest.fn(),
+  actionStatus: (result: { success?: boolean } | null) => (result?.success === false ? 'failed' : 'success'),
 }));
 
 jest.mock('@/lib/otlp-utils', () => ({
@@ -141,6 +147,24 @@ describe('Logging Middleware', () => {
           'action.user_id': 'user123',
         })
       );
+    });
+
+    describe('server_action.duration metric', () => {
+      it('records success', async () => {
+        await withLogging('testAction', jest.fn().mockResolvedValue({ success: true }))();
+        expect(recordActionDuration).toHaveBeenCalledWith('testAction', expect.any(Number), 'success');
+      });
+
+      it('records failed for a success:false result', async () => {
+        await withLogging('testAction', jest.fn().mockResolvedValue({ success: false }))();
+        expect(recordActionDuration).toHaveBeenCalledWith('testAction', expect.any(Number), 'failed');
+      });
+
+      it('records error for a thrown error and rethrows', async () => {
+        const wrapped = withLogging('testAction', jest.fn().mockRejectedValue(new Error('boom')));
+        await expect(wrapped()).rejects.toThrow('boom');
+        expect(recordActionDuration).toHaveBeenCalledWith('testAction', expect.any(Number), 'error');
+      });
     });
   });
 
