@@ -98,7 +98,8 @@ function aktionEntfernen(moduleKey: string, current: string[], aktionKey: string
 /** Rest nach "alles abwählen" (Zeile, Raster): die Richtlinienrechte; "ansehen" bleibt, solange es sie für Schreibrechte braucht. */
 function nachAbwahlAllerRechte(moduleKey: string, current: string[], policy: string[]): string[] {
   const leserechtBleibt = !darfLeserechtEntziehen(moduleKey, policy);
-  return current.filter(a => policy.includes(a) || (leserechtBleibt && a === "ansehen"));
+  const policyRechte = new Set(policy);
+  return current.filter(a => policyRechte.has(a) || (leserechtBleibt && a === "ansehen"));
 }
 
 interface ModulePermissionEditorProps {
@@ -168,7 +169,9 @@ export function ModulePermissionEditor({
     const current = modulePermissions[moduleKey] || [];
     const policy = policyGrantedModulePermissions?.[moduleKey] || [];
     const availableActions = AKTIONEN.filter(a => istAktionVerfuegbar(moduleKey, a.key));
-    const checkedActions = availableActions.filter(a => current.includes(a.key) || policy.includes(a.key));
+    const currentRechte = new Set(current);
+    const policyRechte = new Set(policy);
+    const checkedActions = availableActions.filter(a => currentRechte.has(a.key) || policyRechte.has(a.key));
     const allSelected = checkedActions.length === availableActions.length;
 
     const nextPermissions = { ...modulePermissions };
@@ -185,10 +188,10 @@ export function ModulePermissionEditor({
   const toggleAllGrid = () => {
     if (disabled) return;
     const isAllChecked = MODULES.every(mod => {
-      const current = modulePermissions[mod.key] || [];
-      const policy = policyGrantedModulePermissions?.[mod.key] || [];
+      const currentRechte = new Set(modulePermissions[mod.key] || []);
+      const policyRechte = new Set(policyGrantedModulePermissions?.[mod.key] || []);
       return AKTIONEN.filter(a => istAktionVerfuegbar(mod.key, a.key))
-        .every(a => current.includes(a.key) || policy.includes(a.key));
+        .every(a => currentRechte.has(a.key) || policyRechte.has(a.key));
     });
     const nextPermissions = { ...modulePermissions };
     MODULES.forEach(mod => {
@@ -267,9 +270,11 @@ export function ModulePermissionEditor({
             {MODULES.map(mod => {
               const currentPerms  = modulePermissions[mod.key] || [];
               const policyPerms   = policyGrantedModulePermissions?.[mod.key] || [];
+              const currentRechte = new Set(currentPerms);
+              const policyRechte  = new Set(policyPerms);
               const isRowEmpty    = currentPerms.length === 0 && policyPerms.length === 0;
               const availableActions = AKTIONEN.filter(a => istAktionVerfuegbar(mod.key, a.key));
-              const checkedActions = availableActions.filter(a => currentPerms.includes(a.key) || policyPerms.includes(a.key));
+              const checkedActions = availableActions.filter(a => currentRechte.has(a.key) || policyRechte.has(a.key));
               const isRowChecked = checkedActions.length === availableActions.length;
               const isRowIndeterminate = checkedActions.length > 0 && checkedActions.length < availableActions.length;
               const ModIcon  = mod.icon;
@@ -316,8 +321,8 @@ export function ModulePermissionEditor({
                   {/* Action checkbox cells: right border (except last column) */}
                   {AKTIONEN.map((aktion, idx) => {
                     const isUnavailable = !istAktionVerfuegbar(mod.key, aktion.key);
-                    const isGrantedByPolicy = !isUnavailable && policyPerms.includes(aktion.key);
-                    const isChecked  = !isUnavailable && (currentPerms.includes(aktion.key) || isGrantedByPolicy);
+                    const isGrantedByPolicy = !isUnavailable && policyRechte.has(aktion.key);
+                    const isChecked  = !isUnavailable && (currentRechte.has(aktion.key) || isGrantedByPolicy);
                     // Kautionen: "ansehen" bleibt gesetzt, solange eine Richtlinie ein Schreibrecht gewährt (siehe oben).
                     const isLeserechtGesperrt = aktion.key === "ansehen" && isChecked && !isGrantedByPolicy
                       && !darfLeserechtEntziehen(mod.key, policyPerms);
