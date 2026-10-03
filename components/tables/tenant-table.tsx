@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
+import { formatFailureReasons, summarizeBulkDeleteResults } from "@/lib/bulk-delete-summary";
 
 type TenantSortKey = "name" | "email" | "telefonnummer" | "wohnung" | "nebenkosten" | ""
 type SortDirection = "asc" | "desc"
@@ -34,6 +35,8 @@ interface TenantTableProps {
   mode?: "tenants" | "applicants";
   canEdit?: boolean;
   canDelete?: boolean;
+  /** Modulrecht `kautionen: ansehen` (GH-6): ohne dieses Recht gibt es weder Tabellen-Button noch Kontextmenü-Eintrag "Kaution". */
+  canViewKautionen?: boolean;
 }
 
 interface SortState {
@@ -294,6 +297,7 @@ function TenantTableContent({
   onEdit,
   canEdit,
   canDelete,
+  canViewKautionen,
   contextMenuRefs,
   wohnungsMap,
   mode,
@@ -312,6 +316,7 @@ function TenantTableContent({
   onEdit?: (t: Tenant) => void;
   canEdit: boolean;
   canDelete: boolean;
+  canViewKautionen: boolean;
   contextMenuRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   wohnungsMap: Record<string, string>;
   mode: "tenants" | "applicants";
@@ -363,6 +368,7 @@ function TenantTableContent({
                     onRefresh={() => router.refresh()}
                     canEdit={canEdit}
                     canDelete={canDelete}
+                    canViewKautionen={canViewKautionen}
                   >
                     <TableRow
                       ref={(el) => {
@@ -462,15 +468,15 @@ function TenantTableContent({
                               onClick: () => openMailPreviewModal(tenant.bewerbung_mail_id!),
                               variant: 'default' as const,
                             }] : []),
-                            {
+                            // Kaution (GH-6): nur mit Modulrecht `kautionen: ansehen`; der Dialog bekommt seine Rechte
+                            // (erstellen/bearbeiten/löschen) autoritativ vom Server, die Datenbank prüft erneut.
+                            ...(canViewKautionen ? [{
                               id: `kaution-${tenant.id}`,
                               icon: Euro,
                               label: "Kaution",
                               onClick: () => handleOpenKaution(tenant),
-                              variant: 'default',
-                              disabled: !canEdit,
-                              tooltip: !canEdit ? "Keine Berechtigung" : undefined,
-                            },
+                              variant: 'default' as const,
+                            }] : []),
                             {
                               id: `more-${tenant.id}`,
                               icon: MoreVertical,
@@ -509,7 +515,7 @@ function TenantTableContent({
   );
 }
 
-export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants", canEdit = true, canDelete = true }: TenantTableProps) {
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, selectedTenants: externalSelectedTenants, onSelectionChange, mode = "tenants", canEdit = true, canDelete = true, canViewKautionen = false }: TenantTableProps) {
   const router = useRouter()
   const [{ sortKey, sortDirection }, dispatchSort] = useReducer(sortReducer, { sortKey: "name" as TenantSortKey, sortDirection: "asc" as SortDirection })
   const [internalSelectedTenants, setInternalSelectedTenants] = useState<Set<string>>(new Set())
@@ -593,30 +599,9 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     return result
   }, [tenants, filter, searchQuery, sortKey, sortDirection, wohnungsMap, mode])
 
+  // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction); der Store bekommt nur den Mieter.
   const handleOpenKaution = useCallback((tenant: Tenant) => {
-    const cleanTenant = {
-      id: tenant.id,
-      name: tenant.name,
-      wohnung_id: tenant.wohnung_id
-    };
-
-    let kautionData = undefined;
-    if (tenant.kaution) {
-      const amount = typeof tenant.kaution.amount === 'string'
-        ? parseFloat(tenant.kaution.amount)
-        : tenant.kaution.amount;
-
-      if (!isNaN(amount)) {
-        kautionData = {
-          amount,
-          paymentDate: tenant.kaution.paymentDate || '',
-          status: tenant.kaution.status || 'Ausstehend',
-          createdAt: tenant.kaution.createdAt,
-          updatedAt: tenant.kaution.updatedAt
-        };
-      }
-    }
-    useModalStore.getState().openKautionModal(cleanTenant, kautionData);
+    useModalStore.getState().openKautionModal({ id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id })
   }, [])
 
   const visibleTenantIds = useMemo(() => sortedAndFilteredData.map((tenant) => tenant.id), [sortedAndFilteredData])
@@ -653,19 +638,13 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const handleBulkDelete = async () => {
     dispatchDialog({ type: "SET_BULK_DELETING", payload: true })
     const selectedIds = Array.from(selectedTenants)
-    let successCount = 0
-    let errorCount = 0
 
     const results = await Promise.allSettled(
       selectedIds.map((id) => deleteTenantAction(id))
     )
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value.success) {
-        successCount++
-      } else {
-        errorCount++
-      }
-    }
+    // Gründe der abgelehnten Löschungen (z. B. Mieter mit hinterlegter Kaution) werden angezeigt, nicht verworfen.
+    const { successCount, errorCount, reasons } = summarizeBulkDeleteResults(results)
+    const reasonText = formatFailureReasons(reasons)
 
     dispatchDialog({ type: "SET_BULK_DELETING", payload: false })
     dispatchDialog({ type: "CLOSE_BULK_DELETE" })
@@ -674,14 +653,14 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     if (successCount > 0) {
       toast({
         title: "Erfolg",
-        description: `${successCount} Mieter erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.`,
+        description: `${successCount} Mieter erfolgreich gelöscht${errorCount > 0 ? `, ${errorCount} fehlgeschlagen` : ''}.${errorCount > 0 && reasonText ? ` ${reasonText}` : ''}`,
         variant: "success",
       })
       router.refresh()
     } else {
       toast({
         title: "Fehler",
-        description: "Keine Mieter konnten gelöscht werden.",
+        description: `Keine Mieter konnten gelöscht werden.${reasonText ? ` ${reasonText}` : ''}`,
         variant: "destructive",
       })
     }
@@ -752,6 +731,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
         onEdit={onEdit}
         canEdit={canEdit}
         canDelete={canDelete}
+        canViewKautionen={canViewKautionen}
         contextMenuRefs={contextMenuRefs}
         wohnungsMap={wohnungsMap}
         mode={mode}

@@ -1,13 +1,12 @@
 /**
  * @jest-environment node
  */
+import * as mieterActions from '../mieter-actions';
 import {
   handleSubmit,
   deleteTenantAction,
   getMieterByHausIdAction,
-  updateKautionAction,
   updateTenantApartment,
-  getSuggestedKautionAmount,
 } from '../mieter-actions';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
@@ -199,30 +198,33 @@ describe('mieter-actions', () => {
     });
   });
 
-  describe('updateKautionAction', () => {
-    it('updates kaution successfully', async () => {
-      const formData = new FormData();
-      formData.append('tenantId', 't1');
-      formData.append('amount', '1000');
-      formData.append('status', 'Erhalten');
-
-      // Mock existing tenant check
-      mockSupabase.single.mockResolvedValue({ data: { kaution: null }, error: null });
-      // Mock update
-      mockSupabase.update.mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
-
-      const result = await updateKautionAction(formData);
-
-      expect(result.success).toBe(true);
-      expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+  // Kautionsmanagement (GH-6): updateKautionAction (Schreibweg auf das Altfeld Mieter.kaution) und
+  // getSuggestedKautionAmount sind entfernt; die Kaution läuft über app/kautionen-actions.ts.
+  describe('removed legacy deposit actions (GH-6)', () => {
+    it('no longer exports updateKautionAction or getSuggestedKautionAmount', () => {
+      expect(mieterActions).not.toHaveProperty('updateKautionAction');
+      expect(mieterActions).not.toHaveProperty('getSuggestedKautionAmount');
     });
 
-    it('validates input', async () => {
-      const formData = new FormData();
-      // Missing required fields
-      const result = await updateKautionAction(formData);
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Mieter ID ist erforderlich');
+    it('getMieterByHausIdAction selects explicit columns without the legacy field kaution', async () => {
+      const mockChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        then: jest.fn(),
+      };
+      mockChain.then.mockImplementationOnce((resolve) => resolve({ data: [{ id: 'w1' }], error: null }));
+      mockChain.then.mockImplementationOnce((resolve) => resolve({ data: [{ id: 'm1' }], error: null }));
+      mockSupabase.from.mockReturnValue(mockChain);
+
+      await getMieterByHausIdAction('h1');
+
+      const selects = mockChain.select.mock.calls.map((call: unknown[]) => call[0]);
+      const mieterSelect = selects.find((value: unknown) => typeof value === 'string' && value.includes('Wohnungen('));
+      expect(mieterSelect).toBeDefined();
+      expect(mieterSelect).not.toMatch(/\*/);
+      expect(mieterSelect).not.toMatch(/kaution/i);
     });
   });
 
@@ -238,32 +240,4 @@ describe('mieter-actions', () => {
     });
   });
 
-  describe('getSuggestedKautionAmount', () => {
-    it('calculates suggested amount', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: {
-          wohnung_id: 'w1',
-          Wohnungen: [{ miete: 500 }] // Supabase joins return arrays usually
-        },
-        error: null
-      });
-
-      const result = await getSuggestedKautionAmount('t1');
-
-      expect(result.success).toBe(true);
-      expect(result.suggestedAmount).toBe(1500); // 3 * 500
-    });
-
-    it('returns undefined if no apartment linked', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: { wohnung_id: null, Wohnungen: [] },
-        error: null
-      });
-
-      const result = await getSuggestedKautionAmount('t1');
-
-      expect(result.success).toBe(true);
-      expect(result.suggestedAmount).toBeUndefined();
-    });
-  });
 });

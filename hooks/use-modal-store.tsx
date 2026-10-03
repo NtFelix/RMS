@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Nebenkosten, Mieter, Wasserzaehler, MeterReadingFormData } from "@/lib/types";
 import { MeterModalData, OptimizedNebenkosten } from '@/types/optimized-betriebskosten';
-import { Tenant, KautionData } from '@/types/Tenant';
+import { Tenant } from '@/types/Tenant';
 import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
@@ -171,20 +171,17 @@ interface CloseModalOptions {
   force?: boolean;
 }
 
+/**
+ * Kautionsmanagement (GH-6): Der Dialog lädt seine Daten selbst (`getKautionDetailsAction`), der Store
+ * transportiert nur den Mieter (ohne Kautionsdaten) und den gewünschten Start-Tab.
+ */
 interface KautionModalData {
   tenant: {
     id: string;
     name: string;
-    wohnung_id?: string;
+    wohnung_id?: string | null;
   };
-  existingKaution?: {
-    amount: number;
-    paymentDate: string;
-    status: 'Erhalten' | 'Ausstehend' | 'Zurückgezahlt';
-    createdAt?: string;
-    updatedAt?: string;
-  };
-  suggestedAmount?: number;
+  initialTab?: 'uebersicht' | 'raten' | 'kontoauszug' | 'dokumente';
 }
 
 interface ApplicantScoreModalData {
@@ -312,9 +309,17 @@ export interface ModalState {
   isKautionModalOpen: boolean;
   kautionInitialData?: KautionModalData;
   isKautionModalDirty: boolean;
-  openKautionModal: (tenant: Tenant, existingKaution?: KautionData) => void;
+  openKautionModal: (
+    tenant: Pick<Tenant, 'id' | 'name' | 'wohnung_id'>,
+    options?: { tab?: KautionModalData['initialTab'] }
+  ) => void;
   closeKautionModal: (options?: CloseModalOptions) => void;
   setKautionModalDirty: (isDirty: boolean) => void;
+  // Modulrecht `kautionen: ansehen` des Nutzers. Nur UX (Menüeintrag "Kaution" im global gemounteten
+  // Mieter-Bearbeiten-Dialog, der keinen Prop-Pfad von der Seite hat); der Kautionsdialog selbst bekommt
+  // seine Rechte autoritativ vom Server und die Datenbank prüft erneut.
+  canViewKautionen: boolean;
+  setCanViewKautionen: (canView: boolean) => void;
 
   // Haus Overview Modal State
   isHausOverviewModalOpen: boolean;
@@ -718,6 +723,7 @@ const createInitialModalState = () => ({
   ...initialBetriebskostenModalState,
   ...initialWasserzaehlerModalState,
   ...initialKautionModalState,
+  canViewKautionen: false, // bewusst nicht in initialKautionModalState: bleibt beim Schließen des Dialogs erhalten
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialTenantPaymentOverviewModalState,
@@ -909,17 +915,18 @@ export const useModalStore = create<ModalState>((set, get) => {
     setWasserzaehlerModalDirty: (isDirty) => set({ isWasserzaehlerModalDirty: isDirty }),
 
     // Kaution Modal
-    openKautionModal: (tenant, existingKaution) => set({
+    openKautionModal: (tenant, options) => set({
       isKautionModalOpen: true,
       kautionInitialData: {
-        tenant,
-        existingKaution,
-        suggestedAmount: undefined, // Will be calculated in the modal component
+        // Nur die drei benötigten Felder übernehmen (kein ganzes Tenant-Objekt samt Kompat-Kaution im Store).
+        tenant: { id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id },
+        initialTab: options?.tab,
       },
       isKautionModalDirty: false
     }),
     closeKautionModal: createCloseHandler('isKautionModalDirty', initialKautionModalState),
     setKautionModalDirty: (isDirty) => set({ isKautionModalDirty: isDirty }),
+    setCanViewKautionen: (canView) => set({ canViewKautionen: canView }),
 
     // Haus Overview Modal
     openHausOverviewModal: async (hausId: string) => {

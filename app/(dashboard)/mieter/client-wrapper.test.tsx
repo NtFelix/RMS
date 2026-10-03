@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MieterClientView from './client-wrapper';
 import { useModalStore } from '@/hooks/use-modal-store';
@@ -30,10 +30,36 @@ jest.mock('@/utils/supabase/client', () => ({
   })),
 }));
 
+// Router mit gemeinsamer `refresh`-Funktion: Die Massen-Aktionsleiste lädt die Liste darüber neu.
+const mockRefresh = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), refresh: mockRefresh }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
+  redirect: jest.fn(),
+  unstable_rethrow: jest.fn(),
+}));
+
+// Aktiver Tab der Seite (Standard "mieter"); die Übersichtskarten werden über den Tab "overview" erreicht.
+let mockCurrentTab: 'mieter' | 'overview' = 'mieter';
+jest.mock('@/hooks/use-tab-params', () => ({
+  useTabParams: () => [mockCurrentTab, jest.fn()],
+}));
+
+// Die Diagramme der Übersicht sind für diese Tests unerheblich (recharts braucht im jsdom ein Layout).
+jest.mock('@/components/dashboard/dashboard-charts', () => ({
+  TenantsDonutChart: () => <div data-testid="tenants-donut-chart" />,
+}));
+jest.mock('@/components/dashboard/dashboard-charts-wrapper', () => ({
+  TenantFluctuationChart: () => <div data-testid="tenant-fluctuation-chart" />,
+}));
+
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 describe('MieterClientView - Layout Changes', () => {
   const mockOpenTenantModal = jest.fn();
+  const mockOpenKautionModal = jest.fn();
+  const mockSetCanViewKautionen = jest.fn();
   const mockServerAction = jest.fn();
 
   const mockTenants: Tenant[] = [
@@ -90,8 +116,11 @@ describe('MieterClientView - Layout Changes', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCurrentTab = 'mieter';
     mockUseModalStore.mockReturnValue({
       openTenantModal: mockOpenTenantModal,
+      openKautionModal: mockOpenKautionModal,
+      setCanViewKautionen: mockSetCanViewKautionen,
     } as any);
   });
 
@@ -362,5 +391,108 @@ describe('MieterClientView - Layout Changes', () => {
       // Filter and search state should be maintained
       expect(screen.getByText('Mieterverwaltung')).toBeInTheDocument();
     });
+  });
+  // Kautionsmanagement (GH-6): Anzeige und Menüeinträge hängen am Modulrecht `kautionen: ansehen`.
+  describe('Kaution (GH-6)', () => {
+    const tenantWithDeposit: Tenant = {
+      id: 't-deposit',
+      name: 'Kautions Mieter',
+      status: 'mieter',
+      wohnung_id: 'w1',
+      einzug: '2023-01-01',
+      kaution: {
+        amount: 1500,
+        paymentDate: '2023-01-01',
+        status: 'Erhalten',
+        createdAt: '2023-01-01T00:00:00.000Z',
+        updatedAt: '2023-01-01T00:00:00.000Z',
+        kautionId: 'k-1',
+        kontostand: 1500,
+      },
+    };
+    const depositProps = { ...defaultProps, initialTenants: [tenantWithDeposit] };
+
+    it('does not write the module right into the modal store (the dashboard layout owns it, independent of this page)', () => {
+      const { rerender } = render(<MieterClientView {...defaultProps} />);
+      rerender(<MieterClientView {...defaultProps} canViewKautionen />);
+
+      expect(mockSetCanViewKautionen).not.toHaveBeenCalled();
+    });
+
+    it('offers the Kaution button in the tenant table only with the module right', () => {
+      const { unmount } = render(<MieterClientView {...depositProps} />);
+      expect(screen.queryByRole('button', { name: 'Kaution' })).not.toBeInTheDocument();
+      unmount();
+
+      render(<MieterClientView {...depositProps} canViewKautionen />);
+      expect(screen.getByRole('button', { name: 'Kaution' })).toBeInTheDocument();
+    });
+
+    it('hides the deposit card of the overview without the module right', () => {
+      mockCurrentTab = 'overview';
+      render(<MieterClientView {...depositProps} />);
+
+      // Der Tab "Übersicht" ist gerendert, nur die Kautionskarte fehlt.
+      expect(screen.getByText('KI-Bewerber Match-Score')).toBeInTheDocument();
+      expect(screen.queryByText('Kaution Status & Rückzahlungen')).not.toBeInTheDocument();
+      expect(screen.queryByText('Keine Kautionsdaten erfasst')).not.toBeInTheDocument();
+      expect(screen.queryByText('Kautionsbestand nach Mieter')).not.toBeInTheDocument();
+    });
+
+    it('shows the deposit card of the overview with the module right and notes that amounts are target amounts', () => {
+      mockCurrentTab = 'overview';
+      render(<MieterClientView {...depositProps} canViewKautionen />);
+
+      expect(screen.getByText('Kaution Status & Rückzahlungen')).toBeInTheDocument();
+      expect(screen.getByText(/Soll-Betrag, nicht dem aktuellen Kontostand/)).toBeInTheDocument();
+    });
+
+    it('opens the deposit dialog from the overview with the tenant only (no deposit data from the list)', async () => {
+      mockCurrentTab = 'overview';
+      const user = userEvent.setup();
+      render(<MieterClientView {...depositProps} canViewKautionen />);
+
+      await user.click(screen.getByText('Kautions Mieter'));
+
+      expect(mockOpenKautionModal).toHaveBeenCalledTimes(1);
+      const args = mockOpenKautionModal.mock.calls[0];
+      expect(args).toHaveLength(1);
+      expect(args[0]).toMatchObject({ id: 't-deposit', name: 'Kautions Mieter' });
+    });
+  });
+});
+
+// Löschen mehrerer Mieter (GH-6, Kautionsmanagement): Der tatsächlich genutzte Löschweg ist die Massen-Aktionsleiste.
+// Sie lädt die Liste über die Seite neu (`onUpdate`), auch wenn die Datenbank einzelne Löschungen abgelehnt hat.
+describe('MieterClientView - Mieter in der Liste löschen (GH-6)', () => {
+  const defaultProps = {
+    initialTenants: [
+      { id: 't-1', name: 'Mieter Eins', wohnung_id: 'w1', einzug: '2023-01-01', auszug: undefined, nebenkosten: [] },
+    ] as Tenant[],
+    initialWohnungen: [] as Wohnung[],
+    serverAction: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCurrentTab = 'mieter';
+    mockUseModalStore.mockReturnValue({ openTenantModal: jest.fn(), openKautionModal: jest.fn() } as any);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ successCount: 1, errorCount: 1, reasons: ['Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden.'] }),
+    }) as unknown as typeof fetch;
+  });
+
+  it('reloads the list through the router after a bulk delete with rejected tenants', async () => {
+    const user = userEvent.setup();
+    render(<MieterClientView {...defaultProps} />);
+
+    await user.click(screen.getAllByRole('checkbox')[0]); // alle sichtbaren Mieter auswählen
+    await user.click(await screen.findByRole('button', { name: /^Löschen \(\d+\)$/ }));
+    await user.click(await screen.findByRole('button', { name: 'Löschen bestätigen' }));
+
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalledTimes(1));
+    expect(global.fetch).toHaveBeenCalledWith('/api/mieter/bulk-delete', expect.objectContaining({ method: 'POST' }));
   });
 });
