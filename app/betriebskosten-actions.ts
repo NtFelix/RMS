@@ -5,6 +5,7 @@ import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, MeterReadingFormData, Mieter, Zaehler, ZaehlerAblesung, WasserZaehler, WasserAblesung, Wasserzaehler, Rechnung, Finanzen, fetchMeterReadingsByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Updated to use new meter types
 import { roundToNearest5 } from "@/lib/utils";
+import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
 import { logAction } from '@/lib/logging-middleware';
 import { type SupabaseClient } from "@supabase/supabase-js";
 
@@ -2326,8 +2327,9 @@ async function getAbrechnungModalDataFallback(
   const [{ data: tenants, error: tenantsError }, houseApartments] = await Promise.all([
     supabase
       .from("Mieter")
+      // Explizite Spaltenliste ohne das Altfeld "kaution": die Mieter gehen mit dem Modal-Datensatz an den Browser.
       .select(`
-        *,
+        ${MIETER_SPALTEN_OHNE_KAUTION},
         Wohnungen!inner (
           name,
           groesse,
