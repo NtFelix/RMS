@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, Building, Users, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Shield, Eye, Plus, Pencil, Trash2, Settings, FileSpreadsheet, Database, Key, type LucideIcon } from "lucide-react";
+import { Home, Building, Users, Gauge, CreditCard, Calculator, FileText, CheckSquare, Layout, Shield, Eye, Plus, Pencil, Trash2, Settings, FileSpreadsheet, Database, Key, Landmark, type LucideIcon } from "lucide-react";
 
 export const MODULE_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
   haeuser:        { label: "Häuser",        icon: Home },
@@ -12,6 +12,7 @@ export const MODULE_CONFIG: Record<string, { label: string; icon: LucideIcon }> 
   aufgaben:       { label: "Aufgaben",       icon: CheckSquare },
   vorlagen:       { label: "Vorlagen",       icon: Layout },
   organisation:   { label: "Organisation",   icon: Shield },
+  kautionen:      { label: "Kautionen",      icon: Landmark },
 };
 
 export const ACTION_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
@@ -65,6 +66,11 @@ export function getTableIcon(tableName: string): LucideIcon {
       return Gauge;
     case 'Rechnungen':
       return FileSpreadsheet;
+    case 'Kautionen':
+    case 'Kautionen_Raten':
+    case 'Kautionen_Zinsstaffel':
+    case 'Kautionen_Bewegungen':
+      return Landmark;
     case 'Vorlagen':
       return Layout;
     case 'Organisation':

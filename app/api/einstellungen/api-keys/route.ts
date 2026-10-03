@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { findBlockedModules } from "@/lib/blocked-modules";
 
 export async function GET() {
   try {
@@ -40,6 +41,11 @@ export async function POST(request: NextRequest) {
 
     if (name.trim().length > 100) {
       return NextResponse.json({ error: "Der Name des API-Keys darf maximal 100 Zeichen lang sein." }, { status: 400, headers: NO_CACHE_HEADERS });
+    }
+
+    // Das Modul "kautionen" darf API-Schlüsseln nie zugewiesen werden (R2).
+    if (findBlockedModules(angefragte_berechtigungen).length > 0) {
+      return NextResponse.json({ error: "Das Modul \"Kautionen\" kann API-Schlüsseln nicht zugewiesen werden." }, { status: 400, headers: NO_CACHE_HEADERS });
     }
 
     if (expires_at) {

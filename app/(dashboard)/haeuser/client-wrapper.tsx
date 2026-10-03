@@ -21,6 +21,7 @@ import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
 
 const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
@@ -884,11 +885,12 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
         throw new Error(errorData.error || 'Fehler beim Löschen der Häuser.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution im Haus): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
 
       toast({
         title: "Erfolg",
-        description: `${successCount} Häuser erfolgreich gelöscht.`,
+        description: `${successCount} Häuser erfolgreich gelöscht${formatBulkDeleteSuffix(selectedIds.length - successCount, reasons)}`,
         variant: "success",
       });
 

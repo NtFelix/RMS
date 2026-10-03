@@ -6,6 +6,7 @@ import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 import { getCurrentMonthRange } from "@/utils/date-calculations"
+import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns"
 
 interface Tenant {
   id: string
@@ -122,8 +123,9 @@ export async function GET(request: Request) {
       const fallbackStartTime = Date.now()
       let tenantsQuery = supabase
         .from("Mieter")
+        // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
         .select(`
-          *,
+          ${MIETER_SPALTEN_OHNE_KAUTION},
           Wohnungen (
             id,
             name,

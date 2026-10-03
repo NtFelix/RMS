@@ -15,13 +15,19 @@ import {
   CheckSquare,
   LayoutTemplate,
   Settings,
+  Landmark,
   LucideIcon
 } from "lucide-react";
 
 interface ModuleConfig {
-  key: "haeuser" | "wohnungen" | "mieter" | "zaehler" | "finanzen" | "betriebskosten" | "dokumente" | "aufgaben" | "vorlagen" | "organisation";
+  key: "haeuser" | "wohnungen" | "mieter" | "zaehler" | "finanzen" | "betriebskosten" | "dokumente" | "aufgaben" | "vorlagen" | "organisation" | "kautionen";
   label: string;
   icon: LucideIcon;
+  /**
+   * Aktionen, die für dieses Modul ohne Wirkung sind und daher weder gesetzt noch angezeigt
+   * werden (Spalte deaktiviert, "Alle auswählen" setzt sie nicht).
+   */
+  nichtVerfuegbar?: readonly string[];
 }
 
 const MODULES: readonly ModuleConfig[] = [
@@ -35,6 +41,8 @@ const MODULES: readonly ModuleConfig[] = [
   { key: "aufgaben",       label: "Aufgaben",       icon: CheckSquare    },
   { key: "vorlagen",       label: "Vorlagen",       icon: LayoutTemplate },
   { key: "organisation",   label: "Organisation",   icon: Settings       },
+  // "verwalten" hat im Kautionsmanagement keine Wirkung (alle Aktionen laufen über ansehen/erstellen/bearbeiten/loeschen).
+  { key: "kautionen",      label: "Kautionen",      icon: Landmark, nichtVerfuegbar: ["verwalten"] },
 ] as const;
 
 const AKTIONEN = [
@@ -44,6 +52,54 @@ const AKTIONEN = [
   { key: "loeschen",   label: "Löschen"    },
   { key: "verwalten",  label: "Verwalten"  },
 ] as const;
+
+/** Ob eine Aktion für das Modul wirksam ist (siehe `ModuleConfig.nichtVerfuegbar`). */
+function istAktionVerfuegbar(moduleKey: string, aktionKey: string): boolean {
+  const mod = MODULES.find(m => m.key === moduleKey);
+  return !mod?.nichtVerfuegbar?.includes(aktionKey);
+}
+
+/**
+ * Modul "kautionen": Die Schreib-RPCs der Datenbank verlangen zusätzlich zum Schreibrecht das Leserecht "ansehen"
+ * (ein Schreibrecht impliziert es dort nicht, ohne "ansehen" folgt 42501). Der Editor lässt diesen Zustand deshalb
+ * nicht entstehen:
+ * - Ein Schreibrecht zu setzen, setzt "ansehen" mit. Das gilt auch dann, wenn eine Richtlinie "ansehen" gewährt:
+ *   Ein Override für das Modul ersetzt die Richtlinienrechte, "ansehen" muss also im Override selbst stehen.
+ * - "ansehen" zu entziehen, entzieht auch die Schreibrechte. Von einer Richtlinie gewährte Schreibrechte lassen
+ *   sich hier nicht entziehen; solange es sie gibt, bleibt "ansehen" gesetzt (die Checkbox ist dann gesperrt).
+ */
+const KAUTION_SCHREIBRECHTE: readonly string[] = ["erstellen", "bearbeiten", "loeschen"];
+
+function istKautionSchreibrecht(moduleKey: string, aktionKey: string): boolean {
+  return moduleKey === "kautionen" && KAUTION_SCHREIBRECHTE.includes(aktionKey);
+}
+
+/** Ob "ansehen" im Modul entzogen werden darf (nicht, solange eine Richtlinie ein Schreibrecht von Kautionen gewährt). */
+function darfLeserechtEntziehen(moduleKey: string, policy: string[]): boolean {
+  return moduleKey !== "kautionen" || !policy.some(a => KAUTION_SCHREIBRECHTE.includes(a));
+}
+
+/** Setzt die Aktion; ein Schreibrecht in "kautionen" setzt "ansehen" mit (an erster Stelle, wie in `AKTIONEN`). */
+function aktionSetzen(moduleKey: string, current: string[], aktionKey: string): string[] {
+  const next = current.includes(aktionKey) ? current : [...current, aktionKey];
+  if (istKautionSchreibrecht(moduleKey, aktionKey) && !next.includes("ansehen")) return ["ansehen", ...next];
+  return next;
+}
+
+/** Entfernt die Aktion; "ansehen" in "kautionen" nimmt die manuell gesetzten Schreibrechte mit (oder bleibt, siehe oben). */
+function aktionEntfernen(moduleKey: string, current: string[], aktionKey: string, policy: string[]): string[] {
+  if (moduleKey === "kautionen" && aktionKey === "ansehen") {
+    if (!darfLeserechtEntziehen(moduleKey, policy)) return current;
+    return current.filter(a => a !== "ansehen" && !KAUTION_SCHREIBRECHTE.includes(a));
+  }
+  return current.filter(a => a !== aktionKey);
+}
+
+/** Rest nach "alles abwählen" (Zeile, Raster): die Richtlinienrechte; "ansehen" bleibt, solange es sie für Schreibrechte braucht. */
+function nachAbwahlAllerRechte(moduleKey: string, current: string[], policy: string[]): string[] {
+  const leserechtBleibt = !darfLeserechtEntziehen(moduleKey, policy);
+  return current.filter(a => policy.includes(a) || (leserechtBleibt && a === "ansehen"));
+}
 
 interface ModulePermissionEditorProps {
   modulePermissions: Record<string, string[]>;
@@ -61,45 +117,49 @@ export function ModulePermissionEditor({
 
   const togglePermission = (moduleKey: string, aktionKey: string) => {
     if (disabled) return;
+    if (!istAktionVerfuegbar(moduleKey, aktionKey)) return;
     const policy = policyGrantedModulePermissions?.[moduleKey] || [];
     if (policy.includes(aktionKey)) return;
     const current = modulePermissions[moduleKey] || [];
     onChange({
       ...modulePermissions,
       [moduleKey]: current.includes(aktionKey)
-        ? current.filter(a => a !== aktionKey)
-        : [...current, aktionKey],
+        ? aktionEntfernen(moduleKey, current, aktionKey, policy)
+        : aktionSetzen(moduleKey, current, aktionKey),
     });
   };
 
   const toggleColumn = (actionKey: string) => {
     if (disabled) return;
-    const isAllChecked = MODULES.every(mod => {
+    // Module, für die die Aktion ohne Wirkung ist (z. B. "verwalten" bei Kautionen), bleiben unberührt.
+    const applicableModules = MODULES.filter(mod => istAktionVerfuegbar(mod.key, actionKey));
+    const isAllChecked = applicableModules.every(mod => {
       const current = modulePermissions[mod.key] || [];
       const policy = policyGrantedModulePermissions?.[mod.key] || [];
       return current.includes(actionKey) || policy.includes(actionKey);
     });
     const nextPermissions = { ...modulePermissions };
-    MODULES.forEach(mod => {
+    applicableModules.forEach(mod => {
       const policy = policyGrantedModulePermissions?.[mod.key] || [];
       if (policy.includes(actionKey)) return;
       const current = nextPermissions[mod.key] || [];
       nextPermissions[mod.key] = isAllChecked
-        ? current.filter(a => a !== actionKey)
-        : current.includes(actionKey) ? current : [...current, actionKey];
+        ? aktionEntfernen(mod.key, current, actionKey, policy)
+        : aktionSetzen(mod.key, current, actionKey);
     });
     onChange(nextPermissions);
   };
 
   const getColumnState = (actionKey: string) => {
+    const applicableModules = MODULES.filter(mod => istAktionVerfuegbar(mod.key, actionKey));
     let checkedCount = 0;
-    MODULES.forEach(mod => {
+    applicableModules.forEach(mod => {
       const current = modulePermissions[mod.key] || [];
       const policy = policyGrantedModulePermissions?.[mod.key] || [];
       if (current.includes(actionKey) || policy.includes(actionKey)) checkedCount++;
     });
     if (checkedCount === 0) return "unchecked";
-    if (checkedCount === MODULES.length) return "checked";
+    if (checkedCount === applicableModules.length) return "checked";
     return "indeterminate";
   };
 
@@ -107,16 +167,17 @@ export function ModulePermissionEditor({
     if (disabled) return;
     const current = modulePermissions[moduleKey] || [];
     const policy = policyGrantedModulePermissions?.[moduleKey] || [];
-    const checkedActions = AKTIONEN.filter(a => current.includes(a.key) || policy.includes(a.key));
-    const allSelected = checkedActions.length === AKTIONEN.length;
+    const availableActions = AKTIONEN.filter(a => istAktionVerfuegbar(moduleKey, a.key));
+    const checkedActions = availableActions.filter(a => current.includes(a.key) || policy.includes(a.key));
+    const allSelected = checkedActions.length === availableActions.length;
 
     const nextPermissions = { ...modulePermissions };
     if (allSelected) {
       // Deselect all that are not policy locked
-      nextPermissions[moduleKey] = current.filter(a => policy.includes(a));
+      nextPermissions[moduleKey] = nachAbwahlAllerRechte(moduleKey, current, policy);
     } else {
-      // Select all
-      nextPermissions[moduleKey] = AKTIONEN.map(a => a.key);
+      // Select all (nur wirksame Aktionen des Moduls)
+      nextPermissions[moduleKey] = availableActions.map(a => a.key);
     }
     onChange(nextPermissions);
   };
@@ -126,15 +187,16 @@ export function ModulePermissionEditor({
     const isAllChecked = MODULES.every(mod => {
       const current = modulePermissions[mod.key] || [];
       const policy = policyGrantedModulePermissions?.[mod.key] || [];
-      return AKTIONEN.every(a => current.includes(a.key) || policy.includes(a.key));
+      return AKTIONEN.filter(a => istAktionVerfuegbar(mod.key, a.key))
+        .every(a => current.includes(a.key) || policy.includes(a.key));
     });
     const nextPermissions = { ...modulePermissions };
     MODULES.forEach(mod => {
       const policy = policyGrantedModulePermissions?.[mod.key] || [];
       if (isAllChecked) {
-        nextPermissions[mod.key] = (nextPermissions[mod.key] || []).filter(a => policy.includes(a));
+        nextPermissions[mod.key] = nachAbwahlAllerRechte(mod.key, nextPermissions[mod.key] || [], policy);
       } else {
-        nextPermissions[mod.key] = AKTIONEN.map(a => a.key);
+        nextPermissions[mod.key] = AKTIONEN.filter(a => istAktionVerfuegbar(mod.key, a.key)).map(a => a.key);
       }
     });
     onChange(nextPermissions);
@@ -206,9 +268,10 @@ export function ModulePermissionEditor({
               const currentPerms  = modulePermissions[mod.key] || [];
               const policyPerms   = policyGrantedModulePermissions?.[mod.key] || [];
               const isRowEmpty    = currentPerms.length === 0 && policyPerms.length === 0;
-              const checkedActions = AKTIONEN.filter(a => currentPerms.includes(a.key) || policyPerms.includes(a.key));
-              const isRowChecked = checkedActions.length === AKTIONEN.length;
-              const isRowIndeterminate = checkedActions.length > 0 && checkedActions.length < AKTIONEN.length;
+              const availableActions = AKTIONEN.filter(a => istAktionVerfuegbar(mod.key, a.key));
+              const checkedActions = availableActions.filter(a => currentPerms.includes(a.key) || policyPerms.includes(a.key));
+              const isRowChecked = checkedActions.length === availableActions.length;
+              const isRowIndeterminate = checkedActions.length > 0 && checkedActions.length < availableActions.length;
               const ModIcon  = mod.icon;
 
               return (
@@ -252,8 +315,12 @@ export function ModulePermissionEditor({
 
                   {/* Action checkbox cells: right border (except last column) */}
                   {AKTIONEN.map((aktion, idx) => {
-                    const isGrantedByPolicy = policyPerms.includes(aktion.key);
-                    const isChecked  = currentPerms.includes(aktion.key) || isGrantedByPolicy;
+                    const isUnavailable = !istAktionVerfuegbar(mod.key, aktion.key);
+                    const isGrantedByPolicy = !isUnavailable && policyPerms.includes(aktion.key);
+                    const isChecked  = !isUnavailable && (currentPerms.includes(aktion.key) || isGrantedByPolicy);
+                    // Kautionen: "ansehen" bleibt gesetzt, solange eine Richtlinie ein Schreibrecht gewährt (siehe oben).
+                    const isLeserechtGesperrt = aktion.key === "ansehen" && isChecked && !isGrantedByPolicy
+                      && !darfLeserechtEntziehen(mod.key, policyPerms);
                     const isVerwalten = aktion.key === "verwalten";
                     const isLastColumn = idx === AKTIONEN.length - 1;
 
@@ -270,11 +337,19 @@ export function ModulePermissionEditor({
                           <Checkbox
                             checked={isChecked}
                             onCheckedChange={() => togglePermission(mod.key, aktion.key)}
-                            disabled={disabled || isGrantedByPolicy}
+                            disabled={disabled || isGrantedByPolicy || isUnavailable || isLeserechtGesperrt}
                             id={`perm-${mod.key}-${aktion.key}`}
-                            aria-label={`${mod.label} ${aktion.label}`}
+                            aria-label={isUnavailable
+                              ? `${mod.label} ${aktion.label} (für dieses Modul nicht verfügbar)`
+                              : isLeserechtGesperrt
+                                ? `${mod.label} ${aktion.label} (wird für ein durch eine Richtlinie gewährtes Schreibrecht benötigt)`
+                                : `${mod.label} ${aktion.label}`}
+                            title={isUnavailable
+                              ? "Für dieses Modul nicht verfügbar"
+                              : isLeserechtGesperrt ? "Wird für ein durch eine Richtlinie gewährtes Schreibrecht benötigt" : undefined}
                             className={cn(
-                              isVerwalten && "border-amber-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-white"
+                              isVerwalten && "border-amber-400/60 data-[state=checked]:bg-amber-500 data-[state=checked]:text-white",
+                              isUnavailable && "opacity-30"
                             )}
                           />
                         </div>

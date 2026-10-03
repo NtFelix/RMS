@@ -23,6 +23,7 @@ import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, Trending
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { formatPlzOrt } from "@/lib/address"
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary"
 
 export interface House {
   id: string
@@ -653,7 +654,8 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
         throw new Error(errorData.error || 'Fehler beim Löschen der Häuser.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution im Haus): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
       const failedCount = selectedIds.length - successCount;
 
       dispatchDialog({ type: "CLOSE_BULK_DELETE" });
@@ -662,7 +664,7 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
       if (successCount > 0) {
         toast({
           title: "Erfolg",
-          description: `${successCount} Häuser erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
+          description: `${successCount} Häuser erfolgreich gelöscht${formatBulkDeleteSuffix(failedCount, reasons)}`,
           variant: "success",
         });
 
