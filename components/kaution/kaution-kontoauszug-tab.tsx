@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { KautionBuchungForm, KAUTION_BUCHUNG_TITEL } from "@/components/kaution/kaution-buchung-form";
+import { KautionBuchungForm } from "@/components/kaution/kaution-buchung-form";
 import { KEINE_BERECHTIGUNG_TEXT } from "@/components/kaution/kaution-feld";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KautionStornoDialog } from "@/components/kaution/kaution-storno-dialog";
@@ -16,6 +16,7 @@ import {
   KAUTION_ABZUG_KATEGORIE_LABELS,
   KAUTION_BEWEGUNGSARTEN_VERFUEGBAR,
   KAUTION_BEWEGUNGSART_LABELS,
+  KAUTION_BUCHUNG_TITEL,
 } from "@/lib/kautionen-constants";
 import { cn } from "@/lib/utils";
 import type { KautionBewegung, KautionBewegungsArt, KautionDetails, KautionRechte } from "@/types/Kaution";

@@ -27,6 +27,7 @@ import {
 import {
   KAUTION_ABZUG_KATEGORIEN,
   KAUTION_ABZUG_KATEGORIE_LABELS,
+  KAUTION_BUCHUNG_TITEL,
   KAUTION_MIN_WERTSTELLUNG,
   KAUTION_TEXT_LIMITS,
 } from "@/lib/kautionen-constants";
@@ -49,13 +50,6 @@ import type { KautionAbzugKategorie, KautionBewegungsArt } from "@/types/Kaution
  * Security relevant (money booking): not production ready until the maintainer has reviewed it; the form only
  * collects input, the action and the RPC validate and book.
  */
-
-export const KAUTION_BUCHUNG_TITEL: Record<KautionBewegungsArt, string> = {
-  einzahlung: "Einzahlung erfassen",
-  zinsgutschrift: "Zinsgutschrift erfassen",
-  auszahlung: "Auszahlung erfassen",
-  abzug: "Abzug erfassen",
-};
 
 interface KautionBuchungFormProps {
   art: KautionBewegungsArt;

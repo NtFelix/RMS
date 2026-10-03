@@ -50,6 +50,14 @@ export const KAUTION_BEWEGUNGSART_LABELS: Record<KautionBewegungsArt, string> = 
   abzug: "Abzug",
 };
 
+/** Headings of the inline booking form per booking type (kept here, not in the component file: Fast Refresh). */
+export const KAUTION_BUCHUNG_TITEL: Record<KautionBewegungsArt, string> = {
+  einzahlung: "Einzahlung erfassen",
+  zinsgutschrift: "Zinsgutschrift erfassen",
+  auszahlung: "Auszahlung erfassen",
+  abzug: "Abzug erfassen",
+};
+
 /** Booking types the RPCs accept in the currently shipped phase. Phase 3 adds `zinsgutschrift`. */
 export const KAUTION_BEWEGUNGSARTEN_VERFUEGBAR: readonly KautionBewegungsArt[] = ["einzahlung", "auszahlung", "abzug"];
 
