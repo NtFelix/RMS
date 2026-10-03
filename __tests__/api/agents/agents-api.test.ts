@@ -208,4 +208,79 @@ describe('Agents API Endpoints', () => {
       expect(json.success).toBe(true);
     });
   });
+
+  describe('Sperre für das Modul "kautionen" (R2)', () => {
+    const params = Promise.resolve({ id: 'agent-123' });
+    const basePayload = {
+      name: 'New Agent',
+      anweisungen: 'Perform audit',
+      trigger: { type: 'manual' },
+    };
+
+    it('POST lehnt Berechtigungen mit dem Modul "kautionen" ab (400) und legt keinen Agenten an', async () => {
+      const req = createMockRequest('http://localhost/api/agents', {
+        method: 'POST',
+        body: { ...basePayload, berechtigungen: { module: { mieter: ['ansehen'], kautionen: ['ansehen'] } } },
+      });
+      const res = await POST_AGENTS(req);
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toContain('Kautionen');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('POST lehnt auch abweichend geschriebene Schlüssel ab (Groß-/Kleinschreibung, Leerraum)', async () => {
+      const req = createMockRequest('http://localhost/api/agents', {
+        method: 'POST',
+        body: { ...basePayload, berechtigungen: { module: { ' Kautionen ': ['ansehen'] } } },
+      });
+      const res = await POST_AGENTS(req);
+
+      expect(res.status).toBe(400);
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('POST akzeptiert weiterhin Berechtigungen ohne "kautionen" und reicht sie unverändert durch', async () => {
+      mockRpc.mockResolvedValueOnce({ data: 'agent-123', error: null });
+      mockRpc.mockResolvedValueOnce({ data: null, error: null });
+      const berechtigungen = { module: { mieter: ['ansehen'] }, objekte: { haeuser: null } };
+      const req = createMockRequest('http://localhost/api/agents', {
+        method: 'POST',
+        body: { ...basePayload, berechtigungen },
+      });
+      const res = await POST_AGENTS(req);
+
+      expect(res.status).toBe(201);
+      expect(mockRpc).toHaveBeenCalledWith('set_agent_overrides', {
+        p_agent_id: 'agent-123',
+        p_berechtigungen: berechtigungen,
+      });
+    });
+
+    it('PATCH lehnt Berechtigungen mit dem Modul "kautionen" ab (400) und ändert nichts', async () => {
+      const req = createMockRequest('http://localhost/api/agents/agent-123', {
+        method: 'PATCH',
+        body: { name: 'Updated Agent Name', berechtigungen: { module: { kautionen: ['ansehen', 'erstellen'] } } },
+      });
+      const res = await PATCH_AGENT_ID(req, { params });
+
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toContain('Kautionen');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('PATCH akzeptiert weiterhin Berechtigungen ohne "kautionen"', async () => {
+      mockRpc.mockResolvedValue({ data: null, error: null });
+      const req = createMockRequest('http://localhost/api/agents/agent-123', {
+        method: 'PATCH',
+        body: { berechtigungen: { module: { haeuser: ['ansehen'] } } },
+      });
+      const res = await PATCH_AGENT_ID(req, { params });
+
+      expect(res.status).toBe(200);
+      expect(mockRpc).toHaveBeenCalledWith('set_agent_overrides', expect.objectContaining({ p_agent_id: 'agent-123' }));
+    });
+  });
 });

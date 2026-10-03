@@ -766,6 +766,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     isTenantModalDirty,
     setTenantModalDirty,
     openKautionModal,
+    canViewKautionen,
     openTenantMailTemplatesModal,
     openApplicantScoreModal,
   } = useModalStore()
@@ -1069,11 +1070,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         <TopBar
           tenantInitialData={tenantInitialData}
           onDeleteRequest={() => setDeleteDialogOpen(true)}
-          actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled }).flatMap((action) => {
+          actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled, canViewKautionen }).flatMap((action) => {
             const handlerMap: Record<string, (() => void) | undefined> = {
+              // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction): nur der Mieter wird übergeben.
               kaution: () => openKautionModal(
-                { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id },
-                tenantInitialData.kaution
+                { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id }
               ),
               vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email || undefined),
               datenblatt: () => openApplicantScoreModal({
