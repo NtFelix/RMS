@@ -1161,7 +1161,7 @@ export default function MieterClientView({
                                 <div
                                   key={t.id || idx}
                                   onClick={() => openKautionModal(t)}
-                                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-all duration-200 cursor-pointer select-none"
+                                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none"
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">

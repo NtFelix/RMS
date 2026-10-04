@@ -3,7 +3,7 @@
 /**
  * Tests für das Dashboard-Layout (Server Component), soweit sie das Kautionsmanagement (GH-6) betreffen:
  * Das Modulrecht `kautionen: ansehen` wird serverseitig im Layout ermittelt und als Prop `canViewKautionen`
- * an das Client-Layout gegeben. Es hängt damit nicht von der Seite ab, die zuerst geladen wurde (z. B. /mieter),
+ * an `KautionenRechtSync` gegeben (neben dem Client-Layout). Es hängt damit nicht von der Seite ab, die zuerst geladen wurde (z. B. /mieter),
  * und wird mit dem Layout neu berechnet. Alle Daten sind synthetische Platzhalter.
  */
 
@@ -11,6 +11,7 @@ import React from "react";
 import { hasPermission } from "@/lib/permissions";
 import { getSidebarUserData } from "@/lib/server/user-data";
 import DashboardRootLayout from "./layout";
+import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync";
 import DashboardInnerLayout from "./layout-inner";
 
 jest.mock("next/headers", () => ({
@@ -31,20 +32,24 @@ jest.mock("@/lib/server/user-data", () => ({
 
 jest.mock("@/components/providers/csp-nonce-sync", () => ({ CSPNonceSync: () => null }));
 jest.mock("./layout-inner", () => ({ __esModule: true, default: () => null }));
+jest.mock("@/components/kaution/kautionen-recht-sync", () => ({ KautionenRechtSync: () => null }));
 
 const mockHasPermission = hasPermission as jest.Mock;
 const mockGetSidebarUserData = getSidebarUserData as jest.Mock;
 
 const SIDEBAR_DATA = { user: { id: "user-1" }, modulePermissions: null };
 
-/** Rendert das Layout und gibt die Props des Client-Layouts zurück. */
-async function layoutProps(): Promise<Record<string, unknown>> {
+/** Rendert das Layout und gibt die Props einer Kindkomponente zurück. */
+async function childProps(type: unknown): Promise<Record<string, unknown>> {
   const element = (await DashboardRootLayout({ children: null })) as React.ReactElement<{ children: React.ReactElement[] }>;
   const children = React.Children.toArray(element.props.children) as React.ReactElement[];
-  const inner = children.find((child) => child.type === DashboardInnerLayout);
-  expect(inner).toBeDefined();
-  return (inner as React.ReactElement).props as Record<string, unknown>;
+  const child = children.find((candidate) => candidate.type === type);
+  expect(child).toBeDefined();
+  return (child as React.ReactElement).props as Record<string, unknown>;
 }
+
+/** Props von `KautionenRechtSync`. */
+const layoutProps = () => childProps(KautionenRechtSync);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -52,14 +57,15 @@ beforeEach(() => {
 });
 
 describe("DashboardRootLayout - Modulrecht Kautionen (GH-6)", () => {
-  it("ermittelt kautionen:ansehen serverseitig und gibt es als canViewKautionen an das Client-Layout", async () => {
+  it("ermittelt kautionen:ansehen serverseitig und gibt es als canViewKautionen an KautionenRechtSync", async () => {
     mockHasPermission.mockResolvedValue(true);
 
     const props = await layoutProps();
 
     expect(mockHasPermission).toHaveBeenCalledWith("kautionen", "ansehen");
     expect(props.canViewKautionen).toBe(true);
-    expect(props.sidebarData).toBe(SIDEBAR_DATA);
+    expect(props.userId).toBe("user-1");
+    expect((await childProps(DashboardInnerLayout)).sidebarData).toBe(SIDEBAR_DATA);
   });
 
   it("gibt ohne das Modulrecht false weiter (unabhängig von den Rechten für Mieter)", async () => {

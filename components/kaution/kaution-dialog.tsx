@@ -63,6 +63,35 @@ const FEHLER_TITEL: Record<KautionFehlerVerhalten, string> = {
   wiederholen: "Bitte erneut versuchen",
 };
 
+/**
+ * Unsaved input: several forms can be open at the same time (agreement in the overview, booking in the statement), the
+ * store flag is "any form dirty". It is only written when the combined value changes.
+ */
+function useDirtyQuellen(setKautionModalDirty: (dirty: boolean) => void) {
+  const dirtyQuellen = useRef(new Set<string>());
+  const zuletztGemeldet = useRef(false);
+  const meldeDirty = useCallback(
+    (quelle: string, dirty: boolean) => {
+      if (dirty) dirtyQuellen.current.add(quelle);
+      else dirtyQuellen.current.delete(quelle);
+      const gesamt = dirtyQuellen.current.size > 0;
+      if (gesamt !== zuletztGemeldet.current) {
+        zuletztGemeldet.current = gesamt;
+        setKautionModalDirty(gesamt);
+      }
+    },
+    [setKautionModalDirty]
+  );
+  const zuruecksetzen = useCallback(() => {
+    dirtyQuellen.current.clear();
+    zuletztGemeldet.current = false;
+  }, []);
+  const meldeAnlegenDirty = useCallback((dirty: boolean) => meldeDirty("anlegen", dirty), [meldeDirty]);
+  const meldeVereinbarungDirty = useCallback((dirty: boolean) => meldeDirty("vereinbarung", dirty), [meldeDirty]);
+  const meldeBuchungDirty = useCallback((dirty: boolean) => meldeDirty("buchung", dirty), [meldeDirty]);
+  return { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty };
+}
+
 export function KautionDialog() {
   const {
     isKautionModalOpen,
@@ -84,25 +113,7 @@ export function KautionDialog() {
   const ladeZaehler = useRef(0);
 
   // --- Unsaved input -----------------------------------------------------------------------------------------
-  // Several forms can be open at the same time (agreement in the overview, booking in the statement): the
-  // store flag is "any form dirty". It is only written when the combined value changes.
-  const dirtyQuellen = useRef(new Set<string>());
-  const zuletztGemeldet = useRef(false);
-  const meldeDirty = useCallback(
-    (quelle: string, dirty: boolean) => {
-      if (dirty) dirtyQuellen.current.add(quelle);
-      else dirtyQuellen.current.delete(quelle);
-      const gesamt = dirtyQuellen.current.size > 0;
-      if (gesamt !== zuletztGemeldet.current) {
-        zuletztGemeldet.current = gesamt;
-        setKautionModalDirty(gesamt);
-      }
-    },
-    [setKautionModalDirty]
-  );
-  const meldeAnlegenDirty = useCallback((dirty: boolean) => meldeDirty("anlegen", dirty), [meldeDirty]);
-  const meldeVereinbarungDirty = useCallback((dirty: boolean) => meldeDirty("vereinbarung", dirty), [meldeDirty]);
-  const meldeBuchungDirty = useCallback((dirty: boolean) => meldeDirty("buchung", dirty), [meldeDirty]);
+  const { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty } = useDirtyQuellen(setKautionModalDirty);
 
   // --- Loading -----------------------------------------------------------------------------------------------
   const lade = useCallback(
@@ -142,8 +153,7 @@ export function KautionDialog() {
   // Init effect (like the legacy dialog, also correct with `<Activity>`): load when opened, reset when closed.
   useEffect(() => {
     ladeZaehler.current += 1; // invalidates answers of earlier openings
-    dirtyQuellen.current.clear();
-    zuletztGemeldet.current = false;
+    zuruecksetzen();
     setAktualisiert(false);
 
     if (!isKautionModalOpen || !tenantId) {
@@ -155,7 +165,7 @@ export function KautionDialog() {
     return () => {
       ladeZaehler.current += 1;
     };
-  }, [isKautionModalOpen, kautionInitialData, tenantId, initialTab, lade]);
+  }, [isKautionModalOpen, kautionInitialData, tenantId, initialTab, lade, zuruecksetzen]);
 
   // --- Errors of actions -------------------------------------------------------------------------------------
   /**
@@ -203,104 +213,205 @@ export function KautionDialog() {
   // The store asks for confirmation if a form holds unsaved input.
   const handleAttemptClose = () => closeKautionModal();
 
-  const details = ansicht.phase === "bereit" ? ansicht.details : null;
-
   return (
     <Dialog open={isKautionModalOpen} onOpenChange={handleOpenChange}>
       <DialogContent size="lg" isDirty={isKautionModalDirty} onAttemptClose={handleAttemptClose}>
         {isKautionModalOpen && kautionInitialData && tenantId ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Kaution</DialogTitle>
-              <DialogDescription className="sr-only">
-                Kontostand, Buchungen und Vereinbarung der Kaution dieses Mietverhältnisses.
-              </DialogDescription>
-              {kautionInitialData.tenant.name ? (
-                <p className="text-sm text-muted-foreground">{kautionInitialData.tenant.name}</p>
-              ) : null}
-            </DialogHeader>
-
-            {ansicht.phase === "laden" ? <Ladezustand /> : null}
-
-            {ansicht.phase === "fehler" ? (
-              <div className="space-y-3">
-                <Alert variant="destructive">
-                  <TriangleAlert aria-hidden="true" className="h-4 w-4" />
-                  <AlertTitle>Die Kaution konnte nicht geladen werden</AlertTitle>
-                  <AlertDescription>{ansicht.fehler.message}</AlertDescription>
-                </Alert>
-                <div className="flex justify-end">
-                  <Button type="button" variant="outline" onClick={() => void lade(tenantId)}>
-                    Erneut laden
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-
-            {ansicht.phase === "bereit" && details === null ? (
-              <KautionAnlegenForm
-                tenantId={tenantId}
-                vorschlag={ansicht.vorschlag}
-                darfErstellen={ansicht.rechte.erstellen}
-                onErstellt={reload}
-                onFehler={handleFehler}
-                onAbbrechen={handleAttemptClose}
-                onDirtyChange={meldeAnlegenDirty}
-              />
-            ) : null}
-
-            {ansicht.phase === "bereit" && details !== null ? (
-              <div className="space-y-4" aria-busy={aktualisiert}>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <KautionStatusBadge zustand={details.zustand} />
-                    </div>
-                    {/* Live region: the balance is announced after every booking. */}
-                    <div role="status" aria-live="polite" aria-atomic="true" className="text-sm" data-testid="kaution-kopf-kontostand">
-                      <span className="text-muted-foreground">Kontostand: </span>
-                      <span className="font-semibold tabular-nums">{formatBetrag(details.konto.kontostand)}</span>
-                    </div>
-                  </div>
-                  {/* Deadline hint (phase 2: the database delivers `frist` from then on). Neutral wording, text and icon. */}
-                  {details.frist ? <KautionFristBadge stufe={details.frist.stufe} ausfuehrlich /> : null}
-                </div>
-
-                <Tabs value={tab} onValueChange={(wert) => setTab(startTab(wert))}>
-                  <TabsList>
-                    <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-                    <TabsTrigger value="kontoauszug">Kontoauszug</TabsTrigger>
-                  </TabsList>
-                  {/* forceMount + hidden: an open form keeps its input when the user switches the tab. */}
-                  <TabsContent value="uebersicht" forceMount hidden={tab !== "uebersicht"}>
-                    <KautionUebersichtTab
-                      details={details}
-                      rechte={ansicht.rechte}
-                      tenantId={tenantId}
-                      onGeaendert={reload}
-                      onEntfernt={reload}
-                      onFehler={handleFehler}
-                      onVereinbarungDirtyChange={meldeVereinbarungDirty}
-                    />
-                  </TabsContent>
-                  <TabsContent value="kontoauszug" forceMount hidden={tab !== "kontoauszug"}>
-                    <KautionKontoauszugTab
-                      details={details}
-                      rechte={ansicht.rechte}
-                      tenantId={tenantId}
-                      onGeaendert={reload}
-                      onFehler={handleFehler}
-                      onBuchungDirtyChange={meldeBuchungDirty}
-                      onVerwerfenBestaetigen={frageVerwerfen}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            ) : null}
-          </>
+          <KautionInhalt
+            tenantId={tenantId}
+            mieterName={kautionInitialData.tenant.name}
+            ansicht={ansicht}
+            aktualisiert={aktualisiert}
+            tab={tab}
+            onTabChange={setTab}
+            onLaden={() => void lade(tenantId)}
+            onGeaendert={reload}
+            onFehler={handleFehler}
+            onAbbrechen={handleAttemptClose}
+            onVerwerfenBestaetigen={frageVerwerfen}
+            onAnlegenDirtyChange={meldeAnlegenDirty}
+            onVereinbarungDirtyChange={meldeVereinbarungDirty}
+            onBuchungDirtyChange={meldeBuchungDirty}
+          />
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface KautionInhaltProps {
+  tenantId: string;
+  mieterName: string | null | undefined;
+  ansicht: Ansicht;
+  aktualisiert: boolean;
+  tab: KautionTab;
+  onTabChange: (tab: KautionTab) => void;
+  onLaden: () => void;
+  onGeaendert: () => Promise<void>;
+  onFehler: (fehler: KautionActionError) => boolean;
+  onAbbrechen: () => void;
+  onVerwerfenBestaetigen: (onBestaetigt: () => void) => void;
+  onAnlegenDirtyChange: (dirty: boolean) => void;
+  onVereinbarungDirtyChange: (dirty: boolean) => void;
+  onBuchungDirtyChange: (dirty: boolean) => void;
+}
+
+/** Header and the content of the current phase (loading, error, creation form, deposit with tabs). */
+function KautionInhalt({
+  tenantId,
+  mieterName,
+  ansicht,
+  aktualisiert,
+  tab,
+  onTabChange,
+  onLaden,
+  onGeaendert,
+  onFehler,
+  onAbbrechen,
+  onVerwerfenBestaetigen,
+  onAnlegenDirtyChange,
+  onVereinbarungDirtyChange,
+  onBuchungDirtyChange,
+}: KautionInhaltProps) {
+  const details = ansicht.phase === "bereit" ? ansicht.details : null;
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Kaution</DialogTitle>
+        <DialogDescription className="sr-only">
+          Kontostand, Buchungen und Vereinbarung der Kaution dieses Mietverhältnisses.
+        </DialogDescription>
+        {mieterName ? <p className="text-sm text-muted-foreground">{mieterName}</p> : null}
+      </DialogHeader>
+
+      {ansicht.phase === "laden" ? <Ladezustand /> : null}
+
+      {ansicht.phase === "fehler" ? <LadeFehler fehler={ansicht.fehler} onLaden={onLaden} /> : null}
+
+      {ansicht.phase === "bereit" && details === null ? (
+        <KautionAnlegenForm
+          tenantId={tenantId}
+          vorschlag={ansicht.vorschlag}
+          darfErstellen={ansicht.rechte.erstellen}
+          onErstellt={onGeaendert}
+          onFehler={onFehler}
+          onAbbrechen={onAbbrechen}
+          onDirtyChange={onAnlegenDirtyChange}
+        />
+      ) : null}
+
+      {ansicht.phase === "bereit" && details !== null ? (
+        <KautionMitDetails
+          tenantId={tenantId}
+          details={details}
+          rechte={ansicht.rechte}
+          aktualisiert={aktualisiert}
+          tab={tab}
+          onTabChange={onTabChange}
+          onGeaendert={onGeaendert}
+          onFehler={onFehler}
+          onVerwerfenBestaetigen={onVerwerfenBestaetigen}
+          onVereinbarungDirtyChange={onVereinbarungDirtyChange}
+          onBuchungDirtyChange={onBuchungDirtyChange}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function LadeFehler({ fehler, onLaden }: { fehler: KautionActionError; onLaden: () => void }) {
+  return (
+    <div className="space-y-3">
+      <Alert variant="destructive">
+        <TriangleAlert aria-hidden="true" className="h-4 w-4" />
+        <AlertTitle>Die Kaution konnte nicht geladen werden</AlertTitle>
+        <AlertDescription>{fehler.message}</AlertDescription>
+      </Alert>
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" onClick={onLaden}>
+          Erneut laden
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+interface KautionMitDetailsProps {
+  tenantId: string;
+  details: KautionDetails;
+  rechte: KautionRechte;
+  aktualisiert: boolean;
+  tab: KautionTab;
+  onTabChange: (tab: KautionTab) => void;
+  onGeaendert: () => Promise<void>;
+  onFehler: (fehler: KautionActionError) => boolean;
+  onVerwerfenBestaetigen: (onBestaetigt: () => void) => void;
+  onVereinbarungDirtyChange: (dirty: boolean) => void;
+  onBuchungDirtyChange: (dirty: boolean) => void;
+}
+
+/** Deposit present: state/balance header and the tabs "Übersicht" / "Kontoauszug". */
+function KautionMitDetails({
+  tenantId,
+  details,
+  rechte,
+  aktualisiert,
+  tab,
+  onTabChange,
+  onGeaendert,
+  onFehler,
+  onVerwerfenBestaetigen,
+  onVereinbarungDirtyChange,
+  onBuchungDirtyChange,
+}: KautionMitDetailsProps) {
+  return (
+    <div className="space-y-4" aria-busy={aktualisiert}>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <KautionStatusBadge zustand={details.zustand} />
+          </div>
+          {/* Live region: the balance is announced after every booking. */}
+          <div role="status" aria-live="polite" aria-atomic="true" className="text-sm" data-testid="kaution-kopf-kontostand">
+            <span className="text-muted-foreground">Kontostand: </span>
+            <span className="font-semibold tabular-nums">{formatBetrag(details.konto.kontostand)}</span>
+          </div>
+        </div>
+        {/* Deadline hint (phase 2: the database delivers `frist` from then on). Neutral wording, text and icon. */}
+        {details.frist ? <KautionFristBadge stufe={details.frist.stufe} ausfuehrlich /> : null}
+      </div>
+
+      <Tabs value={tab} onValueChange={(wert) => onTabChange(startTab(wert))}>
+        <TabsList>
+          <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+          <TabsTrigger value="kontoauszug">Kontoauszug</TabsTrigger>
+        </TabsList>
+        {/* forceMount + hidden: an open form keeps its input when the user switches the tab. */}
+        <TabsContent value="uebersicht" forceMount hidden={tab !== "uebersicht"}>
+          <KautionUebersichtTab
+            details={details}
+            rechte={rechte}
+            tenantId={tenantId}
+            onGeaendert={onGeaendert}
+            onEntfernt={onGeaendert}
+            onFehler={onFehler}
+            onVereinbarungDirtyChange={onVereinbarungDirtyChange}
+          />
+        </TabsContent>
+        <TabsContent value="kontoauszug" forceMount hidden={tab !== "kontoauszug"}>
+          <KautionKontoauszugTab
+            details={details}
+            rechte={rechte}
+            tenantId={tenantId}
+            onGeaendert={onGeaendert}
+            onFehler={onFehler}
+            onBuchungDirtyChange={onBuchungDirtyChange}
+            onVerwerfenBestaetigen={onVerwerfenBestaetigen}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
 

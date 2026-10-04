@@ -7,7 +7,6 @@ import { Suspense } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useModalStore } from "@/hooks/use-modal-store" // Added
-import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync"
 import dynamic from 'next/dynamic'
 
 // Importing server action from its new location
@@ -55,12 +54,9 @@ const AIChatSidebar = dynamic(() => import('@/components/ai-chat/ai-chat-sidebar
 export default function DashboardInnerLayout({
   children,
   sidebarData,
-  canViewKautionen = false,
 }: Readonly<{
   children: React.ReactNode
   sidebarData: SidebarUserData
-  /** Modulrecht `kautionen: ansehen` (serverseitig im Layout ermittelt, nur UX: Menüpunkt "Kaution"). */
-  canViewKautionen?: boolean
 }>) {
   
   const {
@@ -124,8 +120,6 @@ export default function DashboardInnerLayout({
           <EmailVerificationNotifier />
         </Suspense>
         {/* <GlobalDragDropProvider> */}
-        {/* Modulrecht "Kautionen" für global gemountete Fenster (Menüpunkt "Kaution" im Mieter-Bearbeiten-Fenster) */}
-        <KautionenRechtSync canViewKautionen={canViewKautionen} userId={sidebarData.user?.id ?? null} />
         <CommandMenu />
         <DashboardLayout sidebarData={sidebarData}>{children}</DashboardLayout>
         {/* Render modals: They control their own open/close state via the store */}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
+import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync"
 import DashboardInnerLayout from "./layout-inner"
 import { requireActiveSubscription } from "@/lib/server/route-access"
 import { getSidebarUserData } from "@/lib/server/user-data"
@@ -38,7 +39,9 @@ export default async function DashboardRootLayout({
   return (
     <>
       <CSPNonceSync nonce={nonce} />
-      <DashboardInnerLayout sidebarData={sidebarData} canViewKautionen={canViewKautionen}>
+      {/* Modulrecht "Kautionen" für global gemountete Fenster (Menüpunkt "Kaution" im Mieter-Bearbeiten-Fenster) */}
+      <KautionenRechtSync canViewKautionen={canViewKautionen} userId={user.id} />
+      <DashboardInnerLayout sidebarData={sidebarData}>
         {children}
       </DashboardInnerLayout>
     </>
