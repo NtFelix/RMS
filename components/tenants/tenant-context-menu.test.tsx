@@ -1,11 +1,17 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { TenantContextMenu } from '@/components/tenants/tenant-context-menu';
+import { deleteTenantAction } from '@/app/mieter-actions';
+import { bestaetigeLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 import { useModalStore } from '@/hooks/use-modal-store';
 import type { Tenant } from '@/types/Tenant';
 
 jest.mock('@/app/mieter-actions', () => ({
   deleteTenantAction: jest.fn(),
+}));
+
+jest.mock('@/lib/kautionen-loeschen', () => ({
+  bestaetigeLoeschenMitKautionen: jest.fn(),
 }));
 
 jest.mock('@/hooks/use-toast', () => ({
@@ -86,5 +92,65 @@ describe('TenantContextMenu - Kaution (GH-6)', () => {
     await waitFor(() => expect(mockOpenKautionModal).toHaveBeenCalledTimes(1));
     // exakt ein Argument: kein zweiter Parameter mit Kautionsdaten
     expect(mockOpenKautionModal).toHaveBeenCalledWith({ id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' });
+  });
+});
+
+// Kautionsmanagement: Vor dem Löschen wird die Übersicht der mitgelöschten Kautionen bestätigt; die Prüfsumme
+// geht an die Server-Action.
+describe('TenantContextMenu - Löschen mit Kautionen', () => {
+  const mockBestaetige = bestaetigeLoeschenMitKautionen as jest.MockedFunction<typeof bestaetigeLoeschenMitKautionen>;
+  const mockDelete = deleteTenantAction as jest.MockedFunction<typeof deleteTenantAction>;
+  const tenant = { id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' } as Tenant;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseModalStore.mockReturnValue({
+      openKautionModal: jest.fn(),
+      openTenantMailTemplatesModal: jest.fn(),
+      openApplicantScoreModal: jest.fn(),
+    } as any);
+    mockDelete.mockResolvedValue({ success: true });
+  });
+
+  async function loescheUndBestaetige() {
+    render(
+      <TenantContextMenu tenant={tenant} onEdit={jest.fn()} onRefresh={jest.fn()}>
+        <div>Zeile</div>
+      </TenantContextMenu>
+    );
+    fireEvent.contextMenu(screen.getByText('Zeile'));
+    fireEvent.click(screen.getByText('Löschen'));
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+  }
+
+  it('fragt die Kautionen des Mieters ab und übergibt die Prüfsumme an die Löschaktion', async () => {
+    mockBestaetige.mockResolvedValue({ ok: true, pruefsummen: { 'tenant-1': 'abc' } });
+
+    await loescheUndBestaetige();
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledTimes(1));
+    expect(mockBestaetige).toHaveBeenCalledWith('Mieter', ['tenant-1']);
+    expect(mockDelete).toHaveBeenCalledWith('tenant-1', 'abc');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  it('löscht ohne Prüfsumme, wenn keine Kaution mit Buchungen betroffen ist', async () => {
+    mockBestaetige.mockResolvedValue({ ok: true, pruefsummen: {} });
+
+    await loescheUndBestaetige();
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1', undefined));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  it('löscht nichts und setzt den Dialog zurück, wenn die Bestätigung abgebrochen wird', async () => {
+    mockBestaetige.mockResolvedValue({ ok: false });
+
+    await loescheUndBestaetige();
+
+    await waitFor(() => expect(mockBestaetige).toHaveBeenCalledWith('Mieter', ['tenant-1']));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });

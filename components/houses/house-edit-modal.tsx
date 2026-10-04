@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import { padPlz, parsePlz } from "@/lib/address";
 
 interface House {
@@ -586,7 +587,10 @@ export function HouseEditModal(props: HouseEditModalProps) {
     if (!houseInitialData || isPending) return;
     try {
       setIsDeleting(true);
-      const result = await deleteHouseAction(houseInitialData.id);
+      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen (bei Abbruch wird nichts gelöscht; finally setzt den Zustand zurück)
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Haeuser", [houseInitialData.id]);
+      if (!bestaetigung.ok) return;
+      const result = await deleteHouseAction(houseInitialData.id, bestaetigung.pruefsummen[houseInitialData.id]);
 
       if (result.success) {
         toast({

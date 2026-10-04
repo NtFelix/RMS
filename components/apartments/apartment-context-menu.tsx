@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import type { Apartment } from "@/components/tables/apartment-table"; // Import the shared type
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 // Remove local Apartment interface definition
@@ -52,7 +53,10 @@ export function ApartmentContextMenu({
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      const result = await loescheWohnung(apartment.id);
+      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen; bei Abbruch wird nichts gelöscht
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Wohnungen", [apartment.id]);
+      if (!bestaetigung.ok) return;
+      const result = await loescheWohnung(apartment.id, bestaetigung.pruefsummen[apartment.id]);
 
       if (result.success) {
         toast({

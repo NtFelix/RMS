@@ -96,8 +96,30 @@ function assertNoCascadeFailures(
  * Hinweis: Die Kinder werden einzeln gelöscht; bei einem Teilfehler bleiben bereits gelöschte Kinder im
  * Papierkorb (wiederherstellbar). Die Datenbank bleibt dabei konsistent.
  */
-export async function softDeleteEntryAction(tableName: string, recordId: string): Promise<void> {
+export async function softDeleteEntryAction(
+  tableName: string,
+  recordId: string,
+  options?: { pruefsumme?: string | null }
+): Promise<void> {
   const supabase = await createSupabaseServerClient();
+
+  // Mit Prüfsumme der angezeigten Auswirkung (Bestätigungsfenster): Die Datenbank löscht Haus/Wohnung/Mieter samt
+  // Kautionen MIT Buchungen atomar (`soft_delete_mit_kautionen`). Rechte, Objektzugriff und die Prüfsumme prüft sie selbst
+  // (`42501`, `KA002`, `KA016`); ohne Bestätigung bleibt es bei der Löschsperre `KA009` der Standardfunktion unten.
+  if (options?.pruefsumme && (tableName === 'Haeuser' || tableName === 'Wohnungen' || tableName === 'Mieter')) {
+    const { error } = await supabase.rpc('soft_delete_mit_kautionen', {
+      p_table_name: tableName,
+      p_record_id: recordId,
+      p_pruefsumme: options.pruefsumme,
+    });
+    if (error) {
+      console.error('Error confirmed soft deleting record %s from %s: %s', recordId, tableName, error.code);
+      throw createDeleteError(error.message, error.code);
+    }
+    revalidatePathsForTable(tableName);
+    revalidatePathsForTable('Kautionen');
+    return;
+  }
 
   if (tableName === 'Haeuser') {
     const wohnungIds = await fetchChildIds(

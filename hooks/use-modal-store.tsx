@@ -6,6 +6,7 @@ import { Template } from '@/types/template';
 import { ConfirmationDialogVariant } from '@/components/ui/confirmation-dialog';
 import { TenantBentoItem } from '@/types/tenant-payment';
 import { AIDocumentationContext } from '@/types/ai';
+import type { KautionLoeschauswirkung } from '@/types/Kaution';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -175,6 +176,12 @@ interface CloseModalOptions {
  * Kautionsmanagement (GH-6): Der Dialog lädt seine Daten selbst (`getKautionDetailsAction`), der Store
  * transportiert nur den Mieter (ohne Kautionsdaten) und den gewünschten Start-Tab.
  */
+/** Übersicht "Kautionen werden mitgelöscht": die Auswirkung und die Entscheidung des Nutzers (`true` = bestätigt). */
+export interface LoeschUebersichtConfig {
+  auswirkung: KautionLoeschauswirkung;
+  onEntscheidung: (bestaetigt: boolean) => void;
+}
+
 interface KautionModalData {
   tenant: {
     id: string;
@@ -320,6 +327,12 @@ export interface ModalState {
   // seine Rechte autoritativ vom Server und die Datenbank prüft erneut.
   canViewKautionen: boolean;
   setCanViewKautionen: (canView: boolean) => void;
+
+  // Löschen mit Kautionsübersicht (Haus/Wohnung/Mieter mit gebuchter Kaution)
+  isLoeschUebersichtOpen: boolean;
+  loeschUebersichtConfig: LoeschUebersichtConfig | null;
+  openLoeschUebersicht: (config: LoeschUebersichtConfig) => void;
+  closeLoeschUebersicht: () => void;
 
   // Haus Overview Modal State
   isHausOverviewModalOpen: boolean;
@@ -591,6 +604,11 @@ const initialKautionModalState = {
   isKautionModalDirty: false,
 };
 
+const initialLoeschUebersichtState = {
+  isLoeschUebersichtOpen: false,
+  loeschUebersichtConfig: null as LoeschUebersichtConfig | null,
+};
+
 const initialHausOverviewModalState = {
   isHausOverviewModalOpen: false,
   hausOverviewData: undefined,
@@ -724,6 +742,7 @@ const createInitialModalState = () => ({
   ...initialWasserzaehlerModalState,
   ...initialKautionModalState,
   canViewKautionen: false, // bewusst nicht in initialKautionModalState: bleibt beim Schließen des Dialogs erhalten
+  ...initialLoeschUebersichtState,
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialTenantPaymentOverviewModalState,
@@ -927,6 +946,13 @@ export const useModalStore = create<ModalState>((set, get) => {
     closeKautionModal: createCloseHandler('isKautionModalDirty', initialKautionModalState),
     setKautionModalDirty: (isDirty) => set({ isKautionModalDirty: isDirty }),
     setCanViewKautionen: (canView) => set({ canViewKautionen: canView }),
+
+    // Löschen mit Kautionsübersicht: Der Aufrufer wartet auf `onEntscheidung`; ein zweites Öffnen verwirft die erste Anfrage (= abgebrochen).
+    openLoeschUebersicht: (config) => {
+      get().loeschUebersichtConfig?.onEntscheidung(false);
+      set({ isLoeschUebersichtOpen: true, loeschUebersichtConfig: config });
+    },
+    closeLoeschUebersicht: () => set(initialLoeschUebersichtState),
 
     // Haus Overview Modal
     openHausOverviewModal: async (hausId: string) => {

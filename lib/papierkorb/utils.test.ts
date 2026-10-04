@@ -326,6 +326,80 @@ describe('softDeleteEntryAction', () => {
   });
 });
 
+describe('softDeleteEntryAction mit bestätigter Auswirkung (soft_delete_mit_kautionen)', () => {
+  const PRUEFSUMME = '0123456789abcdef0123456789abcdef';
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  function mockClient(rpcResult: { error: RpcError | null }) {
+    const rpc = jest.fn().mockResolvedValue(rpcResult);
+    const from = jest.fn();
+    mockCreateClient.mockResolvedValue({ from, rpc } as unknown as Awaited<ReturnType<typeof createSupabaseServerClient>>);
+    return { rpc, from };
+  }
+
+  it.each(['Haeuser', 'Wohnungen', 'Mieter'])('%s: ruft die Datenbankfunktion mit der Prüfsumme auf, ohne App-Kaskade', async (tabelle) => {
+    const { rpc, from } = mockClient({ error: null });
+
+    await softDeleteEntryAction(tabelle, HAUS_ID, { pruefsumme: PRUEFSUMME });
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', {
+      p_table_name: tabelle,
+      p_record_id: HAUS_ID,
+      p_pruefsumme: PRUEFSUMME,
+    });
+    // Die Kaskade läuft atomar in der Datenbank: keine Abfrage der Kinder, keine Einzel-Löschungen.
+    expect(from).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/mieter');
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('reicht die Meldung der Datenbank ohne Präfix mit dem Code KA016 weiter (veraltete Prüfsumme) und revalidiert nicht', async () => {
+    mockClient({
+      error: { code: 'KA016', message: 'KAUT_BESTAETIGUNG: Die Auswirkung hat sich inzwischen geändert. Bitte erneut bestätigen.' },
+    });
+
+    const fehler = await softDeleteEntryAction('Haeuser', HAUS_ID, { pruefsumme: PRUEFSUMME }).catch((error: unknown) => error);
+
+    expect(fehler).toBeInstanceOf(Error);
+    expect((fehler as Error).message).toBe('Die Auswirkung hat sich inzwischen geändert. Bitte erneut bestätigen.');
+    expect((fehler as Error & { code?: string }).code).toBe('KA016');
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['ohne Prüfsumme (undefined)', { pruefsumme: undefined }],
+    ['ohne Prüfsumme (null)', { pruefsumme: null }],
+    ['mit leerer Prüfsumme', { pruefsumme: '' }],
+    ['ohne Optionen', undefined],
+  ])('%s: bleibt beim Standardweg soft_delete_record (Löschsperre KA009 bleibt wirksam)', async (_name, options) => {
+    const { rpc, rpcCalls } = createFakeSupabase();
+
+    await softDeleteEntryAction('Mieter', MIETER_A, options);
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpcCalls).toEqual([{ table: 'Mieter', id: MIETER_A }]);
+  });
+
+  it('ignoriert die Prüfsumme für andere Tabellen', async () => {
+    const { rpc, rpcCalls } = createFakeSupabase();
+
+    await softDeleteEntryAction('Finanzen', 'finanz-1', { pruefsumme: PRUEFSUMME });
+
+    expect(rpcCalls).toEqual([{ table: 'Finanzen', id: 'finanz-1' }]);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('revalidatePathsForTable', () => {
   beforeEach(() => {
     jest.clearAllMocks();

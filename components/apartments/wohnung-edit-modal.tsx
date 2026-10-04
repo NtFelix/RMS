@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions";
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 interface Haus {
   id: string;
@@ -345,7 +346,10 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     if (!wohnungInitialData || isPending) return;
     try {
       setIsDeleting(true);
-      const result = await loescheWohnung(wohnungInitialData.id);
+      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen; bei Abbruch wird nichts gelöscht
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Wohnungen", [wohnungInitialData.id]);
+      if (!bestaetigung.ok) return;
+      const result = await loescheWohnung(wohnungInitialData.id, bestaetigung.pruefsummen[wohnungInitialData.id]);
 
       if (result.success) {
         toast({

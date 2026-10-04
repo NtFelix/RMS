@@ -72,6 +72,32 @@ describe('POST /api/mieter/bulk-delete', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it('löscht mit Prüfsumme über soft_delete_mit_kautionen, die übrigen IDs über soft_delete_record', async () => {
+    const { rpc } = mockClient({ wohnungIds: [null, null] });
+    const pruefsumme = '0123456789abcdef0123456789abcdef';
+
+    const response = await POST(jsonRequest({ ids: ['m1', 'm2'], pruefsummen: { m1: pruefsumme, m2: 'ungueltig' } }));
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: 'Mieter', p_record_id: 'm1', p_pruefsumme: pruefsumme });
+    // Eine ungültige Prüfsumme wird ignoriert: Standardweg mit Löschsperre.
+    expect(rpc).toHaveBeenCalledWith('soft_delete_record', { p_table_name: 'Mieter', p_record_id: 'm2' });
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('meldet eine veraltete Prüfsumme (KA016) als Grund der abgelehnten Löschung', async () => {
+    const pruefsumme = '0123456789abcdef0123456789abcdef';
+    mockClient({
+      rpcErrors: { m1: { message: 'KAUT_BESTAETIGUNG: Die Auswirkung hat sich inzwischen geändert.', code: 'KA016' } },
+    });
+
+    const response = await POST(jsonRequest({ ids: ['m1'], pruefsummen: { m1: pruefsumme } }));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.reasons ?? [body.error]).toEqual(expect.arrayContaining([expect.stringContaining('Die Auswirkung hat sich inzwischen geändert.')]));
+  });
+
   it('lehnt eine Anfrage ohne IDs ab (400)', async () => {
     const { rpc } = mockClient();
 

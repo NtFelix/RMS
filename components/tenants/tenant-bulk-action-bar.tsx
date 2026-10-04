@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { updateTenantApartment } from "@/app/mieter-actions"
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 import { formatBulkDeleteSuffix, formatFailureReasons, stripDbCodePrefix } from "@/lib/bulk-delete-summary"
 
 interface TenantBulkActionBarProps {
@@ -64,13 +65,22 @@ export function TenantBulkActionBar({
     setIsDeleting(true);
 
     try {
+      const ids = Array.from(selectedTenants);
+      // Betroffene Kautionen mit Buchungen müssen vor dem Löschen bestätigt werden (bei Abbruch wird nichts gelöscht).
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Mieter", ids);
+      if (!bestaetigung.ok) {
+        setIsDeleteDialogOpen(false);
+        return;
+      }
+
       const response = await fetch('/api/mieter/bulk-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ids: Array.from(selectedTenants)
+          ids,
+          pruefsummen: bestaetigung.pruefsummen
         }),
       });
 

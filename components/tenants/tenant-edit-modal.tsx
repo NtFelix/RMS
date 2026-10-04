@@ -56,6 +56,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
 
@@ -928,7 +929,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     if (!tenantInitialData || isPending) return
     try {
       setIsDeleting(true)
-      const result = await deleteTenantAction(tenantInitialData.id)
+      // Betroffene Kautionen mit Buchungen müssen vor dem Löschen bestätigt werden (bei Abbruch wird nichts gelöscht).
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Mieter", [tenantInitialData.id])
+      if (!bestaetigung.ok) return
+      const result = await deleteTenantAction(tenantInitialData.id, bestaetigung.pruefsummen[tenantInitialData.id])
 
       if (result.success) {
         toast({

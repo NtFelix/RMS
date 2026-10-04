@@ -51,6 +51,8 @@ import type {
   KautionArt,
   KautionBewegungsArt,
   KautionDetails,
+  KautionLoeschauswirkung,
+  KautionLoeschTabelle,
   KautionRechte,
   KautionVorschlag,
 } from "@/types/Kaution";
@@ -366,6 +368,62 @@ export async function getKautionDetailsAction(
       }
 
       return { ok: true, data: { details, rechte, vorschlag } };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Impact of deleting a house, apartment or tenant
+// ---------------------------------------------------------------------------
+
+export interface KautionLoeschauswirkungInput {
+  tabelle: KautionLoeschTabelle;
+  /** 1 to 200 IDs of the same table (bulk deletion: one overview for all of them). */
+  ids: string[];
+}
+
+/** Same limit as the database function (`get_kautionen_loeschauswirkung`). */
+const MAX_LOESCH_IDS = 200;
+
+const LOESCH_TABELLEN: readonly string[] = ["Haeuser", "Wohnungen", "Mieter"];
+
+/**
+ * What deleting the given houses, apartments or tenants means for the deposits (`get_kautionen_loeschauswirkung`):
+ * counts, amounts "still open" and "held" (deposit accounts only), guarantees/insurances separately, tenants with
+ * a balance and a checksum to send back when confirming. All figures come from the database.
+ *
+ * Without the module right `kautionen: ansehen` this action fails with `42501` (the caller then deletes without the
+ * overview; the database still blocks deposits with bookings). The database checks the object scope itself.
+ */
+export async function getKautionLoeschauswirkungAction(
+  input: KautionLoeschauswirkungInput
+): Promise<KautionActionResult<KautionLoeschauswirkung>> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "getKautionLoeschauswirkung",
+    mieterScope: false,
+    aktion: "ansehen",
+    logArt: safeLogArt(raw.tabelle, (candidate) => typeof candidate === "string" && LOESCH_TABELLEN.includes(candidate)),
+    revalidate: false,
+    logSuccess: false,
+    run: async (supabase) => {
+      if (typeof raw.tabelle !== "string" || !LOESCH_TABELLEN.includes(raw.tabelle)) return fail(invalid());
+      if (!Array.isArray(raw.ids) || raw.ids.length === 0) return fail(invalid());
+      if (raw.ids.length > MAX_LOESCH_IDS) {
+        return fail(invalid(`Bitte wählen Sie höchstens ${MAX_LOESCH_IDS} Einträge gleichzeitig aus.`));
+      }
+      const ids: string[] = [];
+      for (const candidate of raw.ids) {
+        const id = validateUuid(candidate, "ID");
+        if (!id.ok) return fail(invalid(id.message));
+        if (!ids.includes(id.value)) ids.push(id.value);
+      }
+
+      const result = await callRpc(supabase, "get_kautionen_loeschauswirkung", { p_tabelle: raw.tabelle, p_ids: ids });
+      if (!result.ok) return fail(result.error);
+      const data = asRecord(result.data);
+      if (typeof data.anzahl_mieter !== "number" || !Array.isArray(data.eintraege)) return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+      return { ok: true, data: data as unknown as KautionLoeschauswirkung };
     },
   });
 }

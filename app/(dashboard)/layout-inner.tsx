@@ -26,6 +26,7 @@ const BetriebskostenEditModal = dynamic(() => import('@/components/finance/betri
 const AblesungenModal = dynamic(() => import('@/components/meters/ablesungen-modal').then(mod => mod.AblesungenModal), { ssr: false })
 const ZaehlerModal = dynamic(() => import('@/components/meters/zaehler-modal').then(mod => mod.ZaehlerModal), { ssr: false })
 const KautionDialog = dynamic(() => import('@/components/kaution/kaution-dialog').then(mod => mod.KautionDialog), { ssr: false })
+const KautionLoeschUebersichtDialog = dynamic(() => import('@/components/kaution/kaution-loesch-uebersicht-dialog').then(mod => mod.KautionLoeschUebersichtDialog), { ssr: false })
 const HausOverviewModal = dynamic(() => import('@/components/houses/haus-overview-modal').then(mod => mod.HausOverviewModal), { ssr: false })
 const WohnungOverviewModal = dynamic(() => import('@/components/apartments/wohnung-overview-modal').then(mod => mod.WohnungOverviewModal), { ssr: false })
 const ApartmentTenantDetailsModal = dynamic(() => import('@/components/apartments/apartment-tenant-details-modal').then(mod => mod.ApartmentTenantDetailsModal), { ssr: false })
@@ -147,6 +148,8 @@ export default function DashboardInnerLayout({
         <AblesungenModal />
         {/* KautionDialog - Kautionsmanagement (GH-6); lädt seine Daten selbst über die Server Actions in app/kautionen-actions.ts */}
         <KautionDialog />
+        {/* Übersicht "Kautionen werden mitgelöscht": erscheint beim Löschen von Haus/Wohnung/Mieter mit gebuchter Kaution (lib/kautionen-loeschen.ts) */}
+        <KautionLoeschUebersichtDialog />
         {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
         <HausOverviewModal />
         {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}

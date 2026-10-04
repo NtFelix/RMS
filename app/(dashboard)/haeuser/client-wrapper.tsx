@@ -22,6 +22,7 @@ import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
@@ -874,10 +875,14 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     const selectedIds = Array.from(selectedHouses);
 
     try {
+      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen (bei Abbruch wird nichts gelöscht; finally setzt den Zustand zurück)
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Haeuser", selectedIds);
+      if (!bestaetigung.ok) return;
+
       const response = await fetch('/api/haeuser/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: selectedIds, pruefsummen: bestaetigung.pruefsummen }),
       });
 
       if (!response.ok) {

@@ -30,7 +30,7 @@ export type KautionFehlerVerhalten =
   | "dialog_schliessen" // KA002: close the dialog
   | "neu_laden" // KA003, KA006, KA008: reload the data
   | "formular" // KA004, KA005, KA007, KA011, KA013, KA014, KA015: show at the form, keep it open
-  | "toast" // KA009, 23503 and unknown errors
+  | "toast" // KA009, KA016, 23503 and unknown errors
   | "wiederholen"; // 55P03: offer to retry
 
 export interface KautionFehler {
@@ -104,6 +104,7 @@ const PASS_THROUGH = new Map<string, PassThroughEntry>([
   ["KA013", { fallback: "Das Datum ist ungültig.", verhalten: "formular" }],
   ["KA014", { fallback: "Diese Kautionsart führt kein Konto.", verhalten: "formular" }],
   ["KA015", { fallback: "Diese Funktion ist noch nicht verfügbar.", verhalten: "formular" }],
+  ["KA016", { fallback: "Die Auswirkung hat sich geändert. Bitte prüfen Sie die Übersicht erneut.", verhalten: "toast" }],
 ]);
 
 /** PostgREST codes for an invalid (`PGRST301`) or expired (`PGRST303`) JWT: the user has to sign in again. */

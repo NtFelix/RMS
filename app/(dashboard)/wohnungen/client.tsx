@@ -25,6 +25,7 @@ import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -200,10 +201,14 @@ export default function WohnungenClientView({
     const selectedIds = Array.from(selectedApartments);
 
     try {
+      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen; bei Abbruch wird nichts gelöscht
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Wohnungen", selectedIds);
+      if (!bestaetigung.ok) return;
+
       const response = await fetch('/api/apartments/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: selectedIds, pruefsummen: bestaetigung.pruefsummen }),
       });
 
       if (!response.ok) {

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { tenantActions, getVisibleActions, type TenantActionDef } from "@/components/tenants/tenant-menu-actions"
@@ -65,7 +66,10 @@ export function TenantContextMenu({
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      const result = await deleteTenantAction(tenant.id);
+      // Betroffene Kautionen mit Buchungen müssen vor dem Löschen bestätigt werden (bei Abbruch wird nichts gelöscht).
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Mieter", [tenant.id]);
+      if (!bestaetigung.ok) return;
+      const result = await deleteTenantAction(tenant.id, bestaetigung.pruefsummen[tenant.id]);
 
       if (result.success) {
         toast({

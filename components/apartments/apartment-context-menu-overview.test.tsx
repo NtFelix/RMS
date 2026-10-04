@@ -1,14 +1,23 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApartmentContextMenu } from '@/components/apartments/apartment-context-menu';
 import { useModalStore } from '@/hooks/use-modal-store';
+import { loescheWohnung } from '@/app/(dashboard)/wohnungen/actions';
+import { bestaetigeLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
+const mockLoescheWohnung = loescheWohnung as jest.Mock;
+const mockBestaetige = bestaetigeLoeschenMitKautionen as jest.Mock;
 
 // Mock the server action
 jest.mock('@/app/(dashboard)/wohnungen/actions', () => ({
   loescheWohnung: jest.fn(),
+}));
+
+// Mock the Kautionen confirmation helper
+jest.mock('@/lib/kautionen-loeschen', () => ({
+  bestaetigeLoeschenMitKautionen: jest.fn(),
 }));
 
 // Mock toast
@@ -110,5 +119,39 @@ describe('ApartmentContextMenu', () => {
     expect(screen.getByText((content, element) => {
       return content.includes('Möchten Sie die Wohnung') && content.includes(mockApartment.name) && content.includes('wirklich löschen');
     })).toBeInTheDocument();
+  });
+
+  describe('Kautionen-Bestätigung beim Löschen', () => {
+    const openDeleteDialogAndConfirm = async () => {
+      render(
+        <ApartmentContextMenu apartment={mockApartment} onEdit={mockOnEdit} onRefresh={mockOnRefresh}>
+          <div>Test Child</div>
+        </ApartmentContextMenu>
+      );
+      fireEvent.contextMenu(screen.getByText('Test Child'));
+      fireEvent.click(screen.getByText('Löschen'));
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+    };
+
+    it('ruft den Helper mit ("Wohnungen", [id]) auf und löscht nicht, wenn abgebrochen wird', async () => {
+      mockBestaetige.mockResolvedValue({ ok: false });
+      await openDeleteDialogAndConfirm();
+
+      await waitFor(() => expect(mockBestaetige).toHaveBeenCalledWith('Wohnungen', [mockApartment.id]));
+      expect(mockLoescheWohnung).not.toHaveBeenCalled();
+      expect(mockOnRefresh).not.toHaveBeenCalled();
+      // Ladezustand zurückgesetzt, Dialog geschlossen
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    });
+
+    it('übergibt die Prüfsumme an loescheWohnung, wenn bestätigt wird', async () => {
+      mockBestaetige.mockResolvedValue({ ok: true, pruefsummen: { [mockApartment.id]: 'abc' } });
+      mockLoescheWohnung.mockResolvedValue({ success: true });
+      await openDeleteDialogAndConfirm();
+
+      await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(mockApartment.id, 'abc'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    });
   });
 });

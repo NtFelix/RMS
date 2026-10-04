@@ -12,11 +12,15 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { toast } from "@/hooks/use-toast";
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import type { Tenant } from "@/types/Tenant";
 
 jest.mock("@/hooks/use-toast", () => ({ toast: jest.fn(), useToast: jest.fn() }));
 jest.mock("@/app/mieter-actions", () => ({ updateTenantApartment: jest.fn() }));
 
+jest.mock("@/lib/kautionen-loeschen", () => ({ bestaetigeLoeschenMitKautionen: jest.fn() }));
+
+const bestaetigeMock = bestaetigeLoeschenMitKautionen as jest.MockedFunction<typeof bestaetigeLoeschenMitKautionen>;
 const toastMock = toast as unknown as jest.Mock;
 const fetchMock = jest.fn();
 
@@ -71,6 +75,8 @@ async function loescheUndBestaetige() {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  // Standard: keine Kaution mit Buchungen betroffen, die Löschung wird ohne Rückfrage bestätigt.
+  bestaetigeMock.mockResolvedValue({ ok: true, pruefsummen: {} });
   global.fetch = fetchMock as unknown as typeof fetch;
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -91,7 +97,38 @@ describe("TenantBulkActionBar: Löschen", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/mieter/bulk-delete");
     expect(options.method).toBe("POST");
-    expect(JSON.parse(options.body)).toEqual({ ids: ["t-1", "t-2", "t-3"] });
+    expect(JSON.parse(options.body)).toEqual({ ids: ["t-1", "t-2", "t-3"], pruefsummen: {} });
+    expect(bestaetigeMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"]);
+  });
+
+  it("sendet die bestätigten Prüfsummen der Kautionen-Übersicht mit", async () => {
+    bestaetigeMock.mockResolvedValue({ ok: true, pruefsummen: { "t-1": "abc", "t-3": "def" } });
+    antwortet({ status: 200, body: { successCount: 3, errorCount: 0, reasons: [] } });
+    renderBar();
+
+    await loescheUndBestaetige();
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      ids: ["t-1", "t-2", "t-3"],
+      pruefsummen: { "t-1": "abc", "t-3": "def" },
+    });
+  });
+
+  it("löscht nichts, schließt den Dialog und setzt den Ladezustand zurück, wenn die Bestätigung abgebrochen wird", async () => {
+    bestaetigeMock.mockResolvedValue({ ok: false });
+    const { onClearSelection, onUpdate } = renderBar();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    await user.click(screen.getByRole("button", { name: /^Löschen \(\d+\)$/ }));
+    await screen.findByRole("dialog");
+    await user.click(await screen.findByRole("button", { name: "Löschen bestätigen" }));
+
+    await waitFor(() => expect(bestaetigeMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"]));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryAllByText("Wird gelöscht...")).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(onClearSelection).not.toHaveBeenCalled();
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 
   it("meldet vollständigen Erfolg, leert die Auswahl, schließt den Dialog und lädt die Liste neu", async () => {

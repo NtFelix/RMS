@@ -22,6 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
 import { useModalStore } from "@/hooks/use-modal-store"
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 export interface House {
   id: string
@@ -65,7 +66,10 @@ export function HouseContextMenu({
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      const result = await deleteHouseAction(house.id);
+      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen (bei Abbruch wird nichts gelöscht; finally setzt den Zustand zurück)
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Haeuser", [house.id]);
+      if (!bestaetigung.ok) return;
+      const result = await deleteHouseAction(house.id, bestaetigung.pruefsummen[house.id]);
 
       if (result.success) {
         toast({

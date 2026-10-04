@@ -28,6 +28,20 @@ const MAX_REASON_LENGTH = 300;
 /** SQLSTATE der Löschsperren der Datenbank (z. B. Mieter mit hinterlegter Kaution): fachliche Ablehnung, kein Serverfehler. */
 export const DELETE_BLOCKED_SQLSTATE = "KA009";
 
+/**
+ * Liest die Prüfsummen der bestätigten Auswirkung auf Kautionen aus dem Body einer Sammellöschung (`pruefsummen`: ID -> Prüfsumme).
+ * Nur Einträge mit einer ID-Zeichenkette und einer 32-stelligen Hex-Prüfsumme zählen; alles andere wird ignoriert (die Datenbank
+ * prüft die Prüfsumme ohnehin, `KA016`).
+ */
+export function parsePruefsummen(value: unknown): Record<string, string> {
+  const ergebnis: Record<string, string> = {};
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return ergebnis;
+  for (const [id, pruefsumme] of Object.entries(value)) {
+    if (typeof pruefsumme === "string" && /^[0-9a-f]{32}$/.test(pruefsumme)) ergebnis[id] = pruefsumme;
+  }
+  return ergebnis;
+}
+
 /** Entfernt das stabile Präfix `KAUT_GESPERRT: ` einer Datenbankmeldung (Vertrag: `<CODE>: <deutsche Meldung>`). */
 export function stripDbCodePrefix(message: string): string {
   return message.replace(/^[A-Z][A-Z_]*:\s*/, "").trim();

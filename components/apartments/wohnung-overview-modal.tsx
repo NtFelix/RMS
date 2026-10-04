@@ -1,5 +1,6 @@
 "use client";
 import { deleteTenantAction } from "@/app/mieter-actions";
+import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import {
   Dialog,
   DialogContent,
@@ -206,8 +207,12 @@ export function WohnungOverviewModal() {
     try {
       setIsDeleting(true);
 
+      // Betroffene Kautionen mit Buchungen müssen vor dem Löschen bestätigt werden (bei Abbruch wird nichts gelöscht).
+      const bestaetigung = await bestaetigeLoeschenMitKautionen("Mieter", [mieterToDelete.id]);
+      if (!bestaetigung.ok) return;
+
       // Use the server action to delete the tenant
-      const { success, error } = await deleteTenantAction(mieterToDelete.id);
+      const { success, error } = await deleteTenantAction(mieterToDelete.id, bestaetigung.pruefsummen[mieterToDelete.id]);
 
       if (success) {
         toast({

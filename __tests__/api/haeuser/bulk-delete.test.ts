@@ -79,8 +79,8 @@ describe('POST /api/haeuser/bulk-delete', () => {
     expect(body.successCount).toBe(2);
 
     expect(softDeleteEntryAction).toHaveBeenCalledTimes(2);
-    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(1, 'Haeuser', 'id-1');
-    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(2, 'Haeuser', 'id-2');
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(1, 'Haeuser', 'id-1', { pruefsumme: undefined });
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(2, 'Haeuser', 'id-2', { pruefsumme: undefined });
   });
 
   it('should return 500 if softDeleteEntryAction fails', async () => {

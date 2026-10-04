@@ -5,6 +5,7 @@ import {
   formatBulkDeleteSuffix,
   formatFailureReasons,
   isDeleteBlockedError,
+  parsePruefsummen,
   stripDbCodePrefix,
   summarizeBulkDeleteResults,
   summarizeSettledDeletes,
@@ -16,6 +17,29 @@ const failed = (message?: string): PromiseFulfilledResult<{ success: boolean; er
   value: { success: false, error: message === undefined ? undefined : { message } },
 });
 const rejected = (): PromiseRejectedResult => ({ status: "rejected", reason: new Error("netzwerk") });
+
+describe("parsePruefsummen", () => {
+  const SUMME = "0123456789abcdef0123456789abcdef";
+
+  it("keeps entries with a 32-digit hex checksum", () => {
+    expect(parsePruefsummen({ "id-1": SUMME })).toEqual({ "id-1": SUMME });
+  });
+
+  it.each([
+    ["a missing body field", undefined],
+    ["null", null],
+    ["a list", [SUMME]],
+    ["a string", SUMME],
+  ])("returns an empty object for %s", (_name, value) => {
+    expect(parsePruefsummen(value)).toEqual({});
+  });
+
+  it("ignores entries whose value is not a 32-digit lowercase hex string", () => {
+    expect(
+      parsePruefsummen({ a: "zu-kurz", b: SUMME.toUpperCase(), c: 123, d: null, e: `${SUMME}0`, f: SUMME })
+    ).toEqual({ f: SUMME });
+  });
+});
 
 describe("stripDbCodePrefix", () => {
   it("removes the stable code prefix of a database message", () => {

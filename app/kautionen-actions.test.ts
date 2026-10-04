@@ -19,6 +19,7 @@ import {
   createKautionAction,
   deleteKautionAction,
   getKautionDetailsAction,
+  getKautionLoeschauswirkungAction,
   storniereKautionBewegungAction,
   updateKautionVereinbarungAction,
 } from "@/app/kautionen-actions";
@@ -29,6 +30,17 @@ jest.mock("@/lib/logging-middleware", () => ({ logAction: jest.fn() }));
 const TENANT_ID = "11111111-1111-4111-8111-111111111111";
 const KAUTION_ID = "22222222-2222-4222-8222-222222222222";
 const BEWEGUNG_ID = "33333333-3333-4333-8333-333333333333";
+const HAUS_ID = "55555555-5555-4555-8555-555555555555";
+const LOESCH_AUSWIRKUNG = {
+  tabelle: "Haeuser",
+  anzahl_haeuser: 1,
+  anzahl_wohnungen: 2,
+  anzahl_mieter: 3,
+  kautionen_sichtbar: true,
+  kautionen: { anzahl: 3, ohne_buchungen: 1, mit_buchungen: 2 },
+  pruefsumme: "0123456789abcdef0123456789abcdef",
+  eintraege: [{ id: HAUS_ID, anzahl_mieter: 3, mit_buchungen: 2, pruefsumme: "0123456789abcdef0123456789abcdef" }],
+};
 const SCHLUESSEL = "44444444-4444-4444-8444-444444444444";
 const SCOPE_RPC = "kautionen_pruefe_objektzugriff";
 
@@ -80,6 +92,12 @@ interface ActionCase {
 
 const ACTION_CASES: ActionCase[] = [
   { name: "getKautionDetailsAction", aktion: "ansehen", call: () => getKautionDetailsAction(TENANT_ID), okData: { kaution: { id: KAUTION_ID } } },
+  {
+    name: "getKautionLoeschauswirkungAction",
+    aktion: "ansehen",
+    call: () => getKautionLoeschauswirkungAction({ tabelle: "Haeuser", ids: [HAUS_ID] }),
+    okData: LOESCH_AUSWIRKUNG,
+  },
   {
     name: "createKautionAction",
     aktion: "erstellen",
@@ -1031,6 +1049,70 @@ describe("deleteKautionAction", () => {
   });
 });
 
+describe("getKautionLoeschauswirkungAction", () => {
+  it("calls get_kautionen_loeschauswirkung with the table and the de-duplicated IDs and returns the database result", async () => {
+    rpcOk(LOESCH_AUSWIRKUNG);
+
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Haeuser", ids: [HAUS_ID, HAUS_ID] });
+
+    expect(result).toEqual({ success: true, data: LOESCH_AUSWIRKUNG });
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith("get_kautionen_loeschauswirkung", { p_tabelle: "Haeuser", p_ids: [HAUS_ID] });
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an unknown table", { tabelle: "Finanzen", ids: [HAUS_ID] }],
+    ["no IDs", { tabelle: "Mieter", ids: [] }],
+    ["IDs that are not a list", { tabelle: "Mieter", ids: HAUS_ID }],
+    ["a malformed ID", { tabelle: "Mieter", ids: ["not-a-uuid"] }],
+  ])("rejects %s with KA004 without calling the database", async (_name, input) => {
+    const result = await getKautionLoeschauswirkungAction(input as never);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects more than 200 IDs", async () => {
+    const ids = Array.from({ length: 201 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`);
+
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Mieter", ids });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA004");
+    expect(result.error?.message).toContain("200");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("maps a database rejection of the object scope (KA002)", async () => {
+    rpcError("KA002", "KAUT_OBJEKTZUGRIFF: Kein Zugriff auf dieses Objekt.");
+
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Haeuser", ids: [HAUS_ID] });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA002");
+  });
+
+  it("returns the fallback error for an unexpected database answer", async () => {
+    rpcOk({ unerwartet: true });
+
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Haeuser", ids: [HAUS_ID] });
+
+    expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+  });
+
+  it("without the module right: KA... mapped 42501 and no RPC call (the caller then deletes without the overview)", async () => {
+    mockHasPermission.mockResolvedValue(false);
+
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Haeuser", ids: [HAUS_ID] });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("42501");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+});
+
 describe("error mapping by SQLSTATE (spec 4.5)", () => {
   const BUCHEN = {
     tenantId: TENANT_ID,
@@ -1097,7 +1179,7 @@ describe("error mapping by SQLSTATE (spec 4.5)", () => {
 });
 
 describe("revalidation and logging", () => {
-  it.each(ACTION_CASES.filter((c) => c.name !== "getKautionDetailsAction"))("$name: revalidates /mieter after success only", async (caseItem) => {
+  it.each(ACTION_CASES.filter((c) => c.name !== "getKautionDetailsAction" && c.name !== "getKautionLoeschauswirkungAction"))("$name: revalidates /mieter after success only", async (caseItem) => {
     queueSuccess(caseItem);
     const ok = await caseItem.call();
     expect(ok.success).toBe(true);
