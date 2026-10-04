@@ -5,6 +5,29 @@
 
 // Re-export existing types
 export type { Tenant, NebenkostenEntry, KautionStatus, KautionData, KautionFormData } from './Tenant';
+export type {
+  KautionArt,
+  KautionBewegungsArt,
+  KautionAbzugKategorie,
+  KautionZustand,
+  KautionFristStufe,
+  KautionRateStatus,
+  KautionZinsmethode,
+  KautionQuelle,
+  Kaution,
+  KautionKonto,
+  KautionBewegung,
+  KautionRate,
+  KautionBeleg,
+  KautionZinssatz,
+  KautionZinsSegment,
+  KautionZinsVorschlag,
+  KautionZinsGrundlage,
+  KautionDetails,
+  KautionRechte,
+  KautionVorschlag,
+  KautionKompat
+} from './Kaution';
 export type { Wohnung } from './Wohnung';
 export type { Finanzen } from './finanzen';
 export type { Profile } from './supabase';
