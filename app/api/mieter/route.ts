@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
 
 export async function GET() {
   try {
@@ -8,7 +9,8 @@ export async function GET() {
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const accessibleWohnungIds = await getAccessibleWohnungIds();
 
-    let query = supabase.from('Mieter').select('*');
+    // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
+    let query = supabase.from('Mieter').select(MIETER_SPALTEN_OHNE_KAUTION);
     if (accessibleWohnungIds !== null) {
       query = query.in('wohnung_id', accessibleWohnungIds);
     }
@@ -40,17 +42,23 @@ export async function POST(request: Request) {
     await requireApiPermission('mieter', 'erstellen');
 
     const supabase = await createSupabaseServerClient();
-    const m = await request.json();
-    console.error('POST /api/mieter payload:', m);
+    // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
+    const m = pickMieterSchreibbareFelder(await request.json());
+    if (!m) {
+      return NextResponse.json({ error: "Ungültiger Request-Body." }, {
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
+    }
 
-    if (m.wohnung_id && !(await verifyWohnungInScope(m.wohnung_id))) {
+    if (m.wohnung_id && !(await verifyWohnungInScope(m.wohnung_id as string))) {
       return NextResponse.json({ error: "Permission denied" }, { 
         status: 403,
         headers: NO_CACHE_HEADERS 
       });
     }
 
-    const { data, error } = await supabase.from('Mieter').insert(m).select();
+    const { data, error } = await supabase.from('Mieter').insert(m).select(MIETER_SPALTEN_OHNE_KAUTION);
     if (error) {
       console.error('POST /api/mieter error:', error);
       return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { 
@@ -85,7 +93,20 @@ export async function PUT(request: Request) {
     });
 
     const supabase = await createSupabaseServerClient();
-    const m = await request.json();
+    // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
+    const m = pickMieterSchreibbareFelder(await request.json());
+    if (!m) {
+      return NextResponse.json({ error: 'Ungültiger Request-Body.' }, {
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
+    }
+    if (Object.keys(m).length === 0) {
+      return NextResponse.json({ error: 'Keine änderbaren Felder angegeben.' }, {
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      });
+    }
 
     // Check scope of existing tenant
     const { data: currentTenant, error: checkError } = await supabase
@@ -102,14 +123,14 @@ export async function PUT(request: Request) {
     }
 
     // Check scope of new apartment target
-    if (m.wohnung_id && !(await verifyWohnungInScope(m.wohnung_id))) {
+    if (m.wohnung_id && !(await verifyWohnungInScope(m.wohnung_id as string))) {
       return NextResponse.json({ error: "Permission denied" }, { 
         status: 403,
         headers: NO_CACHE_HEADERS 
       });
     }
 
-    const { data, error } = await supabase.from('Mieter').update(m).match({ id }).select();
+    const { data, error } = await supabase.from('Mieter').update(m).match({ id }).select(MIETER_SPALTEN_OHNE_KAUTION);
     if (error) {
       console.error('PUT /api/mieter error:', error);
       return NextResponse.json({ error: error.message }, { 
