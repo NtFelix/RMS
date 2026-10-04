@@ -119,7 +119,7 @@ export function KautionDialog() {
   // Mirror of `ansicht` for the async loader (a silent reload must know whether content is already shown).
   const ansichtRef = useRef<Ansicht>(ansicht);
   // The question "discard input?" (booking type switch) is open: closing attempts of the dialog are ignored meanwhile.
-  const [rueckfrageOffen, setRueckfrageOffen] = useState(false);
+  const rueckfrageOffen = useRef(false);
   // `useRouter` of Next is stable; the ref keeps `lade` independent of its identity (no reload loop).
   const router = useRouter();
   const routerRef = useRef(router);
@@ -212,7 +212,7 @@ export function KautionDialog() {
 
   // The confirmation of the store was closed (also by "Abbrechen"/Escape of the shared dialog): closing works again.
   useEffect(() => {
-    if (!isConfirmationModalOpen) setRueckfrageOffen(false);
+    if (!isConfirmationModalOpen) rueckfrageOffen.current = false;
   }, [isConfirmationModalOpen]);
 
   // --- Errors of actions -------------------------------------------------------------------------------------
@@ -245,19 +245,19 @@ export function KautionDialog() {
    */
   const frageVerwerfen = useCallback(
     (onBestaetigt: () => void) => {
-      setRueckfrageOffen(true);
+      rueckfrageOffen.current = true;
       openConfirmationModal({
         title: "Eingaben verwerfen?",
         description: "Wenn Sie die Buchungsart wechseln, gehen Ihre bisherigen Eingaben verloren. Möchten Sie sie wirklich verwerfen?",
         confirmText: "Verwerfen",
         cancelText: "Abbrechen",
         onConfirm: () => {
-          setRueckfrageOffen(false);
+          rueckfrageOffen.current = false;
           onBestaetigt();
           closeConfirmationModal();
         },
         onCancel: () => {
-          setRueckfrageOffen(false);
+          rueckfrageOffen.current = false;
           closeConfirmationModal();
         },
       });
@@ -268,7 +268,7 @@ export function KautionDialog() {
   // The store asks for confirmation if a form holds unsaved input. While the question "discard input?" is open, the
   // focus change to its dialog counts as an interaction outside: it must not replace the question or close the dialog.
   const handleAttemptClose = () => {
-    if (!rueckfrageOffen) closeKautionModal();
+    if (!rueckfrageOffen.current) closeKautionModal();
   };
   const handleOpenChange = (open: boolean) => {
     if (!open) handleAttemptClose();
