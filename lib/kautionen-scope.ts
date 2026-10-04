@@ -2,16 +2,17 @@
  * Object scope check for the deposit management ("Kautionsmanagement", GH-6).
  *
  * Employees can be restricted to certain houses (`objekte.haeuser`). A deposit belongs to a tenant
- * row (`Mieter`), the tenant to an apartment (`Wohnung`), the apartment to a house. This check runs in
- * the server actions BEFORE any RPC call and is fail-closed:
- * - unrestricted access (`getAccessibleWohnungIds() === null`): allowed, nothing to check here;
- * - restricted access: the tenant must exist AND have an apartment AND that apartment must be in the
- *   allowed list. A tenant without apartment is never in the scope of a restricted user.
- * - every error (RPC failure, query error, exception) denies access.
- * The reason for a denial is deliberately not distinguishable (foreign object, unknown ID and tenant
- * without apartment give the same error), so the check does not reveal whether an object exists.
+ * row (`Mieter`), the tenant to an apartment (`Wohnung`), the apartment to a house. The decision is made by
+ * the database function `kautionen_pruefe_objektzugriff(p_mieter_id)` (the same helper the deposit RPCs use),
+ * so there is one source of truth and no list of apartment IDs has to be loaded (PostgREST truncates lists at
+ * `max_rows`, which would wrongly deny users with a large scope).
  *
- * The database checks the object scope again inside the RPCs (`KA002`), this is the fast first stage.
+ * The check is fail-closed: it passes only if the RPC returns without an error. A missing/invalid tenant ID, a
+ * denial (`KA002`), a missing module right (`42501`), a network error or any other failure all deny access.
+ * The reason for a denial is deliberately not distinguishable, so the check does not reveal whether an object exists.
+ *
+ * This is an early rejection for actions where the tenant IS the object (create, details). Actions that only
+ * get a deposit or booking ID rely on the RPCs themselves, which check the scope the same way.
  * Security-relevant code: not production ready until it has been reviewed by the maintainer.
  *
  * `assertKautionScope` throws (a caller that forgets to handle the result cannot continue by accident).
@@ -22,7 +23,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_rethrow } from "next/navigation";
 import { mapKautionError } from "@/lib/kautionen-errors";
-import { getAccessibleWohnungIds } from "@/lib/object-scope";
 
 /** Thrown by `assertKautionScope` when the current user may not access the tenant's deposit. */
 export class KautionScopeError extends Error {
@@ -40,30 +40,16 @@ export type KautionScopeResult =
   | { ok: false; error: { code: "KA002"; message: string } };
 
 /**
- * Throws `KautionScopeError` unless the current user may access the deposit of this tenant.
- * Next.js control-flow errors (redirect, notFound, ...) are rethrown unchanged.
+ * Throws `KautionScopeError` unless the current user may access the deposit of this tenant
+ * (`kautionen_pruefe_objektzugriff`). Next.js control-flow errors (redirect, notFound, ...) are rethrown unchanged.
  */
 export async function assertKautionScope(supabase: SupabaseClient, tenantId: string): Promise<void> {
-  const wohnungIds = await getAccessibleWohnungIds();
-
-  // Unrestricted (all houses): nothing to restrict, the database still validates the tenant.
-  if (wohnungIds === null) return;
-
-  // Fail-closed: anything that is not a list of apartment IDs, an empty list, or a missing tenant ID denies.
-  if (!Array.isArray(wohnungIds) || wohnungIds.length === 0) throw new KautionScopeError();
   if (typeof tenantId !== "string" || tenantId.trim() === "") throw new KautionScopeError();
 
   try {
-    const { data, error } = await supabase
-      .from("Mieter")
-      .select("wohnung_id")
-      .eq("id", tenantId)
-      .single();
-
-    // No apartment (applicant, unassigned tenant) is outside the scope of a restricted user.
-    if (error || !data || !data.wohnung_id || !wohnungIds.includes(data.wohnung_id)) {
-      throw new KautionScopeError();
-    }
+    const { error } = await supabase.rpc("kautionen_pruefe_objektzugriff", { p_mieter_id: tenantId });
+    // Allowed or unrestricted: the function returns without an error. Everything else denies (fail-closed).
+    if (error) throw new KautionScopeError();
   } catch (error) {
     if (error instanceof KautionScopeError) throw error;
     unstable_rethrow(error);

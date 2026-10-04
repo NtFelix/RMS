@@ -10,15 +10,15 @@
  */
 
 import { KAUTION_MIN_WERTSTELLUNG } from "@/lib/kautionen-constants";
+import { UUID_REGEX } from "@/lib/supabase-env";
 
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; message: string };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** Whether the value is a UUID string (any version, case-insensitive). */
 export function isUuid(value: unknown): value is string {
-  return typeof value === "string" && UUID_PATTERN.test(value);
+  return typeof value === "string" && UUID_REGEX.test(value);
 }
 
 /** Validates a UUID given by the client. `label` is the German noun for the message, e.g. "Mieter-ID". */
@@ -36,14 +36,14 @@ export function validateKautionDatum(value: unknown, label = "Wertstellung"): Va
   if (typeof value !== "string") return { ok: false, message: `Bitte geben Sie ein Datum für ${label} an.` };
   const text = value.trim();
   const match = DATE_PATTERN.exec(text);
-  if (!match) return { ok: false, message: `${label}: Bitte geben Sie ein gültiges Datum an (TT.MM.JJJJ).` };
+  if (!match) return { ok: false, message: `${label}: Bitte geben Sie ein gültiges Datum an (JJJJ-MM-TT).` };
 
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
   const date = new Date(Date.UTC(year, month - 1, day));
   const isRealDay = date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-  if (!isRealDay) return { ok: false, message: `${label}: Bitte geben Sie ein gültiges Datum an (TT.MM.JJJJ).` };
+  if (!isRealDay) return { ok: false, message: `${label}: Bitte geben Sie ein gültiges Datum an (JJJJ-MM-TT).` };
 
   // ISO date strings compare correctly as text.
   if (text < KAUTION_MIN_WERTSTELLUNG) return { ok: false, message: `${label} darf nicht vor dem 01.01.1990 liegen.` };

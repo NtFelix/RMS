@@ -8,11 +8,13 @@
  *
  * Privacy: only the code and the messages listed here ever leave this function. The generic
  * PostgREST fields `details` and `hint` are never passed on (a unique violation puts key values in
- * `details`). For unknown errors the message is a fixed German sentence; the raw message stays out of
- * the UI and out of the logs (log the code only, never contents).
+ * `details`). For unknown errors the message is a fixed German sentence and the code is dropped (no raw
+ * SQLSTATE/PostgREST code reaches the client); the raw message stays out of the UI and out of the logs.
  *
  * Not a "use server" file (it exports a non-async function and constants).
  */
+
+import { stripDbCodePrefix } from "@/lib/bulk-delete-summary";
 
 /** Shape of a PostgREST/Supabase error as far as it is used here. */
 export interface KautionRpcError {
@@ -32,7 +34,10 @@ export type KautionFehlerVerhalten =
   | "wiederholen"; // 55P03: offer to retry
 
 export interface KautionFehler {
-  /** Normalised, stable code (`KA008` also for the unique violation `23505`). Original code for unknown errors. */
+  /**
+   * Normalised, stable code from the list of this module (`KA008` also for the unique violation `23505`, `KA001` also
+   * for an invalid or expired JWT). `undefined` for unknown errors: raw SQLSTATE/PostgREST codes are not passed on.
+   */
   code?: string;
   /** German, formal address, free of personal data. */
   message: string;
@@ -101,10 +106,8 @@ const PASS_THROUGH = new Map<string, PassThroughEntry>([
   ["KA015", { fallback: "Diese Funktion ist noch nicht verfügbar.", verhalten: "formular" }],
 ]);
 
-/** Removes the stable `KAUT_FOO_BAR: ` prefix of a database message. */
-function stripCodePrefix(message: string): string {
-  return message.replace(/^[A-Z_]+:\s*/, "").trim();
-}
+/** PostgREST codes for an invalid (`PGRST301`) or expired (`PGRST303`) JWT: the user has to sign in again. */
+const JWT_FEHLER_CODES: ReadonlySet<string> = new Set(["PGRST301", "PGRST303"]);
 
 /** UI behaviour for an already mapped code (for components that only see `error.code` of an action result). */
 export function getKautionFehlerVerhalten(code: string | undefined): KautionFehlerVerhalten {
@@ -117,18 +120,16 @@ export function getKautionFehlerVerhalten(code: string | undefined): KautionFehl
  * Never throws; `null`, `undefined` and non-object values yield the generic message.
  */
 export function mapKautionError(error: KautionRpcError | null | undefined): KautionFehler {
-  const generic = (code?: string): KautionFehler => ({
-    ...(code ? { code } : {}),
-    message: KAUTION_FEHLER_FALLBACK_MESSAGE,
-    verhalten: "toast",
-  });
+  // Unknown errors: neutral text, no code (the raw code stays inside this function).
+  const generic = (): KautionFehler => ({ message: KAUTION_FEHLER_FALLBACK_MESSAGE, verhalten: "toast" });
 
   if (!error || typeof error !== "object") return generic();
 
-  const code = typeof error.code === "string" ? error.code : undefined;
+  const rawCode = typeof error.code === "string" ? error.code : undefined;
   const message = typeof error.message === "string" ? error.message : "";
 
-  if (!code) return generic();
+  if (!rawCode) return generic();
+  const code = JWT_FEHLER_CODES.has(rawCode) ? "KA001" : rawCode;
 
   // Race on creating a deposit: only the partial unique index of "one active deposit per tenant" counts.
   // `details` is deliberately not read: it contains key values.
@@ -136,7 +137,7 @@ export function mapKautionError(error: KautionRpcError | null | undefined): Kaut
     if (message.includes(AKTIVE_KAUTION_INDEX)) {
       return { code: "KA008", ...KA008_ENTRY };
     }
-    return generic(code);
+    return generic();
   }
 
   const fixed = FIXED.get(code);
@@ -144,7 +145,7 @@ export function mapKautionError(error: KautionRpcError | null | undefined): Kaut
 
   const passThrough = PASS_THROUGH.get(code);
   if (passThrough) {
-    const text = stripCodePrefix(message);
+    const text = stripDbCodePrefix(message);
     return {
       code,
       message: text ? text.slice(0, MAX_DB_MESSAGE_LENGTH) : passThrough.fallback,
@@ -152,6 +153,6 @@ export function mapKautionError(error: KautionRpcError | null | undefined): Kaut
     };
   }
 
-  // Unknown code (including KA010/KA012, which are deliberately not assigned): never show the raw message.
-  return generic(code);
+  // Unknown code (including KA010/KA012, which are deliberately not assigned): never show the raw message or code.
+  return generic();
 }

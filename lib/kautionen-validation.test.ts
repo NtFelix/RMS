@@ -41,6 +41,12 @@ describe("kautionen-validation", () => {
       }
     );
 
+    it("names the accepted format (JJJJ-MM-TT) in the message, not a format that is rejected", () => {
+      for (const datum of ["01.09.2025", "2026-02-31"]) {
+        expect(validateKautionDatum(datum)).toEqual({ ok: false, message: "Wertstellung: Bitte geben Sie ein gültiges Datum an (JJJJ-MM-TT)." });
+      }
+    });
+
     it("rejects non-strings", () => {
       for (const value of [undefined, null, 20250901, new Date(), {}]) {
         expect(validateKautionDatum(value).ok).toBe(false);

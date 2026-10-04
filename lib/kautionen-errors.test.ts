@@ -113,17 +113,34 @@ describe("kautionen-errors", () => {
         code: "23505",
         message: 'duplicate key value violates unique constraint "some_other_index"',
       });
-      expect(result).toEqual({ code: "23505", message: KAUTION_FEHLER_FALLBACK_MESSAGE, verhalten: "toast" });
+      expect(result).toEqual({ message: KAUTION_FEHLER_FALLBACK_MESSAGE, verhalten: "toast" });
     });
   });
 
   describe("generic fallback", () => {
-    it("uses the generic German text for unknown codes and keeps the original code", () => {
+    it("uses the generic German text for unknown codes and does not pass the raw code on", () => {
       const result = mapKautionError({ code: "XX000", message: "internal error with secret detail" });
       expect(result).toEqual({
-        code: "XX000",
         message: "Die Aktion konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
         verhalten: "toast",
+      });
+      expect(result).not.toHaveProperty("code");
+    });
+
+    it("does not pass on raw PostgREST or SQLSTATE codes", () => {
+      for (const code of ["PGRST116", "PGRST000", "PGRST302", "42P01", "23502", "XX000"]) {
+        const result = mapKautionError({ code, message: "raw text" });
+        expect(result.code).toBeUndefined();
+        expect(result.message).toBe(KAUTION_FEHLER_FALLBACK_MESSAGE);
+        expect(result.verhalten).toBe("toast");
+      }
+    });
+
+    it.each(["PGRST301", "PGRST303"])("maps the JWT error %s to KA001 (sign in again)", (code) => {
+      expect(mapKautionError({ code, message: "JWT expired" })).toEqual({
+        code: "KA001",
+        message: "Bitte melden Sie sich erneut an.",
+        verhalten: "anmelden",
       });
     });
 
@@ -131,7 +148,7 @@ describe("kautionen-errors", () => {
       for (const code of ["KA010", "KA012", "KA099", "KA000"]) {
         const result = mapKautionError({ code, message: "KAUT_X: should stay internal" });
         expect(result.message).toBe(KAUTION_FEHLER_FALLBACK_MESSAGE);
-        expect(result.code).toBe(code);
+        expect(result.code).toBeUndefined();
       }
     });
 
