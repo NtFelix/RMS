@@ -33,10 +33,6 @@ export interface Kaution {
   erstellt_am: string;
   geaendert_am: string;
   // P3
-  kontoinhaber?: string | null;
-  iban?: string | null;
-  bic?: string | null;
-  bank?: string | null;
   getrennt_angelegt?: boolean | null;
   zinsmethode?: KautionZinsmethode;
   buerge?: string | null;

@@ -3,15 +3,15 @@
 /**
  * Tests for the server actions of the deposit management (GH-6, phase 1).
  *
- * `jest.setup.js` mocks `@/lib/permissions` (always `true`), `@/lib/object-scope` (unrestricted, `null`),
- * `@/lib/auth-utils` and `next/navigation` globally. The negative cases override the mocks explicitly.
+ * `jest.setup.js` mocks `@/lib/permissions` (always `true`), `@/lib/auth-utils` and `next/navigation` globally.
+ * The negative cases override the mocks explicitly. The object scope check calls the database function
+ * `kautionen_pruefe_objektzugriff`; it has its own mock (`mockScopeRpc`) so `mockRpc` only sees the business RPCs.
  * All IDs, names and amounts are synthetic placeholders.
  */
 
 import { revalidatePath } from "next/cache";
 import { ensureAuth } from "@/lib/auth-utils";
 import { hasPermission } from "@/lib/permissions";
-import { getAccessibleWohnungIds } from "@/lib/object-scope";
 import { logAction } from "@/lib/logging-middleware";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import {
@@ -30,24 +30,21 @@ const TENANT_ID = "11111111-1111-4111-8111-111111111111";
 const KAUTION_ID = "22222222-2222-4222-8222-222222222222";
 const BEWEGUNG_ID = "33333333-3333-4333-8333-333333333333";
 const SCHLUESSEL = "44444444-4444-4444-8444-444444444444";
-const WOHNUNG_ERLAUBT = "wohnung-allowed";
-const WOHNUNG_FREMD = "wohnung-foreign";
+const SCOPE_RPC = "kautionen_pruefe_objektzugriff";
 
 const mockHasPermission = hasPermission as jest.Mock;
 const mockEnsureAuth = ensureAuth as jest.Mock;
-const mockGetAccessibleWohnungIds = getAccessibleWohnungIds as jest.Mock;
 const mockLogAction = logAction as jest.Mock;
 const mockRevalidatePath = revalidatePath as jest.Mock;
 
-// Supabase client mock: `rpc` for the actions, `from(...).select().eq().single()` for the scope check only.
+// Supabase client mock: `rpc` for the actions (the scope helper has its own mock), `from` must never be used.
 const mockRpc = jest.fn();
-const mockSingle = jest.fn();
-const mockEq = jest.fn(() => ({ single: mockSingle }));
-const mockSelect = jest.fn(() => ({ eq: mockEq }));
+const mockScopeRpc = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
 const mockDelete = jest.fn();
 const mockUpsert = jest.fn();
+const mockSelect = jest.fn();
 const mockFrom = jest.fn(() => ({
   select: mockSelect,
   insert: mockInsert,
@@ -55,7 +52,10 @@ const mockFrom = jest.fn(() => ({
   delete: mockDelete,
   upsert: mockUpsert,
 }));
-const mockSupabase = { from: mockFrom, rpc: mockRpc };
+const mockSupabase = {
+  from: mockFrom,
+  rpc: (name: string, args: unknown) => (name === SCOPE_RPC ? mockScopeRpc(args) : mockRpc(name, args)),
+};
 
 function rpcOk(data: unknown = null) {
   mockRpc.mockResolvedValueOnce({ data, error: null });
@@ -65,9 +65,9 @@ function rpcError(code: string, message: string, details?: string) {
   mockRpc.mockResolvedValueOnce({ data: null, error: { code, message, details } });
 }
 
-function restrictTo(wohnungIds: string[], tenantWohnungId: string | null) {
-  mockGetAccessibleWohnungIds.mockResolvedValue(wohnungIds);
-  mockSingle.mockResolvedValue({ data: { wohnung_id: tenantWohnungId }, error: null });
+/** The database denies the object scope (`KA002`) for the tenant of the object-scope check. */
+function scopeDenied() {
+  mockScopeRpc.mockResolvedValue({ data: null, error: { code: "KA002", message: "KAUT_OBJEKTZUGRIFF: Kein Zugriff auf dieses Objekt." } });
 }
 
 // One valid call per action: used for the cross-cutting tests (right, scope, no table writes).
@@ -127,9 +127,9 @@ function queueSuccess(caseItem: ActionCase) {
 
 beforeEach(() => {
   mockRpc.mockReset();
-  mockSingle.mockReset();
-  mockEq.mockClear();
-  mockSelect.mockClear();
+  mockScopeRpc.mockReset();
+  mockScopeRpc.mockResolvedValue({ data: null, error: null });
+  mockSelect.mockReset();
   mockFrom.mockClear();
   mockInsert.mockReset();
   mockUpdate.mockReset();
@@ -141,8 +141,6 @@ beforeEach(() => {
   mockHasPermission.mockResolvedValue(true);
   mockEnsureAuth.mockReset();
   mockEnsureAuth.mockResolvedValue({ user: { id: "user-1" }, supabase: mockSupabase });
-  mockGetAccessibleWohnungIds.mockReset();
-  mockGetAccessibleWohnungIds.mockResolvedValue(null);
 });
 
 describe("cross-cutting: sign-in, module right, object scope", () => {
@@ -156,6 +154,19 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
     expect(result.error?.message).toBe("Bitte melden Sie sich erneut an.");
     expect(mockRpc).not.toHaveBeenCalled();
     expect(mockHasPermission).not.toHaveBeenCalled();
+  });
+
+  it.each(ACTION_CASES)("$name: failure of the sign-in infrastructure is a generic error, not KA001 (no login redirect)", async ({ call }) => {
+    mockEnsureAuth.mockRejectedValueOnce(new Error("connect ECONNREFUSED muster-host"));
+
+    const result = await call();
+
+    expect(result).toEqual({ success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } });
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockScopeRpc).not.toHaveBeenCalled();
+    expect(mockHasPermission).not.toHaveBeenCalled();
+    expect(JSON.stringify(mockLogAction.mock.calls)).not.toContain("muster-host");
+    expect(mockLogAction).toHaveBeenCalledWith(expect.any(String), "error", expect.objectContaining({ code: "AUTH_UNAVAILABLE" }));
   });
 
   it.each(ACTION_CASES)("$name: missing module right -> 42501, no RPC, no table access", async ({ call, aktion }) => {
@@ -252,8 +263,24 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
     expect(mockHasPermission.mock.calls[0]).toEqual(["kautionen", caseItem.aktion]);
   });
 
-  it.each(ACTION_CASES)("$name: restricted user, tenant in a foreign apartment -> KA002, no RPC", async ({ call }) => {
-    restrictTo([WOHNUNG_ERLAUBT], WOHNUNG_FREMD);
+  // Object scope: only where the tenant IS the object (details, create). The other actions have no scope pre-check,
+  // the RPCs decide (see the next describe block).
+  const SCOPE_CASES = ACTION_CASES.filter((caseItem) => caseItem.name === "getKautionDetailsAction" || caseItem.name === "createKautionAction");
+  const OHNE_SCOPE_CASES = ACTION_CASES.filter((caseItem) => !SCOPE_CASES.includes(caseItem));
+
+  it.each(SCOPE_CASES)("$name: object scope is checked by the database helper with the tenant ID", async (caseItem) => {
+    queueSuccess(caseItem);
+
+    const result = await caseItem.call();
+
+    expect(result.success).toBe(true);
+    expect(mockScopeRpc).toHaveBeenCalledTimes(1);
+    expect(mockScopeRpc).toHaveBeenCalledWith({ p_mieter_id: TENANT_ID });
+    expect(mockRpc).toHaveBeenCalled();
+  });
+
+  it.each(SCOPE_CASES)("$name: tenant outside the object scope (database KA002) -> KA002, no further RPC", async ({ call }) => {
+    scopeDenied();
 
     const result = await call();
 
@@ -263,8 +290,22 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it.each(ACTION_CASES)("$name: restricted user, tenant without apartment -> KA002 (fail-closed), no RPC", async ({ call }) => {
-    restrictTo([WOHNUNG_ERLAUBT], null);
+  it.each(SCOPE_CASES)("$name: any other error of the scope helper denies access (fail-closed)", async ({ call }) => {
+    for (const result of [
+      { data: null, error: { code: "XX000", message: "boom" } },
+      { data: null, error: { code: "42501", message: "KAUT_KEIN_RECHT: x" } },
+      { data: null, error: { code: "PGRST301", message: "JWT expired" } },
+    ]) {
+      mockScopeRpc.mockResolvedValueOnce(result);
+      const failed = await call();
+      expect(failed.success).toBe(false);
+      expect(failed.error?.code).toBe("KA002");
+    }
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it.each(SCOPE_CASES)("$name: a scope helper that throws denies access", async ({ call }) => {
+    mockScopeRpc.mockRejectedValueOnce(new Error("scope lookup failed"));
 
     const result = await call();
 
@@ -273,28 +314,17 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it.each(ACTION_CASES)("$name: object scope lookup that throws denies access", async ({ call }) => {
-    mockGetAccessibleWohnungIds.mockRejectedValueOnce(new Error("scope lookup failed"));
-
-    const result = await call();
-
-    expect(result.success).toBe(false);
-    expect(result.error?.code).toBe("KA002");
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it.each(ACTION_CASES)("$name: restricted user with tenant in an allowed apartment proceeds", async (caseItem) => {
-    restrictTo([WOHNUNG_ERLAUBT, "wohnung-other"], WOHNUNG_ERLAUBT);
+  it.each(OHNE_SCOPE_CASES)("$name: no scope pre-check (the tenant ID is not bound to the object ID, the RPC decides)", async (caseItem) => {
     queueSuccess(caseItem);
 
     const result = await caseItem.call();
 
     expect(result.success).toBe(true);
-    expect(mockFrom).toHaveBeenCalledWith("Mieter");
-    expect(mockRpc).toHaveBeenCalled();
+    expect(mockScopeRpc).not.toHaveBeenCalled();
+    expect(mockRpc).toHaveBeenCalledTimes(1);
   });
 
-  it.each(ACTION_CASES)("$name: malformed tenant ID is rejected before any query", async ({ name }) => {
+  it.each(SCOPE_CASES)("$name: malformed tenant ID is rejected before any query", async ({ name }) => {
     const calls: Record<string, () => Promise<{ success: boolean; error?: { code?: string } }>> = {
       getKautionDetailsAction: () => getKautionDetailsAction("not-a-uuid"),
       createKautionAction: () => createKautionAction({ tenantId: "not-a-uuid", sollBetrag: "1500,00" }),
@@ -322,8 +352,7 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("does not write to any table: only the tenant lookup of the scope check touches `from`", async () => {
-    restrictTo([WOHNUNG_ERLAUBT], WOHNUNG_ERLAUBT);
+  it("does not touch any table: neither reads nor writes via `from`, only RPCs", async () => {
     for (const caseItem of ACTION_CASES) {
       queueSuccess(caseItem);
       await caseItem.call();
@@ -333,9 +362,8 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockDelete).not.toHaveBeenCalled();
     expect(mockUpsert).not.toHaveBeenCalled();
-    const tables = mockFrom.mock.calls.map((call) => (call as unknown as [string])[0]);
-    expect(tables.length).toBeGreaterThan(0);
-    expect(new Set(tables)).toEqual(new Set(["Mieter"]));
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it("ignores input that is not an object instead of throwing", async () => {
@@ -347,7 +375,7 @@ describe("cross-cutting: sign-in, module right, object scope", () => {
   });
 });
 
-describe("object scope: tenant ID and object IDs (the first stage binds the tenant, the database decides on the object)", () => {
+describe("object scope: tenant ID and object IDs (no pre-check in the action, the database rejects and the action maps the error)", () => {
   const FREMDE_KAUTION = "55555555-5555-4555-8555-555555555555";
   const FREMDE_BEWEGUNG = "66666666-6666-4666-8666-666666666666";
   const SCOPE_MELDUNG = "Kein Zugriff auf dieses Objekt.";
@@ -361,7 +389,7 @@ describe("object scope: tenant ID and object IDs (the first stage binds the tena
     fehler: { code?: string; message: string };
   }
 
-  // A restricted user may use the tenant (allowed apartment), the ID belongs to a deposit/booking of ANOTHER tenant.
+  // The database rejects an ID of a deposit/booking outside the object scope of the user (mocked response).
   const ID_CASES: IdCase[] = [
     {
       name: "updateKautionVereinbarungAction",
@@ -402,13 +430,12 @@ describe("object scope: tenant ID and object IDs (the first stage binds the tena
     },
   ];
 
-  it.each(ID_CASES)("$name: allowed tenant + foreign object ID -> the database rejects, the action returns KA002 and changes nothing", async ({ rpc, argumente, call, fehler }) => {
-    restrictTo([WOHNUNG_ERLAUBT], WOHNUNG_ERLAUBT);
+  it.each(ID_CASES)("$name: maps the database rejection KA002 for an object outside the scope and changes nothing", async ({ rpc, argumente, call, fehler }) => {
     mockRpc.mockResolvedValueOnce({ data: null, error: fehler });
 
     const result = await call();
 
-    // First stage passed (the tenant is allowed), the RPC decided on the foreign ID.
+    // Only the mapping of the (mocked) database error is tested here; the rejection itself is made by the database.
     expect(mockRpc).toHaveBeenCalledTimes(1);
     expect(mockRpc).toHaveBeenCalledWith(rpc, expect.objectContaining(argumente));
     expect(result.success).toBe(false);
@@ -417,14 +444,13 @@ describe("object scope: tenant ID and object IDs (the first stage binds the tena
     expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 
-  it.each(ID_CASES)("$name: a foreign ID of a foreign TENANT still stops at the first stage (no RPC)", async ({ call }) => {
-    restrictTo([WOHNUNG_ERLAUBT], WOHNUNG_FREMD);
+  it.each(ID_CASES)("$name: does not run a scope pre-check on the unrelated tenant ID, the RPC is the only decision", async ({ call, fehler }) => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: fehler });
 
-    const result = await call();
+    await call();
 
-    expect(result.success).toBe(false);
-    expect(result.error?.code).toBe("KA002");
-    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockScopeRpc).not.toHaveBeenCalled();
+    expect(mockRpc).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1039,13 +1065,22 @@ describe("error mapping by SQLSTATE (spec 4.5)", () => {
     expect(result).toEqual({ success: false, error: { code, message: uiMessage } });
   });
 
+  it.each(["PGRST301", "PGRST303"])("%s (invalid or expired JWT) -> KA001, sign in again", async (code) => {
+    rpcError(code, "JWT expired");
+
+    const result = await bucheKautionBewegungAction(BUCHEN);
+
+    expect(result).toEqual({ success: false, error: { code: "KA001", message: "Bitte melden Sie sich erneut an." } });
+  });
+
   it("unknown SQLSTATE: fixed generic message, raw message and details stay out of the result", async () => {
     rpcError("XX000", "internal error in function kaution_buchen at line 42", "Detail mit Muster-Inhalt");
 
     const result = await bucheKautionBewegungAction(BUCHEN);
 
     expect(result.success).toBe(false);
-    expect(result.error?.message).toBe(KAUTION_FEHLER_FALLBACK_MESSAGE);
+    expect(result.error).toEqual({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+    expect(JSON.stringify(result)).not.toContain("XX000");
     expect(JSON.stringify(result)).not.toContain("kaution_buchen");
     expect(JSON.stringify(result)).not.toContain("Muster-Inhalt");
   });
@@ -1137,6 +1172,7 @@ describe("revalidation and logging", () => {
 
     rpcError("XX000", "internal");
     await deleteKautionAction({ tenantId: TENANT_ID, kautionId: KAUTION_ID });
-    expect(mockLogAction).toHaveBeenLastCalledWith("deleteKaution", "error", { code: "XX000" });
+    // The raw code of an unknown error is neither returned nor logged.
+    expect(mockLogAction).toHaveBeenLastCalledWith("deleteKaution", "error", {});
   });
 });

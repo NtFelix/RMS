@@ -6,8 +6,8 @@
  * Principles (spec 4.1/4.5):
  * - Thin actions: sign-in check -> module right (`hasPermission('kautionen', <aktion>)` and, for every write
  *   action, additionally `ansehen` like the database; fast failure, the database stays authoritative) -> object
- *   scope (fail-closed) -> input validation -> RPC call -> error
- *   mapping by SQLSTATE -> `revalidatePath('/mieter')` -> log.
+ *   scope (fail-closed, only where the tenant ID IS the object: details and create) -> input validation -> RPC
+ *   call -> error mapping by SQLSTATE -> `revalidatePath('/mieter')` -> log.
  * - The ONLY way to read or change deposit data is the RPCs (`get_kaution_details`, `kaution_anlegen`,
  *   `kaution_aendern`, `kaution_buchen`, `kaution_storno`, `soft_delete_record`). There is no `.insert()`,
  *   `.update()` or `.delete()` on the deposit tables in this file, no calculation of balances, states or
@@ -21,8 +21,8 @@
  * Phase 2-4 actions (installments, receipts, interest, settlement) live in their own files.
  *
  * Security relevant (money booking, module right, object scope): not production ready until the maintainer
- * has reviewed it. This file only adds a first stage; the RPCs check organisation, module right, object
- * scope and the strict balance again.
+ * has reviewed it. The database is authoritative: the RPCs check organisation, module right, object scope and
+ * the strict balance themselves (fail-closed). The checks in this file are an early rejection, not the guarantee.
  *
  * "use server" file: only async functions are exported as values (types are erased).
  */
@@ -43,7 +43,7 @@ import {
   isKautionBewegungsArt,
 } from "@/lib/kautionen-constants";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError, type KautionRpcError } from "@/lib/kautionen-errors";
-import { centsToDecimalString, getMoneyInputError, parseMoneyToCents } from "@/lib/kautionen-money";
+import { centsToDecimalString, getMoneyInputError, parseMoneyInput } from "@/lib/kautionen-money";
 import { checkKautionScope } from "@/lib/kautionen-scope";
 import { validateKautionDatum, validateKautionText, validateUuid } from "@/lib/kautionen-validation";
 import type {
@@ -93,7 +93,7 @@ export interface UpdateKautionVereinbarungInput {
    * `kautionsart`) or their camelCase aliases (`sollBetrag`, `mieteBeiVertragsschluss`, `interneNotiz`).
    * Empty string or `null` clears `miete_bei_vertragsschluss` and `interne_notiz`.
    */
-  felder: Record<string, string | boolean | null>;
+  felder: Record<string, string | number | boolean | null>;
 }
 
 export interface BucheKautionBewegungInput {
@@ -134,14 +134,22 @@ type Step<T> = { ok: true; data: T } | { ok: false; error: KautionActionError };
 
 const MSG_UNGUELTIGE_EINGABE = "Die Eingabe ist ungültig.";
 
+/** Start of the message `ensureAuth` throws for "not signed in" (`lib/auth-utils.ts`); other errors are not a login problem. */
+const NOT_SIGNED_IN_MESSAGE_PREFIX = "Nicht authentifiziert";
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+/** Maps the error of an RPC call to the action error (message and code, never `details`/`hint`). */
+function fromRpcError(error: KautionRpcError): KautionActionError {
+  const mapped = mapKautionError(error);
+  return { code: mapped.code, message: mapped.message };
+}
+
 /** Error with the UI text of the central mapping (`lib/kautionen-errors.ts`). */
 function mappedError(code: string): KautionActionError {
-  const mapped = mapKautionError({ code });
-  return { code: mapped.code, message: mapped.message };
+  return fromRpcError({ code });
 }
 
 /** Validation error (`KA004`) with an own German message. */
@@ -151,12 +159,6 @@ function invalid(message: string = MSG_UNGUELTIGE_EINGABE): KautionActionError {
 
 function fail<T>(error: KautionActionError): Step<T> {
   return { ok: false, error };
-}
-
-/** Maps the error of an RPC call to the action error (message and code, never `details`/`hint`). */
-function fromRpcError(error: KautionRpcError): KautionActionError {
-  const mapped = mapKautionError(error);
-  return { code: mapped.code, message: mapped.message };
 }
 
 /** Log attributes: only enumerations and the error code. Never IDs of persons, names, amounts or free texts. */
@@ -175,29 +177,38 @@ function safeLogArt(value: unknown, isKnown: (candidate: unknown) => boolean): s
 interface RunOptions<T> {
   /** Name for the log, e.g. `createKaution`. */
   actionName: string;
-  tenantId: unknown;
+  /** Tenant ID from the client. Only used (validated, scope-checked) if `mieterScope` is set. */
+  tenantId?: unknown;
+  /**
+   * `true` for actions where the tenant IS the object (details, create): `tenantId` must be a valid ID and the object
+   * scope is checked. `false` for actions that get a deposit or booking ID: the RPCs check the object scope themselves.
+   * Required, so a new action has to decide explicitly (a missing `tenantId` then still fails, it is not skipped).
+   */
+  mieterScope: boolean;
   aktion: KautionAktion;
   logArt?: string;
   /** Calls `revalidatePath('/mieter')` after success (default: yes). Reading actions pass `false`. */
   revalidate?: boolean;
   /** Log successful runs (default: yes). Reading actions only log failures. */
   logSuccess?: boolean;
-  /** Validation and RPC call. Runs only after sign-in, module right and object scope are checked. */
+  /** Validation and RPC call. Runs only after sign-in, module right and (if `tenantId` is given) object scope are checked. */
   run: (supabase: SupabaseClient, tenantId: string) => Promise<Step<T>>;
 }
 
 /**
- * Common flow of every action (spec 4.5): sign-in -> module right -> object scope -> `run` (validation + RPC)
- * -> revalidation -> log. Expected errors are returned, unexpected ones are caught and logged by code only.
+ * Common flow of every action (spec 4.5): sign-in -> module right -> object scope (only with `tenantId`) -> `run`
+ * (validation + RPC) -> revalidation -> log. Expected errors are returned, unexpected ones are caught and logged by
+ * code only.
  *
- * The object scope stage binds the TENANT ID only. A `kautionId` or `bewegungId` from the client is NOT compared with
- * the tenant here: that would cost an extra RPC (`get_kaution_details`) on every booking. It is not needed for
- * safety, because the RPCs derive the tenant from the deposit or booking itself and check the object scope
- * fail-closed (`KA002`, `kautionen_pruefe_objektzugriff`); a restricted user combining an allowed tenant with a
- * foreign ID is rejected there (covered by the pgTAP tests and by the "tenant and object IDs" tests of this file).
+ * The object scope stage exists only where the tenant ID is the object itself (details, create). For update, book,
+ * cancel and delete the client sends a tenant ID next to a `kautionId`/`bewegungId`, but nothing binds the two, so
+ * a check of the tenant would give false assurance. There the database is authoritative: the RPCs and
+ * `soft_delete_record` derive the tenant from the deposit or booking and check the object scope fail-closed
+ * (`KA002`, `kautionen_pruefe_objektzugriff`). The tests of this file only cover how the action maps that database
+ * error; the rejection itself is covered by the pgTAP tests of the database repository.
  */
 async function runKautionAction<T>(options: RunOptions<T>): Promise<KautionActionResult<T>> {
-  const { actionName, tenantId, aktion, logArt, revalidate = true, logSuccess = true, run } = options;
+  const { actionName, tenantId, mieterScope, aktion, logArt, revalidate = true, logSuccess = true, run } = options;
 
   const failure = (error: KautionActionError): KautionActionResult<T> => {
     // Known, expected rejections (right, scope, validation, strict balance, ...) are "failed", everything the
@@ -207,13 +218,18 @@ async function runKautionAction<T>(options: RunOptions<T>): Promise<KautionActio
     return { success: false, error };
   };
 
-  // 1. Sign-in
+  // 1. Sign-in. Only the "not signed in" case of `ensureAuth` means KA001 (sign in again); any other failure
+  //    (e.g. the client cannot be created) is an infrastructure error and must not send the user to the login.
   let supabase: SupabaseClient;
   try {
     ({ supabase } = await ensureAuth());
   } catch (authError) {
     unstable_rethrow(authError);
-    return failure(mappedError("KA001"));
+    if (authError instanceof Error && authError.message.startsWith(NOT_SIGNED_IN_MESSAGE_PREFIX)) {
+      return failure(mappedError("KA001"));
+    }
+    logAction(actionName, "error", buildLogAttributes(logArt, "AUTH_UNAVAILABLE"));
+    return { success: false, error: { message: KAUTION_FEHLER_FALLBACK_MESSAGE } };
   }
 
   try {
@@ -230,21 +246,25 @@ async function runKautionAction<T>(options: RunOptions<T>): Promise<KautionActio
       return failure(mappedError("42501"));
     }
 
-    // 3. Object scope, fail-closed (restricted user: tenant must be in an allowed apartment).
-    //    A malformed ID is rejected before the scope query; the database re-checks the scope (`KA002`).
-    const tenantIdCheck = validateUuid(tenantId, "Mieter-ID");
-    if (!tenantIdCheck.ok) return failure(invalid(tenantIdCheck.message));
-    let scope: Awaited<ReturnType<typeof checkKautionScope>>;
-    try {
-      scope = await checkKautionScope(supabase, tenantIdCheck.value);
-    } catch (scopeError) {
-      unstable_rethrow(scopeError);
-      scope = { ok: false, error: { code: "KA002", message: mappedError("KA002").message } };
+    // 3. Object scope, fail-closed (database helper `kautionen_pruefe_objektzugriff`), only where the tenant is the
+    //    object. A malformed ID is rejected before the call.
+    let scopedTenantId = "";
+    if (mieterScope) {
+      const tenantIdCheck = validateUuid(tenantId, "Mieter-ID");
+      if (!tenantIdCheck.ok) return failure(invalid(tenantIdCheck.message));
+      scopedTenantId = tenantIdCheck.value;
+      let scope: Awaited<ReturnType<typeof checkKautionScope>>;
+      try {
+        scope = await checkKautionScope(supabase, scopedTenantId);
+      } catch (scopeError) {
+        unstable_rethrow(scopeError);
+        scope = { ok: false, error: { code: "KA002", message: mappedError("KA002").message } };
+      }
+      if (!scope.ok) return failure(mappedError("KA002"));
     }
-    if (!scope.ok) return failure(mappedError("KA002"));
 
     // 4.-5. Validation and RPC
-    const step = await run(supabase, tenantIdCheck.value);
+    const step = await run(supabase, scopedTenantId);
     if (!step.ok) return failure(step.error);
 
     // 6. Revalidation and log
@@ -285,11 +305,12 @@ function fromSoftDeleteError(error: KautionRpcError): KautionActionError {
 /** Amount input -> exact decimal string for the RPC (`"1500.00"`), or a validation error. */
 function parseBetrag(value: unknown, label: string, options: { allowZero?: boolean } = {}): Step<string> {
   if (typeof value !== "string" && typeof value !== "number") return fail(invalid(`${label}: Bitte geben Sie einen Betrag an.`));
-  const message = getMoneyInputError(value, options);
-  if (message) return fail(invalid(message));
-  const cents = parseMoneyToCents(value);
-  if (cents === null) return fail(invalid(`${label}: Bitte geben Sie einen gültigen Betrag an.`));
-  return { ok: true, data: centsToDecimalString(cents) };
+  const parsed = parseMoneyInput(value);
+  if (!parsed.ok || (parsed.cents === 0 && !options.allowZero)) {
+    // Rejected: only now the message is looked up (this parses again, but only on the error path).
+    return fail(invalid(getMoneyInputError(value, options) ?? MSG_UNGUELTIGE_EINGABE));
+  }
+  return { ok: true, data: centsToDecimalString(parsed.cents) };
 }
 
 /** `kautionsart`: known value (`KA004` otherwise) that is released in this phase (`KA015` otherwise). */
@@ -315,6 +336,7 @@ export async function getKautionDetailsAction(
   return runKautionAction({
     actionName: "getKautionDetails",
     tenantId,
+    mieterScope: true,
     aktion: "ansehen",
     revalidate: false,
     logSuccess: false,
@@ -358,6 +380,7 @@ export async function createKautionAction(input: CreateKautionInput): Promise<Ka
   return runKautionAction({
     actionName: "createKaution",
     tenantId: raw.tenantId,
+    mieterScope: true,
     aktion: "erstellen",
     logArt: safeLogArt(raw.kautionsart, isKautionArt),
     run: async (supabase, tenantId) => {
@@ -411,7 +434,7 @@ export async function updateKautionVereinbarungAction(input: UpdateKautionVerein
   const raw = asRecord(input);
   return runKautionAction({
     actionName: "updateKautionVereinbarung",
-    tenantId: raw.tenantId,
+    mieterScope: false,
     aktion: "bearbeiten",
     run: async (supabase) => {
       const kautionId = validateUuid(raw.kautionId, "Kautions-ID");
@@ -471,7 +494,7 @@ export async function bucheKautionBewegungAction(input: BucheKautionBewegungInpu
   const raw = asRecord(input);
   return runKautionAction({
     actionName: "bucheKautionBewegung",
-    tenantId: raw.tenantId,
+    mieterScope: false,
     aktion: "erstellen",
     logArt: safeLogArt(raw.art, isKautionBewegungsArt),
     run: async (supabase) => {
@@ -546,7 +569,7 @@ export async function storniereKautionBewegungAction(input: StorniereKautionBewe
   const raw = asRecord(input);
   return runKautionAction({
     actionName: "storniereKautionBewegung",
-    tenantId: raw.tenantId,
+    mieterScope: false,
     aktion: "loeschen",
     run: async (supabase) => {
       const bewegungId = validateUuid(raw.bewegungId, "Buchungs-ID");
@@ -581,7 +604,7 @@ export async function deleteKautionAction(input: DeleteKautionInput): Promise<Ka
   const raw = asRecord(input);
   return runKautionAction({
     actionName: "deleteKaution",
-    tenantId: raw.tenantId,
+    mieterScope: false,
     aktion: "loeschen",
     run: async (supabase) => {
       const kautionId = validateUuid(raw.kautionId, "Kautions-ID");
