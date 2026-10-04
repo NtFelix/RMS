@@ -13,7 +13,7 @@
 export type KautionArt = "barkaution" | "sparbuch" | "buergschaft" | "versicherung";
 export type KautionBewegungsArt = "einzahlung" | "zinsgutschrift" | "auszahlung" | "abzug";
 export type KautionAbzugKategorie = "schaden" | "mietrueckstand" | "nebenkosten" | "sonstiges";
-/** Derived state (DB: kaution_status_ableiten). Not to be confused with the legacy `KautionStatus`. */
+/** Derived state (DB: kaution_status_ableiten). */
 export type KautionZustand = "offen" | "teilweise" | "verwahrt" | "in_rueckzahlung" | "abgeschlossen" | "dokumentiert";
 export type KautionFristStufe = "keine" | "zeitnah" | "richtwert_ueberschritten";
 export type KautionRateStatus = "offen" | "teilweise" | "bezahlt" | "ueberfaellig";
@@ -196,8 +196,8 @@ export interface KautionVorschlag {
 }
 
 /**
- * Compat shape in `Tenant.kaution` (RPC `get_mieter_details_overview`). It mirrors the legacy
- * `KautionData` so the running tenant overview keeps working. The additional fields are read by
+ * Compat shape in `Tenant.kaution` (RPC `get_mieter_details_overview`). It mirrors the shape of the
+ * old `Mieter.kaution` JSON field so the running tenant overview keeps working. The additional fields are read by
  * the new tenant overview (deadline badge, balance).
  */
 export interface KautionKompat {

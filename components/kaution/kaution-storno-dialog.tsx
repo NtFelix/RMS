@@ -17,7 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatBetrag, formatDatum } from "@/components/kaution/kaution-format";
 import { KautionFeld, KautionFormularFehler } from "@/components/kaution/kaution-feld";
 import { KAUTION_BEWEGUNGSART_LABELS, KAUTION_TEXT_LIMITS } from "@/lib/kautionen-constants";
-import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
+import { KAUTION_FEHLER_FALLBACK_MESSAGE, getKautionFehlerVerhalten } from "@/lib/kautionen-errors";
 import { validateKautionText } from "@/lib/kautionen-validation";
 import type { KautionBewegung } from "@/types/Kaution";
 
@@ -29,8 +29,9 @@ import type { KautionBewegung } from "@/types/Kaution";
  * reason. A cancellation runs through the strict balance like a payout: cancelling a deposit after a payout is
  * rejected by the database (`KA005`). The database message is shown IN this dialog and the dialog stays open.
  *
- * `onFehler` returns `true` if the deposit dialog handled the error itself (toast, reload): then the situation
- * has changed and this dialog closes.
+ * `onFehler` returns `true` if the deposit dialog handled the error itself (toast, reload, close, sign-in). This
+ * dialog closes for the behaviours that change the situation (reload, rights, no access, sign-in); for a plain toast
+ * (unknown error, `KA009`, `23503`) it stays open, keeps the typed reason and shows the message here as well.
  */
 
 interface KautionStornoDialogProps {
@@ -100,10 +101,16 @@ function StornoInhalt({ tenantId, bewegung, onSchliessen, onStorniert, onFehler 
         onSchliessen();
       } else {
         const error = result.error ?? { message: KAUTION_FEHLER_FALLBACK_MESSAGE };
-        // e.g. KA005: the message is shown here and the dialog stays open. Everything else the deposit dialog
-        // handles itself (toast, reload): then this dialog is obsolete.
-        if (onFehler(error)) onSchliessen();
-        else setServerFehler(error.message);
+        // The deposit dialog handles the error first (toast, reload, close, sign-in). This dialog only closes when the
+        // situation changed (data reloaded, rights gone, no access): then it is obsolete. Otherwise (e.g. KA005,
+        // an unknown error with a toast) it stays open with the reason that was typed and shows the message here.
+        const verhalten = getKautionFehlerVerhalten(error.code);
+        const behandelt = onFehler(error);
+        if (behandelt && (verhalten === "neu_laden" || verhalten === "berechtigung" || verhalten === "dialog_schliessen" || verhalten === "anmelden")) {
+          onSchliessen();
+        } else {
+          setServerFehler(error.message);
+        }
       }
     } catch {
       setServerFehler(KAUTION_FEHLER_FALLBACK_MESSAGE);

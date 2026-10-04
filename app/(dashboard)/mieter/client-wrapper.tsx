@@ -1160,8 +1160,19 @@ export default function MieterClientView({
                               return (
                                 <div
                                   key={t.id || idx}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`Kaution von ${t.name} öffnen`}
                                   onClick={() => openKautionModal(t)}
-                                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none"
+                                  onKeyDown={(event) => {
+                                    // Nur Tastendrücke der Zeile selbst (nicht von Elementen darin); Leertaste ohne Seitenscroll.
+                                    if (event.target !== event.currentTarget) return;
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      openKautionModal(t);
+                                    }
+                                  }}
+                                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/30 hover:border-accent/40 dark:hover:border-accent/40 hover:shadow-xs transition-[border-color,box-shadow] duration-200 cursor-pointer select-none focus-visible:outline-hidden focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-xl bg-primary/5 text-primary group-hover:bg-accent/10 group-hover:text-accent transition-colors duration-200 shrink-0">

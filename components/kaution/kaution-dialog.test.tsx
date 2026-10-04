@@ -28,6 +28,12 @@ expect.extend(toHaveNoViolations);
 
 jest.mock("@/hooks/use-modal-store", () => ({ useModalStore: jest.fn() }));
 jest.mock("@/hooks/use-toast", () => ({ toast: jest.fn(), useToast: jest.fn() }));
+const mockRouterPush = jest.fn();
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockRouterPush, replace: jest.fn(), refresh: jest.fn() }),
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
+}));
 jest.mock("@/app/kautionen-actions", () => ({
   getKautionDetailsAction: jest.fn(),
   createKautionAction: jest.fn(),
@@ -675,6 +681,38 @@ describe("KautionDialog: Storno", () => {
     await waitFor(() => expect(getDetailsMock).toHaveBeenCalledTimes(2));
   });
 
+  it.each([
+    ["ein unbekannter Fehler", undefined, "Die Aktion konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut."],
+    ["KA009 (gesperrt)", "KA009", "Die Aktion ist gesperrt, weil die Daten verknüpft sind."],
+  ])("bleibt bei %s (Toast) offen, behält den eingetippten Grund und zeigt die Meldung auch im Dialog", async (_name, code, meldung) => {
+    stornoMock.mockResolvedValue({ success: false, error: { code, message: meldung } });
+    const { user, dialog } = await oeffneStornoDialog();
+
+    await user.type(within(dialog).getByLabelText(/^Grund/), "Falsch erfasst (Testdaten)");
+    await user.click(within(dialog).getByRole("button", { name: "Storno bestätigen" }));
+
+    expect(await within(dialog).findByTestId("kaution-formular-fehler")).toHaveTextContent(meldung);
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ description: meldung, variant: "destructive" }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/^Grund/)).toHaveValue("Falsch erfasst (Testdaten)");
+    expect(within(dialog).getByRole("button", { name: "Storno bestätigen" })).toBeEnabled();
+    expect(getDetailsMock).toHaveBeenCalledTimes(1); // kein Neuladen
+  });
+
+  it("schließt den Storno-Dialog bei fehlender Berechtigung (42501) und lädt die Rechte neu", async () => {
+    stornoMock.mockResolvedValue({ success: false, error: { code: "42501", message: "Für diese Aktion fehlt die Berechtigung (Modul Kautionen)." } });
+    const { user, dialog } = await oeffneStornoDialog();
+    getDetailsMock.mockResolvedValue({ success: true, data: { details: baueDetails(), rechte: NUR_ANSEHEN, vorschlag: null } });
+
+    await user.type(within(dialog).getByLabelText(/^Grund/), "Falsch erfasst (Testdaten)");
+    await user.click(within(dialog).getByRole("button", { name: "Storno bestätigen" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Keine Berechtigung", variant: "destructive" }));
+    await waitFor(() => expect(getDetailsMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /stornieren$/ })[0]).toBeDisabled());
+  });
+
   it("bricht ohne Aktion ab", async () => {
     const { user, dialog } = await oeffneStornoDialog();
 
@@ -796,6 +834,48 @@ describe("KautionDialog: Idempotenz der Buchung", () => {
 
     const [erster, zweiter] = schluesselDerAufrufe();
     expect(zweiter).toBe(erster);
+    await waitFor(() => expect(screen.queryByTestId("kaution-buchung-form")).not.toBeInTheDocument());
+  });
+
+  it("erzeugt nach einer Ablehnung bei geändertem Betrag einen neuen Schlüssel (andere Buchung)", async () => {
+    bucheMock.mockResolvedValueOnce({ success: false, error: { code: "KA005", message: "Der Kontostand würde unter 0 fallen." } });
+    bucheMock.mockResolvedValueOnce({ success: true, data: { bewegungId: BEWEGUNG_EINZAHLUNG } });
+    const { user, formular } = await oeffneEinzahlung("50,00");
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+    await within(formular).findByTestId("kaution-formular-fehler");
+
+    const betrag = within(formular).getByLabelText("Betrag (€)");
+    await user.clear(betrag);
+    await user.type(betrag, "60,00");
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+    await waitFor(() => expect(bucheMock).toHaveBeenCalledTimes(2));
+
+    const [erster, zweiter] = schluesselDerAufrufe();
+    expect(erster).toMatch(UUID_MUSTER);
+    expect(zweiter).toMatch(UUID_MUSTER);
+    expect(zweiter).not.toBe(erster);
+    expect(bucheMock.mock.calls[1][0]).toMatchObject({ betrag: "60,00" });
+    await waitFor(() => expect(screen.queryByTestId("kaution-buchung-form")).not.toBeInTheDocument());
+  });
+
+  it("erzeugt nach einem Netzwerkfehler bei geänderter Notiz einen neuen Schlüssel, behält ihn aber bei einem weiteren identischen Versuch", async () => {
+    bucheMock.mockRejectedValueOnce(new Error("Netzwerk"));
+    bucheMock.mockRejectedValueOnce(new Error("Netzwerk"));
+    bucheMock.mockResolvedValueOnce({ success: true, data: { bewegungId: BEWEGUNG_EINZAHLUNG } });
+    const { user, formular } = await oeffneEinzahlung();
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+    await within(formular).findByTestId("kaution-formular-fehler");
+
+    await user.type(within(formular).getByLabelText("Interne Notiz (optional)"), "Neue Notiz (Testdaten)");
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+    await waitFor(() => expect(bucheMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(within(formular).getByRole("button", { name: "Buchen" })).toBeEnabled());
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+    await waitFor(() => expect(bucheMock).toHaveBeenCalledTimes(3));
+
+    const [erster, zweiter, dritter] = schluesselDerAufrufe();
+    expect(zweiter).not.toBe(erster);
+    expect(dritter).toBe(zweiter);
     await waitFor(() => expect(screen.queryByTestId("kaution-buchung-form")).not.toBeInTheDocument());
   });
 
@@ -1085,6 +1165,165 @@ describe("KautionDialog: Wechsel der Buchungsart", () => {
   });
 });
 
+describe("KautionDialog: Fehler der Buchung (Verhalten je Fehlercode)", () => {
+  raeumeNachJedemTestAuf();
+
+  async function oeffneEinzahlungMitBetrag() {
+    const user = await oeffneMitKaution();
+    await wechsleZumKontoauszug(user);
+    await user.click(screen.getByRole("button", { name: "Einzahlung erfassen" }));
+    const formular = await screen.findByTestId("kaution-buchung-form");
+    await user.type(within(formular).getByLabelText("Betrag (€)"), "50,00");
+    return { user, formular };
+  }
+
+  it("zeigt bei 55P03 (wird gerade bearbeitet) die Meldung am Formular, ohne Toast, Neuladen oder Schließen", async () => {
+    const meldung = "Die Kaution wird gerade bearbeitet. Bitte versuchen Sie es in einem Moment erneut.";
+    bucheMock.mockResolvedValue({ success: false, error: { code: "55P03", message: meldung } });
+    const { user, formular } = await oeffneEinzahlungMitBetrag();
+
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+
+    expect(await within(formular).findByTestId("kaution-formular-fehler")).toHaveTextContent(meldung);
+    expect(screen.getByTestId("kaution-buchung-form")).toBeInTheDocument();
+    expect(within(formular).getByLabelText("Betrag (€)")).toHaveValue("50,00");
+    expect(within(formular).getByRole("button", { name: "Buchen" })).toBeEnabled();
+    expect(toastMock).not.toHaveBeenCalled();
+    expect(getDetailsMock).toHaveBeenCalledTimes(1);
+    expect(closeKautionModal).not.toHaveBeenCalled();
+  });
+
+  it("lädt nach 42501 beim Buchen neu: das Formular bleibt, die Rechte der neuen Daten sperren das Buchen", async () => {
+    bucheMock.mockResolvedValue({ success: false, error: { code: "42501", message: "Für diese Aktion fehlt die Berechtigung (Modul Kautionen)." } });
+    const { user, formular } = await oeffneEinzahlungMitBetrag();
+    getDetailsMock.mockResolvedValue({ success: true, data: { details: baueDetails(), rechte: NUR_ANSEHEN, vorschlag: null } });
+
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+
+    await waitFor(() => expect(getDetailsMock).toHaveBeenCalledTimes(2));
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Keine Berechtigung", variant: "destructive" }));
+    await waitFor(() => expect(within(screen.getByTestId("kaution-buchung-form")).getByRole("button", { name: "Buchen" })).toBeDisabled());
+    expect(screen.getByTestId("kaution-buchung-form")).toBeInTheDocument();
+    expect(within(screen.getByTestId("kaution-buchung-form")).getByLabelText("Betrag (€)")).toHaveValue("50,00");
+    expect(closeKautionModal).not.toHaveBeenCalled();
+  });
+
+  it("zeigt bei KA001 (Sitzung abgelaufen) einen Hinweis, führt zur Anmeldung und schließt den Dialog ohne Nachfrage", async () => {
+    bucheMock.mockResolvedValue({ success: false, error: { code: "KA001", message: "Bitte melden Sie sich erneut an." } });
+    const { user, formular } = await oeffneEinzahlungMitBetrag();
+
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith("/auth/login"));
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Anmeldung erforderlich", description: "Bitte melden Sie sich erneut an.", variant: "destructive" })
+    );
+    expect(closeKautionModal).toHaveBeenCalledWith({ force: true });
+  });
+
+  it("führt auch bei KA001 beim Laden zur Anmeldung und schließt den Dialog", async () => {
+    getDetailsMock.mockResolvedValueOnce({ success: false, error: { code: "KA001", message: "Bitte melden Sie sich erneut an." } });
+    render(<KautionDialog />);
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith("/auth/login"));
+    expect(closeKautionModal).toHaveBeenCalledWith({ force: true });
+  });
+
+  it("behält Tabs und Formular, wenn das stille Neuladen fehlschlägt, und zeigt einen Hinweis", async () => {
+    bucheMock.mockResolvedValue({ success: false, error: { code: "KA003", message: "Der Datensatz wurde nicht gefunden (evtl. bereits geändert oder gelöscht)." } });
+    const { user, formular } = await oeffneEinzahlungMitBetrag();
+    getDetailsMock.mockRejectedValue(new Error("Netzwerk"));
+
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+
+    await waitFor(() => expect(getDetailsMock).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Aktualisierung fehlgeschlagen",
+          description: "Die Aktion konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
+          variant: "destructive",
+        })
+      )
+    );
+    // Keine Fehleransicht: Tabs, Formular und Eingabe sind unverändert da.
+    expect(screen.queryByText("Die Kaution konnte nicht geladen werden")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Kontoauszug" })).toBeInTheDocument();
+    expect(screen.getByTestId("kaution-buchung-form")).toBe(formular);
+    expect(within(formular).getByLabelText("Betrag (€)")).toHaveValue("50,00");
+    expect(closeKautionModal).not.toHaveBeenCalled();
+  });
+
+  it("schließt den Dialog weiter, wenn das stille Neuladen den Zugriff verweigert (KA002)", async () => {
+    bucheMock.mockResolvedValue({ success: false, error: { code: "KA003", message: "Der Datensatz wurde nicht gefunden (evtl. bereits geändert oder gelöscht)." } });
+    const { user, formular } = await oeffneEinzahlungMitBetrag();
+    getDetailsMock.mockResolvedValue({ success: false, error: { code: "KA002", message: "Kein Zugriff auf dieses Objekt." } });
+
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+
+    await waitFor(() => expect(closeKautionModal).toHaveBeenCalledWith({ force: true }));
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Kein Zugriff", description: "Kein Zugriff auf dieses Objekt." }));
+    expect(toastMock).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Aktualisierung fehlgeschlagen" }));
+  });
+});
+
+describe("KautionDialog: Rückfrage 'Eingaben verwerfen?' und Schließen", () => {
+  raeumeNachJedemTestAuf();
+
+  async function oeffneMitEingabeUndRueckfrage(storeAenderung: Record<string, unknown> = {}) {
+    const user = await oeffneMitKaution();
+    await wechsleZumKontoauszug(user);
+    await user.click(screen.getByRole("button", { name: "Einzahlung erfassen" }));
+    const formular = await screen.findByTestId("kaution-buchung-form");
+    await user.type(within(formular).getByLabelText("Betrag (€)"), "50,00");
+    // Den Rückgabewert des Store-Mocks ändern statt ihn zu ersetzen: ein neues `kautionInitialData` würde neu laden.
+    Object.assign((useModalStore as unknown as jest.Mock)(), storeAenderung);
+    await user.click(screen.getByRole("button", { name: "Auszahlung erfassen" }));
+    expect(openConfirmationModal).toHaveBeenCalledTimes(1);
+    return user;
+  }
+
+  // Der Fokuswechsel zur Rückfrage (globaler Bestätigungsdialog) gilt für den Dialog als Interaktion außerhalb. Solange die
+  // Rückfrage offen ist, darf das weder die Rückfrage ersetzen noch den Dialog schließen.
+  it("ignoriert Schließen-Versuche (Schließen-Knopf, Escape), solange die Rückfrage offen ist, bei ungespeicherter Eingabe", async () => {
+    const user = await oeffneMitEingabeUndRueckfrage({ isKautionModalDirty: true });
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    await user.keyboard("{Escape}");
+    expect(closeKautionModal).not.toHaveBeenCalled();
+    expect(screen.getByTestId("kaution-buchung-form")).toBeInTheDocument();
+  });
+
+  it("ignoriert Schließen-Versuche der Radix-Ebene (onOpenChange) auch ohne Dirty-Flag im Store, solange die Rückfrage offen ist", async () => {
+    const user = await oeffneMitEingabeUndRueckfrage({ isKautionModalDirty: false });
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    expect(closeKautionModal).not.toHaveBeenCalled();
+  });
+
+  it("schließt nach Beantworten der Rückfrage (Abbrechen) wieder über den Store", async () => {
+    const user = await oeffneMitEingabeUndRueckfrage({ isKautionModalDirty: true });
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    expect(closeKautionModal).not.toHaveBeenCalled();
+
+    act(() => openConfirmationModal.mock.calls[0][0].onCancel());
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+
+    expect(closeKautionModal).toHaveBeenCalledTimes(1);
+    expect(closeKautionModal).toHaveBeenCalledWith();
+  });
+
+  it("schließt nach Bestätigen der Rückfrage (Verwerfen) wieder über den Store", async () => {
+    const user = await oeffneMitEingabeUndRueckfrage({ isKautionModalDirty: true });
+
+    act(() => openConfirmationModal.mock.calls[0][0].onConfirm());
+    await screen.findByRole("heading", { name: /Auszahlung/ });
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+
+    expect(closeKautionModal).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("KautionDialog: Wertstellung und Kontoauszug für Hilfstechnologien", () => {
   raeumeNachJedemTestAuf();
 
@@ -1124,6 +1363,20 @@ describe("KautionDialog: Wertstellung und Kontoauszug für Hilfstechnologien", (
     expect(ids).toContain(fehler.id);
     expect(ids).toHaveLength(2); // Hinweis und Fehler
     expect(fehler).toHaveAttribute("role", "alert");
+  });
+
+  it("meldet ein unvollständiges Datum im Format des Feldes (TT.MM.JJJJ) statt im ISO-Format", async () => {
+    const { user, formular } = await oeffneEinzahlung();
+    await user.type(within(formular).getByLabelText("Betrag (€)"), "50,00");
+    const feld = within(formular).getByLabelText("Wertstellung");
+    fireEvent.change(feld, { target: { value: "01.01." } });
+
+    await user.click(within(formular).getByRole("button", { name: "Buchen" }));
+
+    expect(await within(formular).findByText("Bitte geben Sie ein gültiges Datum im Format TT.MM.JJJJ an.")).toBeInTheDocument();
+    expect(within(formular).queryByText(/JJJJ-MM-TT/)).not.toBeInTheDocument();
+    expect(feld).toHaveAttribute("aria-invalid", "true");
+    expect(bucheMock).not.toHaveBeenCalled();
   });
 
   it("macht den scrollbaren Kontoauszug zu einem beschrifteten, per Tastatur fokussierbaren Bereich", async () => {

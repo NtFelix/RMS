@@ -459,6 +459,27 @@ describe('MieterClientView - Layout Changes', () => {
       expect(args).toHaveLength(1);
       expect(args[0]).toMatchObject({ id: 't-deposit', name: 'Kautions Mieter' });
     });
+
+    it('lets the deposit row of the overview be reached and opened with the keyboard (Enter and Space)', async () => {
+      mockCurrentTab = 'overview';
+      const user = userEvent.setup();
+      render(<MieterClientView {...depositProps} canViewKautionen />);
+
+      const zeile = screen.getByRole('button', { name: 'Kaution von Kautions Mieter öffnen' });
+      expect(zeile).toHaveAttribute('tabindex', '0');
+
+      zeile.focus();
+      expect(zeile).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(mockOpenKautionModal).toHaveBeenCalledTimes(1);
+
+      await user.keyboard(' ');
+      expect(mockOpenKautionModal).toHaveBeenCalledTimes(2);
+      expect(mockOpenKautionModal.mock.calls[1][0]).toMatchObject({ id: 't-deposit' });
+
+      await user.keyboard('a'); // other keys do nothing
+      expect(mockOpenKautionModal).toHaveBeenCalledTimes(2);
+    });
   });
 });
 

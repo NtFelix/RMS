@@ -5,7 +5,7 @@ import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync"
 import DashboardInnerLayout from "./layout-inner"
 import { requireActiveSubscription } from "@/lib/server/route-access"
 import { getSidebarUserData } from "@/lib/server/user-data"
-import { hasPermission } from "@/lib/permissions"
+import { canViewKautionen as ladeCanViewKautionen } from "@/lib/server/kautionen-recht"
 import { privateNoindexMetadata } from "@/lib/seo"
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -31,7 +31,7 @@ export default async function DashboardRootLayout({
   // Bewusst nicht Teil von `getSidebarUserData` (das Modul hat keine Route und gehört nicht zu den Sidebar-Modulen).
   const [sidebarData, canViewKautionen] = await Promise.all([
     getSidebarUserData(supabase, user, profile),
-    hasPermission("kautionen", "ansehen"),
+    ladeCanViewKautionen(),
   ])
 
   const nonce = (await headers()).get('x-nonce')

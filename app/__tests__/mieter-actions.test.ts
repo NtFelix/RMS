@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-import * as mieterActions from '../mieter-actions';
 import {
   handleSubmit,
   deleteTenantAction,
@@ -195,36 +194,6 @@ describe('mieter-actions', () => {
       expect(result.data).toHaveLength(1);
       expect(mockSupabase.from).toHaveBeenCalledWith('Wohnungen');
       expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-    });
-  });
-
-  // Kautionsmanagement (GH-6): updateKautionAction (Schreibweg auf das Altfeld Mieter.kaution) und
-  // getSuggestedKautionAmount sind entfernt; die Kaution läuft über app/kautionen-actions.ts.
-  describe('removed legacy deposit actions (GH-6)', () => {
-    it('no longer exports updateKautionAction or getSuggestedKautionAmount', () => {
-      expect(mieterActions).not.toHaveProperty('updateKautionAction');
-      expect(mieterActions).not.toHaveProperty('getSuggestedKautionAmount');
-    });
-
-    it('getMieterByHausIdAction selects explicit columns without the legacy field kaution', async () => {
-      const mockChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        in: jest.fn().mockReturnThis(),
-        or: jest.fn().mockReturnThis(),
-        then: jest.fn(),
-      };
-      mockChain.then.mockImplementationOnce((resolve) => resolve({ data: [{ id: 'w1' }], error: null }));
-      mockChain.then.mockImplementationOnce((resolve) => resolve({ data: [{ id: 'm1' }], error: null }));
-      mockSupabase.from.mockReturnValue(mockChain);
-
-      await getMieterByHausIdAction('h1');
-
-      const selects = mockChain.select.mock.calls.map((call: unknown[]) => call[0]);
-      const mieterSelect = selects.find((value: unknown) => typeof value === 'string' && value.includes('Wohnungen('));
-      expect(mieterSelect).toBeDefined();
-      expect(mieterSelect).not.toMatch(/\*/);
-      expect(mieterSelect).not.toMatch(/kaution/i);
     });
   });
 

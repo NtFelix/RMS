@@ -6,34 +6,6 @@ export interface NebenkostenEntry {
   date: string;
 }
 
-/**
- * @deprecated Legacy status of the old `Mieter.kaution` JSON field. It only remains as compat shape
- * (the RPC `get_mieter_details_overview` still derives it). New code uses `KautionZustand`
- * from `@/types/Kaution`.
- */
-export type KautionStatus = 'Erhalten' | 'Ausstehend' | 'Zurückgezahlt';
-
-/**
- * @deprecated Legacy shape of the old `Mieter.kaution` JSON field. Deposits now live in the tables
- * `Kautionen` and `Kautionen_Bewegungen`; `Tenant.kaution` carries the derived `KautionKompat`.
- */
-export interface KautionData {
-  amount: number;           // Deposit amount in EUR
-  paymentDate: string;      // ISO date string (YYYY-MM-DD)
-  status: KautionStatus;
-  createdAt: string;        // ISO timestamp
-  updatedAt: string;        // ISO timestamp
-}
-
-/**
- * @deprecated Form state of the removed legacy deposit dialog. Will be deleted together with it.
- */
-export interface KautionFormData {
-  amount: string;           // String for form input handling
-  paymentDate: string;      // ISO date string (YYYY-MM-DD)
-  status: KautionStatus;
-}
-
 export interface Tenant {
   id: string;
   wohnung_id?: string;

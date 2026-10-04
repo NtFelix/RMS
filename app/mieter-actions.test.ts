@@ -1,5 +1,4 @@
 
-import * as mieterActions from '@/app/mieter-actions';
 import { handleSubmit, deleteTenantAction, deleteAllApplicantsAction, getMieterByHausIdAction } from '@/app/mieter-actions';
 import { hasPermission } from '@/lib/permissions';
 import { revalidatePath } from 'next/cache';
@@ -319,16 +318,8 @@ describe('Mieter Server Actions', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Fetch failed');
     });
-  });
 
-  // Kautionsmanagement (GH-6): Der alte Schreibweg auf das Altfeld Mieter.kaution ist entfernt, die Kaution wird
-  // ausschließlich über app/kautionen-actions.ts (RPCs) geführt.
-  describe('Altfeld Mieter.kaution (GH-6)', () => {
-    it('exports no deposit actions anymore (updateKautionAction, getSuggestedKautionAmount)', () => {
-      expect(mieterActions).not.toHaveProperty('updateKautionAction');
-      expect(mieterActions).not.toHaveProperty('getSuggestedKautionAmount');
-    });
-
+    // Kautionsmanagement (GH-6): die Kaution kommt nicht mehr aus dem Altfeld Mieter.kaution, sondern über app/kautionen-actions.ts.
     it('getMieterByHausIdAction selects explicit columns without the legacy field kaution', async () => {
       mockSelectEq.mockResolvedValueOnce({ data: [{ id: 'w1' }], error: null });
       mockIn.mockResolvedValueOnce({ data: [{ id: 't1', name: 'Tenant 1' }], error: null });

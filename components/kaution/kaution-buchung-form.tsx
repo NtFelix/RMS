@@ -43,7 +43,9 @@ import type { KautionAbzugKategorie, KautionBewegungsArt } from "@/types/Kaution
  *
  * - The payout is prefilled with the available rest (the balance, as displayed by the database).
  * - Value date: default today, never later than today (the database checks again, `KA013`).
- * - One idempotency key per opening of the form: a repeated request books nothing twice.
+ * - One idempotency key per opening of the form: a repeated request books nothing twice. After a failed attempt the
+ *   key is kept for an identical retry and renewed as soon as the input differs from the failed attempt (a changed
+ *   booking is another booking).
  * - The strict balance (never negative on any date) is checked by the database. A rejection (`KA005`) is shown
  *   here at the form and the form stays open with the input.
  *
@@ -99,7 +101,9 @@ export function KautionBuchungForm({
     betrag: art === "auszahlung" && kontostand > 0 ? betragZuEingabe(kontostand) : "",
     heute: heuteIso(),
   }));
-  const [idempotenzSchluessel] = useState(neuerIdempotenzSchluessel);
+  const [startSchluessel, setStartSchluessel] = useState(neuerIdempotenzSchluessel);
+  // Last attempt (key and the input that was sent): a retry with identical input reuses the key, changed input does not.
+  const letzterVersuch = useRef<{ schluessel: string; eingabe: string } | null>(null);
 
   const [betrag, setBetrag] = useState(start.betrag);
   // `wertstellung` is a valid ISO date or "" (incomplete input). `datumWert` is the value handed to the date
@@ -146,7 +150,10 @@ export function KautionBuchungForm({
     if (betragFehler) neueFehler.betrag = betragFehler;
 
     const datumPruefung = validateKautionDatum(wertstellung);
-    if (!datumPruefung.ok) {
+    if (wertstellung === "") {
+      // Incomplete input in the date field (it expects DD.MM.YYYY, the validator speaks ISO).
+      neueFehler.wertstellung = "Bitte geben Sie ein gültiges Datum im Format TT.MM.JJJJ an.";
+    } else if (!datumPruefung.ok) {
       neueFehler.wertstellung = datumPruefung.message;
     } else if (datumPruefung.value > heuteIso()) {
       neueFehler.wertstellung = "Die Wertstellung darf nicht in der Zukunft liegen.";
@@ -177,22 +184,29 @@ export function KautionBuchungForm({
       return;
     }
 
+    const eingabe = {
+      art,
+      betrag,
+      wertstellung: datumPruefung.value,
+      kategorie: art === "abzug" && kategorie !== "" ? kategorie : undefined,
+      grund: grundPruefung.value ?? undefined,
+      interneNotiz: notizPruefung.value ?? undefined,
+      empfaenger: empfaengerPruefung.value ?? undefined,
+    };
+    const eingabeText = JSON.stringify(eingabe);
+    const vorher = letzterVersuch.current;
+    const idempotenzSchluessel =
+      vorher === null ? startSchluessel : vorher.eingabe === eingabeText ? vorher.schluessel : neuerIdempotenzSchluessel();
+    letzterVersuch.current = { schluessel: idempotenzSchluessel, eingabe: eingabeText };
+
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      const result = await bucheKautionBewegungAction({
-        tenantId,
-        kautionId,
-        art,
-        betrag,
-        wertstellung: datumPruefung.value,
-        kategorie: art === "abzug" && kategorie !== "" ? kategorie : undefined,
-        grund: grundPruefung.value ?? undefined,
-        interneNotiz: notizPruefung.value ?? undefined,
-        empfaenger: empfaengerPruefung.value ?? undefined,
-        idempotenzSchluessel,
-      });
+      const result = await bucheKautionBewegungAction({ tenantId, kautionId, ...eingabe, idempotenzSchluessel });
       if (result.success) {
+        // Next booking from this form (if it stays open): new key.
+        letzterVersuch.current = null;
+        setStartSchluessel(neuerIdempotenzSchluessel());
         toast({ title: "Buchung erfasst.", variant: "success" });
         await onGebucht();
       } else {

@@ -4,7 +4,7 @@
  */
 
 // Re-export existing types
-export type { Tenant, NebenkostenEntry, KautionStatus, KautionData, KautionFormData } from './Tenant';
+export type { Tenant, NebenkostenEntry } from './Tenant';
 export type {
   KautionArt,
   KautionBewegungsArt,

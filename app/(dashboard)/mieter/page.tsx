@@ -5,6 +5,7 @@ import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 import { hasPermission } from "@/lib/permissions";
+import { canViewKautionen as ladeCanViewKautionen } from "@/lib/server/kautionen-recht";
 import { redirect } from "next/navigation";
 
 import type { Tenant } from "@/types/Tenant";
@@ -37,7 +38,7 @@ async function MieterContent() {
     hasPermission('mieter', 'erstellen'),
     hasPermission('mieter', 'bearbeiten'),
     hasPermission('mieter', 'loeschen'),
-    hasPermission('kautionen', 'ansehen'),
+    ladeCanViewKautionen(),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;

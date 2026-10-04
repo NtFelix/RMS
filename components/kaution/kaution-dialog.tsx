@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 import { getKautionDetailsAction, type KautionActionError } from "@/app/kautionen-actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -99,6 +100,7 @@ export function KautionDialog() {
     isKautionModalDirty,
     closeKautionModal,
     setKautionModalDirty,
+    isConfirmationModalOpen,
     openConfirmationModal,
     closeConfirmationModal,
   } = useModalStore();
@@ -111,17 +113,46 @@ export function KautionDialog() {
   const [tab, setTab] = useState<KautionTab>("uebersicht");
   // Counter of the load requests: only the latest answer counts (reload after a change, dialog reopened).
   const ladeZaehler = useRef(0);
+  // Tenant of the dialog that is open right now (`null` while closed). A late answer of an action that was started for
+  // another tenant (its closure carries the old `tenantId`) must not reload, toast or close the dialog of the new one.
+  const aktuellerMieter = useRef<string | null>(null);
+  // Mirror of `ansicht` for the async loader (a silent reload must know whether content is already shown).
+  const ansichtRef = useRef<Ansicht>(ansicht);
+  // The question "discard input?" (booking type switch) is open: closing attempts of the dialog are ignored meanwhile.
+  const [rueckfrageOffen, setRueckfrageOffen] = useState(false);
+  // `useRouter` of Next is stable; the ref keeps `lade` independent of its identity (no reload loop).
+  const router = useRouter();
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
+  const setzeAnsicht = useCallback((neu: Ansicht) => {
+    ansichtRef.current = neu;
+    setAnsicht(neu);
+  }, []);
 
   // --- Unsaved input -----------------------------------------------------------------------------------------
   const { zuruecksetzen, meldeAnlegenDirty, meldeVereinbarungDirty, meldeBuchungDirty } = useDirtyQuellen(setKautionModalDirty);
 
   // --- Loading -----------------------------------------------------------------------------------------------
+  /** No access (anymore) or session expired: nothing to show, tell the user, (sign in again) and close. */
+  const beendeMitHinweis = useCallback(
+    (verhalten: "dialog_schliessen" | "anmelden", message: string) => {
+      toast({ title: FEHLER_TITEL[verhalten], description: message, variant: "destructive" });
+      if (verhalten === "anmelden") routerRef.current.push("/auth/login");
+      closeKautionModal({ force: true });
+    },
+    [closeKautionModal]
+  );
+
   const lade = useCallback(
     async (id: string, optionen?: { still?: boolean }) => {
       const aufruf = ++ladeZaehler.current;
+      const still = optionen?.still === true;
       // "still": reload after a change, the current content stays visible (no skeleton flash).
-      if (optionen?.still) setAktualisiert(true);
-      else setAnsicht({ phase: "laden" });
+      if (still) setAktualisiert(true);
+      else setzeAnsicht({ phase: "laden" });
 
       let neueAnsicht: Ansicht;
       try {
@@ -136,18 +167,27 @@ export function KautionDialog() {
       if (aufruf !== ladeZaehler.current) return; // a newer request or a closed dialog
 
       setAktualisiert(false);
-      setAnsicht(neueAnsicht);
-      if (neueAnsicht.phase === "fehler" && getKautionFehlerVerhalten(neueAnsicht.fehler.code) === "dialog_schliessen") {
-        // No access to this object (anymore): there is nothing to show, tell the user and close.
-        toast({ title: FEHLER_TITEL.dialog_schliessen, description: neueAnsicht.fehler.message, variant: "destructive" });
-        closeKautionModal({ force: true });
+      if (neueAnsicht.phase !== "fehler") {
+        setzeAnsicht(neueAnsicht);
+        return;
+      }
+
+      // A failed silent reload keeps what is shown (tabs and forms stay mounted, input is not lost).
+      const behalten = still && ansichtRef.current.phase === "bereit";
+      if (!behalten) setzeAnsicht(neueAnsicht);
+      const verhalten = getKautionFehlerVerhalten(neueAnsicht.fehler.code);
+      if (verhalten === "dialog_schliessen" || verhalten === "anmelden") {
+        beendeMitHinweis(verhalten, neueAnsicht.fehler.message);
+      } else if (behalten) {
+        toast({ title: "Aktualisierung fehlgeschlagen", description: neueAnsicht.fehler.message, variant: "destructive" });
       }
     },
-    [closeKautionModal]
+    [beendeMitHinweis, setzeAnsicht]
   );
 
   const reload = useCallback(async () => {
-    if (tenantId) await lade(tenantId, { still: true });
+    // Obsolete: the dialog was closed or reopened for another tenant since this closure was handed to a form.
+    if (tenantId && aktuellerMieter.current === tenantId) await lade(tenantId, { still: true });
   }, [tenantId, lade]);
 
   // Init effect (like the legacy dialog, also correct with `<Activity>`): load when opened, reset when closed.
@@ -157,33 +197,46 @@ export function KautionDialog() {
     setAktualisiert(false);
 
     if (!isKautionModalOpen || !tenantId) {
-      setAnsicht((vorher) => (vorher.phase === "laden" ? vorher : { phase: "laden" }));
+      aktuellerMieter.current = null;
+      if (ansichtRef.current.phase !== "laden") setzeAnsicht({ phase: "laden" });
       return;
     }
+    aktuellerMieter.current = tenantId;
     setTab(startTab(initialTab));
     void lade(tenantId);
     return () => {
       ladeZaehler.current += 1;
+      aktuellerMieter.current = null;
     };
-  }, [isKautionModalOpen, kautionInitialData, tenantId, initialTab, lade, zuruecksetzen]);
+  }, [isKautionModalOpen, kautionInitialData, tenantId, initialTab, lade, zuruecksetzen, setzeAnsicht]);
+
+  // The confirmation of the store was closed (also by "Abbrechen"/Escape of the shared dialog): closing works again.
+  useEffect(() => {
+    if (!isConfirmationModalOpen) setRueckfrageOffen(false);
+  }, [isConfirmationModalOpen]);
 
   // --- Errors of actions -------------------------------------------------------------------------------------
   /**
    * Central handling of an error of an action (called by the forms).
-   * Returns `true` if handled here (toast, reload, close); `false` means: show the message at the form.
+   * Returns `true` if handled here (toast, reload, close, sign-in); `false` means: show the message at the form.
+   * An answer for a tenant that is no longer the open one is obsolete: it returns `true` and does nothing.
    */
   const handleFehler = useCallback(
     (fehler: KautionActionError): boolean => {
+      if (!tenantId || aktuellerMieter.current !== tenantId) return true;
       const verhalten = getKautionFehlerVerhalten(fehler.code);
       if (verhalten === "formular" || verhalten === "wiederholen") return false;
 
+      if (verhalten === "dialog_schliessen" || verhalten === "anmelden") {
+        beendeMitHinweis(verhalten, fehler.message);
+        return true;
+      }
       toast({ title: FEHLER_TITEL[verhalten], description: fehler.message, variant: "destructive" });
-      if (verhalten === "dialog_schliessen") closeKautionModal({ force: true });
       // The data changed or the rights changed: show the current state ("berechtigung": buttons get disabled).
-      else if (verhalten === "neu_laden" || verhalten === "berechtigung") void reload();
+      if (verhalten === "neu_laden" || verhalten === "berechtigung") void reload();
       return true;
     },
-    [closeKautionModal, reload]
+    [tenantId, beendeMitHinweis, reload]
   );
 
   /**
@@ -192,26 +245,34 @@ export function KautionDialog() {
    */
   const frageVerwerfen = useCallback(
     (onBestaetigt: () => void) => {
+      setRueckfrageOffen(true);
       openConfirmationModal({
         title: "Eingaben verwerfen?",
         description: "Wenn Sie die Buchungsart wechseln, gehen Ihre bisherigen Eingaben verloren. Möchten Sie sie wirklich verwerfen?",
         confirmText: "Verwerfen",
         cancelText: "Abbrechen",
         onConfirm: () => {
+          setRueckfrageOffen(false);
           onBestaetigt();
           closeConfirmationModal();
         },
-        onCancel: () => closeConfirmationModal(),
+        onCancel: () => {
+          setRueckfrageOffen(false);
+          closeConfirmationModal();
+        },
       });
     },
     [openConfirmationModal, closeConfirmationModal]
   );
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) closeKautionModal();
+  // The store asks for confirmation if a form holds unsaved input. While the question "discard input?" is open, the
+  // focus change to its dialog counts as an interaction outside: it must not replace the question or close the dialog.
+  const handleAttemptClose = () => {
+    if (!rueckfrageOffen) closeKautionModal();
   };
-  // The store asks for confirmation if a form holds unsaved input.
-  const handleAttemptClose = () => closeKautionModal();
+  const handleOpenChange = (open: boolean) => {
+    if (!open) handleAttemptClose();
+  };
 
   return (
     <Dialog open={isKautionModalOpen} onOpenChange={handleOpenChange}>
