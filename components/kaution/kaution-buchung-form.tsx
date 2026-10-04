@@ -102,8 +102,8 @@ export function KautionBuchungForm({
     heute: heuteIso(),
   }));
   // Only read in the submit handler, never rendered: a ref avoids a re-render on every change.
-  const startSchluessel = useRef("");
-  if (startSchluessel.current === "") startSchluessel.current = neuerIdempotenzSchluessel();
+  // Created lazily in the submit handler (never during render); reset to null after a successful booking.
+  const startSchluessel = useRef<string | null>(null);
   // Last attempt (key and the input that was sent): a retry with identical input reuses the key, changed input does not.
   const letzterVersuch = useRef<{ schluessel: string; eingabe: string } | null>(null);
 
@@ -198,7 +198,7 @@ export function KautionBuchungForm({
     const eingabeText = JSON.stringify(eingabe);
     const vorher = letzterVersuch.current;
     const idempotenzSchluessel =
-      vorher === null ? startSchluessel.current : vorher.eingabe === eingabeText ? vorher.schluessel : neuerIdempotenzSchluessel();
+      vorher === null ? (startSchluessel.current ??= neuerIdempotenzSchluessel()) : vorher.eingabe === eingabeText ? vorher.schluessel : neuerIdempotenzSchluessel();
     letzterVersuch.current = { schluessel: idempotenzSchluessel, eingabe: eingabeText };
 
     submittingRef.current = true;
@@ -208,7 +208,7 @@ export function KautionBuchungForm({
       if (result.success) {
         // Next booking from this form (if it stays open): new key.
         letzterVersuch.current = null;
-        startSchluessel.current = neuerIdempotenzSchluessel();
+        startSchluessel.current = null;
         toast({ title: "Buchung erfasst.", variant: "success" });
         await onGebucht();
       } else {
