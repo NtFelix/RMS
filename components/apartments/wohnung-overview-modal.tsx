@@ -1,6 +1,6 @@
 "use client";
 import { deleteTenantAction } from "@/app/mieter-actions";
-import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import {
   Dialog,
   DialogContent,
@@ -196,28 +196,31 @@ export function WohnungOverviewModal() {
     }
   };
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
   const handleDeleteMieter = (mieter: { id: string; name: string }) => {
-    setMieterToDelete(mieter);
-    setDeleteDialogOpen(true);
+    void starteLoeschenMitKautionen("Mieter", [mieter.id], {
+      einfach: () => {
+        setMieterToDelete(mieter);
+        setDeleteDialogOpen(true);
+      },
+      loeschen: (pruefsummen) => confirmDeleteMieter(mieter, pruefsummen),
+    });
   };
 
-  const confirmDeleteMieter = async () => {
-    if (!mieterToDelete) return;
+  // `mieter` wird übergeben, weil der State beim Löschen direkt nach der Übersicht noch nicht gesetzt ist.
+  const confirmDeleteMieter = async (mieter: { id: string; name: string } | null = mieterToDelete, pruefsummen: Record<string, string> = {}) => {
+    if (!mieter) return;
 
     try {
       setIsDeleting(true);
 
-      // Betroffene Kautionen mit Buchungen müssen vor dem Löschen bestätigt werden (bei Abbruch wird nichts gelöscht).
-      const bestaetigung = await bestaetigeLoeschenMitKautionen("Mieter", [mieterToDelete.id]);
-      if (!bestaetigung.ok) return;
-
       // Use the server action to delete the tenant
-      const { success, error } = await deleteTenantAction(mieterToDelete.id, bestaetigung.pruefsummen[mieterToDelete.id]);
+      const { success, error } = await deleteTenantAction(mieter.id, pruefsummen[mieter.id]);
 
       if (success) {
         toast({
           title: "Erfolg",
-          description: `Der Mieter "${mieterToDelete.name}" wurde erfolgreich gelöscht.`,
+          description: `Der Mieter "${mieter.name}" wurde erfolgreich gelöscht.`,
           variant: "default",
         });
 
@@ -640,7 +643,7 @@ export function WohnungOverviewModal() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteMieter}
+              onClick={() => confirmDeleteMieter()}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >

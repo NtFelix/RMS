@@ -3,14 +3,15 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { WohnungEditModal } from '@/components/apartments/wohnung-edit-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { loescheWohnung } from '@/app/(dashboard)/wohnungen/actions';
-import { bestaetigeLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
+import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 
 jest.mock('@/app/(dashboard)/wohnungen/actions', () => ({
   loescheWohnung: jest.fn(),
 }));
 
 jest.mock('@/lib/kautionen-loeschen', () => ({
-  bestaetigeLoeschenMitKautionen: jest.fn(),
+  // Standard: keine gebuchte Kaution betroffen -> die übliche Frage wird gezeigt
+  starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
 }));
 
 jest.mock('@/hooks/use-onboarding-store', () => ({
@@ -26,7 +27,7 @@ jest.mock('@/components/ui/custom-dropdown', () => ({
 
 const mockUseModalStore = useModalStore as unknown as jest.Mock;
 const mockLoescheWohnung = loescheWohnung as jest.Mock;
-const mockBestaetige = bestaetigeLoeschenMitKautionen as jest.Mock;
+const mockStart = starteLoeschenMitKautionen as jest.Mock;
 
 describe('WohnungEditModal - Löschen mit Kautionen-Bestätigung', () => {
   const wohnung = { id: 'wohnung-1', name: 'Wohnung A', groesse: 50, miete: 800, haus_id: 'haus-1' };
@@ -46,29 +47,39 @@ describe('WohnungEditModal - Löschen mit Kautionen-Bestätigung', () => {
     });
   });
 
-  const loeschenBestaetigen = async () => {
+  const klickeLoeschen = () => {
     render(<WohnungEditModal serverAction={jest.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /Löschen/ }));
-    const dialog = await screen.findByRole('alertdialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
   };
 
-  it('löscht nicht, wenn die Kautionen-Bestätigung abgebrochen wird', async () => {
-    mockBestaetige.mockResolvedValue({ ok: false });
-    await loeschenBestaetigen();
+  it('lädt zuerst die Auswirkung, fragt dann üblich und löscht ohne Prüfsumme', async () => {
+    mockLoescheWohnung.mockResolvedValue({ success: true });
+    klickeLoeschen();
 
-    await waitFor(() => expect(mockBestaetige).toHaveBeenCalledWith('Wohnungen', [wohnung.id]));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(mockStart).toHaveBeenCalledWith('Wohnungen', [wohnung.id], expect.any(Object));
     expect(mockLoescheWohnung).not.toHaveBeenCalled();
-    // Ladezustand zurückgesetzt, Dialog geschlossen
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+
+    await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(wohnung.id, undefined));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 
-  it('übergibt die Prüfsumme an loescheWohnung, wenn bestätigt wird', async () => {
-    mockBestaetige.mockResolvedValue({ ok: true, pruefsummen: { [wohnung.id]: 'abc' } });
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ [wohnung.id]: 'abc' }));
     mockLoescheWohnung.mockResolvedValue({ success: true });
-    await loeschenBestaetigen();
+    klickeLoeschen();
 
     await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(wohnung.id, 'abc'));
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('löscht nichts und zeigt keine Frage, wenn die Übersicht abgebrochen wird', async () => {
+    mockStart.mockImplementationOnce(async () => undefined);
+    klickeLoeschen();
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
+    expect(mockLoescheWohnung).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });

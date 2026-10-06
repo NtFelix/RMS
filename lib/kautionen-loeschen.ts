@@ -2,27 +2,29 @@ import { getKautionLoeschauswirkungAction } from "@/app/kautionen-actions";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { toast } from "@/hooks/use-toast";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
-import type { KautionLoeschTabelle } from "@/types/Kaution";
+import type { KautionLoeschauswirkung, KautionLoeschTabelle } from "@/types/Kaution";
 
 /**
- * Result of the question before deleting houses, apartments or tenants.
- * `pruefsummen` (checksum of the shown impact per ID) belongs to the confirmed deletion; it is empty if no deposit with
- * bookings is affected (then the usual deletion applies).
+ * Result of the overview before deleting houses, apartments or tenants.
+ * `pruefsummen` (checksum of the shown impact per ID) belongs to the confirmed deletion.
  */
 export type LoeschBestaetigung = { ok: true; pruefsummen: Record<string, string> } | { ok: false };
 
 /**
- * Call BEFORE deleting (after the usual "Are you sure?" question of the screen): loads the impact on the deposits and,
- * only if deposits WITH bookings are affected, shows the overview "Kautionen werden mitgelöscht" and waits for the
- * explicit confirmation.
- *
- * - No right to see deposits (`42501`), no deposits or only deposits without bookings: `ok` without a dialog. The
- *   usual deletion applies (an empty deposit goes to the trash bin with its tenant; the database still blocks deposits
- *   with bookings).
- * - Any other error (e.g. no access to the object): the message is shown, nothing is deleted (`ok: false`).
- * - Cancelled: `ok: false`.
+ * `auswirkung` is set only if deposits WITH bookings are affected (then the overview must be confirmed); otherwise `null`
+ * (no deposits, only deposits without bookings, or no right to see deposits): the usual deletion applies.
  */
-export async function bestaetigeLoeschenMitKautionen(tabelle: KautionLoeschTabelle, ids: string[]): Promise<LoeschBestaetigung> {
+export type LoeschVorabpruefung = { ok: true; auswirkung: KautionLoeschauswirkung | null } | { ok: false };
+
+/**
+ * Loads the impact of deleting these records on the deposits.
+ *
+ * - No right to see deposits (`42501`), no deposits or only deposits without bookings: `ok` without an impact. The usual
+ *   deletion applies (an empty deposit goes to the trash bin with its tenant; the database still blocks deposits with
+ *   bookings).
+ * - Any other error (e.g. no access to the object): the message is shown, nothing is deleted (`ok: false`).
+ */
+export async function pruefeLoeschenMitKautionen(tabelle: KautionLoeschTabelle, ids: string[]): Promise<LoeschVorabpruefung> {
   let result: Awaited<ReturnType<typeof getKautionLoeschauswirkungAction>>;
   try {
     result = await getKautionLoeschauswirkungAction({ tabelle, ids });
@@ -32,16 +34,20 @@ export async function bestaetigeLoeschenMitKautionen(tabelle: KautionLoeschTabel
   }
 
   if (!result.success || !result.data) {
-    if (result.error?.code === "42501") return { ok: true, pruefsummen: {} };
+    if (result.error?.code === "42501") return { ok: true, auswirkung: null };
     toast({ title: "Fehler", description: result.error?.message ?? KAUTION_FEHLER_FALLBACK_MESSAGE, variant: "destructive" });
     return { ok: false };
   }
 
   const auswirkung = result.data;
   if (!auswirkung.kautionen_sichtbar || !auswirkung.kautionen || auswirkung.kautionen.mit_buchungen === 0) {
-    return { ok: true, pruefsummen: {} };
+    return { ok: true, auswirkung: null };
   }
+  return { ok: true, auswirkung };
+}
 
+/** Shows the overview "Kautionen werden mitgelöscht" and waits for the decision. Confirming returns the checksum per ID. */
+async function zeigeLoeschUebersicht(auswirkung: KautionLoeschauswirkung): Promise<LoeschBestaetigung> {
   const bestaetigt = await new Promise<boolean>((resolve) => {
     useModalStore.getState().openLoeschUebersicht({ auswirkung, onEntscheidung: resolve });
   });
@@ -52,4 +58,28 @@ export async function bestaetigeLoeschenMitKautionen(tabelle: KautionLoeschTabel
     if (typeof eintrag.pruefsumme === "string") pruefsummen[eintrag.id] = eintrag.pruefsumme;
   }
   return { ok: true, pruefsummen };
+}
+
+export interface LoeschenStartHandlers {
+  /** No deposit with bookings is affected: show the usual "Are you sure?" question of the screen; its confirmation deletes without checksums. */
+  einfach: () => void;
+  /** Deposits with bookings are affected and the overview was confirmed: delete right away (the overview IS the confirmation). */
+  loeschen: (pruefsummen: Record<string, string>) => void | Promise<void>;
+}
+
+/**
+ * Call when the user presses "Löschen" (BEFORE any question): loads the impact first, then shows exactly ONE dialog.
+ * Without booked deposits that is the usual question of the screen (`einfach`); with booked deposits it is the overview
+ * "Kautionen werden mitgelöscht", whose confirmation replaces the usual question (`loeschen`). Cancelling the overview or
+ * an error deletes nothing.
+ */
+export async function starteLoeschenMitKautionen(tabelle: KautionLoeschTabelle, ids: string[], handlers: LoeschenStartHandlers): Promise<void> {
+  const vorab = await pruefeLoeschenMitKautionen(tabelle, ids);
+  if (!vorab.ok) return;
+  if (!vorab.auswirkung) {
+    handlers.einfach();
+    return;
+  }
+  const bestaetigung = await zeigeLoeschUebersicht(vorab.auswirkung);
+  if (bestaetigung.ok) await handlers.loeschen(bestaetigung.pruefsummen);
 }

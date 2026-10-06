@@ -56,7 +56,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteTenantAction } from "@/app/mieter-actions"
-import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
 
@@ -925,14 +925,11 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const isPending = isSubmitting || isDeleting
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Record<string, string> = {}) => {
     if (!tenantInitialData || isPending) return
     try {
       setIsDeleting(true)
-      // Betroffene Kautionen mit Buchungen müssen vor dem Löschen bestätigt werden (bei Abbruch wird nichts gelöscht).
-      const bestaetigung = await bestaetigeLoeschenMitKautionen("Mieter", [tenantInitialData.id])
-      if (!bestaetigung.ok) return
-      const result = await deleteTenantAction(tenantInitialData.id, bestaetigung.pruefsummen[tenantInitialData.id])
+      const result = await deleteTenantAction(tenantInitialData.id, pruefsummen[tenantInitialData.id])
 
       if (result.success) {
         toast({
@@ -961,6 +958,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       setIsDeleting(false)
       setDeleteDialogOpen(false)
     }
+  }
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () => {
+    if (!tenantInitialData || isPending) return
+    void starteLoeschenMitKautionen("Mieter", [tenantInitialData.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1073,7 +1076,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
         <TopBar
           tenantInitialData={tenantInitialData}
-          onDeleteRequest={() => setDeleteDialogOpen(true)}
+          onDeleteRequest={handleDeleteStart}
           actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled, canViewKautionen }).flatMap((action) => {
             const handlerMap: Record<string, (() => void) | undefined> = {
               // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction): nur der Mieter wird übergeben.
@@ -1131,7 +1134,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           onOpenChange={setDeleteDialogOpen}
           tenantName={tenantInitialData?.name || formData.name}
           isDeleting={isDeleting}
-          onDelete={handleDelete}
+          onDelete={() => handleDelete()}
           isApplicant={isApplicant}
         />
       </SheetContent>

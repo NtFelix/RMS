@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions";
-import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 
 interface Haus {
   id: string;
@@ -342,14 +342,11 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     closeWohnungModal({ force: true });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Record<string, string> = {}) => {
     if (!wohnungInitialData || isPending) return;
     try {
       setIsDeleting(true);
-      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen; bei Abbruch wird nichts gelöscht
-      const bestaetigung = await bestaetigeLoeschenMitKautionen("Wohnungen", [wohnungInitialData.id]);
-      if (!bestaetigung.ok) return;
-      const result = await loescheWohnung(wohnungInitialData.id, bestaetigung.pruefsummen[wohnungInitialData.id]);
+      const result = await loescheWohnung(wohnungInitialData.id, pruefsummen[wohnungInitialData.id]);
 
       if (result.success) {
         toast({
@@ -380,6 +377,12 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
     }
+  };
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () => {
+    if (!wohnungInitialData || isPending) return;
+    void starteLoeschenMitKautionen("Wohnungen", [wohnungInitialData.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -473,7 +476,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               openZaehlerModal(wohnungInitialData.id, wohnungInitialData.name);
             }
           }}
-          onDeleteRequest={() => setDeleteDialogOpen(true)}
+          onDeleteRequest={handleDeleteStart}
         />
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">

@@ -2,14 +2,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HouseEditModal } from './house-edit-modal';
 import { deleteHouseAction } from '@/app/(dashboard)/haeuser/actions';
-import { bestaetigeLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
+import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 import { useModalStore } from '@/hooks/use-modal-store';
 
 jest.mock('@/app/(dashboard)/haeuser/actions', () => ({
   deleteHouseAction: jest.fn(),
 }));
 jest.mock('@/lib/kautionen-loeschen', () => ({
-  bestaetigeLoeschenMitKautionen: jest.fn(),
+  // Standard: keine gebuchte Kaution betroffen -> die übliche Frage wird gezeigt
+  starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
 }));
 jest.mock('@/hooks/use-onboarding-store', () => ({
   useOnboardingStore: Object.assign(jest.fn(() => ({})), { getState: () => ({ completeStep: jest.fn() }) }),
@@ -19,20 +20,20 @@ jest.mock('@/hooks/use-onboarding-store', () => ({
 global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
 
 const mockDelete = deleteHouseAction as jest.Mock;
-const mockBestaetige = bestaetigeLoeschenMitKautionen as jest.Mock;
+const mockStart = starteLoeschenMitKautionen as jest.Mock;
 
 const closeHouseModal = jest.fn();
 const houseModalOnSuccess = jest.fn();
 
-async function openDeleteDialogAndConfirm() {
+async function klickeLoeschen() {
   const user = userEvent.setup();
   render(<HouseEditModal serverAction={jest.fn()} />);
   await user.click(screen.getByRole('button', { name: 'Aktionen' }));
   await user.click(await screen.findByText('Löschen'));
-  await user.click(await screen.findByRole('button', { name: 'Löschen' }));
+  return user;
 }
 
-describe('HouseEditModal delete with Kautionen confirmation', () => {
+describe('HouseEditModal delete with Kautionen overview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useModalStore as unknown as jest.Mock).mockReturnValue({
@@ -47,24 +48,33 @@ describe('HouseEditModal delete with Kautionen confirmation', () => {
     mockDelete.mockResolvedValue({ success: true });
   });
 
-  it('does not delete when the confirmation is cancelled', async () => {
-    mockBestaetige.mockResolvedValue({ ok: false });
-    await openDeleteDialogAndConfirm();
+  it('loads the impact first, then asks the usual question and deletes without checksum', async () => {
+    const user = await klickeLoeschen();
 
-    await waitFor(() => expect(mockBestaetige).toHaveBeenCalledWith('Haeuser', ['house-1']));
+    await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Haeuser', ['house-1'], expect.any(Object)));
     expect(mockDelete).not.toHaveBeenCalled();
-    expect(houseModalOnSuccess).not.toHaveBeenCalled();
-    // Dialog wird geschlossen, kein hängender Ladezustand
-    await waitFor(() => expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument());
-    expect(screen.queryByText('Löschen...')).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Löschen' }));
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1', undefined));
+    await waitFor(() => expect(houseModalOnSuccess).toHaveBeenCalledWith({ deleted: true, id: 'house-1' }));
   });
 
-  it('passes the checksum to deleteHouseAction when confirmed', async () => {
-    mockBestaetige.mockResolvedValue({ ok: true, pruefsummen: { 'house-1': 'abc' } });
-    await openDeleteDialogAndConfirm();
+  it('with booked deposits: no second question, the confirmed overview deletes with the checksum', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ 'house-1': 'abc' }));
+    await klickeLoeschen();
 
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1', 'abc'));
-    expect(mockBestaetige).toHaveBeenCalledWith('Haeuser', ['house-1']);
+    expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument();
     await waitFor(() => expect(houseModalOnSuccess).toHaveBeenCalledWith({ deleted: true, id: 'house-1' }));
+  });
+
+  it('does not delete and shows no question when the overview is cancelled', async () => {
+    mockStart.mockImplementationOnce(async () => undefined);
+    await klickeLoeschen();
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(houseModalOnSuccess).not.toHaveBeenCalled();
+    expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument();
   });
 });

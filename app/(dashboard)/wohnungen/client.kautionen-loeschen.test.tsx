@@ -1,11 +1,12 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import WohnungenClientView from './client';
 import { useModalStore } from '@/hooks/use-modal-store';
-import { bestaetigeLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
+import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 import type { Wohnung } from '@/types/Wohnung';
 
 jest.mock('@/lib/kautionen-loeschen', () => ({
-  bestaetigeLoeschenMitKautionen: jest.fn(),
+  // Standard: keine gebuchte Kaution betroffen -> die übliche Frage wird gezeigt
+  starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
 }));
 
 jest.mock('@/hooks/use-onboarding-store', () => ({
@@ -25,10 +26,10 @@ jest.mock('@/components/tables/apartment-table', () => ({
 
 global.fetch = jest.fn();
 
-const mockBestaetige = bestaetigeLoeschenMitKautionen as jest.Mock;
+const mockStart = starteLoeschenMitKautionen as jest.Mock;
 const mockFetch = global.fetch as jest.Mock;
 
-describe('WohnungenClientView - Sammellöschen mit Kautionen-Bestätigung', () => {
+describe('WohnungenClientView - Sammellöschen mit Kautionen-Übersicht', () => {
   const props = {
     initialWohnungenData: [] as Wohnung[],
     housesData: [{ id: 'h1', name: 'Haus 1' }],
@@ -44,30 +45,43 @@ describe('WohnungenClientView - Sammellöschen mit Kautionen-Bestätigung', () =
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ successCount: 2, reasons: [] }) });
   });
 
-  const sammelLoeschenBestaetigen = async () => {
+  const waehleUndKlickeLoeschen = async () => {
     render(<WohnungenClientView {...props} />);
     fireEvent.click(screen.getByText('Auswahl setzen'));
     fireEvent.click(await screen.findByRole('button', { name: /^Löschen \(2\)/ }));
-    const dialog = await screen.findByRole('alertdialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: /Wohnungen löschen/ }));
   };
 
-  it('ruft die Route nicht auf, wenn die Kautionen-Bestätigung abgebrochen wird', async () => {
-    mockBestaetige.mockResolvedValue({ ok: false });
-    await sammelLoeschenBestaetigen();
+  it('lädt zuerst die Auswirkung, fragt dann üblich und sendet leere Prüfsummen', async () => {
+    await waehleUndKlickeLoeschen();
 
-    await waitFor(() => expect(mockBestaetige).toHaveBeenCalledWith('Wohnungen', ['1', '2']));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(mockStart).toHaveBeenCalledWith('Wohnungen', ['1', '2'], expect.any(Object));
     expect(mockFetch).not.toHaveBeenCalledWith('/api/apartments/bulk-delete', expect.anything());
-    // Ladezustand zurückgesetzt: Button wieder aktiv
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Löschen \(2\)/ })).toBeEnabled());
-  });
-
-  it('sendet die Prüfsummen im Body, wenn bestätigt wird', async () => {
-    mockBestaetige.mockResolvedValue({ ok: true, pruefsummen: { '1': 'abc' } });
-    await sammelLoeschenBestaetigen();
+    fireEvent.click(within(dialog).getByRole('button', { name: /Wohnungen löschen/ }));
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/apartments/bulk-delete', expect.anything()));
     const [, init] = mockFetch.mock.calls.find(([url]) => url === '/api/apartments/bulk-delete')!;
+    expect(JSON.parse(init.body)).toEqual({ ids: ['1', '2'], pruefsummen: {} });
+  });
+
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht sendet ihre Prüfsummen', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ '1': 'abc' }));
+    await waehleUndKlickeLoeschen();
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/apartments/bulk-delete', expect.anything()));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    const [, init] = mockFetch.mock.calls.find(([url]) => url === '/api/apartments/bulk-delete')!;
     expect(JSON.parse(init.body)).toEqual({ ids: ['1', '2'], pruefsummen: { '1': 'abc' } });
+  });
+
+  it('ruft die Route nicht auf und zeigt keine Frage, wenn die Übersicht abgebrochen wird', async () => {
+    mockStart.mockImplementationOnce(async () => undefined);
+    await waehleUndKlickeLoeschen();
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Wohnungen', ['1', '2'], expect.any(Object)));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/apartments/bulk-delete', expect.anything());
+    // Auswahl bleibt, Button wieder aktiv
+    expect(screen.getByRole('button', { name: /^Löschen \(2\)/ })).toBeEnabled();
   });
 });

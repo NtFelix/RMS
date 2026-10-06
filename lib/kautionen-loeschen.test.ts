@@ -1,7 +1,7 @@
 import { getKautionLoeschauswirkungAction } from "@/app/kautionen-actions";
 import { toast } from "@/hooks/use-toast";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
-import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { pruefeLoeschenMitKautionen, starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import type { KautionLoeschauswirkung } from "@/types/Kaution";
 
 // `jest.setup.js` ersetzt den Store global durch einen Mock: hier wird der echte Store verwendet.
@@ -53,11 +53,11 @@ beforeEach(() => {
   useModalStore.setState({ isLoeschUebersichtOpen: false, loeschUebersichtConfig: null });
 });
 
-describe("bestaetigeLoeschenMitKautionen", () => {
+describe("pruefeLoeschenMitKautionen", () => {
   it("asks the database for the impact of exactly these IDs", async () => {
     mockAction.mockResolvedValue({ success: true, data: auswirkung({}, 0) });
 
-    await bestaetigeLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B]);
+    await pruefeLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B]);
 
     expect(mockAction).toHaveBeenCalledWith({ tabelle: "Haeuser", ids: [HAUS_A, HAUS_B] });
   });
@@ -66,67 +66,97 @@ describe("bestaetigeLoeschenMitKautionen", () => {
     ["only deposits without bookings", auswirkung({}, 0)],
     ["no deposits at all", auswirkung({ kautionen: { ...auswirkung().kautionen!, anzahl: 0, ohne_buchungen: 0, mit_buchungen: 0 } })],
     ["no right to see deposits", auswirkung({ kautionen_sichtbar: false, kautionen: null, pruefsumme: null })],
-  ])("%s: proceeds without a dialog and without checksums", async (_name, impact) => {
+  ])("%s: no impact to confirm", async (_name, impact) => {
     mockAction.mockResolvedValue({ success: true, data: impact });
 
-    const result = await bestaetigeLoeschenMitKautionen("Haeuser", [HAUS_A]);
+    await expect(pruefeLoeschenMitKautionen("Haeuser", [HAUS_A])).resolves.toEqual({ ok: true, auswirkung: null });
+  });
 
-    expect(result).toEqual({ ok: true, pruefsummen: {} });
-    expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+  it("with deposits with bookings: returns the impact", async () => {
+    const impact = auswirkung();
+    mockAction.mockResolvedValue({ success: true, data: impact });
+
+    await expect(pruefeLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B])).resolves.toEqual({ ok: true, auswirkung: impact });
   });
 
   it("without the module right (42501) proceeds silently with the usual deletion", async () => {
     mockAction.mockResolvedValue({ success: false, error: { code: "42501", message: "Keine Berechtigung" } });
 
-    const result = await bestaetigeLoeschenMitKautionen("Mieter", [HAUS_A]);
-
-    expect(result).toEqual({ ok: true, pruefsummen: {} });
+    await expect(pruefeLoeschenMitKautionen("Mieter", [HAUS_A])).resolves.toEqual({ ok: true, auswirkung: null });
     expect(mockToast).not.toHaveBeenCalled();
   });
 
   it("any other error shows its message and stops (nothing is deleted)", async () => {
     mockAction.mockResolvedValue({ success: false, error: { code: "KA002", message: "Kein Zugriff auf dieses Objekt." } });
 
-    const result = await bestaetigeLoeschenMitKautionen("Mieter", [HAUS_A]);
-
-    expect(result).toEqual({ ok: false });
+    await expect(pruefeLoeschenMitKautionen("Mieter", [HAUS_A])).resolves.toEqual({ ok: false });
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: "Kein Zugriff auf dieses Objekt.", variant: "destructive" }));
   });
 
   it("an exception of the action shows the generic message and stops", async () => {
     mockAction.mockRejectedValue(new Error("Netzwerk"));
 
-    const result = await bestaetigeLoeschenMitKautionen("Mieter", [HAUS_A]);
-
-    expect(result).toEqual({ ok: false });
+    await expect(pruefeLoeschenMitKautionen("Mieter", [HAUS_A])).resolves.toEqual({ ok: false });
     expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: KAUTION_FEHLER_FALLBACK_MESSAGE }));
   });
+});
 
-  it("with deposits with bookings: opens the overview and waits; confirming returns the checksum per ID", async () => {
+describe("starteLoeschenMitKautionen", () => {
+  const handlers = () => ({ einfach: jest.fn(), loeschen: jest.fn() });
+
+  it("without booked deposits: asks the usual question (einfach), no overview, no deletion yet", async () => {
+    mockAction.mockResolvedValue({ success: true, data: auswirkung({}, 0) });
+    const h = handlers();
+
+    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
+
+    expect(h.einfach).toHaveBeenCalledTimes(1);
+    expect(h.loeschen).not.toHaveBeenCalled();
+    expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+  });
+
+  it("an error stops everything: neither question nor deletion", async () => {
+    mockAction.mockResolvedValue({ success: false, error: { code: "KA002", message: "Kein Zugriff auf dieses Objekt." } });
+    const h = handlers();
+
+    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
+
+    expect(h.einfach).not.toHaveBeenCalled();
+    expect(h.loeschen).not.toHaveBeenCalled();
+  });
+
+  it("with booked deposits: opens the overview INSTEAD of the usual question; confirming deletes with the checksum per ID", async () => {
     mockAction.mockResolvedValue({ success: true, data: auswirkung() });
+    const h = handlers();
 
-    const pending = bestaetigeLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B]);
+    const pending = starteLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B], h);
     await Promise.resolve();
     await Promise.resolve();
 
     const state = useModalStore.getState();
     expect(state.isLoeschUebersichtOpen).toBe(true);
     expect(state.loeschUebersichtConfig?.auswirkung.anzahl_mieter).toBe(4);
+    expect(h.einfach).not.toHaveBeenCalled();
 
     state.loeschUebersichtConfig?.onEntscheidung(true);
+    await pending;
 
-    await expect(pending).resolves.toEqual({ ok: true, pruefsummen: { [HAUS_A]: SUMME_A, [HAUS_B]: SUMME_B } });
+    expect(h.einfach).not.toHaveBeenCalled();
+    expect(h.loeschen).toHaveBeenCalledWith({ [HAUS_A]: SUMME_A, [HAUS_B]: SUMME_B });
   });
 
-  it("cancelling the overview returns ok: false", async () => {
+  it("cancelling the overview deletes nothing and asks nothing", async () => {
     mockAction.mockResolvedValue({ success: true, data: auswirkung() });
+    const h = handlers();
 
-    const pending = bestaetigeLoeschenMitKautionen("Haeuser", [HAUS_A]);
+    const pending = starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
     await Promise.resolve();
     await Promise.resolve();
     useModalStore.getState().loeschUebersichtConfig?.onEntscheidung(false);
+    await pending;
 
-    await expect(pending).resolves.toEqual({ ok: false });
+    expect(h.einfach).not.toHaveBeenCalled();
+    expect(h.loeschen).not.toHaveBeenCalled();
   });
 });
 

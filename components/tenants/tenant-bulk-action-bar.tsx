@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { updateTenantApartment } from "@/app/mieter-actions"
-import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
 import { formatBulkDeleteSuffix, formatFailureReasons, stripDbCodePrefix } from "@/lib/bulk-delete-summary"
 
 interface TenantBulkActionBarProps {
@@ -58,20 +58,18 @@ export function TenantBulkActionBar({
       });
       return;
     }
-    setIsDeleteDialogOpen(true);
+    // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+    void starteLoeschenMitKautionen("Mieter", Array.from(selectedTenants), {
+      einfach: () => setIsDeleteDialogOpen(true),
+      loeschen: handleConfirmDelete,
+    });
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (pruefsummen: Record<string, string> = {}) => {
     setIsDeleting(true);
 
     try {
       const ids = Array.from(selectedTenants);
-      // Betroffene Kautionen mit Buchungen müssen vor dem Löschen bestätigt werden (bei Abbruch wird nichts gelöscht).
-      const bestaetigung = await bestaetigeLoeschenMitKautionen("Mieter", ids);
-      if (!bestaetigung.ok) {
-        setIsDeleteDialogOpen(false);
-        return;
-      }
 
       const response = await fetch('/api/mieter/bulk-delete', {
         method: 'POST',
@@ -80,7 +78,7 @@ export function TenantBulkActionBar({
         },
         body: JSON.stringify({
           ids,
-          pruefsummen: bestaetigung.pruefsummen
+          pruefsummen
         }),
       });
 
@@ -300,7 +298,7 @@ export function TenantBulkActionBar({
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={handleConfirmDelete}
+                onClick={() => handleConfirmDelete()}
                 disabled={isDeleting}
               >
                 {isDeleting ? (

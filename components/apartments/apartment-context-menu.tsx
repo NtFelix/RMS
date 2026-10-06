@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
-import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import type { Apartment } from "@/components/tables/apartment-table"; // Import the shared type
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 // Remove local Apartment interface definition
@@ -50,13 +50,10 @@ export function ApartmentContextMenu({
   const [isDeleting, setIsDeleting] = React.useState(false)
   const { openZaehlerModal } = useModalStore()
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Record<string, string> = {}) => {
     try {
       setIsDeleting(true);
-      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen; bei Abbruch wird nichts gelöscht
-      const bestaetigung = await bestaetigeLoeschenMitKautionen("Wohnungen", [apartment.id]);
-      if (!bestaetigung.ok) return;
-      const result = await loescheWohnung(apartment.id, bestaetigung.pruefsummen[apartment.id]);
+      const result = await loescheWohnung(apartment.id, pruefsummen[apartment.id]);
 
       if (result.success) {
         toast({
@@ -86,6 +83,10 @@ export function ApartmentContextMenu({
       setDeleteDialogOpen(false);
     }
   };
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () =>
+    starteLoeschenMitKautionen("Wohnungen", [apartment.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
 
   return (
     <>
@@ -121,7 +122,7 @@ export function ApartmentContextMenu({
           )}
           <ContextMenuSeparator />
           <ContextMenuItem
-            onClick={() => setDeleteDialogOpen(true)}
+            onClick={handleDeleteStart}
             disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
@@ -141,7 +142,7 @@ export function ApartmentContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleDelete()} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
               {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>

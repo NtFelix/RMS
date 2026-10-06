@@ -12,15 +12,15 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TenantBulkActionBar } from "@/components/tenants/tenant-bulk-action-bar";
 import { toast } from "@/hooks/use-toast";
-import { bestaetigeLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
 import type { Tenant } from "@/types/Tenant";
 
 jest.mock("@/hooks/use-toast", () => ({ toast: jest.fn(), useToast: jest.fn() }));
 jest.mock("@/app/mieter-actions", () => ({ updateTenantApartment: jest.fn() }));
 
-jest.mock("@/lib/kautionen-loeschen", () => ({ bestaetigeLoeschenMitKautionen: jest.fn() }));
+jest.mock("@/lib/kautionen-loeschen", () => ({ starteLoeschenMitKautionen: jest.fn() }));
 
-const bestaetigeMock = bestaetigeLoeschenMitKautionen as jest.MockedFunction<typeof bestaetigeLoeschenMitKautionen>;
+const startMock = starteLoeschenMitKautionen as jest.MockedFunction<typeof starteLoeschenMitKautionen>;
 const toastMock = toast as unknown as jest.Mock;
 const fetchMock = jest.fn();
 
@@ -75,8 +75,8 @@ async function loescheUndBestaetige() {
 
 beforeEach(() => {
   jest.resetAllMocks();
-  // Standard: keine Kaution mit Buchungen betroffen, die Löschung wird ohne Rückfrage bestätigt.
-  bestaetigeMock.mockResolvedValue({ ok: true, pruefsummen: {} });
+  // Standard: keine Kaution mit Buchungen betroffen, es erscheint die übliche Frage.
+  startMock.mockImplementation(async (_tabelle, _ids, handlers) => handlers.einfach());
   global.fetch = fetchMock as unknown as typeof fetch;
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -98,33 +98,35 @@ describe("TenantBulkActionBar: Löschen", () => {
     expect(url).toBe("/api/mieter/bulk-delete");
     expect(options.method).toBe("POST");
     expect(JSON.parse(options.body)).toEqual({ ids: ["t-1", "t-2", "t-3"], pruefsummen: {} });
-    expect(bestaetigeMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"]);
+    expect(startMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"], expect.any(Object));
   });
 
-  it("sendet die bestätigten Prüfsummen der Kautionen-Übersicht mit", async () => {
-    bestaetigeMock.mockResolvedValue({ ok: true, pruefsummen: { "t-1": "abc", "t-3": "def" } });
+  it("mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht sendet ihre Prüfsummen mit", async () => {
+    startMock.mockImplementation(async (_tabelle, _ids, handlers) => handlers.loeschen({ "t-1": "abc", "t-3": "def" }));
     antwortet({ status: 200, body: { successCount: 3, errorCount: 0, reasons: [] } });
     renderBar();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-    await loescheUndBestaetige();
+    await user.click(screen.getByRole("button", { name: /^Löschen \(\d+\)$/ }));
 
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryAllByText("Wird gelöscht...")).toHaveLength(0));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
       ids: ["t-1", "t-2", "t-3"],
       pruefsummen: { "t-1": "abc", "t-3": "def" },
     });
   });
 
-  it("löscht nichts, schließt den Dialog und setzt den Ladezustand zurück, wenn die Bestätigung abgebrochen wird", async () => {
-    bestaetigeMock.mockResolvedValue({ ok: false });
+  it("löscht nichts und zeigt keine Frage, wenn die Übersicht abgebrochen wird", async () => {
+    startMock.mockImplementation(async () => undefined);
     const { onClearSelection, onUpdate } = renderBar();
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     await user.click(screen.getByRole("button", { name: /^Löschen \(\d+\)$/ }));
-    await screen.findByRole("dialog");
-    await user.click(await screen.findByRole("button", { name: "Löschen bestätigen" }));
 
-    await waitFor(() => expect(bestaetigeMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"]));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(startMock).toHaveBeenCalledWith("Mieter", ["t-1", "t-2", "t-3"], expect.any(Object)));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryAllByText("Wird gelöscht...")).toHaveLength(0);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(onClearSelection).not.toHaveBeenCalled();
