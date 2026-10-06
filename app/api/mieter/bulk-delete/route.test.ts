@@ -94,7 +94,8 @@ describe('POST /api/mieter/bulk-delete', () => {
     const response = await POST(jsonRequest({ ids: ['m1'], pruefsummen: { m1: pruefsumme } }));
     const body = await response.json();
 
-    expect(response.status).toBe(500);
+    // Eine nicht bestätigte bzw. veraltete Auswirkung ist eine fachliche Ablehnung (409), kein Serverfehler
+    expect(response.status).toBe(409);
     expect(body.reasons ?? [body.error]).toEqual(expect.arrayContaining([expect.stringContaining('Die Auswirkung hat sich inzwischen geändert.')]));
   });
 

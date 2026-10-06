@@ -45,6 +45,7 @@ import {
 import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError, type KautionRpcError } from "@/lib/kautionen-errors";
 import { centsToDecimalString, getMoneyInputError, parseMoneyInput } from "@/lib/kautionen-money";
 import { checkKautionScope } from "@/lib/kautionen-scope";
+import { chunkIds, mergeLoeschauswirkung } from "@/lib/kautionen-loeschauswirkung";
 import { validateKautionDatum, validateKautionText, validateUuid } from "@/lib/kautionen-validation";
 import type {
   KautionAbzugKategorie,
@@ -378,12 +379,15 @@ export async function getKautionDetailsAction(
 
 export interface KautionLoeschauswirkungInput {
   tabelle: KautionLoeschTabelle;
-  /** 1 to 200 IDs of the same table (bulk deletion: one overview for all of them). */
+  /** IDs of the same table (bulk deletion: one overview for all of them). */
   ids: string[];
 }
 
-/** Same limit as the database function (`get_kautionen_loeschauswirkung`). */
-const MAX_LOESCH_IDS = 200;
+/** Limit of the database function (`get_kautionen_loeschauswirkung`) per request: larger selections are requested in chunks. */
+const MAX_LOESCH_IDS_JE_ANFRAGE = 200;
+
+/** Upper bound of one overview (a selection beyond this is not offered for deletion in one go). */
+const MAX_LOESCH_IDS = 2000;
 
 const LOESCH_TABELLEN: readonly string[] = ["Haeuser", "Wohnungen", "Mieter"];
 
@@ -419,11 +423,16 @@ export async function getKautionLoeschauswirkungAction(
         if (!ids.includes(id.value)) ids.push(id.value);
       }
 
-      const result = await callRpc(supabase, "get_kautionen_loeschauswirkung", { p_tabelle: raw.tabelle, p_ids: ids });
-      if (!result.ok) return fail(result.error);
-      const data = asRecord(result.data);
-      if (typeof data.anzahl_mieter !== "number" || !Array.isArray(data.eintraege)) return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
-      return { ok: true, data: data as unknown as KautionLoeschauswirkung };
+      // The database function takes at most 200 IDs: a larger selection is asked for in chunks and combined here (on the server).
+      const teile: KautionLoeschauswirkung[] = [];
+      for (const chunk of chunkIds(ids, MAX_LOESCH_IDS_JE_ANFRAGE)) {
+        const result = await callRpc(supabase, "get_kautionen_loeschauswirkung", { p_tabelle: raw.tabelle, p_ids: chunk });
+        if (!result.ok) return fail(result.error);
+        const data = asRecord(result.data);
+        if (typeof data.anzahl_mieter !== "number" || !Array.isArray(data.eintraege)) return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+        teile.push(data as unknown as KautionLoeschauswirkung);
+      }
+      return { ok: true, data: mergeLoeschauswirkung(teile) };
     },
   });
 }

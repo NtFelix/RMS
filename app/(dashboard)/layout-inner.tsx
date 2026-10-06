@@ -112,6 +112,9 @@ export default function DashboardInnerLayout({
 
     // Trash Bin Modal State
     isTrashBinModalOpen,
+
+    // Löschen mit Kautionsübersicht
+    isLoeschUebersichtOpen,
   } = useModalStore()
 
   return (
@@ -149,7 +152,7 @@ export default function DashboardInnerLayout({
         {/* KautionDialog - Kautionsmanagement (GH-6); lädt seine Daten selbst über die Server Actions in app/kautionen-actions.ts */}
         <KautionDialog />
         {/* Übersicht "Kautionen werden mitgelöscht": erscheint beim Löschen von Haus/Wohnung/Mieter mit gebuchter Kaution (lib/kautionen-loeschen.ts) */}
-        <KautionLoeschUebersichtDialog />
+        {isLoeschUebersichtOpen && <KautionLoeschUebersichtDialog />}
         {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
         <HausOverviewModal />
         {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}

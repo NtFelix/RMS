@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,24 @@ export function KautionLoeschUebersichtDialog() {
     config?.onEntscheidung(bestaetigt);
     closeLoeschUebersicht();
   };
+
+  // Der Dialog gehört zum Layout und bleibt beim Seitenwechsel bestehen, die anfragende Seite nicht: Wechselt die Seite, während die
+  // Übersicht offen ist, gilt das als Abbruch (sonst löschte eine spätere Bestätigung etwas, das der Nutzer nicht mehr vor sich hat).
+  const pathname = usePathname();
+  const pfadBeimOeffnen = useRef<string | null>(null);
+  useEffect(() => {
+    if (!config) {
+      pfadBeimOeffnen.current = null;
+      return;
+    }
+    if (pfadBeimOeffnen.current === null) {
+      pfadBeimOeffnen.current = pathname;
+    } else if (pfadBeimOeffnen.current !== pathname) {
+      pfadBeimOeffnen.current = null;
+      config.onEntscheidung(false);
+      closeLoeschUebersicht();
+    }
+  }, [config, pathname, closeLoeschUebersicht]);
 
   return (
     <AlertDialog open={isOpen && config !== null} onOpenChange={(open) => !open && entscheide(false)}>

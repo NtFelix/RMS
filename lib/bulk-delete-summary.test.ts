@@ -5,6 +5,7 @@ import {
   formatBulkDeleteSuffix,
   formatFailureReasons,
   isDeleteBlockedError,
+  isDeleteForbiddenError,
   parsePruefsummen,
   stripDbCodePrefix,
   summarizeBulkDeleteResults,
@@ -17,6 +18,52 @@ const failed = (message?: string): PromiseFulfilledResult<{ success: boolean; er
   value: { success: false, error: message === undefined ? undefined : { message } },
 });
 const rejected = (): PromiseRejectedResult => ({ status: "rejected", reason: new Error("netzwerk") });
+
+describe("KA016 and 42501 in bulk deletions", () => {
+  const withCode = (code: string, message: string) => Object.assign(new Error(message), { code });
+
+  it("treats a stale or missing confirmation (KA016) as a business rejection like KA009", () => {
+    expect(isDeleteBlockedError(withCode("KA016", "x"))).toBe(true);
+    expect(isDeleteBlockedError(withCode("KA009", "x"))).toBe(true);
+    expect(isDeleteBlockedError(withCode("55P03", "x"))).toBe(false);
+  });
+
+  it("recognises a missing permission (42501)", () => {
+    expect(isDeleteForbiddenError(withCode("42501", "x"))).toBe(true);
+    expect(isDeleteForbiddenError(withCode("KA016", "x"))).toBe(false);
+    expect(isDeleteForbiddenError(null)).toBe(false);
+  });
+
+  it("answers 409 when every deletion fails with KA016", () => {
+    const summary = summarizeSettledDeletes([
+      { status: "rejected", reason: withCode("KA016", "Die Auswirkung hat sich geändert.") },
+      { status: "rejected", reason: withCode("KA016", "Die Auswirkung hat sich geändert.") },
+    ]);
+
+    const response = buildBulkDeleteResponse(summary, "Fehler");
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe("Die Auswirkung hat sich geändert.");
+  });
+
+  it("answers 403 when every deletion fails with a missing permission", () => {
+    const summary = summarizeSettledDeletes([{ status: "rejected", reason: withCode("42501", "Keine Berechtigung für Kautionen.") }]);
+
+    expect(summary.forbidden).toBe(true);
+    expect(buildBulkDeleteResponse(summary, "Fehler").status).toBe(403);
+  });
+
+  it("a business rejection wins over a missing permission, a partial success stays 200", () => {
+    const gemischt = summarizeSettledDeletes([
+      { status: "rejected", reason: withCode("KA016", "a") },
+      { status: "rejected", reason: withCode("42501", "b") },
+    ]);
+    const teilerfolg = summarizeSettledDeletes([{ status: "fulfilled", value: undefined }, { status: "rejected", reason: withCode("42501", "b") }]);
+
+    expect(buildBulkDeleteResponse(gemischt, "Fehler").status).toBe(409);
+    expect(buildBulkDeleteResponse(teilerfolg, "Fehler").status).toBe(200);
+  });
+});
 
 describe("parsePruefsummen", () => {
   const SUMME = "0123456789abcdef0123456789abcdef";
@@ -141,13 +188,14 @@ describe("summarizeSettledDeletes", () => {
       errorCount: 3,
       reasons: ["Der Mieter hat eine hinterlegte Kaution.", "Keine Berechtigung"],
       blocked: true,
+      forbidden: false,
     });
   });
 
   it("is not blocked when the failures are technical", () => {
     const summary = summarizeSettledDeletes([rejectedWith("Zeitüberschreitung", "57014"), { status: "rejected", reason: "kein Error-Objekt" }]);
 
-    expect(summary).toEqual({ successCount: 0, errorCount: 2, reasons: ["Zeitüberschreitung"], blocked: false });
+    expect(summary).toEqual({ successCount: 0, errorCount: 2, reasons: ["Zeitüberschreitung"], blocked: false, forbidden: false });
   });
 
   it("removes a prefix that only appears in the raw message of a plain error", () => {

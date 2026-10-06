@@ -128,6 +128,17 @@ describe('softDeleteEntryAction', () => {
       expect(mockRevalidatePath).not.toHaveBeenCalled();
     });
 
+    it.each(['PGRST202', '42883'])('meldet eine fehlende Datenbankfunktion (%s) klar und auf Deutsch', async (code) => {
+      mockClient({ error: { code, message: 'Could not find the function public.soft_delete_mit_kautionen in the schema cache' } });
+
+      const fehler = await softDeleteEntryAction('Haeuser', HAUS_ID).catch((error: unknown) => error);
+
+      expect((fehler as Error).message).toContain('Datenbankfunktion ist noch nicht eingespielt');
+      expect((fehler as Error).message).not.toContain('schema cache');
+      expect((fehler as Error & { code?: string }).code).toBe(code);
+      expect(mockRevalidatePath).not.toHaveBeenCalled();
+    });
+
     it('setzt bei einem technischen Fehler keinen Löschsperren-Code', async () => {
       mockClient({ error: { message: 'connection reset' } });
 

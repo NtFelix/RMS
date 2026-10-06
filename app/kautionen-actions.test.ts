@@ -1074,14 +1074,63 @@ describe("getKautionLoeschauswirkungAction", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it("rejects more than 200 IDs", async () => {
-    const ids = Array.from({ length: 201 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`);
+  const mieterIds = (anzahl: number) =>
+    Array.from({ length: anzahl }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`);
 
-    const result = await getKautionLoeschauswirkungAction({ tabelle: "Mieter", ids });
+  const teilAuswirkung = (anzahlMieter: number, idPrefix: string) => ({
+    ...LOESCH_AUSWIRKUNG,
+    tabelle: "Mieter",
+    anzahl_haeuser: 0,
+    anzahl_wohnungen: 0,
+    anzahl_mieter: anzahlMieter,
+    kautionen: {
+      anzahl: anzahlMieter,
+      ohne_buchungen: 0,
+      mit_buchungen: anzahlMieter,
+      konto_noch_offen: 10.1,
+      konto_verwahrt: 20.2,
+      dokumentiert_anzahl: 0,
+      dokumentiert_summe: 0,
+      mit_saldo_anzahl: anzahlMieter,
+      mit_buchungen_gekuerzt: false,
+      mit_buchungen_liste: [],
+    },
+    pruefsumme: "ffffffffffffffffffffffffffffffff",
+    eintraege: [{ id: idPrefix, anzahl_mieter: anzahlMieter, mit_buchungen: anzahlMieter, pruefsumme: "0123456789abcdef0123456789abcdef" }],
+  });
+
+  it("asks for more than 200 IDs in chunks of 200 and combines the answers on the server", async () => {
+    rpcOk(teilAuswirkung(200, "erster"));
+    rpcOk(teilAuswirkung(50, "zweiter"));
+
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Mieter", ids: mieterIds(250) });
+
+    expect(result.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+    expect((mockRpc.mock.calls[0][1] as { p_ids: string[] }).p_ids).toHaveLength(200);
+    expect((mockRpc.mock.calls[1][1] as { p_ids: string[] }).p_ids).toHaveLength(50);
+    expect(result.data?.anzahl_mieter).toBe(250);
+    expect(result.data?.kautionen?.konto_verwahrt).toBe(40.4);
+    expect(result.data?.eintraege.map((eintrag) => eintrag.id)).toEqual(["erster", "zweiter"]);
+  });
+
+  it("stops at the first failing chunk", async () => {
+    rpcOk(teilAuswirkung(200, "erster"));
+    rpcError("KA002", "KAUT_OBJEKTZUGRIFF: Kein Zugriff auf dieses Objekt.");
+
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Mieter", ids: mieterIds(250) });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.code).toBe("KA002");
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects more than 2000 IDs without calling the database", async () => {
+    const result = await getKautionLoeschauswirkungAction({ tabelle: "Mieter", ids: mieterIds(2001) });
 
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe("KA004");
-    expect(result.error?.message).toContain("200");
+    expect(result.error?.message).toContain("2000");
     expect(mockRpc).not.toHaveBeenCalled();
   });
 

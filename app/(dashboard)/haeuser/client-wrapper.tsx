@@ -873,11 +873,17 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
 
     dispatchBulk({ type: "SET_BULK_DELETING", payload: true });
     const selectedIds = Array.from(selectedHouses);
+    let abgebrochen = false;
 
     try {
-      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen (bei Abbruch wird nichts gelöscht; finally setzt den Zustand zurück)
+      // Kautionen mit Buchungen: erst Übersicht bestätigen lassen. Bei Abbruch wird nichts gelöscht und die Auswahl bleibt erhalten.
       const bestaetigung = await bestaetigeLoeschenMitKautionen("Haeuser", selectedIds);
-      if (!bestaetigung.ok) return;
+      if (!bestaetigung.ok) {
+        abgebrochen = true;
+        dispatchBulk({ type: "SET_BULK_DELETING", payload: false });
+        dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: false });
+        return;
+      }
 
       const response = await fetch('/api/haeuser/bulk-delete', {
         method: 'POST',
@@ -909,7 +915,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
         variant: "destructive",
       });
     } finally {
-      dispatchBulk({ type: "RESET_BULK" });
+      if (!abgebrochen) dispatchBulk({ type: "RESET_BULK" });
     }
   }, [selectedHouses, router, refreshTable]);
 

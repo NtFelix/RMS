@@ -430,8 +430,10 @@ describe('HaeuserClientView', () => {
 
       await waitFor(() => expect(mockBestaetige).toHaveBeenCalledWith('Haeuser', ['1']));
       expect(mockFetch).not.toHaveBeenCalled();
-      // Zustand zurückgesetzt: kein hängender Ladezustand
+      // Kein hängender Ladezustand, die Bestätigungsfrage ist zu und die Auswahl bleibt erhalten (kein erneutes Auswählen nötig)
       await waitFor(() => expect(screen.queryByText('Lösche...')).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByRole('button', { name: '1 Häuser löschen' })).not.toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /Löschen \(1\)/ })).toBeInTheDocument();
     });
 
     it('sends the checksums to the bulk route when confirmed', async () => {
@@ -442,6 +444,8 @@ describe('HaeuserClientView', () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(mockBestaetige).toHaveBeenCalledWith('Haeuser', ['1']);
       expect(body).toEqual({ ids: ['1'], pruefsummen: { '1': 'abc' } });
+      // Nach einer Löschung wird die Auswahl zurückgesetzt
+      await waitFor(() => expect(screen.queryByRole('button', { name: /Löschen \(1\)/ })).not.toBeInTheDocument());
     });
   });
 });

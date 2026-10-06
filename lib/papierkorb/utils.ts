@@ -29,6 +29,13 @@ export async function softDeleteEntryAction(
   if (error) {
     // Nur Tabelle, Kennung und Code loggen (keine Inhalte der Datensätze).
     console.error('Error soft deleting record %s from %s: %s', recordId, tableName, error.code);
+    // Die Datenbankfunktion fehlt (App vor dem Datenbank-Update ausgerollt): eine klare Meldung statt des technischen Textes.
+    if (ueberKaskade && (error.code === 'PGRST202' || error.code === '42883')) {
+      throw createDeleteError(
+        'Das Löschen ist derzeit nicht möglich: Die benötigte Datenbankfunktion ist noch nicht eingespielt. Bitte versuchen Sie es später erneut oder wenden Sie sich an den Support.',
+        error.code
+      );
+    }
     throw createDeleteError(error.message, error.code);
   }
 

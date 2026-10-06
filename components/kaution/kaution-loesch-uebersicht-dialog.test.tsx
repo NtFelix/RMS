@@ -6,6 +6,9 @@ import type { KautionLoeschauswirkung } from "@/types/Kaution";
 // `jest.setup.js` ersetzt den Store global durch einen Mock: hier wird der echte Store verwendet.
 jest.mock("@/hooks/use-modal-store", () => jest.requireActual("@/hooks/use-modal-store"));
 
+let mockPathname = "/mieter";
+jest.mock("next/navigation", () => ({ usePathname: () => mockPathname }));
+
 const { useModalStore } = jest.requireActual<typeof import("@/hooks/use-modal-store")>("@/hooks/use-modal-store");
 
 function auswirkung(overrides: Partial<KautionLoeschauswirkung> = {}): KautionLoeschauswirkung {
@@ -45,6 +48,7 @@ function oeffne(impact: KautionLoeschauswirkung = auswirkung()) {
 }
 
 beforeEach(() => {
+  mockPathname = "/mieter";
   useModalStore.setState({ isLoeschUebersichtOpen: false, loeschUebersichtConfig: null });
 });
 
@@ -156,6 +160,30 @@ describe("KautionLoeschUebersichtDialog", () => {
 
     expect(onEntscheidung).toHaveBeenCalledWith(false);
     expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+  });
+
+  it("a change of the page while the overview is open counts as a cancellation", () => {
+    const { rerender } = render(<KautionLoeschUebersichtDialog />);
+    const onEntscheidung = oeffne();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    mockPathname = "/wohnungen";
+    rerender(<KautionLoeschUebersichtDialog />);
+
+    expect(onEntscheidung).toHaveBeenCalledWith(false);
+    expect(onEntscheidung).toHaveBeenCalledTimes(1);
+    expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("stays open and unanswered while the page does not change", () => {
+    const { rerender } = render(<KautionLoeschUebersichtDialog />);
+    const onEntscheidung = oeffne();
+
+    rerender(<KautionLoeschUebersichtDialog />);
+
+    expect(onEntscheidung).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
 
   it("a new request starts with an empty confirmation field", async () => {
