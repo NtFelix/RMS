@@ -416,12 +416,14 @@ export async function getKautionLoeschauswirkungAction(
       if (raw.ids.length > MAX_LOESCH_IDS) {
         return fail(invalid(`Bitte wählen Sie höchstens ${MAX_LOESCH_IDS} Einträge gleichzeitig aus.`));
       }
-      const ids: string[] = [];
+      // Set statt Array.includes: bis zu 2000 IDs, doppelte fallen weg (Reihenfolge bleibt erhalten)
+      const eindeutig = new Set<string>();
       for (const candidate of raw.ids) {
         const id = validateUuid(candidate, "ID");
         if (!id.ok) return fail(invalid(id.message));
-        if (!ids.includes(id.value)) ids.push(id.value);
+        eindeutig.add(id.value);
       }
+      const ids = Array.from(eindeutig);
 
       // The database function takes at most 200 IDs: a larger selection is asked for in chunks and combined here (on the server).
       const teile: KautionLoeschauswirkung[] = [];
