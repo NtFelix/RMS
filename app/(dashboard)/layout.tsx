@@ -1,9 +1,11 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
+import { KautionenRechtSync } from "@/components/kaution/kautionen-recht-sync"
 import DashboardInnerLayout from "./layout-inner"
 import { requireActiveSubscription } from "@/lib/server/route-access"
 import { getSidebarUserData } from "@/lib/server/user-data"
+import { canViewKautionen as ladeCanViewKautionen } from "@/lib/server/kautionen-recht"
 import { privateNoindexMetadata } from "@/lib/seo"
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -23,14 +25,22 @@ export default async function DashboardRootLayout({
   // This already fetches the user and profile, so we reuse them to avoid double fetching
   const { supabase, user, profile } = await requireActiveSubscription()
 
-  // Pre-fetch all sidebar data on server to prevent loading flickers
-  const sidebarData = await getSidebarUserData(supabase, user, profile)
+  // Pre-fetch all sidebar data on server to prevent loading flickers.
+  // Modulrecht `kautionen: ansehen` (GH-6): nur UX für global gemountete Fenster (Menüpunkt "Kaution" im
+  // Mieter-Bearbeiten-Fenster), unabhängig von der Seite. Der Kautionsdialog und die Datenbank prüfen erneut.
+  // Bewusst nicht Teil von `getSidebarUserData` (das Modul hat keine Route und gehört nicht zu den Sidebar-Modulen).
+  const [sidebarData, canViewKautionen] = await Promise.all([
+    getSidebarUserData(supabase, user, profile),
+    ladeCanViewKautionen(),
+  ])
 
   const nonce = (await headers()).get('x-nonce')
 
   return (
     <>
       <CSPNonceSync nonce={nonce} />
+      {/* Modulrecht "Kautionen" für global gemountete Fenster (Menüpunkt "Kaution" im Mieter-Bearbeiten-Fenster) */}
+      <KautionenRechtSync canViewKautionen={canViewKautionen} userId={user.id} />
       <DashboardInnerLayout sidebarData={sidebarData}>
         {children}
       </DashboardInnerLayout>

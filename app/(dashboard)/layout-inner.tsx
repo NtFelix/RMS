@@ -15,7 +15,6 @@ import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/act
 import { financeServerAction } from "@/app/finanzen-actions" // Added - Adjusted path due to tool limitation
 import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
-import { updateKautionAction } from "@/app/mieter-actions"; // Added
 
 // Lazy load modals
 const TenantEditModal = dynamic(() => import('@/components/tenants/tenant-edit-modal').then(mod => mod.TenantEditModal), { ssr: false })
@@ -26,7 +25,7 @@ const AufgabeEditModal = dynamic(() => import('@/components/tasks/aufgabe-edit-m
 const BetriebskostenEditModal = dynamic(() => import('@/components/finance/betriebskosten-edit-modal').then(mod => mod.BetriebskostenEditModal), { ssr: false })
 const AblesungenModal = dynamic(() => import('@/components/meters/ablesungen-modal').then(mod => mod.AblesungenModal), { ssr: false })
 const ZaehlerModal = dynamic(() => import('@/components/meters/zaehler-modal').then(mod => mod.ZaehlerModal), { ssr: false })
-const KautionModal = dynamic(() => import('@/components/tenants/kaution-modal').then(mod => mod.KautionModal), { ssr: false })
+const KautionDialog = dynamic(() => import('@/components/kaution/kaution-dialog').then(mod => mod.KautionDialog), { ssr: false })
 const HausOverviewModal = dynamic(() => import('@/components/houses/haus-overview-modal').then(mod => mod.HausOverviewModal), { ssr: false })
 const WohnungOverviewModal = dynamic(() => import('@/components/apartments/wohnung-overview-modal').then(mod => mod.WohnungOverviewModal), { ssr: false })
 const ApartmentTenantDetailsModal = dynamic(() => import('@/components/apartments/apartment-tenant-details-modal').then(mod => mod.ApartmentTenantDetailsModal), { ssr: false })
@@ -146,8 +145,8 @@ export default function DashboardInnerLayout({
         <ZaehlerModal />
         {/* AblesungenModal - Manages meter readings for all meter types */}
         <AblesungenModal />
-        {/* KautionModal - Handles kaution management */}
-        <KautionModal serverAction={updateKautionAction} />
+        {/* KautionDialog - Kautionsmanagement (GH-6); lädt seine Daten selbst über die Server Actions in app/kautionen-actions.ts */}
+        <KautionDialog />
         {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
         <HausOverviewModal />
         {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}
