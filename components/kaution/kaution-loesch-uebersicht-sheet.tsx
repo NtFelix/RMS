@@ -30,6 +30,14 @@ export function KautionLoeschUebersichtSheet() {
     closeLoeschUebersicht();
   };
 
+  // Beim Schließen ist `config` sofort null, die Seitenleiste soll aber während der Schließen-Animation noch ihren Inhalt zeigen:
+  // letzte Anfrage merken (Radix hängt den Inhalt nach der Animation aus, die Eingabe beginnt beim nächsten Öffnen leer).
+  const [letzteConfig, setLetzteConfig] = useState(config);
+  useEffect(() => {
+    if (config) setLetzteConfig(config);
+  }, [config]);
+  const angezeigt = config ?? letzteConfig;
+
   // Das Panel gehört zum Layout und bleibt beim Seitenwechsel bestehen, die anfragende Seite nicht: Wechselt die Seite, während die
   // Übersicht offen ist, gilt das als Abbruch (sonst löschte eine spätere Bestätigung etwas, das der Nutzer nicht mehr vor sich hat).
   const pathname = usePathname();
@@ -51,7 +59,7 @@ export function KautionLoeschUebersichtSheet() {
   return (
     <Sheet open={isOpen && config !== null} onOpenChange={(open) => !open && entscheide(false)}>
       <SheetContent id="kaution-loesch-uebersicht" className="w-full sm:max-w-xl flex flex-col h-full p-0 gap-0">
-        {config ? <UebersichtInhalt key={config.auswirkung.pruefsumme ?? "ohne"} config={config} onEntscheidung={entscheide} /> : null}
+        {angezeigt ? <UebersichtInhalt key={angezeigt.auswirkung.pruefsumme ?? "ohne"} config={angezeigt} onEntscheidung={entscheide} /> : null}
       </SheetContent>
     </Sheet>
   );
