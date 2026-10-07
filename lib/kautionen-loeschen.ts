@@ -64,8 +64,8 @@ interface LoeschenStartHandlers {
   loeschen: (pruefsummen: Pruefsummen) => void | Promise<void>;
 }
 
-// A second press while the impact is still loading (or the overview is open) is ignored: one start at a time.
-let startLaeuft = false;
+// Der letzte Start gewinnt: Ein zweiter Klick löst den ersten ab (bleibt ein Start hängen, blockiert er nichts).
+let letzterStart = 0;
 
 /**
  * Call when the user presses "Löschen" (BEFORE any question): loads the impact first, then shows exactly ONE dialog.
@@ -74,18 +74,20 @@ let startLaeuft = false;
  * an error deletes nothing.
  */
 export async function starteLoeschenMitKautionen(tabelle: KautionLoeschTabelle, ids: string[], handlers: LoeschenStartHandlers): Promise<void> {
-  if (startLaeuft) return;
-  startLaeuft = true;
+  const start = ++letzterStart;
+  // Rückmeldung, solange die Auswirkung geladen wird (zentral, ohne Ladezustand an jeder Stelle)
+  if (typeof document !== "undefined") document.body.style.cursor = "progress";
+  let vorab: Awaited<ReturnType<typeof pruefeLoeschenMitKautionen>>;
   try {
-    const vorab = await pruefeLoeschenMitKautionen(tabelle, ids);
-    if (!vorab.ok) return;
-    if (!vorab.auswirkung) {
-      handlers.einfach();
-      return;
-    }
-    const pruefsummen = await zeigeLoeschUebersicht(vorab.auswirkung);
-    if (pruefsummen) await handlers.loeschen(pruefsummen);
+    vorab = await pruefeLoeschenMitKautionen(tabelle, ids);
   } finally {
-    startLaeuft = false;
+    if (typeof document !== "undefined") document.body.style.cursor = "";
   }
+  if (start !== letzterStart || !vorab.ok) return;
+  if (!vorab.auswirkung) {
+    handlers.einfach();
+    return;
+  }
+  const pruefsummen = await zeigeLoeschUebersicht(vorab.auswirkung);
+  if (pruefsummen && start === letzterStart) await handlers.loeschen(pruefsummen);
 }

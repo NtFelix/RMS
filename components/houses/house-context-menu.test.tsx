@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { HouseContextMenu } from './house-context-menu';
 import { deleteHouseAction } from '@/app/(dashboard)/haeuser/actions';
 import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
@@ -27,7 +27,11 @@ function renderMenu(onRefresh = jest.fn()) {
 }
 
 async function klickeLoeschen() {
-  fireEvent.click(await screen.findByRole('menuitem', { name: 'Löschen' }));
+  const eintrag = await screen.findByRole('menuitem', { name: 'Löschen' });
+  // act: der Handler läuft (mit gemockten Helfern) sofort weiter und setzt Zustand
+  await act(async () => {
+    fireEvent.click(eintrag);
+  });
 }
 
 describe('HouseContextMenu delete with Kautionen overview', () => {
@@ -59,11 +63,14 @@ describe('HouseContextMenu delete with Kautionen overview', () => {
 
   it('with booked deposits: no second question, the confirmed overview deletes with the checksum', async () => {
     mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ 'house-1': 'abc' }));
-    renderMenu();
+    const onRefresh = jest.fn();
+    renderMenu(onRefresh);
     await klickeLoeschen();
 
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('house-1', 'abc'));
     expect(screen.queryByText('Haus löschen?')).not.toBeInTheDocument();
+    // Handler vollständig durchgelaufen (Zustand im finally zurückgesetzt), sonst endet der Test mit Updates außerhalb von act()
+    await waitFor(() => expect(onRefresh).toHaveBeenCalled());
   });
 
   it('cancelled overview or error: nothing is deleted and no question is shown', async () => {

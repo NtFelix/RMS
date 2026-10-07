@@ -157,6 +157,8 @@ describe('ApartmentContextMenu', () => {
 
       await waitFor(() => expect(mockLoescheWohnung).toHaveBeenCalledWith(mockApartment.id, 'abc'));
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      // Handler vollständig durchgelaufen (Zustand im finally zurückgesetzt), sonst endet der Test mit Updates außerhalb von act()
+      await waitFor(() => expect(mockOnRefresh).toHaveBeenCalled());
     });
 
     it('löscht nichts und zeigt keine Frage, wenn abgebrochen wird', async () => {

@@ -104,7 +104,7 @@ const PASS_THROUGH = new Map<string, PassThroughEntry>([
   ["KA013", { fallback: "Das Datum ist ungültig.", verhalten: "formular" }],
   ["KA014", { fallback: "Diese Kautionsart führt kein Konto.", verhalten: "formular" }],
   ["KA015", { fallback: "Diese Funktion ist noch nicht verfügbar.", verhalten: "formular" }],
-  ["KA016", { fallback: "Die Auswirkung hat sich geändert. Bitte prüfen Sie die Übersicht erneut.", verhalten: "toast" }],
+  ["KA016", { fallback: "Die Kautionen haben sich geändert. Bitte klicken Sie erneut auf „Löschen“, um die Übersicht zu sehen.", verhalten: "toast" }],
 ]);
 
 /** PostgREST codes for an invalid (`PGRST301`) or expired (`PGRST303`) JWT: the user has to sign in again. */

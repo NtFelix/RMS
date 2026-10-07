@@ -114,13 +114,15 @@ describe('TenantContextMenu - Löschen mit Kautionen', () => {
   });
 
   function klickeLoeschen() {
+    const onRefresh = jest.fn();
     render(
-      <TenantContextMenu tenant={tenant} onEdit={jest.fn()} onRefresh={jest.fn()}>
+      <TenantContextMenu tenant={tenant} onEdit={jest.fn()} onRefresh={onRefresh}>
         <div>Zeile</div>
       </TenantContextMenu>
     );
     fireEvent.contextMenu(screen.getByText('Zeile'));
     fireEvent.click(screen.getByText('Löschen'));
+    return onRefresh;
   }
 
   it('lädt zuerst die Auswirkung des Mieters', async () => {
@@ -143,10 +145,12 @@ describe('TenantContextMenu - Löschen mit Kautionen', () => {
   it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme', async () => {
     mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ 'tenant-1': 'abc' }));
 
-    klickeLoeschen();
+    const onRefresh = klickeLoeschen();
 
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1', 'abc'));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    // Handler vollständig durchgelaufen (Zustand im finally zurückgesetzt), sonst endet der Test mit Updates außerhalb von act()
+    await waitFor(() => expect(onRefresh).toHaveBeenCalled());
   });
 
   it('löscht nichts und zeigt keine Frage, wenn die Übersicht abgebrochen wird oder die Abfrage scheitert', async () => {

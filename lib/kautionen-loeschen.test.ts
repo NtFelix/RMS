@@ -145,18 +145,33 @@ describe("starteLoeschenMitKautionen", () => {
     expect(h.loeschen).toHaveBeenCalledWith({ [HAUS_A]: SUMME_A, [HAUS_B]: SUMME_B });
   });
 
-  it("a second press while the impact is loading is ignored (one lookup, one dialog)", async () => {
+  it("a second press while the impact is loading supersedes the first (one dialog), and nothing stays blocked", async () => {
     mockAction.mockResolvedValue({ success: true, data: auswirkung({}, 0) });
-    const h = handlers();
+    const erster = handlers();
+    const zweiter = handlers();
 
-    await Promise.all([starteLoeschenMitKautionen("Haeuser", [HAUS_A], h), starteLoeschenMitKautionen("Haeuser", [HAUS_A], h)]);
+    await Promise.all([starteLoeschenMitKautionen("Haeuser", [HAUS_A], erster), starteLoeschenMitKautionen("Haeuser", [HAUS_A], zweiter)]);
 
-    expect(mockAction).toHaveBeenCalledTimes(1);
-    expect(h.einfach).toHaveBeenCalledTimes(1);
+    expect(erster.einfach).not.toHaveBeenCalled();
+    expect(zweiter.einfach).toHaveBeenCalledTimes(1);
 
-    // afterwards a new start works again
-    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
-    expect(h.einfach).toHaveBeenCalledTimes(2);
+    // a start that never finishes does not block later ones
+    mockAction.mockReturnValueOnce(new Promise(() => undefined));
+    void starteLoeschenMitKautionen("Haeuser", [HAUS_A], handlers());
+    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], zweiter);
+    expect(zweiter.einfach).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a progress cursor while the impact loads and resets it afterwards", async () => {
+    let fertig!: (v: unknown) => void;
+    mockAction.mockReturnValueOnce(new Promise((resolve) => { fertig = resolve; }));
+    const pending = starteLoeschenMitKautionen("Haeuser", [HAUS_A], handlers());
+
+    expect(document.body.style.cursor).toBe("progress");
+    fertig({ success: true, data: auswirkung({}, 0) });
+    await pending;
+
+    expect(document.body.style.cursor).toBe("");
   });
 
   it("cancelling the overview deletes nothing and asks nothing", async () => {
