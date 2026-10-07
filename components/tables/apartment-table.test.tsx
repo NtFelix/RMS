@@ -1,5 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ApartmentTable, Apartment } from './apartment-table'
+import { toast } from '@/hooks/use-toast'
 
 // Mock the context menu component
 jest.mock('@/components/apartments/apartment-context-menu', () => ({
@@ -192,5 +194,41 @@ describe('ApartmentTable Sorting', () => {
     expect(row3Cells[4]).toHaveTextContent('16,00 €/m²')
     expect(row3Cells[5]).toHaveTextContent('House 2')
     expect(row3Cells[6]).toHaveTextContent('vermietet')
+  })
+})
+
+// Löschen mehrerer Wohnungen (GH-6, Kautionsmanagement): Eine Wohnung kann abgelehnt werden, wenn ein Mieter darin eine
+// hinterlegte Kaution hat. Die Route meldet den Teilerfolg mit den Gründen, die Meldung nennt sie.
+describe('ApartmentTable bulk delete', () => {
+  const KAUTION_GRUND = 'Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden. Die Wohnung wurde nicht gelöscht.'
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  async function loescheAlleSichtbaren(antwort: unknown) {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve(antwort) }) as unknown as typeof fetch
+    const user = userEvent.setup()
+    render(<ApartmentTable filter="all" searchQuery="" initialApartments={mockApartments.slice(0, 2)} />)
+    await user.click(screen.getAllByRole('checkbox')[0]) // alle sichtbaren Wohnungen auswählen
+    await user.click(screen.getByRole('button', { name: 'Löschen' }))
+    await user.click(await screen.findByRole('button', { name: '2 Wohnungen löschen' }))
+    await waitFor(() => expect(toast).toHaveBeenCalled())
+  }
+
+  it('names the rejected deletion and its reason after a partial success', async () => {
+    await loescheAlleSichtbaren({ successCount: 1, errorCount: 1, reasons: [KAUTION_GRUND] })
+
+    expect(toast).toHaveBeenCalledWith({
+      title: 'Erfolg',
+      description: `1 Wohnungen erfolgreich gelöscht, 1 fehlgeschlagen. Grund: ${KAUTION_GRUND}`,
+      variant: 'success',
+    })
+  })
+
+  it('reports a complete success without failure text', async () => {
+    await loescheAlleSichtbaren({ successCount: 2, errorCount: 0, reasons: [] })
+
+    expect(toast).toHaveBeenCalledWith({ title: 'Erfolg', description: '2 Wohnungen erfolgreich gelöscht.', variant: 'success' })
   })
 })

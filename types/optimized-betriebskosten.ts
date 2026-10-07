@@ -12,7 +12,7 @@
  * @see .kiro/specs/betriebskosten-performance-optimization/design.md
  */
 
-import type { Nebenkosten, Mieter, Zaehler, ZaehlerAblesung, Rechnung, Finanzen } from "@/lib/types";
+import type { Nebenkosten, Mieter, Zaehler, ZaehlerAblesung, Rechnung, Finanzen, HaeuserAddress } from "@/lib/types";
 import type { Rechenbasis } from "@/utils/rechentage";
 
 /**
@@ -40,7 +40,7 @@ export type OptimizedNebenkosten = {
   anzahl_mieter: number;
 
   // Compatibility fields for existing components
-  Haeuser?: { name: string } | null;
+  Haeuser?: HaeuserAddress | null;
   gesamtFlaeche?: number;
   anzahlWohnungen?: number;
   anzahlMieter?: number;

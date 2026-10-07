@@ -1,6 +1,7 @@
 import type { RechentageDetails } from "@/types/optimized-betriebskosten";
 import type { Rechenbasis } from "@/utils/rechentage";
 import type { WorkerRequestType, WorkerTemplate } from "@/lib/constants/worker";
+import type { HaeuserAddress } from "@/lib/types";
 
 export const MIETEVO_BACKEND_URL = (process.env.MIETEVO_BACKEND_URL || process.env.NEXT_PUBLIC_MIETEVO_BACKEND_URL || 'https://backend.mietevo.de').trim();
 
@@ -84,7 +85,7 @@ type PdfTenantData = {
 type PdfNebenkostenItem = {
     startdatum: string;
     enddatum: string;
-    Haeuser?: { name: string } | null;
+    Haeuser?: HaeuserAddress | null;
     zaehlerkosten?: Record<string, number> | null;
     zaehlerverbrauch?: Record<string, number> | null;
     /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */

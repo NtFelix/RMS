@@ -37,3 +37,16 @@ export const RECHENBASIS_360_TAGE = '360_tage';
 
 export const isRechenbasis360 = (item: { rechenbasis?: string | null } | null | undefined): boolean =>
     item?.rechenbasis === RECHENBASIS_360_TAGE;
+
+// "PLZ Ort" formatter, mirrored from the app's lib/address.ts (this worker package cannot import it).
+export const padPlz = (plz?: number | string | null): string => {
+    const raw = plz == null ? '' : String(plz).trim();
+    return /^\d{1,5}$/.test(raw) ? raw.padStart(5, '0') : raw;
+};
+
+export const formatPlzOrt = (plz?: number | string | null, ort?: string | null): string => {
+    const paddedPlz = padPlz(plz);
+    const trimmedOrt = ort?.trim() ?? '';
+    if (paddedPlz && trimmedOrt.startsWith(paddedPlz)) return trimmedOrt;
+    return [paddedPlz, trimmedOrt].filter(Boolean).join(' ');
+};

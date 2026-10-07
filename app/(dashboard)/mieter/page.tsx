@@ -5,6 +5,7 @@ import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 import { hasPermission } from "@/lib/permissions";
+import { canViewKautionen as ladeCanViewKautionen } from "@/lib/server/kautionen-recht";
 import { redirect } from "next/navigation";
 
 import type { Tenant } from "@/types/Tenant";
@@ -30,11 +31,14 @@ async function MieterContent() {
   const { supabase } = await requireAuthenticatedUser();
 
   // Permission check.
-  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
+  // `canViewKautionen` (Modul `kautionen`, GH-6) steuert nur, was die Seite anzeigt (Kautionskarte, Menüeinträge);
+  // maßgeblich bleiben die RPCs und die Datenbank.
+  const [canView, canCreate, canEdit, canDelete, canViewKautionen, accessibleIdsResult] = await Promise.all([
     hasPermission('mieter', 'ansehen'),
     hasPermission('mieter', 'erstellen'),
     hasPermission('mieter', 'bearbeiten'),
     hasPermission('mieter', 'loeschen'),
+    ladeCanViewKautionen(),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
@@ -70,7 +74,9 @@ async function MieterContent() {
       'get_mieter_details_overview',
       {},
       async () => {
-        let q = supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        // Fallback-Select bewusst OHNE das Altfeld `kaution`: Sonst würde ein RPC-Fehler das Modulrecht `kautionen`
+        // umgehen und eingefrorene Altwerte anzeigen (GH-6).
+        let q = supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
         if (accessibleIds !== null && accessibleIds.length > 0) {
           const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
           const ids = whgIds?.map(w => w.id) ?? [];
@@ -123,7 +129,8 @@ async function MieterContent() {
     } as Wohnung;
   });
 
-  const mieter: Tenant[] = filteredMieter.map(m => ({ ...m }));
+  // Die RPC liefert `kaution` nur mit Modulrecht (sonst NULL); ohne Recht wird es hier zusätzlich entfernt.
+  const mieter: Tenant[] = filteredMieter.map(m => (canViewKautionen ? { ...m } : { ...m, kaution: null }));
 
 
 
@@ -135,6 +142,7 @@ async function MieterContent() {
       canCreate={canCreate}
       canEdit={canEdit}
       canDelete={canDelete}
+      canViewKautionen={canViewKautionen}
     />
   );
 }

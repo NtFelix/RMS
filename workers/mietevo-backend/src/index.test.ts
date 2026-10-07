@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { handleFileGeneration, processQueue, Env } from './index';
-import { formatCurrency, isoToGermanDate, sumZaehlerValues, roundToNearest5, isRechenbasis360 } from './utils';
+import { formatCurrency, isoToGermanDate, sumZaehlerValues, roundToNearest5, isRechenbasis360, formatPlzOrt } from './utils';
 import { ExecutionContext } from './logger';
 
 // jsPDF assigns its plugin methods (like `text`) as own properties on each instance inside its
@@ -79,6 +79,15 @@ describe('Backend Worker Tests', () => {
             expect(roundToNearest5(7.5)).toBe(10);
             expect(roundToNearest5(12)).toBe(10);
             expect(roundToNearest5(13)).toBe(15);
+        });
+
+        it('formatPlzOrt should left-pad the plz and not repeat a plz already contained in ort', () => {
+            expect(formatPlzOrt(10115, 'Berlin')).toBe('10115 Berlin');
+            expect(formatPlzOrt(1067, 'Dresden')).toBe('01067 Dresden');
+            expect(formatPlzOrt(1067, '01067 Dresden')).toBe('01067 Dresden');
+            expect(formatPlzOrt(null, 'Berlin')).toBe('Berlin');
+            expect(formatPlzOrt(10115, '  ')).toBe('10115');
+            expect(formatPlzOrt(undefined, null)).toBe('');
         });
 
         it('isRechenbasis360 should detect the 360-day basis marker', () => {
@@ -175,6 +184,42 @@ describe('Backend Worker Tests', () => {
             expect(text).not.toContain('gerechnet mit 360 Tagen');
             expect(text).not.toContain('Rechentage:');
             expect(text).not.toContain('Rechenbasis: Jeder Monat');
+        });
+
+        it.each([
+            ['full address without house name', { name: 'Haus Sonnenschein', strasse: 'Hauptstraße 10', plz: 10115, ort: 'Berlin' }, 'Objekt: Hauptstraße 10, 10115 Berlin, Wohnung 2, 60 qm'],
+            ['missing street', { name: 'Haus Sonnenschein', plz: 10115, ort: 'Berlin' }, 'Objekt: 10115 Berlin, Wohnung 2, 60 qm'],
+            ['missing plz', { name: 'Haus Sonnenschein', strasse: 'Hauptstraße 10', ort: 'Berlin', plz: null }, 'Objekt: Hauptstraße 10, Berlin, Wohnung 2, 60 qm'],
+            ['plz that must be left-padded and is already part of ort', { name: 'Haus A', strasse: 'Weg 1', plz: 1067, ort: '01067 Dresden' }, 'Objekt: Weg 1, 01067 Dresden, Wohnung 2, 60 qm'],
+            ['empty house name', { name: '', strasse: 'Hauptstraße 10', plz: 10115, ort: 'Berlin' }, 'Objekt: Hauptstraße 10, 10115 Berlin, Wohnung 2, 60 qm'],
+            ['house name repeats the street', { name: 'Musterweg', strasse: 'Musterweg 1', plz: 12345, ort: 'Musterstadt' }, 'Objekt: Musterweg 1, 12345 Musterstadt, Wohnung 2, 60 qm'],
+            ['no address data falls back to house name', { name: 'Haus Sonnenschein' }, 'Objekt: Haus Sonnenschein, Wohnung 2, 60 qm'],
+        ])('should format the Objekt line in the single-tenant PDF: %s', async (_case, haeuser, expected) => {
+            const request = new Request('https://worker.com/export', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: 'pdf',
+                    tenantData: {
+                        tenantName: 'Erika Musterfrau',
+                        apartmentName: 'Wohnung 2',
+                        apartmentSize: 60,
+                        costItems: [],
+                        waterCost: { tenantShare: 0, consumption: 0 }
+                    },
+                    nebenkostenItem: { startdatum: '2026-01-01', enddatum: '2026-12-31', Haeuser: haeuser },
+                    ownerName: 'Owner',
+                    ownerAddress: 'Vermieterweg 5, 20095 Hamburg',
+                    filename: 'test.pdf'
+                })
+            });
+
+            const { response, text } = await collectPdfText(() =>
+                handleFileGeneration(request, mockEnv as unknown as Env, mockCtx as unknown as ExecutionContext)
+            );
+
+            expect(response.status).toBe(200);
+            expect(text).toContain(expected);
+            expect(text).not.toContain('null');
         });
 
         it('should add the 360-day basis texts to the single-tenant PDF for rechenbasis 360_tage', async () => {

@@ -43,7 +43,7 @@ interface QueueTask {
 }
 
 
-import { formatCurrency, formatNumberDe, isoToGermanDate, isRechenbasis360 } from './utils';
+import { formatCurrency, formatNumberDe, isoToGermanDate, isRechenbasis360, formatPlzOrt } from './utils';
 
 // --- Constants ---
 const QUEUE_VISIBILITY_TIMEOUT = 60;
@@ -93,7 +93,12 @@ interface TenantData {
 interface NebenkostenItem {
     startdatum: string;
     enddatum: string;
-    Haeuser?: { name: string };
+    Haeuser?: {
+        name: string;
+        strasse?: string | null;
+        plz?: number | string | null;
+        ort?: string | null;
+    };
     zaehlerkosten?: Record<string, number>;
     zaehlerverbrauch?: Record<string, number>;
     /** '360_tage' switches the settlement to the 30/360 basis; see isRechenbasis360 */
@@ -176,9 +181,23 @@ export function generateSingleTenantPDF(doc: jsPDF, payload: SingleTenantPayload
     startY += 12;
 
     // 3. Objekt & Mieter
-    const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${tenantData.apartmentName}, ${tenantData.apartmentSize} qm`;
-    doc.text(propertyDetails, 20, startY);
-    startY += 5.5;
+    // Address only (street, PLZ Ort); the internal house name is irrelevant for the billing
+    // and often repeats the street. It is only used as a fallback when no address data exists.
+    const haus = nebenkostenItem.Haeuser;
+    const objekt = [haus?.strasse?.trim(), formatPlzOrt(haus?.plz, haus?.ort)]
+        .filter(Boolean).join(', ') || haus?.name?.trim() || 'N/A';
+    const addressParts = [
+        objekt,
+        tenantData.apartmentName,
+        tenantData.apartmentSize != null
+            ? `${tenantData.apartmentSize.toLocaleString('de-DE', { maximumFractionDigits: 2 })} qm`
+            : '',
+    ].filter(Boolean);
+
+    const propertyDetails = `Objekt: ${addressParts.join(', ')}`;
+    const propertyLines = doc.splitTextToSize(propertyDetails, tableWidth);
+    doc.text(propertyLines, 20, startY);
+    startY += propertyLines.length * 5.5;
 
     const tenantDetails = `Mieter: ${tenantData.tenantName}`;
     doc.text(tenantDetails, 20, startY);

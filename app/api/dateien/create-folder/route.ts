@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
           dateipfad: newFolderPath,
           dateiname: '.keep',
           dateigroesse: 0,
-          mime_type: 'text/plain',
-          user_id: user.id
+          mime_type: 'text/plain'
+          // organisation_id and erstellt_von are set by column defaults
         })
 
       if (dbInsertError) {
