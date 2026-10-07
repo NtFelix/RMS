@@ -1,10 +1,12 @@
-import { createClient } from "@/utils/supabase/server"
-export const runtime = 'edge'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { NextResponse } from "next/server"
 import { logger } from "@/utils/logger"
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations"
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
+import { getCurrentMonthRange } from "@/utils/date-calculations"
+import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns"
 
 interface Tenant {
   id: string
@@ -44,7 +46,7 @@ interface Finance {
 export async function GET(request: Request) {
   const requestStartTime = Date.now()
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const {
       data: { user },
       error: userError
@@ -56,7 +58,16 @@ export async function GET(request: Request) {
         error: userError?.message,
         duration: Date.now() - requestStartTime
       })
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_CACHE_HEADERS })
+    }
+
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return NextResponse.json({
+        tenants: []
+      }, { headers: NO_CACHE_HEADERS });
     }
 
     let tenantsData: any[] = []
@@ -64,44 +75,45 @@ export async function GET(request: Request) {
     let usedRpc = false
 
     // Try optimized RPC first
-    const rpcStartTime = Date.now()
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "fetch_tenant_payment_dashboard_data",
-        { p_user_id: user.id }
-      )
+    if (wohnungIds === null) {
+      const rpcStartTime = Date.now()
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          "fetch_tenant_payment_dashboard_data"
+        )
 
-      const rpcDuration = Date.now() - rpcStartTime
+        const rpcDuration = Date.now() - rpcStartTime
 
-      if (!rpcError && rpcData) {
-        logger.info("✅ [Tenant Data API] Used optimized RPC function", {
+        if (!rpcError && rpcData) {
+          logger.info("✅ [Tenant Data API] Used optimized RPC function", {
+            path: request.url,
+            userId: user.id,
+            rpcDuration,
+            tenantCount: rpcData.tenants?.length || 0,
+            financeCount: rpcData.finances?.length || 0
+          })
+          tenantsData = rpcData.tenants || []
+          financesData = rpcData.finances || []
+          usedRpc = true
+        } else {
+          logger.warn("⚠️ [Tenant Data API] RPC function failed or returned no data, using fallback", {
+            path: request.url,
+            userId: user.id,
+            rpcDuration,
+            rpcError: rpcError?.message
+          })
+        }
+      } catch (rpcException) {
+        const rpcDuration = Date.now() - rpcStartTime
+        logger.error("❌ [Tenant Data API] RPC call threw exception", rpcException as Error, {
           path: request.url,
           userId: user.id,
-          rpcDuration,
-          tenantCount: rpcData.tenants?.length || 0,
-          financeCount: rpcData.finances?.length || 0
-        })
-        tenantsData = rpcData.tenants || []
-        financesData = rpcData.finances || []
-        usedRpc = true
-      } else {
-        logger.warn("⚠️ [Tenant Data API] RPC function failed or returned no data, using fallback", {
-          path: request.url,
-          userId: user.id,
-          rpcDuration,
-          rpcError: rpcError?.message
+          rpcDuration
         })
       }
-    } catch (rpcException) {
-      const rpcDuration = Date.now() - rpcStartTime
-      logger.error("❌ [Tenant Data API] RPC call threw exception", rpcException as Error, {
-        path: request.url,
-        userId: user.id,
-        rpcDuration
-      })
     }
 
-    // Fallback to legacy queries if RPC failed
+    // Fallback to legacy queries if RPC failed or scoped
     if (!usedRpc) {
       logger.info("🔄 [Tenant Data API] Using fallback method", {
         path: request.url,
@@ -109,10 +121,11 @@ export async function GET(request: Request) {
       })
 
       const fallbackStartTime = Date.now()
-      const { data: tenants, error: tenantsError } = await supabase
+      let tenantsQuery = supabase
         .from("Mieter")
+        // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
         .select(`
-          *,
+          ${MIETER_SPALTEN_OHNE_KAUTION},
           Wohnungen (
             id,
             name,
@@ -124,9 +137,13 @@ export async function GET(request: Request) {
               name
             )
           )
-        `)
-        .eq("user_id", user.id)
-        .order("name")
+        `);
+
+      if (wohnungIds !== null) {
+        tenantsQuery = tenantsQuery.in('wohnung_id', wohnungIds);
+      }
+
+      const { data: tenants, error: tenantsError } = await tenantsQuery.order("name");
 
       const tenantsDuration = Date.now() - fallbackStartTime
 
@@ -138,17 +155,21 @@ export async function GET(request: Request) {
         })
         return NextResponse.json(
           { error: "Failed to fetch tenants" },
-          { status: 500 }
+          { status: 500, headers: NO_CACHE_HEADERS }
         )
       }
 
       const financesStartTime = Date.now()
-      const { data: finances, error: financesError } = await supabase
+      let financesQuery = supabase
         .from("Finanzen")
         .select("*")
-        .eq("user_id", user.id)
-        .eq("ist_einnahmen", true)
-        .order("datum", { ascending: false })
+        .eq("ist_einnahmen", true);
+
+      if (wohnungIds !== null) {
+        financesQuery = financesQuery.in('wohnung_id', wohnungIds);
+      }
+
+      const { data: finances, error: financesError } = await financesQuery.order("datum", { ascending: false });
 
       const financesDuration = Date.now() - financesStartTime
 
@@ -160,7 +181,7 @@ export async function GET(request: Request) {
         })
         return NextResponse.json(
           { error: "Failed to fetch finances" },
-          { status: 500 }
+          { status: 500, headers: NO_CACHE_HEADERS }
         )
       }
 
@@ -183,11 +204,7 @@ export async function GET(request: Request) {
     }
 
     // Calculate current month range for payment status
-    const currentDate = new Date()
-    const currentMonth = currentDate.getMonth() + 1
-    const currentYear = currentDate.getFullYear()
-    const currentMonthStart = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-    const currentMonthEnd = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+    const { startIso: currentMonthStart, endIso: currentMonthEnd } = getCurrentMonthRange()
 
     const processedTenants = tenantsData.map(tenant => {
       const tenantId = tenant.wohnung_id || tenant.Wohnungen?.id;
@@ -237,7 +254,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       tenants: processedTenants,
       // finances: financesData // Removed to reduce payload size
-    })
+    }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     const totalDuration = Date.now() - requestStartTime
     logger.error("❌ [Tenant Data API] Unexpected error", error as Error, {
@@ -246,7 +263,7 @@ export async function GET(request: Request) {
     })
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }

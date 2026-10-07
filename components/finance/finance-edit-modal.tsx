@@ -173,7 +173,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
 
     const payload = {
       name: formData.name,
-      betrag: parseFloat(formData.betrag),
+      betrag: Math.round(parseFloat(formData.betrag) * 100) / 100,
       ist_einnahmen: formData.ist_einnahmen,
       wohnung_id: formData.wohnung_id || null,
       datum: formData.datum || null,

@@ -2,6 +2,7 @@ export const PAYMENT_KEYWORDS = {
     RENT: 'mietzahlung',
     NEBENKOSTEN: 'nebenkosten',
     NACHZAHLUNG: 'nachzahlung',
+    VORAUSZAHLUNG: 'vorauszahlung',
 } as const;
 
 // Auto-apply tags for different payment types
@@ -10,4 +11,5 @@ export const PAYMENT_TAGS = {
     RENT: 'Miete',
     NEBENKOSTEN: 'Nebenkosten',
     NACHZAHLUNG: 'Nachzahlung',
+    VORAUSZAHLUNG: 'Vorauszahlung',
 } as const;

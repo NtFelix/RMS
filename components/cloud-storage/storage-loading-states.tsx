@@ -151,7 +151,7 @@ export function FileGridSkeleton({
             {/* Icon Box Skeleton */}
             <div className="p-3 rounded-xl bg-gray-100/80 dark:bg-gray-800/80 relative overflow-hidden">
               <Skeleton className="h-8 w-8 rounded-lg" />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 dark:via-white/5 to-transparent animate-shimmer" />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 dark:via-white/5 to-transparent animate-shimmer" />
             </div>
 
             {/* Content Skeleton */}
@@ -250,7 +250,7 @@ export function FileOperationLoading({
 
   return (
     <div className={cn("flex items-center space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-lg", className)}>
-      <div className="flex-shrink-0 text-blue-600">
+      <div className="shrink-0 text-blue-600">
         {getOperationIcon()}
       </div>
       <div className="flex-1 min-w-0">
@@ -340,7 +340,7 @@ export function UploadQueueLoading({
 }: UploadQueueLoadingProps) {
   return (
     <div className={cn("flex items-center space-x-3 p-3 bg-amber-50 border border-amber-200 rounded-lg", className)}>
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         {isProcessing ? (
           <RefreshCw className="h-4 w-4 animate-spin text-amber-600" />
         ) : (
@@ -400,7 +400,7 @@ export function EmptyFileList({
       {onUpload && (
         <button
           onClick={onUpload}
-          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-primary"
         >
           <Upload className="mr-2 h-4 w-4" />
           Dateien hochladen
@@ -443,7 +443,7 @@ export function EmptyFolder({
       {onUpload && (
         <button
           onClick={onUpload}
-          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-primary"
         >
           <Upload className="mr-2 h-4 w-4" />
           Dateien hochladen
@@ -598,7 +598,7 @@ export function NavigationLoadingOverlay({
 
   return (
     <div className={cn(
-      "absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center",
+      "absolute inset-0 bg-background/80 backdrop-blur-xs z-20 flex items-center justify-center",
       "transition-opacity duration-200",
       className
     )}>
@@ -742,7 +742,7 @@ export function SmartSkeleton({
             <div className="flex flex-col items-center space-y-3">
               <div className="relative">
                 <Folder className="h-12 w-12 text-muted-foreground/50" />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
               </div>
               <div className="text-center w-full space-y-2">
                 <Skeleton className="h-4 w-full" />
@@ -767,7 +767,7 @@ export function SmartSkeleton({
             <div className="flex flex-col items-center space-y-3">
               <div className="relative">
                 <File className="h-12 w-12 text-muted-foreground/50" />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
               </div>
               <div className="text-center w-full space-y-2">
                 <Skeleton className="h-4 w-full" />

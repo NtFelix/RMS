@@ -12,6 +12,7 @@
 
 import { logger } from '@/utils/logger';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { posthogLogger } from '@/lib/posthog-logger';
 
 /**
  * Performance metrics for database function calls
@@ -33,6 +34,11 @@ export interface SafeRpcCallResult<T> {
   success: boolean;
   data?: T;
   message?: string;
+  error?: {
+    code: string;
+    category: ErrorCategory;
+    message: string;
+  };
   performanceMetrics?: PerformanceMetrics;
 }
 
@@ -79,6 +85,17 @@ function mapSupabaseError(error: any): StructuredError {
   const message = error.message || 'Unknown database error';
 
   switch (code) {
+    case '42883':
+    case 'PGRST202':
+    case 'PGRST200':
+      return {
+        category: ErrorCategory.DATABASE,
+        code,
+        message,
+        userMessage: 'Die angeforderte Funktion existiert nicht in der Datenbank.',
+        retryable: false
+      };
+
     case 'PGRST116':
       return {
         category: ErrorCategory.DATABASE,
@@ -147,7 +164,7 @@ function mapSupabaseError(error: any): StructuredError {
 export async function safeRpcCall<T>(
   supabase: any,
   functionName: string,
-  params: Record<string, any>,
+  params?: Record<string, any>,
   options: {
     userId?: string;
     logPerformance?: boolean;
@@ -191,6 +208,8 @@ export async function safeRpcCall<T>(
       parameters: logPerformance ? params : undefined,
       errorMessage: error?.message
     };
+    // Add metric to performance monitor
+    PerformanceMonitor.addMetric(performanceMetrics);
 
     // Log performance metrics
     if (logPerformance) {
@@ -230,9 +249,27 @@ export async function safeRpcCall<T>(
         retryable: structuredError.retryable
       });
 
+      try {
+        posthogLogger.error(`RPC call failed: ${functionName}`, {
+          'rpc.function': functionName,
+          'rpc.user_id': userId,
+          'rpc.error_message': error.message || 'Unknown database error',
+          'rpc.error_code': error.code || 'unknown',
+          'rpc.duration_ms': executionTime,
+          'rpc.error_category': structuredError.category
+        });
+      } catch (phError) {
+        console.error('Failed to log RPC failure to PostHog:', phError);
+      }
+
       return {
         success: false,
         message: structuredError.userMessage,
+        error: {
+          code: structuredError.code || 'unknown',
+          category: structuredError.category,
+          message: error.message || 'Unknown database error'
+        },
         performanceMetrics
       };
     }
@@ -256,6 +293,9 @@ export async function safeRpcCall<T>(
       errorMessage: error.message
     };
 
+    // Add metric to performance monitor
+    PerformanceMonitor.addMetric(performanceMetrics);
+
     // Handle timeout errors specifically
     if (error.message?.includes('timed out')) {
       logger.error(`RPC call timeout: ${functionName}`, error, {
@@ -266,9 +306,26 @@ export async function safeRpcCall<T>(
         errorCategory: ErrorCategory.TIMEOUT
       });
 
+      try {
+        posthogLogger.error(`RPC call timeout: ${functionName}`, {
+          'rpc.function': functionName,
+          'rpc.user_id': userId,
+          'rpc.duration_ms': executionTime,
+          'rpc.timeout_ms': timeoutMs,
+          'rpc.error_category': ErrorCategory.TIMEOUT
+        });
+      } catch (phError) {
+        console.error('Failed to log RPC timeout to PostHog:', phError);
+      }
+
       return {
         success: false,
         message: 'Die Anfrage dauerte zu lange. Bitte versuchen Sie es erneut.',
+        error: {
+          code: 'timeout',
+          category: ErrorCategory.TIMEOUT,
+          message: error.message
+        },
         performanceMetrics
       };
     }
@@ -282,9 +339,25 @@ export async function safeRpcCall<T>(
         errorCategory: ErrorCategory.NETWORK
       });
 
+      try {
+        posthogLogger.error(`RPC call network error: ${functionName}`, {
+          'rpc.function': functionName,
+          'rpc.user_id': userId,
+          'rpc.duration_ms': executionTime,
+          'rpc.error_category': ErrorCategory.NETWORK
+        });
+      } catch (phError) {
+        console.error('Failed to log RPC network error to PostHog:', phError);
+      }
+
       return {
         success: false,
         message: 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.',
+        error: {
+          code: 'network',
+          category: ErrorCategory.NETWORK,
+          message: error.message
+        },
         performanceMetrics
       };
     }
@@ -297,9 +370,26 @@ export async function safeRpcCall<T>(
       errorCategory: ErrorCategory.UNKNOWN
     });
 
+    try {
+      posthogLogger.error(`Unexpected error in RPC call: ${functionName}`, {
+        'rpc.function': functionName,
+        'rpc.user_id': userId,
+        'rpc.duration_ms': executionTime,
+        'rpc.error_message': error.message || 'Unknown error',
+        'rpc.error_category': ErrorCategory.UNKNOWN
+      });
+    } catch (phError) {
+      console.error('Failed to log unexpected RPC error to PostHog:', phError);
+    }
+
     return {
       success: false,
       message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+      error: {
+        code: error.code || 'unknown',
+        category: ErrorCategory.UNKNOWN,
+        message: error.message || 'Unknown error'
+      },
       performanceMetrics
     };
   }

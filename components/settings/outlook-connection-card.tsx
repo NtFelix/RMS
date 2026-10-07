@@ -85,7 +85,7 @@ export function OutlookConnectionCard({
                         >
                             {isSyncingOutlook || syncStatus.isImporting ? (
                                 <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin flex-shrink-0" />
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin shrink-0" />
                                     <span className="truncate">Sync...</span>
                                 </>
                             ) : (

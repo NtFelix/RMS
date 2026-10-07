@@ -1,36 +1,40 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
 import { capturePostHogEventWithContext } from '@/lib/posthog-helpers'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 // GET - Fetch all Wasser_Ablesungen for a specific Wasserzähler
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const searchParams = request.nextUrl.searchParams
     const wasserZaehlerId = searchParams.get('zaehler_id') || searchParams.get('wasser_zaehler_id')
 
     if (!wasserZaehlerId) {
-      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400 })
+      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
     // Verify the Wasserzähler belongs to the user
     const { data: zaehler, error: zaehlerError } = await supabase
       .from('Zaehler')
-      .select('id')
+      .select('id, wohnung_id')
       .eq('id', wasserZaehlerId)
-      .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (zaehlerError || !zaehler) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
+    }
+
+    const { verifyWohnungInScope } = await import("@/lib/api-permissions");
+    if (zaehler.wohnung_id && !(await verifyWohnungInScope(zaehler.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Fetch Zaehler_Ablesungen
@@ -38,29 +42,31 @@ export async function GET(request: NextRequest) {
       .from('Zaehler_Ablesungen')
       .select('*')
       .eq('zaehler_id', wasserZaehlerId)
-      .eq('user_id', user.id)
       .order('ablese_datum', { ascending: false })
 
     if (error) {
       console.error('Error fetching Zaehler_Ablesungen:', error)
-      return NextResponse.json({ error: 'Failed to fetch Zaehler_Ablesungen' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch Zaehler_Ablesungen' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in GET /api/wasser-ablesungen:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS })
   }
 }
 
 // POST - Create a new Wasser_Ablesung
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+    await requireApiPermission('zaehler', 'erstellen');
+
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_CACHE_HEADERS })
     }
 
     const body = await request.json()
@@ -68,19 +74,22 @@ export async function POST(request: NextRequest) {
     const meterId = zaehler_id || wasser_zaehler_id
 
     if (!meterId) {
-      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400 })
+      return NextResponse.json({ error: 'zaehler_id is required' }, { status: 400, headers: NO_CACHE_HEADERS })
     }
 
     // Verify the Wasserzähler belongs to the user
     const { data: zaehler, error: zaehlerError } = await supabase
       .from('Zaehler')
-      .select('id')
+      .select('id, wohnung_id')
       .eq('id', meterId)
-      .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (zaehlerError || !zaehler) {
-      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404 })
+      return NextResponse.json({ error: 'Wasserzähler not found or access denied' }, { status: 404, headers: NO_CACHE_HEADERS })
+    }
+
+    if (zaehler.wohnung_id && !(await verifyWohnungInScope(zaehler.wohnung_id))) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403, headers: NO_CACHE_HEADERS })
     }
 
     // Create Zaehler_Ablesung
@@ -91,7 +100,6 @@ export async function POST(request: NextRequest) {
         zaehlerstand: zaehlerstand || null,
         verbrauch: verbrauch || 0,
         zaehler_id: meterId,
-        user_id: user.id,
         kommentar: body.kommentar || null,
       })
       .select('*')
@@ -99,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating Zaehler_Ablesung:', error)
-      return NextResponse.json({ error: 'Failed to create Zaehler_Ablesung' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create Zaehler_Ablesung' }, { status: 500, headers: NO_CACHE_HEADERS })
     }
 
     // PostHog Event Tracking
@@ -111,10 +119,11 @@ export async function POST(request: NextRequest) {
       source: 'api_route'
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(data, { status: 201, headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error('Unexpected error in POST /api/wasser-ablesungen:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const status = (error as Error).message === 'Permission denied' ? 403 : 500
+    return NextResponse.json({ error: (error as Error).message || 'Internal server error' }, { status, headers: NO_CACHE_HEADERS })
   }
 }
 

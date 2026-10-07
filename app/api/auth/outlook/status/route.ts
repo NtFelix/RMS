@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { unstable_rethrow } from "next/navigation"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 export async function GET() {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
     
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
       return NextResponse.json(
         { connected: false },
-        { status: 200 }
+        { status: 200, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -27,7 +28,7 @@ export async function GET() {
     if (accountError || !account) {
       return NextResponse.json(
         { connected: false },
-        { status: 200 }
+        { status: 200, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -51,12 +52,13 @@ export async function GET() {
         token_expires_in_hours: expiresInHours,
         needs_reauth: !account.sync_enabled || isExpired,
       }
-    })
+    }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
+    unstable_rethrow(error)
     console.error("Outlook status error:", error)
     return NextResponse.json(
       { connected: false },
-      { status: 200 }
+      { status: 200, headers: NO_CACHE_HEADERS }
     )
   }
 }

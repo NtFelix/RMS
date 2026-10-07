@@ -1,5 +1,6 @@
 "use client";
 import { deleteTenantAction } from "@/app/mieter-actions";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 import {
   Dialog,
   DialogContent,
@@ -195,24 +196,28 @@ export function WohnungOverviewModal() {
     }
   };
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
   const handleDeleteMieter = (mieter: { id: string; name: string }) => {
-    setMieterToDelete(mieter);
-    setDeleteDialogOpen(true);
+    void starteLoeschenMitKautionen("Mieter", [mieter.id], {
+      einfach: () => {
+        setMieterToDelete(mieter);
+        setDeleteDialogOpen(true);
+      },
+      loeschen: (pruefsummen) => confirmDeleteMieter(mieter, pruefsummen),
+    });
   };
 
-  const confirmDeleteMieter = async () => {
-    if (!mieterToDelete) return;
-
+  const confirmDeleteMieter = async (mieter: { id: string; name: string }, pruefsummen: Pruefsummen) => {
     try {
       setIsDeleting(true);
 
       // Use the server action to delete the tenant
-      const { success, error } = await deleteTenantAction(mieterToDelete.id);
+      const { success, error } = await deleteTenantAction(mieter.id, pruefsummen[mieter.id]);
 
       if (success) {
         toast({
           title: "Erfolg",
-          description: `Der Mieter "${mieterToDelete.name}" wurde erfolgreich gelöscht.`,
+          description: `Der Mieter "${mieter.name}" wurde erfolgreich gelöscht.`,
           variant: "default",
         });
 
@@ -415,7 +420,7 @@ export function WohnungOverviewModal() {
   return (
     <Dialog open={isWohnungOverviewModalOpen} onOpenChange={(open) => !open && closeWohnungOverviewModal()}>
       <DialogContent className="sm:max-w-5xl md:max-w-6xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl">
             {wohnungOverviewData ? `Wohnungs-Übersicht: ${wohnungOverviewData.name}` : 'Wohnungs-Übersicht'}
           </DialogTitle>
@@ -578,14 +583,22 @@ export function WohnungOverviewModal() {
                           </ContextMenuTrigger>
                           <ContextMenuContent className="w-64">
                             <ContextMenuItem
-                              onClick={() => handleEditMieter(mieter)}
+                              onClick={() => {
+                                setTimeout(() => {
+                                  handleEditMieter(mieter);
+                                }, 0);
+                              }}
                               className="flex items-center gap-2 cursor-pointer"
                             >
                               <Edit className="h-4 w-4" />
                               <span>Bearbeiten</span>
                             </ContextMenuItem>
                             <ContextMenuItem
-                              onClick={() => handleContactMieter(mieter)}
+                              onClick={() => {
+                                setTimeout(() => {
+                                  handleContactMieter(mieter);
+                                }, 0);
+                              }}
                               className="flex items-center gap-2 cursor-pointer"
                               disabled={(!mieter.email || mieter.email.trim() === '') && (!mieter.telefon || mieter.telefon.trim() === '')}
                             >
@@ -627,7 +640,7 @@ export function WohnungOverviewModal() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteMieter}
+              onClick={() => mieterToDelete && confirmDeleteMieter(mieterToDelete, {})}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >

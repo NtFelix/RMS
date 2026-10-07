@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {
@@ -26,17 +26,24 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "types": [
+      "node",
+      "jest"
+    ]
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
+    "agent",
     "node_modules",
     "supabase/functions",
-    "workers"
+    "workers",
+    "agent"
   ]
 }

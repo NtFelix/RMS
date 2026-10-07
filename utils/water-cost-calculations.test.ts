@@ -6,6 +6,7 @@
  * - Tenant move-in/move-out during billing period
  * - WG (shared apartment) cost splitting
  * - Prorated water usage for partial periods
+ * - Per-type pricing (different prices for gas, cold water, warm water)
  */
 
 import {
@@ -34,7 +35,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 1',
       groesse: 50,
@@ -51,7 +52,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 1',
       groesse: 50,
@@ -68,7 +69,7 @@ describe('Water Cost Calculations', () => {
     telefonnummer: null,
     notiz: null,
     nebenkosten: null,
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     Wohnungen: {
       name: 'Wohnung 2',
       groesse: 60,
@@ -82,7 +83,7 @@ describe('Water Cost Calculations', () => {
     wohnung_id: apartment1Id,
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
     ist_aktiv: true,
@@ -94,7 +95,7 @@ describe('Water Cost Calculations', () => {
     wohnung_id: apartment2Id,
     erstellungsdatum: '2024-01-01',
     eichungsdatum: '2024-01-01',
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
     zaehler_typ: 'kaltwasser',
     einheit: 'm³',
     ist_aktiv: true,
@@ -106,7 +107,8 @@ describe('Water Cost Calculations', () => {
     ablese_datum: '2025-06-05', // Reading on the day tenant2 moves out
     zaehlerstand: 150,
     verbrauch: 100, // 100 m³ consumed up to June 5th
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
+    organisation_id: 'org-1',
     zaehler_id: 'meter-1',
   };
 
@@ -115,7 +117,8 @@ describe('Water Cost Calculations', () => {
     ablese_datum: '2025-12-31', // End of year reading
     zaehlerstand: 250,
     verbrauch: 100, // Additional 100 m³ from June 5th to end of year
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
+    organisation_id: 'org-1',
     zaehler_id: 'meter-1',
   };
 
@@ -124,7 +127,8 @@ describe('Water Cost Calculations', () => {
     ablese_datum: '2025-12-31',
     zaehlerstand: 180,
     verbrauch: 180, // 180 m³ for the whole year
-    user_id: 'user-1',
+    erstellt_von: 'user-1',
+    organisation_id: 'org-1',
     zaehler_id: 'meter-2',
   };
 
@@ -145,6 +149,8 @@ describe('Water Cost Calculations', () => {
       expect(result).toHaveLength(1);
       expect(result[0].tenantId).toBe('tenant-3');
       expect(result[0].totalConsumption).toBe(180);
+      // Should track consumption by type
+      expect(result[0].consumptionByType).toEqual({ kaltwasser: 180 });
     });
 
     it('should split consumption between WG members based on occupancy', () => {
@@ -179,6 +185,10 @@ describe('Water Cost Calculations', () => {
 
       // Tenant1 should have more consumption since they stayed longer
       expect(tenant1Result!.totalConsumption).toBeGreaterThan(tenant2Result!.totalConsumption);
+
+      // Both should have consumptionByType tracking
+      expect(tenant1Result!.consumptionByType).toBeDefined();
+      expect(tenant1Result!.consumptionByType['kaltwasser']).toBeGreaterThan(0);
     });
 
     it('should handle multiple meters in same apartment', () => {
@@ -189,7 +199,7 @@ describe('Water Cost Calculations', () => {
         wohnung_id: apartment1Id,
         erstellungsdatum: '2024-01-01',
         eichungsdatum: '2024-01-01',
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
         zaehler_typ: 'kaltwasser',
         einheit: 'm³',
         ist_aktiv: true,
@@ -200,7 +210,8 @@ describe('Water Cost Calculations', () => {
         ablese_datum: '2025-12-31',
         zaehlerstand: 50,
         verbrauch: 50,
-        user_id: 'user-1',
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
         zaehler_id: 'meter-1b',
       };
 
@@ -245,6 +256,50 @@ describe('Water Cost Calculations', () => {
       expect(result).toHaveLength(1);
       expect(result[0].tenantId).toBe('tenant-1');
     });
+
+    it('should track consumption by meter type when apartment has mixed meter types', () => {
+      // Add a warm water meter to apartment 2
+      const warmMeter: WasserZaehler = {
+        id: 'meter-warm-2',
+        custom_id: 'WW-002',
+        wohnung_id: apartment2Id,
+        erstellungsdatum: '2024-01-01',
+        eichungsdatum: '2024-01-01',
+        erstellt_von: 'user-1',
+        zaehler_typ: 'warmwasser',
+        einheit: 'm³',
+        ist_aktiv: true,
+      };
+
+      const warmReading: WasserAblesung = {
+        id: 'reading-warm-2',
+        ablese_datum: '2025-12-31',
+        zaehlerstand: 90,
+        verbrauch: 90, // 90 m³ warm water
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
+        zaehler_id: 'meter-warm-2',
+      };
+
+      const tenants = [tenant3];
+      const meters = [meter2, warmMeter]; // cold + warm
+      const readings = [reading3, warmReading]; // 180 m³ cold + 90 m³ warm
+
+      const result = calculateTenantMeterConsumption(
+        tenants,
+        meters,
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].totalConsumption).toBe(270); // 180 + 90
+      expect(result[0].consumptionByType).toEqual({
+        kaltwasser: 180,
+        warmwasser: 90,
+      });
+    });
   });
 
   describe('calculateTenantMeterCosts', () => {
@@ -252,15 +307,16 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant3];
       const meters = [meter2];
       const readings = [reading3];
-      const totalBuildingWaterCost = 540; // 540 EUR for 180 m³ = 3 EUR/m³
-      const totalBuildingConsumption = 180; // Official building consumption
+      // Per-type costs: 540 EUR for 180 m³ kaltwasser = 3 EUR/m³
+      const zaehlerkosten = { kaltwasser: 540 };
+      const zaehlerverbrauch = { kaltwasser: 180 };
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -270,21 +326,25 @@ describe('Water Cost Calculations', () => {
       expect(result[0].pricePerUnit).toBe(3);
       expect(result[0].costShare).toBe(540);
       expect(result[0].isWGMember).toBe(false);
+      // New per-type fields
+      expect(result[0].costByType).toEqual({ kaltwasser: 540 });
+      expect(result[0].consumptionByType).toEqual({ kaltwasser: 180 });
+      expect(result[0].pricePerUnitByType).toEqual({ kaltwasser: 3 });
     });
 
     it('should identify WG members and provide split details', () => {
       const tenants = [tenant1, tenant2];
       const meters = [meter1];
       const readings = [reading1, reading2];
-      const totalBuildingWaterCost = 600; // 600 EUR for 200 m³ = 3 EUR/m³
-      const totalBuildingConsumption = 200;
+      const zaehlerkosten = { kaltwasser: 600 }; // 600 EUR for 200 m³ = 3 EUR/m³
+      const zaehlerverbrauch = { kaltwasser: 200 };
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -310,15 +370,15 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant1, tenant2];
       const meters = [meter1];
       const readings = [reading1, reading2]; // 100 m³ on 05.06, 100 m³ on 31.12
-      const totalBuildingWaterCost = 600; // 3 EUR/m³
-      const totalBuildingConsumption = 200;
+      const zaehlerkosten = { kaltwasser: 600 }; // 3 EUR/m³
+      const zaehlerverbrauch = { kaltwasser: 200 };
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -338,6 +398,179 @@ describe('Water Cost Calculations', () => {
       expect(tenant1Cost!.costShare).toBeGreaterThan(tenant2Cost!.costShare);
       expect(tenant1Cost!.costShare + tenant2Cost!.costShare).toBeCloseTo(600, 1);
     });
+
+    it('should calculate per-type costs independently for mixed meter types', () => {
+      // This is the KEY test: mixed meter types should NOT blend prices
+      // Gas: 10 EUR for 68 m³ = 0.147 EUR/m³
+      // Kaltwasser: 100 EUR for 382.25 m³ = 0.262 EUR/m³
+      // Warmwasser: 100 EUR for 428 m³ = 0.234 EUR/m³
+
+      const gasMeter: WasserZaehler = {
+        id: 'gas-meter',
+        custom_id: 'GZ-001',
+        wohnung_id: apartment2Id,
+        erstellungsdatum: '2024-01-01',
+        eichungsdatum: '2024-01-01',
+        erstellt_von: 'user-1',
+        zaehler_typ: 'gas',
+        einheit: 'm³',
+        ist_aktiv: true,
+      };
+
+      const warmMeter: WasserZaehler = {
+        id: 'warm-meter',
+        custom_id: 'WW-001',
+        wohnung_id: apartment2Id,
+        erstellungsdatum: '2024-01-01',
+        eichungsdatum: '2024-01-01',
+        erstellt_von: 'user-1',
+        zaehler_typ: 'warmwasser',
+        einheit: 'm³',
+        ist_aktiv: true,
+      };
+
+      const gasReading: WasserAblesung = {
+        id: 'gas-reading',
+        ablese_datum: '2025-12-31',
+        zaehlerstand: 68,
+        verbrauch: 68,
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
+        zaehler_id: 'gas-meter',
+      };
+
+      const coldReading: WasserAblesung = {
+        ...reading3,
+        verbrauch: 382.25,
+        zaehlerstand: 382.25,
+      };
+
+      const warmReading: WasserAblesung = {
+        id: 'warm-reading',
+        ablese_datum: '2025-12-31',
+        zaehlerstand: 428,
+        verbrauch: 428,
+        erstellt_von: 'user-1',
+        organisation_id: 'org-1',
+        zaehler_id: 'warm-meter',
+      };
+
+      const zaehlerkosten = { gas: 10, kaltwasser: 100, warmwasser: 100 };
+      const zaehlerverbrauch = { gas: 68, kaltwasser: 382.25, warmwasser: 428 };
+
+      const tenants = [tenant3];
+      const meters = [meter2, gasMeter, warmMeter]; // cold, gas, warm
+      const readings = [coldReading, gasReading, warmReading];
+
+      const result = calculateTenantMeterCosts(
+        tenants,
+        meters,
+        readings,
+        zaehlerkosten,
+        zaehlerverbrauch,
+        periodStart,
+        periodEnd
+      );
+
+      expect(result).toHaveLength(1);
+      const tenantCost = result[0];
+
+      // Total cost should be exactly 210 EUR (10 + 100 + 100)
+      expect(tenantCost.costShare).toBeCloseTo(210, 2);
+
+      // Per-type costs should be correct
+      expect(tenantCost.costByType['gas']).toBeCloseTo(10, 2);
+      expect(tenantCost.costByType['kaltwasser']).toBeCloseTo(100, 2);
+      expect(tenantCost.costByType['warmwasser']).toBeCloseTo(100, 2);
+
+      // Per-type prices should each be independent
+      expect(tenantCost.pricePerUnitByType['gas']).toBeCloseTo(10 / 68, 4);
+      expect(tenantCost.pricePerUnitByType['kaltwasser']).toBeCloseTo(100 / 382.25, 4);
+      expect(tenantCost.pricePerUnitByType['warmwasser']).toBeCloseTo(100 / 428, 4);
+
+      // Weighted average price per unit should NOT equal any individual type price
+      const totalConsumption = 68 + 382.25 + 428;
+      expect(tenantCost.consumption).toBeCloseTo(totalConsumption, 2);
+      expect(tenantCost.pricePerUnit).toBeCloseTo(210 / totalConsumption, 4);
+    });
+
+    it('should correctly distribute multi-type costs in multi-tenant building', () => {
+      // Two tenants in different apartments, each with gas + cold water meters
+      // Tenant A (apt-1): gas=30m³, cold=100m³ → heavy gas user
+      // Tenant B (apt-2): gas=10m³, cold=200m³ → heavy water user
+      // Building totals: gas=40m³ @ €120 (3€/m³), cold=300m³ @ €600 (2€/m³)
+
+      const gasMeterA: WasserZaehler = {
+        id: 'gas-a', custom_id: 'G-A', wohnung_id: apartment1Id,
+        erstellungsdatum: '2024-01-01', eichungsdatum: null,
+        erstellt_von: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
+      };
+      const coldMeterA: WasserZaehler = {
+        ...meter1, // already apt-1 kaltwasser
+      };
+      const gasMeterB: WasserZaehler = {
+        id: 'gas-b', custom_id: 'G-B', wohnung_id: apartment2Id,
+        erstellungsdatum: '2024-01-01', eichungsdatum: null,
+        erstellt_von: 'user-1', zaehler_typ: 'gas', einheit: 'm³', ist_aktiv: true,
+      };
+      const coldMeterB: WasserZaehler = {
+        ...meter2, // already apt-2 kaltwasser
+      };
+
+      const gasReadingA: WasserAblesung = {
+        id: 'gr-a', ablese_datum: '2025-12-31', zaehlerstand: 30, verbrauch: 30,
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'gas-a',
+      };
+      const coldReadingA: WasserAblesung = {
+        id: 'cr-a', ablese_datum: '2025-12-31', zaehlerstand: 100, verbrauch: 100,
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'meter-1',
+      };
+      const gasReadingB: WasserAblesung = {
+        id: 'gr-b', ablese_datum: '2025-12-31', zaehlerstand: 10, verbrauch: 10,
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'gas-b',
+      };
+      const coldReadingB: WasserAblesung = {
+        id: 'cr-b', ablese_datum: '2025-12-31', zaehlerstand: 200, verbrauch: 200,
+        erstellt_von: 'user-1', organisation_id: 'org-1', zaehler_id: 'meter-2',
+      };
+
+      const zaehlerkosten = { gas: 120, kaltwasser: 600 }; // 3€/m³ gas, 2€/m³ water
+      const zaehlerverbrauch = { gas: 40, kaltwasser: 300 };
+
+      const tenants = [tenant1, tenant3]; // tenant1 in apt-1, tenant3 in apt-2
+      const meters = [gasMeterA, coldMeterA, gasMeterB, coldMeterB];
+      const readings = [gasReadingA, coldReadingA, gasReadingB, coldReadingB];
+
+      const result = calculateTenantMeterCosts(
+        tenants, meters, readings,
+        zaehlerkosten, zaehlerverbrauch,
+        periodStart, periodEnd
+      );
+
+      expect(result).toHaveLength(2);
+
+      const tenantACost = result.find(r => r.tenantId === 'tenant-1')!;
+      const tenantBCost = result.find(r => r.tenantId === 'tenant-3')!;
+
+      // Tenant A: gas=30m³×3€=90€, cold=100m³×2€=200€ → Total=290€
+      expect(tenantACost.costByType['gas']).toBeCloseTo(90, 2);
+      expect(tenantACost.costByType['kaltwasser']).toBeCloseTo(200, 2);
+      expect(tenantACost.costShare).toBeCloseTo(290, 2);
+
+      // Tenant B: gas=10m³×3€=30€, cold=200m³×2€=400€ → Total=430€
+      expect(tenantBCost.costByType['gas']).toBeCloseTo(30, 2);
+      expect(tenantBCost.costByType['kaltwasser']).toBeCloseTo(400, 2);
+      expect(tenantBCost.costShare).toBeCloseTo(430, 2);
+
+      // Total should equal building total: 120 + 600 = 720
+      expect(tenantACost.costShare + tenantBCost.costShare).toBeCloseTo(720, 2);
+
+      // NOTE: With the OLD blended approach, both tenants would have gotten
+      // the same price: 720/340 = 2.118€/m³. That would give:
+      // Tenant A: 130m³ × 2.118 = 275.29€ (WRONG! 14.71€ too low)
+      // Tenant B: 210m³ × 2.118 = 444.71€ (WRONG! 14.71€ too high)
+      // This test proves the per-type approach gives correct results.
+    });
   });
 
   describe('getTenantMeterCost', () => {
@@ -345,16 +578,16 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant1, tenant2, tenant3];
       const meters = [meter1, meter2];
       const readings = [reading1, reading2, reading3];
-      const totalBuildingWaterCost = 1140; // 380 m³ total * 3 EUR/m³
-      const totalBuildingConsumption = 380;
+      const zaehlerkosten = { kaltwasser: 1140 }; // 380 m³ total × 3 EUR/m³
+      const zaehlerverbrauch = { kaltwasser: 380 };
 
       const result = getTenantMeterCost(
         'tenant-3',
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -369,16 +602,16 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant1];
       const meters = [meter1];
       const readings = [reading1];
-      const totalBuildingWaterCost = 300;
-      const totalBuildingConsumption = 100;
+      const zaehlerkosten = { kaltwasser: 300 };
+      const zaehlerverbrauch = { kaltwasser: 100 };
 
       const result = getTenantMeterCost(
         'non-existent',
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -392,15 +625,15 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant1];
       const meters = [meter1];
       const readings: WasserAblesung[] = []; // No readings
-      const totalBuildingWaterCost = 0;
-      const totalBuildingConsumption = 0;
+      const zaehlerkosten = {};
+      const zaehlerverbrauch = {};
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -415,15 +648,15 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant1];
       const meters: WasserZaehler[] = []; // No meters
       const readings: WasserAblesung[] = [];
-      const totalBuildingWaterCost = 100;
-      const totalBuildingConsumption = 0;
+      const zaehlerkosten = { kaltwasser: 100 };
+      const zaehlerverbrauch = {};
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -451,15 +684,15 @@ describe('Water Cost Calculations', () => {
       const tenants = [fullYearTenant, midYearTenant];
       const meters = [meter1];
       const readings = [reading2]; // 100 m³ for whole year
-      const totalBuildingWaterCost = 300;
-      const totalBuildingConsumption = 100;
+      const zaehlerkosten = { kaltwasser: 300 };
+      const zaehlerverbrauch = { kaltwasser: 100 };
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -482,6 +715,300 @@ describe('Water Cost Calculations', () => {
       expect(fullYearResult!.isWGMember).toBe(true);
       expect(midYearResult!.isWGMember).toBe(true);
     });
+
+    it('should handle move-out date alignment and interpolation for part-time tenants', () => {
+      // 1. Move-out on 31.07.2025, exact reading on 31.07.2025: should use the reading
+      const tenantA: Mieter = {
+        ...tenant1,
+        id: 'tenant-a',
+        einzug: '2025-01-01',
+        auszug: '2025-07-31',
+      };
+      
+      const readingsExact = [
+        { ...reading1, id: 'r-1', ablese_datum: '2025-07-31', verbrauch: 39.843, zaehler_id: 'meter-1' },
+        { ...reading2, id: 'r-2', ablese_datum: '2025-12-31', verbrauch: 12.304, zaehler_id: 'meter-1' }
+      ];
+
+      const resultExact = calculateTenantMeterConsumption(
+        [tenantA],
+        [meter1],
+        readingsExact,
+        periodStart,
+        periodEnd
+      );
+      expect(resultExact[0].totalConsumption).toBeCloseTo(39.843, 3);
+
+      // 2. No reading on move-out day, but reading on 01.08.2025: should assign ~99.5% usage to tenant
+      const readingsOneDayLater = [
+        { ...reading1, id: 'r-1', ablese_datum: '2025-08-01', verbrauch: 40.0, zaehler_id: 'meter-1' }
+      ];
+
+      const resultOneDayLater = calculateTenantMeterConsumption(
+        [tenantA],
+        [meter1],
+        readingsOneDayLater,
+        periodStart,
+        periodEnd
+      );
+      // 212 days (up to 31.07) out of 213 days (up to 01.08) = 99.53%
+      expect(resultOneDayLater[0].totalConsumption).toBeCloseTo(40.0 * (212 / 213), 3);
+
+      // 3. Only one reading at the end of the year: should calculate fair share (212/365 days)
+      const readingsEndOfYear = [
+        { ...reading1, id: 'r-1', ablese_datum: '2025-12-31', verbrauch: 100.0, zaehler_id: 'meter-1' }
+      ];
+
+      const resultEndOfYear = calculateTenantMeterConsumption(
+        [tenantA],
+        [meter1],
+        readingsEndOfYear,
+        periodStart,
+        periodEnd
+      );
+      expect(resultEndOfYear[0].totalConsumption).toBeCloseTo(100.0 * (212 / 365), 3);
+    });
+  });
+
+  describe('Move-in reading date handling', () => {
+    // A reading dated on a tenant's move-in day is the new tenant's starting meter value
+    // ("Zwischenstand für den Mieterwechsel"), not the previous tenant's end-of-day state.
+    // These tests cover the fix for that: the move-in day should belong to the tenant who
+    // moves in, not be spread (even partially) into the previous tenant's interval.
+
+    it('gives the new tenant exactly their own usage and splits the vacancy correctly (regression)', () => {
+      // Vormieter moved out 15.05., Nachmieter moved in 01.06. - there's a 16-day vacancy
+      // (16.05.-31.05.) between them. The reading on 01.06. is Nachmieter's starting value,
+      // so it must NOT be spread over the vacancy days as if it were Vormieter's end-of-day state.
+      const vormieter: Mieter = {
+        ...tenant1,
+        id: 'vormieter',
+        name: 'Vormieter',
+        einzug: '2021-01-01',
+        auszug: '2025-05-15',
+      };
+      const nachmieter: Mieter = {
+        ...tenant1,
+        id: 'nachmieter',
+        name: 'Nachmieter',
+        einzug: '2025-06-01',
+        auszug: null,
+      };
+
+      const readings: WasserAblesung[] = [
+        { ...reading1, id: 'r-move-in', ablese_datum: '2025-06-01', zaehlerstand: 71.678, verbrauch: 13.678, zaehler_id: 'meter-1' },
+        { ...reading2, id: 'r-year-end', ablese_datum: '2025-12-31', zaehlerstand: 92.038, verbrauch: 20.36, zaehler_id: 'meter-1' },
+      ];
+
+      const result = calculateTenantMeterConsumption(
+        [vormieter, nachmieter],
+        [meter1],
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      const vormieterResult = result.find(r => r.tenantId === 'vormieter')!;
+      const nachmieterResult = result.find(r => r.tenantId === 'nachmieter')!;
+
+      // Nachmieter's interval starts on the move-in day itself, so their consumption matches
+      // their own reading exactly (zaehlerstand delta 92.038 - 71.678 = 20.36)
+      expect(nachmieterResult.totalConsumption).toBeCloseTo(20.36, 5);
+
+      // The first interval (01.01.-31.05., 151 days) is split between Vormieter's 135 occupied
+      // days (01.01.-15.05.) and 16 vacant days (16.05.-31.05.)
+      expect(vormieterResult.totalConsumption).toBeCloseTo(13.678 * (135 / 151), 5);
+
+      const vacancyShare = 13.678 * (16 / 151);
+      expect(vormieterResult.totalConsumption + nachmieterResult.totalConsumption + vacancyShare).toBeCloseTo(34.038, 5);
+    });
+
+    it('gives each tenant exactly their own reading for a seamless change (reading falls on the move-in day)', () => {
+      const vormieter: Mieter = {
+        ...tenant1,
+        id: 'vormieter-seamless',
+        name: 'Vormieter',
+        einzug: '2025-01-01',
+        auszug: '2025-05-31',
+      };
+      const nachmieter: Mieter = {
+        ...tenant1,
+        id: 'nachmieter-seamless',
+        name: 'Nachmieter',
+        einzug: '2025-06-01',
+        auszug: null,
+      };
+
+      const verbrauchA = 15.2;
+      const verbrauchB = 18.9;
+      const readings: WasserAblesung[] = [
+        { ...reading1, id: 'r-a', ablese_datum: '2025-06-01', verbrauch: verbrauchA, zaehler_id: 'meter-1' },
+        { ...reading2, id: 'r-b', ablese_datum: '2025-12-31', verbrauch: verbrauchB, zaehler_id: 'meter-1' },
+      ];
+
+      const result = calculateTenantMeterConsumption(
+        [vormieter, nachmieter],
+        [meter1],
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      const vormieterResult = result.find(r => r.tenantId === 'vormieter-seamless')!;
+      const nachmieterResult = result.find(r => r.tenantId === 'nachmieter-seamless')!;
+
+      expect(vormieterResult.totalConsumption).toBeCloseTo(verbrauchA, 5);
+      expect(nachmieterResult.totalConsumption).toBeCloseTo(verbrauchB, 5);
+    });
+
+    it('keeps a reading on the move-out day itself end-of-day when nobody moves in that day', () => {
+      // The reading is dated on Vormieter's auszug (31.05.), while Nachmieter only moves in
+      // on 01.06. - a different day - so the move-in rule does not apply here and the reading
+      // stays the leaving tenant's end-of-day state (pinned behaviour, unchanged by this fix).
+      const vormieter: Mieter = {
+        ...tenant1,
+        id: 'vormieter-moveout',
+        name: 'Vormieter',
+        einzug: '2025-01-01',
+        auszug: '2025-05-31',
+      };
+      const nachmieter: Mieter = {
+        ...tenant1,
+        id: 'nachmieter-moveout',
+        name: 'Nachmieter',
+        einzug: '2025-06-01',
+        auszug: null,
+      };
+
+      const verbrauchA = 22.5;
+      const readings: WasserAblesung[] = [
+        { ...reading1, id: 'r-a', ablese_datum: '2025-05-31', verbrauch: verbrauchA, zaehler_id: 'meter-1' },
+      ];
+
+      const result = calculateTenantMeterConsumption(
+        [vormieter, nachmieter],
+        [meter1],
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      const vormieterResult = result.find(r => r.tenantId === 'vormieter-moveout')!;
+      expect(vormieterResult.totalConsumption).toBeCloseTo(verbrauchA, 5);
+    });
+
+    it('handles a same-day handover: the reading on day d goes entirely to the leaving tenant, and day d is split in the next interval', () => {
+      const vormieter: Mieter = {
+        ...tenant1,
+        id: 'vormieter-handover',
+        name: 'Vormieter',
+        einzug: '2025-01-01',
+        auszug: '2025-06-01',
+      };
+      const nachmieter: Mieter = {
+        ...tenant1,
+        id: 'nachmieter-handover',
+        name: 'Nachmieter',
+        einzug: '2025-06-01',
+        auszug: null,
+      };
+
+      const verbrauchA = 30;
+      const verbrauchB = 12;
+      const readings: WasserAblesung[] = [
+        { ...reading1, id: 'r-a', ablese_datum: '2025-06-01', verbrauch: verbrauchA, zaehler_id: 'meter-1' },
+        { ...reading2, id: 'r-b', ablese_datum: '2025-12-31', verbrauch: verbrauchB, zaehler_id: 'meter-1' },
+      ];
+
+      const result = calculateTenantMeterConsumption(
+        [vormieter, nachmieter],
+        [meter1],
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      const vormieterResult = result.find(r => r.tenantId === 'vormieter-handover')!;
+      const nachmieterResult = result.find(r => r.tenantId === 'nachmieter-handover')!;
+
+      // First reading's interval (01.01.-31.05., 151 days) is entirely Vormieter's - the move-in
+      // rule shifts its effective end to 31.05., one day before the 01.06. reading date.
+      // The second interval (01.06.-31.12., 214 days) is shared: 01.06. is active for both
+      // tenants (Vormieter's auszug and Nachmieter's einzug both fall on it) and is split evenly,
+      // while the remaining 213 days go entirely to Nachmieter.
+      const dayShare = (verbrauchB / 214) / 2;
+      expect(vormieterResult.totalConsumption).toBeCloseTo(verbrauchA + dayShare, 5);
+      expect(nachmieterResult.totalConsumption).toBeCloseTo(verbrauchB - dayShare, 5);
+    });
+
+    it('keeps the current behaviour when a reading and a move-in both fall exactly on the period start', () => {
+      // The reading is on the period start itself, so there is no prior interval for it to
+      // shift a day into - the move-in rule never applies here, and behaviour is unchanged.
+      const tenant: Mieter = {
+        ...tenant1,
+        id: 'tenant-period-start',
+        name: 'Einziehender',
+        einzug: '2025-01-01',
+        auszug: null,
+      };
+
+      const readings: WasserAblesung[] = [
+        { ...reading1, id: 'r-start', ablese_datum: '2025-01-01', verbrauch: 50, zaehler_id: 'meter-1' },
+        { ...reading2, id: 'r-end', ablese_datum: '2025-12-31', verbrauch: 100, zaehler_id: 'meter-1' },
+      ];
+
+      const result = calculateTenantMeterConsumption(
+        [tenant],
+        [meter1],
+        readings,
+        periodStart,
+        periodEnd
+      );
+
+      // Current (unchanged) result: the only tenant present gets all of both readings' usage
+      expect(result[0].totalConsumption).toBeCloseTo(150, 5);
+    });
+
+    it('recognizes a move-in date given as a German date or an ISO timestamp when matching the reading date', () => {
+      const verbrauchA = 10;
+      const verbrauchB = 20;
+      const vormieter: Mieter = {
+        ...tenant1,
+        id: 'vormieter-format',
+        name: 'Vormieter',
+        einzug: '2025-01-01',
+        auszug: '2025-05-31',
+      };
+
+      const readings: WasserAblesung[] = [
+        { ...reading1, id: 'r-a', ablese_datum: '2025-06-01', verbrauch: verbrauchA, zaehler_id: 'meter-1' },
+        { ...reading2, id: 'r-b', ablese_datum: '2025-12-31', verbrauch: verbrauchB, zaehler_id: 'meter-1' },
+      ];
+
+      for (const einzug of ['01.06.2025', '2025-06-01T10:00:00.000Z']) {
+        const nachmieter: Mieter = {
+          ...tenant1,
+          id: 'nachmieter-format',
+          name: 'Nachmieter',
+          einzug,
+          auszug: null,
+        };
+
+        const result = calculateTenantMeterConsumption(
+          [vormieter, nachmieter],
+          [meter1],
+          readings,
+          periodStart,
+          periodEnd
+        );
+
+        const vormieterResult = result.find(r => r.tenantId === 'vormieter-format')!;
+        const nachmieterResult = result.find(r => r.tenantId === 'nachmieter-format')!;
+
+        expect(vormieterResult.totalConsumption).toBeCloseTo(verbrauchA, 5);
+        expect(nachmieterResult.totalConsumption).toBeCloseTo(verbrauchB, 5);
+      }
+    });
   });
 
   describe('Water Cost Configuration Issues (Common "Bug" Scenarios)', () => {
@@ -490,52 +1017,50 @@ describe('Water Cost Calculations', () => {
      * but are actually working as expected based on the input data.
      */
 
-    it('should return 0 cost when totalBuildingWaterCost is 0', () => {
+    it('should return 0 cost when zaehlerkosten is empty', () => {
       // Common issue: Wasserkosten not entered in Nebenkosten
       const tenants = [tenant3];
       const meters = [meter2];
       const readings = [reading3]; // 180 m³ consumption
-      const totalBuildingWaterCost = 0; // ❌ No water cost entered!
-      const totalBuildingConsumption = 180;
+      const zaehlerkosten = {}; // ❌ No water cost entered!
+      const zaehlerverbrauch = { kaltwasser: 180 };
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
 
       expect(result).toHaveLength(1);
       expect(result[0].consumption).toBe(180); // Consumption is calculated
-      expect(result[0].pricePerUnit).toBe(0); // Price is 0 because cost is 0
-      expect(result[0].costShare).toBe(0); // Cost share is 0
+      expect(result[0].costShare).toBe(0); // Cost share is 0 because no costs defined
     });
 
-    it('should return 0 cost when totalBuildingConsumption is 0', () => {
+    it('should return 0 cost when zaehlerverbrauch is empty', () => {
       // Common issue: Wasserverbrauch not entered in Nebenkosten
       const tenants = [tenant3];
       const meters = [meter2];
       const readings = [reading3]; // 180 m³ consumption in readings
-      const totalBuildingWaterCost = 540;
-      const totalBuildingConsumption = 0; // ❌ No building consumption entered!
+      const zaehlerkosten = { kaltwasser: 540 };
+      const zaehlerverbrauch = {}; // ❌ No building consumption entered!
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
 
       expect(result).toHaveLength(1);
       expect(result[0].consumption).toBe(180); // Individual consumption is still calculated
-      expect(result[0].pricePerUnit).toBe(0); // Price is 0 because can't divide by 0
-      expect(result[0].costShare).toBe(0); // Cost share is 0
+      expect(result[0].costShare).toBe(0); // Cost share is 0 because price per unit is 0
     });
 
     it('should return 0 consumption when readings are outside billing period', () => {
@@ -596,15 +1121,15 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant3];
       const meters = [meter2];
       const readings = [zeroVerbrauchReading];
-      const totalBuildingWaterCost = 540;
-      const totalBuildingConsumption = 180;
+      const zaehlerkosten = { kaltwasser: 540 };
+      const zaehlerverbrauch = { kaltwasser: 180 };
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -656,15 +1181,15 @@ describe('Water Cost Calculations', () => {
       const tenants = [tenant3, tenant4, tenant5]; // 3 tenants in different apartments
       const meters = [meter2]; // Only apartment2 has a meter
       const readings = [reading3];
-      const totalBuildingWaterCost = 540;
-      const totalBuildingConsumption = 180;
+      const zaehlerkosten = { kaltwasser: 540 };
+      const zaehlerverbrauch = { kaltwasser: 180 };
 
       const result = calculateTenantMeterCosts(
         tenants,
         meters,
         readings,
-        totalBuildingWaterCost,
-        totalBuildingConsumption,
+        zaehlerkosten,
+        zaehlerverbrauch,
         periodStart,
         periodEnd
       );
@@ -694,8 +1219,8 @@ describe('Water Cost Calculations', () => {
         tenants,
         meters,
         readings,
-        540,
-        180,
+        { kaltwasser: 540 },
+        { kaltwasser: 180 },
         periodStart,
         periodEnd
       );
@@ -714,8 +1239,8 @@ describe('Water Cost Calculations', () => {
         tenants,
         meters,
         readings,
-        540, // Total water cost
-        180, // Total consumption
+        { kaltwasser: 540 }, // Total water cost
+        { kaltwasser: 180 }, // Total consumption
         periodStart,
         periodEnd
       );

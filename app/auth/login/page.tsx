@@ -1,11 +1,13 @@
-import { Suspense } from "react"
-import LoginContent from "@/components/auth/login-content"
-import { AuthPageLoader } from "@/components/auth/auth-page-loader"
+import { Metadata } from 'next'
+import { pageMetadata } from '@/lib/seo/metadata'
+import LoginPage from './content'
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<AuthPageLoader />}>
-      <LoginContent />
-    </Suspense>
-  )
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+export const metadata: Metadata = pageMetadata.authLogin
+
+export default function Page() {
+  return <LoginPage />
 }

@@ -67,7 +67,7 @@ export const ApartmentTenantRow = React.forwardRef<
       ref={!expandable ? ref : undefined}
       className={cn(
         "flex items-center justify-between p-4 border rounded-lg transition-all duration-200 ease-in-out",
-        "hover:bg-muted/60 hover:shadow-sm hover:-translate-y-0.5 hover:border-primary/30",
+        "hover:bg-muted/60 hover:shadow-xs hover:-translate-y-0.5 hover:border-primary/30",
         "active:translate-y-0 active:shadow-none",
         isVacant ? "border-dashed border-muted-foreground/30" : "border-muted-foreground/20",
         "group",

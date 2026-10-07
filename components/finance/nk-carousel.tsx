@@ -88,7 +88,7 @@ export function NKCarousel() {
   return (
     <div className="w-full">
       {/* MOBILE VIEW: Standard Carousel */}
-      <div className="md:hidden w-full bg-gradient-to-b from-muted/30 via-muted/50 to-muted/30 py-16">
+      <div className="md:hidden w-full bg-linear-to-b from-muted/30 via-muted/50 to-muted/30 py-16">
         <div className="w-full max-w-6xl mx-auto px-4">
           <Carousel
             opts={{
@@ -151,7 +151,7 @@ export function NKCarousel() {
                 className={cn(
                   "absolute rounded-full border transform-gpu transition-all duration-1000",
                   isOuter
-                    ? "border-primary/20 bg-primary/[0.01]"
+                    ? "border-primary/20 bg-primary/1%"
                     : "border-primary/10"
                 )}
                 style={{
@@ -208,7 +208,7 @@ export function NKCarousel() {
                       "relative flex items-center justify-center rounded-2xl transition-all duration-300 z-30",
                       isActive
                         ? "w-16 h-16 md:w-20 md:h-20 bg-background shadow-2xl ring-4 ring-offset-4 ring-offset-background"
-                        : "w-12 h-12 md:w-16 md:h-16 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 text-slate-500 shadow-sm"
+                        : "w-12 h-12 md:w-16 md:h-16 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-primary/50 text-slate-500 shadow-xs"
                     )}
                     style={{
                       borderColor: isActive ? colorMap[feature.color] : undefined,

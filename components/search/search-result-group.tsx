@@ -96,7 +96,7 @@ export function SearchResultGroup({
               <GroupIcon className={cn("h-3.5 w-3.5", groupColor)} />
             )}
             <span>{groupTitle}</span>
-            <div className="ml-auto flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-muted/50 text-[10px] font-medium text-muted-foreground">
+            <div className="ml-auto flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-muted/50 text-[10px] font-medium text-muted-foreground">
               {results.length}
             </div>
           </div>

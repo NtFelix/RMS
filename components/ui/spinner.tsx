@@ -20,7 +20,7 @@ function Spinner({ className, size = "md", ...props }: SpinnerProps) {
       )}
       {...props}
     >
-      <span className="sr-only">Loading...</span>
+      <span className="sr-only">Loading…</span>
     </div>
   )
 }

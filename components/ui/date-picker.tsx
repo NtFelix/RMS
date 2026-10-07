@@ -23,6 +23,10 @@ interface DatePickerProps {
   className?: string
   disabled?: boolean
   id?: string
+  /** Wird an das Eingabefeld (Variante "input") durchgereicht: Fehlerzustand für Hilfstechnologien. */
+  "aria-invalid"?: React.AriaAttributes["aria-invalid"]
+  /** Wird an das Eingabefeld (Variante "input") durchgereicht: verknüpft Hinweis- und Fehlertext mit dem Feld. */
+  "aria-describedby"?: string
   fromYear?: number
   toYear?: number
   showClearButton?: boolean
@@ -37,6 +41,8 @@ export function DatePicker({
   className,
   disabled,
   id,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
   fromYear = 1900,
   toYear = 2100,
   showClearButton = true,
@@ -123,6 +129,8 @@ export function DatePicker({
               <>
                 <Input
                   id={id}
+                  aria-invalid={ariaInvalid}
+                  aria-describedby={ariaDescribedBy}
                   type="text"
                   placeholder={placeholder}
                   value={inputValue}

@@ -7,9 +7,10 @@
  */
 
 import { POSTHOG_FEATURE_FLAGS } from './constants'
+import resolvePostHogHost from './posthog-host'
 
 // The /decide endpoint is public and requires the public API key (phc_ prefix)
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+const POSTHOG_HOST = resolvePostHogHost()
 const POSTHOG_API_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
 
 interface FeatureFlagResult {
@@ -37,13 +38,13 @@ export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
 
     try {
         // Use PostHog's /decide endpoint to evaluate feature flags
-        // Use cache: 'no-store' to ensure fresh flags on each build
+        // Use next: { revalidate: 3600 } to avoid blocking static prerender
         const response = await fetch(`${POSTHOG_HOST}/decide?v=3`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            cache: 'no-store',
+            next: { revalidate: 3600 },
             body: JSON.stringify({
                 api_key: POSTHOG_API_KEY,
                 // Use a fixed distinct_id for build-time evaluation
@@ -51,11 +52,14 @@ export async function getFeatureFlagsForSEO(): Promise<FeatureFlagResult> {
                 distinct_id: 'seo-build-time-check',
                 groups: {},
             }),
-        })
+        }).catch((err) => {
+            console.warn('[SEO] Fetch failed during prerender - using default feature flag values:', err?.message || err);
+            return null;
+        });
 
-        if (!response.ok) {
-            console.warn(`[SEO] PostHog API returned ${response.status} - using default feature flag values`)
-            return defaultResult
+        if (!response || !response.ok) {
+            console.warn('[SEO] PostHog API returned error or null - using default feature flag values');
+            return defaultResult;
         }
 
         const data = await response.json()

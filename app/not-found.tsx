@@ -55,6 +55,7 @@ export default function NotFound() {
               src={LOGO_URL}
               alt="Mietevo Logo"
               fill
+              sizes="32px"
               className="object-cover"
               unoptimized // Supabase images are stored as pre-optimized .avif
             />

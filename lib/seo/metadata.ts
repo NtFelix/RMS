@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { BASE_URL, BRAND_NAME, OG_IMAGE_URL } from '@/lib/constants'
+import { BASE_URL, BRAND_NAME, OG_IMAGE_URL, EXTERNAL_LINKS } from '@/lib/constants'
 
 /**
  * Default metadata for the entire application.
@@ -17,6 +17,8 @@ export const defaultMetadata: Metadata = {
         'Nebenkostenabrechnung Software',
         'Mietverwaltung',
         'Betriebskostenabrechnung',
+        'Betriebskostenabrechnung erstellen',
+        'Betriebskostenabrechnung Software',
         'Immobilienverwaltung',
         'Vermieter Software',
         'Hausverwaltung',
@@ -61,9 +63,6 @@ export const defaultMetadata: Metadata = {
         creator: '@Mietevo',
         images: [OG_IMAGE_URL],
     },
-    alternates: {
-        canonical: BASE_URL,
-    },
     verification: {
         // Add your verification codes here when available
         // google: 'your-google-verification-code',
@@ -103,6 +102,22 @@ export const defaultMetadata: Metadata = {
  *    - Tells search engines which URL is the "main" version
  */
 
+/**
+ * Standard metadata configuration for private/protected pages that must NOT be indexed.
+ */
+export const privateNoindexMetadata: Metadata = {
+    robots: {
+        index: false,
+        follow: false,
+        nocache: true,
+        googleBot: {
+            index: false,
+            follow: false,
+            noimageindex: true,
+        },
+    },
+}
+
 export const pageMetadata = {
     // Homepage
     home: {
@@ -111,6 +126,7 @@ export const pageMetadata = {
         keywords: [
             'Hausverwaltungssoftware',
             'Nebenkostenabrechnung erstellen',
+            'Betriebskostenabrechnung erstellen',
             'Mietverwaltung Software',
             'Betriebskostenabrechnung Software',
             'Immobilienverwaltung',
@@ -122,7 +138,7 @@ export const pageMetadata = {
             description: 'Die moderne Lösung für Ihre Mietverwaltung und Betriebskostenabrechnung. Einfach, schnell und professionell.',
         },
         alternates: {
-            canonical: BASE_URL,
+            canonical: '/',
         },
     } satisfies Metadata,
 
@@ -143,7 +159,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/preise`,
         },
         alternates: {
-            canonical: `${BASE_URL}/preise`,
+            canonical: '/preise',
         },
     } satisfies Metadata,
 
@@ -167,7 +183,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/funktionen/betriebskosten`,
         },
         alternates: {
-            canonical: `${BASE_URL}/funktionen/betriebskosten`,
+            canonical: '/funktionen/betriebskosten',
         },
     } satisfies Metadata,
 
@@ -190,7 +206,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/funktionen/wohnungsverwaltung`,
         },
         alternates: {
-            canonical: `${BASE_URL}/funktionen/wohnungsverwaltung`,
+            canonical: '/funktionen/wohnungsverwaltung',
         },
     } satisfies Metadata,
 
@@ -213,7 +229,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/funktionen/finanzverwaltung`,
         },
         alternates: {
-            canonical: `${BASE_URL}/funktionen/finanzverwaltung`,
+            canonical: '/funktionen/finanzverwaltung',
         },
     } satisfies Metadata,
 
@@ -236,7 +252,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/loesungen/privatvermieter`,
         },
         alternates: {
-            canonical: `${BASE_URL}/loesungen/privatvermieter`,
+            canonical: '/loesungen/privatvermieter',
         },
     } satisfies Metadata,
 
@@ -257,7 +273,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/loesungen/kleine-mittlere-hausverwaltungen`,
         },
         alternates: {
-            canonical: `${BASE_URL}/loesungen/kleine-mittlere-hausverwaltungen`,
+            canonical: '/loesungen/kleine-mittlere-hausverwaltungen',
         },
     } satisfies Metadata,
 
@@ -278,28 +294,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/loesungen/grosse-hausverwaltungen`,
         },
         alternates: {
-            canonical: `${BASE_URL}/loesungen/grosse-hausverwaltungen`,
-        },
-    } satisfies Metadata,
-
-    // Dokumentation
-    dokumentation: {
-        title: 'Dokumentation & Hilfe | Anleitungen für Mietevo',
-        description: 'Ausführliche Anleitungen und Hilfe zur Nutzung von Mietevo. Schritt-für-Schritt Tutorials, FAQ und Best Practices für Ihre Hausverwaltung.',
-        keywords: [
-            'Mietevo Anleitung',
-            'Hausverwaltung Tutorial',
-            'Nebenkostenabrechnung Hilfe',
-            'Mietevo Dokumentation',
-            'Hausverwaltung Hilfe',
-        ],
-        openGraph: {
-            title: 'Dokumentation & Hilfe | Mietevo',
-            description: 'Ausführliche Anleitungen und Hilfe zur Nutzung von Mietevo.',
-            url: `${BASE_URL}/hilfe/dokumentation`,
-        },
-        alternates: {
-            canonical: `${BASE_URL}/hilfe/dokumentation`,
+            canonical: '/loesungen/grosse-hausverwaltungen',
         },
     } satisfies Metadata,
 
@@ -312,7 +307,7 @@ export const pageMetadata = {
             follow: true,
         },
         alternates: {
-            canonical: `${BASE_URL}/datenschutz`,
+            canonical: '/datenschutz',
         },
     } satisfies Metadata,
 
@@ -325,7 +320,7 @@ export const pageMetadata = {
             follow: true,
         },
         alternates: {
-            canonical: `${BASE_URL}/agb`,
+            canonical: '/agb',
         },
     } satisfies Metadata,
 
@@ -349,7 +344,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/auth/login`,
         },
         alternates: {
-            canonical: `${BASE_URL}/auth/login`,
+            canonical: '/auth/login',
         },
     } satisfies Metadata,
 
@@ -370,7 +365,7 @@ export const pageMetadata = {
             url: `${BASE_URL}/auth/register`,
         },
         alternates: {
-            canonical: `${BASE_URL}/auth/register`,
+            canonical: '/auth/register',
         },
     } satisfies Metadata,
 
@@ -406,4 +401,51 @@ export const pageMetadata = {
             nocache: true,
         },
     } satisfies Metadata,
+
+    // Warteliste - Browser-Erweiterung
+    wartelisteBrowserErweiterung: {
+        title: 'Warteliste: Browser-Erweiterung',
+        description: 'Melden Sie sich für die Warteliste unserer Browser-Erweiterung an. Schneller Zugriff auf Mietverwaltung und Abrechnungen direkt im Browser.',
+        openGraph: {
+            title: 'Warteliste: Browser-Erweiterung | Mietevo',
+            description: 'Melden Sie sich für die Warteliste unserer Browser-Erweiterung an.',
+            url: `${BASE_URL}/warteliste/browser-erweiterung`,
+        },
+        alternates: {
+            canonical: '/warteliste/browser-erweiterung',
+        },
+    } satisfies Metadata,
+
+    // Warteliste - Mobile App
+    wartelisteMobileApp: {
+        title: 'Warteliste: Mobile App',
+        description: 'Melden Sie sich für die Warteliste der mobilen Mietevo-App an. Immobilienverwaltung, Zählerstände und Aufgaben von unterwegs verwalten.',
+        openGraph: {
+            title: 'Warteliste: Mobile App | Mietevo',
+            description: 'Melden Sie sich für die Warteliste der mobilen Mietevo-App an.',
+            url: `${BASE_URL}/warteliste/mobile-app`,
+        },
+        alternates: {
+            canonical: '/warteliste/mobile-app',
+        },
+    } satisfies Metadata,
+
+    // Checkout - noindex (private, transactional)
+    checkout: {
+        ...privateNoindexMetadata,
+        title: 'Checkout',
+    } satisfies Metadata,
+
+    // Subscription locked - noindex (private)
+    subscriptionLocked: {
+        ...privateNoindexMetadata,
+        title: 'Abo gesperrt',
+    } satisfies Metadata,
+
+    // Einladung annehmen - noindex (private)
+    einladungAnnehmen: {
+        ...privateNoindexMetadata,
+        title: 'Einladung annehmen',
+    } satisfies Metadata,
 }
+

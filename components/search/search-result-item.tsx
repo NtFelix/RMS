@@ -97,19 +97,19 @@ const renderMetadata = (result: SearchResult) => {
         <>
           {metadata?.email && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Mail className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <Mail className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.email}</span>
             </div>
           )}
           {metadata?.phone && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Phone className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <Phone className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.phone}</span>
             </div>
           )}
           {metadata?.address && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <MapPin className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <MapPin className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
@@ -120,18 +120,18 @@ const renderMetadata = (result: SearchResult) => {
       return (
         <>
           <div className="flex items-center gap-1.5 min-w-0">
-            <Home className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+            <Home className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
             <span>{metadata?.apartment_count || 0} Wohnungen</span>
           </div>
           {metadata?.total_rent && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Euro className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <Euro className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span>{metadata.total_rent} / Monat</span>
             </div>
           )}
           {metadata?.address && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <MapPin className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <MapPin className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
@@ -143,27 +143,27 @@ const renderMetadata = (result: SearchResult) => {
         <>
           {metadata?.house_name && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Building2 className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <Building2 className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.house_name}</span>
             </div>
           )}
           <div className="flex items-center gap-3">
             {metadata?.size && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <Ruler className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+                <Ruler className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
                 <span>{metadata.size}m²</span>
               </div>
             )}
             {metadata?.rent && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <Euro className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+                <Euro className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
                 <span>{metadata.rent}</span>
               </div>
             )}
           </div>
           {metadata?.current_tenant && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2 text-primary/80">
-              <Users className="!h-3 !w-3" />
+              <Users className="h-3! w-3!" />
               <span className="truncate font-medium">{metadata.current_tenant.name}</span>
             </div>
           )}
@@ -175,9 +175,9 @@ const renderMetadata = (result: SearchResult) => {
         <>
           <div className="flex items-center gap-1.5 min-w-0">
             {metadata?.type === 'income' ? (
-              <TrendingUp className="!h-3 !w-3 text-emerald-500" />
+              <TrendingUp className="h-3! w-3! text-emerald-500" />
             ) : (
-              <TrendingDown className="!h-3 !w-3 text-rose-500" />
+              <TrendingDown className="h-3! w-3! text-rose-500" />
             )}
             <span className={cn("font-medium", metadata?.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
               {metadata?.amount !== undefined ? `${metadata.type === 'income' ? '+' : '-'}${Math.abs(metadata.amount)}€` : '-'}
@@ -185,13 +185,13 @@ const renderMetadata = (result: SearchResult) => {
           </div>
           {metadata?.date && (
             <div className="flex items-center gap-1.5 min-w-0">
-              <Calendar className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <Calendar className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span>{new Date(metadata.date).toLocaleDateString('de-DE')}</span>
             </div>
           )}
           {metadata?.apartment && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <Home className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <Home className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.apartment.name}</span>
               <span className="text-muted-foreground/40 mx-0.5">•</span>
               <span className="truncate opacity-70 group-data-[selected=true]:opacity-100 transition-opacity">{metadata.apartment.house_name}</span>
@@ -206,7 +206,7 @@ const renderMetadata = (result: SearchResult) => {
           <div className="flex items-center gap-1.5 min-w-0">
             {metadata?.due_date ? (
               <>
-                <Calendar className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+                <Calendar className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
                 <span>{new Date(metadata.due_date).toLocaleDateString('de-DE')}</span>
               </>
             ) : (
@@ -215,7 +215,7 @@ const renderMetadata = (result: SearchResult) => {
           </div>
           {metadata?.description && (
             <div className="flex items-center gap-1.5 min-w-0 col-span-2">
-              <FileText className="!h-3 !w-3 opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
+              <FileText className="h-3! w-3! opacity-70 group-data-[selected=true]:opacity-100 transition-opacity" />
               <span className="truncate">{metadata.description}</span>
             </div>
           )}
@@ -243,12 +243,12 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
 
         {/* Icon Container */}
         <div className={cn(
-          "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg shadow-sm border border-transparent",
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg shadow-xs border border-transparent",
           theme.bg,
           theme.text,
           "group-data-[selected=true]:shadow-md transition-shadow duration-200"
         )}>
-          <Icon className="!h-6 !w-6" />
+          <Icon className="h-6! w-6!" />
         </div>
 
         {/* Content */}

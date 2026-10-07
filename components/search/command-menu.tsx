@@ -124,10 +124,6 @@ export function CommandMenu() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        setOpen(!open)
-      }
       // Clear search when Escape is pressed and there's a query
       if (e.key === "Escape" && query.trim().length > 0) {
         e.preventDefault()
@@ -160,7 +156,7 @@ export function CommandMenu() {
 
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [setOpen, open, query, clearSearch, setQuery])
+  }, [query, clearSearch, setQuery, open])
 
   // Auto-focus input when command menu opens and clear search when closed
   useEffect(() => {
@@ -217,8 +213,8 @@ export function CommandMenu() {
           const limitResult = await getPlanApartmentLimit(subContext.stripe_price_id)
           if (
             limitResult.error ||
-            limitResult.limitWohnungen === undefined ||
-            limitResult.limitWohnungen === null
+            limitResult.limit_wohnungen === undefined ||
+            limitResult.limit_wohnungen === null
           ) {
             apartmentLimit = undefined
             toast({
@@ -227,7 +223,7 @@ export function CommandMenu() {
               variant: "destructive",
             })
           } else {
-            apartmentLimit = limitResult.limitWohnungen
+            apartmentLimit = limitResult.limit_wohnungen
           }
         }
       }

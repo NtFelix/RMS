@@ -6,12 +6,12 @@ import {
   toggleFinanceStatusAction,
   deleteFinanceAction,
 } from '../finanzen-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({
@@ -65,10 +65,11 @@ describe('finanzen-actions', () => {
 
     mockSupabase = {
       from: jest.fn().mockReturnValue(mockChain),
+      rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
       auth: mockAuth,
     };
 
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('financeServerAction', () => {
@@ -110,13 +111,13 @@ describe('finanzen-actions', () => {
     it('validates name', async () => {
       const result = await financeServerAction(null, { ...validData, name: '' });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Name ist erforderlich');
+      expect(result.error?.message).toContain('Name ist erforderlich');
     });
 
     it('validates amount', async () => {
       const result = await financeServerAction(null, { ...validData, betrag: 'invalid' as any });
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Betrag muss eine Zahl sein');
+      expect(result.error?.message).toContain('Betrag muss eine Zahl sein');
     });
 
     it('handles database error', async () => {
@@ -126,7 +127,7 @@ describe('finanzen-actions', () => {
       const result = await financeServerAction(null, validData);
 
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('DB Error');
+      expect(result.error?.message).toBe('DB Error');
     });
   });
 
@@ -152,26 +153,26 @@ describe('finanzen-actions', () => {
       const result = await toggleFinanceStatusAction('fin-1', true);
 
       expect(result.success).toBe(false);
-      expect(result.error.message).toBe('Update failed');
+      expect(result.error?.message).toBe('Update failed');
     });
   });
 
   describe('deleteFinanceAction', () => {
-    it('deletes finance record successfully', async () => {
-      const mockChain = mockSupabase.from();
-      mockChain.eq.mockResolvedValue({ error: null });
+    it('deletes finance record successfully via soft delete', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
       const result = await deleteFinanceAction('fin-1');
 
       expect(result.success).toBe(true);
-      expect(mockChain.delete).toHaveBeenCalled();
-      expect(mockChain.eq).toHaveBeenCalledWith('id', 'fin-1');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Finanzen',
+        p_record_id: 'fin-1',
+      });
       expect(revalidatePath).toHaveBeenCalledWith('/finanzen');
     });
 
     it('handles deletion error', async () => {
-      const mockChain = mockSupabase.from();
-      mockChain.eq.mockResolvedValue({ error: { message: 'Delete failed' } });
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'Delete failed' } });
 
       const result = await deleteFinanceAction('fin-1');
 

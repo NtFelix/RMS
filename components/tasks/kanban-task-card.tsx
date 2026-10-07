@@ -114,7 +114,7 @@ export const KanbanTaskCard = memo(function KanbanTaskCard({ task, onTaskUpdated
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 pt-1">
+            <div className="shrink-0 pt-1">
               <Checkbox
                 checked={task.ist_erledigt}
                 onCheckedChange={toggleTaskStatus}

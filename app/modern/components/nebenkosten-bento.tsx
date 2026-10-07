@@ -38,7 +38,7 @@ const nkFeatures: NKFeature[] = [
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
-              className="p-4 rounded-2xl bg-background/50 border border-border/50 backdrop-blur-sm group-hover:translate-y-[-2px] transition-transform"
+              className="p-4 rounded-2xl bg-background/50 border border-border/50 backdrop-blur-xs group-hover:translate-y-[-2px] transition-transform"
             >
               <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-2", item.bg, item.color)}>
                 <item.icon size={16} />
@@ -82,7 +82,7 @@ const nkFeatures: NKFeature[] = [
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold">85%</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Bezahlt</span>
+            <span className="text-[10px] text-muted-foreground font-medium">Bezahlt</span>
           </div>
         </div>
         <div className="w-full space-y-2">
@@ -94,8 +94,8 @@ const nkFeatures: NKFeature[] = [
             />
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
-            <span>ERHALTEN: 12.450 €</span>
-            <span>OFFEN: 1.200 €</span>
+            <span>Erhalten: 12.450 €</span>
+            <span>Offen: 1.200 €</span>
           </div>
         </div>
       </div>
@@ -137,7 +137,7 @@ const nkFeatures: NKFeature[] = [
         <div className="relative w-full max-w-sm">
           <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full" />
           <div className="relative space-y-3">
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-background border border-border shadow-sm group-hover:translate-x-2 transition-transform duration-500">
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-background border border-border shadow-xs group-hover:translate-x-2 transition-transform duration-500">
               <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
                 <FileText size={20} />
               </div>
@@ -149,7 +149,7 @@ const nkFeatures: NKFeature[] = [
                 <CheckCircle2 size={14} />
               </div>
             </div>
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-background border border-border shadow-sm group-hover:translate-x-2 transition-transform duration-500 delay-100 italic opacity-60">
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-background border border-border shadow-xs group-hover:translate-x-2 transition-transform duration-500 delay-100 italic opacity-60">
               <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
                 <FileJson size={20} />
               </div>
@@ -176,7 +176,7 @@ export default function NebenkostenBento() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/5 border border-emerald-500/10 backdrop-blur-sm mb-6"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/5 border border-emerald-500/10 backdrop-blur-xs mb-6"
           >
             <Calculator className="w-4 h-4 text-emerald-500" />
             <span className="text-sm font-medium text-emerald-500">Abrechnung</span>
@@ -187,7 +187,7 @@ export default function NebenkostenBento() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
+            className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-linear-to-r from-foreground to-muted-foreground bg-clip-text text-transparent"
           >
             Herausforderungen gelöst
           </motion.h2>
@@ -214,12 +214,12 @@ export default function NebenkostenBento() {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true }}
               className={cn(
-                "group relative rounded-[2.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-sm hover:shadow-xl transition-all duration-500",
+                "group relative rounded-[3.5rem] overflow-hidden bg-white/5 border border-black/5 dark:border-white/10 shadow-xs hover:shadow-xl transition-shadow duration-500",
                 feature.colSpan
               )}
             >
               {/* Card Background Gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
+              <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-primary/5 group-hover:to-primary/10 transition-colors duration-500" />
 
               <div className="relative h-full flex flex-col">
                 {/* Image/Mock Area */}
@@ -235,7 +235,7 @@ export default function NebenkostenBento() {
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                       <feature.icon size={20} />
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-widest text-primary/60">
+                    <span className="text-xs font-semibold text-primary">
                       {feature.subtitle}
                     </span>
                   </div>

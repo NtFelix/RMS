@@ -2,9 +2,13 @@ import type React from "react"
 import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { CSPNonceSync } from "@/components/providers/csp-nonce-sync"
+import { redirectAuthenticatedAuthRoute } from "@/lib/server/route-access"
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
 
 // Cloudflare Pages requires dynamic routes to be marked as edge
-export const runtime = 'edge'
 
 // Auth layout metadata - common settings for all auth pages
 export const metadata: Metadata = {
@@ -21,6 +25,7 @@ export default async function AuthLayout({
 }: {
   children: React.ReactNode
 }) {
+  await redirectAuthenticatedAuthRoute()
   const nonce = (await headers()).get('x-nonce')
 
   return (

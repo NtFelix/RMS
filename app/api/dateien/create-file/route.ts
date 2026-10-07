@@ -1,7 +1,7 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from 'next/server'
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
 
-export const runtime = 'edge'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +10,10 @@ export async function POST(request: NextRequest) {
     if (!filePath || !fileName) {
       return NextResponse.json(
         { error: 'File path and name are required' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -18,11 +21,14 @@ export async function POST(request: NextRequest) {
     if (!/^[a-zA-Z0-9_\-\s.]+$/.test(fileName)) {
       return NextResponse.json(
         { error: 'File name contains invalid characters' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
 
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -30,7 +36,10 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
-        { status: 401 }
+        {
+          status: 401,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -38,7 +47,10 @@ export async function POST(request: NextRequest) {
     if (!filePath.startsWith(`user_${user.id}`)) {
       return NextResponse.json(
         { error: 'Invalid path' },
-        { status: 403 }
+        {
+          status: 403,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -56,7 +68,10 @@ export async function POST(request: NextRequest) {
     if (existingFiles && existingFiles.length > 0) {
       return NextResponse.json(
         { error: 'File already exists' },
-        { status: 409 }
+        {
+          status: 409,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -74,21 +89,28 @@ export async function POST(request: NextRequest) {
       console.error('Error creating file:', uploadError)
       return NextResponse.json(
         { error: 'Failed to create file' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
     // Insert into Dokumente_Metadaten
     try {
-      await supabase
+      const { error: dbInsertError } = await supabase
         .from('Dokumente_Metadaten')
         .insert({
           dateipfad: filePath,
           dateiname: fileName,
           dateigroesse: new Blob([content]).size,
-          mime_type: 'text/markdown',
-          user_id: user.id
+          mime_type: 'text/markdown'
+          // organisation_id and erstellt_von are set by column defaults
         })
+
+      if (dbInsertError) {
+        throw dbInsertError
+      }
     } catch (dbError) {
       console.error('Failed to insert into Dokumente_Metadaten:', dbError)
 
@@ -103,7 +125,10 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         { error: 'Failed to save file metadata' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -111,13 +136,16 @@ export async function POST(request: NextRequest) {
       success: true,
       filePath: newFilePath,
       message: 'File created successfully'
-    })
+    }, { headers: NO_CACHE_HEADERS })
 
   } catch (error) {
     console.error('Unexpected error creating file:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: NO_CACHE_HEADERS,
+      }
     )
   }
 }

@@ -24,9 +24,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel
 } from "@/components/ui/alert-dialog"
-import type { Nebenkosten, Mieter, Wasserzaehler, Rechnung, Haus } from "@/lib/types";
+import type { Nebenkosten, Mieter, ZaehlerAblesung, Rechnung, Haus } from "@/lib/types";
 import { OptimizedNebenkosten, AbrechnungModalData } from "@/types/optimized-betriebskosten"; // Removed WasserzaehlerModalData
 import { isoToGermanDate } from "@/utils/date-calculations"
+import { isRechenbasis360 } from "@/utils/rechentage"
 import { Edit, Trash2, FileText, Droplets, ChevronsUpDown, ArrowUp, ArrowDown, Calendar, Building2, Euro, Calculator, MoreVertical, X, Download, Pencil, Loader2 } from "lucide-react"
 
 // Lazy load modals to reduce bundle size
@@ -40,11 +41,12 @@ import {
   deleteNebenkosten as deleteNebenkostenServerAction,
   bulkDeleteNebenkosten
 } from "@/app/betriebskosten-actions" // Removed old wasserzaehler imports
-import { toast } from "@/hooks/use-toast" // For notifications
+import { toast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
 import { useRouter } from "next/navigation"
 import { sumAllZaehlerValues } from "@/lib/zaehler-utils"
+import { formatPlzOrt } from "@/lib/address"
 
 // Define sortable fields for operating costs table
 type OperatingCostsSortKey = "zeitraum" | "haus" | "zaehlerkosten" | ""
@@ -58,6 +60,9 @@ interface OperatingCostsTableProps {
   allHaeuser: Haus[];
   selectedItems?: Set<string>;
   onSelectionChange?: (selected: Set<string>) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewMeters?: boolean;
 }
 
 export function OperatingCostsTable({
@@ -67,12 +72,15 @@ export function OperatingCostsTable({
   ownerName,
   allHaeuser,
   selectedItems: externalSelectedItems,
-  onSelectionChange
+  onSelectionChange,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: OperatingCostsTableProps) {
   const router = useRouter()
 
   // Old openWasserzaehlerModalOptimized removed - now using new ZaehlerAblesenModal
-  const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
+  const { openOperatingCostsOverviewModal } = useModalStore();
   // Old wasserzähler modal state removed - now using new ZaehlerAblesenModal
   const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
@@ -188,11 +196,7 @@ export function OperatingCostsTable({
   };
 
   const handleOpenOverview = (item: OptimizedNebenkosten) => {
-    setOverviewItem(item);
-  };
-
-  const handleCloseOverview = () => {
-    setOverviewItem(null);
+    openOperatingCostsOverviewModal(item);
   };
 
   // Old handleOpenWasserzaehlerModal function removed - now using new WasserZaehlerAblesenModal
@@ -309,7 +313,7 @@ export function OperatingCostsTable({
     const selectedItemsData = nebenkosten.filter(item => selectedItems.has(item.id))
 
     // Create CSV header
-    const headers = ['Zeitraum', 'Haus', 'Kostenarten', 'Beträge', 'Berechnungsarten', 'Zählerkosten']
+    const headers = ['Zeitraum', 'Haus', 'Kostenarten', 'Beträge', 'Berechnungsarten', 'Zählerkosten', 'Rechenbasis']
     const csvHeader = headers.map(h => escapeCsvValue(h)).join(',')
 
     // Create CSV rows with proper escaping
@@ -328,7 +332,8 @@ export function OperatingCostsTable({
         betraege,
         berechnungsarten,
         // Sum zaehlerkosten JSONB values
-        formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null)
+        formatCurrency(sumAllZaehlerValues(item.zaehlerkosten) || null),
+        isRechenbasis360(item) ? '360 Tage' : 'Kalendertage'
       ]
       return row.map(value => escapeCsvValue(value)).join(',')
     })
@@ -400,7 +405,7 @@ export function OperatingCostsTable({
               variant="outline"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
-              disabled={isBulkDeleting}
+              disabled={isBulkDeleting || !canDelete}
               className="h-8 gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
             >
               {isBulkDeleting ? (
@@ -422,7 +427,7 @@ export function OperatingCostsTable({
         <div className="inline-block min-w-full align-middle">
           <Table className="min-w-full">
             <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+              <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                 <TableHead className="w-12 pl-0 pr-0 -ml-2">
                   <div className="flex items-center justify-start w-6 h-6 rounded-md transition-transform duration-100">
                     <Checkbox
@@ -469,7 +474,7 @@ export function OperatingCostsTable({
                             ? `bg-primary/10 dark:bg-primary/20 ${isLastRow ? 'rounded-b-lg' : ''}`
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                             }`}
-                          onClick={() => onEdit?.(item)}
+                          onClick={() => canEdit ? onEdit?.(item) : handleOpenOverview(item)}
                         >
                           <TableCell
                             className={`py-4 ${isSelected && isLastRow ? 'rounded-bl-lg' : ''}`}
@@ -482,10 +487,19 @@ export function OperatingCostsTable({
                             />
                           </TableCell>
                           <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>
-                            {item.startdatum && item.enddatum
-                              ? `${isoToGermanDate(item.startdatum)} bis ${isoToGermanDate(item.enddatum)}`
-                              : '-'
-                            }
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {item.startdatum && item.enddatum
+                                  ? `${isoToGermanDate(item.startdatum)} bis ${isoToGermanDate(item.enddatum)}`
+                                  : '-'
+                                }
+                              </span>
+                              {isRechenbasis360(item) && (
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400">
+                                  360 Tage
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{item.haus_name || 'N/A'}</TableCell>
                           <TableCell className={`py-4 dark:text-[#f3f4f6]`}>
@@ -529,6 +543,8 @@ export function OperatingCostsTable({
                                   label: "Bearbeiten",
                                   onClick: () => onEdit?.(item),
                                   variant: 'primary',
+                                  disabled: !canEdit,
+                                  tooltip: !canEdit ? "Keine Berechtigung zum Bearbeiten" : undefined,
                                 },
                                 {
                                   id: `overview-${item.id}`,
@@ -567,35 +583,43 @@ export function OperatingCostsTable({
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-56">
                         <ContextMenuItem
-                          onClick={(e) => { e.stopPropagation(); handleOpenOverview(item); }}
+                          onClick={(e) => { e.stopPropagation(); setTimeout(() => handleOpenOverview(item), 0); }}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <FileText className="h-4 w-4" />
                           <span>Übersicht</span>
                         </ContextMenuItem>
                         <ContextMenuItem
-                          onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                          onClick={(e) => { e.stopPropagation(); setTimeout(() => onEdit?.(item), 0); }}
+                          disabled={!canEdit}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <Edit className="h-4 w-4" />
                           <span>Bearbeiten</span>
                         </ContextMenuItem>
                         {/* Old Wasserzähler modal button removed - now using new ZaehlerAblesenModal */}
+                        {canViewMeters && (
+                          <ContextMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedNebenkostenForAblesen(item);
+                              setTimeout(() => {
+                                setIsZaehlerAblesenOpen(true);
+                              }, 0);
+                            }}
+                            disabled={!canEdit}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Droplets className="h-4 w-4" />
+                            <span>Zähler</span>
+                          </ContextMenuItem>
+                        )}
                         <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedNebenkostenForAblesen(item);
-                            setIsZaehlerAblesenOpen(true);
-                          }}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Droplets className="h-4 w-4" />
-                          <span>Zähler</span>
-                        </ContextMenuItem>
-                        <ContextMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenAbrechnungModal(item);
+                            setTimeout(() => {
+                              handleOpenAbrechnungModal(item);
+                            }, 0);
                           }}
                           className="flex items-center gap-2 cursor-pointer"
                           disabled={isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id}
@@ -606,6 +630,7 @@ export function OperatingCostsTable({
                         <ContextMenuSeparator />
                         <ContextMenuItem
                           onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+                          disabled={!canDelete}
                           className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-500 dark:focus:text-red-500 dark:focus:bg-red-900/50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -621,14 +646,7 @@ export function OperatingCostsTable({
         </div>
       </div>
 
-      {/* Overview Modal */}
-      {overviewItem && (
-        <OperatingCostsOverviewModal
-          isOpen={!!overviewItem}
-          onClose={handleCloseOverview}
-          nebenkosten={overviewItem}
-        />
-      )}
+      {/* Overview Modal is now handled globally via ModalStore */}
 
       {/* Zaehler Modal is now handled by the modal store */}
 
@@ -637,18 +655,20 @@ export function OperatingCostsTable({
         <AbrechnungModal
           isOpen={isAbrechnungModalOpen}
           onClose={handleCloseAbrechnungModal}
-          nebenkostenItem={selectedNebenkostenForAbrechnung}
+          nebenkostenItem={abrechnungModalData?.nebenkosten_data || selectedNebenkostenForAbrechnung}
           tenants={abrechnungModalData.tenants ?? []}
           rechnungen={abrechnungModalData.rechnungen ?? []}
           meters={abrechnungModalData.meters ?? []}
           readings={abrechnungModalData.readings ?? []}
+          actualPayments={abrechnungModalData.actualPayments ?? []}
           ownerName={ownerName}
           ownerAddress={(() => {
             const selectedHaus = allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id);
             if (!selectedHaus) {
               return "Platzhalter Adresse";
             }
-            const addressParts = [selectedHaus.strasse, selectedHaus.ort].filter(Boolean);
+            const plzOrt = formatPlzOrt(selectedHaus.plz, selectedHaus.ort);
+            const addressParts = [selectedHaus.strasse, plzOrt].filter(Boolean);
             return addressParts.length > 0 ? addressParts.join(', ') : "Platzhalter Adresse";
           })()}
         />

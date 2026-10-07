@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 export async function POST() {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
-        { status: 401 }
+        { status: 401, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -32,7 +32,7 @@ export async function POST() {
           error: "No Outlook account connected",
           details: accountError?.message
         },
-        { status: 404 }
+        { status: 404, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -57,7 +57,7 @@ export async function POST() {
           details: error.message || error.toString(),
           data: data
         },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -70,7 +70,7 @@ export async function POST() {
           details: data.details,
           requiresReauth: data.requiresReauth || false
         },
-        { status: data.requiresReauth ? 401 : 500 }
+        { status: data.requiresReauth ? 401 : 500, headers: NO_CACHE_HEADERS }
       )
     }
 
@@ -82,12 +82,12 @@ export async function POST() {
       message: data?.message || "Email import started",
       queueId: data?.queueId,
       syncedAt: data?.syncedAt,
-    })
+    }, { headers: NO_CACHE_HEADERS })
   } catch (error) {
     console.error("Outlook sync error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 }

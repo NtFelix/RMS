@@ -8,10 +8,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import posthogProxyConfig from "@/lib/posthog-proxy";
+
+const { POSTHOG_PROXY_PATH } = posthogProxyConfig
+const EARLY_ACCESS_REQUEST_STAGES = ['alpha', 'beta', 'concept'] as const
+const FEATURE_TOGGLE_TIMEOUT_MS = 8000
 
 type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
 interface EarlyAccessFeature {
-  flagKey: string
+  flagKey: string | null
   name: string
   description?: string
   documentationUrl?: string | null
@@ -29,6 +34,12 @@ const FeaturePreviewSection = () => {
   const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
   const [useLocalFeatures, setUseLocalFeatures] = useState<boolean>(false)
+  const [proxyHelpHost, setProxyHelpHost] = useState<string>('mietevo.de')
+  const [pendingFeatureUpdates, setPendingFeatureUpdates] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    setProxyHelpHost(window.location.host)
+  }, [])
 
   const getStageDisplayName = (stage: string) => {
     switch (stage) {
@@ -40,6 +51,89 @@ const FeaturePreviewSection = () => {
   }
 
   const activeFlagsString = useMemo(() => JSON.stringify(activeFlags || []), [activeFlags]);
+
+  const isFeatureEnabled = (flagKey: string | null) => {
+    if (!flagKey || !posthog || typeof posthog.isFeatureEnabled !== 'function') {
+      return false
+    }
+
+    return posthog.isFeatureEnabled(flagKey, { send_event: false }) === true
+  }
+
+  const applyFeatureBuckets = (features: EarlyAccessFeature[]) => {
+    const featuresByStage: Record<string, EarlyAccessFeature[]> = {}
+
+    features.forEach((feature) => {
+      const stage = feature.stage || 'other'
+      if (!featuresByStage[stage]) {
+        featuresByStage[stage] = []
+      }
+
+      featuresByStage[stage].push({
+        ...feature,
+        enabled: isFeatureEnabled(feature.flagKey),
+      })
+    })
+
+    setBetaFeatures(featuresByStage['beta'] || [])
+    setConceptFeatures(featuresByStage['concept'] || [])
+    setAlphaFeatures(featuresByStage['alpha'] || [])
+    setOtherFeatures(featuresByStage['other'] || [])
+  }
+
+  const refreshEarlyAccessFeatures = async (showFallbackOnError = true) => {
+    if (!posthog || typeof posthog.getEarlyAccessFeatures !== 'function') {
+      throw new Error('Early access features are not available.')
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        const error = new Error('Timed out while loading early-access features.')
+        if (showFallbackOnError) {
+          setUseLocalFeatures(true)
+          setIsLoadingFeatures(false)
+        }
+        reject(error)
+      }, 5000)
+
+      try {
+        posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
+          window.clearTimeout(timeoutId)
+          applyFeatureBuckets(features)
+          setUseLocalFeatures(false)
+          setIsLoadingFeatures(false)
+          resolve()
+        }, true, [...EARLY_ACCESS_REQUEST_STAGES])
+      } catch (error) {
+        window.clearTimeout(timeoutId)
+        if (showFallbackOnError) {
+          setUseLocalFeatures(true)
+          setIsLoadingFeatures(false)
+        }
+        reject(error)
+      }
+    })
+  }
+
+  const updateFeatureStateInLists = (flagKey: string, enabled: boolean) => {
+    const updateFeatureState = (features: EarlyAccessFeature[]) =>
+      features.map((feature) =>
+        feature.flagKey === flagKey ? { ...feature, enabled } : feature
+      )
+
+    setAlphaFeatures(updateFeatureState)
+    setBetaFeatures(updateFeatureState)
+    setConceptFeatures(updateFeatureState)
+    setOtherFeatures(updateFeatureState)
+  }
+
+  const findFeatureByFlagKey = (flagKey: string) =>
+    [...alphaFeatures, ...betaFeatures, ...conceptFeatures, ...otherFeatures].find(
+      (feature) => feature.flagKey === flagKey
+    )
+
+  const isFeaturePending = (flagKey: string | null) =>
+    !!flagKey && Object.prototype.hasOwnProperty.call(pendingFeatureUpdates, flagKey)
 
   useEffect(() => {
     if (!posthog || !posthog.__loaded) {
@@ -56,50 +150,15 @@ const FeaturePreviewSection = () => {
 
     setIsLoadingFeatures(true)
 
-    try {
-      if (typeof posthog.getEarlyAccessFeatures !== 'function') {
-        setUseLocalFeatures(true);
-        setIsLoadingFeatures(false);
-        return;
-      }
-
-      const timeoutId = setTimeout(() => {
-        setUseLocalFeatures(true);
-        setIsLoadingFeatures(false);
-      }, 5000);
-
-      // @ts-ignore: method is available on Web SDK, types may lag
-      posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
-        clearTimeout(timeoutId);
-        const active = activeFlags || []
-
-        const featuresByStage: Record<string, EarlyAccessFeature[]> = {}
-
-        features.forEach((f) => {
-          const stage = f.stage || 'other'
-          if (!featuresByStage[stage]) {
-            featuresByStage[stage] = []
-          }
-          featuresByStage[stage].push({
-            ...f,
-            enabled: active.includes(f.flagKey)
-          })
-        })
-
-        setBetaFeatures(featuresByStage['beta'] || [])
-        setConceptFeatures(featuresByStage['concept'] || [])
-        setAlphaFeatures(featuresByStage['alpha'] || [])
-        setOtherFeatures(featuresByStage['other'] || [])
-        setUseLocalFeatures(false);
-        setIsLoadingFeatures(false)
-      }, true, ['alpha', 'beta', 'concept'])
-    } catch (e) {
+    refreshEarlyAccessFeatures().catch(() => {
       setUseLocalFeatures(true);
       setIsLoadingFeatures(false)
-    }
+    })
   }, [posthog, posthog?.__loaded, activeFlagsString])
 
-  const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
+  const toggleEarlyAccess = async (flagKey: string | null, enable: boolean) => {
+    if (!flagKey) return;
+    
     if (useLocalFeatures) {
       toast({
         title: "Fehler",
@@ -118,58 +177,122 @@ const FeaturePreviewSection = () => {
       return;
     }
 
-    const updateFeatureState = (prev: EarlyAccessFeature[]) =>
-      prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f))
+    if (isFeaturePending(flagKey)) {
+      return;
+    }
 
-    setAlphaFeatures(updateFeatureState)
-    setBetaFeatures(updateFeatureState)
-    setConceptFeatures(updateFeatureState)
-    setOtherFeatures(updateFeatureState)
+    const previousFeature = findFeatureByFlagKey(flagKey)
+    const previousEnabled = previousFeature?.enabled === true
+    setPendingFeatureUpdates((prev) => ({ ...prev, [flagKey]: enable }))
 
     try {
       if (typeof posthog.updateEarlyAccessFeatureEnrollment !== 'function') {
         throw new Error('updateEarlyAccessFeatureEnrollment method not available');
       }
 
-      // @ts-ignore: available on Web SDK
-      posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
-
-      // @ts-ignore: optional method to refresh flags
-      if (typeof posthog.reloadFeatureFlags === 'function') {
-        await posthog.reloadFeatureFlags();
+      if (typeof posthog.reloadFeatureFlags !== 'function' || typeof posthog.onFeatureFlags !== 'function' || typeof posthog.on !== 'function') {
+        throw new Error('Feature flag reload methods are not available');
       }
+
+      await new Promise<void>((resolve, reject) => {
+        let sawReloadStart = false
+        let settled = false
+
+        const finish = (error?: Error) => {
+          if (settled) {
+            return
+          }
+
+          settled = true
+          window.clearTimeout(timeoutId)
+          unsubscribeReload()
+          unsubscribeFeatureFlags()
+
+          if (error) {
+            reject(error)
+            return
+          }
+
+          resolve()
+        }
+
+        const unsubscribeReload = (posthog as any).on('featureFlagsReloading', () => {
+          sawReloadStart = true
+        })
+
+        const unsubscribeFeatureFlags = posthog.onFeatureFlags((featureFlags, _variants, { errorsLoading } = { errorsLoading: false }) => {
+          if (!sawReloadStart) {
+            return
+          }
+
+          if (errorsLoading) {
+            finish(new Error('Die Aktualisierung der Feature-Flags ist fehlgeschlagen.'))
+            return
+          }
+
+          const isEnabledAfterReload = featureFlags.includes(flagKey)
+
+          if (isEnabledAfterReload !== enable) {
+            finish(
+              new Error(
+                enable
+                  ? 'Die Aktivierung wurde von PostHog nicht bestätigt.'
+                  : 'Die Deaktivierung wurde von PostHog nicht bestätigt.'
+              )
+            )
+            return
+          }
+
+          finish()
+        })
+
+        const timeoutId = window.setTimeout(() => {
+          finish(new Error('Die Aktualisierung hat zu lange gedauert. Bitte versuchen Sie es erneut.'))
+        }, FEATURE_TOGGLE_TIMEOUT_MS)
+
+        try {
+          posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
+          posthog.reloadFeatureFlags()
+        } catch (error) {
+          finish(error instanceof Error ? error : new Error('Feature enrollment update failed'))
+        }
+      })
+
+      await refreshEarlyAccessFeatures(false)
 
       toast({
         title: "Erfolg",
         description: `Feature "${flagKey}" wurde ${enable ? 'aktiviert' : 'deaktiviert'}.`,
         variant: "success",
       });
-    } catch (e) {
+    } catch (error) {
+      updateFeatureStateInLists(flagKey, previousEnabled)
+
       toast({
         title: "Fehler",
-        description: `Feature konnte nicht ${enable ? 'aktiviert' : 'deaktiviert'} werden.`,
+        description: error instanceof Error
+          ? error.message
+          : `Feature konnte nicht ${enable ? 'aktiviert' : 'deaktiviert'} werden.`,
         variant: "destructive",
       });
-
-      const revertFeatureState = (prev: EarlyAccessFeature[]) =>
-        prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
-
-      setAlphaFeatures(revertFeatureState)
-      setBetaFeatures(revertFeatureState)
-      setConceptFeatures(revertFeatureState)
-      setOtherFeatures(revertFeatureState)
+    } finally {
+      setPendingFeatureUpdates((prev) => {
+        const next = { ...prev }
+        delete next[flagKey]
+        return next
+      })
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <SettingsSection
         title="Feature Vorschau"
         description="Verwalten Sie experimentelle Funktionen. Opt-in/Opt-out wirkt sofort für Ihr Konto."
       >
         {isLoadingFeatures ? (
           <SettingsCard>
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <Skeleton className="h-6 w-40" />
               <Skeleton className="h-20 w-full" />
               <Skeleton className="h-6 w-32" />
@@ -177,13 +300,13 @@ const FeaturePreviewSection = () => {
             </div>
           </SettingsCard>
         ) : useLocalFeatures ? (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <SettingsCard className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/40">
-                  <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                  <Info className="size-4 text-yellow-600 dark:text-yellow-400" />
                 </div>
-                <div className="flex-1 space-y-3">
+                <div className="flex-1 flex flex-col gap-3">
                   <div>
                     <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
                       Early-Access-Funktionen können nicht geladen werden
@@ -192,7 +315,7 @@ const FeaturePreviewSection = () => {
                       Die Verbindung zu unserem Feature-System konnte nicht hergestellt werden. Dies kann folgende Ursachen haben:
                     </p>
                   </div>
-                  <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 ml-4 list-disc">
+                  <ul className="text-sm text-yellow-700 dark:text-yellow-300 flex flex-col gap-1 ml-4 list-disc">
                     <li>Werbeblocker oder Datenschutz-Erweiterungen blockieren die Anfragen</li>
                     <li>Cookies sind deaktiviert oder wurden nicht akzeptiert</li>
                     <li>Netzwerkverbindung ist eingeschränkt</li>
@@ -204,18 +327,18 @@ const FeaturePreviewSection = () => {
             <SettingsCard className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/40">
-                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <Info className="size-4 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div className="flex-1 space-y-3">
+                <div className="flex-1 flex flex-col gap-3">
                   <div>
                     <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
                       So können Sie das Problem beheben:
                     </h4>
                   </div>
-                  <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-decimal">
+                  <ol className="text-sm text-blue-700 dark:text-blue-300 flex flex-col gap-1 ml-4 list-decimal">
                     <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
                     <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
-                    <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">eu.i.posthog.com</code> in Ihren Browser-Einstellungen</li>
+                    <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">{proxyHelpHost}{POSTHOG_PROXY_PATH}</code> in Ihren Browser-Einstellungen</li>
                     <li>Laden Sie die Seite neu, nachdem Sie die Einstellungen geändert haben</li>
                   </ol>
                   <div className="pt-2">
@@ -232,19 +355,19 @@ const FeaturePreviewSection = () => {
             </SettingsCard>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6">
             {[
               { stage: 'alpha', features: alphaFeatures },
               { stage: 'beta', features: betaFeatures },
               { stage: 'concept', features: conceptFeatures },
               { stage: 'other', features: otherFeatures }
             ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
-              <div key={stage} className="space-y-3">
+              <div key={stage} className="flex flex-col gap-3">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <FlaskConical className="h-4 w-4" />
+                  <FlaskConical className="size-4" />
                   {getStageDisplayName(stage)}
                 </h3>
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   {features.map((f) => (
                     <SettingsCard key={f.flagKey}>
                       <div className="flex items-center justify-between gap-4">
@@ -266,12 +389,17 @@ const FeaturePreviewSection = () => {
                           {f.description && (
                             <p className="text-sm text-muted-foreground">{f.description}</p>
                           )}
+                          {f.flagKey && isFeaturePending(f.flagKey) && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Speicherung wird bestätigt...
+                            </p>
+                          )}
                         </div>
                         <Switch
-                          checked={!!f.enabled}
+                          checked={f.flagKey && isFeaturePending(f.flagKey) ? pendingFeatureUpdates[f.flagKey] : !!f.enabled}
                           onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
                           className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-105 transition-transform duration-150 ease-in-out"
-                          disabled={isLoadingFeatures}
+                          disabled={isLoadingFeatures || isFeaturePending(f.flagKey)}
                         />
                       </div>
                     </SettingsCard>
@@ -283,7 +411,7 @@ const FeaturePreviewSection = () => {
             {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
               <SettingsCard>
                 <div className="text-center py-8">
-                  <FlaskConical className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                  <FlaskConical className="size-8 text-muted-foreground mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">
                     Derzeit sind keine Early-Access-Funktionen verfügbar.
                   </p>
@@ -294,7 +422,7 @@ const FeaturePreviewSection = () => {
             <SettingsCard className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/40">
-                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <Info className="size-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">

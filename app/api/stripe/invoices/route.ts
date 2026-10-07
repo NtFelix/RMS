@@ -1,8 +1,9 @@
-export const runtime = 'edge';
 import { NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
 import Stripe from 'stripe';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { STRIPE_CONFIG } from '@/lib/constants/stripe';
+import { NO_CACHE_HEADERS } from '@/lib/constants/http';
 
 // Define interfaces for expanded Stripe objects
 interface ExpandedStripeInvoice extends Stripe.Invoice {
@@ -16,17 +17,23 @@ interface ExpandedStripeLineItem extends Stripe.InvoiceLineItem {
 
 export async function GET(request: Request) {
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS,
+    });
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, STRIPE_CONFIG);
 
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      return NextResponse.json({ error: 'Not authenticated' }, {
+        status: 401,
+        headers: NO_CACHE_HEADERS,
+      });
     }
 
     // Get user profile to find customer ID
@@ -37,7 +44,10 @@ export async function GET(request: Request) {
       .single();
 
     if (profileError || !profile?.stripe_customer_id) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Customer not found' }, {
+        status: 404,
+        headers: NO_CACHE_HEADERS,
+      });
     }
 
     // Get URL parameters for pagination
@@ -102,14 +112,18 @@ export async function GET(request: Request) {
     return NextResponse.json({
       invoices: transformedInvoices,
       has_more: invoices.has_more,
-    });
+    }, { headers: NO_CACHE_HEADERS });
 
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Error fetching invoices:', error);
     const errorMessage = error instanceof Stripe.errors.StripeError 
       ? error.message 
       : 'Failed to fetch invoices';
     
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, {
+      status: 500,
+      headers: NO_CACHE_HEADERS,
+    });
   }
 }
