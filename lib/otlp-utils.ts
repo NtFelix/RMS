@@ -36,12 +36,23 @@ export const POSTHOG_API_KEY = (() => {
 })();
 export const POSTHOG_HOST = resolvePostHogHost();
 
+function getOtlpEndpoint(signal: 'logs' | 'traces' | 'metrics'): string {
+    const host = POSTHOG_HOST.replace(/\/$/, ''); // Remove trailing slash
+    return `${host}/i/v1/${signal}`;
+}
+
 /**
  * Get the PostHog logs endpoint from the configured host
  */
 export function getLogsEndpoint(): string {
-    const host = POSTHOG_HOST.replace(/\/$/, ''); // Remove trailing slash
-    return `${host}/i/v1/logs`;
+    return getOtlpEndpoint('logs');
+}
+
+/**
+ * Get the PostHog traces endpoint from the configured host
+ */
+export function getTracesEndpoint(): string {
+    return getOtlpEndpoint('traces');
 }
 
 /**
@@ -70,8 +81,7 @@ export function registerShutdownHandler(shutdown: () => Promise<void>): void {
  * Get the PostHog metrics endpoint from the configured host
  */
 export function getMetricsEndpoint(): string {
-    const host = POSTHOG_HOST.replace(/\/$/, '');
-    return `${host}/i/v1/metrics`;
+    return getOtlpEndpoint('metrics');
 }
 
 /**
@@ -120,9 +130,10 @@ export function formatAttributeValue(value: unknown): Record<string, unknown> {
  * Build the resource attributes section for OTLP payload
  */
 export function buildResourceAttributes() {
+    const shared = getSdkResourceAttributes();
     return [
-        { key: 'service.name', value: { stringValue: SERVICE_NAME } },
-        { key: 'deployment.environment', value: { stringValue: process.env.NODE_ENV || 'development' } },
+        { key: 'service.name', value: { stringValue: shared['service.name'] } },
+        { key: 'deployment.environment', value: { stringValue: shared['deployment.environment'] } },
         { key: 'telemetry.sdk.name', value: { stringValue: 'posthog-logger' } },
         { key: 'telemetry.sdk.version', value: { stringValue: '1.0.0' } },
     ];

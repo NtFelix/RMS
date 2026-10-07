@@ -12,10 +12,15 @@ jest.mock('@/lib/posthog-logger', () => ({
   },
 }));
 
-jest.mock('@/lib/posthog-metrics', () => ({
+jest.mock('@/lib/posthog-metrics', () => {
+  const timed = new WeakSet<object>();
+  return {
   recordActionDuration: jest.fn(),
+  isTimed: (fn: object) => timed.has(fn),
+  markTimed: <F extends object>(fn: F) => (timed.add(fn), fn),
   actionStatus: (result: { success?: boolean } | null) => (result?.success === false ? 'failed' : 'success'),
-}));
+  };
+});
 
 jest.mock('@/lib/otlp-utils', () => ({
   POSTHOG_API_KEY: 'test-api-key',
@@ -153,6 +158,12 @@ describe('Logging Middleware', () => {
       it('records success', async () => {
         await withLogging('testAction', jest.fn().mockResolvedValue({ success: true }))();
         expect(recordActionDuration).toHaveBeenCalledWith('testAction', expect.any(Number), 'success');
+      });
+
+      it('does not record when the action is already timed by withTiming', async () => {
+        const { markTimed } = jest.requireMock('@/lib/posthog-metrics');
+        await withLogging('testAction', markTimed(jest.fn().mockResolvedValue({ success: true })))();
+        expect(recordActionDuration).not.toHaveBeenCalled();
       });
 
       it('records failed for a success:false result', async () => {

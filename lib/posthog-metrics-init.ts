@@ -58,11 +58,6 @@ export function initMetrics(): void {
     registerShutdownHandler(shutdownMetrics);
 }
 
-/** Force-export pending metrics (short-lived scripts, before process exit). */
-export async function flushMetrics(): Promise<void> {
-    await meterProvider?.forceFlush();
-}
-
 async function shutdownMetrics(): Promise<void> {
     if (!meterProvider) return;
     const provider = meterProvider;

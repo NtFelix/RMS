@@ -17,7 +17,7 @@ async function fetchWithRetry(
     url: string,
     options: RequestInit,
     retries = MAX_RETRIES,
-    stats: AttemptStats = { startedAt: 0, retries: 0 }
+    stats: AttemptStats
 ): Promise<Response> {
     try {
         stats.startedAt = performance.now();
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
 
         const attempt: AttemptStats = { startedAt: 0, retries: 0 };
 
-        let response: Response;
+        let response: Response | undefined;
         try {
             response = await fetchWithRetry(backendUrl, {
                 method: 'POST',
@@ -102,12 +102,9 @@ export async function POST(request: Request) {
                 },
                 body: JSON.stringify(body),
             }, MAX_RETRIES, attempt);
-        } catch (fetchErr) {
-            recordWorkerCall(body, performance.now() - attempt.startedAt, attempt.retries);
-            throw fetchErr;
+        } finally {
+            recordWorkerCall(body, performance.now() - attempt.startedAt, attempt.retries, response);
         }
-
-        recordWorkerCall(body, performance.now() - attempt.startedAt, attempt.retries, response);
 
         if (!response.ok) {
             const errorText = await response.text();

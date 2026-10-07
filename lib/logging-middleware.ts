@@ -6,7 +6,7 @@
  */
 
 import { posthogLogger } from './posthog-logger';
-import { actionStatus, recordActionDuration } from './posthog-metrics';
+import { actionStatus, isTimed, markTimed, recordActionDuration } from './posthog-metrics';
 import {
     LogAttributes,
     POSTHOG_API_KEY,
@@ -119,7 +119,10 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
         userId?: string | (() => Promise<string | undefined>);
     } = {}
 ): (...args: TArgs) => Promise<TResult> {
-    return async (...args: TArgs): Promise<TResult> => {
+    // An action already wrapped by withTiming records server_action.duration itself
+    const recordsMetric = !isTimed(action);
+
+    return markTimed(async (...args: TArgs): Promise<TResult> => {
         const requestId = generateRequestId();
         const startTime = performance.now();
 
@@ -154,7 +157,7 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
             const result = await action(...args);
             const duration = Math.round(performance.now() - startTime);
 
-            recordActionDuration(actionName, duration, actionStatus(result));
+            if (recordsMetric) recordActionDuration(actionName, duration, actionStatus(result));
 
             // Log based on result
             if (result.success) {
@@ -175,7 +178,7 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
             return result;
         } catch (error: any) {
             const duration = Math.round(performance.now() - startTime);
-            recordActionDuration(actionName, duration, 'error');
+            if (recordsMetric) recordActionDuration(actionName, duration, 'error');
 
             // Log unexpected error
             posthogLogger.error(`Action error: ${actionName}`, {
@@ -189,7 +192,7 @@ export function withLogging<TArgs extends any[], TResult extends ActionResult<an
             // Re-throw the error
             throw error;
         }
-    };
+    });
 }
 
 /**

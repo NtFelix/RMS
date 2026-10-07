@@ -6,7 +6,7 @@
  */
 
 import { count, histogram } from './posthog-metrics';
-import { WORKER_REQUEST_TYPES, WORKER_TEMPLATES } from './worker-client';
+import { WORKER_REQUEST_TYPES, WORKER_TEMPLATES } from './constants/worker';
 
 // Labels come from the request body, so only known values are passed through:
 // this keeps cardinality bounded and never puts user input into attributes.
@@ -17,7 +17,7 @@ function label(value: unknown, allowed: readonly string[]): string {
 
 function headerNumber(response: Response, name: string): number | undefined {
     const raw = response.headers.get(name);
-    if (raw === null) return undefined;
+    if (raw === null || raw.trim() === '') return undefined; // Number('') would be 0
     const value = Number(raw);
     return Number.isFinite(value) ? value : undefined;
 }

@@ -26,7 +26,7 @@ jest.mock('@/lib/otlp-utils', () => ({
 }))
 
 import { MeterProvider } from '@opentelemetry/sdk-metrics'
-import { initMetrics, flushMetrics } from '@/lib/posthog-metrics-init'
+import { initMetrics } from '@/lib/posthog-metrics-init'
 
 describe('posthog-metrics-init', () => {
   let warn: jest.SpyInstance
@@ -39,12 +39,11 @@ describe('posthog-metrics-init', () => {
   })
   afterEach(() => jest.restoreAllMocks())
 
-  it('does nothing without a project token, and flush does not throw', async () => {
+  it('does nothing without a project token', () => {
     mockApiKey = undefined
     initMetrics()
     expect(warn).toHaveBeenCalled()
     expect(MeterProvider).not.toHaveBeenCalled()
-    await expect(flushMetrics()).resolves.toBeUndefined()
   })
 
   it('does not claim to be initialized when another global MeterProvider already exists', () => {

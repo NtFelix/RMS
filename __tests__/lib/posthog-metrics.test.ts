@@ -13,7 +13,7 @@ jest.mock('@opentelemetry/api', () => ({
   metrics: { getMeterProvider: () => mockProvider },
 }))
 
-import { count, histogram, timedAction, withTiming } from '@/lib/posthog-metrics'
+import { count, histogram, isTimed, withTiming } from '@/lib/posthog-metrics'
 
 describe('posthog-metrics', () => {
   beforeEach(() => jest.clearAllMocks())
@@ -41,19 +41,19 @@ describe('posthog-metrics', () => {
     expect(record).toHaveBeenCalledWith(187, { route: '/x' })
   })
 
-  it('timedAction records success for successful results', async () => {
-    await timedAction('someAction', async () => ({ success: true }))
+  it('withTiming records success for successful results', async () => {
+    await withTiming('someAction', async () => ({ success: true }))()
     expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'someAction', status: 'success' })
   })
 
-  it('timedAction records failed for success:false results and returns them', async () => {
+  it('withTiming records failed for success:false results and returns them', async () => {
     const result = { success: false, message: 'nope' }
-    await expect(timedAction('someAction', async () => result)).resolves.toBe(result)
+    await expect(withTiming('someAction', async () => result)()).resolves.toBe(result)
     expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'someAction', status: 'failed' })
   })
 
-  it('timedAction records error and rethrows', async () => {
-    await expect(timedAction('someAction', async () => { throw new Error('boom') })).rejects.toThrow('boom')
+  it('withTiming records error and rethrows', async () => {
+    await expect(withTiming('someAction', async () => { throw new Error('boom') })()).rejects.toThrow('boom')
     expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'someAction', status: 'error' })
   })
 
@@ -61,5 +61,18 @@ describe('posthog-metrics', () => {
     const wrapped = withTiming('sum', async (a: number, b: number) => ({ success: true, total: a + b }))
     await expect(wrapped(1, 2)).resolves.toEqual({ success: true, total: 3 })
     expect(record).toHaveBeenCalledWith(expect.any(Number), { action: 'sum', status: 'success' })
+  })
+
+  it('withTiming does not wrap an already-timed function a second time', async () => {
+    const once = withTiming('sum', async () => ({ success: true }))
+    expect(isTimed(once)).toBe(true)
+    expect(withTiming('sum', once)).toBe(once)
+  })
+
+  it('keeps one histogram instrument per name and unit', () => {
+    histogram('x', 1, undefined, 'ms')
+    histogram('x', 2, undefined, 's')
+    histogram('x', 3, undefined, 'ms')
+    expect(createHistogram).toHaveBeenCalledTimes(2)
   })
 })

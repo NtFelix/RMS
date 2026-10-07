@@ -2867,7 +2867,7 @@ async function createAbrechnungCalculationOptimizedActionImpl(
         nebenkostenId
       });
 
-      return await createAbrechnungCalculationAction(nebenkostenId, options);
+      return await createAbrechnungCalculationActionImpl(nebenkostenId, options);
     }
 
     // Extract data from database function result
@@ -3033,8 +3033,8 @@ async function createAbrechnungCalculationOptimizedActionImpl(
 
 // --- Timed server actions -------------------------------------------------------------------
 // Public entry points for the heaviest actions; each records `server_action.duration` in PostHog
-// Metrics. Nested calls (e.g. the Optimized calculation delegating to the plain one) are timed at
-// each level, so their durations overlap by design.
+// Metrics. Actions that delegate to another one (e.g. the Optimized calculation's fallback) call
+// its Impl directly, so one user call records exactly one sample.
 export const getNebenkostenDetailsAction = withTiming('getNebenkostenDetailsAction', getNebenkostenDetailsActionImpl);
 export const fetchNebenkostenListOptimized = withTiming('fetchNebenkostenListOptimized', fetchNebenkostenListOptimizedImpl);
 export const getMeterModalDataAction = withTiming('getMeterModalDataAction', getMeterModalDataActionImpl);

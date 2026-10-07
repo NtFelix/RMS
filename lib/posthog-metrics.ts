@@ -24,35 +24,37 @@ const histograms = new Map<string, Histogram>();
 // Drop the caches whenever the global provider changes.
 let cachedProvider: unknown;
 
-function getMeter() {
+function getMeterProvider() {
     const provider = metrics.getMeterProvider();
     if (provider !== cachedProvider) {
         counters.clear();
         histograms.clear();
         cachedProvider = provider;
     }
-    return provider.getMeter(SERVICE_NAME);
-}
-
-function getOrCreate<T>(cache: Map<string, T>, name: string, create: () => T): T {
-    let instrument = cache.get(name);
-    if (!instrument) {
-        instrument = create();
-        cache.set(name, instrument);
-    }
-    return instrument;
+    return provider;
 }
 
 /** Increment a monotonically increasing value (requests, completions). */
 export function count(name: string, value = 1, attributes?: Attributes): void {
-    const meter = getMeter();
-    getOrCreate(counters, name, () => meter.createCounter(name)).add(value, attributes);
+    const provider = getMeterProvider();
+    let counter = counters.get(name);
+    if (!counter) {
+        counter = provider.getMeter(SERVICE_NAME).createCounter(name);
+        counters.set(name, counter);
+    }
+    counter.add(value, attributes);
 }
 
-/** Record a sample of a distribution (request duration, payload size). `unit` applies when the instrument is first created. */
+/** Record a sample of a distribution (request duration, payload size). Instruments are cached per name and unit, so one name is never recorded under two units. */
 export function histogram(name: string, value: number, attributes?: Attributes, unit?: string): void {
-    const meter = getMeter();
-    getOrCreate(histograms, name, () => meter.createHistogram(name, { unit })).record(value, attributes);
+    const provider = getMeterProvider();
+    const key = `${name}|${unit ?? ''}`;
+    let instrument = histograms.get(key);
+    if (!instrument) {
+        instrument = provider.getMeter(SERVICE_NAME).createHistogram(name, { unit });
+        histograms.set(key, instrument);
+    }
+    instrument.record(value, attributes);
 }
 
 type ActionStatus = 'success' | 'failed' | 'error';
@@ -70,33 +72,43 @@ export function recordActionDuration(action: string, durationMs: number, status:
     histogram('server_action.duration', durationMs, { action, status }, 'ms');
 }
 
-/**
- * Time a server action. `success: false` results (the repo's error convention) are
- * recorded as `failed`; thrown errors as `error` and rethrown unchanged.
- */
-export async function timedAction<T>(action: string, fn: () => Promise<T>): Promise<T> {
-    const start = performance.now();
-    let status: ActionStatus = 'success';
-    try {
-        const result = await fn();
-        status = actionStatus(result);
-        return result;
-    } catch (error) {
-        status = 'error';
-        throw error;
-    } finally {
-        recordActionDuration(action, performance.now() - start, status);
-    }
+// Functions that already record `server_action.duration`, so no second wrapper records it again.
+const timedFunctions = new WeakSet<object>();
+
+/** Mark `fn` as recording `server_action.duration` itself (used by `withLogging`). */
+export function markTimed<F extends object>(fn: F): F {
+    timedFunctions.add(fn);
+    return fn;
+}
+
+export function isTimed(fn: object): boolean {
+    return timedFunctions.has(fn);
 }
 
 /**
  * Wrap a server action so every call is timed, in the style of `withLogging`:
  * `export const myAction = withTiming('myAction', myActionImpl)`.
- * Don't wrap an action that `withLogging` already wraps - both record `server_action.duration`.
+ * `success: false` results (the repo's error convention) are recorded as `failed`; thrown errors
+ * as `error` and rethrown unchanged. A function that `withLogging` already wraps (or that is
+ * already timed) is returned as is, so an action never records the metric twice.
  */
 export function withTiming<A extends unknown[], R>(
     action: string,
     fn: (...args: A) => Promise<R>,
 ): (...args: A) => Promise<R> {
-    return async (...args) => timedAction(action, () => fn(...args));
+    if (isTimed(fn)) return fn;
+    return markTimed(async (...args: A) => {
+        const start = performance.now();
+        let status: ActionStatus = 'success';
+        try {
+            const result = await fn(...args);
+            status = actionStatus(result);
+            return result;
+        } catch (error) {
+            status = 'error';
+            throw error;
+        } finally {
+            recordActionDuration(action, performance.now() - start, status);
+        }
+    });
 }
