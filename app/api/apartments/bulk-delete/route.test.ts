@@ -81,8 +81,17 @@ describe('POST /api/apartments/bulk-delete', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ successCount: 2, errorCount: 0, reasons: [] });
-    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(1, 'Wohnungen', 'w1');
-    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(2, 'Wohnungen', 'w2');
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(1, 'Wohnungen', 'w1', { pruefsumme: undefined });
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(2, 'Wohnungen', 'w2', { pruefsumme: undefined });
+  });
+
+  it('reicht gültige Prüfsummen der bestätigten Auswirkung je Wohnung weiter und ignoriert ungültige', async () => {
+    const pruefsumme = '0123456789abcdef0123456789abcdef';
+    const response = await POST(jsonRequest({ ids: ['w1', 'w2'], pruefsummen: { w1: pruefsumme, w2: 'ungueltig' } }));
+
+    expect(response.status).toBe(200);
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(1, 'Wohnungen', 'w1', { pruefsumme });
+    expect(softDeleteEntryAction).toHaveBeenNthCalledWith(2, 'Wohnungen', 'w2', { pruefsumme: undefined });
   });
 
   it('meldet einen Teilerfolg mit 200, den Zahlen und dem Grund ohne Präfix (alle Wohnungen werden abgearbeitet)', async () => {

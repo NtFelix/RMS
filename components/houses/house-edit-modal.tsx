@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 import { padPlz, parsePlz } from "@/lib/address";
 
 interface House {
@@ -582,11 +583,11 @@ export function HouseEditModal(props: HouseEditModalProps) {
     closeHouseModal({ force: true });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     if (!houseInitialData || isPending) return;
     try {
       setIsDeleting(true);
-      const result = await deleteHouseAction(houseInitialData.id);
+      const result = await deleteHouseAction(houseInitialData.id, pruefsummen[houseInitialData.id]);
 
       if (result.success) {
         toast({
@@ -617,6 +618,12 @@ export function HouseEditModal(props: HouseEditModalProps) {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
     }
+  };
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () => {
+    if (!houseInitialData || isPending) return;
+    void starteLoeschenMitKautionen("Haeuser", [houseInitialData.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -714,7 +721,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
         <TopBar
           houseInitialData={houseInitialData}
           onOverviewClick={() => houseInitialData && openHausOverviewModal(houseInitialData.id)}
-          onDeleteRequest={() => setDeleteDialogOpen(true)}
+          onDeleteRequest={handleDeleteStart}
         />
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
@@ -745,7 +752,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
           onOpenChange={setDeleteDialogOpen}
           houseName={houseInitialData?.name || formData.name}
           isDeleting={isDeleting}
-          onDelete={handleDelete}
+          onDelete={() => handleDelete()}
         />
       </SheetContent>
     </Sheet>

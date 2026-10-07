@@ -7,6 +7,10 @@ import type { Wohnung } from '@/types/Wohnung';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
+// Die Sammellöschung lädt beim Klick auf "Löschen" zuerst die Auswirkung auf Kautionen (Server Action): hier ohne betroffene Kautionen (übliche Frage).
+jest.mock('@/lib/kautionen-loeschen', () => ({
+  starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
+}));
 const mockCompleteStep = jest.fn();
 jest.mock('@/hooks/use-onboarding-store', () => ({
   useOnboardingStore: Object.assign(

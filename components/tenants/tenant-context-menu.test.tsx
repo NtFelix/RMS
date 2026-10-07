@@ -1,11 +1,18 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { TenantContextMenu } from '@/components/tenants/tenant-context-menu';
+import { deleteTenantAction } from '@/app/mieter-actions';
+import { starteLoeschenMitKautionen } from '@/lib/kautionen-loeschen';
 import { useModalStore } from '@/hooks/use-modal-store';
 import type { Tenant } from '@/types/Tenant';
 
 jest.mock('@/app/mieter-actions', () => ({
   deleteTenantAction: jest.fn(),
+}));
+
+jest.mock('@/lib/kautionen-loeschen', () => ({
+  // Standard: keine gebuchte Kaution betroffen -> die übliche Frage wird gezeigt
+  starteLoeschenMitKautionen: jest.fn(async (_tabelle, _ids, handlers) => handlers.einfach()),
 }));
 
 jest.mock('@/hooks/use-toast', () => ({
@@ -86,5 +93,73 @@ describe('TenantContextMenu - Kaution (GH-6)', () => {
     await waitFor(() => expect(mockOpenKautionModal).toHaveBeenCalledTimes(1));
     // exakt ein Argument: kein zweiter Parameter mit Kautionsdaten
     expect(mockOpenKautionModal).toHaveBeenCalledWith({ id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' });
+  });
+});
+
+// Kautionsmanagement: Beim Klick auf "Löschen" wird zuerst die Auswirkung geladen; danach erscheint genau EIN Dialog
+// (die übliche Frage oder die Übersicht der mitgelöschten Kautionen, die Prüfsumme geht an die Server-Action).
+describe('TenantContextMenu - Löschen mit Kautionen', () => {
+  const mockStart = starteLoeschenMitKautionen as jest.Mock;
+  const mockDelete = deleteTenantAction as jest.MockedFunction<typeof deleteTenantAction>;
+  const tenant = { id: 'tenant-1', name: 'Test Mieter', wohnung_id: 'wohnung-1' } as Tenant;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseModalStore.mockReturnValue({
+      openKautionModal: jest.fn(),
+      openTenantMailTemplatesModal: jest.fn(),
+      openApplicantScoreModal: jest.fn(),
+    } as any);
+    mockDelete.mockResolvedValue({ success: true });
+  });
+
+  function klickeLoeschen() {
+    const onRefresh = jest.fn();
+    render(
+      <TenantContextMenu tenant={tenant} onEdit={jest.fn()} onRefresh={onRefresh}>
+        <div>Zeile</div>
+      </TenantContextMenu>
+    );
+    fireEvent.contextMenu(screen.getByText('Zeile'));
+    fireEvent.click(screen.getByText('Löschen'));
+    return onRefresh;
+  }
+
+  it('lädt zuerst die Auswirkung des Mieters', async () => {
+    klickeLoeschen();
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Mieter', ['tenant-1'], expect.any(Object)));
+  });
+
+  it('ohne gebuchte Kaution: zeigt die übliche Frage und löscht danach ohne Prüfsumme', async () => {
+    klickeLoeschen();
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(mockDelete).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1', undefined));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  it('mit gebuchter Kaution: keine zweite Frage, die bestätigte Übersicht löscht mit der Prüfsumme', async () => {
+    mockStart.mockImplementationOnce(async (_tabelle, _ids, handlers) => handlers.loeschen({ 'tenant-1': 'abc' }));
+
+    const onRefresh = klickeLoeschen();
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('tenant-1', 'abc'));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    // Handler vollständig durchgelaufen (Zustand im finally zurückgesetzt), sonst endet der Test mit Updates außerhalb von act()
+    await waitFor(() => expect(onRefresh).toHaveBeenCalled());
+  });
+
+  it('löscht nichts und zeigt keine Frage, wenn die Übersicht abgebrochen wird oder die Abfrage scheitert', async () => {
+    mockStart.mockImplementationOnce(async () => undefined);
+
+    klickeLoeschen();
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });

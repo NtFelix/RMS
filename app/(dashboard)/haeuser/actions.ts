@@ -135,7 +135,8 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
   }
 }
 
-export async function deleteHouseAction(houseId: string): Promise<{ success: boolean; error?: { message: string } }> {
+/** `pruefsumme`: Prüfsumme der bestätigten Auswirkung auf Kautionen (siehe `deleteTenantAction`). */
+export async function deleteHouseAction(houseId: string, pruefsumme?: string | null): Promise<{ success: boolean; error?: { message: string } }> {
   const actionName = 'deleteHouse';
   logAction(actionName, 'start', { house_id: houseId });
 
@@ -156,7 +157,7 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
 
     const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
-      await softDeleteEntryAction("Haeuser", houseId);
+      await softDeleteEntryAction("Haeuser", houseId, { pruefsumme });
     } catch (err: unknown) {
       const errMessage = err instanceof Error ? err.message : String(err);
       logAction(actionName, 'error', { house_id: houseId, error_message: errMessage });

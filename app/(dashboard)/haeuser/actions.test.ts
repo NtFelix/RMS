@@ -207,7 +207,17 @@ describe('House Actions', () => {
 
       const result = await deleteHouseAction(houseId);
 
-      expect(mockSoftDeleteEntryAction).toHaveBeenCalledWith('Haeuser', houseId);
+      expect(mockSoftDeleteEntryAction).toHaveBeenCalledWith('Haeuser', houseId, { pruefsumme: undefined });
+    });
+
+    it('reicht die Prüfsumme der bestätigten Auswirkung auf Kautionen an die Datenbank-Löschung weiter', async () => {
+      const houseId = 'house-123';
+      const pruefsumme = '0123456789abcdef0123456789abcdef';
+
+      const result = await deleteHouseAction(houseId, pruefsumme);
+
+      expect(result.success).toBe(true);
+      expect(mockSoftDeleteEntryAction).toHaveBeenCalledWith('Haeuser', houseId, { pruefsumme });
       expect(mockRevalidatePath).toHaveBeenCalledWith('/haeuser');
       expect(result).toEqual({ success: true });
     });

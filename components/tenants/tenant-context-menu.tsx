@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { tenantActions, getVisibleActions, type TenantActionDef } from "@/components/tenants/tenant-menu-actions"
@@ -62,10 +63,10 @@ export function TenantContextMenu({
     }, 0);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     try {
       setIsDeleting(true);
-      const result = await deleteTenantAction(tenant.id);
+      const result = await deleteTenantAction(tenant.id, pruefsummen[tenant.id]);
 
       if (result.success) {
         toast({
@@ -125,6 +126,10 @@ export function TenantContextMenu({
     vorlagen: handleTemplates,
   }
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () =>
+    void starteLoeschenMitKautionen("Mieter", [tenant.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
+
   return (
     <>
       <ContextMenu>
@@ -154,7 +159,7 @@ export function TenantContextMenu({
           })}
           <ContextMenuSeparator />
           <ContextMenuItem
-            onClick={() => setDeleteDialogOpen(true)}
+            onClick={handleDeleteStart}
             disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
@@ -174,7 +179,7 @@ export function TenantContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleDelete()} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
               {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>

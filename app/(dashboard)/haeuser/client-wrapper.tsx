@@ -22,6 +22,7 @@ import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
 import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 
 const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
@@ -860,7 +861,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     })
   }, [selectedHouses, enrichedHaeuser, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async () => {
+  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
     if (selectedHouses.size === 0) {
       toast({
         title: "Keine Auswahl",
@@ -877,7 +878,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
       const response = await fetch('/api/haeuser/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
       });
 
       if (!response.ok) {
@@ -908,6 +909,15 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     }
   }, [selectedHouses, router, refreshTable]);
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  // Abbruch der Übersicht löscht nichts und lässt die Auswahl erhalten.
+  const handleBulkDeleteClick = useCallback(() => {
+    void starteLoeschenMitKautionen("Haeuser", Array.from(selectedHouses), {
+      einfach: () => dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: true }),
+      loeschen: handleBulkDelete,
+    });
+  }, [selectedHouses, handleBulkDelete]);
+
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
       <TabToggle currentTab={currentTab} onTabChange={setCurrentTab} />
@@ -924,7 +934,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           onSelectionChange={(selected) => dispatchBulk({ type: "SET_SELECTED", payload: selected })}
           onClearSelection={() => dispatchBulk({ type: "SET_SELECTED", payload: new Set() })}
           onBulkExport={handleBulkExport}
-          onBulkDeleteClick={() => dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: true })}
+          onBulkDeleteClick={handleBulkDeleteClick}
           flags={{ isBulkDeleting, canCreate, canEdit, canDelete }}
           onAdd={handleAdd}
           onEdit={handleEdit}
@@ -950,7 +960,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleBulkDelete()} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
               {isBulkDeleting ? "Lösche..." : `${selectedHouses.size} Häuser löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>

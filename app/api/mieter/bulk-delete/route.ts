@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
-import { buildBulkDeleteResponse, createDeleteError, summarizeSettledDeletes } from "@/lib/bulk-delete-summary"
+import { buildBulkDeleteResponse, createDeleteError, parsePruefsummen, summarizeSettledDeletes } from "@/lib/bulk-delete-summary"
 
 
 export async function POST(request: Request) {
@@ -10,7 +10,8 @@ export async function POST(request: Request) {
     await requireApiPermission('mieter', 'loeschen');
 
     const supabase = await createSupabaseServerClient()
-    const { ids } = await request.json()
+    const { ids, pruefsummen } = await request.json()
+    const bestaetigt = parsePruefsummen(pruefsummen)
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
@@ -44,10 +45,10 @@ export async function POST(request: Request) {
     // abgelehnten Löschungen gemeldet (HTTP 200), nur wenn keine gelungen ist, antwortet die Route mit 409 bzw. 500.
     const results = await Promise.allSettled(
       ids.map(async (id) => {
-        const { error } = await supabase.rpc('soft_delete_record', {
-          p_table_name: 'Mieter',
-          p_record_id: id,
-        });
+        // Mit Prüfsumme der bestätigten Auswirkung löscht die Datenbank auch eine Kaution mit Buchungen mit.
+        const { error } = bestaetigt[id]
+          ? await supabase.rpc('soft_delete_mit_kautionen', { p_table_name: 'Mieter', p_record_id: id, p_pruefsumme: bestaetigt[id] })
+          : await supabase.rpc('soft_delete_record', { p_table_name: 'Mieter', p_record_id: id });
         if (error) {
           console.error("Supabase Bulk Delete Error for Mieter:", id, error);
           throw createDeleteError(error.message, error.code);

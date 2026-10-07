@@ -18,52 +18,22 @@ const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalida
 
 // Fiktive Kennungen und Meldungen (keine echten Daten)
 const HAUS_ID = 'haus-1';
-const WOHNUNG_A = 'wohnung-a';
-const WOHNUNG_B = 'wohnung-b';
-const MIETER_A = 'mieter-a';
-const MIETER_B = 'mieter-b';
-const KAUTION_FEHLER =
-  'Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden. Eine Kaution ohne Buchungen kann zuvor entfernt werden.';
-/** So kommt die Meldung der Löschsperre über PostgREST an (M04: `<CODE>: <deutsche Meldung>`, SQLSTATE KA009). */
-const KAUTION_FEHLER_ROH = `KAUT_GESPERRT: ${KAUTION_FEHLER}`;
-const KAUTION_SPERRE = { message: KAUTION_FEHLER_ROH, code: 'KA009' };
-const PRAEFIX = 'KAUT_GESPERRT';
+const WOHNUNG_ID = 'wohnung-1';
+const MIETER_ID = 'mieter-1';
+const PRUEFSUMME = '0123456789abcdef0123456789abcdef';
+const SPERRE_TEXT =
+  'Das Haus kann nicht gelöscht werden, solange Mieter mit einer Kaution mit Buchungen zugeordnet sind.';
+/** So kommt die Meldung der Datenbank über PostgREST an (`<CODE>: <deutsche Meldung>`). */
+const SPERRE_ROH = { message: `KAUT_GESPERRT: ${SPERRE_TEXT}`, code: 'KA009' };
 
-type QueryResult = { data: { id: string }[] | null; error: { message: string } | null };
 type RpcError = { message: string; code?: string };
-type RpcResult = { error: RpcError | null };
 
-interface FakeOptions {
-  /** Ergebnis von `from(tabelle).select('id')...` je Tabelle */
-  queries?: Record<string, QueryResult>;
-  /** Fehler des RPC `soft_delete_record` je `${tabelle}:${id}` (fehlt der Eintrag, gelingt die Löschung) */
-  rpcErrors?: Record<string, string | RpcError>;
-}
-
-/** Baut einen minimalen Supabase-Client; protokolliert RPC-Aufrufe in Reihenfolge. */
-function createFakeSupabase({ queries = {}, rpcErrors = {} }: FakeOptions = {}) {
-  const rpcCalls: { table: string; id: string }[] = [];
-
-  const from = jest.fn((table: string) => {
-    const result: QueryResult = queries[table] ?? { data: [], error: null };
-    const builder: Record<string, unknown> = {};
-    builder.select = jest.fn(() => builder);
-    builder.eq = jest.fn(() => builder);
-    builder.in = jest.fn(() => builder);
-    builder.then = (resolve: (value: QueryResult) => unknown) => Promise.resolve(result).then(resolve);
-    return builder;
-  });
-
-  const rpc = jest.fn(async (name: string, args: { p_table_name: string; p_record_id: string }): Promise<RpcResult> => {
-    expect(name).toBe('soft_delete_record');
-    rpcCalls.push({ table: args.p_table_name, id: args.p_record_id });
-    const fehler = rpcErrors[`${args.p_table_name}:${args.p_record_id}`];
-    if (!fehler) return { error: null };
-    return { error: typeof fehler === 'string' ? { message: fehler } : fehler };
-  });
-
+/** Minimaler Supabase-Client: protokolliert die RPC-Aufrufe, `from` darf nie benutzt werden (keine App-Kaskade mehr). */
+function mockClient(rpcResult: { error: RpcError | null } = { error: null }) {
+  const rpc = jest.fn().mockResolvedValue(rpcResult);
+  const from = jest.fn();
   mockCreateClient.mockResolvedValue({ from, rpc } as unknown as Awaited<ReturnType<typeof createSupabaseServerClient>>);
-  return { from, rpc, rpcCalls };
+  return { rpc, from };
 }
 
 describe('softDeleteEntryAction', () => {
@@ -78,250 +48,155 @@ describe('softDeleteEntryAction', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  describe('Wohnung -> Mieter', () => {
-    it('löscht zuerst die Mieter und danach die Wohnung', async () => {
-      const { rpcCalls } = createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }, { id: MIETER_B }], error: null } },
-      });
+  describe('Haus und Wohnung: die eine atomare Kaskade der Datenbank', () => {
+    it.each([
+      ['Haeuser', HAUS_ID],
+      ['Wohnungen', WOHNUNG_ID],
+    ])('%s: genau ein Aufruf von soft_delete_mit_kautionen ohne Prüfsumme, ohne App-Kaskade', async (tabelle, id) => {
+      const { rpc, from } = mockClient();
 
-      await softDeleteEntryAction('Wohnungen', WOHNUNG_A);
+      await softDeleteEntryAction(tabelle, id);
 
-      expect(rpcCalls).toEqual([
-        { table: 'Mieter', id: MIETER_A },
-        { table: 'Mieter', id: MIETER_B },
-        { table: 'Wohnungen', id: WOHNUNG_A },
-      ]);
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/wohnungen');
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/mieter');
+      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: tabelle, p_record_id: id, p_pruefsumme: null });
+      // Keine Abfrage der Kinder und keine Einzel-Löschungen: Mieter, Wohnungen und Kautionen löscht die Datenbank atomar.
+      expect(from).not.toHaveBeenCalled();
     });
 
-    it('propagiert den Löschfehler eines Mieters und löscht die Wohnung dann NICHT', async () => {
-      const { rpcCalls } = createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE },
-      });
+    it('revalidiert nach dem Löschen eines Hauses Häuser, Wohnungen, Mieter und das Dashboard', async () => {
+      mockClient();
 
-      await expect(softDeleteEntryAction('Wohnungen', WOHNUNG_A)).rejects.toThrow(KAUTION_FEHLER);
+      await softDeleteEntryAction('Haeuser', HAUS_ID);
 
-      expect(rpcCalls).toEqual([{ table: 'Mieter', id: MIETER_A }]);
-      expect(rpcCalls.some((c) => c.table === 'Wohnungen')).toBe(false);
-      // Nichts wurde gelöscht: keine Revalidierung nötig
+      for (const pfad of ['/haeuser', '/wohnungen', '/mieter', '/dashboard']) {
+        expect(mockRevalidatePath).toHaveBeenCalledWith(pfad);
+      }
+    });
+
+    it('revalidiert nach dem Löschen einer Wohnung Wohnungen, Mieter und das Dashboard', async () => {
+      mockClient();
+
+      await softDeleteEntryAction('Wohnungen', WOHNUNG_ID);
+
+      for (const pfad of ['/wohnungen', '/mieter', '/dashboard']) {
+        expect(mockRevalidatePath).toHaveBeenCalledWith(pfad);
+      }
+    });
+
+    it('reicht die Prüfsumme der bestätigten Auswirkung an die Datenbank weiter', async () => {
+      const { rpc } = mockClient();
+
+      await softDeleteEntryAction('Haeuser', HAUS_ID, { pruefsumme: PRUEFSUMME });
+
+      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: 'Haeuser', p_record_id: HAUS_ID, p_pruefsumme: PRUEFSUMME });
+    });
+
+    it.each([
+      ['undefined', { pruefsumme: undefined }],
+      ['null', { pruefsumme: null }],
+      ['eine leere Zeichenkette', { pruefsumme: '' }],
+    ])('behandelt %s als fehlende Prüfsumme (null an die Datenbank)', async (_name, options) => {
+      const { rpc } = mockClient();
+
+      await softDeleteEntryAction('Wohnungen', WOHNUNG_ID, options);
+
+      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: 'Wohnungen', p_record_id: WOHNUNG_ID, p_pruefsumme: null });
+    });
+
+    it('wirft die Meldung der Löschsperre ohne technisches Präfix und mit dem Code KA009, ohne zu revalidieren', async () => {
+      mockClient({ error: SPERRE_ROH });
+
+      const fehler = await softDeleteEntryAction('Haeuser', HAUS_ID).catch((error: unknown) => error);
+
+      expect(fehler).toBeInstanceOf(Error);
+      expect((fehler as Error).message).toBe(SPERRE_TEXT);
+      expect((fehler as Error).message).not.toContain('KAUT_GESPERRT');
+      expect((fehler as Error & { code?: string }).code).toBe('KA009');
+      // Nichts wurde gelöscht (eine Transaktion): keine Revalidierung nötig.
       expect(mockRevalidatePath).not.toHaveBeenCalled();
     });
 
-    it('nennt im Fehler, dass die Wohnung nicht gelöscht wurde', async () => {
-      createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE },
+    it('reicht die Meldung einer veralteten Prüfsumme (KA016) mit Code weiter', async () => {
+      mockClient({
+        error: { code: 'KA016', message: 'KAUT_BESTAETIGUNG: Die Auswirkung hat sich inzwischen geändert. Bitte erneut bestätigen.' },
       });
 
-      await expect(softDeleteEntryAction('Wohnungen', WOHNUNG_A)).rejects.toThrow('Die Wohnung wurde nicht gelöscht.');
+      const fehler = await softDeleteEntryAction('Haeuser', HAUS_ID, { pruefsumme: PRUEFSUMME }).catch((error: unknown) => error);
+
+      expect((fehler as Error).message).toBe('Die Auswirkung hat sich inzwischen geändert. Bitte erneut bestätigen.');
+      expect((fehler as Error & { code?: string }).code).toBe('KA016');
+      expect(mockRevalidatePath).not.toHaveBeenCalled();
     });
 
-    it('fasst gleiche Meldungen mehrerer Mieter zusammen und versucht trotzdem alle Mieter zu löschen', async () => {
-      const { rpcCalls } = createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }, { id: MIETER_B }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE, [`Mieter:${MIETER_B}`]: KAUTION_SPERRE },
-      });
+    it.each(['PGRST202', '42883'])('meldet eine fehlende Datenbankfunktion (%s) klar und auf Deutsch', async (code) => {
+      mockClient({ error: { code, message: 'Could not find the function public.soft_delete_mit_kautionen in the schema cache' } });
 
-      const error = await softDeleteEntryAction('Wohnungen', WOHNUNG_A).catch((e: Error) => e);
+      const fehler = await softDeleteEntryAction('Haeuser', HAUS_ID).catch((error: unknown) => error);
 
-      expect(error).toBeInstanceOf(Error);
-      const message = (error as Error).message;
-      expect(message.split(KAUTION_FEHLER).length - 1).toBe(1);
-      expect(rpcCalls.filter((c) => c.table === 'Mieter')).toHaveLength(2);
-      expect(rpcCalls.some((c) => c.table === 'Wohnungen')).toBe(false);
+      expect((fehler as Error).message).toContain('Datenbankfunktion ist noch nicht eingespielt');
+      expect((fehler as Error).message).not.toContain('schema cache');
+      expect((fehler as Error & { code?: string }).code).toBe(code);
+      expect(mockRevalidatePath).not.toHaveBeenCalled();
     });
 
-    it('revalidiert die Mieterseiten, wenn ein Teil der Mieter bereits gelöscht wurde', async () => {
-      createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }, { id: MIETER_B }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_B}`]: KAUTION_SPERRE },
-      });
+    it('setzt bei einem technischen Fehler keinen Löschsperren-Code', async () => {
+      mockClient({ error: { message: 'connection reset' } });
 
-      await expect(softDeleteEntryAction('Wohnungen', WOHNUNG_A)).rejects.toThrow(KAUTION_FEHLER);
+      const fehler = await softDeleteEntryAction('Wohnungen', WOHNUNG_ID).catch((error: unknown) => error);
 
-      expect(mockRevalidatePath).toHaveBeenCalledWith('/mieter');
-    });
-
-    it('löscht die Wohnung ohne Mieter direkt', async () => {
-      const { rpcCalls } = createFakeSupabase();
-
-      await softDeleteEntryAction('Wohnungen', WOHNUNG_A);
-
-      expect(rpcCalls).toEqual([{ table: 'Wohnungen', id: WOHNUNG_A }]);
-    });
-
-    it('bricht ab, wenn die Mieter nicht ermittelt werden können (kein stilles Überspringen)', async () => {
-      const { rpcCalls } = createFakeSupabase({
-        queries: { Mieter: { data: null, error: { message: 'technischer Fehler' } } },
-      });
-
-      await expect(softDeleteEntryAction('Wohnungen', WOHNUNG_A)).rejects.toThrow('konnten nicht ermittelt werden');
-      expect(rpcCalls).toEqual([]);
+      expect((fehler as Error).message).toBe('connection reset');
+      expect((fehler as Error & { code?: string }).code).toBeUndefined();
     });
   });
 
-  describe('Haus -> Wohnungen -> Mieter', () => {
-    const queries: Record<string, QueryResult> = {
-      Wohnungen: { data: [{ id: WOHNUNG_A }, { id: WOHNUNG_B }], error: null },
-      Mieter: { data: [{ id: MIETER_A }], error: null },
-    };
+  describe('Mieter', () => {
+    it('ohne Prüfsumme: Standardweg soft_delete_record (Löschsperre bei gebuchter Kaution bleibt wirksam)', async () => {
+      const { rpc } = mockClient();
 
-    it('löscht Mieter, dann Wohnungen, zuletzt das Haus', async () => {
-      const { rpcCalls } = createFakeSupabase({ queries });
+      await softDeleteEntryAction('Mieter', MIETER_ID);
 
-      await softDeleteEntryAction('Haeuser', HAUS_ID);
-
-      expect(rpcCalls).toEqual([
-        { table: 'Mieter', id: MIETER_A },
-        { table: 'Wohnungen', id: WOHNUNG_A },
-        { table: 'Wohnungen', id: WOHNUNG_B },
-        { table: 'Haeuser', id: HAUS_ID },
-      ]);
+      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(rpc).toHaveBeenCalledWith('soft_delete_record', { p_table_name: 'Mieter', p_record_id: MIETER_ID });
     });
 
-    it('löscht weder Wohnungen noch Haus, wenn ein Mieter nicht gelöscht werden kann', async () => {
-      const { rpcCalls } = createFakeSupabase({
-        queries,
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE },
-      });
+    it('mit Prüfsumme: soft_delete_mit_kautionen', async () => {
+      const { rpc } = mockClient();
 
-      await expect(softDeleteEntryAction('Haeuser', HAUS_ID)).rejects.toThrow(KAUTION_FEHLER);
+      await softDeleteEntryAction('Mieter', MIETER_ID, { pruefsumme: PRUEFSUMME });
 
-      expect(rpcCalls).toEqual([{ table: 'Mieter', id: MIETER_A }]);
+      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(rpc).toHaveBeenCalledWith('soft_delete_mit_kautionen', { p_table_name: 'Mieter', p_record_id: MIETER_ID, p_pruefsumme: PRUEFSUMME });
+      expect(mockRevalidatePath).toHaveBeenCalledWith('/mieter');
     });
 
-    it('löscht das Haus nicht, wenn eine Wohnung nicht gelöscht werden kann', async () => {
-      const { rpcCalls } = createFakeSupabase({
-        queries,
-        rpcErrors: { [`Wohnungen:${WOHNUNG_B}`]: 'Zugriff verweigert.' },
-      });
+    it('entfernt das Präfix der Löschsperre und behält den SQLSTATE KA009 (die Routen antworten dann mit 409)', async () => {
+      mockClient({ error: { message: 'KAUT_GESPERRT: Der Mieter hat eine Kaution mit Buchungen.', code: 'KA009' } });
 
-      await expect(softDeleteEntryAction('Haeuser', HAUS_ID)).rejects.toThrow('Das Haus wurde nicht gelöscht.');
+      const fehler = await softDeleteEntryAction('Mieter', MIETER_ID).catch((error: unknown) => error);
 
-      expect(rpcCalls.some((c) => c.table === 'Haeuser')).toBe(false);
-    });
-
-    it('löscht ein Haus ohne Wohnungen direkt', async () => {
-      const { rpcCalls } = createFakeSupabase({ queries: { Wohnungen: { data: [], error: null } } });
-
-      await softDeleteEntryAction('Haeuser', HAUS_ID);
-
-      expect(rpcCalls).toEqual([{ table: 'Haeuser', id: HAUS_ID }]);
+      expect((fehler as Error).message).toBe('Der Mieter hat eine Kaution mit Buchungen.');
+      expect((fehler as Error & { code?: string }).code).toBe('KA009');
+      expect(mockRevalidatePath).not.toHaveBeenCalled();
     });
   });
 
   describe('Datensatz ohne Kaskade', () => {
-    it('ruft nur soft_delete_record für den Datensatz selbst auf', async () => {
-      const { rpcCalls, from } = createFakeSupabase();
+    it('ruft nur soft_delete_record für den Datensatz selbst auf und ignoriert eine Prüfsumme', async () => {
+      const { rpc, from } = mockClient();
 
-      await softDeleteEntryAction('Finanzen', 'finanz-1');
+      await softDeleteEntryAction('Finanzen', 'finanz-1', { pruefsumme: PRUEFSUMME });
 
-      expect(rpcCalls).toEqual([{ table: 'Finanzen', id: 'finanz-1' }]);
+      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(rpc).toHaveBeenCalledWith('soft_delete_record', { p_table_name: 'Finanzen', p_record_id: 'finanz-1' });
       expect(from).not.toHaveBeenCalled();
       expect(mockRevalidatePath).toHaveBeenCalledWith('/finanzen');
     });
 
-    it('wirft die (deutsche) Meldung der Datenbank, wenn die Löschung des Datensatzes selbst scheitert', async () => {
-      createFakeSupabase({ rpcErrors: { 'Mieter:mieter-x': KAUTION_SPERRE } });
+    it('wirft die (deutsche) Meldung der Datenbank, wenn die Löschung scheitert', async () => {
+      mockClient({ error: { message: 'Permission denied: loeschen not allowed for module finanzen' } });
 
-      await expect(softDeleteEntryAction('Mieter', 'mieter-x')).rejects.toThrow(KAUTION_FEHLER);
+      await expect(softDeleteEntryAction('Finanzen', 'finanz-1')).rejects.toThrow('Permission denied: loeschen not allowed for module finanzen');
       expect(mockRevalidatePath).not.toHaveBeenCalled();
-    });
-  });
-
-  // Die Datenbank liefert die Löschsperre als "<CODE>: <deutsche Meldung>" (KAUT_GESPERRT, SQLSTATE KA009). Die Tests
-  // oben nutzen genau diese Rohmeldung; hier steht, was die Nutzer davon sehen dürfen: nur den deutschen Text.
-  describe('Meldung der Löschsperre ohne technisches Präfix', () => {
-    async function fange(aufruf: () => Promise<void>): Promise<Error & { code?: string }> {
-      const ergebnis = await aufruf().then(() => null, (e: unknown) => e);
-      expect(ergebnis).toBeInstanceOf(Error);
-      return ergebnis as Error & { code?: string };
-    }
-
-    it('entfernt das Präfix in der Kaskade Wohnung -> Mieter und behält Text und Hinweis', async () => {
-      createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE },
-      });
-
-      const error = await fange(() => softDeleteEntryAction('Wohnungen', WOHNUNG_A));
-
-      expect(error.message).not.toContain(PRAEFIX);
-      expect(error.message).toBe(`${KAUTION_FEHLER} Die Wohnung wurde nicht gelöscht.`);
-    });
-
-    it('entfernt das Präfix in der Kaskade Haus -> Wohnungen -> Mieter', async () => {
-      createFakeSupabase({
-        queries: {
-          Wohnungen: { data: [{ id: WOHNUNG_A }], error: null },
-          Mieter: { data: [{ id: MIETER_A }], error: null },
-        },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE },
-      });
-
-      const error = await fange(() => softDeleteEntryAction('Haeuser', HAUS_ID));
-
-      expect(error.message).not.toContain(PRAEFIX);
-      expect(error.message).toBe(`${KAUTION_FEHLER} Das Haus wurde nicht gelöscht.`);
-    });
-
-    it('entfernt das Präfix, wenn die Löschung des Datensatzes selbst abgelehnt wird (Mieter direkt)', async () => {
-      createFakeSupabase({ rpcErrors: { 'Mieter:mieter-x': KAUTION_SPERRE } });
-
-      const error = await fange(() => softDeleteEntryAction('Mieter', 'mieter-x'));
-
-      expect(error.message).toBe(KAUTION_FEHLER);
-    });
-
-    it('fasst mehrere abgelehnte Mieter mit gleichem Grund zu einer Meldung ohne Präfix zusammen', async () => {
-      createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }, { id: MIETER_B }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE, [`Mieter:${MIETER_B}`]: KAUTION_SPERRE },
-      });
-
-      const error = await fange(() => softDeleteEntryAction('Wohnungen', WOHNUNG_A));
-
-      expect(error.message).toBe(`${KAUTION_FEHLER} Die Wohnung wurde nicht gelöscht.`);
-    });
-
-    it('bereinigt jede Meldung einzeln, wenn die Gründe verschieden sind', async () => {
-      createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }, { id: MIETER_B }], error: null } },
-        rpcErrors: {
-          [`Mieter:${MIETER_A}`]: KAUTION_SPERRE,
-          [`Mieter:${MIETER_B}`]: { message: 'ANDERE_SPERRE: Der Mieter hat einen offenen Beleg.', code: 'KA009' },
-        },
-      });
-
-      const error = await fange(() => softDeleteEntryAction('Wohnungen', WOHNUNG_A));
-
-      expect(error.message).not.toMatch(/[A-Z]{2,}_[A-Z]+:/);
-      expect(error.message).toContain(KAUTION_FEHLER);
-      expect(error.message).toContain('Der Mieter hat einen offenen Beleg.');
-    });
-
-    it('behält den SQLSTATE KA009 der Löschsperre am Fehler (die Routen antworten dann mit 409)', async () => {
-      createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: KAUTION_SPERRE, 'Mieter:mieter-x': KAUTION_SPERRE },
-      });
-
-      expect((await fange(() => softDeleteEntryAction('Wohnungen', WOHNUNG_A))).code).toBe('KA009');
-      expect((await fange(() => softDeleteEntryAction('Mieter', 'mieter-x'))).code).toBe('KA009');
-    });
-
-    it('setzt bei einem technischen Fehler keinen Löschsperren-Code', async () => {
-      createFakeSupabase({
-        queries: { Mieter: { data: [{ id: MIETER_A }], error: null } },
-        rpcErrors: { [`Mieter:${MIETER_A}`]: { message: 'connection reset', code: '08006' } },
-      });
-
-      const error = await fange(() => softDeleteEntryAction('Wohnungen', WOHNUNG_A));
-
-      expect(error.code).toBeUndefined();
-      expect(error.message).toContain('connection reset');
     });
   });
 });

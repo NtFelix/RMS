@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
-import { buildBulkDeleteResponse, summarizeSettledDeletes } from "@/lib/bulk-delete-summary"
+import { buildBulkDeleteResponse, parsePruefsummen, summarizeSettledDeletes } from "@/lib/bulk-delete-summary"
 
 
 export async function POST(request: Request) {
@@ -9,7 +9,8 @@ export async function POST(request: Request) {
     const { requireApiPermission } = await import("@/lib/api-permissions");
     await requireApiPermission('haeuser', 'loeschen');
 
-    const { ids } = await request.json()
+    const { ids, pruefsummen } = await request.json()
+    const bestaetigt = parsePruefsummen(pruefsummen)
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     // gemeldet (HTTP 200, die Liste muss neu geladen werden), nur wenn keine gelungen ist, antwortet die Route
     // mit 409 (fachliche Ablehnung) bzw. 500.
     const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
-    const results = await Promise.allSettled(ids.map(id => softDeleteEntryAction("Haeuser", id)));
+    const results = await Promise.allSettled(ids.map(id => softDeleteEntryAction("Haeuser", id, { pruefsumme: bestaetigt[id] })));
     for (const result of results) {
       if (result.status === "rejected") console.error("Supabase Bulk Delete Error for Haeuser:", result.reason);
     }

@@ -212,3 +212,59 @@ export interface KautionKompat {
   zustand?: KautionZustand;
   fristStufe?: KautionFristStufe;
 }
+
+// ---------------------------------------------------------------------------
+// Deleting a house, apartment or tenant: impact on the deposits (`get_kautionen_loeschauswirkung`)
+// ---------------------------------------------------------------------------
+
+/** Tables the impact overview and the confirmed deletion (`soft_delete_mit_kautionen`) work for. */
+export type KautionLoeschTabelle = "Haeuser" | "Wohnungen" | "Mieter";
+
+/** A deposit WITH bookings that goes to the trash bin together with its tenant. */
+export interface KautionLoeschMitBuchung {
+  mieter_id: string;
+  /** `null` without the right to see tenants. */
+  name: string | null;
+  kautionsart: KautionArt;
+  kontostand: number;
+  anzahl_buchungen: number;
+}
+
+/** Deposit figures of the impact. Amounts are computed by the database, never in the browser. */
+export interface KautionLoeschKautionen {
+  anzahl: number;
+  ohne_buchungen: number;
+  mit_buchungen: number;
+  /** Target minus paid in, only deposit accounts (`barkaution`, `sparbuch`). */
+  konto_noch_offen: number;
+  /** Balance of the deposit accounts. */
+  konto_verwahrt: number;
+  /** Guarantee / insurance: no account, target amount reported separately. */
+  dokumentiert_anzahl: number;
+  dokumentiert_summe: number;
+  mit_saldo_anzahl: number;
+  /** `true` if the list below shows only the first 100 deposits. */
+  mit_buchungen_gekuerzt: boolean;
+  mit_buchungen_liste: KautionLoeschMitBuchung[];
+}
+
+/** One entry per selected ID (bulk deletion): the checksum to send back when confirming. */
+export interface KautionLoeschEintrag {
+  id: string;
+  anzahl_mieter: number;
+  /** `null` without the right to see deposits. */
+  mit_buchungen: number | null;
+  pruefsumme: string | null;
+}
+
+export interface KautionLoeschauswirkung {
+  tabelle: KautionLoeschTabelle;
+  anzahl_haeuser: number;
+  anzahl_wohnungen: number;
+  anzahl_mieter: number;
+  /** `false` without `kautionen: ansehen`: then there is no statement about deposits at all. */
+  kautionen_sichtbar: boolean;
+  kautionen: KautionLoeschKautionen | null;
+  pruefsumme: string | null;
+  eintraege: KautionLoeschEintrag[];
+}

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { updateTenantApartment } from "@/app/mieter-actions"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
 import { formatBulkDeleteSuffix, formatFailureReasons, stripDbCodePrefix } from "@/lib/bulk-delete-summary"
 
 interface TenantBulkActionBarProps {
@@ -57,20 +58,27 @@ export function TenantBulkActionBar({
       });
       return;
     }
-    setIsDeleteDialogOpen(true);
+    // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+    void starteLoeschenMitKautionen("Mieter", Array.from(selectedTenants), {
+      einfach: () => setIsDeleteDialogOpen(true),
+      loeschen: handleConfirmDelete,
+    });
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (pruefsummen: Pruefsummen = {}) => {
     setIsDeleting(true);
 
     try {
+      const ids = Array.from(selectedTenants);
+
       const response = await fetch('/api/mieter/bulk-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ids: Array.from(selectedTenants)
+          ids,
+          pruefsummen
         }),
       });
 
@@ -290,7 +298,7 @@ export function TenantBulkActionBar({
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={handleConfirmDelete}
+                onClick={() => handleConfirmDelete()}
                 disabled={isDeleting}
               >
                 {isDeleting ? (

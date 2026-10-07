@@ -133,7 +133,11 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   }
 }
 
-export async function deleteTenantAction(tenantId: string): Promise<{ success: boolean; error?: { message: string } }> {
+/**
+ * Löscht einen Mieter (Papierkorb). `pruefsumme`: Prüfsumme der bestätigten Auswirkung auf die Kaution (Übersicht
+ * "Kautionen werden mitgelöscht"); nur damit löscht die Datenbank auch eine Kaution mit Buchungen mit (`KA016` bei veralteter Prüfsumme).
+ */
+export async function deleteTenantAction(tenantId: string, pruefsumme?: string | null): Promise<{ success: boolean; error?: { message: string } }> {
   try {
     let user, supabase;
     try {
@@ -164,7 +168,7 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
     }
     const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
     try {
-      await softDeleteEntryAction("Mieter", tenantId);
+      await softDeleteEntryAction("Mieter", tenantId, { pruefsumme });
     } catch (err: any) {
       console.error("Error soft deleting tenant:", err);
       // Die Löschsperren der Datenbank (z. B. Mieter mit hinterlegter Kaution) liefern deutsche Meldungen mit

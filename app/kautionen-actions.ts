@@ -45,12 +45,15 @@ import {
 import { KAUTION_FEHLER_FALLBACK_MESSAGE, mapKautionError, type KautionRpcError } from "@/lib/kautionen-errors";
 import { centsToDecimalString, getMoneyInputError, parseMoneyInput } from "@/lib/kautionen-money";
 import { checkKautionScope } from "@/lib/kautionen-scope";
+import { chunkIds, mergeLoeschauswirkung } from "@/lib/kautionen-loeschauswirkung";
 import { validateKautionDatum, validateKautionText, validateUuid } from "@/lib/kautionen-validation";
 import type {
   KautionAbzugKategorie,
   KautionArt,
   KautionBewegungsArt,
   KautionDetails,
+  KautionLoeschauswirkung,
+  KautionLoeschTabelle,
   KautionRechte,
   KautionVorschlag,
 } from "@/types/Kaution";
@@ -366,6 +369,72 @@ export async function getKautionDetailsAction(
       }
 
       return { ok: true, data: { details, rechte, vorschlag } };
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Impact of deleting a house, apartment or tenant
+// ---------------------------------------------------------------------------
+
+export interface KautionLoeschauswirkungInput {
+  tabelle: KautionLoeschTabelle;
+  /** IDs of the same table (bulk deletion: one overview for all of them). */
+  ids: string[];
+}
+
+/** Limit of the database function (`get_kautionen_loeschauswirkung`) per request: larger selections are requested in chunks. */
+const MAX_LOESCH_IDS_JE_ANFRAGE = 200;
+
+/** Upper bound of one overview (a selection beyond this is not offered for deletion in one go). */
+const MAX_LOESCH_IDS = 2000;
+
+const LOESCH_TABELLEN: readonly string[] = ["Haeuser", "Wohnungen", "Mieter"];
+
+/**
+ * What deleting the given houses, apartments or tenants means for the deposits (`get_kautionen_loeschauswirkung`):
+ * counts, amounts "still open" and "held" (deposit accounts only), guarantees/insurances separately, tenants with
+ * a balance and a checksum to send back when confirming. All figures come from the database.
+ *
+ * Without the module right `kautionen: ansehen` this action fails with `42501` (the caller then deletes without the
+ * overview; the database still blocks deposits with bookings). The database checks the object scope itself.
+ */
+export async function getKautionLoeschauswirkungAction(
+  input: KautionLoeschauswirkungInput
+): Promise<KautionActionResult<KautionLoeschauswirkung>> {
+  const raw = asRecord(input);
+  return runKautionAction({
+    actionName: "getKautionLoeschauswirkung",
+    mieterScope: false,
+    aktion: "ansehen",
+    logArt: safeLogArt(raw.tabelle, (candidate) => typeof candidate === "string" && LOESCH_TABELLEN.includes(candidate)),
+    revalidate: false,
+    logSuccess: false,
+    run: async (supabase) => {
+      if (typeof raw.tabelle !== "string" || !LOESCH_TABELLEN.includes(raw.tabelle)) return fail(invalid());
+      if (!Array.isArray(raw.ids) || raw.ids.length === 0) return fail(invalid());
+      if (raw.ids.length > MAX_LOESCH_IDS) {
+        return fail(invalid(`Bitte wählen Sie höchstens ${MAX_LOESCH_IDS} Einträge gleichzeitig aus.`));
+      }
+      // Set statt Array.includes: bis zu 2000 IDs, doppelte fallen weg (Reihenfolge bleibt erhalten)
+      const eindeutig = new Set<string>();
+      for (const candidate of raw.ids) {
+        const id = validateUuid(candidate, "ID");
+        if (!id.ok) return fail(invalid(id.message));
+        eindeutig.add(id.value);
+      }
+      const ids = Array.from(eindeutig);
+
+      // The database function takes at most 200 IDs: a larger selection is asked for in chunks and combined here (on the server).
+      const teile: KautionLoeschauswirkung[] = [];
+      for (const chunk of chunkIds(ids, MAX_LOESCH_IDS_JE_ANFRAGE)) {
+        const result = await callRpc(supabase, "get_kautionen_loeschauswirkung", { p_tabelle: raw.tabelle, p_ids: chunk });
+        if (!result.ok) return fail(result.error);
+        const data = asRecord(result.data);
+        if (typeof data.anzahl_mieter !== "number" || !Array.isArray(data.eintraege)) return fail({ message: KAUTION_FEHLER_FALLBACK_MESSAGE });
+        teile.push(data as unknown as KautionLoeschauswirkung);
+      }
+      return { ok: true, data: mergeLoeschauswirkung(teile) };
     },
   });
 }
