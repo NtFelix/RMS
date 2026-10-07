@@ -50,12 +50,7 @@ describe('lib/stripe-server benchmark', () => {
       }
     };
 
-    // Simulate delay
-    const delayMs = 50;
-    const retrieveMock = jest.fn().mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      return mockPrice;
-    });
+    const retrieveMock = jest.fn().mockResolvedValue(mockPrice);
 
     const mockStripeInstance = {
       prices: {
@@ -65,31 +60,14 @@ describe('lib/stripe-server benchmark', () => {
 
     mockStripe.mockImplementation(() => mockStripeInstance as any);
 
-    const start = Date.now();
-
-    // First call - should hit the "API"
-    // Use a unique ID to avoid interference from other tests if any
+    // Use a unique ID to avoid interference from other tests
     const uniqueId = 'price_' + Date.now();
-
-    // Since we can't easily reset the global variable cache without exposing it,
-    // we just test the behavior that a second call with same ID hits cache.
-    // Ideally we would export a way to clear cache for testing, but for this benchmark
-    // using a unique ID is enough to simulate "fresh" state.
 
     await getPlanDetails(uniqueId);
 
     // Second call - should be cached
     await getPlanDetails(uniqueId);
 
-    const end = Date.now();
-    const duration = end - start;
-
-    console.log(`Optimized Benchmark: Duration=${duration}ms, Calls=${retrieveMock.mock.calls.length}`);
-
-    // Verification
     expect(retrieveMock).toHaveBeenCalledTimes(1);
-
-    // The duration should be close to delayMs (1 call), not 2 * delayMs
-    expect(duration).toBeLessThan(delayMs * 1.8);
   });
 });
