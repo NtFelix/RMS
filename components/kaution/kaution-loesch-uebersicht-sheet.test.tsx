@@ -1,6 +1,6 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { KautionLoeschUebersichtDialog } from "@/components/kaution/kaution-loesch-uebersicht-dialog";
+import { KautionLoeschUebersichtSheet } from "@/components/kaution/kaution-loesch-uebersicht-sheet";
 import type { KautionLoeschauswirkung } from "@/types/Kaution";
 
 // `jest.setup.js` ersetzt den Store global durch einen Mock: hier wird der echte Store verwendet.
@@ -8,6 +8,9 @@ jest.mock("@/hooks/use-modal-store", () => jest.requireActual("@/hooks/use-modal
 
 let mockPathname = "/mieter";
 jest.mock("next/navigation", () => ({ usePathname: () => mockPathname }));
+
+// jsdom kennt ResizeObserver nicht (ScrollArea)
+global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
 
 const { useModalStore } = jest.requireActual<typeof import("@/hooks/use-modal-store")>("@/hooks/use-modal-store");
 
@@ -52,18 +55,18 @@ beforeEach(() => {
   useModalStore.setState({ isLoeschUebersichtOpen: false, loeschUebersichtConfig: null });
 });
 
-describe("KautionLoeschUebersichtDialog", () => {
+describe("KautionLoeschUebersichtSheet", () => {
   it("renders nothing while no request is open", () => {
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
 
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows what is affected and the figures reported by the database", () => {
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     oeffne();
 
-    const dialog = screen.getByRole("alertdialog");
+    const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Kautionen werden mitgelöscht")).toBeInTheDocument();
     expect(dialog).toHaveTextContent("1 Haus, 2 Wohnungen und 3 Mieter");
     expect(dialog).toHaveTextContent("2 Kautionen mit Buchungen");
@@ -78,7 +81,7 @@ describe("KautionLoeschUebersichtDialog", () => {
   });
 
   it("lists the deposits with bookings (name, kind, balance, number of bookings); a missing name shows 'Mieter'", () => {
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     oeffne();
 
     const liste = screen.getByRole("region", { name: "Kautionen mit Buchungen" });
@@ -86,11 +89,10 @@ describe("KautionLoeschUebersichtDialog", () => {
     expect(liste).toHaveTextContent("2 Buchungen");
     expect(liste).toHaveTextContent("1 Buchung");
     expect(within(liste).getAllByRole("listitem")).toHaveLength(2);
-    expect(liste).toHaveAttribute("tabindex", "0");
   });
 
   it("omits the rows for guarantees and tenants with a balance when there are none", () => {
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     oeffne(auswirkung({ kautionen: { ...auswirkung().kautionen!, dokumentiert_anzahl: 0, dokumentiert_summe: 0, mit_saldo_anzahl: 0 } }));
 
     const summen = screen.getByTestId("kaution-loesch-summen");
@@ -99,7 +101,7 @@ describe("KautionLoeschUebersichtDialog", () => {
   });
 
   it("notes when the list is shortened", () => {
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     oeffne(auswirkung({ kautionen: { ...auswirkung().kautionen!, mit_buchungen_gekuerzt: true } }));
 
     expect(screen.getByText("Es werden die ersten 100 Kautionen angezeigt.")).toBeInTheDocument();
@@ -107,7 +109,7 @@ describe("KautionLoeschUebersichtDialog", () => {
 
   it("the delete button stays disabled until the number of tenants is typed", async () => {
     const user = userEvent.setup();
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     const onEntscheidung = oeffne();
 
     const loeschen = screen.getByRole("button", { name: "Löschen" });
@@ -127,7 +129,7 @@ describe("KautionLoeschUebersichtDialog", () => {
 
   it("confirming reports `true` and closes the overview", async () => {
     const user = userEvent.setup();
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     const onEntscheidung = oeffne();
 
     await user.type(screen.getByLabelText(/Zur Bestätigung/), "3");
@@ -136,12 +138,12 @@ describe("KautionLoeschUebersichtDialog", () => {
     expect(onEntscheidung).toHaveBeenCalledWith(true);
     expect(onEntscheidung).toHaveBeenCalledTimes(1);
     expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("cancelling reports `false` and closes the overview", async () => {
     const user = userEvent.setup();
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     const onEntscheidung = oeffne();
 
     await user.click(screen.getByRole("button", { name: "Abbrechen" }));
@@ -153,7 +155,7 @@ describe("KautionLoeschUebersichtDialog", () => {
 
   it("Escape cancels", async () => {
     const user = userEvent.setup();
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     const onEntscheidung = oeffne();
 
     await user.keyboard("{Escape}");
@@ -162,33 +164,59 @@ describe("KautionLoeschUebersichtDialog", () => {
     expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
   });
 
-  it("a change of the page while the overview is open counts as a cancellation", () => {
-    const { rerender } = render(<KautionLoeschUebersichtDialog />);
+  it("Enter in the confirmation field confirms only with the right number", async () => {
+    const user = userEvent.setup();
+    render(<KautionLoeschUebersichtSheet />);
     const onEntscheidung = oeffne();
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Zur Bestätigung/), "2{Enter}");
+    expect(onEntscheidung).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByLabelText(/Zur Bestätigung/));
+    await user.type(screen.getByLabelText(/Zur Bestätigung/), "3{Enter}");
+    expect(onEntscheidung).toHaveBeenCalledWith(true);
+    expect(onEntscheidung).toHaveBeenCalledTimes(1);
+  });
+
+  it("the close button of the panel cancels", async () => {
+    const user = userEvent.setup();
+    render(<KautionLoeschUebersichtSheet />);
+    const onEntscheidung = oeffne();
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+
+    expect(onEntscheidung).toHaveBeenCalledWith(false);
+    expect(onEntscheidung).not.toHaveBeenCalledWith(true);
+    expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+  });
+
+  it("a change of the page while the overview is open counts as a cancellation", () => {
+    const { rerender } = render(<KautionLoeschUebersichtSheet />);
+    const onEntscheidung = oeffne();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     mockPathname = "/wohnungen";
-    rerender(<KautionLoeschUebersichtDialog />);
+    rerender(<KautionLoeschUebersichtSheet />);
 
     expect(onEntscheidung).toHaveBeenCalledWith(false);
     expect(onEntscheidung).toHaveBeenCalledTimes(1);
     expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("stays open and unanswered while the page does not change", () => {
-    const { rerender } = render(<KautionLoeschUebersichtDialog />);
+    const { rerender } = render(<KautionLoeschUebersichtSheet />);
     const onEntscheidung = oeffne();
 
-    rerender(<KautionLoeschUebersichtDialog />);
+    rerender(<KautionLoeschUebersichtSheet />);
 
     expect(onEntscheidung).not.toHaveBeenCalled();
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("a new request starts with an empty confirmation field", async () => {
     const user = userEvent.setup();
-    render(<KautionLoeschUebersichtDialog />);
+    render(<KautionLoeschUebersichtSheet />);
     oeffne();
     await user.type(screen.getByLabelText(/Zur Bestätigung/), "3");
 
