@@ -145,6 +145,20 @@ describe("starteLoeschenMitKautionen", () => {
     expect(h.loeschen).toHaveBeenCalledWith({ [HAUS_A]: SUMME_A, [HAUS_B]: SUMME_B });
   });
 
+  it("a second press while the impact is loading is ignored (one lookup, one dialog)", async () => {
+    mockAction.mockResolvedValue({ success: true, data: auswirkung({}, 0) });
+    const h = handlers();
+
+    await Promise.all([starteLoeschenMitKautionen("Haeuser", [HAUS_A], h), starteLoeschenMitKautionen("Haeuser", [HAUS_A], h)]);
+
+    expect(mockAction).toHaveBeenCalledTimes(1);
+    expect(h.einfach).toHaveBeenCalledTimes(1);
+
+    // afterwards a new start works again
+    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
+    expect(h.einfach).toHaveBeenCalledTimes(2);
+  });
+
   it("cancelling the overview deletes nothing and asks nothing", async () => {
     mockAction.mockResolvedValue({ success: true, data: auswirkung() });
     const h = handlers();

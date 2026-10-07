@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
-import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 import { padPlz, parsePlz } from "@/lib/address";
 
 interface House {
@@ -583,7 +583,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
     closeHouseModal({ force: true });
   };
 
-  const handleDelete = async (pruefsummen: Record<string, string> = {}) => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     if (!houseInitialData || isPending) return;
     try {
       setIsDeleting(true);

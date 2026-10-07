@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions";
-import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 
 interface Haus {
   id: string;
@@ -342,7 +342,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     closeWohnungModal({ force: true });
   };
 
-  const handleDelete = async (pruefsummen: Record<string, string> = {}) => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     if (!wohnungInitialData || isPending) return;
     try {
       setIsDeleting(true);

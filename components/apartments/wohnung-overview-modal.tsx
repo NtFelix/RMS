@@ -1,6 +1,6 @@
 "use client";
 import { deleteTenantAction } from "@/app/mieter-actions";
-import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 import {
   Dialog,
   DialogContent,
@@ -207,10 +207,7 @@ export function WohnungOverviewModal() {
     });
   };
 
-  // `mieter` wird übergeben, weil der State beim Löschen direkt nach der Übersicht noch nicht gesetzt ist.
-  const confirmDeleteMieter = async (mieter: { id: string; name: string } | null = mieterToDelete, pruefsummen: Record<string, string> = {}) => {
-    if (!mieter) return;
-
+  const confirmDeleteMieter = async (mieter: { id: string; name: string }, pruefsummen: Pruefsummen) => {
     try {
       setIsDeleting(true);
 
@@ -643,7 +640,7 @@ export function WohnungOverviewModal() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => confirmDeleteMieter()}
+              onClick={() => mieterToDelete && confirmDeleteMieter(mieterToDelete, {})}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >

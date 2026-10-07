@@ -409,6 +409,7 @@ export async function getKautionLoeschauswirkungAction(
     aktion: "ansehen",
     logArt: safeLogArt(raw.tabelle, (candidate) => typeof candidate === "string" && LOESCH_TABELLEN.includes(candidate)),
     revalidate: false,
+    logSuccess: false,
     run: async (supabase) => {
       if (typeof raw.tabelle !== "string" || !LOESCH_TABELLEN.includes(raw.tabelle)) return fail(invalid());
       if (!Array.isArray(raw.ids) || raw.ids.length === 0) return fail(invalid());

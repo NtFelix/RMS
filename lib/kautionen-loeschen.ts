@@ -4,17 +4,14 @@ import { toast } from "@/hooks/use-toast";
 import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
 import type { KautionLoeschauswirkung, KautionLoeschTabelle } from "@/types/Kaution";
 
-/**
- * Result of the overview before deleting houses, apartments or tenants.
- * `pruefsummen` (checksum of the shown impact per ID) belongs to the confirmed deletion.
- */
-export type LoeschBestaetigung = { ok: true; pruefsummen: Record<string, string> } | { ok: false };
+/** Checksum of the shown impact per ID; it belongs to the confirmed deletion (empty if no deposit with bookings is affected). */
+export type Pruefsummen = Record<string, string>;
 
 /**
  * `auswirkung` is set only if deposits WITH bookings are affected (then the overview must be confirmed); otherwise `null`
  * (no deposits, only deposits without bookings, or no right to see deposits): the usual deletion applies.
  */
-export type LoeschVorabpruefung = { ok: true; auswirkung: KautionLoeschauswirkung | null } | { ok: false };
+type LoeschVorabpruefung = { ok: true; auswirkung: KautionLoeschauswirkung | null } | { ok: false };
 
 /**
  * Loads the impact of deleting these records on the deposits.
@@ -46,26 +43,29 @@ export async function pruefeLoeschenMitKautionen(tabelle: KautionLoeschTabelle, 
   return { ok: true, auswirkung };
 }
 
-/** Shows the overview "Kautionen werden mitgelöscht" and waits for the decision. Confirming returns the checksum per ID. */
-async function zeigeLoeschUebersicht(auswirkung: KautionLoeschauswirkung): Promise<LoeschBestaetigung> {
+/** Shows the overview "Kautionen werden mitgelöscht" and waits for the decision: the checksums if confirmed, `null` if cancelled. */
+async function zeigeLoeschUebersicht(auswirkung: KautionLoeschauswirkung): Promise<Pruefsummen | null> {
   const bestaetigt = await new Promise<boolean>((resolve) => {
     useModalStore.getState().openLoeschUebersicht({ auswirkung, onEntscheidung: resolve });
   });
-  if (!bestaetigt) return { ok: false };
+  if (!bestaetigt) return null;
 
-  const pruefsummen: Record<string, string> = {};
+  const pruefsummen: Pruefsummen = {};
   for (const eintrag of auswirkung.eintraege) {
     if (typeof eintrag.pruefsumme === "string") pruefsummen[eintrag.id] = eintrag.pruefsumme;
   }
-  return { ok: true, pruefsummen };
+  return pruefsummen;
 }
 
-export interface LoeschenStartHandlers {
+interface LoeschenStartHandlers {
   /** No deposit with bookings is affected: show the usual "Are you sure?" question of the screen; its confirmation deletes without checksums. */
   einfach: () => void;
   /** Deposits with bookings are affected and the overview was confirmed: delete right away (the overview IS the confirmation). */
-  loeschen: (pruefsummen: Record<string, string>) => void | Promise<void>;
+  loeschen: (pruefsummen: Pruefsummen) => void | Promise<void>;
 }
+
+// A second press while the impact is still loading (or the overview is open) is ignored: one start at a time.
+let startLaeuft = false;
 
 /**
  * Call when the user presses "Löschen" (BEFORE any question): loads the impact first, then shows exactly ONE dialog.
@@ -74,12 +74,18 @@ export interface LoeschenStartHandlers {
  * an error deletes nothing.
  */
 export async function starteLoeschenMitKautionen(tabelle: KautionLoeschTabelle, ids: string[], handlers: LoeschenStartHandlers): Promise<void> {
-  const vorab = await pruefeLoeschenMitKautionen(tabelle, ids);
-  if (!vorab.ok) return;
-  if (!vorab.auswirkung) {
-    handlers.einfach();
-    return;
+  if (startLaeuft) return;
+  startLaeuft = true;
+  try {
+    const vorab = await pruefeLoeschenMitKautionen(tabelle, ids);
+    if (!vorab.ok) return;
+    if (!vorab.auswirkung) {
+      handlers.einfach();
+      return;
+    }
+    const pruefsummen = await zeigeLoeschUebersicht(vorab.auswirkung);
+    if (pruefsummen) await handlers.loeschen(pruefsummen);
+  } finally {
+    startLaeuft = false;
   }
-  const bestaetigung = await zeigeLoeschUebersicht(vorab.auswirkung);
-  if (bestaetigung.ok) await handlers.loeschen(bestaetigung.pruefsummen);
 }

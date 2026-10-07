@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { updateTenantApartment } from "@/app/mieter-actions"
-import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
 import { formatBulkDeleteSuffix, formatFailureReasons, stripDbCodePrefix } from "@/lib/bulk-delete-summary"
 
 interface TenantBulkActionBarProps {
@@ -65,7 +65,7 @@ export function TenantBulkActionBar({
     });
   };
 
-  const handleConfirmDelete = async (pruefsummen: Record<string, string> = {}) => {
+  const handleConfirmDelete = async (pruefsummen: Pruefsummen = {}) => {
     setIsDeleting(true);
 
     try {

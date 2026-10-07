@@ -22,7 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
 import { useModalStore } from "@/hooks/use-modal-store"
-import { starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
 
 export interface House {
   id: string
@@ -63,7 +63,7 @@ export function HouseContextMenu({
     }, 0);
   };
 
-  const handleDelete = async (pruefsummen: Record<string, string> = {}) => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     try {
       setIsDeleting(true);
       const result = await deleteHouseAction(house.id, pruefsummen[house.id]);
@@ -99,7 +99,7 @@ export function HouseContextMenu({
 
   // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
   const handleDeleteStart = () =>
-    starteLoeschenMitKautionen("Haeuser", [house.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
+    void starteLoeschenMitKautionen("Haeuser", [house.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
 
   return (
     <>
