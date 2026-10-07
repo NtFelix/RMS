@@ -13,12 +13,28 @@ import { useModalStore, type LoeschUebersichtConfig } from "@/hooks/use-modal-st
 import { KAUTION_ART_LABELS } from "@/lib/kautionen-constants";
 import type { KautionLoeschauswirkung } from "@/types/Kaution";
 
+/** Länger als die Schließen-Animation der Seitenleiste (siehe `components/ui/sheet.tsx`). */
+const SCHLIESSEN_ANIMATION_MS = 500;
+
+// Jede Anfrage bekommt eine eigene Kennung (Objektidentität): Ein erneutes Öffnen mit gleicher Prüfsumme, solange die Leiste noch
+// ausfährt, soll ein leeres Bestätigungsfeld zeigen und nicht die frühere Eingabe.
+const anfrageIds = new WeakMap<object, number>();
+let naechsteAnfrageId = 0;
+function anfrageId(config: LoeschUebersichtConfig): number {
+  let id = anfrageIds.get(config);
+  if (id === undefined) {
+    id = ++naechsteAnfrageId;
+    anfrageIds.set(config, id);
+  }
+  return id;
+}
+
 /**
  * Global side panel "Kautionen werden mitgelöscht" (same look as the edit panels): appears when houses, apartments or tenants
  * with deposits WITH bookings are deleted (see `lib/kautionen-loeschen.ts`). Shows what the database reports (no calculation
  * in the browser) and asks for a deliberate confirmation: the number of the affected tenants has to be typed. The database
  * enforces the confirmation again (checksum of exactly this overview, `soft_delete_mit_kautionen`). Closing the panel
- * (button, Escape, click next to it) cancels.
+ * (close button, Escape, "Abbrechen") cancels; a click next to the panel does NOT (it would discard the typed confirmation).
  */
 export function KautionLoeschUebersichtSheet() {
   const config = useModalStore((state) => state.loeschUebersichtConfig);
@@ -32,9 +48,15 @@ export function KautionLoeschUebersichtSheet() {
 
   // Beim Schließen ist `config` sofort null, die Seitenleiste soll aber während der Schließen-Animation noch ihren Inhalt zeigen:
   // letzte Anfrage merken (Radix hängt den Inhalt nach der Animation aus, die Eingabe beginnt beim nächsten Öffnen leer).
+  // Nach der Animation wird sie wieder verworfen (Mieternamen und Beträge bleiben nicht länger im Speicher als nötig).
   const [letzteConfig, setLetzteConfig] = useState(config);
   useEffect(() => {
-    if (config) setLetzteConfig(config);
+    if (config) {
+      setLetzteConfig(config);
+      return;
+    }
+    const timer = setTimeout(() => setLetzteConfig(null), SCHLIESSEN_ANIMATION_MS);
+    return () => clearTimeout(timer);
   }, [config]);
   const angezeigt = config ?? letzteConfig;
 
@@ -58,8 +80,13 @@ export function KautionLoeschUebersichtSheet() {
 
   return (
     <Sheet open={isOpen && config !== null} onOpenChange={(open) => !open && entscheide(false)}>
-      <SheetContent id="kaution-loesch-uebersicht" className="w-full sm:max-w-xl flex flex-col h-full p-0 gap-0">
-        {angezeigt ? <UebersichtInhalt key={angezeigt.auswirkung.pruefsumme ?? "ohne"} config={angezeigt} onEntscheidung={entscheide} /> : null}
+      <SheetContent
+        id="kaution-loesch-uebersicht"
+        className="w-full sm:max-w-xl flex flex-col h-full p-0 gap-0"
+        // Ein Klick auf den abgedunkelten Bereich bricht nicht ab (die getippte Bestätigung ginge verloren); Schließen, Escape und Abbrechen genügen.
+        onInteractOutside={(event) => event.preventDefault()}
+      >
+        {angezeigt ? <UebersichtInhalt key={anfrageId(angezeigt)} config={angezeigt} onEntscheidung={entscheide} /> : null}
       </SheetContent>
     </Sheet>
   );
@@ -99,6 +126,11 @@ function Abschnitt({ titel, titelId, children }: { titel: string; titelId?: stri
 function UebersichtInhalt({ config, onEntscheidung }: UebersichtInhaltProps) {
   const basisId = useId();
   const [eingabe, setEingabe] = useState("");
+  // SheetContent unterdrückt den automatischen Fokus (Combobox-Popovers anderer Panels): der Fokus geht hier gezielt ins Bestätigungsfeld.
+  const eingabeRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    eingabeRef.current?.focus();
+  }, []);
   const { auswirkung } = config;
   const kautionen = auswirkung.kautionen;
   if (!kautionen) return null;
@@ -194,7 +226,7 @@ function UebersichtInhalt({ config, onEntscheidung }: UebersichtInhaltProps) {
             pflicht
             fehler={fehler}
           >
-            {(props) => <Input {...props} inputMode="numeric" autoComplete="off" value={eingabe} onChange={(event) => setEingabe(event.target.value)} />}
+            {(props) => <Input {...props} ref={eingabeRef} inputMode="numeric" autoComplete="off" value={eingabe} onChange={(event) => setEingabe(event.target.value)} />}
           </KautionFeld>
           <div className="flex gap-3">
             <Button

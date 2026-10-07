@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KautionLoeschUebersichtSheet } from "@/components/kaution/kaution-loesch-uebersicht-sheet";
 import type { KautionLoeschauswirkung } from "@/types/Kaution";
@@ -188,6 +188,41 @@ describe("KautionLoeschUebersichtSheet", () => {
     expect(onEntscheidung).toHaveBeenCalledWith(false);
     expect(onEntscheidung).not.toHaveBeenCalledWith(true);
     expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+  });
+
+  it("focuses the confirmation field when the panel opens", () => {
+    render(<KautionLoeschUebersichtSheet />);
+    oeffne();
+
+    expect(screen.getByLabelText(/Zur Bestätigung/)).toHaveFocus();
+  });
+
+  it("a click next to the panel does not cancel (the typed confirmation would be lost)", async () => {
+    const user = userEvent.setup();
+    render(<KautionLoeschUebersichtSheet />);
+    const onEntscheidung = oeffne();
+    await user.type(screen.getByLabelText(/Zur Bestätigung/), "3");
+
+    // Radix hört auf pointerdown außerhalb (der Body ist für user-event wegen pointer-events: none nicht klickbar)
+    fireEvent.pointerDown(document.body);
+    fireEvent.pointerUp(document.body);
+    fireEvent.click(document.body);
+
+    expect(onEntscheidung).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Zur Bestätigung/)).toHaveValue("3");
+  });
+
+  it("a new request with the SAME checksum (reopened while the old panel is still there) starts with an empty field", async () => {
+    const user = userEvent.setup();
+    render(<KautionLoeschUebersichtSheet />);
+    oeffne();
+    await user.type(screen.getByLabelText(/Zur Bestätigung/), "3");
+
+    oeffne(auswirkung());
+
+    expect(screen.getByLabelText(/Zur Bestätigung/)).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Löschen" })).toBeDisabled();
   });
 
   it("a change of the page while the overview is open counts as a cancellation", () => {
