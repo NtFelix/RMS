@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CreditCard } from "lucide-react";
+import { CreditCard, HardDrive } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { UserProfileWithSubscription } from '@/types/user';
 import { getUserProfileForSettings, createSetupIntent } from '@/app/user-profile-actions';
@@ -10,6 +10,108 @@ import SubscriptionPaymentHistory from '@/components/common/subscription-payment
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
+import { formatFileSize, getStorageUsageState } from "@/lib/storage-usage";
+import { cn } from "@/lib/utils";
+import { formatNumber } from "@/utils/format";
+
+const STORAGE_SECTION_TITLE = "Speichernutzung";
+const STORAGE_SECTION_DESCRIPTION = "Dokumentenspeicher Ihrer gesamten Organisation";
+
+const STORAGE_TONES = {
+  over: { text: "text-destructive", bar: "bg-destructive", icon: "text-destructive" },
+  near: { text: "text-amber-600 dark:text-amber-500", bar: "bg-amber-500", icon: "text-amber-600 dark:text-amber-500" },
+  ok: { text: "", bar: "bg-primary", icon: "text-muted-foreground" },
+} as const;
+
+interface StorageUsageProps {
+  /** Undefined when the statistics could not be loaded */
+  storage?: { usedBytes: number; documentCount: number };
+  /** Plan limit in bytes, 0 = no storage included, null/undefined = unlimited or unknown */
+  limit?: number | null;
+}
+
+const StorageUsage = ({ storage, limit }: StorageUsageProps) => {
+  if (!storage) {
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="storage-usage">
+        Die Speichernutzung konnte nicht geladen werden.
+      </p>
+    );
+  }
+
+  const { usedBytes, documentCount } = storage;
+  const state = getStorageUsageState(usedBytes, limit);
+  const tone = STORAGE_TONES[state.level];
+  // Only show 100% once the limit is actually reached (99.6% must not read as full)
+  const percentage = state.isOverLimit ? 100 : Math.floor(state.percentage);
+
+  return (
+    <div className="space-y-4" data-testid="storage-usage">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-muted-foreground">Speicher genutzt</div>
+          {state.hasNoStorageAccess ? (
+            <>
+              <div className="text-2xl font-bold text-destructive">Nicht verfügbar</div>
+              {usedBytes > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {formatFileSize(usedBytes)} belegt
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={cn("text-2xl font-bold", tone.text)}>
+              {formatFileSize(usedBytes)}
+              {state.limitBytes !== null && (
+                <span className="text-sm font-normal text-muted-foreground ml-1">
+                  / {formatFileSize(state.limitBytes)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <HardDrive aria-hidden="true" className={cn("h-5 w-5 shrink-0", tone.icon)} />
+      </div>
+      {state.hasLimit && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>Auslastung</span>
+            <span>{percentage}%</span>
+          </div>
+          <div
+            className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"
+            role="progressbar"
+            aria-label="Speicherauslastung"
+            aria-valuenow={percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className={cn("h-2 rounded-full transition-all duration-300", tone.bar)}
+              style={{ width: `${state.percentage}%` }}
+            />
+          </div>
+        </div>
+      )}
+      <div className="h-px bg-border" />
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Dokumente (inkl. Papierkorb)</span>
+        <span className="font-medium">{formatNumber(documentCount, 0)}</span>
+      </div>
+      {state.hasNoStorageAccess ? (
+        <p className="text-sm text-destructive">
+          Mit Ihrem aktuellen Abonnement steht kein Dokumentenspeicher zur Verfügung. Prüfen Sie Ihren Tarif und offene Zahlungen.
+        </p>
+      ) : state.isOverLimit ? (
+        <p className="text-sm text-destructive">
+          Ihr Speicherlimit ist erreicht. Löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif.
+        </p>
+      ) : state.isNearLimit ? (
+        <p className={cn("text-sm", tone.text)}>Ihr Speicher ist fast voll.</p>
+      ) : null}
+    </div>
+  );
+};
 
 const SubscriptionSection = () => {
   const { toast } = useToast()
@@ -21,7 +123,7 @@ const SubscriptionSection = () => {
   const refreshUserProfile = async () => {
     setIsFetchingStatus(true);
     try {
-      const userProfileData = await getUserProfileForSettings();
+      const userProfileData = await getUserProfileForSettings({ includeStorage: true });
       if ('error' in userProfileData && userProfileData.error) {
         toast({
           title: "Fehler",
@@ -171,6 +273,16 @@ const SubscriptionSection = () => {
                   </div>
                 </div>
               </div>
+            </SettingsCard>
+          </SettingsSection>
+          <SettingsSection title={STORAGE_SECTION_TITLE} description={STORAGE_SECTION_DESCRIPTION}>
+            <SettingsCard className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <Skeleton className="h-2 w-full rounded-full" />
+              <Skeleton className="h-4 w-24" />
             </SettingsCard>
           </SettingsSection>
           <SettingsSection
@@ -338,21 +450,21 @@ const SubscriptionSection = () => {
                         </div>
                       </div>
                     )}
-                    {profile.currentWohnungenCount !== undefined && profile.activePlan.limitWohnungen && (
+                    {profile.currentWohnungenCount !== undefined && profile.activePlan.limit_wohnungen && (
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-muted-foreground">Wohnungen genutzt</div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
-                            <span>{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
+                            <span>{profile.currentWohnungenCount} / {profile.activePlan.limit_wohnungen}</span>
                             <span className="text-muted-foreground">
-                              {Math.round((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100)}%
+                              {Math.round((profile.currentWohnungenCount / profile.activePlan.limit_wohnungen) * 100)}%
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                             <div
                               className="bg-primary h-2 rounded-full transition-all duration-300"
                               style={{
-                                width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100, 100)}%`
+                                width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limit_wohnungen) * 100, 100)}%`
                               }}
                             />
                           </div>
@@ -385,6 +497,11 @@ const SubscriptionSection = () => {
                   </p>
                 </div>
               )}
+            </SettingsCard>
+          </SettingsSection>
+          <SettingsSection title={STORAGE_SECTION_TITLE} description={STORAGE_SECTION_DESCRIPTION}>
+            <SettingsCard>
+              <StorageUsage storage={profile.storage} limit={profile.storageLimit} />
             </SettingsCard>
           </SettingsSection>
           <SettingsSection

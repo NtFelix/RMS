@@ -1,7 +1,8 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { formatPlzOrt } from "@/lib/address";
 
 interface ApartmentTenantDetailsResponse {
   apartment: {
@@ -26,11 +27,6 @@ interface ApartmentTenantDetailsResponse {
     leaseTerms?: string;
     paymentHistory?: PaymentRecord[];
     notes?: string;
-    kautionData?: {
-      amount?: number;
-      paymentDate?: string;
-      status?: string;
-    };
   };
   financialInfo?: {
     currentRent: number;
@@ -39,6 +35,9 @@ interface ApartmentTenantDetailsResponse {
     outstandingAmount?: number;
   };
 }
+
+/** Von dieser Route benötigte Mieterspalten (explizit, ohne das Altfeld "kaution"). */
+const TENANT_DETAIL_COLUMNS = 'id, name, email, telefonnummer, einzug, auszug, notiz';
 
 interface PaymentRecord {
   id: string;
@@ -56,7 +55,7 @@ export async function GET(
   let apartmentId: string | undefined;
   let tenantId: string | undefined;
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     // Get the parameters
     const paramsData = await params;
     apartmentId = paramsData.apartmentId;
@@ -66,7 +65,7 @@ export async function GET(
     if (!apartmentId || !tenantId) {
       return NextResponse.json(
         { error: "Apartment ID und Tenant ID sind erforderlich." }, 
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -75,7 +74,7 @@ export async function GET(
     if (!uuidRegex.test(apartmentId) || !uuidRegex.test(tenantId)) {
       return NextResponse.json(
         { error: "Ungültige ID-Formate." }, 
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -91,6 +90,7 @@ export async function GET(
         Haeuser!inner(
           name,
           strasse,
+          plz,
           ort
         )
       `)
@@ -108,19 +108,21 @@ export async function GET(
       if (apartmentError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Wohnung nicht gefunden." }, 
-          { status: 404 }
+          { status: 404, headers: NO_CACHE_HEADERS }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." }, 
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
     // Fetch specific tenant with enhanced data
+    // Nur die benötigten Spalten; das Altfeld "kaution" wird bewusst nicht gelesen oder ausgeliefert
+    // (Kautionsdaten sind an das Modul "kautionen" gebunden, diese Route prüft nur RLS).
     const { data: tenant, error: tenantError } = await supabase
       .from('Mieter')
-      .select('*')
+      .select(TENANT_DETAIL_COLUMNS)
       .eq('id', tenantId)
       .eq('wohnung_id', apartmentId)
       .single();
@@ -137,12 +139,12 @@ export async function GET(
       if (tenantError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Mieter nicht gefunden oder nicht dieser Wohnung zugeordnet." }, 
-          { status: 404 }
+          { status: 404, headers: NO_CACHE_HEADERS }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Mieterdaten." }, 
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -173,31 +175,10 @@ export async function GET(
 
     // Build house address string
     const hausData = apartment.Haeuser as any;
-    const hausAddress = hausData?.strasse && hausData?.ort 
-      ? `${hausData.strasse}, ${hausData.ort}`
-      : hausData?.ort || undefined;
-
-    // Parse kaution data if available
-    let kautionData;
-    if (tenant.kaution) {
-      try {
-        const parsedKaution = typeof tenant.kaution === 'string' 
-          ? JSON.parse(tenant.kaution) 
-          : tenant.kaution;
-        kautionData = {
-          amount: parsedKaution.amount,
-          paymentDate: parsedKaution.paymentDate,
-          status: parsedKaution.status,
-        };
-      } catch (e) {
-        const logger = createRequestLogger(request);
-        logger.warn("Error parsing kaution data", {
-          tenantId,
-          apartmentId,
-          error: e instanceof Error ? e.message : 'Unknown error'
-        });
-      }
-    }
+    const plzOrt = formatPlzOrt(hausData?.plz, hausData?.ort);
+    const hausAddress = hausData?.strasse && plzOrt
+      ? `${hausData.strasse}, ${plzOrt}`
+      : plzOrt || undefined;
 
     // Transform the data to match the expected interface
     const response: ApartmentTenantDetailsResponse = {
@@ -225,7 +206,6 @@ export async function GET(
         leaseTerms: undefined, // Not in current schema
         paymentHistory: [], // Would need separate table/implementation
         notes: tenant.notiz || undefined,
-        kautionData,
       },
       financialInfo: {
         currentRent,
@@ -235,9 +215,9 @@ export async function GET(
       },
     };
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
 
-  } catch (error) {
+    } catch (error) {
     const logger = createRequestLogger(request);
     const errorContext: Record<string, any> = {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -245,15 +225,15 @@ export async function GET(
       ...(apartmentId && { apartmentId }),
       ...(tenantId && { tenantId })
     };
-    
+
     logger.error("Failed to fetch apartment/tenant details", 
       error instanceof Error ? error : new Error(String(error)),
       errorContext
     );
-    
+
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Details." }, 
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
-  }
-}
+    }
+    }

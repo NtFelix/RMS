@@ -54,14 +54,14 @@ export function PreviewLimitNoticeBanner({ onGetStarted, isSignedIn = false }: P
 
     return (
         <div className="mb-12 max-w-3xl mx-auto">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/20 p-6">
+            <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/20 p-6">
                 {/* Decorative background elements */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
 
                 <div className="relative flex flex-col gap-4">
                     <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0">
+                        <div className="shrink-0">
                             <div className="rounded-full bg-primary/20 p-3 ring-1 ring-primary/30">
                                 <Gift className="w-6 h-6 text-primary" aria-hidden="true" />
                             </div>

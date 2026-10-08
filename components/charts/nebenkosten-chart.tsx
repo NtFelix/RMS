@@ -39,7 +39,7 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     return (
-      <div className="grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+      <div className="grid min-w-32 items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
         <p className="font-medium text-foreground">{data.name}</p>
         <p className="font-mono font-medium tabular-nums text-foreground">
           {new Intl.NumberFormat('de-DE', {
@@ -59,16 +59,17 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
   const colors = hasData ? COLORS : [EMPTY_COLOR];
 
   return (
-    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-[2rem]">
-      <CardHeader className="flex-shrink-0 pb-2">
+    <Card className="h-full flex flex-col bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-[2rem]">
+      <CardHeader className="shrink-0 pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Nebenkosten nach Kategorie</CardTitle>
         </div>
         <CardDescription>Verteilung der Betriebskosten (Jahr {year})</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+        <div className="w-full h-full" role="figure" aria-label={`Nebenkosten nach Kategorie Kreisdiagramm für ${year}`}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
             <Pie
               data={data}
               dataKey="value"
@@ -91,6 +92,7 @@ export function NebenkostenChart({ nebenkostenData, year }: NebenkostenChartProp
             {hasData && <Tooltip content={<CustomTooltip />} />}
           </PieChart>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

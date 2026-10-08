@@ -11,7 +11,7 @@ interface VideoPosterProps {
 export function VideoPoster({ onClick, className }: VideoPosterProps) {
   return (
     <div 
-      className={cn("relative bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg overflow-hidden cursor-pointer group", className)}
+      className={cn("relative bg-linear-to-br from-primary/10 to-secondary/10 rounded-lg overflow-hidden cursor-pointer group", className)}
       onClick={onClick}
     >
       {/* Mock dashboard content as poster */}

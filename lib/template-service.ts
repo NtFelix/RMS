@@ -297,7 +297,8 @@ export class OptimisticTemplateService {
       inhalt: templateData.inhalt,
       kategorie: templateData.kategorie,
       kontext_anforderungen: templateData.kontext_anforderungen,
-      user_id: 'current-user',
+      erstellt_von: 'current-user',
+      organisation_id: 'current-org',
       erstellungsdatum: new Date().toISOString(),
       aktualisiert_am: new Date().toISOString(),
     };

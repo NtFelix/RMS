@@ -76,7 +76,7 @@ export function FileUploadModal() {
   return (
     <Dialog open={isUploadModalOpen} onOpenChange={closeUploadModal}>
       <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {uploadModalFiles && uploadModalFiles.length > 0
               ? `${uploadModalFiles.length} Datei${uploadModalFiles.length > 1 ? 'en' : ''} hochladen`

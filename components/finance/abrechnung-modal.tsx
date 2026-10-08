@@ -22,13 +22,14 @@ import { ExportAbrechnungDropdown } from "@/components/abrechnung/export-abrechn
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import type { Nebenkosten, Mieter, Wohnung, Rechnung, WasserZaehler, WasserAblesung } from "@/lib/types";
+import type { Nebenkosten, Mieter, Wohnung, Rechnung, Zaehler, ZaehlerAblesung } from "@/lib/types";
+import { GERMAN_MONTHS } from "@/lib/constants";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { getTenantMeterCost } from "@/utils/water-cost-calculations";
 import { useEffect, useState, useMemo, useRef } from "react"; // Import useEffect, useState, useMemo, and useRef
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive } from 'lucide-react'; // Added FileDown and other icon imports
+import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle, ChevronDown, Archive, Wallet, Coins, Scale } from 'lucide-react'; // Added Wallet, Coins, Scale icons
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -51,10 +52,13 @@ const fetchCustomerBillingAddress = async () => {
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
-import { formatNumber } from "@/utils/format"; // New import for number formatting
+import { formatNumber, formatMonthlyPrepayment } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
-import { calculateRecommendedPrepayment } from "@/utils/abrechnung-calculations";
-import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
+import { calculateCompleteTenantResult, findUnrecognisedBerechnungsarten, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
+import { sumUniqueApartmentAreas } from "@/utils/cost-calculations";
+import { isRechenbasis360 } from "@/utils/rechentage";
+import type { TenantCalculationResult, RechentageDetails } from "@/types/optimized-betriebskosten";
+import type { SingleTenantPdfPayload } from "@/lib/worker-client";
 
 
 // Defined in Step 1:
@@ -66,11 +70,6 @@ const formatCurrency = (value: number | null | undefined) => {
   if (value == null) return "-";
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 };
-
-const GERMAN_MONTHS = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember"
-];
 
 /**
  * Extracts city from an address string.
@@ -189,6 +188,12 @@ interface TenantCostDetails {
   daysOccupied: number;
   daysInBillingPeriod: number;
   recommendedPrepayment?: number; // New field for recommended prepayment
+  missingScheduleMonths?: number; // > 0 means some occupied months had no prepayment schedule
+  // Tenant's raw move-in / move-out date, needed for the 360-basis rounding note
+  einzug: string | null;
+  auszug: string | null;
+  // Set on the 360-day basis ('360_tage'); daysOccupied / daysInBillingPeriod are then Rechentage
+  rechentage?: RechentageDetails;
 }
 
 interface AbrechnungModalProps {
@@ -197,10 +202,11 @@ interface AbrechnungModalProps {
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
   rechnungen: Rechnung[];
-  meters?: WasserZaehler[]; // Updated to use new generic meter type
-  readings?: WasserAblesung[]; // Updated to use new generic reading type
+  meters?: Zaehler[]; // Updated to use new generic meter type
+  readings?: ZaehlerAblesung[]; // Updated to use new generic reading type
   ownerName: string;
   ownerAddress: string;
+  actualPayments?: any[]; // Actual financial entries
 }
 
 export function AbrechnungModal({
@@ -213,6 +219,7 @@ export function AbrechnungModal({
   readings = [], // Default to empty array
   ownerName,
   ownerAddress,
+  actualPayments = [], // Default to empty array
 }: AbrechnungModalProps) {
   const posthog = usePostHog();
   const { toast } = useToast();
@@ -283,8 +290,11 @@ export function AbrechnungModal({
     }
   };
 
-  // Guard: ensure we always work with an array for tenants
-  const safeTenants = Array.isArray(tenants) ? tenants : [];
+  // Guard: ensure we always work with an array for tenants. Memoized so the
+  // fallback `[]` is a stable reference across renders when tenants is not
+  // an array — otherwise every memo/effect depending on safeTenants would
+  // recompute on every render.
+  const safeTenants = useMemo(() => Array.isArray(tenants) ? tenants : [], [tenants]);
 
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
@@ -316,8 +326,8 @@ export function AbrechnungModal({
       // Fallback to current year if date range is not available
       return computeWgFactorsByTenant(tenants, new Date().getFullYear());
     }
-    return computeWgFactorsByTenant(tenants, nebenkostenItem.startdatum, nebenkostenItem.enddatum);
-  }, [tenants, nebenkostenItem?.startdatum, nebenkostenItem?.enddatum]);
+    return computeWgFactorsByTenant(tenants, nebenkostenItem.startdatum, nebenkostenItem.enddatum, nebenkostenItem.rechenbasis);
+  }, [tenants, nebenkostenItem?.startdatum, nebenkostenItem?.enddatum, nebenkostenItem?.rechenbasis]);
 
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
@@ -340,18 +350,6 @@ export function AbrechnungModal({
     return totalCost / totalUsage;
   }, [nebenkostenItem?.zaehlerkosten, nebenkostenItem?.zaehlerverbrauch]);
 
-  // Use the correct house size from database (gesamtFlaeche) with fallback calculation
-  const totalHouseArea = useMemo(() => {
-    // First try to use the gesamtFlaeche from nebenkostenItem (from database)
-    if (nebenkostenItem?.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0) {
-      return nebenkostenItem.gesamtFlaeche;
-    }
-
-    // Fallback: calculate from tenants data if gesamtFlaeche is not available
-    if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
-    return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
-  }, [nebenkostenItem?.gesamtFlaeche, tenants]);
-
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
     if (!nebenkostenItem) return null;
@@ -359,247 +357,64 @@ export function AbrechnungModal({
     const startdatum = nebenkostenItem.startdatum || '';
     const enddatum = nebenkostenItem.enddatum || '';
 
-    return (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
-      const {
-        id: nebenkostenItemId,
-        startdatum: itemStartdatum,
-        enddatum: itemEnddatum,
-        nebenkostenart,
-        betrag,
-        berechnungsart,
-        zaehlerkosten, // JSONB: meter costs by type
-        zaehlerverbrauch, // JSONB: meter usage by type
-        gesamtFlaeche,
-      } = nebenkostenItem!;
+    return (tenant: Mieter, _pricePerCubicMeter: number): TenantCostDetails => {
+      const prepaymentMode = (nebenkostenItem as any).vorauszahlungs_art === 'ist' ? 'actual' : 'scheduled';
 
-      // 1. Call calculateOccupancy
-      const { percentage: occupancyPercentage, daysOccupied, daysInPeriod: daysInBillingPeriod } = calculateOccupancy(
-        tenant.einzug,
-        tenant.auszug,
-        itemStartdatum || startdatum,
-        itemEnddatum || enddatum
-      );
-
-      // (Vorauszahlungen logic remains here - no changes needed for it based on current plan)
-      let totalVorauszahlungen = 0;
-      const monthlyVorauszahlungenDetails: MonthlyVorauszahlung[] = [];
-      const prepaymentSchedule: Array<{ date: Date; amount: number }> = [];
-      if (Array.isArray(tenant.nebenkosten)) {
-        tenant.nebenkosten.forEach((entry) => {
-          if (typeof entry.date === 'string' && typeof entry.amount === 'string') {
-            const amountNum = parseFloat(entry.amount);
-            const dateObj = new Date(entry.date);
-            if (!isNaN(dateObj.getTime()) && !isNaN(amountNum)) {
-              prepaymentSchedule.push({ date: dateObj, amount: amountNum });
-            }
-          }
-        });
-        prepaymentSchedule.sort((a, b) => a.date.getTime() - b.date.getTime());
-      }
-
-      const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
-      const auszugDate = tenant.auszug ? new Date(tenant.auszug) : null;
-
-      // Calculate prepayments for the actual billing period
-      const billingStart = new Date(itemStartdatum || startdatum);
-      const billingEnd = new Date(itemEnddatum || enddatum);
-
-      // Generate months within the billing period
-      const currentDate = new Date(Date.UTC(billingStart.getUTCFullYear(), billingStart.getUTCMonth(), 1));
-
-      while (currentDate <= billingEnd) {
-        const currentMonthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
-        const currentMonthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0));
-        const monthName = GERMAN_MONTHS[currentDate.getUTCMonth()];
-
-        let effectivePrepaymentForMonth = 0;
-        const isActiveThisMonth = !!(
-          einzugDate && !isNaN(einzugDate.getTime()) &&
-          einzugDate <= currentMonthEnd &&
-          (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart)
-        );
-
-        if (isActiveThisMonth) {
-          // Find the base prepayment amount for this month
-          let basePrepaymentAmount = 0;
-          for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
-            // Check if this prepayment entry's date is within or before the current month
-            const prepaymentYear = prepaymentSchedule[i].date.getUTCFullYear();
-            const prepaymentMonth = prepaymentSchedule[i].date.getUTCMonth();
-            const currentYear = currentDate.getUTCFullYear();
-            const currentMonth = currentDate.getUTCMonth();
-
-            // Include prepayment if it's from the same month/year or earlier
-            if (prepaymentYear < currentYear ||
-              (prepaymentYear === currentYear && prepaymentMonth <= currentMonth)) {
-              basePrepaymentAmount = prepaymentSchedule[i].amount;
-              break;
-            }
-          }
-
-          // Calculate occupancy percentage for this specific month
-          const monthOccupancy = calculateOccupancy(
-            tenant.einzug,
-            tenant.auszug,
-            currentMonthStart.toISOString().split('T')[0],
-            currentMonthEnd.toISOString().split('T')[0]
-          );
-
-          // Apply occupancy proration to the prepayment
-          effectivePrepaymentForMonth = basePrepaymentAmount * (monthOccupancy.percentage / 100);
-          totalVorauszahlungen += effectivePrepaymentForMonth;
-        }
-
-        monthlyVorauszahlungenDetails.push({
-          monthName: `${monthName} ${currentDate.getUTCFullYear()}`,
-          amount: effectivePrepaymentForMonth,
-          isActiveMonth: isActiveThisMonth,
-        });
-
-        // Move to next month
-        currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
-      }
-
-      const apartmentSize = tenant.Wohnungen?.groesse || 0;
-      const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
-
-      const costItemsDetails: TenantCostDetails['costItems'] = [];
-
-      if (nebenkostenart && betrag && berechnungsart) {
-        const uniqueAptIds = new Set(safeTenants.map(t => t.wohnung_id).filter(Boolean));
-        const activeTenantsCount = Math.max(1, safeTenants.length);
-
-        nebenkostenart.forEach((costName, index) => {
-          const totalCostForItem = betrag[index] || 0;
-          const calcType = (berechnungsart[index] || 'fix').toLowerCase();
-          let share = 0;
-          let itemPricePerSqm: number | undefined = undefined;
-          let verteiler: string | number = '-';
-
-          switch (calcType) {
-            case 'pro qm':
-            case 'qm':
-            case 'pro flaeche':
-            case 'pro fläche':
-              verteiler = formatNumber(totalHouseArea);
-              if (totalHouseArea > 0) {
-                itemPricePerSqm = totalCostForItem / totalHouseArea;
-                share = itemPricePerSqm * apartmentSize;
-              }
-              break;
-            case 'nach rechnung':
-              if (rechnungen) {
-                const relevantRechnung = rechnungen.find(
-                  (r) => r.mieter_id === tenant.id && r.name === costName
-                );
-                share = relevantRechnung?.betrag || 0;
-                verteiler = '-';
-              } else {
-                share = 0;
-              }
-              break;
-            case 'pro mieter':
-            case 'pro person':
-              verteiler = String(activeTenantsCount);
-              share = totalCostForItem / activeTenantsCount;
-              break;
-            case 'pro wohnung':
-              verteiler = String(uniqueAptIds.size);
-              const totalApartments = uniqueAptIds.size;
-              const costPerApartment = totalApartments > 0 ? totalCostForItem / totalApartments : 0;
-              share = costPerApartment;
-              break;
-            case 'pro einheit':
-            case 'fix':
-              verteiler = '1';
-              share = totalCostForItem;
-              break;
-            default:
-              verteiler = '-';
-              share = 0;
-              break;
-          }
-
-          // Apply tenant-level proration
-          let tenantShareForItem = 0;
-          const type = calcType.toLowerCase();
-          // Define all calculation types that use area/WG factor split
-          const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche', 'pro wohnung'];
-          if (areaBasedCalcTypes.includes(type)) {
-            // Use the precomputed WG factor for area-based and 'pro wohnung' calculations
-            const wgFactor = wgFactors[tenant.id] ?? (occupancyPercentage / 100);
-            tenantShareForItem = share * wgFactor;
-          } else {
-            // For all other types, use occupancy proration
-            tenantShareForItem = share * (occupancyPercentage / 100);
-          }
-
-          costItemsDetails.push({
-            costName: costName || `Kostenart ${index + 1}`,
-            totalCostForItem,
-            calculationType: calcType,
-            tenantShare: tenantShareForItem,
-            pricePerSqm: itemPricePerSqm,
-            verteiler,
-          });
-        });
-      }
-
-      const tenantTotalForRegularItems = costItemsDetails.reduce((sum, item) => sum + item.tenantShare, 0);
-
-      // Calculate total meter costs from zaehlerkosten JSONB (sum all types)
-      const totalMeterCost = sumZaehlerValues(zaehlerkosten);
-      const totalMeterConsumption = sumZaehlerValues(zaehlerverbrauch);
-
-      // Use the new generic meter calculation system
-      const tenantMeterCostData = getTenantMeterCost(
-        tenant.id,
+      const result = calculateCompleteTenantResult(
+        tenant,
+        nebenkostenItem!,
         safeTenants,
         meters,
         readings,
-        totalMeterCost,
-        totalMeterConsumption, // Total building consumption from Nebenkosten
-        itemStartdatum || startdatum,
-        itemEnddatum || enddatum
+        actualPayments,
+        prepaymentMode,
+        rechnungen,
+        // wgFactors falls back to the current year without a date range; only reuse it for a real period
+        nebenkostenItem!.startdatum && nebenkostenItem!.enddatum ? wgFactors : undefined
       );
 
-      const tenantWaterCost = {
-        totalWaterCostOverall: totalMeterCost, // Keeping property name for now to avoid breaking TenantCostDetails
-        calculationType: "nach Verbrauch (Zähler)",
-        tenantShare: tenantMeterCostData?.costShare || 0,
-        consumption: tenantMeterCostData?.consumption || 0, // Updated property name
-      };
-
-      const totalTenantCost = tenantTotalForRegularItems + tenantWaterCost.tenantShare;
-      const finalSettlement = totalTenantCost - totalVorauszahlungen;
-
-      // Calculate recommended prepayment for next year based on current year's settlement
-      let recommendedPrepayment = 0;
-      if (totalTenantCost > 0) {
-        // Use the centralized function to ensure consistency
-        const mockTenantCalculation = { totalCosts: totalTenantCost } as TenantCalculationResult;
-        recommendedPrepayment = calculateRecommendedPrepayment(mockTenantCalculation);
-      }
-
       return {
-        tenantId: tenant.id,
-        tenantName: tenant.name,
-        apartmentId: tenant.wohnung_id || 'N/A',
-        apartmentName: apartmentName,
-        apartmentSize: apartmentSize,
-        costItems: costItemsDetails,
-        waterCost: tenantWaterCost,
-        totalTenantCost: totalTenantCost,
-        vorauszahlungen: totalVorauszahlungen,
-        monthlyVorauszahlungen: monthlyVorauszahlungenDetails,
-        finalSettlement: finalSettlement,
-        occupancyPercentage,
-        daysOccupied,
-        daysInBillingPeriod,
-        recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
+        tenantId: result.tenantId,
+        tenantName: result.tenantName,
+        apartmentId: tenant.wohnung_id || '',
+        apartmentName: result.apartmentName,
+        apartmentSize: result.apartmentSize,
+        costItems: result.operatingCosts.costItems.map(ci => ({
+          costName: ci.costName,
+          totalCostForItem: ci.totalCostForItem,
+          calculationType: ci.calculationType,
+          tenantShare: ci.tenantShare,
+          pricePerSqm: ci.pricePerSqm,
+          verteiler: ci.distributionBasis
+        })),
+        waterCost: {
+          totalWaterCostOverall: result.meterCosts.totalBuildingMeterCost,
+          calculationType: "nach Verbrauch (Zähler)",
+          tenantShare: result.meterCosts.totalCost,
+          consumption: result.meterCosts.tenantConsumption
+        },
+        totalTenantCost: result.totalCosts,
+        vorauszahlungen: result.prepayments.totalPrepayments,
+        monthlyVorauszahlungen: result.prepayments.monthlyPayments.map(mp => {
+          const [yr, mo] = mp.month.split('-').map(Number);
+          return {
+            monthName: `${GERMAN_MONTHS[mo - 1]} ${yr}`,
+            amount: mp.amount,
+            isActiveMonth: mp.isActiveMonth
+          };
+        }),
+        finalSettlement: result.finalSettlement,
+        occupancyPercentage: result.occupancyPercentage,
+        daysOccupied: result.daysOccupied,
+        daysInBillingPeriod: result.daysInPeriod,
+        recommendedPrepayment: result.recommendedPrepayment,
+        missingScheduleMonths: result.prepayments.missingScheduleMonths,
+        einzug: tenant.einzug,
+        auszug: tenant.auszug,
+        rechentage: result.rechentage
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, meters, readings, totalHouseArea, safeTenants]);
+  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments, rechnungen, wgFactors]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
@@ -626,6 +441,45 @@ export function AbrechnungModal({
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
   }, [isOpen, tenants, selectedTenantId, loadAllRelevantTenants, calculateCostsForTenant, pricePerCubicMeter]);
+
+  // Ref to track which warning we already showed — prevents infinite re-render loop
+  // (toast() triggers a state update internally; using a ref avoids adding toast to deps)
+  const shownMissingWarningRef = useRef<string | null>(null);
+
+  // Warn the user when calculated tenants have missing prepayment schedule data
+  useEffect(() => {
+    if (calculatedTenantData.length === 0) return;
+    const affected = calculatedTenantData.filter(t => (t.missingScheduleMonths ?? 0) > 0);
+    if (affected.length === 0) {
+      shownMissingWarningRef.current = null; // reset when data is clean
+      return;
+    }
+    // Only show toast once per unique set of affected tenants
+    const signature = affected.map(t => t.tenantId).sort().join(',');
+    if (shownMissingWarningRef.current === signature) return;
+    shownMissingWarningRef.current = signature;
+    toast({
+      title: 'Fehlende Vorauszahlungsdaten',
+      description: `Für ${affected.length} Mieter (${affected.map(t => t.tenantName).join(', ')}) fehlen Vorauszahlungseinträge. Betroffene Monate werden mit €0 gerechnet.`,
+      variant: 'default',
+      duration: 8000,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calculatedTenantData]); // intentionally omit toast — it is stable but changes ref on every render
+
+  // Calculate summary totals across all tenants when all data is loaded
+  const summaryTotals = useMemo(() => {
+    if (!loadAllRelevantTenants || calculatedTenantData.length === 0 || calculatedTenantData.length < safeTenants.length) {
+      return null;
+    }
+
+    return calculatedTenantData.reduce((acc, tenant) => {
+      acc.totalCosts += tenant.totalTenantCost;
+      acc.totalPrepayments += tenant.vorauszahlungen;
+      acc.totalSettlement += tenant.finalSettlement;
+      return acc;
+    }, { totalCosts: 0, totalPrepayments: 0, totalSettlement: 0 });
+  }, [calculatedTenantData, loadAllRelevantTenants, safeTenants.length]);
 
   // Optimized PDF generation function with worker offloading
   const generateSettlementPDF = async (
@@ -705,8 +559,11 @@ export function AbrechnungModal({
     // If we can find a valid city, pass it directly; otherwise the worker will derive it
     const houseCity = extractCityFromAddress(ownerAddress);
 
-    // Prepare data for the worker: array of { name, data }
-    const zipData = tenantDataArray.map(tenant => ({
+    // Prepare data for the worker: array of { name, data }. Typed against the same payload
+    // generatePDF uses (minus filename, which the ZIP entry's own `name` covers) so a mismatch
+    // with what the worker reads is caught here too, even though generatePdfZIP itself still
+    // takes `data: any[]`.
+    const zipData: Array<{ name: string; data: Omit<SingleTenantPdfPayload, 'filename'> }> = tenantDataArray.map(tenant => ({
       name: `Abrechnung_${currentPeriod}_${tenant.tenantName.replace(/\s+/g, '_')}`,
       data: {
         tenantData: tenant,
@@ -763,6 +620,50 @@ export function AbrechnungModal({
     })), [tenants]
   );
 
+  // A stored house area below the occupied apartments' area makes the pro Fläche shares sum to
+  // more than the cost, so tell the user to correct it
+  const areaMismatch = useMemo(() => {
+    const houseArea = nebenkostenItem?.gesamtFlaeche || 0;
+    const hasAreaItems = (nebenkostenItem?.berechnungsart || []).some(isAreaBasedBerechnungsart);
+    if (!hasAreaItems || houseArea <= 0) return null;
+    const occupiedArea = sumUniqueApartmentAreas(safeTenants);
+    return occupiedArea > houseArea ? { houseArea, occupiedArea } : null;
+  }, [nebenkostenItem?.berechnungsart, nebenkostenItem?.gesamtFlaeche, safeTenants]);
+
+  // Cost items with an unknown Berechnungsart are billed by area; tell the user to fix them
+  const unrecognisedBerechnungsarten = useMemo(
+    () => nebenkostenItem ? findUnrecognisedBerechnungsarten(nebenkostenItem) : [],
+    [nebenkostenItem]
+  );
+
+  const is360 = isRechenbasis360(nebenkostenItem);
+  const periodSuffix = is360 ? ' (gerechnet mit 360 Tagen, 30-Tage-Monate)' : '';
+
+  // A settlement's distribution key must be explainable (BGH VIII ZR 84/07): on the 360 basis,
+  // list tenants whose move-in/move-out date was rounded to a Rechenpunkt, plus tenants left
+  // with 0 Rechentage in the period.
+  const roundedTenantsNote = useMemo(() => {
+    if (!is360) return null;
+    const parts: string[] = [];
+    calculatedTenantData.forEach(tenant => {
+      const r = tenant.rechentage;
+      // Tenants without a move-in date count 0 on both bases; nothing was rounded for them
+      if (!r || !tenant.einzug) return;
+      const segments: string[] = [];
+      if (r.einzugGerundet && r.einzugGerundetIso && tenant.einzug) {
+        segments.push(`Einzug ${isoToGermanDate(tenant.einzug)} → gerechnet ab ${isoToGermanDate(r.einzugGerundetIso)}`);
+      }
+      if (r.auszugGerundet && r.auszugGerundetIso && tenant.auszug) {
+        segments.push(`Auszug ${isoToGermanDate(tenant.auszug)} → gerechnet bis ${isoToGermanDate(r.auszugGerundetIso)}`);
+      }
+      if (r.rechentage === 0) segments.push('0 Rechentage');
+      if (segments.length > 0) {
+        parts.push(`${tenant.tenantName}: ${segments.join('; ')}`);
+      }
+    });
+    return parts.length > 0 ? `Gerundete Mieterdaten: ${parts.join('; ')}` : null;
+  }, [is360, calculatedTenantData]);
+
   if (!isOpen || !nebenkostenItem) {
     return null;
   }
@@ -782,13 +683,28 @@ export function AbrechnungModal({
       <DialogContent className="sm:max-w-4xl md:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Betriebskostenabrechnung {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
+            Betriebskostenabrechnung {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)}{periodSuffix} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
           </DialogTitle>
           <DialogDescription>
-            Detaillierte Betriebskostenabrechnung für den Zeitraum {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} mit Aufschlüsselung nach Mietern.
+            Detaillierte Betriebskostenabrechnung für den Zeitraum {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)}{periodSuffix} mit Aufschlüsselung nach Mietern.
             {tenants.length > 0 && (
               <span className="block text-sm text-green-600 mt-1">
                 ✓ Daten für {tenants.length} Mieter erfolgreich geladen
+              </span>
+            )}
+            {areaMismatch && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Die hinterlegte Hausfläche ({formatNumber(areaMismatch.houseArea)} m²) ist kleiner als die Fläche der im Zeitraum vermieteten Wohnungen ({formatNumber(areaMismatch.occupiedArea)} m²). Kosten „pro Fläche“ werden trotzdem mit der hinterlegten Hausfläche berechnet, dadurch wird mehr als der Gesamtbetrag umgelegt. Bitte die Hausgröße prüfen.
+              </span>
+            )}
+            {unrecognisedBerechnungsarten.length > 0 && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Für {unrecognisedBerechnungsarten.map(item => `„${item.costName}“`).join(', ')} ist keine gültige Berechnungsart hinterlegt. Diese Kosten werden „pro Fläche“ verteilt. Bitte die Berechnungsart in den Betriebskosten prüfen.
+              </span>
+            )}
+            {roundedTenantsNote && (
+              <span className="block text-sm text-muted-foreground mt-1">
+                ℹ {roundedTenantsNote}
               </span>
             )}
           </DialogDescription>
@@ -816,6 +732,48 @@ export function AbrechnungModal({
           </div>
         )}
 
+        {/* Global Summary Totals */}
+        {summaryTotals && (
+          <div className="mt-6 mb-2 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+            <Card className="rounded-2xl shadow-xs">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gesamtvolumen</CardTitle>
+                <Coins className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(summaryTotals.totalCosts)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Summe aller Mieter-Anteile</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-xs">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Vorauszahlungen</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(summaryTotals.totalPrepayments)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Geleistete Zahlungen</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow-xs">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {summaryTotals.totalSettlement >= 0 ? "Nachzahlung" : "Guthaben"}
+                </CardTitle>
+                <Scale className={`h-4 w-4 ${summaryTotals.totalSettlement >= 0 ? "text-red-500" : "text-emerald-500"}`} />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${summaryTotals.totalSettlement >= 0 ? "text-red-600" : "text-emerald-600"}`}>
+                  {formatCurrency(summaryTotals.totalSettlement)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Saldo über alle Mieter</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <div className="mt-4 space-y-6">
           {/* Message display logic updated */}
           {(!tenants || tenants.length === 0) && nebenkostenItem && (
@@ -837,7 +795,7 @@ export function AbrechnungModal({
           )}
 
           {calculatedTenantData.map((tenantData) => (
-            <div key={tenantData.tenantId} className="mb-6 p-4 border rounded-lg shadow-sm">
+            <div key={tenantData.tenantId} className="mb-6 p-4 border rounded-lg shadow-xs">
               <h3 className="text-xl font-semibold mb-3 text-foreground">
                 Mieter: <span className="font-bold">{tenantData.tenantName}</span>
               </h3>
@@ -896,7 +854,9 @@ export function AbrechnungModal({
               <div className="my-3">
                 <div className="flex justify-between mb-1">
                   <span className="text-sm font-medium text-foreground">
-                    Anwesenheit im Abrechnungszeitraum ({tenantData.daysOccupied} / {tenantData.daysInBillingPeriod} Tage)
+                    Anwesenheit im Abrechnungszeitraum ({is360
+                      ? `${tenantData.daysOccupied} von ${tenantData.daysInBillingPeriod} Rechentagen`
+                      : `${tenantData.daysOccupied} / ${tenantData.daysInBillingPeriod} Tage`})
                   </span>
                   <span className="text-sm font-medium text-foreground">
                     {formatNumber(tenantData.occupancyPercentage)}%
@@ -911,7 +871,7 @@ export function AbrechnungModal({
                 {/* Wasserkosten Info Card */}
                 <HoverCard>
                   <HoverCardTrigger asChild>
-                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                    <Card className="grow min-w-[220px] sm:min-w-[250px]">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Wasserkosten</CardTitle>
                         <Droplet className="h-5 w-5 text-muted-foreground" />
@@ -945,7 +905,7 @@ export function AbrechnungModal({
                 {/* Vorauszahlungen Info Card */}
                 <HoverCard>
                   <HoverCardTrigger asChild>
-                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                    <Card className="grow min-w-[220px] sm:min-w-[250px]">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Vorauszahlungen</CardTitle>
                         <Landmark className="h-5 w-5 text-muted-foreground" />
@@ -968,7 +928,7 @@ export function AbrechnungModal({
                         <div key={payment.monthName} className="flex justify-between py-0.5">
                           <span className="text-xs">{payment.monthName}</span>
                           <span className="text-xs font-medium">
-                            {payment.isActiveMonth ? formatCurrency(payment.amount) : "-"}
+                            {formatMonthlyPrepayment(payment, formatCurrency)}
                           </span>
                         </div>
                       ))}
@@ -986,7 +946,7 @@ export function AbrechnungModal({
                   return (
                     <HoverCard>
                       <HoverCardTrigger asChild>
-                        <Card className="flex-grow min-w-[220px] sm:min-w-[250px] cursor-pointer">
+                        <Card className="grow min-w-[220px] sm:min-w-[250px] cursor-pointer">
                           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className={`text-sm font-medium ${titleColor}`}>
                               {isNachzahlung ? "Nachzahlung" : "Guthaben"}

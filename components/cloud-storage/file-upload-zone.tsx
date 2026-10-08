@@ -234,7 +234,7 @@ export function FileUploadZone({
       <Card
         data-testid="upload-card"
         className={cn(
-          "border-2 border-dashed transition-colors cursor-pointer flex-shrink-0",
+          "border-2 border-dashed transition-colors cursor-pointer shrink-0",
           isDragOver && !disabled && "border-primary bg-primary/5",
           disabled && "opacity-50 cursor-not-allowed",
           !isDragOver && !disabled && "hover:border-primary/50"
@@ -298,7 +298,7 @@ export function FileUploadZone({
       {uploadQueue.length > 0 && (
         <Card className="flex-1 flex flex-col h-[400px]">
           <CardContent className="p-4 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4 shrink-0">
               <h4 className="text-sm font-semibold">
                 Upload-Warteschlange ({uploadQueue.length})
               </h4>
@@ -345,7 +345,7 @@ export function FileUploadZone({
                   className="flex items-center space-x-3 p-3 border rounded-lg"
                 >
                   {/* File icon */}
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     {getFileIcon(item.file)}
                   </div>
 

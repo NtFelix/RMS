@@ -46,16 +46,22 @@ export function ApartmentTenantRowContextMenu({
   const { openApartmentTenantDetailsModal } = useModalStore()
 
   const handleViewDetails = () => {
-    onViewDetails()
+    setTimeout(() => {
+      onViewDetails()
+    }, 0);
   }
 
   const handleEditApartment = () => {
-    onEditApartment()
+    setTimeout(() => {
+      onEditApartment()
+    }, 0);
   }
 
   const handleEditTenant = () => {
     if (tenantId) {
-      onEditTenant()
+      setTimeout(() => {
+        onEditTenant()
+      }, 0);
     }
   }
 

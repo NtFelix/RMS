@@ -35,7 +35,7 @@ interface MailAccountRowProps {
 function MailAccountRow({ account, isLastRow, onToggleActive, onDelete }: MailAccountRowProps) {
     return (
         <div
-            className={`group relative flex items-center justify-between p-5 border rounded-xl bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100/80 dark:hover:bg-gray-800/50 transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] hover:shadow-sm ${isLastRow ? 'mb-0' : ''}`}
+            className={`group relative flex items-center justify-between p-5 border rounded-xl bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100/80 dark:hover:bg-gray-800/50 transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] hover:shadow-xs ${isLastRow ? 'mb-0' : ''}`}
         >
             <div className="flex items-center gap-4 flex-1">
                 <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/15 transition-colors">

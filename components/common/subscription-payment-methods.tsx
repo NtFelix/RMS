@@ -45,26 +45,26 @@ const getCardBrandStyles = (brand: string) => {
   switch (brand.toLowerCase()) {
     case 'visa':
       return {
-        gradient: 'bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800',
+        gradient: 'bg-linear-to-br from-blue-600 via-blue-700 to-blue-800',
         textColor: 'text-white',
         logo: '💳',
       };
     case 'mastercard':
       return {
-        gradient: 'bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500',
+        gradient: 'bg-linear-to-br from-red-500 via-orange-500 to-yellow-500',
         textColor: 'text-white',
         logo: '💳',
       };
     case 'amex':
     case 'american_express':
       return {
-        gradient: 'bg-gradient-to-br from-green-600 via-green-700 to-green-800',
+        gradient: 'bg-linear-to-br from-green-600 via-green-700 to-green-800',
         textColor: 'text-white',
         logo: '💳',
       };
     default:
       return {
-        gradient: 'bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800',
+        gradient: 'bg-linear-to-br from-gray-600 via-gray-700 to-gray-800',
         textColor: 'text-white',
         logo: '💳',
       };
@@ -140,7 +140,7 @@ const CreditCardDisplay = ({ paymentMethod, cardholderName }: { paymentMethod: P
               {cardholderName}
             </div>
           </div>
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <div className="text-xs opacity-70 uppercase tracking-wide">Gültig bis</div>
             <div className="text-sm font-mono">
               {String(card.exp_month).padStart(2, '0')}/{String(card.exp_year).slice(-2)}

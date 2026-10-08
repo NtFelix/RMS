@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getFinanceDocumentPath } from "@/app/finance-file-actions";
 import { logger } from "@/utils/logger";
 import {
@@ -8,19 +8,22 @@ import {
     MAX_FILE_SIZE_LABEL,
     isSupportedMimeType
 } from "@/lib/finance-file-constants";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createClient();
+        const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
+        await requireApiPermission('finanzen', 'erstellen');
+
+        const supabase = await createSupabaseServerClient();
 
         // Check authentication
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) {
             return NextResponse.json(
                 { error: "Nicht authentifiziert" },
-                { status: 401 }
+                { status: 401, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -30,10 +33,37 @@ export async function POST(request: NextRequest) {
         const wohnungId = formData.get("wohnung_id") as string | null;
         const financeId = formData.get("finance_id") as string | null;
 
+        if (wohnungId && !(await verifyWohnungInScope(wohnungId))) {
+            return NextResponse.json(
+                { error: "Zugriff verweigert (Wohnung nicht im Scope)" },
+                { status: 403, headers: NO_CACHE_HEADERS }
+            );
+        }
+
+        if (financeId) {
+    const { data: finData, error: finError } = await supabase
+        .from("Finanzen")
+        .select("wohnung_id")
+        .eq("id", financeId)
+        .maybeSingle();
+    if (finError || !finData) {
+        return NextResponse.json(
+            { error: "Finanzbuchung nicht gefunden" },
+            { status: 404, headers: NO_CACHE_HEADERS }
+        );
+    }
+    if (finData.wohnung_id && !(await verifyWohnungInScope(finData.wohnung_id))) {
+                return NextResponse.json(
+                    { error: "Zugriff verweigert (Finanzbuchung nicht im Scope)" },
+                    { status: 403, headers: NO_CACHE_HEADERS }
+                );
+            }
+        }
+
         if (!(file instanceof File)) {
             return NextResponse.json(
                 { error: "Keine gültige Datei hochgeladen" },
-                { status: 400 }
+                { status: 400, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -41,7 +71,7 @@ export async function POST(request: NextRequest) {
         if (!isSupportedMimeType(file.type)) {
             return NextResponse.json(
                 { error: `Dateityp ${file.type} wird nicht unterstützt` },
-                { status: 400 }
+                { status: 400, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -49,7 +79,7 @@ export async function POST(request: NextRequest) {
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json(
                 { error: `Datei ist zu groß (max. ${MAX_FILE_SIZE_LABEL})` },
-                { status: 400 }
+                { status: 400, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -58,7 +88,7 @@ export async function POST(request: NextRequest) {
         if (!pathResult.success || !pathResult.path) {
             return NextResponse.json(
                 { error: pathResult.error || "Pfad konnte nicht ermittelt werden" },
-                { status: 500 }
+                { status: 500, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -92,7 +122,7 @@ export async function POST(request: NextRequest) {
             logger.error("Upload error", uploadError instanceof Error ? uploadError : new Error(String(uploadError)), { fullPath });
             return NextResponse.json(
                 { error: "Datei konnte nicht hochgeladen werden" },
-                { status: 500 }
+                { status: 500, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -104,7 +134,6 @@ export async function POST(request: NextRequest) {
                 dateiname: uniqueFilename,
                 dateigroesse: file.size,
                 mime_type: file.type,
-                user_id: user.id,
             })
             .select("id")
             .single();
@@ -121,7 +150,7 @@ export async function POST(request: NextRequest) {
 
             return NextResponse.json(
                 { error: "Metadaten konnten nicht gespeichert werden" },
-                { status: 500 }
+                { status: 500, headers: NO_CACHE_HEADERS }
             );
         }
 
@@ -133,8 +162,7 @@ export async function POST(request: NextRequest) {
             const { error: linkError } = await supabase
                 .from("Finanzen")
                 .update({ dokument_id: metadataRecord.id })
-                .eq("id", financeId)
-                .eq("user_id", user.id); // Security: ensure user owns the finance entry
+                .eq("id", financeId);
 
             if (linkError) {
                 logger.error("Error linking document to finance entry", linkError instanceof Error ? linkError : new Error(String(linkError)), {
@@ -161,12 +189,15 @@ export async function POST(request: NextRequest) {
             filename: uniqueFilename,
             path: fullPath,
             linkedToFinance,
-        });
+        }, { headers: NO_CACHE_HEADERS });
     } catch (error) {
-        logger.error("Unexpected error in finance file upload", error instanceof Error ? error : new Error(String(error)));
+        const isPermissionError = error instanceof Error && error.message === 'Permission denied';
+        if (!isPermissionError) {
+            logger.error("Unexpected error in finance file upload", error instanceof Error ? error : new Error(String(error)));
+        }
         return NextResponse.json(
-            { error: "Ein unerwarteter Fehler ist aufgetreten" },
-            { status: 500 }
+            { error: isPermissionError ? "Zugriff verweigert" : "Ein unerwarteter Fehler ist aufgetreten" },
+            { status: isPermissionError ? 403 : 500, headers: NO_CACHE_HEADERS }
         );
     }
 }

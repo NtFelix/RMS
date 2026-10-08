@@ -1,6 +1,7 @@
-export const runtime = 'edge';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from 'next/server';
+import { unstable_rethrow } from 'next/navigation';
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 export async function GET(request: Request) {
   try {
@@ -10,7 +11,21 @@ export async function GET(request: Request) {
     const selectedYear = searchParams.get('selectedYear');
     const selectedType = searchParams.get('selectedType');
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
+
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return new NextResponse('', {
+        status: 200,
+        headers: {
+          ...NO_CACHE_HEADERS,
+          'Content-Disposition': 'attachment; filename="finanzen-export.csv"',
+          'Content-Type': 'text/csv;charset=utf-8;',
+        },
+      });
+    }
+
     const BATCH_SIZE = 5000; // Increased batch size for better performance
     let allData: any[] = [];
     let offset = 0;
@@ -24,6 +39,10 @@ export async function GET(request: Request) {
       .from('Finanzen')
       .select('*', { count: 'exact', head: true });
 
+    if (wohnungIds !== null) {
+      countQuery = countQuery.in('wohnung_id', wohnungIds);
+    }
+
     // If apartment filter is selected, we need to join with Wohnungen
     if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
       // First get the apartment ID
@@ -35,11 +54,11 @@ export async function GET(request: Request) {
 
       if (apartmentError) {
         console.error('Error fetching apartment:', apartmentError);
-        return NextResponse.json({ error: 'Fehler beim Abrufen der Wohnungsdaten' }, { status: 500 });
+        return NextResponse.json({ error: 'Fehler beim Abrufen der Wohnungsdaten' }, { status: 500, headers: NO_CACHE_HEADERS });
       }
 
       if (!apartment) {
-        return NextResponse.json({ error: 'Wohnung nicht gefunden' }, { status: 404 });
+        return NextResponse.json({ error: 'Wohnung nicht gefunden' }, { status: 404, headers: NO_CACHE_HEADERS });
       }
 
       // Store the apartment data for later use
@@ -67,6 +86,7 @@ export async function GET(request: Request) {
       return new NextResponse('', {
         status: 200,
         headers: {
+          ...NO_CACHE_HEADERS,
           'Content-Disposition': 'attachment; filename="finanzen-export.csv"',
           'Content-Type': 'text/csv;charset=utf-8;',
         },
@@ -80,6 +100,10 @@ export async function GET(request: Request) {
         .select('name, datum, betrag, ist_einnahmen, notiz, Wohnungen!left(name)')
         .order('datum', { ascending: false })
         .range(offset, offset + BATCH_SIZE - 1);
+
+      if (wohnungIds !== null) {
+        query = query.in('wohnung_id', wohnungIds);
+      }
 
       // Apply filters
       if (selectedApartment && selectedApartment !== 'Alle Wohnungen' && apartmentData) {
@@ -103,7 +127,7 @@ export async function GET(request: Request) {
 
       if (error) {
         console.error('Error fetching batch:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 500, headers: NO_CACHE_HEADERS });
       }
 
       if (!data || data.length === 0) {
@@ -130,9 +154,15 @@ export async function GET(request: Request) {
 
     // Offload CSV generation to Worker
     const { generateCSV } = await import('@/lib/worker-client');
-    return await generateCSV(formattedData, 'finanzen-export.csv');
+    const response = await generateCSV(formattedData, 'finanzen-export.csv');
+    
+    // Add NO_CACHE_HEADERS to the worker response
+    Object.entries(NO_CACHE_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+    
+    return response;
   } catch (e) {
+    unstable_rethrow(e);
     console.error('Server error GET /api/finanzen/export:', e);
-    return NextResponse.json({ error: 'Serverfehler beim Exportieren der Finanzen.' }, { status: 500 });
+    return NextResponse.json({ error: 'Serverfehler beim Exportieren der Finanzen.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

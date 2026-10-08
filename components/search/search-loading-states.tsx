@@ -70,8 +70,8 @@ export function SearchLoadingIndicator({
         {/* Main content */}
         <div className="flex flex-col items-center text-center space-y-4">
           <div className="relative inline-flex">
-            <div className="absolute -inset-1 bg-primary/10 rounded-full blur-sm" />
-            <div className="relative p-3 bg-background rounded-full border border-border shadow-sm">
+            <div className="absolute -inset-1 bg-primary/10 rounded-full blur-xs" />
+            <div className="relative p-3 bg-background rounded-full border border-border shadow-xs">
               <Loader2 className={`h-6 w-6 text-primary animate-spin ${isRetrying ? 'opacity-75' : ''}`} />
             </div>
           </div>
@@ -177,8 +177,8 @@ export function SearchEmptyState({
         {hasError ? (
           <div className="text-center space-y-3">
             <div className="relative inline-flex">
-              <div className="absolute -inset-1 bg-destructive/20 rounded-full blur-sm" />
-              <div className="relative p-3 bg-background rounded-full border border-destructive/20 shadow-sm">
+              <div className="absolute -inset-1 bg-destructive/20 rounded-full blur-xs" />
+              <div className="relative p-3 bg-background rounded-full border border-destructive/20 shadow-xs">
                 {isOffline ? (
                   <WifiOff className="h-6 w-6 text-destructive" />
                 ) : (
@@ -219,8 +219,8 @@ export function SearchEmptyState({
           /* No Results State - Reordered for better flow */
           <div className="text-center space-y-4">
             <div className="relative inline-flex">
-              <div className="absolute -inset-1 bg-primary/10 rounded-full blur-sm" />
-              <div className="relative p-3 bg-background rounded-full border border-border shadow-sm">
+              <div className="absolute -inset-1 bg-primary/10 rounded-full blur-xs" />
+              <div className="relative p-3 bg-background rounded-full border border-border shadow-xs">
                 <Search className="h-6 w-6 text-primary" />
               </div>
             </div>
@@ -255,7 +255,7 @@ export function SearchEmptyState({
                         onClick={() => {
                           useSearchStore.getState().setQuery(suggestion);
                         }}
-                        className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150 flex items-center"
+                        className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150 flex items-center"
                       >
                         {suggestion}
                       </button>

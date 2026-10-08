@@ -2,8 +2,6 @@ import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { getFeatureFlagsForSEO } from '@/lib/posthog-feature-flags'
 
-// Required for Cloudflare Pages deployment
-export const runtime = 'edge'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
 
@@ -91,13 +89,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 priority: 0.8,
             },
         ] : []),
-        // Hilfe & Dokumentation - Always visible
-        {
-            url: `${BASE_URL}/hilfe/dokumentation`,
-            lastModified: STATIC_PAGES_LAST_MODIFIED,
-            changeFrequency: 'weekly',
-            priority: 0.7,
-        },
         // Warteliste - Controlled by 'show-produkte-dropdown' PostHog feature flag
         ...(featureFlags.showProdukte ? [
             {
@@ -147,29 +138,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
     ]
 
-    // Fetch dynamic documentation articles from Supabase
-    let documentationPages: MetadataRoute.Sitemap = []
-
-    try {
-        const supabase = getAnonymousSupabaseClient()
-        const { data: articles } = await supabase
-            .from('Dokumentation')
-            .select('id, meta')
-            .order('id')
-
-        if (articles && articles.length > 0) {
-            documentationPages = articles.map((article) => ({
-                url: `${BASE_URL}/hilfe/dokumentation/${article.id}`,
-                lastModified: article.meta?.last_edited_time
-                    ? new Date(article.meta.last_edited_time)
-                    : STATIC_PAGES_LAST_MODIFIED,
-                changeFrequency: 'weekly' as const,
-                priority: 0.6,
-            }))
-        }
-    } catch (error) {
-        console.error('Error fetching documentation articles for sitemap:', error)
-    }
-
-    return [...staticPages, ...documentationPages]
+    return staticPages
 }

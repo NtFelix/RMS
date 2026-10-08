@@ -1,11 +1,11 @@
-export const runtime = 'edge';
-
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { NO_CACHE_HEADERS } from '@/lib/constants/http'
+
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = await createSupabaseServerClient()
 
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Nicht authentifiziert' },
-        { status: 401 }
+        {
+          status: 401,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -22,7 +25,10 @@ export async function POST(request: NextRequest) {
     if (!filePath || !newName) {
       return NextResponse.json(
         { error: 'Dateipfad und neuer Name sind erforderlich' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -30,7 +36,10 @@ export async function POST(request: NextRequest) {
     if (!filePath.startsWith(`user_${user.id}`)) {
       return NextResponse.json(
         { error: 'Zugriff verweigert' },
-        { status: 403 }
+        {
+          status: 403,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -73,7 +82,6 @@ export async function POST(request: NextRequest) {
       .select('dateiname')
       .eq('dateipfad', directory)
       .eq('dateiname', currentFileName)
-      .eq('user_id', user.id)
       .single()
 
     let actualFileName = currentFileName
@@ -89,7 +97,6 @@ export async function POST(request: NextRequest) {
         .from('Dokumente_Metadaten')
         .select('dateiname')
         .eq('dateipfad', directory)
-        .eq('user_id', user.id)
         .ilike('dateiname', currentFileName)
 
       if (similarFiles && similarFiles.length > 0) {
@@ -106,7 +113,10 @@ export async function POST(request: NextRequest) {
       })
       return NextResponse.json(
         { error: `Datei "${currentFileName}" nicht im Verzeichnis "${directory}" gefunden` },
-        { status: 404 }
+        {
+          status: 404,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -136,20 +146,25 @@ export async function POST(request: NextRequest) {
         })
         .eq('dateipfad', directory)
         .eq('dateiname', actualFileName)
-        .eq('user_id', user.id)
 
       if (dbUpdateError) {
         console.error('Failed to update DB metadata:', dbUpdateError)
         return NextResponse.json(
           { error: `Fehler beim Aktualisieren der Metadaten: ${dbUpdateError.message}` },
-          { status: 500 }
+          {
+            status: 500,
+            headers: NO_CACHE_HEADERS,
+          }
         )
       }
     } catch (dbError) {
       console.error('Failed to update Dokumente_Metadaten:', dbError)
       return NextResponse.json(
         { error: 'Fehler beim Aktualisieren der Metadaten' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: NO_CACHE_HEADERS,
+        }
       )
     }
 
@@ -166,7 +181,6 @@ export async function POST(request: NextRequest) {
           })
           .eq('dateipfad', directory)
           .eq('dateiname', newName)
-          .eq('user_id', user.id)
         console.log('DB rollback completed successfully')
       } catch (rollbackError) {
         console.error('CRITICAL: Failed to rollback DB changes:', rollbackError)
@@ -194,7 +208,10 @@ export async function POST(request: NextRequest) {
           await rollbackDbChanges()
           return NextResponse.json(
             { error: `Datei kann nicht kopiert werden: ${copyError.message}` },
-            { status: 500 }
+            {
+              status: 500,
+              headers: NO_CACHE_HEADERS,
+            }
           )
         }
 
@@ -213,7 +230,10 @@ export async function POST(request: NextRequest) {
           await rollbackDbChanges()
           return NextResponse.json(
             { error: `Originaldatei kann nicht gelöscht werden: ${deleteError.message}` },
-            { status: 500 }
+            {
+              status: 500,
+              headers: NO_CACHE_HEADERS,
+            }
           )
         }
 
@@ -224,7 +244,10 @@ export async function POST(request: NextRequest) {
         await rollbackDbChanges()
         return NextResponse.json(
           { error: `Umbenennung fehlgeschlagen: ${fallbackError instanceof Error ? fallbackError.message : 'Unbekannter Fehler'}` },
-          { status: 500 }
+          {
+            status: 500,
+            headers: NO_CACHE_HEADERS,
+          }
         )
       }
     } else {
@@ -237,7 +260,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Datei erfolgreich umbenannt'
-    })
+    }, { headers: NO_CACHE_HEADERS })
 
   } catch (error) {
     console.error('Error renaming file:', error)
@@ -248,7 +271,10 @@ export async function POST(request: NextRequest) {
           ? error.message
           : 'Fehler beim Umbenennen der Datei'
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: NO_CACHE_HEADERS,
+      }
     )
   }
 }

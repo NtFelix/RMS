@@ -1,16 +1,19 @@
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
-export const runtime = 'edge';
 
 export async function POST() {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const {
         data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: NO_CACHE_HEADERS }
+        );
     }
 
     const { error } = await supabase
@@ -22,21 +25,27 @@ export async function POST() {
         console.error("Error updating onboarding status:", error);
         return NextResponse.json(
             { error: "Failed to update onboarding status" },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+        { success: true },
+        { headers: NO_CACHE_HEADERS }
+    );
 }
 
 export async function GET() {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const {
         data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: NO_CACHE_HEADERS }
+        );
     }
 
     const { data, error } = await supabase
@@ -49,11 +58,14 @@ export async function GET() {
         console.error("Error fetching onboarding status:", error);
         return NextResponse.json(
             { error: "Failed to fetch onboarding status" },
-            { status: 500 }
+            { status: 500, headers: NO_CACHE_HEADERS }
         );
     }
 
-    return NextResponse.json({
-        completed: !!data?.onboarding_completed
-    });
+    return NextResponse.json(
+        {
+            completed: !!data?.onboarding_completed
+        },
+        { headers: NO_CACHE_HEADERS }
+    );
 }

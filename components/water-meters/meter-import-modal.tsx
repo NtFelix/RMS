@@ -11,6 +11,7 @@ import { Upload, Check, AlertTriangle, X, FileSpreadsheet, Loader2, Hash, Calend
 import type { Zaehler as SharedMeter, ZaehlerAblesung } from "@/lib/types";
 import { bulkCreateAblesungen } from "@/app/meter-actions";
 import { isoToGermanDate } from "@/utils/date-calculations";
+import { formatNumber, roundToDecimals } from "@/utils/format";
 import { StatCard } from "@/components/common/stat-card";
 
 interface MeterImportModalProps {
@@ -156,19 +157,28 @@ export function MeterImportModal({
     return null;
   };
 
+
   const parseGermanNumber = (value: string | number): number => {
-    if (typeof value === 'number') return value;
-    if (!value) return 0;
+    let parsed: number;
 
-    let strVal = String(value).trim();
+    if (typeof value === 'number') {
+      parsed = value;
+    } else if (!value) {
+      parsed = 0;
+    } else {
+      let strVal = String(value).trim();
 
-    if (strVal.includes(',')) {
-      strVal = strVal.replace(/\./g, '');
-      strVal = strVal.replace(',', '.');
+      if (strVal.includes(',')) {
+        strVal = strVal.replace(/\./g, '');
+        strVal = strVal.replace(',', '.');
+      }
+
+      parsed = parseFloat(strVal);
+      if (isNaN(parsed)) parsed = 0;
     }
 
-    const parsed = parseFloat(strVal);
-    return isNaN(parsed) ? 0 : parsed;
+    // Round to 3 decimal places
+    return roundToDecimals(parsed);
   };
 
   const validateAndProcessData = async () => {
@@ -356,6 +366,9 @@ export function MeterImportModal({
         if (prev) {
           calculatedUsage = Math.max(0, item.zaehlerstand - prev.value);
         }
+
+        // Round calculated usage to 3 decimal places
+        calculatedUsage = roundToDecimals(calculatedUsage);
 
         return { ...item, verbrauch: calculatedUsage };
       });
@@ -548,10 +561,10 @@ export function MeterImportModal({
                 </Alert>
               )}
 
-              <div className="border border-gray-200 dark:border-[#3C4251] rounded-2xl overflow-hidden bg-white dark:bg-[#22272e] shadow-sm">
+              <div className="border border-gray-200 dark:border-[#3C4251] rounded-2xl overflow-hidden bg-white dark:bg-[#22272e] shadow-xs">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] [&:hover_th]:[&:first-child]:rounded-tl-lg [&:hover_th]:[&:last-child]:rounded-tr-lg">
+                    <TableRow className="bg-gray-50 dark:bg-[#22272e] dark:text-[#f3f4f6] hover:bg-gray-50 dark:hover:bg-[#22272e] transition-all duration-200 ease-out transform hover:scale-[1.002] active:scale-[0.998] first:[&:hover_th]:rounded-tl-lg last:[&:hover_th]:rounded-tr-lg">
                       <TableHead>Status</TableHead>
                       <TableHead>Zähler ID</TableHead>
                       <TableHead>Datum</TableHead>
@@ -575,8 +588,8 @@ export function MeterImportModal({
                         </TableCell>
                         <TableCell>{row.custom_id}</TableCell>
                         <TableCell>{row.ablese_datum ? isoToGermanDate(row.ablese_datum) : "-"}</TableCell>
-                        <TableCell>{row.zaehlerstand}</TableCell>
-                        <TableCell>{row.verbrauch}</TableCell>
+                        <TableCell>{formatNumber(row.zaehlerstand, 3)}</TableCell>
+                        <TableCell>{formatNumber(row.verbrauch, 3)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{row.message}</TableCell>
                       </TableRow>
                     ))}

@@ -51,7 +51,7 @@ export default function BrowserExtensionWaitlistPage() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center p-6 pt-24 md:pt-16">
+      <div className="min-h-screen bg-linear-to-b from-background to-muted/20 flex items-center justify-center p-6 pt-24 md:pt-16">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="flex justify-center">
             <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
@@ -75,7 +75,7 @@ export default function BrowserExtensionWaitlistPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pt-24 md:pt-16">
+    <div className="min-h-screen bg-linear-to-b from-background to-muted/20 pt-24 md:pt-16">
       <div className="container mx-auto px-4 py-8 md:py-12">
         <div className="max-w-4xl mx-auto">
 

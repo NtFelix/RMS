@@ -8,15 +8,15 @@
  * - Prorated water usage for partial periods
  */
 
-import type { Mieter, WasserAblesung, WasserZaehler } from "@/lib/types";
-import { calculateTenantOccupancy } from "./date-calculations";
+import type { Mieter, ZaehlerAblesung, Zaehler } from "@/lib/types";
+import { calculateTenantOccupancy, isDateInPeriod, parseAsUtc } from "./date-calculations";
 
 /**
  * Represents a water reading with associated tenant and period information
  */
 export interface WaterReadingWithContext {
-  reading: WasserAblesung;
-  meter: WasserZaehler;
+  reading: ZaehlerAblesung;
+  meter: Zaehler;
   tenant: Mieter;
   apartmentId: string;
 }
@@ -29,9 +29,11 @@ export interface TenantMeterConsumption {
   tenantName: string;
   apartmentId: string;
   totalConsumption: number; // Total units consumed (m³, kWh, etc.)
+  consumptionByType: Record<string, number>; // Consumption broken down by meter type (e.g., { gas: 68, kaltwasser: 382.25 })
   consumptionDetails: Array<{
     meterId: string;
     meterCustomId: string | null;
+    meterType: string; // zaehler_typ of the meter
     consumption: number;
     readingDate: string;
     isPartialPeriod: boolean; // True if tenant moved in/out during period
@@ -46,9 +48,12 @@ export interface TenantMeterCost {
   tenantId: string;
   tenantName: string;
   apartmentId: string;
-  consumption: number; // units
-  costShare: number; // EUR
-  pricePerUnit: number; // EUR/unit
+  consumption: number; // Total units consumed across all meter types
+  costShare: number; // Total EUR across all meter types
+  pricePerUnit: number; // Weighted average EUR/unit (for display only)
+  consumptionByType: Record<string, number>; // Per-type consumption (e.g., { gas: 68, kaltwasser: 382.25 })
+  costByType: Record<string, number>; // Per-type costs (e.g., { gas: 10, kaltwasser: 100 })
+  pricePerUnitByType: Record<string, number>; // Per-type price per unit
   isWGMember: boolean; // True if apartment has multiple tenants
   wgSplitDetails?: {
     totalApartmentConsumption: number;
@@ -59,29 +64,6 @@ export interface TenantMeterCost {
       share: number; // Percentage
     }>;
   };
-}
-
-/**
- * Calculate if a date falls within a tenant's occupancy period
- */
-function isTenantActiveOnDate(
-  tenant: Mieter,
-  date: string
-): boolean {
-  const checkDate = new Date(date);
-  const moveInDate = tenant.einzug ? new Date(tenant.einzug) : null;
-  const moveOutDate = tenant.auszug ? new Date(tenant.auszug) : null;
-
-  // If no move-in date, tenant is not active
-  if (!moveInDate) return false;
-
-  // Check if date is after move-in
-  if (checkDate < moveInDate) return false;
-
-  // Check if date is before move-out (if move-out exists)
-  if (moveOutDate && checkDate > moveOutDate) return false;
-
-  return true;
 }
 
 /**
@@ -123,17 +105,24 @@ function getApartmentTenantsInPeriod(
  * - Tenant move-ins/move-outs during billing period
  * - WG cost splitting based on occupancy
  */
+// Helper to add days to a Date object in a UTC-safe way
+const addDaysUtc = (date: Date, days: number): Date => {
+  const result = new Date(date.getTime());
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+};
+
 export function calculateTenantMeterConsumption(
   tenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
   periodStart: string,
   periodEnd: string
 ): TenantMeterConsumption[] {
   const consumptionByTenant: Map<string, TenantMeterConsumption> = new Map();
 
   // Group meters by apartment
-  const metersByApartment = new Map<string, WasserZaehler[]>();
+  const metersByApartment = new Map<string, Zaehler[]>();
   meters.forEach(meter => {
     if (!meter.wohnung_id) return;
 
@@ -142,85 +131,167 @@ export function calculateTenantMeterConsumption(
     metersByApartment.set(meter.wohnung_id, meters);
   });
 
+  // Helper references for parsing
+  const startPeriodUtc = parseAsUtc(periodStart);
+  const endPeriodUtc = parseAsUtc(periodEnd);
+
   // Process each apartment
-  metersByApartment.forEach((meters, apartmentId) => {
+  metersByApartment.forEach((aptMeters, apartmentId) => {
     // Get all tenants who lived in this apartment during the period
     const apartmentTenants = getApartmentTenantsInPeriod(tenants, apartmentId, periodStart, periodEnd);
 
     if (apartmentTenants.length === 0) return;
 
-    // Calculate total consumption for this apartment from all meters
-    let totalApartmentConsumption = 0;
-    const meterConsumptions: Array<{
-      meterId: string;
-      meterCustomId: string | null;
-      consumption: number;
-      readingDate: string;
-    }> = [];
+    // Precalculate UTC dates and effective occupancy limits for each tenant in this apartment once
+    const tenantsWithDates = apartmentTenants.map(tenant => {
+      const einStart = tenant.einzug ? parseAsUtc(tenant.einzug) : startPeriodUtc;
+      const auzEnd = tenant.auszug ? parseAsUtc(tenant.auszug) : endPeriodUtc;
+      return {
+        tenant,
+        effectiveStart: einStart > startPeriodUtc ? einStart : startPeriodUtc,
+        effectiveEnd: auzEnd < endPeriodUtc ? auzEnd : endPeriodUtc
+      };
+    });
 
-    meters.forEach(meter => {
+    // A reading dated d is the new tenant's starting value ("Zwischenstand für den Mieterwechsel"),
+    // not the previous tenant's end-of-day meter state, when a tenant of THIS apartment moves in
+    // exactly on day d and d is after the period start. In that case the reading's interval ends on
+    // d - 1, so day d itself falls into the NEXT interval and is split among the tenants active that
+    // day by the existing day-by-day allocation below - this also covers a same-day handover (one
+    // tenant's auszug and the other's einzug both on d): the leaving tenant still gets the interval
+    // ending d - 1, and d is split between both tenants as part of the next interval.
+    // A reading dated exactly on the period start always keeps the end-of-day behaviour, since there
+    // is no prior interval for it to shift a day into.
+    const isMoveInReadingDate = (readingDateUtc: Date): boolean => {
+      if (readingDateUtc.getTime() <= startPeriodUtc.getTime()) return false;
+      return tenantsWithDates.some(({ tenant }) =>
+        tenant.einzug != null && parseAsUtc(tenant.einzug).getTime() === readingDateUtc.getTime()
+      );
+    };
+
+    // Initialize map of consumption fields for each tenant in this apartment
+    const tenantAllocations = new Map<string, {
+      total: number;
+      byType: Record<string, number>;
+      details: Map<string, {
+        meterId: string;
+        meterCustomId: string | null;
+        meterType: string;
+        consumption: number;
+        readingDate: string;
+      }>;
+    }>();
+
+    apartmentTenants.forEach(tenant => {
+      tenantAllocations.set(tenant.id, {
+        total: 0,
+        byType: {},
+        details: new Map()
+      });
+    });
+
+    aptMeters.forEach(meter => {
       // Find readings for this meter within the period
       const meterReadings = readings.filter(reading =>
         reading.zaehler_id === meter.id &&
-        reading.ablese_datum >= periodStart &&
-        reading.ablese_datum <= periodEnd
+        isDateInPeriod(reading.ablese_datum, periodStart, periodEnd)
       );
 
-      // Debug logging for troubleshooting
-      if (process.env.NODE_ENV === 'development' && readings.length > 0) {
-        console.log('[Meter Calculation Debug]', {
-          meterId: meter.id,
-          meterCustomId: meter.custom_id,
-          totalReadings: readings.length,
-          matchingReadings: meterReadings.length,
-          periodStart,
-          periodEnd,
-          readingDates: readings.map(r => r.ablese_datum)
-        });
-      }
+      if (meterReadings.length === 0) return;
 
-      // Sum up consumption from all readings
-      const meterConsumption = meterReadings.reduce((sum, reading) => sum + reading.verbrauch, 0);
+      // Sort readings chronologically
+      const sortedReadings = [...meterReadings].sort((a, b) =>
+        parseAsUtc(a.ablese_datum).getTime() - parseAsUtc(b.ablese_datum).getTime()
+      );
 
-      if (meterConsumption > 0) {
-        totalApartmentConsumption += meterConsumption;
+      const meterType = meter.zaehler_typ || 'unknown';
 
-        // Use the last reading date for this meter
-        const lastReading = meterReadings.sort((a, b) =>
-          new Date(b.ablese_datum).getTime() - new Date(a.ablese_datum).getTime()
-        )[0];
+      // Effective end of each reading's interval: normally the reading date itself (today's
+      // end-of-day meter state), except for a move-in reading, whose interval ends the day before
+      // (see isMoveInReadingDate above).
+      const effectiveEnds = sortedReadings.map(reading => {
+        const readingDateUtc = parseAsUtc(reading.ablese_datum);
+        return isMoveInReadingDate(readingDateUtc) ? addDaysUtc(readingDateUtc, -1) : readingDateUtc;
+      });
 
-        meterConsumptions.push({
-          meterId: meter.id,
-          meterCustomId: meter.custom_id,
-          consumption: meterConsumption,
-          readingDate: lastReading?.ablese_datum || periodEnd
-        });
-      }
+      // Allocate each reading's consumption to the tenants active during that reading's specific interval
+      sortedReadings.forEach((reading, index) => {
+        const readingDateUtc = parseAsUtc(reading.ablese_datum); // real ablese_datum, used for detail.readingDate below
+        const endIntervalUtc = effectiveEnds[index];
+        let startReadingUtc = (index === 0)
+          ? startPeriodUtc
+          : addDaysUtc(effectiveEnds[index - 1], 1);
+
+        // Clamp: if start is after end (e.g., same-date readings, or a move-in reading whose
+        // effective end lands before the interval's start), run a single-day interval
+        if (startReadingUtc > endIntervalUtc) {
+          startReadingUtc = new Date(endIntervalUtc.getTime());
+        }
+
+        let totalIntervalDays = Math.round((endIntervalUtc.getTime() - startReadingUtc.getTime()) / (1000 * 3600 * 24)) + 1;
+        if (totalIntervalDays <= 0) {
+          totalIntervalDays = 1;
+        }
+
+        const consumptionPerDay = reading.verbrauch / totalIntervalDays;
+
+        // Iterate day-by-day in UTC to allocate consumption exactly to the active tenants of each day
+        const current = new Date(startReadingUtc.getTime());
+        const maxDays = 366 * 3;
+        let dayCount = 0;
+        while (current <= endIntervalUtc && dayCount < maxDays) {
+          // Find all tenants active on this specific day
+          const activeTenants = tenantsWithDates
+            .filter(t => current >= t.effectiveStart && current <= t.effectiveEnd)
+            .map(t => t.tenant);
+
+          if (activeTenants.length > 0) {
+            const dailyShare = consumptionPerDay / activeTenants.length;
+            activeTenants.forEach(tenant => {
+              const allocation = tenantAllocations.get(tenant.id)!;
+              allocation.total += dailyShare;
+              allocation.byType[meterType] = (allocation.byType[meterType] || 0) + dailyShare;
+
+              const existingDetail = allocation.details.get(meter.id);
+              if (existingDetail) {
+                existingDetail.consumption += dailyShare;
+                if (readingDateUtc > parseAsUtc(existingDetail.readingDate)) {
+                  existingDetail.readingDate = reading.ablese_datum;
+                }
+              } else {
+                allocation.details.set(meter.id, {
+                  meterId: meter.id,
+                  meterCustomId: meter.custom_id,
+                  meterType: meterType,
+                  consumption: dailyShare,
+                  readingDate: reading.ablese_datum
+                });
+              }
+            });
+          }
+
+          current.setUTCDate(current.getUTCDate() + 1);
+          dayCount++;
+        }
+      });
     });
 
-    // Calculate occupancy factors for all tenants in this apartment
-    const tenantOccupancyFactors = apartmentTenants.map(tenant => ({
-      tenant,
-      occupancyFactor: calculateOccupancyFactor(tenant, periodStart, periodEnd)
-    }));
+    // Save calculation result for each active tenant in this apartment
+    apartmentTenants.forEach(tenant => {
+      const allocation = tenantAllocations.get(tenant.id)!;
+      const occupancyFactor = calculateOccupancyFactor(tenant, periodStart, periodEnd);
 
-    const totalOccupancyFactor = tenantOccupancyFactors.reduce((sum, t) => sum + t.occupancyFactor, 0);
+      // Clean up floating point errors in total and byType
+      const cleanTotal = Math.round(allocation.total * 100000) / 100000;
+      const cleanByType: Record<string, number> = {};
+      for (const [type, val] of Object.entries(allocation.byType)) {
+        cleanByType[type] = Math.round(val * 100000) / 100000;
+      }
 
-    // Distribute consumption among tenants based on occupancy
-    tenantOccupancyFactors.forEach(({ tenant, occupancyFactor }) => {
-      const tenantShare = totalOccupancyFactor > 0
-        ? (occupancyFactor / totalOccupancyFactor)
-        : (1 / apartmentTenants.length);
-
-      const tenantConsumption = totalApartmentConsumption * tenantShare;
-
-      // Create consumption details for this tenant
-      const consumptionDetails = meterConsumptions.map(mc => ({
-        meterId: mc.meterId,
-        meterCustomId: mc.meterCustomId,
-        consumption: mc.consumption * tenantShare,
-        readingDate: mc.readingDate,
+      // Map details format and clean detail consumption
+      const consumptionDetails = Array.from(allocation.details.values()).map(detail => ({
+        ...detail,
+        consumption: Math.round(detail.consumption * 100000) / 100000,
         isPartialPeriod: occupancyFactor < 1,
         occupancyFactor: occupancyFactor
       }));
@@ -229,7 +300,8 @@ export function calculateTenantMeterConsumption(
         tenantId: tenant.id,
         tenantName: tenant.name,
         apartmentId: apartmentId,
-        totalConsumption: tenantConsumption,
+        totalConsumption: cleanTotal,
+        consumptionByType: cleanByType,
         consumptionDetails
       });
     });
@@ -240,18 +312,22 @@ export function calculateTenantMeterConsumption(
 
 /**
  * Calculate meter costs for each tenant
- * Includes WG splitting logic and detailed cost breakdown
+ * Calculates costs PER METER TYPE to avoid blending different unit prices.
+ * E.g., gas (€/m³), cold water (€/m³), warm water (€/m³) each get their own price.
+ * 
+ * @param zaehlerkosten - Building-level costs by meter type (e.g., { gas: 10, kaltwasser: 100, warmwasser: 100 })
+ * @param zaehlerverbrauch - Building-level consumption by meter type (e.g., { gas: 68, kaltwasser: 382.25, warmwasser: 428 })
  */
 export function calculateTenantMeterCosts(
   tenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
-  totalBuildingCost: number,
-  totalBuildingConsumption: number,
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
+  zaehlerkosten: Record<string, number>,
+  zaehlerverbrauch: Record<string, number>,
   periodStart: string,
   periodEnd: string
 ): TenantMeterCost[] {
-  // First, calculate consumption for each tenant
+  // First, calculate consumption for each tenant (now includes consumptionByType)
   const tenantConsumptions = calculateTenantMeterConsumption(
     tenants,
     meters,
@@ -260,9 +336,12 @@ export function calculateTenantMeterCosts(
     periodEnd
   );
 
-  // Calculate price per unit using the official building consumption from Nebenkosten (or other source)
-  // This ensures the price is based on the actual total, not the sum of individual readings
-  const pricePerUnit = totalBuildingConsumption > 0 ? totalBuildingCost / totalBuildingConsumption : 0;
+  // Calculate price per unit for EACH meter type independently
+  const pricePerUnitByType: Record<string, number> = {};
+  for (const [meterType, buildingCost] of Object.entries(zaehlerkosten)) {
+    const buildingConsumption = zaehlerverbrauch[meterType] || 0;
+    pricePerUnitByType[meterType] = buildingConsumption > 0 ? buildingCost / buildingConsumption : 0;
+  }
 
   // Group tenants by apartment to identify WGs
   const tenantsByApartment = new Map<string, TenantMeterConsumption[]>();
@@ -272,9 +351,22 @@ export function calculateTenantMeterCosts(
     tenantsByApartment.set(tc.apartmentId, apartmentTenants);
   });
 
-  // Calculate costs for each tenant
+  // Calculate costs for each tenant using per-type pricing
   const tenantCosts: TenantMeterCost[] = tenantConsumptions.map(tc => {
-    const costShare = tc.totalConsumption * pricePerUnit;
+    // Calculate cost per meter type
+    const costByType: Record<string, number> = {};
+    let totalCostShare = 0;
+
+    for (const [meterType, tenantTypeConsumption] of Object.entries(tc.consumptionByType)) {
+      const typePrice = pricePerUnitByType[meterType] || 0;
+      const typeCost = tenantTypeConsumption * typePrice;
+      costByType[meterType] = typeCost;
+      totalCostShare += typeCost;
+    }
+
+    // Calculate weighted average price per unit (for display purposes only)
+    const weightedAvgPricePerUnit = tc.totalConsumption > 0 ? totalCostShare / tc.totalConsumption : 0;
+
     const apartmentTenants = tenantsByApartment.get(tc.apartmentId) || [];
     const isWGMember = apartmentTenants.length > 1;
 
@@ -283,8 +375,11 @@ export function calculateTenantMeterCosts(
       tenantName: tc.tenantName,
       apartmentId: tc.apartmentId,
       consumption: tc.totalConsumption,
-      costShare: costShare,
-      pricePerUnit: pricePerUnit,
+      costShare: totalCostShare,
+      pricePerUnit: weightedAvgPricePerUnit,
+      consumptionByType: tc.consumptionByType,
+      costByType: costByType,
+      pricePerUnitByType: pricePerUnitByType,
       isWGMember: isWGMember
     };
 
@@ -317,16 +412,17 @@ export function calculateTenantMeterCosts(
 }
 
 /**
- * Get meter consumption for a specific tenant
- * Helper function for modal display
+ * Get meter cost for a specific tenant
+ * Helper function for modal display.
+ * Uses per-type pricing to avoid blending different meter type costs.
  */
 export function getTenantMeterCost(
   tenantId: string,
   tenants: Mieter[],
-  meters: WasserZaehler[],
-  readings: WasserAblesung[],
-  totalBuildingCost: number,
-  totalBuildingConsumption: number,
+  meters: Zaehler[],
+  readings: ZaehlerAblesung[],
+  zaehlerkosten: Record<string, number>,
+  zaehlerverbrauch: Record<string, number>,
   periodStart: string,
   periodEnd: string
 ): TenantMeterCost | null {
@@ -334,8 +430,8 @@ export function getTenantMeterCost(
     tenants,
     meters,
     readings,
-    totalBuildingCost,
-    totalBuildingConsumption,
+    zaehlerkosten,
+    zaehlerverbrauch,
     periodStart,
     periodEnd
   );

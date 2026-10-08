@@ -4,7 +4,30 @@
  */
 
 // Re-export existing types
-export type { Tenant, NebenkostenEntry, KautionStatus, KautionData, KautionFormData } from './Tenant';
+export type { Tenant, NebenkostenEntry } from './Tenant';
+export type {
+  KautionArt,
+  KautionBewegungsArt,
+  KautionAbzugKategorie,
+  KautionZustand,
+  KautionFristStufe,
+  KautionRateStatus,
+  KautionZinsmethode,
+  KautionQuelle,
+  Kaution,
+  KautionKonto,
+  KautionBewegung,
+  KautionRate,
+  KautionBeleg,
+  KautionZinssatz,
+  KautionZinsSegment,
+  KautionZinsVorschlag,
+  KautionZinsGrundlage,
+  KautionDetails,
+  KautionRechte,
+  KautionVorschlag,
+  KautionKompat
+} from './Kaution';
 export type { Wohnung } from './Wohnung';
 export type { Finanzen } from './finanzen';
 export type { Profile } from './supabase';
@@ -29,9 +52,6 @@ export type {
   Rechnung,
   RechnungSql,
   Finanzen as FinanzenData,
-  Wasserzaehler,
-  WasserzaehlerFormEntry,
-  WasserzaehlerFormData,
   MeterReadingFormEntry,
   MeterReadingFormData
 } from '../lib/data-fetching';
@@ -55,16 +75,6 @@ export type {
 // Explicit re-exports for aliasing
 export type { MeterModalData as WasserzaehlerModalData } from './optimized-betriebskosten';
 export type { GetMeterModalDataParams as GetWasserzaehlerModalDataParams } from './optimized-betriebskosten';
-
-// Re-export documentation types
-export type {
-  DokumentationRecord,
-  Category,
-  Article,
-  SearchResult,
-  DocumentationFilters,
-  SyncResult
-} from './documentation';
 
 // Re-export type guards
 export {

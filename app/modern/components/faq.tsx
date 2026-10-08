@@ -47,7 +47,7 @@ export function FAQ() {
                             className={cn(
                                 "border rounded-2xl overflow-hidden transition-all duration-200",
                                 openIndex === index
-                                    ? "bg-primary/5 border-primary/20 shadow-sm"
+                                    ? "bg-primary/5 border-primary/20 shadow-xs"
                                     : "bg-card hover:bg-muted/50 border-border"
                             )}
                         >
@@ -68,7 +68,7 @@ export function FAQ() {
                                     animate={{ rotate: openIndex === index ? 180 : 0 }}
                                     transition={{ duration: 0.2 }}
                                     className={cn(
-                                        "flex-shrink-0 rounded-full p-1",
+                                        "shrink-0 rounded-full p-1",
                                         openIndex === index ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                                     )}
                                 >

@@ -1,26 +1,29 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations";
 import { logger } from "@/utils/logger";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ tenantId: string }> }
 ) {
     try {
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { tenantId } = await params;
 
         if (!tenantId) {
-            return NextResponse.json({ error: "Tenant ID is required." }, { status: 400 });
+            return NextResponse.json({ error: "Tenant ID is required." }, { status: 400, headers: NO_CACHE_HEADERS });
         }
 
         // Fetch tenant with apartment details
+        // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden;
+        // die Zeile wird hier nur berechnet, aber nie ausgeliefert).
         const { data: tenant, error: tenantError } = await supabase
             .from('Mieter')
             .select(`
-        *,
+        ${MIETER_SPALTEN_OHNE_KAUTION},
         Wohnungen (
           id,
           name,
@@ -33,7 +36,7 @@ export async function GET(
             .single();
 
         if (tenantError || !tenant) {
-            return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+            return NextResponse.json({ error: "Tenant not found." }, { status: 404, headers: NO_CACHE_HEADERS });
         }
 
         // Fetch finances for this tenant's apartment
@@ -41,7 +44,7 @@ export async function GET(
         // We fetch all finances since the start of the move-in month to be safe
         if (!tenant.einzug) {
             logger.error("Cannot calculate missed payments for tenant without move-in date.", undefined, { tenantId });
-            return NextResponse.json({ error: "Tenant move-in date is missing." }, { status: 400 });
+            return NextResponse.json({ error: "Tenant move-in date is missing." }, { status: 400, headers: NO_CACHE_HEADERS });
         }
         const moveInDate = new Date(tenant.einzug);
         // Reset to the first day of the month to ensure we catch payments made on the 1st
@@ -57,7 +60,7 @@ export async function GET(
             .order('datum', { ascending: true });
 
         if (financesError) {
-            return NextResponse.json({ error: "Failed to fetch finances." }, { status: 500 });
+            return NextResponse.json({ error: "Failed to fetch finances." }, { status: 500, headers: NO_CACHE_HEADERS });
         }
 
         const missedPayments = calculateMissedPayments(tenant, finances || [], true);
@@ -65,10 +68,10 @@ export async function GET(
         return NextResponse.json({
             missedPayments,
             hasMissingPayments: missedPayments.totalAmount > 0
-        });
+        }, { headers: NO_CACHE_HEADERS });
 
     } catch (error) {
         logger.error("Error in missed payments API:", error as Error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+        return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: NO_CACHE_HEADERS });
     }
 }

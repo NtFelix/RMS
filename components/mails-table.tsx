@@ -194,7 +194,7 @@ export function MailsTable({
     if (mail.type === 'inbox') {
       return !mail.read ? (
         <div className="p-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30">
-          <MailOpen className="h-4 w-4 stroke-[2] text-blue-600 dark:text-blue-400" />
+          <MailOpen className="h-4 w-4 stroke-2 text-blue-600 dark:text-blue-400" />
         </div>
       ) : (
         <div className="p-1.5 rounded-full bg-gray-100 dark:bg-gray-800">
@@ -335,7 +335,7 @@ export function MailsTable({
 
                         <TableCell className="py-4 dark:text-[#f3f4f6]">
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9 flex-shrink-0">
+                            <Avatar className="h-9 w-9 shrink-0">
                               <AvatarImage src="" alt={mail.sender} />
                               <AvatarFallback className="bg-primary text-primary-foreground">
                                 {getInitials(mail.sender)}
@@ -353,10 +353,10 @@ export function MailsTable({
                               {mail.subject}
                             </span>
                             {mail.hasAttachment && (
-                              <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                             )}
                             {mail.favorite && (
-                              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 flex-shrink-0" />
+                              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 shrink-0" />
                             )}
                           </div>
                         </TableCell>

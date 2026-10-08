@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 import type { Apartment } from "@/components/tables/apartment-table"; // Import the shared type
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 // Remove local Apartment interface definition
@@ -31,6 +32,9 @@ interface ApartmentContextMenuProps {
   apartment: Apartment // Now uses the imported Apartment type
   onEdit: () => void
   onRefresh: () => void
+  canEdit?: boolean
+  canDelete?: boolean
+  canViewMeters?: boolean
 }
 
 export function ApartmentContextMenu({
@@ -38,15 +42,18 @@ export function ApartmentContextMenu({
   apartment,
   onEdit,
   onRefresh,
+  canEdit = true,
+  canDelete = true,
+  canViewMeters = true,
 }: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
   const { openZaehlerModal } = useModalStore()
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     try {
       setIsDeleting(true);
-      const result = await loescheWohnung(apartment.id);
+      const result = await loescheWohnung(apartment.id, pruefsummen[apartment.id]);
 
       if (result.success) {
         toast({
@@ -77,29 +84,46 @@ export function ApartmentContextMenu({
     }
   };
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () =>
+    void starteLoeschenMitKautionen("Wohnungen", [apartment.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
+
   return (
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem 
+            onClick={() => {
+              setTimeout(() => {
+                onEdit();
+              }, 0);
+            }} 
+            disabled={!canEdit} 
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem
-            id="context-menu-meter-item"
-            onClick={() => {
-              useOnboardingStore.getState().completeStep('create-meter-select');
-              openZaehlerModal(apartment.id, apartment.name);
-            }}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <Gauge className="h-4 w-4" />
-            <span>Zähler verwalten</span>
-          </ContextMenuItem>
+          {canViewMeters && (
+            <ContextMenuItem
+              id="context-menu-meter-item"
+              onClick={() => {
+                useOnboardingStore.getState().completeStep('create-meter-select');
+                setTimeout(() => {
+                  openZaehlerModal(apartment.id, apartment.name);
+                }, 0);
+              }}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <Gauge className="h-4 w-4" />
+              <span>Zähler verwalten</span>
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
-            onClick={() => setDeleteDialogOpen(true)}
+            onClick={handleDeleteStart}
+            disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
             <Trash2 className="h-4 w-4" />
@@ -118,7 +142,7 @@ export function ApartmentContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleDelete()} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
               {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>

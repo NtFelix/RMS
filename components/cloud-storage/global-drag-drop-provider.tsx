@@ -99,7 +99,7 @@ export function GlobalDragDropProvider({ children }: { children: React.ReactNode
       
       {/* Global drag overlay */}
       {isDragOver && isCloudStoragePage && (
-        <div className="fixed inset-0 z-50 bg-primary/10 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-primary/10 backdrop-blur-xs flex items-center justify-center animate-in fade-in duration-200">
           <div className="bg-white rounded-lg shadow-xl p-8 border-2 border-dashed border-primary animate-in zoom-in-95 duration-200">
             <div className="text-center">
               <div className="text-4xl mb-4 animate-bounce">📁</div>

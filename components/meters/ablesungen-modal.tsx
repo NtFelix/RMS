@@ -195,7 +195,7 @@ export function AblesungenModal() {
 
     if (previousReading && previousReading.zaehlerstand !== null) {
       const consumption = currentReading - previousReading.zaehlerstand
-      setNewVerbrauch(consumption.toFixed(2))
+      setNewVerbrauch(consumption.toFixed(3))
 
       // Only show warnings for significant differences
       if (consumption < 0) {
@@ -254,7 +254,7 @@ export function AblesungenModal() {
 
     if (previousReading?.zaehlerstand !== null && previousReading?.zaehlerstand !== undefined) {
       const consumption = currentReading - previousReading.zaehlerstand
-      setEditVerbrauch(consumption.toFixed(2))
+      setEditVerbrauch(consumption.toFixed(3))
 
       // Only show warnings for significant differences
       if (consumption < 0) {
@@ -463,7 +463,7 @@ export function AblesungenModal() {
         const currentReading = parseFloat(editZaehlerstand)
         if (!isNaN(currentReading)) {
           const consumption = currentReading - previousReading.zaehlerstand
-          setEditVerbrauch(consumption.toFixed(2))
+          setEditVerbrauch(consumption.toFixed(3))
 
           // Update warnings if needed
           if (consumption < 0) {
@@ -573,11 +573,11 @@ export function AblesungenModal() {
     const getIcon = () => {
       switch (type) {
         case "error":
-          return <X className="h-4 w-4 flex-shrink-0" />
+          return <X className="h-4 w-4 shrink-0" />
         case "warning":
-          return <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          return <AlertTriangle className="h-4 w-4 shrink-0" />
         case "info":
-          return <TrendingDown className="h-4 w-4 flex-shrink-0" />
+          return <TrendingDown className="h-4 w-4 shrink-0" />
         default:
           return null
       }
@@ -651,7 +651,7 @@ export function AblesungenModal() {
                 </div>
                 <div className="space-y-2">
                   <NumberInput
-                    step="0.01"
+                    step="0.001"
                     placeholder={`Zählerstand (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newZaehlerstand}
                     onChange={(e) => handleNewZaehlerstandChange(e.target.value)}
@@ -665,7 +665,7 @@ export function AblesungenModal() {
                 </div>
                 <div className="space-y-2">
                   <NumberInput
-                    step="0.01"
+                    step="0.001"
                     placeholder={`Verbrauch (${ablesungenModalData?.einheit || 'm³'})`}
                     value={newVerbrauch}
                     onChange={(e) => setNewVerbrauch(e.target.value)}
@@ -729,7 +729,7 @@ export function AblesungenModal() {
                     const consumptionChange = getConsumptionChange(index)
 
                     return (
-                      <Card key={ablesung.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
+                      <Card key={ablesung.id} className="bg-gray-50 dark:bg-[#22272e] border border-gray-200 dark:border-[#3C4251] shadow-xs rounded-3xl overflow-hidden hover:shadow-md transition-all duration-300">
                         <CardContent className="p-0">
                           <AnimatePresence mode="wait">
                             {editingId === ablesung.id ? (
@@ -794,7 +794,7 @@ export function AblesungenModal() {
                                       Zählerstand
                                     </Label>
                                     <NumberInput
-                                      step="0.01"
+                                      step="0.001"
                                       value={editZaehlerstand}
                                       onChange={(e) => {
                                         const currentAblesung = ablesenList.find(a => a.id === editingId)
@@ -813,7 +813,7 @@ export function AblesungenModal() {
                                       Verbrauch
                                     </Label>
                                     <NumberInput
-                                      step="0.01"
+                                      step="0.001"
                                       value={editVerbrauch}
                                       onChange={(e) => setEditVerbrauch(e.target.value)}
                                       disabled={isSaving}
@@ -902,13 +902,13 @@ export function AblesungenModal() {
                                     transition={{ duration: 0.3, delay: 0.1 }}
                                     className="flex items-start gap-2"
                                   >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                       <Gauge className="h-4 w-4 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Zählerstand</p>
                                       <p className="text-sm font-medium">
-                                        {ablesung.zaehlerstand !== null ? `${formatNumber(ablesung.zaehlerstand)} m³` : (
+                                        {ablesung.zaehlerstand !== null ? `${formatNumber(ablesung.zaehlerstand, 3)} m³` : (
                                           <span className="text-muted-foreground italic">Nicht gesetzt</span>
                                         )}
                                       </p>
@@ -921,13 +921,16 @@ export function AblesungenModal() {
                                     transition={{ duration: 0.3, delay: 0.2 }}
                                     className="flex items-start gap-2"
                                   >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                       {getMeterIcon(ablesungenModalData?.zaehlerTyp, "h-4 w-4 text-muted-foreground")}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs text-muted-foreground mb-1">Verbrauch</p>
                                       <p className="text-sm font-medium">
-                                        {formatNumber(ablesung.verbrauch)} {ablesungenModalData?.einheit || 'm³'}
+                                        {ablesung.verbrauch !== null && ablesung.verbrauch !== undefined
+                                          ? `${formatNumber(ablesung.verbrauch, 3)} ${ablesungenModalData?.einheit || 'm³'}`
+                                          : <span className="text-muted-foreground italic">Nicht gesetzt</span>
+                                        }
                                       </p>
                                     </div>
                                   </motion.div>
@@ -938,7 +941,7 @@ export function AblesungenModal() {
                                     transition={{ duration: 0.3, delay: 0.3 }}
                                     className="flex items-start gap-2"
                                   >
-                                    <div className="flex-shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0.5">
                                       {(() => {
                                         const change = getConsumptionChange(index)
                                         if (change === null) return <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -976,7 +979,7 @@ export function AblesungenModal() {
                                       className="col-span-1 sm:col-span-3 mt-1 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700"
                                     >
                                       <div className="flex items-start gap-2">
-                                        <div className="flex-shrink-0 mt-0.5">
+                                        <div className="shrink-0 mt-0.5">
                                           <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                         </div>
                                         <div className="flex-1 min-w-0">

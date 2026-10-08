@@ -200,7 +200,7 @@ export default function SuccessContent() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-linear-to-b from-background to-muted/20 p-4">
       <Card className="w-full max-w-lg shadow-2xl border-primary/10 rounded-[2.5rem]">
         <CardContent className="pt-6">
           {renderContent()}

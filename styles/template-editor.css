@@ -2,25 +2,34 @@
 
 /* Mention variable styling - using CSS custom properties for theme consistency */
 .mention-variable {
-  background-color: hsl(var(--primary) / 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.6rem;
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.05));
   color: hsl(var(--primary));
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-weight: 500;
+  border-radius: 0.5rem;
   font-size: 0.875rem;
+  font-weight: 700;
   text-decoration: none;
   cursor: default;
-  transition: background-color 150ms ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid hsl(var(--primary) / 0.2);
+  box-shadow: 0 2px 4px -1px hsl(var(--primary) / 0.1);
 }
 
 .mention-variable:hover {
-  background-color: hsl(var(--primary) / 0.15);
+  background: hsl(var(--primary) / 0.15);
+  border-color: hsl(var(--primary) / 0.3);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 /* Dark mode mention variables */
 .dark .mention-variable {
-  background-color: hsl(var(--primary) / 0.15);
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.25), hsl(var(--primary) / 0.15));
   color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary) / 0.3);
 }
 
 .dark .mention-variable:hover {
@@ -31,8 +40,41 @@
 .ProseMirror {
   outline: none;
   min-height: 200px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: hsl(var(--foreground));
+  font-size: 1.05rem;
+}
+
+.ProseMirror p {
+  margin-bottom: 1.25rem;
+}
+
+.ProseMirror h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid hsl(var(--primary) / 0.3);
+  padding-left: 1.25rem;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  margin: 1.5rem 0;
+  background: hsl(var(--muted) / 0.2);
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
@@ -504,9 +546,8 @@
 }
 
 .template-editor-toolbar button:focus {
-  outline: none;
-  ring: 2px;
-  ring-color: hsl(var(--ring));
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }
 
 .template-editor-toolbar button.is-active {
@@ -533,13 +574,13 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-clamp: 3;
 }
 
 /* Enhanced focus styles for accessibility */
 .template-card:focus-within {
-  ring: 2px;
-  ring-color: hsl(var(--ring));
-  ring-offset: 2px;
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }
 
 /* Smooth transitions for interactive elements */

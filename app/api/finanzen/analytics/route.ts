@@ -1,7 +1,8 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary, type FinanceTransaction } from "@/utils/financeCalculations";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 interface FinanceRecord {
   betrag: number;
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     console.log(`🚀 [Finance Analytics] API called - Action: ${action}, Year: ${year}`);
     const requestStartTime = Date.now();
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
 
     let response: Response;
     switch (action) {
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
         console.log(`📈 [Finance Analytics] Chart data action deprecated - use /api/finanzen/charts instead`);
         return NextResponse.json({ 
           error: 'Chart data action deprecated. Use /api/finanzen/charts endpoint instead.' 
-        }, { status: 410 });
+        }, { status: 410, headers: NO_CACHE_HEADERS });
         break;
       case 'available-years':
         console.log(`📅 [Finance Analytics] Handling available years request`);
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
         break;
       default:
         console.log(`❌ [Finance Analytics] Invalid action: ${action}`);
-        return NextResponse.json({ error: 'Invalid action parameter' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid action parameter' }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
     const totalDuration = Date.now() - requestStartTime;
@@ -56,8 +57,9 @@ export async function GET(request: Request) {
     return response;
     
   } catch (error) {
+    unstable_rethrow(error);
     console.error('❌ [Finance Analytics] API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -65,42 +67,71 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
   console.log(`📊 [Finance Analytics] Summary: Fetching data for year ${year}`);
   const queryStartTime = Date.now();
 
-  try {
-    // Try to use the optimized Supabase function first
-    const { data: summaryData, error: rpcError } = await supabase.rpc('get_financial_year_summary', {
-      target_year: year
-    });
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  const wohnungIds = await getAccessibleWohnungIds();
 
-    const rpcDuration = Date.now() - queryStartTime;
+  if (wohnungIds !== null && wohnungIds.length === 0) {
+    const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+    const summary = calculateFinancialSummary([], year, new Date());
+    return NextResponse.json(summary, { status: 200, headers: NO_CACHE_HEADERS });
+  }
 
-    if (!rpcError && summaryData && summaryData.length > 0) {
-      console.log(`✅ [Finance Analytics] Summary: Used optimized RPC function (${rpcDuration}ms)`);
-      
-      const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
-      const result = processRpcFinancialSummary(summaryData[0], year);
+  if (wohnungIds === null) {
+    try {
+      // Try to use the optimized Supabase function first
+      const { data: summaryData, error: rpcError } = await supabase.rpc('get_financial_year_summary', {
+        target_year: year
+      });
 
-      console.log(`💰 [Finance Analytics] Summary results: Income: €${result.totalIncome}, Expenses: €${result.totalExpenses}, Cashflow: €${result.totalCashflow}`);
-      return NextResponse.json(result, { status: 200 });
-    } else {
-      console.log(`⚠️ [Finance Analytics] Summary: RPC function failed or returned no data, using fallback`);
+      const rpcDuration = Date.now() - queryStartTime;
+
+      if (!rpcError && summaryData && summaryData.length > 0) {
+        console.log(`✅ [Finance Analytics] Summary: Used optimized RPC function (${rpcDuration}ms)`);
+        
+        const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
+        const result = processRpcFinancialSummary(summaryData[0], year);
+
+        console.log(`💰 [Finance Analytics] Summary results: Income: €${result.totalIncome}, Expenses: €${result.totalExpenses}, Cashflow: €${result.totalCashflow}`);
+        return NextResponse.json(result, { status: 200, headers: NO_CACHE_HEADERS });
+      } else {
+        console.log(`⚠️ [Finance Analytics] Summary: RPC function failed or returned no data, using fallback`);
+      }
+    } catch (error) {
+      console.log(`🔄 [Finance Analytics] Summary: RPC function not available or error occurred, using fallback method`);
     }
-  } catch (error) {
-    console.log(`🔄 [Finance Analytics] Summary: RPC function not available, using fallback method`);
   }
 
   // Fallback to the function that returns all transactions for the year
   console.log(`🔄 [Finance Analytics] Summary: Using fallback with pagination-safe function`);
   const fallbackStartTime = Date.now();
-  
-  const { data, error } = await supabase.rpc('get_financial_summary_data', {
-    target_year: year
-  });
+
+  let data;
+  let error;
+
+  if (wohnungIds !== null) {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    const { data: rawData, error: queryError } = await supabase
+      .from('Finanzen')
+      .select('betrag, ist_einnahmen, datum, wohnung_id')
+      .gte('datum', startDate)
+      .lte('datum', endDate)
+      .in('wohnung_id', wohnungIds);
+    data = rawData;
+    error = queryError;
+  } else {
+    const { data: rawData, error: rpcError } = await supabase.rpc('get_financial_summary_data', {
+      target_year: year
+    });
+    data = rawData;
+    error = rpcError;
+  }
 
   const fallbackDuration = Date.now() - fallbackStartTime;
 
   if (error) {
     console.error('❌ [Finance Analytics] Summary fallback database error:', error);
-    return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Database query failed' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 
   console.log(`📈 [Finance Analytics] Summary: Fallback retrieved ${data?.length || 0} transactions (${fallbackDuration}ms)`);
@@ -112,7 +143,7 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
   console.log(`🧮 [Finance Analytics] Summary: Calculations completed (${calcDuration}ms)`);
   console.log(`💰 [Finance Analytics] Summary results: Income: €${summary.totalIncome}, Expenses: €${summary.totalExpenses}, Cashflow: €${summary.totalCashflow}`);
   
-  return NextResponse.json(summary, { status: 200 });
+  return NextResponse.json(summary, { status: 200, headers: NO_CACHE_HEADERS });
 }
 
 async function handleFilteredSummary(supabase: any, searchParams: URLSearchParams): Promise<Response> {
@@ -123,10 +154,21 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
 
   console.log(`🔍 [Finance Analytics] Filtered Summary - Filters: Query="${searchQuery}", Apartment="${selectedApartment}", Year="${selectedYear}", Type="${selectedType}"`);
 
+  const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+  const wohnungIds = await getAccessibleWohnungIds();
+
+  if (wohnungIds !== null && wohnungIds.length === 0) {
+    return NextResponse.json({ totalBalance: 0, totalIncome: 0, totalExpenses: 0 }, { status: 200, headers: NO_CACHE_HEADERS });
+  }
+
   // Build the query with filters
   let query = supabase
     .from('Finanzen')
     .select('betrag, ist_einnahmen, datum, wohnung_id, name, notiz');
+
+  if (wohnungIds !== null) {
+    query = query.in('wohnung_id', wohnungIds);
+  }
 
   let appliedFilters: string[] = [];
 
@@ -179,7 +221,7 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
     
     if (error) {
       console.error('❌ [Finance Analytics] Filtered summary database error:', error);
-      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+      return NextResponse.json({ error: 'Database query failed' }, { status: 500, headers: NO_CACHE_HEADERS });
     }
     
     if (data && data.length > 0) {
@@ -202,33 +244,54 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
   const summary = calculateFilteredSummary(allRecords);
   console.log(`💰 [Finance Analytics] Filtered results: Balance: €${summary.totalBalance}, Income: €${summary.totalIncome}, Expenses: €${summary.totalExpenses}`);
   
-  return NextResponse.json(summary, { status: 200 });
+  return NextResponse.json(summary, { status: 200, headers: NO_CACHE_HEADERS });
 }
-
-
 
 async function handleAvailableYears(supabase: any): Promise<Response> {
   try {
     console.log(`📅 [Finance Analytics] Available Years: Fetching distinct years from database`);
     const queryStartTime = Date.now();
-    
-    // Try to use an optimized query to get distinct years
-    const { data, error } = await supabase
-      .rpc('get_available_finance_years');
 
-    const rpcDuration = Date.now() - queryStartTime;
+    const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
+    const wohnungIds = await getAccessibleWohnungIds();
 
-    if (!error && data) {
-      console.log(`✅ [Finance Analytics] Available Years: Used optimized RPC function (${rpcDuration}ms)`);
-      console.log(`📊 [Finance Analytics] Available Years: Found ${data.length} years: ${data.map((item: any) => item.year).join(', ')}`);
-      
-      const years = data.map((item: any) => item.year).sort((a: number, b: number) => b - a);
-      return NextResponse.json(years, { status: 200 });
+    if (wohnungIds !== null && wohnungIds.length === 0) {
+      return NextResponse.json([], { status: 200, headers: NO_CACHE_HEADERS });
+    }
+
+    if (wohnungIds === null) {
+      // Try to use an optimized query to get distinct years
+      const { data, error } = await supabase
+        .rpc('get_available_finance_years');
+
+      const rpcDuration = Date.now() - queryStartTime;
+
+      if (!error && data) {
+        console.log(`✅ [Finance Analytics] Available Years: Used optimized RPC function (${rpcDuration}ms)`);
+        console.log(`📊 [Finance Analytics] Available Years: Found ${data.length} years: ${data.map((item: any) => item.year).join(', ')}`);
+        
+        const years = data.map((item: any) => item.year).sort((a: number, b: number) => b - a);
+        return NextResponse.json(years, { status: 200, headers: NO_CACHE_HEADERS });
+      } else {
+        console.log(`⚠️ [Finance Analytics] Available Years: RPC function not available, using fallback`);
+      }
     } else {
-      console.log(`⚠️ [Finance Analytics] Available Years: RPC function not available, using fallback`);
+      // Scoped path - query years based on accessible apartments
+      const { data, error } = await supabase
+        .from('Finanzen')
+        .select('datum')
+        .in('wohnung_id', wohnungIds);
+      
+      if (error) {
+        console.error('❌ [Finance Analytics] Available Years scoped database error:', error);
+        return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500, headers: NO_CACHE_HEADERS });
+      }
+      
+      const years = Array.from(new Set<number>(data.map((item: any) => new Date(item.datum).getFullYear()))).sort((a, b) => b - a);
+      return NextResponse.json(years, { status: 200, headers: NO_CACHE_HEADERS });
     }
   } catch (error) {
-    console.log(`🔄 [Finance Analytics] Available Years: RPC failed, using fallback method`);
+    console.log(`🔄 [Finance Analytics] Available Years: RPC failed or error occurred, using fallback method`);
   }
 
   // Fallback to utility function with pagination
@@ -243,10 +306,10 @@ async function handleAvailableYears(supabase: any): Promise<Response> {
     console.log(`📊 [Finance Analytics] Available Years: Fallback completed (${fallbackDuration}ms)`);
     console.log(`📅 [Finance Analytics] Available Years: Processed years: ${years.join(', ')}`);
     
-    return NextResponse.json(years, { status: 200 });
+    return NextResponse.json(years, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error('❌ [Finance Analytics] Available Years: Fallback error:', error);
-    return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 

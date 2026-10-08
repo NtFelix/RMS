@@ -253,7 +253,7 @@ export function VideoPlayer({
       {/* Custom controls overlay */}
       {!controls && (showControls || !isPlaying) && !isLoading && !isBuffering && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-lg transition-opacity duration-200">
-          <div className="flex items-center gap-2 bg-black/60 rounded-full px-4 py-2 backdrop-blur-sm">
+          <div className="flex items-center gap-2 bg-black/60 rounded-full px-4 py-2 backdrop-blur-xs">
             <button
               onClick={togglePlay}
               className="text-white hover:text-primary transition-colors"

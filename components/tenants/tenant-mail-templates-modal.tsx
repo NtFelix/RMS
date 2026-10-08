@@ -247,13 +247,13 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
   return (
     <div
       onClick={handleTemplateClick}
-      className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-sm dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card"
+      className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-xs dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card"
     >
       <div className="flex items-start justify-between mb-3">
         <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
           {template.titel}
         </h3>
-        <Badge variant="secondary" className="ml-2 text-xs flex-shrink-0 bg-primary/10 text-primary border-primary/20">
+        <Badge variant="secondary" className="ml-2 text-xs shrink-0 bg-primary/10 text-primary border-primary/20">
           {template.kategorie}
         </Badge>
       </div>
@@ -389,7 +389,7 @@ export function TenantMailTemplatesModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl md:max-w-4xl h-[80vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <div className="rounded-md bg-primary/10 p-1.5">
               <Mail className="h-4 w-4 text-primary" />
@@ -418,14 +418,14 @@ export function TenantMailTemplatesModal({
 
         <div className="flex-1 flex flex-col relative min-h-0">
           {/* Search Bar */}
-          <div className="flex-shrink-0 pb-4 border-b border-border relative z-10">
+          <div className="shrink-0 pb-4 border-b border-border relative z-10">
             <div className="relative w-full group">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none transition-all duration-300 ease-in-out peer-focus:text-primary peer-focus:scale-110 group-hover:text-foreground" />
               <Input
                 placeholder="Vorlagen durchsuchen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="peer w-full pl-10 bg-background border-input focus:border-primary focus:bg-background/80 hover:border-border/80 focus:ring-0 focus:outline-none transition-all duration-300 ease-in-out"
+                className="peer w-full pl-10 bg-background border-input focus:border-primary focus:bg-background/80 hover:border-border/80 focus:ring-0 focus:outline-hidden transition-all duration-300 ease-in-out"
               />
             </div>
 

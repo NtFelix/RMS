@@ -1,7 +1,7 @@
-export const runtime = 'edge';
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createRequestLogger } from "@/utils/logger";
+import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
 interface WohnungWithMieter {
   id: string;
@@ -38,14 +38,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { id: wohnungId } = await params;
 
     // Validate input parameters
     if (!wohnungId || wohnungId.trim() === '') {
       return NextResponse.json(
         { error: "Wohnungs-ID ist erforderlich." },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -54,7 +54,7 @@ export async function GET(
     if (!uuidRegex.test(wohnungId)) {
       return NextResponse.json(
         { error: "Ungültige Wohnungs-ID Format." },
-        { status: 400 }
+        { status: 400, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -79,16 +79,24 @@ export async function GET(
         errorCode: wohnungError.code,
         details: wohnungError.details
       });
-      
+
       if (wohnungError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Wohnung nicht gefunden." },
-          { status: 404 }
+          { status: 404, headers: NO_CACHE_HEADERS }
         );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
+      );
+    }
+
+    const { verifyEntityInScope } = await import("@/lib/api-permissions");
+    if (wohnungData.haus_id && !(await verifyEntityInScope(wohnungData.haus_id))) {
+      return NextResponse.json(
+        { error: "Permission denied" },
+        { status: 403, headers: NO_CACHE_HEADERS }
       );
     }
 
@@ -106,15 +114,22 @@ export async function GET(
         errorCode: mieterError.code,
         details: mieterError.details
       });
-      
+
       return NextResponse.json(
         { error: "Fehler beim Laden der Mieterdaten." },
-        { status: 500 }
+        { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
     // Process Mieter with status and validate data
-    const today = new Date();
+    // Get today's date in YYYY-MM-DD format in local time
+    const now = new Date()
+    const todayStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-')
+
     const mieter: MieterOverviewData[] = (mieterData || []).map(mieterItem => {
       // Validate required fields
       if (!mieterItem.id || !mieterItem.name) {
@@ -130,7 +145,7 @@ export async function GET(
       }
 
       // Determine if tenant is active or moved out
-      const isActive = !mieterItem.auszug || new Date(mieterItem.auszug) > today;
+      const isActive = !mieterItem.auszug || mieterItem.auszug > todayStr;
 
       return {
         id: mieterItem.id,
@@ -166,7 +181,7 @@ export async function GET(
       mieter
     };
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { status: 200, headers: NO_CACHE_HEADERS });
 
   } catch (error) {
     const logger = createRequestLogger(request);
@@ -176,7 +191,7 @@ export async function GET(
     
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Wohnungsübersicht." },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

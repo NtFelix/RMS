@@ -102,12 +102,12 @@ export default function FinanceManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-linear-to-b from-background to-muted/20">
       {/* Hero Section */}
       <div className="container mx-auto px-4 pt-48 pb-16">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight">
-            <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-linear-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight">
+            <span className="bg-linear-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
               Behalten Sie Ihre Finanzen im Blick
             </span>
           </h1>
@@ -165,7 +165,7 @@ export default function FinanceManagementPage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 bg-linear-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
               Intelligente Finanzvisualisierung
             </h2>
             <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
@@ -182,7 +182,7 @@ export default function FinanceManagementPage() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="group"
             >
-              <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
+              <Card className="h-full bg-linear-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -217,7 +217,7 @@ export default function FinanceManagementPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
@@ -252,7 +252,7 @@ export default function FinanceManagementPage() {
                       <span className="font-medium">€1.100</span>
                     </div>
                     <div className="mt-4 h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full" style={{ width: '75%' }}></div>
+                      <div className="h-full bg-linear-to-r from-primary to-primary/60 rounded-full" style={{ width: '75%' }}></div>
                     </div>
                   </div>
                 </CardContent>
@@ -267,7 +267,7 @@ export default function FinanceManagementPage() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="group"
             >
-              <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
+              <Card className="h-full bg-linear-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -297,7 +297,7 @@ export default function FinanceManagementPage() {
                             stroke="hsl(var(--muted-foreground))"
                           />
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
@@ -351,7 +351,7 @@ export default function FinanceManagementPage() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="group"
             >
-              <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
+              <Card className="h-full bg-linear-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
@@ -381,7 +381,7 @@ export default function FinanceManagementPage() {
                             stroke="hsl(var(--muted-foreground))"
                           />
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
@@ -428,7 +428,7 @@ export default function FinanceManagementPage() {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="group"
             >
-              <Card className="h-full bg-gradient-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
+              <Card className="h-full bg-linear-to-br from-card to-card/80 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
@@ -463,7 +463,7 @@ export default function FinanceManagementPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value: number) => `${value.toLocaleString('de-DE')} €`}
+                            formatter={(value) => `${Number(value ?? 0).toLocaleString('de-DE')} €`}
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
@@ -963,7 +963,6 @@ export default function FinanceManagementPage() {
         description="Entdecken Sie, wie unsere Plattform Ihnen hilft, Ihre Finanzen optimal zu verwalten und fundierte Entscheidungen zu treffen."
         badgeText="Bereit für den Start?"
         primaryButtonText="14 Tage kostenlos testen"
-        secondaryButtonText="Demo anfordern"
       />
 
     </div>

@@ -1,15 +1,18 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
+import { ensureAuth } from "@/lib/auth-utils";
 import { revalidatePath } from "next/cache";
 import { logAction } from '@/lib/logging-middleware';
+import { parsePlz } from '@/lib/address';
 
 // Update function signature to accept id as the first parameter
 // Define the expected fields and their types
 interface HouseData {
   name: string;
   ort: string;
+  plz?: number | null;
   strasse?: string | null;
   groesse: number | null;
+  user_id?: string;
 }
 
 export async function handleSubmit(id: string | null, formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
@@ -18,7 +21,32 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
 
   logAction(actionName, 'start', { ...(id && { house_id: id }), house_name: houseName });
 
-  const supabase = await createClient();
+  let supabase;
+  try {
+    ({ supabase } = await ensureAuth());
+  } catch (authError: unknown) {
+    const errorMessage = authError instanceof Error ? authError.message : "Nicht authentifiziert";
+    logAction(actionName, 'error', { error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
+  }
+
+  // Permission & scope checks
+  const { hasPermission } = await import("@/lib/permissions");
+  const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+  
+  if (id) {
+    if (!(await hasPermission('haeuser', 'bearbeiten'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(id)) {
+      return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+    }
+  } else {
+    if (!(await hasPermission('haeuser', 'erstellen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+  }
 
   try {
     // Process groesse field
@@ -31,6 +59,15 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
         processedGroesse = num;
       }
     }
+
+    // Process plz field
+    // An absent key leaves the stored PLZ untouched; an empty value clears it
+    const parsedPlz = parsePlz(formData.get("plz"));
+    if ('error' in parsedPlz) {
+      logAction(actionName, 'failed', { ...(id && { house_id: id }), error_message: parsedPlz.error });
+      return { success: false, error: { message: parsedPlz.error } };
+    }
+    const processedPlz = formData.has("plz") ? parsedPlz.value : undefined;
 
     // Get form data
     const name = formData.get('name')?.toString();
@@ -46,6 +83,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     const houseData: HouseData = {
       name,
       ort,
+      plz: processedPlz,
       strasse: formData.get('strasse')?.toString() || null,
       groesse: processedGroesse,
     };
@@ -61,41 +99,75 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { error: insertError } = await supabase
+      const { data: newHouse, error: insertError } = await supabase
         .from("Haeuser")
-        .insert(houseData);
+        .insert(houseData)
+        .select('id')
+        .single();
 
-      if (insertError) {
-        logAction(actionName, 'error', { house_name: houseName, error_message: insertError.message });
-        return { success: false, error: { message: insertError.message } };
+      if (insertError || !newHouse) {
+        logAction(actionName, 'error', { house_name: houseName, error_message: insertError?.message || 'No data returned' });
+        return { success: false, error: { message: insertError?.message || 'Fehler beim Erstellen des Hauses.' } };
+      }
+
+      // Auto-grant scope access for restricted members
+      const haeuserIds = await getAccessibleHaeuserIds();
+      if (haeuserIds !== null) {
+        // User has restricted scope → add the new house to their override
+        const { error: scopeError } = await supabase.rpc('add_house_to_member_scope', {
+          p_house_id: newHouse.id,
+        });
+        if (scopeError) {
+          console.error('Failed to auto-grant scope for new house:', scopeError);
+        }
       }
     }
     revalidatePath("/haeuser");
+    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/wohnungen");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { ...(id && { house_id: id }), house_name: houseName });
     return { success: true };
-  } catch (e) {
-    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: (e as Error).message });
-    return { success: false, error: { message: (e as Error).message } };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "An unknown server error occurred";
+    logAction(actionName, 'error', { ...(id && { house_id: id }), house_name: houseName, error_message: errorMessage });
+    return { success: false, error: { message: errorMessage } };
   }
 }
 
-export async function deleteHouseAction(houseId: string): Promise<{ success: boolean; error?: { message: string } }> {
+/** `pruefsumme`: Prüfsumme der bestätigten Auswirkung auf Kautionen (siehe `deleteTenantAction`). */
+export async function deleteHouseAction(houseId: string, pruefsumme?: string | null): Promise<{ success: boolean; error?: { message: string } }> {
   const actionName = 'deleteHouse';
   logAction(actionName, 'start', { house_id: houseId });
 
   try {
-    const supabase = await createClient();
-    const { error } = await supabase
-      .from("Haeuser")
-      .delete()
-      .eq("id", houseId);
+    await ensureAuth();
 
-    if (error) {
-      logAction(actionName, 'error', { house_id: houseId, error_message: error.message });
-      return { success: false, error: { message: error.message } };
+    // Permission & scope checks
+    const { hasPermission } = await import("@/lib/permissions");
+    const { getAccessibleHaeuserIds } = await import("@/lib/object-scope");
+    
+    if (!(await hasPermission('haeuser', 'loeschen'))) {
+      return { success: false, error: { message: "Keine Berechtigung" } };
+    }
+    const haeuserIds = await getAccessibleHaeuserIds();
+    if (haeuserIds !== null && !haeuserIds.includes(houseId)) {
+      return { success: false, error: { message: "Zugriff auf dieses Haus verweigert." } };
+    }
+
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    try {
+      await softDeleteEntryAction("Haeuser", houseId, { pruefsumme });
+    } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logAction(actionName, 'error', { house_id: houseId, error_message: errMessage });
+      return { success: false, error: { message: errMessage } };
     }
 
     revalidatePath('/haeuser');
+    revalidatePath("/dashboard/betriebskosten");
+    revalidatePath("/wohnungen");
+    revalidatePath("/dashboard");
     logAction(actionName, 'success', { house_id: houseId });
     return { success: true };
 
@@ -106,17 +178,5 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   }
 }
 
-// Added imports for the new action
-import { fetchWasserzaehlerModalData, Mieter, Wasserzaehler } from "@/lib/data-fetching";
 
-export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
-  try {
-    const data = await fetchWasserzaehlerModalData(nebenkostenId);
-    return data;
-  } catch (error) {
-    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error);
-    // Return empty data on error, consistent with fetchWasserzaehlerModalData's own error handling for some cases.
-    return { mieterList: [], existingReadings: [] };
-  }
-}
 

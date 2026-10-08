@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ROUTES } from "@/lib/constants"
+import { NO_CACHE_HEADERS } from "@/lib/constants/http"
 
-export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
 
   // Check if user is authenticated
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   if (!clientId || !tenantId) {
     return NextResponse.json(
       { error: "Outlook OAuth configuration missing" },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     )
   }
 
