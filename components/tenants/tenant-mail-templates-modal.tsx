@@ -116,8 +116,16 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={handleTemplateClick}
-      className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-xs dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card"
+      onKeyDown={event => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          handleTemplateClick();
+        }
+      }}
+      className="border border-border rounded-lg p-4 hover:bg-muted/50 hover:border-border/80 hover:shadow-xs dark:hover:bg-muted/30 transition-all duration-200 cursor-pointer group bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between mb-3">
         <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors leading-tight">
