@@ -16,17 +16,19 @@ jest.mock('@/lib/stripe-server', () => ({
 // Mock Supabase
 const mockSingle = jest.fn();
 const mockSelect = jest.fn();
+const mockRpc = jest.fn();
 const mockSupabase = {
   from: jest.fn(() => ({
     select: mockSelect,
   })),
+  rpc: mockRpc,
   auth: {
     getUser: jest.fn(),
   },
 };
 
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(() => mockSupabase),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(() => mockSupabase),
 }));
 
 // Mock Stripe
@@ -66,6 +68,9 @@ describe('User Profile Actions', () => {
     });
 
     mockSingle.mockResolvedValue({ data: { id: 'user-1', stripe_customer_id: 'cus_123' }, error: null });
+
+    mockRpc.mockReset();
+    mockRpc.mockResolvedValue({ data: [{ dokumente_anzahl: 0, speicher_bytes: 0 }], error: null });
 
     // Default Stripe mocks
     mockStripeCustomersRetrieve.mockResolvedValue({
@@ -115,6 +120,114 @@ describe('User Profile Actions', () => {
         expect(result.currentWohnungenCount).toBe(5);
         expect(result.activePlan?.name).toBe('Pro Plan');
         expect(result.hasActiveSubscription).toBe(true);
+    });
+
+    it('should return the pre-computed storage statistics of the organisation', async () => {
+        mockSingle.mockResolvedValue({
+            data: { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'active' },
+            error: null
+        });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue({ name: 'Pro Plan', storageLimit: 1073741824 });
+        mockRpc.mockResolvedValue({
+            data: [{ dokumente_anzahl: 42, speicher_bytes: 5242880 }],
+            error: null
+        });
+
+        const result = await getUserProfileForSettings({ includeStorage: true });
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(mockRpc).toHaveBeenCalledWith('get_organisation_storage_stats');
+        expect(result.storage).toEqual({ usedBytes: 5242880, documentCount: 42 });
+        expect(result.storageLimit).toBe(1073741824);
+    });
+
+    it('should leave the storage values undefined if the statistics cannot be loaded', async () => {
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue(null);
+        mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc failed' } });
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const result = await getUserProfileForSettings({ includeStorage: true });
+        consoleSpy.mockRestore();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(result.storage).toBeUndefined();
+    });
+
+    it.each([
+        ['an inactive subscription', { id: 'user-1', stripe_subscription_status: 'inactive' }],
+        ['a past_due subscription', { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'past_due' }],
+    ])('should resolve storageLimit 0 (no storage) for %s', async (_label, profile) => {
+        mockSingle.mockResolvedValue({ data: profile, error: null });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+
+        const result = await getUserProfileForSettings();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(getPlanDetails).not.toHaveBeenCalled();
+        expect(result.storageLimit).toBe(0);
+    });
+
+    it('should keep a storage limit of 0 from the plan instead of treating it as unknown', async () => {
+        mockSingle.mockResolvedValue({
+            data: { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'active' },
+            error: null
+        });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue({ name: 'Basic', storageLimit: 0 });
+
+        const result = await getUserProfileForSettings();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(result.storageLimit).toBe(0);
+    });
+
+    it('should tolerate a null options argument from the client', async () => {
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue(null);
+
+        const result = await getUserProfileForSettings(null as any);
+
+        expect('error' in result).toBe(false);
+        expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('should not query the storage statistics unless requested', async () => {
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockResolvedValue(null);
+
+        const result = await getUserProfileForSettings();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(mockRpc).not.toHaveBeenCalled();
+        expect(result.storage).toBeUndefined();
+    });
+
+    it('should keep returning the profile if the plan lookup fails', async () => {
+        mockSingle.mockResolvedValue({
+            data: { id: 'user-1', stripe_price_id: 'price_123', stripe_subscription_status: 'active' },
+            error: null
+        });
+        (getCurrentWohnungenCount as jest.Mock).mockResolvedValue(1);
+        (getPlanDetails as jest.Mock).mockRejectedValue(new Error('stripe down'));
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const result = await getUserProfileForSettings({ includeStorage: true });
+        consoleSpy.mockRestore();
+
+        if ('error' in result) throw new Error(result.error);
+
+        expect(result.activePlan).toBeNull();
+        expect(result.hasActiveSubscription).toBe(false);
+        // A failed plan lookup means the limit is unknown, not "no storage included"
+        expect(result.storageLimit).toBeUndefined();
+        expect(result.storage).toEqual({ usedBytes: 0, documentCount: 0 });
     });
 
     it('should return error if not authenticated', async () => {

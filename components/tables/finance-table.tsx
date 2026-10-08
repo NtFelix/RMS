@@ -110,7 +110,7 @@ export function FinanceTable({
     if (observer.current) observer.current.disconnect()
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
-        loadFinances && loadFinances()
+        loadFinances?.()
       }
     })
     if (node) observer.current.observe(node)
