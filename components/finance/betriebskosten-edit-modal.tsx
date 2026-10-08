@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-import { normalizeBerechnungsart } from "@/utils/betriebskosten";
+import { normalizeBerechnungsart, isSameCostName, findDuplicateNachRechnungName } from "@/utils/betriebskosten";
 
 
 import {
@@ -31,11 +31,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X, CalendarClock, Banknote, Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus, FileInput, BookDashed, Droplets, Thermometer, Flame, Gauge, Zap, Fuel, X, CalendarClock, Banknote, Check, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -50,7 +52,7 @@ function ConfettiSideCannons() {
 import type { Mieter, Nebenkosten, RechnungSql } from "@/lib/types";
 import { ZAEHLER_CONFIG, ZaehlerTyp } from "@/lib/zaehler-types";
 import { convertZaehlerkostenToStrings } from "@/lib/zaehler-utils";
-import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "@/lib/constants";
+import { BerechnungsartValue, BERECHNUNGSART_OPTIONS, GERMAN_MONTHS } from "@/lib/constants";
 import { DEFAULT_COST_ITEMS } from "@/lib/constants/betriebskosten";
 import { generateId } from "@/lib/utils/generate-id";
 import {
@@ -70,7 +72,11 @@ import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import { CustomCombobox, type ComboboxOption } from "@/components/ui/custom-combobox";
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
+import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration, parseIsoYearMonth } from "@/utils/date-calculations";
+import { type Rechenbasis, RECHENBASIS_KALENDERTAGE, RECHENBASIS_360_TAGE, isValid360Period, get360PeriodEnd } from "@/utils/rechentage";
+
+// Kept in sync with the server-side check in app/betriebskosten-actions.ts (validateRechenbasis)
+const RECHENBASIS_360_ERROR = "Mit 360 Tagen muss der Abrechnungszeitraum aus 12 ganzen Monaten bestehen (vom 1. eines Monats bis zum Monatsletzten zwölf Monate später).";
 
 const SuccessStep = ({ data, onClose, onOverview }: { data: OptimizedNebenkosten | null, onClose: () => void, onOverview: () => void }) => {
   return (
@@ -94,7 +100,7 @@ const SuccessStep = ({ data, onClose, onOverview }: { data: OptimizedNebenkosten
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md pt-4">
-        <Button variant="outline" onClick={onClose} className="h-12 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all">
+        <Button variant="outline" onClick={onClose} className="h-12 rounded-2xl border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
           Schließen
         </Button>
         <Button onClick={onOverview} className="h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 border-none transition-all active:scale-[0.98]">
@@ -169,7 +175,7 @@ function MeterCostItem({
           placeholder="0,00"
           step="0.01"
           disabled={isSaving || isFormLoading}
-          className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-all font-medium text-lg"
+          className="h-11 pl-4 pr-10 rounded-2xl bg-white dark:bg-black/20 border-gray-200 dark:border-gray-800/80 focus:ring-primary/20 transition-[border-color,box-shadow] font-medium text-lg"
         />
         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">€</span>
       </div>
@@ -196,6 +202,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
   const [zaehlerkosten, setZaehlerkosten] = useState<Record<string, string>>({});
   const [hausId, setHausId] = useState("");
   const [vorauszahlungsArt, setVorauszahlungsArt] = useState<'soll' | 'ist'>('soll');
+  const [rechenbasis, setRechenbasis] = useState<Rechenbasis>(RECHENBASIS_KALENDERTAGE);
+  // Rechenbasis of the saved settlement being edited (null for a new entry): switching away from it changes the amounts
+  const [savedRechenbasis, setSavedRechenbasis] = useState<Rechenbasis | null>(null);
+  const show360Warning = savedRechenbasis !== null && rechenbasis !== savedRechenbasis;
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -536,22 +546,18 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           const newRechnungen: Record<string, RechnungEinzel[]> = {};
           const rechnungenFromApi = latest.Rechnungen || [];
 
-          // Create a map of cost item names to their new IDs for easier lookup
-          const costItemMap = new Map<string, string>();
-          items.forEach((item: CostItem) => {
-            costItemMap.set(item.art, item.id);
-          });
-
-          // Process all 'nach Rechnung' items from the latest entry
+          // Process all 'nach Rechnung' items from the latest entry.
+          // items[idx] is the new cost item for latest.nebenkostenart[idx], so map by index
+          // (mapping by name would collapse items that share a name).
           latest.berechnungsart?.forEach((berechnungsart: string, idx: number) => {
             if (berechnungsart === 'nach Rechnung') {
               const costItemArt = latest.nebenkostenart?.[idx];
-              const costItemId = costItemArt ? costItemMap.get(costItemArt) : null;
+              const costItemId = items[idx]?.id;
 
               if (costItemId && costItemArt) {
                 // Filter rechnungen for this cost item by name
                 const itemRechnungen = rechnungenFromApi
-                  .filter((r: RechnungSql) => r.name === costItemArt)
+                  .filter((r: RechnungSql) => isSameCostName(r.name, costItemArt))
                   .map((r: RechnungSql) => ({
                     mieterId: r.mieter_id,
                     betrag: r.betrag !== null ? r.betrag.toString() : ''
@@ -583,17 +589,11 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           // Ensure all 'nach Rechnung' items have entries in rechnungen
           items.forEach((item: CostItem) => {
             if (item.berechnungsart === 'nach Rechnung' && !newRechnungen[item.id] && currentTenants.length > 0) {
-              newRechnungen[item.id] = currentTenants.map(mieter => {
-                // Try to find existing value for this tenant in any cost item
-                const existing = Object.values(currentRechnungen)
-                  .flat()
-                  .find(r => r.mieterId === mieter.id && r.betrag && r.betrag.trim() !== '');
-
-                return {
-                  mieterId: mieter.id,
-                  betrag: existing ? existing.betrag : ''
-                };
-              });
+              // Don't borrow amounts from other cost items; start empty
+              newRechnungen[item.id] = currentTenants.map(mieter => ({
+                mieterId: mieter.id,
+                betrag: ''
+              }));
             }
           });
 
@@ -681,6 +681,8 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       }
       setZaehlerkosten({});
       setVorauszahlungsArt('soll');
+      setRechenbasis(RECHENBASIS_KALENDERTAGE);
+      setSavedRechenbasis(null);
       const initialHausId = forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "";
       setHausId(initialHausId);
       setCurrentStep(1);
@@ -731,6 +733,9 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
               setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               setVorauszahlungsArt(fetchedData.vorauszahlungs_art === 'ist' ? 'ist' : 'soll');
+              const loadedRechenbasis = fetchedData.rechenbasis === RECHENBASIS_360_TAGE ? RECHENBASIS_360_TAGE : RECHENBASIS_KALENDERTAGE;
+              setRechenbasis(loadedRechenbasis);
+              setSavedRechenbasis(loadedRechenbasis);
               // Load zaehlerkosten
               if (fetchedData.zaehlerkosten) {
                 setZaehlerkosten(convertZaehlerkostenToStrings(fetchedData.zaehlerkosten));
@@ -816,18 +821,15 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       currentCostItems.forEach(costItem => {
         if (costItem.berechnungsart === 'nach Rechnung') {
           newRechnungenState[costItem.id] = currentTenants.map(tenant => {
-            const dbRechnungForTenant = dbRechnungenSource?.find(
-              dbR => dbR.mieter_id === tenant.id && dbR.name === costItem.art
-            );
             const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
-
-            let betragToSet = '';
-            if (dbRechnungForTenant) {
-              betragToSet = dbRechnungForTenant.betrag.toString();
-            } else if (existingEntryInState) {
-              betragToSet = existingEntryInState.betrag;
+            // Keep what is already in state (it may hold the user's edits); seed from the DB only once
+            if (existingEntryInState) {
+              return { mieterId: tenant.id, betrag: existingEntryInState.betrag };
             }
-            return { mieterId: tenant.id, betrag: betragToSet };
+            const dbRechnungForTenant = dbRechnungenSource?.find(
+              dbR => dbR.mieter_id === tenant.id && isSameCostName(dbR.name, costItem.art)
+            );
+            return { mieterId: tenant.id, betrag: dbRechnungForTenant?.betrag?.toString() ?? '' };
           });
         }
       });
@@ -854,6 +856,10 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
           description: validation.errors.range || "Bitte überprüfen Sie den Abrechnungszeitraum.",
           variant: "destructive"
         });
+        return;
+      }
+      if (rechenbasis === RECHENBASIS_360_TAGE && !isValid360Period(germanToIsoDate(startdatum), germanToIsoDate(enddatum))) {
+        toast({ title: "Ungültiger Zeitraum", description: RECHENBASIS_360_ERROR, variant: "destructive" });
         return;
       }
       setCurrentStep(2);
@@ -887,6 +893,12 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
     if (!startdatum || !enddatum || !hausId) {
       toast({ title: "Fehlende Eingaben", description: "Startdatum, Enddatum und Haus sind Pflichtfelder.", variant: "destructive" });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
+    }
+
+    if (rechenbasis === RECHENBASIS_360_TAGE && !isValid360Period(germanToIsoDate(startdatum), germanToIsoDate(enddatum))) {
+      toast({ title: "Ungültiger Zeitraum", description: RECHENBASIS_360_ERROR, variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
@@ -952,6 +964,14 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       berechnungsartArray.push(berechnungsart);
     }
 
+    // Einzelrechnungen are matched to their cost item by name, so 'nach Rechnung' names must be unique
+    const duplicateName = findDuplicateNachRechnungName(nebenkostenartArray, berechnungsartArray);
+    if (duplicateName) {
+      toast({ title: "Validierungsfehler", description: `Die Kostenart "${duplicateName}" ist mehrfach mit "nach Rechnung" angelegt. Bitte vergeben Sie eindeutige Namen.`, variant: "destructive" });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
+    }
+
     // Convert German dates to ISO format for database
     const startIso = germanToIsoDate(startdatum.trim());
     const endIso = germanToIsoDate(enddatum.trim());
@@ -971,6 +991,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
       zaehlerkosten: Object.keys(parsedZaehlerkosten).length > 0 ? parsedZaehlerkosten : null,
       haeuser_id: hausId,
       vorauszahlungs_art: vorauszahlungsArt,
+      rechenbasis,
     };
 
     let response;
@@ -1001,7 +1022,7 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                   nebenkosten_id: nebenkosten_id,
                   mieter_id: rechnungEinzel.mieterId,
                   betrag: parsedAmount,
-                  name: item.art,
+                  name: item.art.trim(),
                 });
               }
             });
@@ -1088,6 +1109,46 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
 
   const handleEnddatumChange = (date: string) => {
     setEnddatum(date);
+    setBetriebskostenModalDirty(true);
+  };
+
+  // Month (1-12) and year the 360-day period currently starts in, derived from startdatum so the
+  // steppers always reflect what's actually selected
+  const parsed360Start = useMemo(() => {
+    const parsed = parseIsoYearMonth(germanToIsoDate(startdatum));
+    if (parsed) return parsed;
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  }, [startdatum]);
+
+  // Sets the 360-day period to the 12-month window starting on the 1st of the given month
+  const applyRechenbasisPeriod = (month: number, year: number) => {
+    const startIso = `${year}-${String(month).padStart(2, '0')}-01`;
+    setStartdatum(isoToGermanDate(startIso));
+    setEnddatum(isoToGermanDate(get360PeriodEnd(startIso)));
+    setBetriebskostenModalDirty(true);
+  };
+
+  const handleStartMonthStep = (direction: 1 | -1) => {
+    let { month, year } = parsed360Start;
+    month += direction;
+    if (month > 12) { month = 1; year += 1; }
+    else if (month < 1) { month = 12; year -= 1; }
+    applyRechenbasisPeriod(month, year);
+  };
+
+  const handleStartYearStep = (direction: 1 | -1) => {
+    const { month, year } = parsed360Start;
+    applyRechenbasisPeriod(month, year + direction);
+  };
+
+  const handleRechenbasisChange = (checked: boolean) => {
+    if (checked) {
+      applyRechenbasisPeriod(parsed360Start.month, parsed360Start.year);
+      setRechenbasis(RECHENBASIS_360_TAGE);
+    } else {
+      setRechenbasis(RECHENBASIS_KALENDERTAGE);
+    }
     setBetriebskostenModalDirty(true);
   };
 
@@ -1265,58 +1326,153 @@ export function BetriebskostenEditModal({ }: BetriebskostenEditModalPropsRefacto
                                 endDate={enddatum}
                                 onStartDateChange={handleStartdatumChange}
                                 onEndDateChange={handleEnddatumChange}
-                                disabled={isSaving || isFormLoading}
+                                disabled={isSaving || isFormLoading || rechenbasis === RECHENBASIS_360_TAGE}
                                 showPeriodInfo={false}
                               />
 
-                              <div className="grid grid-cols-2 gap-3">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-11 w-full rounded-2xl border-gray-200/60 dark:border-gray-800/60 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm"
-                                  onClick={() => {
-                                    const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
-                                    const newYear = currentStartYear - 1;
-                                    setStartdatum(`01.01.${newYear}`);
-                                    setEnddatum(`31.12.${newYear}`);
-                                    setBetriebskostenModalDirty(true);
-                                  }}
-                                  disabled={isSaving || isFormLoading}
-                                >
-                                  <CalendarMinus className="w-4 h-4 mr-2 text-muted-foreground" />
-                                  <span className="font-medium">-1 Jahr</span>
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-11 w-full rounded-2xl border-gray-200/60 dark:border-gray-800/60 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm"
-                                  onClick={() => {
-                                    const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
-                                    const newYear = currentStartYear + 1;
-                                    setStartdatum(`01.01.${newYear}`);
-                                    setEnddatum(`31.12.${newYear}`);
-                                    setBetriebskostenModalDirty(true);
-                                  }}
-                                  disabled={isSaving || isFormLoading}
-                                >
-                                  <CalendarPlus className="w-4 h-4 mr-2 text-primary" />
-                                  <span className="font-medium">+1 Jahr</span>
-                                </Button>
-                              </div>
-
-                              {(() => {
-                                const validation = validateDateRange(startdatum, enddatum);
-                                return validation.isValid && validation.periodDays && (
-                                  <div className="text-sm text-blue-700 dark:text-blue-300 p-0 rounded-none animate-in fade-in slide-in-from-top-1 duration-300">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                      <span className="font-medium">Abrechnungszeitraum:</span> {formatPeriodDuration(startdatum, enddatum)}
+                              {rechenbasis === RECHENBASIS_360_TAGE ? (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between p-3 rounded-2xl border border-gray-200/60 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/10">
+                                    <span className="text-sm font-medium text-muted-foreground">Startmonat</span>
+                                    <div className="flex items-center gap-3">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full"
+                                        onClick={() => handleStartMonthStep(-1)}
+                                        disabled={isSaving || isFormLoading}
+                                        aria-label="Vorheriger Monat"
+                                      >
+                                        <ArrowLeft className="w-4 h-4" />
+                                      </Button>
+                                      <span className="font-semibold w-24 text-center">{GERMAN_MONTHS[parsed360Start.month - 1]}</span>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full"
+                                        onClick={() => handleStartMonthStep(1)}
+                                        disabled={isSaving || isFormLoading}
+                                        aria-label="Nächster Monat"
+                                      >
+                                        <ArrowRight className="w-4 h-4" />
+                                      </Button>
                                     </div>
                                   </div>
-                                );
-                              })()}
+                                  <div className="flex items-center justify-between p-3 rounded-2xl border border-gray-200/60 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/10">
+                                    <span className="text-sm font-medium text-muted-foreground">Startjahr</span>
+                                    <div className="flex items-center gap-3">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full"
+                                        onClick={() => handleStartYearStep(-1)}
+                                        disabled={isSaving || isFormLoading}
+                                        aria-label="Vorheriges Jahr"
+                                      >
+                                        <ArrowLeft className="w-4 h-4" />
+                                      </Button>
+                                      <span className="font-semibold w-24 text-center">{parsed360Start.year}</span>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full"
+                                        onClick={() => handleStartYearStep(1)}
+                                        disabled={isSaving || isFormLoading}
+                                        aria-label="Nächstes Jahr"
+                                      >
+                                        <ArrowRight className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground px-1">
+                                    bis {enddatum || '-'}
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-11 w-full rounded-2xl border-gray-200/60 dark:border-gray-800/60 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm"
+                                      onClick={() => {
+                                        const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                                        const newYear = currentStartYear - 1;
+                                        setStartdatum(`01.01.${newYear}`);
+                                        setEnddatum(`31.12.${newYear}`);
+                                        setBetriebskostenModalDirty(true);
+                                      }}
+                                      disabled={isSaving || isFormLoading}
+                                    >
+                                      <CalendarMinus className="w-4 h-4 mr-2 text-muted-foreground" />
+                                      <span className="font-medium">-1 Jahr</span>
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-11 w-full rounded-2xl border-gray-200/60 dark:border-gray-800/60 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm"
+                                      onClick={() => {
+                                        const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                                        const newYear = currentStartYear + 1;
+                                        setStartdatum(`01.01.${newYear}`);
+                                        setEnddatum(`31.12.${newYear}`);
+                                        setBetriebskostenModalDirty(true);
+                                      }}
+                                      disabled={isSaving || isFormLoading}
+                                    >
+                                      <CalendarPlus className="w-4 h-4 mr-2 text-primary" />
+                                      <span className="font-medium">+1 Jahr</span>
+                                    </Button>
+                                  </div>
+
+                                  {(() => {
+                                    const validation = validateDateRange(startdatum, enddatum);
+                                    return validation.isValid && validation.periodDays && (
+                                      <div className="text-sm text-blue-700 dark:text-blue-300 p-0 rounded-none animate-in fade-in slide-in-from-top-1 duration-300">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                          <span className="font-medium">Abrechnungszeitraum:</span> {formatPeriodDuration(startdatum, enddatum)}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </>
+                              )}
+
+                              {/* 360-Tage-Rechenbasis */}
+                              <div className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-800/60 bg-white dark:bg-white/5">
+                                <div className="space-y-1 pr-2">
+                                  <Label htmlFor="formRechenbasis360" className="text-sm font-semibold tracking-tight cursor-pointer">
+                                    Mit 360 Tagen rechnen
+                                  </Label>
+                                  <p className="text-xs text-muted-foreground leading-snug">
+                                    30-Tage-Monate, Zeitraum aus 12 ganzen Monaten, Ein- und Auszug werden auf Monatsanfang, -mitte oder -ende gerundet. Wasserkosten bleiben tagesgenau.
+                                  </p>
+                                </div>
+                                <Switch
+                                  id="formRechenbasis360"
+                                  checked={rechenbasis === RECHENBASIS_360_TAGE}
+                                  onCheckedChange={handleRechenbasisChange}
+                                  disabled={isSaving || isFormLoading}
+                                />
+                              </div>
+
+                              {show360Warning && (
+                                <Alert variant="destructive" className="rounded-xl">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  <AlertDescription>
+                                    {rechenbasis === RECHENBASIS_360_TAGE
+                                      ? "Achtung: Mit der 360-Tage-Rechenbasis ändern sich die Beträge dieser Abrechnung. Gerechnet wird mit 30-Tage-Monaten über 12 ganze Monate."
+                                      : "Achtung: Ohne die 360-Tage-Rechenbasis ändern sich die Beträge dieser Abrechnung. Gerechnet wird wieder tagesgenau."}
+                                  </AlertDescription>
+                                </Alert>
+                              )}
                             </div>
                           )}
                         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useReducer } from "react";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveButtonWithTooltip } from "@/components/ui/responsive-button";
 import { ResponsiveFilterButton } from "@/components/ui/responsive-filter-button";
@@ -11,6 +12,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatCard } from "@/components/common/stat-card";
 import { HouseTable, House } from "@/components/tables/house-table";
+import { formatPlzOrt } from "@/lib/address";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
@@ -18,6 +20,9 @@ import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
 import { HousesDonutChart } from "@/components/dashboard/dashboard-charts";
 import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 
 const safeParseFloat = (val: unknown): number => {
   if (typeof val === "number") return val;
@@ -80,37 +85,19 @@ function bulkReducer(state: BulkState, action: BulkAction): BulkState {
   }
 }
 
-function TabButton({ tab, icon: Icon, label, isActive, onTabChange }: {
-  tab: Tab;
-  icon: typeof BarChart3;
-  label: string;
-  isActive: boolean;
-  onTabChange: (tab: Tab) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onTabChange(tab)}
-      className={cn(
-        "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-        isActive ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-      )}
-    >
-      {isActive && (
-        <div className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10" />
-      )}
-      <Icon className="size-4 shrink-0 transition-transform duration-300" />
-      <span>{label}</span>
-    </button>
-  );
-}
+const HOUSE_TABS = [
+  { value: "houses" as Tab, label: "Häuser", icon: Building2 },
+  { value: "overview" as Tab, label: "Übersicht", icon: BarChart3 },
+];
 
 function TabToggle({ currentTab, onTabChange }: { currentTab: Tab; onTabChange: (tab: Tab) => void }) {
   return (
-    <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-      <TabButton tab="houses" icon={Building2} label="Häuser" isActive={currentTab === "houses"} onTabChange={onTabChange} />
-      <TabButton tab="overview" icon={BarChart3} label="Übersicht" isActive={currentTab === "overview"} onTabChange={onTabChange} />
-    </div>
+    <AnimatedPillToggle
+      tabs={HOUSE_TABS}
+      activeTab={currentTab}
+      onTabChange={onTabChange}
+      layoutId="active-haeuser-tab-pill"
+    />
   );
 }
 
@@ -458,10 +445,10 @@ function PropertyDistributionCard({ enrichedHaeuser, summary }: { enrichedHaeuse
                     <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 block group-hover:text-accent transition-colors duration-200">
                       {h.name}
                     </span>
-                    {h.ort && (
+                    {formatPlzOrt(h.plz, h.ort) && (
                       <span className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
                         <MapPin className="size-3 shrink-0 text-muted-foreground/70" />
-                        {h.ort}
+                        {formatPlzOrt(h.plz, h.ort)}
                       </span>
                     )}
                   </div>
@@ -678,9 +665,11 @@ function EfficiencyCard({ efficiencyMetrics }: { efficiencyMetrics: {
   );
 }
 
+const VALID_HAEUSER_TABS = ["houses", "overview"] as const;
+
 export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, canEdit = true, canDelete = true }: HaeuserClientViewProps) {
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useState<Tab>("houses");
+  const [currentTab, setCurrentTab] = useTabParams<Tab>("houses", VALID_HAEUSER_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [{ selectedHouses, showBulkDeleteConfirm, isBulkDeleting }, dispatchBulk] = useReducer(bulkReducer, {
@@ -801,7 +790,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           size: sizeNum,
           rentPerSqm,
           percentageOfTarget: Math.min(Math.round((rentPerSqm / TARGET_SQM_RENT) * 100), 100),
-          ort: h.ort,
+          ort: formatPlzOrt(h.plz, h.ort),
           totalApartments: h.totalApartments || 0,
           freeApartments: h.freeApartments || 0
         });
@@ -848,7 +837,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     const csvRows = selectedHousesData.map(h => {
       const row = [
         h.name,
-        h.ort || '',
+        formatPlzOrt(h.plz, h.ort),
         h.size || '',
         h.rent || '',
         h.pricePerSqm || '',
@@ -872,7 +861,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     })
   }, [selectedHouses, enrichedHaeuser, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async () => {
+  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
     if (selectedHouses.size === 0) {
       toast({
         title: "Keine Auswahl",
@@ -889,7 +878,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
       const response = await fetch('/api/haeuser/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
       });
 
       if (!response.ok) {
@@ -897,11 +886,12 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
         throw new Error(errorData.error || 'Fehler beim Löschen der Häuser.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution im Haus): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
 
       toast({
         title: "Erfolg",
-        description: `${successCount} Häuser erfolgreich gelöscht.`,
+        description: `${successCount} Häuser erfolgreich gelöscht${formatBulkDeleteSuffix(selectedIds.length - successCount, reasons)}`,
         variant: "success",
       });
 
@@ -919,6 +909,15 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
     }
   }, [selectedHouses, router, refreshTable]);
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  // Abbruch der Übersicht löscht nichts und lässt die Auswahl erhalten.
+  const handleBulkDeleteClick = useCallback(() => {
+    void starteLoeschenMitKautionen("Haeuser", Array.from(selectedHouses), {
+      einfach: () => dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: true }),
+      loeschen: handleBulkDelete,
+    });
+  }, [selectedHouses, handleBulkDelete]);
+
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
       <TabToggle currentTab={currentTab} onTabChange={setCurrentTab} />
@@ -935,7 +934,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           onSelectionChange={(selected) => dispatchBulk({ type: "SET_SELECTED", payload: selected })}
           onClearSelection={() => dispatchBulk({ type: "SET_SELECTED", payload: new Set() })}
           onBulkExport={handleBulkExport}
-          onBulkDeleteClick={() => dispatchBulk({ type: "TOGGLE_BULK_DELETE_CONFIRM", payload: true })}
+          onBulkDeleteClick={handleBulkDeleteClick}
           flags={{ isBulkDeleting, canCreate, canEdit, canDelete }}
           onAdd={handleAdd}
           onEdit={handleEdit}
@@ -961,7 +960,7 @@ export default function HaeuserClientView({ enrichedHaeuser, canCreate = true, c
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleBulkDelete()} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
               {isBulkDeleting ? "Lösche..." : `${selectedHouses.size} Häuser löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>

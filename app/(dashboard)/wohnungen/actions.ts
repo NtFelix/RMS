@@ -308,7 +308,8 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
 /**
  * Server Action zum Löschen einer Wohnung
  */
-export async function loescheWohnung(id: string) {
+/** `pruefsumme`: Prüfsumme der bestätigten Auswirkung auf Kautionen (siehe `deleteTenantAction`). */
+export async function loescheWohnung(id: string, pruefsumme?: string | null) {
   const actionName = 'deleteApartment';
   let user, supabase;
   try {
@@ -341,13 +342,12 @@ export async function loescheWohnung(id: string) {
   }
 
   try {
-    const { error } = await supabase.from('Wohnungen')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      logAction(actionName, 'error', { apartment_id: id, error_message: error.message });
-      return { error: error.message };
+    const { softDeleteEntryAction } = await import("@/lib/papierkorb/utils");
+    try {
+      await softDeleteEntryAction("Wohnungen", id, { pruefsumme });
+    } catch (err: any) {
+      logAction(actionName, 'error', { apartment_id: id, error_message: err.message });
+      return { error: err.message };
     }
 
     // Cache für die Wohnungen-Seite invalidieren
