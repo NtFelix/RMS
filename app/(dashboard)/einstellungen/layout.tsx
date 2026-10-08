@@ -1,44 +1,35 @@
-"use client"
+import type { Metadata } from "next";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { isOrgAdminOrOwner, hasPermission } from "@/lib/permissions";
+import { SettingsLayoutClient } from "./settings-layout-client";
+import { privateNoindexMetadata } from "@/lib/seo";
 
-import { useMemo } from "react"
-import { SettingsSidebar } from "@/components/settings/sidebar"
-import type { Tab } from "@/types/settings"
-import {
-  User as UserIcon,
-  Lock,
-  CreditCard,
-  DownloadCloud,
-  Info,
-  Monitor,
-  FlaskConical,
-  Mail,
-} from "lucide-react"
-import { useFeatureFlagEnabled } from "posthog-js/react"
-import { POSTHOG_FEATURE_FLAGS } from "@/lib/constants"
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
 
-export default function EinstellungenLayout({ children }: { children: React.ReactNode }) {
-  const mailsEnabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MAILS_TAB)
+export const metadata: Metadata = privateNoindexMetadata;
 
-  const tabs = useMemo<Omit<Tab, "content">[]>(
-    () => [
-      { value: "profil", label: "Profil", icon: UserIcon },
-      { value: "sicherheit", label: "Sicherheit", icon: Lock },
-      { value: "abo", label: "Abo", icon: CreditCard },
-      ...(mailsEnabled ? [{ value: "mail", label: "E-Mail", icon: Mail }] : []),
-      { value: "darstellung", label: "Darstellung", icon: Monitor },
-      { value: "datenexport", label: "Datenexport", icon: DownloadCloud },
-      { value: "vorschau", label: "Vorschau", icon: FlaskConical },
-      { value: "mietevo", label: "Mietevo", icon: Info },
-    ],
-    [mailsEnabled],
-  )
+export default async function EinstellungenLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createSupabaseServerClient();
+  const [{ data: orgData }, isAdminOrOwner, canManagePermission] = await Promise.all([
+    supabase
+      .from("Organisation")
+      .select("api_zugriff_aktiviert")
+      .single(),
+    isOrgAdminOrOwner(),
+    hasPermission("organisation", "verwalten"),
+  ]);
+
+  const apiZugriffAktiviert = orgData?.api_zugriff_aktiviert ?? false;
+  const canManageOrg = isAdminOrOwner || canManagePermission;
 
   return (
-    <div className="flex h-full gap-3 p-4">
-      <SettingsSidebar tabs={tabs} />
-      <div className="flex-1 overflow-y-auto min-w-0 p-4">
-        {children}
-      </div>
-    </div>
-  )
+    <SettingsLayoutClient
+      apiZugriffAktiviert={apiZugriffAktiviert}
+      canManageOrg={canManageOrg}
+    >
+      {children}
+    </SettingsLayoutClient>
+  );
 }

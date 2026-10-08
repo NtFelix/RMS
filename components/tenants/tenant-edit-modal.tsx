@@ -56,6 +56,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
 
 interface Mieter extends Tenant {}
 
@@ -149,7 +150,7 @@ function TopBar({
   onDeleteRequest: () => void
   actions: { key: string; onClick: () => void }[]
 }) {
-  if (!tenantInitialData) return null
+  if (!tenantInitialData?.id) return null
 
   return (
     <div className="absolute top-0 left-0 right-0 h-14 flex items-center justify-end px-4 z-10 pointer-events-none">
@@ -192,20 +193,22 @@ function DeleteTenantDialog({
   tenantName,
   isDeleting,
   onDelete,
+  isApplicant = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   tenantName: string
   isDeleting: boolean
   onDelete: () => void
+  isApplicant?: boolean
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Mieter löschen?</AlertDialogTitle>
+          <AlertDialogTitle>{isApplicant ? "Bewerber löschen?" : "Mieter löschen?"}</AlertDialogTitle>
           <AlertDialogDescription>
-            Möchten Sie den Mieter &ldquo;{tenantName}&rdquo; wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            Möchten Sie {isApplicant ? "den Bewerber" : "den Mieter"} &ldquo;{tenantName}&rdquo; wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -458,7 +461,9 @@ function FormFields({
         </div>
         <div className="space-y-1">
           <SheetTitle className="sr-only">
-            {tenantInitialData ? "Mieter bearbeiten" : "Mieter hinzufügen"}
+            {tenantInitialData?.id
+              ? (isApplicant ? "Bewerber bearbeiten" : "Mieter bearbeiten")
+              : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
           </SheetTitle>
           <input
             type="text"
@@ -466,15 +471,19 @@ function FormFields({
             name="name"
             value={formData.name}
             onChange={onFieldChange}
-            placeholder={tenantInitialData ? "Unbenannter Mieter" : "Mieter hinzufügen"}
+            placeholder={tenantInitialData?.id
+              ? (isApplicant ? "Unbenannter Bewerber" : "Unbenannter Mieter")
+              : (isApplicant ? "Bewerber hinzufügen" : "Mieter hinzufügen")}
             disabled={isSubmitting}
-            aria-label={tenantInitialData ? "Name des Mieters" : "Name des neuen Mieters"}
+            aria-label={tenantInitialData?.id
+              ? (isApplicant ? "Name des Bewerbers" : "Name des Mieters")
+              : (isApplicant ? "Name des neuen Bewerbers" : "Name des neuen Mieters")}
             className="text-2xl sm:text-4xl font-bold tracking-tight w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 p-0 text-foreground placeholder:opacity-30 placeholder:text-muted-foreground/50 cursor-text"
           />
           <SheetDescription className="text-sm sm:text-base text-muted-foreground/80">
-            {tenantInitialData
-              ? "Bearbeiten Sie die Informationen für diesen Mieter."
-              : "Legen Sie einen neuen Mieter in Ihrer Verwaltung an."}
+            {tenantInitialData?.id
+              ? (isApplicant ? "Bearbeiten Sie die Informationen für diesen Bewerber." : "Bearbeiten Sie die Informationen für diesen Mieter.")
+              : (isApplicant ? "Legen Sie einen neuen Bewerber in Ihrer Verwaltung an." : "Legen Sie einen neuen Mieter in Ihrer Verwaltung an.")}
           </SheetDescription>
         </div>
       </div>
@@ -491,7 +500,7 @@ function FormFields({
                 icon={Building2}
                 label="Wohnung"
                 htmlFor="wohnung_id"
-                infoText="Wählen Sie die Wohnung aus, die der Mieter bewohnt."
+                infoText={isApplicant ? "Wählen Sie die Wohnung aus, die der Bewerber beziehen möchte." : "Wählen Sie die Wohnung aus, die der Mieter bewohnt."}
               />
               <div className="relative">
                 <CustomCombobox
@@ -530,7 +539,7 @@ function FormFields({
                 icon={FileText}
                 label="Notiz"
                 htmlFor="notiz"
-                infoText="Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen."
+                infoText={isApplicant ? "Hier können Sie zusätzliche Informationen oder Anmerkungen zum Bewerber erfassen." : "Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen."}
               />
               <div className="relative">
                 <Textarea
@@ -586,10 +595,12 @@ function FormActions({
   isSubmitting,
   onCancel,
   tenantInitialData,
+  isApplicant = false,
 }: {
   isSubmitting: boolean
   onCancel: () => void
   tenantInitialData: Tenant | null
+  isApplicant?: boolean
 }) {
   return (
     <SheetFooter className="px-4 pb-8 pt-2 sm:p-8 sm:pb-14 sm:pt-4">
@@ -616,7 +627,7 @@ function FormActions({
               </svg>
               Wird gespeichert...
             </span>
-          ) : (tenantInitialData ? "Änderungen speichern" : "Mieter anlegen")}
+          ) : (tenantInitialData?.id ? "Änderungen speichern" : (isApplicant ? "Bewerber anlegen" : "Mieter anlegen"))}
         </Button>
       </div>
     </SheetFooter>
@@ -756,6 +767,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     isTenantModalDirty,
     setTenantModalDirty,
     openKautionModal,
+    canViewKautionen,
     openTenantMailTemplatesModal,
     openApplicantScoreModal,
   } = useModalStore()
@@ -787,7 +799,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       })
 
       if (tenantInitialData?.nebenkosten) {
-        setNebenkostenEntries(getSortedNebenkostenEntries(tenantInitialData.nebenkosten))
+        const mappedNebenkosten = tenantInitialData.nebenkosten.map((entry: any) => ({
+          ...entry,
+          amount: entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : "",
+          date: entry.date || ""
+        }))
+        setNebenkostenEntries(getSortedNebenkostenEntries(mappedNebenkosten))
       } else {
         setNebenkostenEntries([{ id: generateId(), amount: "", date: "" }])
       }
@@ -810,12 +827,15 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
   const validateNebenkostenEntry = (entry: NebenkostenEntry): { amount?: string; date?: string } => {
     const errors: { amount?: string; date?: string } = {}
-    const amountValue = entry.amount.trim() === "" ? NaN : parseFloat(entry.amount)
-    if (entry.amount.trim() !== "") {
+    const amountStr = entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : ""
+    const dateStr = entry.date !== null && entry.date !== undefined ? String(entry.date) : ""
+    
+    const amountValue = amountStr.trim() === "" ? NaN : parseFloat(amountStr)
+    if (amountStr.trim() !== "") {
       if (isNaN(amountValue)) errors.amount = "Ungültiger Betrag."
       else if (amountValue <= 0) errors.amount = "Betrag muss positiv sein."
     }
-    if (entry.amount.trim() !== "" && entry.date.trim() === "") {
+    if (amountStr.trim() !== "" && dateStr.trim() === "") {
       errors.date = "Datum ist erforderlich, wenn ein Betrag vorhanden ist."
     }
     return errors
@@ -905,16 +925,16 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const isPending = isSubmitting || isDeleting
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     if (!tenantInitialData || isPending) return
     try {
       setIsDeleting(true)
-      const result = await deleteTenantAction(tenantInitialData.id)
+      const result = await deleteTenantAction(tenantInitialData.id, pruefsummen[tenantInitialData.id])
 
       if (result.success) {
         toast({
           title: "Erfolg",
-          description: `Der Mieter "${tenantInitialData.name}" wurde erfolgreich gelöscht.`,
+          description: `${isApplicant ? "Der Bewerber" : "Der Mieter"} "${tenantInitialData.name}" wurde erfolgreich gelöscht.`,
           variant: "success",
         })
         setTenantModalDirty(false)
@@ -923,12 +943,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       } else {
         toast({
           title: "Fehler",
-          description: result.error?.message || "Der Mieter konnte nicht gelöscht werden.",
+          description: result.error?.message || (isApplicant ? "Der Bewerber konnte nicht gelöscht werden." : "Der Mieter konnte nicht gelöscht werden."),
           variant: "destructive",
         })
       }
     } catch (error) {
-      console.error("Unerwarteter Fehler beim Löschen des Mieters:", error)
+      console.error(`Unerwarteter Fehler beim Löschen ${isApplicant ? "des Bewerbers" : "des Mieters"}:`, error)
       toast({
         title: "Systemfehler",
         description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
@@ -940,6 +960,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
     }
   }
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () => {
+    if (!tenantInitialData || isPending) return
+    void starteLoeschenMitKautionen("Mieter", [tenantInitialData.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isPending) return
@@ -949,7 +975,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
     if (!isApplicant) {
       for (const entry of nebenkostenEntries) {
-        if (entry.amount.trim() === "" && entry.date.trim() === "") {
+        const amountStr = entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : ""
+        const dateStr = entry.date !== null && entry.date !== undefined ? String(entry.date) : ""
+
+        if (amountStr.trim() === "" && dateStr.trim() === "") {
           if (nebenkostenValidationErrors[entry.id]) {
             setNebenkostenValidationErrors(prev => {
               const newErrors = { ...prev }; delete newErrors[entry.id]; return newErrors
@@ -976,7 +1005,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
       const currentFormData = new FormData(e.currentTarget as HTMLFormElement)
 
       if (!isApplicant) {
-        const finalNebenkostenEntries = nebenkostenEntries.filter(entry => entry.amount.trim() !== "")
+        const finalNebenkostenEntries = nebenkostenEntries.filter(entry => {
+          const amountStr = entry.amount !== null && entry.amount !== undefined ? String(entry.amount) : ""
+          return amountStr.trim() !== ""
+        })
         currentFormData.set('nebenkosten', JSON.stringify(finalNebenkostenEntries))
       } else {
         currentFormData.set('nebenkosten', JSON.stringify([]))
@@ -996,8 +1028,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
       if (result.success) {
         toast({
-          title: tenantInitialData?.id ? "Mieter aktualisiert" : "Mieter erstellt",
-          description: `Die Daten des Mieters "${tenantNameForToast}" wurden erfolgreich ${tenantInitialData?.id ? "aktualisiert" : "erstellt"}.`,
+          title: tenantInitialData?.id
+            ? (isApplicant ? "Bewerber aktualisiert" : "Mieter aktualisiert")
+            : (isApplicant ? "Bewerber erstellt" : "Mieter erstellt"),
+          description: `Die Daten ${isApplicant ? "des Bewerbers" : "des Mieters"} "${tenantNameForToast}" wurden erfolgreich ${tenantInitialData?.id ? "aktualisiert" : "erstellt"}.`,
           variant: "success",
         })
         setTenantModalDirty(false)
@@ -1042,12 +1076,12 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
 
         <TopBar
           tenantInitialData={tenantInitialData}
-          onDeleteRequest={() => setDeleteDialogOpen(true)}
-          actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled }).flatMap((action) => {
+          onDeleteRequest={handleDeleteStart}
+          actions={tenantInitialData ? getVisibleActions(tenantInitialData, { templatesEnabled: !!templatesEnabled, canViewKautionen }).flatMap((action) => {
             const handlerMap: Record<string, (() => void) | undefined> = {
+              // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction): nur der Mieter wird übergeben.
               kaution: () => openKautionModal(
-                { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id },
-                tenantInitialData.kaution
+                { id: tenantInitialData.id, name: tenantInitialData.name, wohnung_id: tenantInitialData.wohnung_id }
               ),
               vorlagen: () => openTenantMailTemplatesModal(tenantInitialData.name, tenantInitialData.email || undefined),
               datenblatt: () => openApplicantScoreModal({
@@ -1091,6 +1125,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
             isSubmitting={isSubmitting}
             onCancel={handleCancelClick}
             tenantInitialData={tenantInitialData}
+            isApplicant={isApplicant}
           />
         </form>
 
@@ -1099,7 +1134,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           onOpenChange={setDeleteDialogOpen}
           tenantName={tenantInitialData?.name || formData.name}
           isDeleting={isDeleting}
-          onDelete={handleDelete}
+          onDelete={() => handleDelete()}
+          isApplicant={isApplicant}
         />
       </SheetContent>
     </Sheet>

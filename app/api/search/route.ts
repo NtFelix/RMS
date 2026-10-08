@@ -1,8 +1,9 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
+import { formatPlzOrt } from "@/lib/address";
 import type {
   SearchResponse,
   SearchResult as FrontendSearchResult
@@ -172,7 +173,7 @@ export async function GET(request: Request) {
       }, { status: 400, headers: NO_CACHE_HEADERS });
     }
     
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401, headers: NO_CACHE_HEADERS });
@@ -201,7 +202,7 @@ export async function GET(request: Request) {
     // Search tenants (Mieter) - Enhanced with fuzzy matching and multi-word search
     if (categories.includes('tenant')) {
       if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
-        results.tenant = [];
+        searchPromises.push(Promise.resolve({ type: 'tenant' as const, data: [] }));
       } else {
         if (process.env.NODE_ENV === 'development') {
           console.log('Adding tenant search promise');
@@ -321,7 +322,7 @@ export async function GET(request: Request) {
     // Search houses (Haeuser) - Enhanced with better address matching
     if (categories.includes('house')) {
       if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
-        results.house = [];
+        searchPromises.push(Promise.resolve({ type: 'house' as const, data: [] }));
       } else {
         searchPromises.push(
           (async () => {
@@ -329,7 +330,7 @@ export async function GET(request: Request) {
               let queryBuilder = supabase
                 .from('Haeuser')
                 .select(`
-                  id, name, strasse, ort,
+                  id, name, strasse, plz, ort,
                   Wohnungen!left(id, miete, Mieter!left(id, auszug))
                 `);
 
@@ -407,7 +408,7 @@ export async function GET(request: Request) {
               return {
                 id: house.id,
                 name: house.name,
-                address: [house.strasse, house.ort].filter(Boolean).join(', '),
+                address: [house.strasse, formatPlzOrt(house.plz, house.ort)].filter(Boolean).join(', '),
                 apartment_count: apartments.length,
                 total_rent: totalRent,
                 free_apartments: freeApartments
@@ -431,7 +432,7 @@ export async function GET(request: Request) {
     // Search apartments (Wohnungen) - Enhanced with house name search
     if (categories.includes('apartment')) {
       if (accessibleHaeuserIds !== null && accessibleHaeuserIds.length === 0) {
-        results.apartment = [];
+        searchPromises.push(Promise.resolve({ type: 'apartment' as const, data: [] }));
       } else {
         searchPromises.push(
           (async () => {
@@ -551,7 +552,7 @@ export async function GET(request: Request) {
     // Search finances (Finanzen) - Optimized with conditional numeric search
     if (categories.includes('finance')) {
       if (accessibleWohnungIds !== null && accessibleWohnungIds.length === 0) {
-        results.finance = [];
+        searchPromises.push(Promise.resolve({ type: 'finance' as const, data: [] }));
       } else {
         const isNumericQuery = !isShowAllQuery && !isNaN(parseFloat(query));
         
@@ -762,6 +763,7 @@ export async function GET(request: Request) {
     });
     
   } catch (error) {
+    unstable_rethrow(error);
     console.error('Search API error:', error);
     
     // Provide more specific error messages

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { tenantActions, getVisibleActions, type TenantActionDef } from "@/components/tenants/tenant-menu-actions"
@@ -35,6 +36,8 @@ interface TenantContextMenuProps {
   onRefresh: () => void
   canEdit?: boolean
   canDelete?: boolean
+  /** Modulrecht `kautionen: ansehen` (GH-6): ohne dieses Recht fehlt der Menüeintrag "Kaution". Standard: kein Recht. */
+  canViewKautionen?: boolean
 }
 
 export function TenantContextMenu({
@@ -44,6 +47,7 @@ export function TenantContextMenu({
   onRefresh,
   canEdit = true,
   canDelete = true,
+  canViewKautionen = false,
 }: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -52,56 +56,17 @@ export function TenantContextMenu({
   const templatesEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   const handleKaution = () => {
-    try {
-      // Ensure we're passing a clean tenant object with only the required fields
-      const cleanTenant = {
-        id: tenant.id,
-        name: tenant.name,
-        wohnung_id: tenant.wohnung_id
-      };
-
-      // Prepare kaution data if it exists
-      let kautionData = undefined;
-
-      if (tenant.kaution) {
-        // Ensure amount is a number
-        const amount = typeof tenant.kaution.amount === 'string'
-          ? parseFloat(tenant.kaution.amount)
-          : tenant.kaution.amount;
-
-        // Ensure we have valid data
-        if (isNaN(amount)) {
-          throw new Error('Ungültiger Kautionbetrag');
-        }
-
-        kautionData = {
-          amount,
-          paymentDate: tenant.kaution.paymentDate || '',
-          status: tenant.kaution.status || 'Ausstehend',
-          createdAt: tenant.kaution.createdAt,
-          updatedAt: tenant.kaution.updatedAt
-        };
-      }
-
-      // Open the modal with the prepared data in the next event loop tick
-      // to allow the context menu to close properly first.
-      setTimeout(() => {
-        openKautionModal(cleanTenant, kautionData);
-      }, 0);
-
-    } catch (error) {
-      toast({
-        title: 'Fehler',
-        description: 'Fehler beim Laden der Kautiondaten. Bitte versuchen Sie es erneut.',
-        variant: 'destructive',
-      });
-    }
+    // Der Kautionsdialog lädt seine Daten selbst (getKautionDetailsAction); hier wird nur der Mieter übergeben.
+    // Das Öffnen im nächsten Event-Loop-Tick bleibt, damit sich das Kontextmenü zuerst sauber schließt.
+    setTimeout(() => {
+      openKautionModal({ id: tenant.id, name: tenant.name, wohnung_id: tenant.wohnung_id });
+    }, 0);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     try {
       setIsDeleting(true);
-      const result = await deleteTenantAction(tenant.id);
+      const result = await deleteTenantAction(tenant.id, pruefsummen[tenant.id]);
 
       if (result.success) {
         toast({
@@ -161,6 +126,10 @@ export function TenantContextMenu({
     vorlagen: handleTemplates,
   }
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () =>
+    void starteLoeschenMitKautionen("Mieter", [tenant.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
+
   return (
     <>
       <ContextMenu>
@@ -178,7 +147,7 @@ export function TenantContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          {getVisibleActions(tenant, { templatesEnabled: !!templatesEnabled }).map((action) => {
+          {getVisibleActions(tenant, { templatesEnabled: !!templatesEnabled, canViewKautionen }).map((action) => {
             const handler = actionHandlers[action.key]
             if (!handler) return null
             return (
@@ -190,7 +159,7 @@ export function TenantContextMenu({
           })}
           <ContextMenuSeparator />
           <ContextMenuItem
-            onClick={() => setDeleteDialogOpen(true)}
+            onClick={handleDeleteStart}
             disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
@@ -210,7 +179,7 @@ export function TenantContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleDelete()} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
               {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>

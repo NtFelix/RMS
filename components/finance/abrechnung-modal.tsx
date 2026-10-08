@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import type { Nebenkosten, Mieter, Wohnung, Rechnung, Zaehler, ZaehlerAblesung } from "@/lib/types";
+import { GERMAN_MONTHS } from "@/lib/constants";
 import { WATER_METER_TYPES } from "@/lib/zaehler-types";
 import { sumZaehlerValues } from "@/lib/zaehler-utils";
 import { getTenantMeterCost } from "@/utils/water-cost-calculations";
@@ -51,10 +52,13 @@ const fetchCustomerBillingAddress = async () => {
 import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
-import { formatNumber } from "@/utils/format"; // New import for number formatting
+import { formatNumber, formatMonthlyPrepayment } from "@/utils/format"; // New import for number formatting
 import { roundToNearest5 } from "@/lib/utils";
-import { calculateCompleteTenantResult } from "@/utils/abrechnung-calculations";
-import type { TenantCalculationResult } from "@/types/optimized-betriebskosten";
+import { calculateCompleteTenantResult, findUnrecognisedBerechnungsarten, isAreaBasedBerechnungsart } from "@/utils/abrechnung-calculations";
+import { sumUniqueApartmentAreas } from "@/utils/cost-calculations";
+import { isRechenbasis360 } from "@/utils/rechentage";
+import type { TenantCalculationResult, RechentageDetails } from "@/types/optimized-betriebskosten";
+import type { SingleTenantPdfPayload } from "@/lib/worker-client";
 
 
 // Defined in Step 1:
@@ -66,11 +70,6 @@ const formatCurrency = (value: number | null | undefined) => {
   if (value == null) return "-";
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 };
-
-const GERMAN_MONTHS = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember"
-];
 
 /**
  * Extracts city from an address string.
@@ -190,6 +189,11 @@ interface TenantCostDetails {
   daysInBillingPeriod: number;
   recommendedPrepayment?: number; // New field for recommended prepayment
   missingScheduleMonths?: number; // > 0 means some occupied months had no prepayment schedule
+  // Tenant's raw move-in / move-out date, needed for the 360-basis rounding note
+  einzug: string | null;
+  auszug: string | null;
+  // Set on the 360-day basis ('360_tage'); daysOccupied / daysInBillingPeriod are then Rechentage
+  rechentage?: RechentageDetails;
 }
 
 interface AbrechnungModalProps {
@@ -286,8 +290,11 @@ export function AbrechnungModal({
     }
   };
 
-  // Guard: ensure we always work with an array for tenants
-  const safeTenants = Array.isArray(tenants) ? tenants : [];
+  // Guard: ensure we always work with an array for tenants. Memoized so the
+  // fallback `[]` is a stable reference across renders when tenants is not
+  // an array — otherwise every memo/effect depending on safeTenants would
+  // recompute on every render.
+  const safeTenants = useMemo(() => Array.isArray(tenants) ? tenants : [], [tenants]);
 
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
@@ -319,8 +326,8 @@ export function AbrechnungModal({
       // Fallback to current year if date range is not available
       return computeWgFactorsByTenant(tenants, new Date().getFullYear());
     }
-    return computeWgFactorsByTenant(tenants, nebenkostenItem.startdatum, nebenkostenItem.enddatum);
-  }, [tenants, nebenkostenItem?.startdatum, nebenkostenItem?.enddatum]);
+    return computeWgFactorsByTenant(tenants, nebenkostenItem.startdatum, nebenkostenItem.enddatum, nebenkostenItem.rechenbasis);
+  }, [tenants, nebenkostenItem?.startdatum, nebenkostenItem?.enddatum, nebenkostenItem?.rechenbasis]);
 
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
@@ -343,18 +350,6 @@ export function AbrechnungModal({
     return totalCost / totalUsage;
   }, [nebenkostenItem?.zaehlerkosten, nebenkostenItem?.zaehlerverbrauch]);
 
-  // Use the correct house size from database (gesamtFlaeche) with fallback calculation
-  const totalHouseArea = useMemo(() => {
-    // First try to use the gesamtFlaeche from nebenkostenItem (from database)
-    if (nebenkostenItem?.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0) {
-      return nebenkostenItem.gesamtFlaeche;
-    }
-
-    // Fallback: calculate from tenants data if gesamtFlaeche is not available
-    if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
-    return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
-  }, [nebenkostenItem?.gesamtFlaeche, tenants]);
-
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
     if (!nebenkostenItem) return null;
@@ -373,7 +368,9 @@ export function AbrechnungModal({
         readings,
         actualPayments,
         prepaymentMode,
-        rechnungen
+        rechnungen,
+        // wgFactors falls back to the current year without a date range; only reuse it for a real period
+        nebenkostenItem!.startdatum && nebenkostenItem!.enddatum ? wgFactors : undefined
       );
 
       return {
@@ -411,10 +408,13 @@ export function AbrechnungModal({
         daysOccupied: result.daysOccupied,
         daysInBillingPeriod: result.daysInPeriod,
         recommendedPrepayment: result.recommendedPrepayment,
-        missingScheduleMonths: result.prepayments.missingScheduleMonths
+        missingScheduleMonths: result.prepayments.missingScheduleMonths,
+        einzug: tenant.einzug,
+        auszug: tenant.auszug,
+        rechentage: result.rechentage
       };
     };
-  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments]);
+  }, [nebenkostenItem, safeTenants, meters, readings, actualPayments, rechnungen, wgFactors]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
@@ -559,8 +559,11 @@ export function AbrechnungModal({
     // If we can find a valid city, pass it directly; otherwise the worker will derive it
     const houseCity = extractCityFromAddress(ownerAddress);
 
-    // Prepare data for the worker: array of { name, data }
-    const zipData = tenantDataArray.map(tenant => ({
+    // Prepare data for the worker: array of { name, data }. Typed against the same payload
+    // generatePDF uses (minus filename, which the ZIP entry's own `name` covers) so a mismatch
+    // with what the worker reads is caught here too, even though generatePdfZIP itself still
+    // takes `data: any[]`.
+    const zipData: Array<{ name: string; data: Omit<SingleTenantPdfPayload, 'filename'> }> = tenantDataArray.map(tenant => ({
       name: `Abrechnung_${currentPeriod}_${tenant.tenantName.replace(/\s+/g, '_')}`,
       data: {
         tenantData: tenant,
@@ -617,6 +620,50 @@ export function AbrechnungModal({
     })), [tenants]
   );
 
+  // A stored house area below the occupied apartments' area makes the pro Fläche shares sum to
+  // more than the cost, so tell the user to correct it
+  const areaMismatch = useMemo(() => {
+    const houseArea = nebenkostenItem?.gesamtFlaeche || 0;
+    const hasAreaItems = (nebenkostenItem?.berechnungsart || []).some(isAreaBasedBerechnungsart);
+    if (!hasAreaItems || houseArea <= 0) return null;
+    const occupiedArea = sumUniqueApartmentAreas(safeTenants);
+    return occupiedArea > houseArea ? { houseArea, occupiedArea } : null;
+  }, [nebenkostenItem?.berechnungsart, nebenkostenItem?.gesamtFlaeche, safeTenants]);
+
+  // Cost items with an unknown Berechnungsart are billed by area; tell the user to fix them
+  const unrecognisedBerechnungsarten = useMemo(
+    () => nebenkostenItem ? findUnrecognisedBerechnungsarten(nebenkostenItem) : [],
+    [nebenkostenItem]
+  );
+
+  const is360 = isRechenbasis360(nebenkostenItem);
+  const periodSuffix = is360 ? ' (gerechnet mit 360 Tagen, 30-Tage-Monate)' : '';
+
+  // A settlement's distribution key must be explainable (BGH VIII ZR 84/07): on the 360 basis,
+  // list tenants whose move-in/move-out date was rounded to a Rechenpunkt, plus tenants left
+  // with 0 Rechentage in the period.
+  const roundedTenantsNote = useMemo(() => {
+    if (!is360) return null;
+    const parts: string[] = [];
+    calculatedTenantData.forEach(tenant => {
+      const r = tenant.rechentage;
+      // Tenants without a move-in date count 0 on both bases; nothing was rounded for them
+      if (!r || !tenant.einzug) return;
+      const segments: string[] = [];
+      if (r.einzugGerundet && r.einzugGerundetIso && tenant.einzug) {
+        segments.push(`Einzug ${isoToGermanDate(tenant.einzug)} → gerechnet ab ${isoToGermanDate(r.einzugGerundetIso)}`);
+      }
+      if (r.auszugGerundet && r.auszugGerundetIso && tenant.auszug) {
+        segments.push(`Auszug ${isoToGermanDate(tenant.auszug)} → gerechnet bis ${isoToGermanDate(r.auszugGerundetIso)}`);
+      }
+      if (r.rechentage === 0) segments.push('0 Rechentage');
+      if (segments.length > 0) {
+        parts.push(`${tenant.tenantName}: ${segments.join('; ')}`);
+      }
+    });
+    return parts.length > 0 ? `Gerundete Mieterdaten: ${parts.join('; ')}` : null;
+  }, [is360, calculatedTenantData]);
+
   if (!isOpen || !nebenkostenItem) {
     return null;
   }
@@ -636,13 +683,28 @@ export function AbrechnungModal({
       <DialogContent className="sm:max-w-4xl md:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Betriebskostenabrechnung {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
+            Betriebskostenabrechnung {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)}{periodSuffix} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
           </DialogTitle>
           <DialogDescription>
-            Detaillierte Betriebskostenabrechnung für den Zeitraum {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} mit Aufschlüsselung nach Mietern.
+            Detaillierte Betriebskostenabrechnung für den Zeitraum {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)}{periodSuffix} mit Aufschlüsselung nach Mietern.
             {tenants.length > 0 && (
               <span className="block text-sm text-green-600 mt-1">
                 ✓ Daten für {tenants.length} Mieter erfolgreich geladen
+              </span>
+            )}
+            {areaMismatch && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Die hinterlegte Hausfläche ({formatNumber(areaMismatch.houseArea)} m²) ist kleiner als die Fläche der im Zeitraum vermieteten Wohnungen ({formatNumber(areaMismatch.occupiedArea)} m²). Kosten „pro Fläche“ werden trotzdem mit der hinterlegten Hausfläche berechnet, dadurch wird mehr als der Gesamtbetrag umgelegt. Bitte die Hausgröße prüfen.
+              </span>
+            )}
+            {unrecognisedBerechnungsarten.length > 0 && (
+              <span className="block text-sm text-amber-600 dark:text-amber-500 mt-1">
+                ⚠ Für {unrecognisedBerechnungsarten.map(item => `„${item.costName}“`).join(', ')} ist keine gültige Berechnungsart hinterlegt. Diese Kosten werden „pro Fläche“ verteilt. Bitte die Berechnungsart in den Betriebskosten prüfen.
+              </span>
+            )}
+            {roundedTenantsNote && (
+              <span className="block text-sm text-muted-foreground mt-1">
+                ℹ {roundedTenantsNote}
               </span>
             )}
           </DialogDescription>
@@ -792,7 +854,9 @@ export function AbrechnungModal({
               <div className="my-3">
                 <div className="flex justify-between mb-1">
                   <span className="text-sm font-medium text-foreground">
-                    Anwesenheit im Abrechnungszeitraum ({tenantData.daysOccupied} / {tenantData.daysInBillingPeriod} Tage)
+                    Anwesenheit im Abrechnungszeitraum ({is360
+                      ? `${tenantData.daysOccupied} von ${tenantData.daysInBillingPeriod} Rechentagen`
+                      : `${tenantData.daysOccupied} / ${tenantData.daysInBillingPeriod} Tage`})
                   </span>
                   <span className="text-sm font-medium text-foreground">
                     {formatNumber(tenantData.occupancyPercentage)}%
@@ -864,7 +928,7 @@ export function AbrechnungModal({
                         <div key={payment.monthName} className="flex justify-between py-0.5">
                           <span className="text-xs">{payment.monthName}</span>
                           <span className="text-xs font-medium">
-                            {payment.isActiveMonth ? formatCurrency(payment.amount) : "-"}
+                            {formatMonthlyPrepayment(payment, formatCurrency)}
                           </span>
                         </div>
                       ))}
