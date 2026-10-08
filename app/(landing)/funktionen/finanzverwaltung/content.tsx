@@ -963,7 +963,6 @@ export default function FinanceManagementPage() {
         description="Entdecken Sie, wie unsere Plattform Ihnen hilft, Ihre Finanzen optimal zu verwalten und fundierte Entscheidungen zu treffen."
         badgeText="Bereit für den Start?"
         primaryButtonText="14 Tage kostenlos testen"
-        secondaryButtonText="Demo anfordern"
       />
 
     </div>

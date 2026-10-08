@@ -5,12 +5,12 @@ import {
   getTotalStorageUsage,
   deleteFolder,
 } from './actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('next/navigation', () => ({
@@ -44,8 +44,9 @@ describe('dateien/actions', () => {
       like: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(), // mockResolvedValue will be used on this
-      then: jest.fn((resolve) => resolve({ data: [], error: null })), // Default resolution for await builder
-    };
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }), // used by house/apartment/tenant checks
+      then: jest.fn((resolve: any) => resolve({ data: [], error: null })), // Default resolution for await builder
+    } as any;
 
     mockStorageBuilder = {
       createSignedUrl: jest.fn(),
@@ -63,7 +64,7 @@ describe('dateien/actions', () => {
       },
     };
 
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('getFolderContents', () => {

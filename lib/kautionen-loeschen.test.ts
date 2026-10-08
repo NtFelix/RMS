@@ -1,0 +1,213 @@
+import { getKautionLoeschauswirkungAction } from "@/app/kautionen-actions";
+import { toast } from "@/hooks/use-toast";
+import { KAUTION_FEHLER_FALLBACK_MESSAGE } from "@/lib/kautionen-errors";
+import { pruefeLoeschenMitKautionen, starteLoeschenMitKautionen } from "@/lib/kautionen-loeschen";
+import type { KautionLoeschauswirkung } from "@/types/Kaution";
+
+// `jest.setup.js` ersetzt den Store global durch einen Mock: hier wird der echte Store verwendet.
+jest.mock("@/hooks/use-modal-store", () => jest.requireActual("@/hooks/use-modal-store"));
+jest.mock("@/app/kautionen-actions", () => ({ getKautionLoeschauswirkungAction: jest.fn() }));
+jest.mock("@/hooks/use-toast", () => ({ toast: jest.fn() }));
+
+const { useModalStore } = jest.requireActual<typeof import("@/hooks/use-modal-store")>("@/hooks/use-modal-store");
+
+const mockAction = getKautionLoeschauswirkungAction as jest.Mock;
+const mockToast = toast as jest.Mock;
+
+const HAUS_A = "11111111-1111-4111-8111-111111111111";
+const HAUS_B = "22222222-2222-4222-8222-222222222222";
+const SUMME_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const SUMME_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+function auswirkung(overrides: Partial<KautionLoeschauswirkung> = {}, mitBuchungen = 2): KautionLoeschauswirkung {
+  return {
+    tabelle: "Haeuser",
+    anzahl_haeuser: 2,
+    anzahl_wohnungen: 3,
+    anzahl_mieter: 4,
+    kautionen_sichtbar: true,
+    kautionen: {
+      anzahl: 4,
+      ohne_buchungen: 4 - mitBuchungen,
+      mit_buchungen: mitBuchungen,
+      konto_noch_offen: 900,
+      konto_verwahrt: 600,
+      dokumentiert_anzahl: 0,
+      dokumentiert_summe: 0,
+      mit_saldo_anzahl: 1,
+      mit_buchungen_gekuerzt: false,
+      mit_buchungen_liste: [],
+    },
+    pruefsumme: "cccccccccccccccccccccccccccccccc",
+    eintraege: [
+      { id: HAUS_A, anzahl_mieter: 2, mit_buchungen: 1, pruefsumme: SUMME_A },
+      { id: HAUS_B, anzahl_mieter: 2, mit_buchungen: 1, pruefsumme: SUMME_B },
+    ],
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  mockAction.mockReset();
+  mockToast.mockReset();
+  useModalStore.setState({ isLoeschUebersichtOpen: false, loeschUebersichtConfig: null });
+});
+
+describe("pruefeLoeschenMitKautionen", () => {
+  it("asks the database for the impact of exactly these IDs", async () => {
+    mockAction.mockResolvedValue({ success: true, data: auswirkung({}, 0) });
+
+    await pruefeLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B]);
+
+    expect(mockAction).toHaveBeenCalledWith({ tabelle: "Haeuser", ids: [HAUS_A, HAUS_B] });
+  });
+
+  it.each([
+    ["only deposits without bookings", auswirkung({}, 0)],
+    ["no deposits at all", auswirkung({ kautionen: { ...auswirkung().kautionen!, anzahl: 0, ohne_buchungen: 0, mit_buchungen: 0 } })],
+    ["no right to see deposits", auswirkung({ kautionen_sichtbar: false, kautionen: null, pruefsumme: null })],
+  ])("%s: no impact to confirm", async (_name, impact) => {
+    mockAction.mockResolvedValue({ success: true, data: impact });
+
+    await expect(pruefeLoeschenMitKautionen("Haeuser", [HAUS_A])).resolves.toEqual({ ok: true, auswirkung: null });
+  });
+
+  it("with deposits with bookings: returns the impact", async () => {
+    const impact = auswirkung();
+    mockAction.mockResolvedValue({ success: true, data: impact });
+
+    await expect(pruefeLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B])).resolves.toEqual({ ok: true, auswirkung: impact });
+  });
+
+  it("without the module right (42501) proceeds silently with the usual deletion", async () => {
+    mockAction.mockResolvedValue({ success: false, error: { code: "42501", message: "Keine Berechtigung" } });
+
+    await expect(pruefeLoeschenMitKautionen("Mieter", [HAUS_A])).resolves.toEqual({ ok: true, auswirkung: null });
+    expect(mockToast).not.toHaveBeenCalled();
+  });
+
+  it("any other error shows its message and stops (nothing is deleted)", async () => {
+    mockAction.mockResolvedValue({ success: false, error: { code: "KA002", message: "Kein Zugriff auf dieses Objekt." } });
+
+    await expect(pruefeLoeschenMitKautionen("Mieter", [HAUS_A])).resolves.toEqual({ ok: false });
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: "Kein Zugriff auf dieses Objekt.", variant: "destructive" }));
+  });
+
+  it("an exception of the action shows the generic message and stops", async () => {
+    mockAction.mockRejectedValue(new Error("Netzwerk"));
+
+    await expect(pruefeLoeschenMitKautionen("Mieter", [HAUS_A])).resolves.toEqual({ ok: false });
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: KAUTION_FEHLER_FALLBACK_MESSAGE }));
+  });
+});
+
+describe("starteLoeschenMitKautionen", () => {
+  const handlers = () => ({ einfach: jest.fn(), loeschen: jest.fn() });
+
+  it("without booked deposits: asks the usual question (einfach), no overview, no deletion yet", async () => {
+    mockAction.mockResolvedValue({ success: true, data: auswirkung({}, 0) });
+    const h = handlers();
+
+    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
+
+    expect(h.einfach).toHaveBeenCalledTimes(1);
+    expect(h.loeschen).not.toHaveBeenCalled();
+    expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+  });
+
+  it("an error stops everything: neither question nor deletion", async () => {
+    mockAction.mockResolvedValue({ success: false, error: { code: "KA002", message: "Kein Zugriff auf dieses Objekt." } });
+    const h = handlers();
+
+    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
+
+    expect(h.einfach).not.toHaveBeenCalled();
+    expect(h.loeschen).not.toHaveBeenCalled();
+  });
+
+  it("with booked deposits: opens the overview INSTEAD of the usual question; confirming deletes with the checksum per ID", async () => {
+    mockAction.mockResolvedValue({ success: true, data: auswirkung() });
+    const h = handlers();
+
+    const pending = starteLoeschenMitKautionen("Haeuser", [HAUS_A, HAUS_B], h);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const state = useModalStore.getState();
+    expect(state.isLoeschUebersichtOpen).toBe(true);
+    expect(state.loeschUebersichtConfig?.auswirkung.anzahl_mieter).toBe(4);
+    expect(h.einfach).not.toHaveBeenCalled();
+
+    state.loeschUebersichtConfig?.onEntscheidung(true);
+    await pending;
+
+    expect(h.einfach).not.toHaveBeenCalled();
+    expect(h.loeschen).toHaveBeenCalledWith({ [HAUS_A]: SUMME_A, [HAUS_B]: SUMME_B });
+  });
+
+  it("a second press while the impact is loading supersedes the first (one dialog), and nothing stays blocked", async () => {
+    mockAction.mockResolvedValue({ success: true, data: auswirkung({}, 0) });
+    const erster = handlers();
+    const zweiter = handlers();
+
+    await Promise.all([starteLoeschenMitKautionen("Haeuser", [HAUS_A], erster), starteLoeschenMitKautionen("Haeuser", [HAUS_A], zweiter)]);
+
+    expect(erster.einfach).not.toHaveBeenCalled();
+    expect(zweiter.einfach).toHaveBeenCalledTimes(1);
+
+    // a start that never finishes does not block later ones
+    mockAction.mockReturnValueOnce(new Promise(() => undefined));
+    void starteLoeschenMitKautionen("Haeuser", [HAUS_A], handlers());
+    await starteLoeschenMitKautionen("Haeuser", [HAUS_A], zweiter);
+    expect(zweiter.einfach).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a progress cursor while the impact loads and resets it afterwards", async () => {
+    let fertig!: (v: unknown) => void;
+    mockAction.mockReturnValueOnce(new Promise((resolve) => { fertig = resolve; }));
+    const pending = starteLoeschenMitKautionen("Haeuser", [HAUS_A], handlers());
+
+    expect(document.body.style.cursor).toBe("progress");
+    fertig({ success: true, data: auswirkung({}, 0) });
+    await pending;
+
+    expect(document.body.style.cursor).toBe("");
+  });
+
+  it("cancelling the overview deletes nothing and asks nothing", async () => {
+    mockAction.mockResolvedValue({ success: true, data: auswirkung() });
+    const h = handlers();
+
+    const pending = starteLoeschenMitKautionen("Haeuser", [HAUS_A], h);
+    await Promise.resolve();
+    await Promise.resolve();
+    useModalStore.getState().loeschUebersichtConfig?.onEntscheidung(false);
+    await pending;
+
+    expect(h.einfach).not.toHaveBeenCalled();
+    expect(h.loeschen).not.toHaveBeenCalled();
+  });
+});
+
+describe("Modal store: Löschübersicht", () => {
+  it("a second request cancels the first one", () => {
+    const erste = jest.fn();
+    const zweite = jest.fn();
+
+    useModalStore.getState().openLoeschUebersicht({ auswirkung: auswirkung(), onEntscheidung: erste });
+    useModalStore.getState().openLoeschUebersicht({ auswirkung: auswirkung(), onEntscheidung: zweite });
+
+    expect(erste).toHaveBeenCalledWith(false);
+    expect(zweite).not.toHaveBeenCalled();
+    expect(useModalStore.getState().loeschUebersichtConfig?.onEntscheidung).toBe(zweite);
+  });
+
+  it("closing resets the state", () => {
+    useModalStore.getState().openLoeschUebersicht({ auswirkung: auswirkung(), onEntscheidung: jest.fn() });
+
+    useModalStore.getState().closeLoeschUebersicht();
+
+    expect(useModalStore.getState().isLoeschUebersichtOpen).toBe(false);
+    expect(useModalStore.getState().loeschUebersichtConfig).toBeNull();
+  });
+});

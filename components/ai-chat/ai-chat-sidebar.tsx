@@ -1,0 +1,950 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import posthog from "posthog-js";
+import { posthogLogger } from "@/lib/posthog-logger";
+import { v4 as uuidv4 } from "uuid";
+import { usePathname } from "next/navigation";
+import { useFeatureFlagEnabled } from "@posthog/react";
+import { useTheme } from "next-themes";
+import { useAIChatStore } from "@/hooks/use-ai-chat-store";
+import type { ToolCallRecord } from '@/types/llm-steps';
+import { useGeminiSteps } from '@/hooks/useGeminiSteps';
+import type { Message, MessageVersion } from "./ai-chat-types";
+import { MessagesList } from "./ai-chat-messages-list";
+import { ChatInput } from "./ai-chat-input";
+import { SidebarHeader } from "./ai-chat-header";
+import { SidebarFloatingButton } from "./ai-chat-floating-button";
+import { createClient } from "@/utils/supabase/client";
+import { ChatConversationList } from "../chat/ChatConversationList";
+
+function createRealtimeSubscription(
+  supabase: ReturnType<typeof createClient>,
+  conversationId: string,
+  aiMessageId: string,
+  onUpdate: (inhalt: string, status: string) => void
+) {
+  const channel = supabase
+    .channel(`konversation:${conversationId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'KI_Nachrichten',
+      filter: `konversation_id=eq.${conversationId}`,
+    }, (payload: any) => {
+      const newMsg = payload.new as any;
+      if (newMsg && newMsg.rolle === 'assistant' && newMsg.id === aiMessageId) {
+        onUpdate(newMsg.inhalt, newMsg.status);
+      }
+    })
+    .subscribe();
+
+  return () => { channel.unsubscribe(); };
+}
+
+export function AIChatSidebar() {
+  const isAIAgentEnabled = useFeatureFlagEnabled('mietevo-ai-agent')
+  
+  const { isOpen, displayMode, toggleDisplayMode, toggleOpen, enabledToolIds, toggleTool } = useAIChatStore();
+  
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    // Explicitly set to true on every mount. This is critical for React
+    // Strict Mode in development, which unmounts and remounts components.
+    // Without this, the cleanup sets it to false, and useRef's initial
+    // value is NOT re-applied on remount, leaving it permanently false.
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [attachment, setAttachment] = useState<{ name: string; type: string; data: string; } | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  if (sessionIdRef.current === null) sessionIdRef.current = uuidv4();
+  const [selectedModel, setSelectedModel] = useState("gemini-3.1-flash-lite");
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const { theme, resolvedTheme } = useTheme();
+  
+  const { steps: llmSteps, stepsRef, start: startSteps, finish: finishSteps, addStep, updateStep, setAllDone } = useGeminiSteps();
+  const pathname = usePathname();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const currentTheme = theme === 'system' ? resolvedTheme : theme;
+  const isDark = currentTheme === 'dark';
+
+  const supabase = createClient();
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const realtimeChannelRef = useRef<any>(null);
+  const [realtimeTarget, setRealtimeTarget] = useState<{ conversationId: string; aiMessageId: string } | null>(null);
+  const selectedConvRef = useRef<string | null>(null);
+
+  // Resolve current organization context on mount
+  useEffect(() => {
+    supabase.rpc('current_organisation_id').then(async ({ data: orgId }) => {
+      if (!orgId) {
+        const { data: membership } = await supabase
+          .from('Organisation_Mitglieder')
+          .select('organisation_id')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('status', 'aktiv')
+          .limit(1)
+          .maybeSingle();
+        orgId = membership?.organisation_id;
+      }
+      if (orgId) {
+        setActiveOrgId(orgId);
+      }
+    });
+  }, [supabase]);
+
+  // Unsubscribe helper
+  const unsubscribeFromRealtime = useCallback(() => {
+    setRealtimeTarget(null);
+    if (realtimeChannelRef.current) {
+      realtimeChannelRef.current.unsubscribe();
+      realtimeChannelRef.current = null;
+    }
+  }, []);
+
+  // Subscribe fallback helper
+  const subscribeToRealtime = useCallback((conversationId: string, aiMessageId: string) => {
+    setRealtimeTarget({ conversationId, aiMessageId });
+  }, []);
+
+  // Manage realtime subscription lifecycle via effect
+  useEffect(() => {
+    if (!realtimeTarget) return;
+
+    const { conversationId, aiMessageId } = realtimeTarget;
+
+    const unsubscribe = createRealtimeSubscription(
+      supabase,
+      conversationId,
+      aiMessageId,
+      (inhalt, status) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId
+              ? { ...m, content: inhalt, status }
+              : m
+          )
+        );
+        if (status === 'abgeschlossen' || status === 'fehler') {
+          setIsLoading(false);
+          setActiveId(null);
+        }
+      }
+    );
+
+    realtimeChannelRef.current = { unsubscribe };
+
+    return () => {
+      unsubscribe();
+      realtimeChannelRef.current = null;
+    };
+  }, [realtimeTarget, supabase]);
+
+  const loadConversationsList = useCallback(async () => {
+    if (!activeOrgId) return;
+    try {
+      const res = await fetch(`/api/conversations?orgId=${activeOrgId}`);
+      if (res.ok) {
+        setConversations(await res.json());
+      }
+    } catch (err) {
+      // silently fail — retry on next open
+    }
+  }, [activeOrgId]);
+
+  // Load latest active conversation on sidebar open
+  useEffect(() => {
+    if (!isOpen || !activeOrgId || isLoading) {
+      if (!isOpen) unsubscribeFromRealtime();
+      return;
+    }
+
+    const abortController = new AbortController();
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(`/api/conversations?orgId=${activeOrgId}`, {
+          signal: abortController.signal,
+        });
+        if (cancelled || !res.ok) return;
+        const convs = await res.json();
+        if (cancelled) return;
+        setConversations(convs);
+
+        if (convs && convs.length > 0) {
+          const latest = convs[0];
+          if (cancelled) return;
+          setActiveConversationId(latest.id);
+
+          const detailsRes = await fetch(`/api/conversations/${latest.id}?orgId=${activeOrgId}`, {
+            signal: abortController.signal,
+          });
+          if (cancelled || !detailsRes.ok) return;
+          const details = await detailsRes.json();
+          if (cancelled) return;
+
+          const rawMessages = details.nachrichten || details.messages || [];
+          const mapped = rawMessages.map((m: any) => ({
+            id: m.id,
+            role: m.rolle === 'assistant' ? 'model' : m.rolle,
+            content: m.inhalt || '',
+            status: m.status,
+            steps: m.steps || [],
+            versions: m.versions || []
+          }));
+          setMessages(mapped);
+
+          const lastMsg = rawMessages[rawMessages.length - 1];
+          if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
+            setIsLoading(true);
+            setActiveId(lastMsg.id);
+            subscribeToRealtime(latest.id, lastMsg.id);
+          }
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        console.error('[AIChatSidebar] Failed to load history:', err);
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, [isOpen, activeOrgId, subscribeToRealtime, unsubscribeFromRealtime]);
+
+  // Refresh conversations list whenever history toggled open
+  useEffect(() => {
+    if (showHistory) {
+      loadConversationsList();
+    }
+  }, [showHistory, loadConversationsList]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      alert("Datei ist zu groß (max 20MB).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = (event.target?.result as string).split(',')[1];
+      setAttachment({
+        name: file.name,
+        type: file.type,
+        data: base64Data
+      });
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  if (!isAIAgentEnabled) return null;
+
+  const toggleSidebar = () => {
+    if (!isOpen) {
+      posthog.capture("ai_chat_opened", { current_page: pathname });
+    } else {
+      posthog.capture("ai_chat_closed", {
+        total_turns: messages.filter((m) => m.role === "user").length,
+        current_page: pathname,
+      });
+    }
+    toggleOpen();
+  };
+
+  const clearChat = async () => {
+    setMessages([]);
+    setActiveConversationId(null);
+    sessionIdRef.current = uuidv4(); // Start a new session
+  };
+
+  const switchVersion = (messageId: string, versionIndex: number) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId && m.versions && m.versions[versionIndex]) {
+        const v = m.versions[versionIndex];
+        return {
+          ...m,
+          currentVersionIndex: versionIndex,
+          content: v.content,
+          traceId: v.traceId,
+          feedback: v.feedback,
+          toolCalls: v.toolCalls,
+          steps: v.steps
+        };
+      }
+      return m;
+    }));
+  };
+
+  const performAIExchange = async (
+    messageContent: string, 
+    messageAttachment: { name: string; type: string; data: string } | null | undefined, 
+    historyOverride?: Message[],
+    regenerateId?: string,
+    existingVersions?: MessageVersion[]
+  ) => {
+    const aiMessageId = regenerateId || uuidv4();
+    setIsLoading(true);
+    setActiveId(aiMessageId);
+    startSteps();
+    setError(null);
+
+    // Auto-initialize conversation if not yet active
+    let currentConvId = activeConversationId;
+    if (!currentConvId && activeOrgId) {
+      try {
+        const response = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId: activeOrgId, titel: messageContent.slice(0, 40) }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          currentConvId = data.id;
+          setActiveConversationId(data.id);
+          loadConversationsList();
+        } else {
+          const errText = await response.text().catch(() => '');
+          console.error('[AIChatSidebar] POST /api/conversations failed:', response.status, errText);
+          let errBody: any = {};
+          try {
+            errBody = JSON.parse(errText);
+          } catch (e) {}
+          throw new Error(errBody.error || errText || 'Konnte Konversation nicht initialisieren.');
+        }
+      } catch (err: any) {
+        console.error('[AIChatSidebar] Failed to initialize conversation:', err);
+        setError(err.message || 'Konnte Konversation nicht initialisieren.');
+        setIsLoading(false);
+        setActiveId(null);
+        return;
+      }
+    }
+
+    // Immediately create/clear content to start fresh or hide previous answer
+    setMessages(prev => {
+      if (regenerateId) {
+        return prev.map(m => m.id === regenerateId ? {
+          ...m,
+          content: "",
+          steps: [],
+          toolCalls: undefined,
+          traceId: undefined,
+          versions: existingVersions,
+          currentVersionIndex: existingVersions?.length || 0
+        } : m);
+      } else {
+        const initialAiMessage: Message = {
+          id: aiMessageId,
+          role: "model",
+          content: "",
+          steps: [],
+          currentVersionIndex: 0,
+          versions: []
+        };
+        return [...prev, initialAiMessage];
+      }
+    });
+
+    try {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      const clientNachrichtId = uuidv4();
+      const exchangeStartTime = Date.now();
+      let hasCapturedFirstToken = false;
+
+      console.log("[AIChatSidebar] Sending POST /api/chat request:", {
+        aiMessageId,
+        conversationId: currentConvId,
+        orgId: activeOrgId,
+        model: selectedModel,
+      });
+
+      posthog.capture("ai_stream_requested", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        has_attachment: !!messageAttachment,
+      });
+
+      posthogLogger.info("[AIChatSidebar] Stream requested", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        has_attachment: !!messageAttachment,
+      });
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": clientNachrichtId
+        },
+        body: JSON.stringify({
+          message: messageContent || "Hier ist eine Datei zur Analyse.",
+          attachment: messageAttachment,
+          conversationId: currentConvId,
+          messageId: aiMessageId,
+          orgId: activeOrgId,
+          model: selectedModel,
+          enabledToolIds,
+        }),
+      });
+
+      console.log("[AIChatSidebar] Received response headers:", {
+        status: res.status,
+        statusText: res.statusText,
+        contentType: res.headers.get("content-type"),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error("[AIChatSidebar] API response error:", res.status, errText);
+        let errBody: any = {};
+        try {
+          errBody = JSON.parse(errText);
+        } catch (e) {}
+        throw new Error(errBody.error || errText || `API responded with an error: ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No reader found on response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulatedText = "";
+      let currentStepId: string | null = null;
+      let finalReply = "";
+      let traceId = "";
+      let toolResults: ToolCallRecord[] = [];
+      let receivedDone = false;
+
+      function processStreamLine(raw: string) {
+        let clean = raw.trim();
+        if (clean.startsWith("data: ")) {
+          clean = clean.slice(6).trim();
+        }
+        if (!clean || clean === "[DONE]") return;
+
+        let data: any;
+        try {
+          data = JSON.parse(clean);
+        } catch (e) {
+          console.warn("[AIChatSidebar] Failed to parse JSON line:", clean, e);
+          return;
+        }
+
+        console.log("[AIChatSidebar] SSE Event:", data.type, data);
+
+        if (data.type === "step_start") {
+          if (currentStepId) {
+            updateStep(currentStepId, { status: "done" });
+            currentStepId = null;
+          }
+          currentStepId = addStep(data.stepType, data.label, "loading", data.detail);
+        } else if (data.type === "step_done") {
+          if (currentStepId) {
+            updateStep(currentStepId, { status: "done" });
+            currentStepId = null;
+          }
+        } else if (data.type === "tool_result") {
+          toolResults.push(data.toolCall);
+          if (currentStepId) {
+            updateStep(currentStepId, { toolResult: data.toolCall });
+          }
+        } else if (data.type === "content" || data.type === "token") {
+          const textContent = data.content ?? data.text ?? "";
+          accumulatedText += textContent;
+          if (!hasCapturedFirstToken && textContent) {
+            hasCapturedFirstToken = true;
+            posthog.capture("ai_stream_first_token", {
+              message_id: aiMessageId,
+              time_to_first_token_ms: Date.now() - exchangeStartTime,
+              model: selectedModel,
+            });
+            posthogLogger.info("[AIChatSidebar] First token received", {
+              message_id: aiMessageId,
+              time_to_first_token_ms: Date.now() - exchangeStartTime,
+              model: selectedModel,
+            });
+          }
+          console.log(`[AIChatSidebar] Token (length=${textContent.length}, totalLength=${accumulatedText.length}):`, textContent);
+          if (isMountedRef.current) {
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === aiMessageId);
+              if (!exists) {
+                const initialMsg: Message = {
+                  id: aiMessageId,
+                  role: "model",
+                  content: accumulatedText,
+                  steps: [],
+                  currentVersionIndex: 0,
+                  versions: []
+                };
+                return [...prev, initialMsg];
+              }
+              return prev.map(m =>
+                m.id === aiMessageId ? { ...m, content: accumulatedText } : m
+              );
+            });
+          }
+        } else if (data.type === "final_reply" || data.type === "done") {
+          finalReply = data.reply || data.text || accumulatedText;
+          traceId = data.traceId || "";
+          toolResults = data.toolCalls || toolResults;
+          receivedDone = true;
+          console.log("[AIChatSidebar] Stream done received:", { finalReplyLength: finalReply.length, traceId });
+        } else if (data.type === "error") {
+          console.error("[AIChatSidebar] Error event received from stream:", data.message);
+          throw new Error(data.message);
+        }
+      }
+
+      let chunkIndex = 0;
+      while (true) {
+        if (!isMountedRef.current) break;
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log("[AIChatSidebar] Reader done (stream finished)");
+          break;
+        }
+
+        chunkIndex++;
+        console.log(`[AIChatSidebar] Read chunk #${chunkIndex} (${value?.length || 0} bytes)`);
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const isTokenLine = line.includes('"type":"token"') || line.includes('"type":"content"');
+          processStreamLine(line);
+          if (isTokenLine) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+      }
+
+      // Process any remaining content left in buffer when stream ends
+      if (buffer.trim()) {
+        try {
+          processStreamLine(buffer);
+        } catch (e) {
+          console.error("Error parsing trailing stream line:", e, buffer);
+        }
+      }
+
+      // Only fallback to realtime if NO text was received at all and no done signal arrived
+      if (!receivedDone && !accumulatedText && currentConvId) {
+        console.warn('[AIChatSidebar] Stream disconnected early without text. Activating Realtime fallback...');
+        posthogLogger.warn('[AIChatSidebar] Stream disconnected early without text', {
+          conversation_id: currentConvId,
+          message_id: aiMessageId,
+        });
+        subscribeToRealtime(currentConvId, aiMessageId);
+        return;
+      }
+
+      finalReply = finalReply || accumulatedText;
+
+      if (!finalReply) {
+        throw new Error("Antwort der KI ist leer oder der Stream wurde vorzeitig unterbrochen.");
+      }
+
+      setAllDone();
+      finishSteps(true);
+
+      const totalDurationMs = Date.now() - exchangeStartTime;
+      posthog.capture("ai_stream_completed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        duration_ms: totalDurationMs,
+        text_length: (finalReply || accumulatedText).length,
+      });
+
+      posthogLogger.info("[AIChatSidebar] Stream completed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        duration_ms: totalDurationMs,
+        text_length: (finalReply || accumulatedText).length,
+      });
+
+      const finalStepsList = [...stepsRef.current];
+      const newVersion: MessageVersion = {
+        content: finalReply,
+        traceId: traceId,
+        toolCalls: toolResults.length > 0 ? toolResults : undefined,
+        steps: finalStepsList
+      };
+
+      const finalVersions = [...(existingVersions || []), newVersion];
+
+      // Update the message with final details and versioning
+      setMessages(prev => {
+        const exists = prev.some(m => m.id === aiMessageId);
+        if (!exists) {
+          const finalMsgCard: Message = {
+            id: aiMessageId,
+            role: "model",
+            content: finalReply || accumulatedText,
+            traceId,
+            toolCalls: toolResults.length > 0 ? toolResults : undefined,
+            steps: finalStepsList,
+            versions: finalVersions,
+            currentVersionIndex: finalVersions.length - 1
+          };
+          return [...prev, finalMsgCard];
+        }
+        return prev.map(m => m.id === aiMessageId ? {
+          ...m,
+          content: finalReply || accumulatedText || m.content, 
+          traceId,
+          toolCalls: toolResults.length > 0 ? toolResults : undefined,
+          steps: finalStepsList,
+          versions: finalVersions,
+          currentVersionIndex: finalVersions.length - 1
+        } : m);
+      });
+
+    } catch (error: any) {
+      console.error("AI Chat Error:", error);
+      const displayErrMsg = error?.message || "Es tut mir leid, es gab einen Fehler bei der Kommunikation mit der KI. Bitte versuche es später noch einmal.";
+      posthog.capture("ai_stream_failed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        error: displayErrMsg,
+      });
+      posthogLogger.error("[AIChatSidebar] Stream failed", {
+        message_id: aiMessageId,
+        conversation_id: currentConvId,
+        org_id: activeOrgId,
+        model: selectedModel,
+        error: displayErrMsg,
+      });
+      setError(displayErrMsg);
+      finishSteps(false);
+      setMessages((prev) => {
+        const exists = prev.some(m => m.id === aiMessageId);
+        if (!exists) {
+          const errorMsgCard: Message = {
+            id: aiMessageId,
+            role: "model",
+            content: `⚠️ ${displayErrMsg}`,
+            steps: [],
+            currentVersionIndex: 0,
+            versions: []
+          };
+          return [...prev, errorMsgCard];
+        }
+        return prev.map(m =>
+          m.id === aiMessageId
+            ? { ...m, role: "model" as const, content: `⚠️ ${displayErrMsg}` }
+            : m
+        );
+      });
+    } finally {
+      setIsLoading(false);
+      setActiveId(null);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!inputValue.trim() && !attachment) return;
+
+    const userMessage: Message = {
+      id: uuidv4(),
+      role: "user",
+      content: inputValue.trim(),
+      attachment: attachment ? { ...attachment } : undefined,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+    setAttachment(null);
+
+    const turnCount = messages.filter((m) => m.role === "user").length + 1;
+    posthog.capture("ai_message_sent", {
+      message_length: userMessage.content.length,
+      has_attachment: !!userMessage.attachment,
+      current_page: pathname,
+      conversation_turn: turnCount,
+    });
+
+    await performAIExchange(userMessage.content, userMessage.attachment);
+  };
+
+  const regenerateMessage = async (id: string) => {
+    const index = messages.findIndex(m => m.id === id);
+    if (index === -1) return;
+
+    const aiMessage = messages[index];
+    if (aiMessage.role !== 'model') return;
+
+    const prevUserMessage = messages[index - 1];
+    if (!prevUserMessage || prevUserMessage.role !== 'user') return;
+
+    // Capture current state into versions if not already tracked
+    const updatedVersions = aiMessage.versions ? [...aiMessage.versions] : [{
+      content: aiMessage.content,
+      traceId: aiMessage.traceId,
+      feedback: aiMessage.feedback,
+      toolCalls: aiMessage.toolCalls,
+      steps: aiMessage.steps
+    }];
+
+    const historyBeforeUser = messages.slice(0, index - 1);
+    const content = prevUserMessage.content;
+    const att = prevUserMessage.attachment;
+
+    posthog.capture("ai_message_regenerated", {
+      traceId: aiMessage.traceId,
+      current_page: pathname,
+      model: selectedModel,
+      version_count: updatedVersions.length + 1
+    });
+
+    await performAIExchange(content, att, historyBeforeUser, id, updatedVersions);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ x: "100%", opacity: 0, filter: "blur(8px)" }}
+            animate={{ x: 0, opacity: 1, filter: "blur(0px)" }}
+            exit={{ x: "100%", opacity: 0, filter: "blur(8px)" }}
+            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+            className="fixed top-0 right-0 h-full w-full sm:w-[450px] bg-background/90 dark:bg-background/90 backdrop-blur-2xl border-l border-border/50 dark:border-white/10 shadow-2xl z-50 flex flex-col pt-safe"
+          >
+            <SidebarHeader
+              isDark={isDark}
+              onClearChat={clearChat}
+              onToggleDisplayMode={toggleDisplayMode}
+              onToggleSidebar={toggleSidebar}
+              displayMode={displayMode}
+              showHistory={showHistory}
+              onToggleHistory={() => setShowHistory(!showHistory)}
+            />
+
+            {error && (
+              <div className="px-6 py-2.5 bg-destructive/10 dark:bg-destructive/25 text-destructive-foreground dark:text-red-300 text-xs border-b border-destructive/20 font-medium">
+                {error}
+              </div>
+            )}
+
+            {showHistory ? (
+              <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 dark:bg-gray-950/10">
+                <ChatConversationList
+                  conversations={conversations}
+                  activeId={activeConversationId || undefined}
+                  onSelect={async (id) => {
+                    selectedConvRef.current = id;
+                    setActiveConversationId(id);
+                    setShowHistory(false);
+                    setError(null);
+
+                    // If the conversation is archived, restore it first via PATCH
+                    const conv = conversations.find(c => c.id === id);
+                    if (conv?.status === 'archiviert') {
+                      const restoreRes = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'aktiv', orgId: activeOrgId }),
+                      });
+                      if (!restoreRes.ok) {
+                        const errBody = await restoreRes.json().catch(() => ({}));
+                        setError(errBody.error || 'Konnte archivierte Konversation nicht wiederherstellen.');
+                        return;
+                      }
+                      await loadConversationsList();
+                    }
+
+                    try {
+                      const detailsRes = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`);
+                      if (selectedConvRef.current !== id) return; // stale
+                      if (detailsRes.ok) {
+                        const data = await detailsRes.json();
+                        if (selectedConvRef.current !== id) return; // stale
+                        const rawMessages = data.nachrichten || data.messages || [];
+                        const mapped = rawMessages.map((m: any) => ({
+                          id: m.id,
+                          role: m.rolle === 'assistant' ? 'model' : m.rolle,
+                          content: m.inhalt || '',
+                          status: m.status,
+                          steps: m.steps || [],
+                          versions: m.versions || []
+                        }));
+                        setMessages(mapped);
+                        
+                        const lastMsg = rawMessages[rawMessages.length - 1];
+                        if (selectedConvRef.current !== id) return; // stale
+                        if (lastMsg && lastMsg.rolle === 'assistant' && lastMsg.status === 'generiert') {
+                          setIsLoading(true);
+                          setActiveId(lastMsg.id);
+                          subscribeToRealtime(id, lastMsg.id);
+                        } else {
+                          setIsLoading(false);
+                          unsubscribeFromRealtime();
+                        }
+                      } else {
+                        setError('Konnte Konversation nicht laden.');
+                      }
+                    } catch (err) {
+                      setError('Fehler beim Laden der Konversation.');
+                    }
+                  }}
+                  onCreate={() => {
+                    clearChat();
+                    setShowHistory(false);
+                  }}
+                  onArchive={async (id, e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'archiviert', orgId: activeOrgId }),
+                      });
+                      if (response.ok) {
+                        if (activeConversationId === id) {
+                          setActiveConversationId(null);
+                          setMessages([]);
+                        }
+                        await loadConversationsList();
+                      } else {
+                        setError('Archivieren fehlgeschlagen.');
+                      }
+                    } catch (err) {
+                      setError('Netzwerkfehler beim Archivieren.');
+                    }
+                  }}
+                  onRestore={async (id, e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'aktiv', orgId: activeOrgId }),
+                      });
+                      if (response.ok) {
+                        await loadConversationsList();
+                      } else {
+                        const body = await response.json().catch(() => null);
+                        console.error('[restore] Server error:', body?.error || response.statusText);
+                        setError('Wiederherstellen fehlgeschlagen.');
+                      }
+                    } catch (err) {
+                      setError('Netzwerkfehler beim Wiederherstellen.');
+                    }
+                  }}
+                  onDelete={async (id, e) => {
+                    e.stopPropagation();
+                    if (!confirm('Möchtest du diese Konversation wirklich löschen?')) return;
+                    try {
+                      const response = await fetch(`/api/conversations/${id}?orgId=${activeOrgId}`, {
+                        method: 'DELETE',
+                      });
+                      if (response.ok) {
+                        if (activeConversationId === id) {
+                          setActiveConversationId(null);
+                          setMessages([]);
+                        }
+                        await loadConversationsList();
+                      } else {
+                        setError('Löschen fehlgeschlagen.');
+                      }
+                    } catch (err) {
+                      setError('Netzwerkfehler beim Löschen.');
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                <MessagesList
+                  messages={messages}
+                  isLoading={isLoading}
+                  activeId={activeId}
+                  llmSteps={llmSteps}
+                  scrollRef={scrollRef}
+                  regenerateMessage={regenerateMessage}
+                  switchVersion={switchVersion}
+                />
+
+                <ChatInput
+                  inputValue={inputValue}
+                  setInputValue={setInputValue}
+                  attachment={attachment}
+                  setAttachment={setAttachment}
+                  isLoading={isLoading}
+                  isDark={isDark}
+                  selectedModel={selectedModel}
+                  setSelectedModel={setSelectedModel}
+                  enabledToolIds={enabledToolIds}
+                  toggleTool={toggleTool}
+                  handleFileSelect={handleFileSelect}
+                  fileInputRef={fileInputRef}
+                  textareaRef={textareaRef}
+                  handleKeyDown={handleKeyDown}
+                  sendMessage={sendMessage}
+                />
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <SidebarFloatingButton isOpen={isOpen} isDark={isDark} onToggle={toggleSidebar} />
+    </>
+  );
+}

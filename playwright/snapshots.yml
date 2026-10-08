@@ -9,49 +9,49 @@ snapshots:
     chromium-agb-light:
         hash: v1.k04ffa068.5724aa1586fd2a30aab3491d4c0e0a642866c41b5a79d9ea448c201393ddbddb.4fL3wyfr8IUhTpEjmbDqekRaDVK1Xjci5naW4CT_1r0
     chromium-dashboard-betriebskosten-dark:
-        hash: v1.k04ffa068.a266d98197016f9004472778f6edc799cd9049235db8b60fbf9aa29cbab4bd23._lItaLUOVak4Hhtxy6IXQEJpxFdZGPBxGo7VSa50hOs
+        hash: v1.k04ffa068.ca428ec3c559c7244124ea44e8c3b00e9fa60f7ca84402a9eefd187981f6fb85.hzK3T7Mg6ltpDs_Gxi_W6avkzEDMxCA1QmS_hU5VTMw
     chromium-dashboard-betriebskosten-light:
-        hash: v1.k04ffa068.e1b2b6f8a745eb7c784e2a07aefa048cc0f0c0fc46485721c2d65ac911335cb7.LQBrLbMcC1ySf1ge5lubQyy4fM-dW-VeJiybWQRsTHA
+        hash: v1.k04ffa068.f8c9a3c3648b7ed6bc1d06e7aa97b0adc5f0220e5e21a6f38da48a9a742867ae.8Pjg3dUT5FHuzx09TqdTaWFbpQxGNqzcAVlrT81OA-M
     chromium-dashboard-dashboard-dark:
-        hash: v1.k04ffa068.821c332909f2efbcd870694546e08eb1864d620a04a523f0807de021ee33efdb.dlJQEy34b7Rr4-xg8LJOQGR80Ir8x1-h17YjTWs9spU
+        hash: v1.k04ffa068.3168053d454149e5e30afc364fe176b4f647c258f3e4bee8fdf754ffe67e5dc8.U7ys_KVbeMUdfeMDJuptA7lTelGUclXzk_RUxNwtl90
     chromium-dashboard-dashboard-light:
-        hash: v1.k04ffa068.913d8e2b6d53af57d7a60db553884818163092b7da89951232b7ba9792643700.vT4PStmSc16Tvx20xtk9mC0dJjyxCSZCexJvsrVPX54
+        hash: v1.k04ffa068.a4c3540eb1cce59854e1a2f646f7709905415f67a217c39c1bcd6ad077ebfc2a.FCvwBUnYOkjm5906FWBFsufN-BhdF22nA3R4DrLV_0o
     chromium-dashboard-dateien-dark:
-        hash: v1.k04ffa068.8d5993e31e427aa8b9e5b2b59ded47f6b029ac0df2946cf8751f1325cb68c248.BGPqXOElzg0tmWAzjU5QIGanGj74mhDkRO1ahD1MDHc
+        hash: v1.k04ffa068.3050e13ea0089773753a24702490a966638dab805f038d43945ea713f63ee001.mpJ_OLYPq2hVlsxhNKwzbt654qT7lLCtekKq_8QrFzo
     chromium-dashboard-dateien-light:
-        hash: v1.k04ffa068.1fa8161e3f97f7275e93e23d5f85b233e7ab2ed6eeefebf99ddb117d05cc3cb9.fukQU9JmpcWm5TWDjcPXSgk5zRMv0XOTMMaOulLF2Zw
+        hash: v1.k04ffa068.da843a186c574e85240d2479b7bf3a1010770e3c33271459177f690347fe9ffa.BNT-bDLeIzy8_lXDXQ8rRCF_eGrbWpq--6Fv-6uKbnw
     chromium-dashboard-finanzen-dark:
-        hash: v1.k04ffa068.7f7ba53b77b31664a5193027f38d921cc662e5764cd334e1aa7e878ad92c497c.juG59OCQHOFUas3hFfwm24zZxhYI2_JwpcCROiQ4UUc
+        hash: v1.k04ffa068.fd9f088d0b158ad34ecca3baa5f7eee081ac050d57516fb137e6611250b20b68.U9HIsUySkfwQBsj-7XvkAEWlMNSgaU_BssZmvECiVco
     chromium-dashboard-finanzen-light:
-        hash: v1.k04ffa068.c2405382c4154cf2a59fe6f84f224778d43b686d6af57aa53dcac5aae895055b.PyJDXGKpaoRtlhOGjilLrNMxSzwyFzJiwORTw90lAy8
+        hash: v1.k04ffa068.5669628b29483ca57cc8471318de656027c6fb4241b1f009cc39cc85a9773345.WCAy-f4XByWHL8msC7h0rg6_ofchgf0VrYXHuqiC5GA
     chromium-dashboard-haeuser-dark:
-        hash: v1.k04ffa068.e0cf60b214c99bffb6ff0b5439f5fb0c5f9fda649b0c373e4de173ff3c2383b9.ZodjPm3dK8tqISrpta-eQAaRhdAheKLDTuB5udHj5_c
+        hash: v1.k04ffa068.d30e376a9c22acfc26b9c77a67c67f1d3271fa4b308ecc66b24b12a588c61f13.yGXRXhua0QcfIzV4Ax-cmRa-EszBqhaTZKKIjS8Aj3w
     chromium-dashboard-haeuser-light:
-        hash: v1.k04ffa068.8d9677703ad32d00c6fb580fa55583c8f53ba0dd5461f3f1f1e2fd50e73373a1.VE8UjgdYnE6uYDtnw4e47v6mEojsTUbmzjm6_-rOFOU
+        hash: v1.k04ffa068.2beb1a01bb3b7d1401727f0add6c041f7703ac270219db17366fb6a58bae38c5.cbooXsLlPShUR5pHnvBBeejNnL-1KpY9i3V6UZU2yuk
     chromium-dashboard-mails-dark:
-        hash: v1.k04ffa068.cfc38859a66605d3fea772c916fee05389492b51c553b02e644614c73dec749a.ROdhiNzbHxO2SMbRVo5OA-0ZkD82UMai9oWyKFSmJ3c
+        hash: v1.k04ffa068.f4d0d78509ab95140e54539b610b6225f3cf3e6f54d89c836b5525e92fba8009.p0-65_OrSmOyogxsBLrdisEc-LGdFrfm5U5tMh6RL3g
     chromium-dashboard-mails-light:
-        hash: v1.k04ffa068.33a5ec652523cce83d2f44ab6deab14cb0def748421018b01c27f4f8fa8acf29.UmephJT-_ta9w_zHqDrUTwCJcZbyyeNZFpTDUwnn5pA
+        hash: v1.k04ffa068.89df8ccfa16851bd52b59ba6e275409cc0df234b6ed2b6e4a025900d3e5143f1.ktPphA50BnmDKoU9uZwm6uwTYVUSEbep1qy7lFBAQbs
     chromium-dashboard-mieter-dark:
-        hash: v1.k04ffa068.93da7d9af6f9ed55ebd33bca60294ba07287dd5839b59f26e4104afcd382d04b.GgZC78xc8yNs-KZGbr0DS-c5d4HgozmFnKSLcZbJTyI
+        hash: v1.k04ffa068.f0a30b1a8bb2d4163509f00e4ce384fa79285356309208449224372f301c7033.byspjl4x_zeCOsSnKW3UcKuC0Zmz5XKbr1LUIPgznW4
     chromium-dashboard-mieter-light:
-        hash: v1.k04ffa068.18019b201c6a35f53f72344469b681ca7885fd0a11dd267de159eaa480b044b5.ZHDd1zMGwm-xm5i9LikXygbXXH1XXzFKDz1PvZ0zxfg
+        hash: v1.k04ffa068.aaf392dfbf3fd87974d9b25d8169e6c2d620fc8adccca35892ac9dd46ccf6013.j8jqsaxa8JSIWqjPpjpKL_VP1xvDLIbaoODYiv8X9Iw
     chromium-dashboard-todos-dark:
-        hash: v1.k04ffa068.13e110ed93604c92832f31f85801d27e4b20b44b83cede7a4ef5182145bc97a6.bvx6-52_WuJ9xJPxr7CVRZPyTM27odSstPNkB0bzGhs
+        hash: v1.k04ffa068.695751fbbd83a4ceead2e122184f43abb105f1d2365289b6353b607d94fecc9b.9njgK9l8Z5dgDir7E8GDOgvD2GbR2tDOBQ7dFLwkpsc
     chromium-dashboard-todos-light:
-        hash: v1.k04ffa068.70947b5fdef59ba813d530f5495cb3917ea2ed25b93577bbfb72e43dc661a858.k0x6V_iZlVmrpX2Fz0AOv9MU1g5mymKejZH-T1nx7Q8
+        hash: v1.k04ffa068.fe1982f735ca9a13a01f48667cc6f3e5314462698f857c0e1d029de2f102e3ba.LafC_SaE0u6OMJ9Wixmdgy-8cm_e8gc1iKg2JMu9Sp4
     chromium-dashboard-wohnungen-dark:
-        hash: v1.k04ffa068.7c0a204980dcdf2281d5ccd2db7d444c2b713c6ccb59d9cdfc5e7c7d39c3ea06.Ak1bNcP9JJW4Y1F1AX6kAHdv_JaPhW-9oWTwH4tH7i8
+        hash: v1.k04ffa068.cb341752f97a41e3a88f091b8fcf44b29bb93e0faba683249bf5b24f9fe78782.63M5ZWHDYFWpT8cBQEgB3SuSJ7fafYaq-JH1fcMk3L8
     chromium-dashboard-wohnungen-light:
-        hash: v1.k04ffa068.8e0ef6ac733cf481b307ded9762e941dd4b84d58b8f7802500d68819b538bc44.U66IANPSOUn6gT0FcEDuAJuEY92ui-JJpGyKu5ElFIM
+        hash: v1.k04ffa068.e61da7ce8ecdc9dc115de36f389dfb7cb74ece6b9685ca3d00258e4902d95364.JRLfHQukm3uu-JKNtuCfwCudbxwmt_ZQy1dnqdJVHjk
     chromium-datenschutz-dark:
         hash: v1.k04ffa068.f660c7a461ed650104337e49ca95625355a3cdf7529200bcbcaf542834dde1ce.rhIo6baS9yOSt4t5AenyeZDmfYWiTKDsjYo2BsvkAxQ
     chromium-datenschutz-light:
         hash: v1.k04ffa068.9fdf9a27b00e4c0ba974c47e9b671ba3517b04b9cc1f36878f3d34fefdf67bd0.d2coGO94KvElDDQfPZaSvWxMEfNeCuJw7vPQo1B6zpM
     chromium-funktionen-betriebskosten-dark:
-        hash: v1.k04ffa068.0d36b4ac6ce02fe6915e3dd5c4e6075ef11e6df82a9b076233e2de5770c6dde6.bxJSKDaQMhq5G1S3E8zYNMJ8YCP2fMYGcYErSiZKyok
+        hash: v1.k04ffa068.94601cefe1a42d7512eacef4d918f5aa3bba462cb8ec6d78184066d7d66f2f43.dkObyFzIi9d3LNUK_ANjwIzynPgEJaQa-UbqbKBux2s
     chromium-funktionen-betriebskosten-light:
-        hash: v1.k04ffa068.2d33bb220548f08505422ab1f95ed5866be2bb796453d748492b5ad5242ee077.Pa22YUCF4eVE4ZaoxAEcQHclH8dChk-sRfWVOGSezas
+        hash: v1.k04ffa068.b49dbc0dfef0bf80b7ce35d8979303390c4c962576a3b7b79dd78a5243546b7c.w5PpZP_kMNjd9UHMegpk0GVpzSmnvy3gq2cUQcOL-40
     chromium-funktionen-finanzverwaltung-dark:
         hash: v1.k04ffa068.43405f93299c64dee62a647e1d62c61eea76c8c3ff92a4029dbeb4a42907b5bf.JaxEOCkAwyWCU0IcrpiPVKy4Go-1AT-FJh79zf4uIek
     chromium-funktionen-finanzverwaltung-light:
@@ -59,36 +59,36 @@ snapshots:
     chromium-funktionen-wohnungsverwaltung-dark:
         hash: v1.k04ffa068.485b0aaf559f921b9fa78a32053d9b1052650e0630a45345a42252d3089aa5b0.zpQWhGpOYC2FySaWTDENgSGGkzMDPiBZGm-pnw1QmW8
     chromium-funktionen-wohnungsverwaltung-light:
-        hash: v1.k04ffa068.66f108e0631a940b7cdc9e4439a9892b0dfa90a8607eb712d68ee5803c0cca20.dE0cN71ozISyXp11hfGNcAK3miqa1Bx30u74KMbZUcc
+        hash: v1.k04ffa068.b5e4cfa0e48bd138f7edfb44504049dbc3d73174ce24d3a80e9bb4134f581fec.vDyZoVXiSFZFgwvplPpmHFwHV4JjY7BD-aOOerYP7vk
     chromium-impressum-dark:
         hash: v1.k04ffa068.c763f68976df0e107e7fd848d8b702276d78029a32d49391bc992cca3c0cedfc.kJBC2VUlskXZ-U6JwX4Af8LUjwb8hRpU31cenE5Cegs
     chromium-impressum-light:
         hash: v1.k04ffa068.02e0e45b93144a590b54b87084d09350465e4cc4168a27edbd33e2da7830911c.DMCLR7FF9RyX3MAJbptTjKEO2iCa-zM-1pX8MHY7iS4
     chromium-landing-dark:
-        hash: v1.k04ffa068.fc7c7c2d9f53ca9d2c7096a27ecd73cbfb1825c283356eeace61eb20b3b9be2a.C7z4RvUMIyzI0FAgXW0BPBdwMSXi3ELhKvqpYzbt2oU
+        hash: v1.k04ffa068.60f0621d78f57b7a0f5a2c18bfb867aaa1d8b8c236d1a6f92f405847c70df2b7.5bPA0W7LCEllMFEj8Km_-24oYHGbwsQM0zzT-SzPB1k
     chromium-landing-light:
-        hash: v1.k04ffa068.8f4676f77302bffff7a694e2e41a521908bf8d816981c444f2d570ed675e2884.kOo2ytVCNVbQKvBqnwNTlKNw25rHreWibTUYJvPSMys
+        hash: v1.k04ffa068.f44e878d95237fb06e4af662759c977dc23c3a17eb0e6362ab70472f89c1e830.jWFJ96GddKe8pS7mABf41DAyJDPAubssb5G0bu21uE4
     chromium-loesungen-grosse-hausverwaltungen-dark:
-        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.KB6jWRNuZk-mgiYAzquElIe5Di5WkewGkIeEw-jXwBw
+        hash: v1.k04ffa068.500e10c01224f32d3555c0d0ccb399cc0cb2136b6fc45028201cc7a3d44da1a5.R9frR2RmRpZURoJPg8Qzhf8S2gq1q7ibAjGMXegqBmY
     chromium-loesungen-grosse-hausverwaltungen-light:
-        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.75J83na5QwfvKWr8K2_nKKBOH6Bk1Aa4v95mNyS7Pgw
+        hash: v1.k04ffa068.f43b13f735be2350b4950a7349ec300d2ba9e48e063f7d0d536a9241a5d3d13d.Vknjf5lgpDUlTwAmn9PRqr2_pLrR6OQdgAYM8dQkNHA
     chromium-loesungen-kleine-mittlere-hausverwaltungen-dark:
-        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.Z2h-J0oorVDO0OGglSddu8myThdcHexyDXhyJ_gXi1w
+        hash: v1.k04ffa068.500e10c01224f32d3555c0d0ccb399cc0cb2136b6fc45028201cc7a3d44da1a5.5lURLzBPmWKjyl_B90OZIIiMwVaCE7gCibHfeXeFyVs
     chromium-loesungen-kleine-mittlere-hausverwaltungen-light:
-        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.GgRCVH0y3HcpoBMB9feQLqX50pDxZz80-gnNIJd-Rf8
+        hash: v1.k04ffa068.f43b13f735be2350b4950a7349ec300d2ba9e48e063f7d0d536a9241a5d3d13d.DYlw0WYgvkUjQaDfeOKu-C9M_dBWm2GY0WXki88PBgE
     chromium-loesungen-privatvermieter-dark:
-        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.ajsessN7jK7rBYMyj7OlOxHD8ZREjyB8YhAVWRzM25k
+        hash: v1.k04ffa068.500e10c01224f32d3555c0d0ccb399cc0cb2136b6fc45028201cc7a3d44da1a5.RMgK_LFSuWLpmdhmNPW4c_BhqAEPWLRcZptjSzEZotI
     chromium-loesungen-privatvermieter-light:
-        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.cToRvKUeXUgYxGtA37BI-jqL8LEB_vmXnbKrI4J8n9Y
+        hash: v1.k04ffa068.f43b13f735be2350b4950a7349ec300d2ba9e48e063f7d0d536a9241a5d3d13d.NijVVTqJKEIjdUiZy6mafGNAforuQewXu9auLHuCRts
     chromium-preise-dark:
-        hash: v1.k04ffa068.93bbdf08db9382610bba0defcf3b245271211e25615ae2c8cc1abad15b804dba.-5_Ccyby9P3yGLmdV7iAp3UvuwVDzQYCEUwk1Dhblfs
+        hash: v1.k04ffa068.c3b773d69dcb7abb81750c4a91610a231765554e1f441cd07beaf1e96fad0504.fHwd0PnkyPkthGtoxqR2bxFf1R3zyq5_Va2hJMuO4D0
     chromium-preise-light:
-        hash: v1.k04ffa068.1d71bded08c8495712494f9c604792c80d966baf1e7a257f1e06e79d52b0991f.8JcOTTg2LUunVOedEM79tO0nIqdCy1FSAqXowtE4n30
+        hash: v1.k04ffa068.3b4c3588e0128793e42b43a7b89f9e341195902109990d1c0371606db97905aa.Aa4wp0SQq49DTc4qpwdP-t3Jq2SAcMx8zOQuk9-WqII
     chromium-warteliste-browser-erweiterung-dark:
-        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.30QNk91198dg0szqCq4YmmJlWzdtV3L_65-tFSxQbMw
+        hash: v1.k04ffa068.500e10c01224f32d3555c0d0ccb399cc0cb2136b6fc45028201cc7a3d44da1a5.P412H0BOA-lgbsHgHY_ojOKm2efCl8v3Q5DQ3f7zx30
     chromium-warteliste-browser-erweiterung-light:
-        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.NCsOfzvIgrKKoWe2w3rR4NXA4t0OMhv01jggL8lGAe0
+        hash: v1.k04ffa068.f43b13f735be2350b4950a7349ec300d2ba9e48e063f7d0d536a9241a5d3d13d.MtQYqN3Ewv2HNpZOxbFOV7bV2vhrVYjoN8W38zaoBvw
     chromium-warteliste-mobile-app-dark:
-        hash: v1.k04ffa068.6fb8056a31e35f02e3b13af707cc05a51fa5faa604144c4dba3fe3e97f93dd81.GzRIOTwjuRWAXUSbxBwSOsZNHpY2ri__GcHQO6jlngk
+        hash: v1.k04ffa068.500e10c01224f32d3555c0d0ccb399cc0cb2136b6fc45028201cc7a3d44da1a5.bRx-dW1h3X5RrCQ2gjxRZLZhDjGTXUEuZLs-xj-xWUA
     chromium-warteliste-mobile-app-light:
-        hash: v1.k04ffa068.4cf0a5b38f1da8ff5ae4277a9b42cdb07686d53e92dd4607ca40156f3bd88d15.kBTiZYvtrPjOe8h9O00fMwI-fOL6lJhjAePl5mzeS-c
+        hash: v1.k04ffa068.f43b13f735be2350b4950a7349ec300d2ba9e48e063f7d0d536a9241a5d3d13d.c-4ZeoPgYaTDlrGRaJY_5Ng0eOQ0uFqtCrjMMuuFVCo
