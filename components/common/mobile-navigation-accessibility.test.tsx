@@ -22,13 +22,24 @@ jest.mock('posthog-js/react', () => ({
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
-  usePathname: () => '/dashboard'
+  usePathname: () => '/dashboard',
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
 }))
 
 describe('MobileBottomNavigation Accessibility', () => {
   beforeEach(() => {
     // Reset all mocks
     jest.clearAllMocks()
+    // Set mobile viewport
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 375,
+    })
   })
 
   it('has proper navigation role and aria-label', () => {
@@ -133,11 +144,11 @@ describe('MobileBottomNavigation Accessibility', () => {
     const links = screen.getAllByRole('link')
 
     buttons.forEach(button => {
-      expect(button).toHaveClass('focus:outline-hidden', 'focus:ring-2', 'focus:ring-accent')
+      expect(button).toHaveClass('focus:outline-hidden', 'focus:ring-2', 'focus:ring-primary/20')
     })
 
     links.forEach(link => {
-      expect(link).toHaveClass('focus:outline-hidden', 'focus:ring-2', 'focus:ring-accent')
+      expect(link).toHaveClass('focus:outline-hidden', 'focus:ring-2', 'focus:ring-primary/20')
     })
   })
 

@@ -152,7 +152,7 @@ describe('WasserZaehlerModal - Unsaved Changes Detection', () => {
     })
 
     // Find and click close button
-    const closeButton = screen.getByText(/Schließen/i)
+    const closeButton = screen.getAllByText(/Schließen/i)[0]
     fireEvent.click(closeButton)
 
     // Should set dirty state to false when closing

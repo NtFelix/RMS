@@ -1,6 +1,6 @@
-export const runtime = 'edge';
-import { createClient } from "../../../../utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     const { getAccessibleWohnungIds } = await import("@/lib/object-scope");
     const wohnungIds = await getAccessibleWohnungIds();
 
@@ -40,6 +40,7 @@ export async function GET(request: Request) {
           throw new Error('RPC function failed or returned no data');
         }
       } catch (rpcError) {
+        unstable_rethrow(rpcError);
         console.log('Summary API: RPC function not available, using fallback query with pagination');
       }
     }
@@ -104,6 +105,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(summaryWithMonthlyData, { status: 200, headers: NO_CACHE_HEADERS });
   } catch (e) {
+    unstable_rethrow(e);
     console.error('Server error GET /api/finanzen/summary:', e);
     return NextResponse.json({ error: 'Serverfehler bei Finanzen-Zusammenfassung.' }, { status: 500, headers: NO_CACHE_HEADERS });
   }

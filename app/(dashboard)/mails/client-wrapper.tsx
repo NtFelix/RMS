@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle, Mail as MailIcon, Send, Clock, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
+import { PlusCircle, Mail as MailIcon, Send, Inbox, FileEdit, Star, Archive, RefreshCw } from "lucide-react";
 import { StatCard } from "@/components/common/stat-card";
 import { MailsTable } from "@/components/mails-table";
 import { MailDetailPanel } from "@/components/mail-detail-panel";
@@ -110,7 +110,7 @@ export default function MailsClientView({
       await updateEmailReadStatus(mailId, isRead);
       toast({ title: isRead ? 'Als gelesen markiert' : 'Als ungelesen markiert' });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [router, toast]);
@@ -120,7 +120,7 @@ export default function MailsClientView({
       await toggleEmailFavorite(mailId, isFavorite);
       toast({ title: isFavorite ? 'Als Favorit markiert' : 'Favorit entfernt' });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [router, toast]);
@@ -130,7 +130,7 @@ export default function MailsClientView({
       await moveEmailToFolder(mailId, 'archive');
       toast({ title: 'E-Mail archiviert' });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
   }, [router, toast]);
@@ -205,7 +205,7 @@ export default function MailsClientView({
       await Promise.all(promises);
       toast({ title: `${selectedMails.size} E-Mails als gelesen markiert` });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -218,7 +218,7 @@ export default function MailsClientView({
       await Promise.all(promises);
       toast({ title: `${selectedMails.size} E-Mails als ungelesen markiert` });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -232,7 +232,7 @@ export default function MailsClientView({
       await Promise.all(promises);
       toast({ title: `${selectedMails.size} E-Mails aktualisiert` });
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Aktualisieren', variant: 'destructive' });
     }
   }, [selectedMails, mailData, router, toast]);
@@ -246,7 +246,7 @@ export default function MailsClientView({
       toast({ title: `${selectedMails.size} E-Mails archiviert` });
       setSelectedMails(new Set());
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Archivieren', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -260,7 +260,7 @@ export default function MailsClientView({
       toast({ title: `${selectedMails.size} E-Mails endgültig gelöscht` });
       setSelectedMails(new Set());
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Löschen', variant: 'destructive' });
     }
   }, [selectedMails, userId, router, toast]);
@@ -274,7 +274,7 @@ export default function MailsClientView({
       toast({ title: `${selectedMails.size} E-Mails verschoben` });
       setSelectedMails(new Set());
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: 'Fehler beim Verschieben', variant: 'destructive' });
     }
   }, [selectedMails, router, toast]);
@@ -366,7 +366,6 @@ export default function MailsClientView({
   // since loadMoreMails itself depends on mailData.length which it modifies
   useEffect(() => {
     loadMoreMails(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortKey, sortDirection]);
 
 
