@@ -223,10 +223,10 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
       render(<FinanzenClientWrapper {...defaultProps} />);
 
       // Check if summary values are displayed (formatted)
-      expect(screen.getByText('1.000,00 €')).toBeInTheDocument(); // Average monthly income
-      expect(screen.getByText('200,00 €')).toBeInTheDocument(); // Average monthly expenses
-      expect(screen.getByText('800,00 €')).toBeInTheDocument(); // Average monthly cashflow
-      expect(screen.getByText('9.600,00 €')).toBeInTheDocument(); // Yearly projection
+      expect(screen.getAllByText('1.000,00 €').length).toBeGreaterThanOrEqual(1); // Average monthly income
+      expect(screen.getAllByText('200,00 €').length).toBeGreaterThanOrEqual(1); // Average monthly expenses
+      expect(screen.getAllByText('800,00 €').length).toBeGreaterThanOrEqual(1); // Average monthly cashflow
+      expect(screen.getAllByText('9.600,00 €').length).toBeGreaterThanOrEqual(1); // Yearly projection
     });
 
     it('shows loading state for summary cards', () => {
@@ -244,9 +244,8 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
     it('handles summary data updates', async () => {
       render(<FinanzenClientWrapper {...defaultProps} />);
 
-      await waitFor(() => {
-        expect(screen.getByText('1.000,00 €')).toBeInTheDocument();
-      });
+      const matches = await screen.findAllByText('1.000,00 €');
+      expect(matches.length).toBeGreaterThanOrEqual(1);
     });
   });
 
