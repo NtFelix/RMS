@@ -197,6 +197,7 @@ export function TemplatesModal({ isOpen, onClose, initialCategory }: TemplatesMo
         inhalt: templateData.inhalt!,
         kategorie: templateData.kategorie!,
         kontext_anforderungen: templateData.kontext_anforderungen || [],
+        ...(templateData.vorauszahlung_satz !== undefined && { vorauszahlung_satz: templateData.vorauszahlung_satz }),
       };
 
       if (templateId) {

@@ -11,7 +11,10 @@ import {
   getAvailableCategories,
   searchMentionVariables,
   getVariableIcon,
-  isValidMentionVariable
+  isValidMentionVariable,
+  getMentionVariablesForTemplateCategory,
+  VORAUSZAHLUNG_SATZ_VARIABLES,
+  TEMPLATE_TYPE_CONFIGS
 } from './template-constants';
 
 describe('Template Constants', () => {
@@ -20,10 +23,11 @@ describe('Template Constants', () => {
       expect(TEMPLATE_CATEGORIES).toContain('Mail');
       expect(TEMPLATE_CATEGORIES).toContain('Dokumente');
       expect(TEMPLATE_CATEGORIES).toContain('Sonstiges');
+      expect(TEMPLATE_CATEGORIES).toContain('Betriebskostenabrechnung');
     });
 
     it('has correct length', () => {
-      expect(TEMPLATE_CATEGORIES).toHaveLength(3);
+      expect(TEMPLATE_CATEGORIES).toHaveLength(4);
     });
 
     it('is a readonly array', () => {
@@ -321,6 +325,39 @@ describe('Template Constants', () => {
         icon: 'TestIcon'
       };
       expect(isValidMentionVariable(validVariable)).toBe(true);
+    });
+  });
+
+  describe('Betriebskostenabrechnung variables', () => {
+    const ids = (variables: { id: string }[]) => variables.map(v => v.id);
+
+    it('offers the Abrechnung and Vorauszahlung variables only in Betriebskostenabrechnung templates', () => {
+      const abrechnung = ids(getMentionVariablesForTemplateCategory('Betriebskostenabrechnung'));
+      expect(abrechnung).toEqual(expect.arrayContaining(['abrechnung.zeitraum', 'abrechnung.nachzahlung', 'vorauszahlung.satz', 'mieter.name']));
+
+      for (const category of ['Mail', 'Dokumente', 'Sonstiges', null, undefined]) {
+        const other = ids(getMentionVariablesForTemplateCategory(category));
+        expect(other).toContain('mieter.name');
+        expect(other.some(id => id.startsWith('abrechnung.') || id.startsWith('vorauszahlung.'))).toBe(false);
+      }
+    });
+
+    it('lets the Vorauszahlung sentence use the amounts and the date, but not itself', () => {
+      expect(ids(VORAUSZAHLUNG_SATZ_VARIABLES).sort()).toEqual([
+        'vorauszahlung.ab_datum',
+        'vorauszahlung.alter_betrag',
+        'vorauszahlung.neuer_betrag',
+      ]);
+    });
+
+    it('has a type config for every category', () => {
+      for (const category of TEMPLATE_CATEGORIES) {
+        expect(TEMPLATE_TYPE_CONFIGS[category]).toBeDefined();
+      }
+    });
+
+    it('keeps variable ids unique', () => {
+      expect(new Set(ids(MENTION_VARIABLES)).size).toBe(MENTION_VARIABLES.length);
     });
   });
 });

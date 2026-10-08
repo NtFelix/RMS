@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/components/auth/auth-provider';
 import { useTemplates } from '@/hooks/use-templates';
 import { Template } from '@/types/template';
+import { buildMailtoUrl, openMailto } from '@/lib/mail/mailto';
+import { renderTemplateText } from '@/lib/mail/template-variables';
 import {
   FileText,
   Search,
@@ -74,152 +76,20 @@ function TemplateCard({ template, tenantName, tenantEmail }: TemplateCardProps) 
 
   const { text: preview, hasVariables } = getPreviewWithHighlights(template.inhalt);
 
-  // Extract full content for email with proper line break handling
-  const getFullEmailContent = (content: any): string => {
-    if (!content || !content.content) return '';
-
-    // Map of variable names to their resolver functions
-    const variableResolvers: Record<string, () => string> = {
-      'mieter.name': () => tenantName || '[Mieter Name]',
-      'datum.heute': () => new Date().toLocaleDateString('de-DE'),
-      'vermieter.name': () =>
-        (user?.user_metadata?.first_name && user?.user_metadata?.last_name
-          ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-          : user?.email) || '[Vermieter Name]',
-    };
-
-    const processNode = (node: any): string => {
-      // Handle text nodes
-      if (node.type === 'text') {
-        return node.text || '';
-      }
-
-      // Handle mention nodes
-      if (node.type === 'mention') {
-        const label = node.attrs?.label || node.attrs?.id || 'Variable';
-        const resolver = variableResolvers[label.toLowerCase()];
-        return resolver ? resolver() : `[${label}]`;
-      }
-
-      // Handle paragraph nodes - this is key for line breaks
-      if (node.type === 'paragraph') {
-        if (!node.content || !Array.isArray(node.content)) {
-          return '';
-        }
-        // Process all content within the paragraph
-        const paragraphText = node.content.map(processNode).join('');
-        return paragraphText; // Don't add line breaks here, we'll handle them at the document level
-      }
-
-      // Handle hard breaks
-      if (node.type === 'hardBreak') {
-        return '\n';
-      }
-
-      // Handle other node types that might have content
-      if (node.content && Array.isArray(node.content)) {
-        return node.content.map(processNode).join('');
-      }
-
-      return '';
-    };
-
-    // Process the document content - each paragraph should be separated by double line breaks
-    if (!content.content || !Array.isArray(content.content)) {
-      return '';
-    }
-
-    // Process each paragraph and collect them
-    const paragraphs: string[] = [];
-
-    content.content.forEach((node: any) => {
-      if (node.type === 'paragraph') {
-        const paragraphText = processNode(node);
-        if (paragraphText.trim()) {
-          paragraphs.push(paragraphText.trim());
-        }
-      } else {
-        // Handle other node types at document level
-        const nodeText = processNode(node);
-        if (nodeText.trim()) {
-          paragraphs.push(nodeText.trim());
-        }
-      }
+  // Open the mail app with the template filled for this tenant
+  const handleTemplateClick = () => {
+    const firstName = user?.user_metadata?.first_name;
+    const lastName = user?.user_metadata?.last_name;
+    const body = renderTemplateText(template.inhalt, {
+      mieter: { name: tenantName, email: tenantEmail },
+      vermieter: {
+        vorname: firstName,
+        nachname: lastName,
+        name: (firstName && lastName ? `${firstName} ${lastName}` : user?.email) || null,
+      },
     });
 
-    // Join all paragraphs with double line breaks
-    return paragraphs.join('\n\n');
-  };
-
-  // Detect platform and mail client for optimal encoding
-  const detectPlatformAndClient = () => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const platform = navigator.platform.toLowerCase();
-
-    // Detect platform
-    const isMac = platform.includes('mac') || userAgent.includes('mac');
-    const isWindows = platform.includes('win') || userAgent.includes('win');
-    const isLinux = platform.includes('linux') || userAgent.includes('linux');
-
-    // Detect potential mail clients based on common patterns
-    const hasOutlook = userAgent.includes('outlook') || userAgent.includes('office');
-    const hasThunderbird = userAgent.includes('thunderbird');
-    const isChrome = userAgent.includes('chrome') && !userAgent.includes('edge');
-    const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
-    const isFirefox = userAgent.includes('firefox');
-
-    return {
-      platform: isMac ? 'mac' : isWindows ? 'windows' : isLinux ? 'linux' : 'unknown',
-      isMac,
-      isWindows,
-      isLinux,
-      hasOutlook,
-      hasThunderbird,
-      isChrome,
-      isSafari,
-      isFirefox
-    };
-  };
-
-  // Handle template click to open mail app
-  const handleTemplateClick = () => {
-    const emailContent = getFullEmailContent(template.inhalt);
-    const subject = template.titel;
-    const recipient = tenantEmail || '';
-
-    // Detect platform and client
-    const clientInfo = detectPlatformAndClient();
-
-    let formattedContent: string;
-    let encodingStrategy: string;
-
-    // Choose encoding strategy based on platform and client
-    if (clientInfo.isMac || clientInfo.hasThunderbird || clientInfo.isFirefox) {
-      // These clients handle LF well, no conversion needed
-      formattedContent = emailContent;
-      encodingStrategy = 'lf';
-    } else {
-      // Default to CRLF for better compatibility (Windows, Outlook, etc.)
-      formattedContent = emailContent.replace(/\n/g, '\r\n');
-      encodingStrategy = 'crlf';
-    }
-
-    // Encode the content
-    const encodedContent = encodeURIComponent(formattedContent);
-
-    // For some clients, we might need to try alternative encoding
-    let mailtoUrl: string;
-
-    if (clientInfo.isSafari) {
-      // Safari sometimes has issues with standard encoding, try simpler approach
-      const simpleContent = emailContent.replace(/\n/g, '%0A');
-      mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${simpleContent}`;
-    } else {
-      mailtoUrl = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodedContent}`;
-    }
-
-    // Open mail app
-    window.location.href = mailtoUrl;
+    openMailto(buildMailtoUrl({ to: tenantEmail, subject: template.titel, body }));
   };
 
   // Highlight mentions/variables in the preview text

@@ -1,31 +1,40 @@
 import { PAYMENT_KEYWORDS } from "@/utils/constants"
-import { getCurrentMonthRange, getMonthDateRange } from "@/utils/date-calculations"
+import { getCurrentMonthRange, getMonthDateRange, getTodayISOString, toIsoDateOnly } from "@/utils/date-calculations"
 
-export const getLatestNebenkostenAmount = (entries?: any[] | null): number => {
+/**
+ * Monthly Nebenkosten prepayment (Soll) that applies on the given date: the newest entry dated on or before it.
+ * An entry dated later (e.g. an announced increase from 1 January) does not apply yet. If no entry applies yet
+ * (tenant moving in later), the earliest upcoming one is used, so such tenants keep their planned amount.
+ * Entries without a date count as the oldest ones; entries without a positive amount are ignored.
+ */
+export const getNebenkostenAmountAt = (entries: any[] | null | undefined, isoDate: string): number => {
     if (!Array.isArray(entries)) return 0
 
     const parsedEntries = entries
         .map(entry => {
             const amount = typeof entry.amount === 'number' ? entry.amount : Number(entry.amount)
-            const dateValue = entry.date ? new Date(entry.date) : null
             return {
                 amount: !Number.isNaN(amount) ? amount : 0,
-                dateValue,
+                iso: entry.date ? toIsoDateOnly(entry.date) : '',
             }
         })
         .filter(entry => entry.amount > 0)
 
     if (!parsedEntries.length) return 0
 
-    parsedEntries.sort((a, b) => {
-        if (!a.dateValue && !b.dateValue) return 0
-        if (!a.dateValue) return 1
-        if (!b.dateValue) return -1
-        return b.dateValue.getTime() - a.dateValue.getTime()
-    })
+    const applicable = parsedEntries
+        .filter(entry => !entry.iso || entry.iso <= isoDate)
+        // Newest dated entry first, undated entries last
+        .sort((a, b) => (b.iso || '').localeCompare(a.iso || ''))
+    if (applicable.length) return applicable[0].amount
 
-    return parsedEntries[0]?.amount ?? 0
+    const upcoming = [...parsedEntries].sort((a, b) => a.iso.localeCompare(b.iso))
+    return upcoming[0]?.amount ?? 0
 }
+
+/** The monthly Nebenkosten prepayment that applies today */
+export const getLatestNebenkostenAmount = (entries?: any[] | null): number =>
+    getNebenkostenAmountAt(entries, getTodayISOString())
 
 export const calculateMissedPayments = (tenant: any, finances: any[], includeDetails: boolean = false) => {
     const mieteRaw = Number(tenant.Wohnungen?.miete) || 0
@@ -157,4 +166,31 @@ export const calculateMissedPayments = (tenant: any, finances: any[], includeDet
         totalAmount: totalMissedAmount,
         details: includeDetails ? details : undefined
     }
+}
+
+type NebenkostenScheduleEntry = { id: string; amount: string; date: string }
+
+/**
+ * Adds a planned prepayment `{amount, date}` to a tenant's schedule (Mieter.nebenkosten). An entry with the same
+ * date is replaced instead of duplicated, so saving the same increase twice changes nothing.
+ */
+export const upsertNebenkostenScheduleEntry = (
+    entries: any[] | null | undefined,
+    planned: { amount: number; date: string },
+    newId: string
+): NebenkostenScheduleEntry[] => {
+    const schedule: NebenkostenScheduleEntry[] = (Array.isArray(entries) ? entries : []).map(entry => ({
+        ...entry,
+        id: String(entry.id ?? ''),
+        amount: entry.amount === null || entry.amount === undefined ? '' : String(entry.amount),
+        date: entry.date ?? '',
+    }))
+    const plannedIso = toIsoDateOnly(planned.date)
+    const amount = String(planned.amount)
+    const existing = schedule.findIndex(entry => entry.date && toIsoDateOnly(entry.date) === plannedIso)
+    if (existing >= 0) {
+        schedule[existing] = { ...schedule[existing], amount }
+        return schedule
+    }
+    return [...schedule, { id: newId, amount, date: plannedIso }]
 }
