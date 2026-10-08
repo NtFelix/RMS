@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, RefObject } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
  * Custom hook for debounced window resize events.
@@ -33,31 +33,68 @@ export function useDebouncedResize(callback: () => void, delay = 100) {
 
 /**
  * Custom hook to check if a container element is overflowing horizontally.
- * Automatically rechecks on window resize (debounced).
- * 
+ *
+ * Uses a `ResizeObserver` attached via a callback ref so measurement tracks the
+ * element's real mount/unmount and size changes, and only updates state when the
+ * overflow boolean actually flips. Both of these guard against a measure → setState
+ * → re-render → re-measure feedback loop (React "maximum update depth exceeded"),
+ * which is a risk here because the measured element is conditionally rendered based
+ * on the very state this hook produces.
+ *
  * @returns Object containing:
- *   - ref: Ref to attach to the container element
+ *   - ref: Callback ref to attach to the container element
  *   - isOverflowing: Boolean indicating if content overflows the container
  */
 export function useIsOverflowing(): {
-    ref: RefObject<HTMLDivElement | null>;
+    ref: (node: HTMLDivElement | null) => void;
     isOverflowing: boolean;
 } {
     const [isOverflowing, setIsOverflowing] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const nodeRef = useRef<HTMLDivElement | null>(null);
+    const observerRef = useRef<ResizeObserver | null>(null);
 
-    const checkOverflow = useCallback(() => {
-        if (ref.current) {
-            const { scrollWidth, clientWidth } = ref.current;
-            setIsOverflowing(scrollWidth > clientWidth);
-        }
+    const measure = useCallback((node: HTMLDivElement | null) => {
+        if (!node) return;
+        const { scrollWidth, clientWidth } = node;
+        const overflowing = scrollWidth > clientWidth;
+        // Only trigger a re-render when the boolean actually changes. Without this
+        // guard, a measurement that fires on every render can drive an infinite
+        // update loop when the measured element is mounted/unmounted based on state.
+        setIsOverflowing((prev) => (prev === overflowing ? prev : overflowing));
     }, []);
 
-    useDebouncedResize(checkOverflow);
+    // Callback ref: runs whenever the (conditionally rendered) element attaches or
+    // detaches, wiring up / tearing down the ResizeObserver accordingly.
+    const ref = useCallback((node: HTMLDivElement | null) => {
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+            observerRef.current = null;
+        }
+
+        nodeRef.current = node;
+        if (!node) return;
+
+        measure(node);
+
+        if (typeof ResizeObserver !== 'undefined') {
+            const observer = new ResizeObserver(() => measure(node));
+            observer.observe(node);
+            observerRef.current = observer;
+        }
+    }, [measure]);
+
+    // Fallback for viewport/container changes that don't resize the observed node
+    // itself (e.g. the surrounding layout). No-op while the node is detached.
+    useDebouncedResize(useCallback(() => measure(nodeRef.current), [measure]));
 
     useEffect(() => {
-        checkOverflow();
-    }, [checkOverflow]);
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+                observerRef.current = null;
+            }
+        };
+    }, []);
 
     return { ref, isOverflowing };
 }
