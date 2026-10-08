@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { ensureAuth } from '@/lib/auth-utils';
 import { isOrgAdminOrOwner } from '@/lib/permissions';
 import { revalidatePathsForTable } from './utils';
+import { createDeleteError } from '@/lib/bulk-delete-summary';
 
 
 
@@ -44,7 +45,9 @@ export async function restoreEntryAction(tableName: string, recordId: string): P
   });
   if (error) {
     console.error('Error restoring record %s from %s:', recordId, tableName, error);
-    throw new Error(error.message);
+    // Die Sperren der Datenbank (z. B. Kaution nicht wiederherstellbar, solange der Mieter gelöscht ist) liefern
+    // "<CODE>: <deutsche Meldung>": nur die Meldung ohne technisches Präfix weitergeben.
+    throw createDeleteError(error.message, error.code);
   }
   revalidatePathsForTable(tableName);
 }
@@ -61,7 +64,8 @@ export async function permanentlyDeleteEntryAction(tableName: string, recordId: 
   });
   if (error) {
     console.error('Error permanently deleting record %s from %s:', recordId, tableName, error);
-    throw new Error(error.message);
+    // Siehe oben: Meldung der Datenbank ohne technisches Präfix.
+    throw createDeleteError(error.message, error.code);
   }
   revalidatePathsForTable(tableName);
 }

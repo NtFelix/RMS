@@ -7,6 +7,10 @@ const tsconfig = JSON.parse(
     .replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*|\/\*[\s\S]*?\*\/)/g, (m, g) => g ? "" : m)
 )
 
+// Run tests in the app's timezone so local-vs-UTC date bugs (e.g. toISOString() day shifts) surface on UTC CI runners too.
+// Must be set here, before workers start: assigning process.env.TZ inside a test has no effect.
+process.env.TZ = 'Europe/Berlin'
+
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
   dir: './',

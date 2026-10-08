@@ -159,7 +159,10 @@ describe('ConsentUI Component', () => {
                         aufgaben: { read: false, write: false },
                         dokumente: { read: false, write: false },
                     })
-                }
+                },
+                'Claude Desktop',
+                'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg',
+                'https://claude.ai/oauth/callback'
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',
@@ -206,7 +209,10 @@ describe('ConsentUI Component', () => {
                         aufgaben: { read: false, write: false },
                         dokumente: { read: false, write: false },
                     })
-                }
+                },
+                'Claude Desktop',
+                'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg',
+                'https://claude.ai/oauth/callback'
             );
             expect(submitDecisionAction).toHaveBeenCalledWith(
                 'auth_123456789012',
@@ -242,7 +248,10 @@ describe('ConsentUI Component', () => {
                 'client-123',
                 ['org-active-1'],
                 true,
-                { all: true, write: true }
+                { all: true, write: true },
+                'Claude Desktop',
+                'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg',
+                'https://claude.ai/oauth/callback'
             );
         });
     });

@@ -12,24 +12,29 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { SettingsCard, SettingsSection } from "@/components/settings/shared";
 import { setOrganisationMcpAccessAction } from "@/app/organisation-actions";
+import type { UserMcpAuthorizationRecord } from "@/app/oauth/consent/actions";
+import { McpAuthorizedClientsCard } from "./mcp-authorized-clients";
 
 export interface McpSectionProps {
   organisationId?: string;
   organisationName?: string;
   initialMcpZugriffAktiviert?: boolean;
+  initialAuthorizations?: UserMcpAuthorizationRecord[];
   hasVerwaltenPermission?: boolean;
 }
 
 // MCP endpoint URL — env-configurable, /mcp path appended (base URL has no path)
-const MCP_SERVER_URL = `${process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || 'https://mcp.mietevo.de'}/mcp`;
+const MCP_SERVER_URL = `${process.env.NEXT_PUBLIC_MIETEVO_MCP_URL || "https://mcp.mietevo.de"}/mcp`;
+
+const EMPTY_AUTHORIZATIONS: UserMcpAuthorizationRecord[] = [];
 
 export default function McpSection({
   organisationId,
   organisationName,
   initialMcpZugriffAktiviert = true,
+  initialAuthorizations = EMPTY_AUTHORIZATIONS,
   hasVerwaltenPermission = false,
 }: McpSectionProps) {
   const [mcpEnabled, setMcpEnabled] = useState<boolean>(initialMcpZugriffAktiviert);
@@ -136,6 +141,9 @@ export default function McpSection({
           </div>
         </SettingsCard>
       </SettingsSection>
+
+      {/* Connected services / authorized MCP clients section */}
+      <McpAuthorizedClientsCard initialAuthorizations={initialAuthorizations} />
 
       <SettingsSection
         title="Verbindungsinformationen & Sicherheit"

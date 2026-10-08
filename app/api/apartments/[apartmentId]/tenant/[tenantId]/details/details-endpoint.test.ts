@@ -319,6 +319,8 @@ describe('/api/apartments/[apartmentId]/details', () => {
     // Verify that the tenant query filters by id and wohnung_id
     expect(mockTenantQuery.eq).toHaveBeenCalledWith('id', '123e4567-e89b-12d3-a456-426614174002')
     expect(mockTenantQuery.eq).toHaveBeenCalledWith('wohnung_id', '123e4567-e89b-12d3-a456-426614174001')
-    expect(mockTenantQuery.select).toHaveBeenCalledWith('*')
+    // Explizite Spaltenliste statt Wildcard; das Altfeld "kaution" wird nicht gelesen
+    expect(mockTenantQuery.select).toHaveBeenCalledWith('id, name, email, telefonnummer, einzug, auszug, notiz')
+    expect(mockTenantQuery.select).not.toHaveBeenCalledWith('*')
   })
 })

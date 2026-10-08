@@ -3,7 +3,7 @@ import type React from "react"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { SidebarUserData } from "@/lib/server/user-data"
 import { EmailVerificationNotifier } from '@/components/auth/email-verification-notifier'
-import { Suspense } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { CommandMenu } from "@/components/search/command-menu"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { useModalStore } from "@/hooks/use-modal-store" // Added
@@ -15,7 +15,6 @@ import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/act
 import { financeServerAction } from "@/app/finanzen-actions" // Added - Adjusted path due to tool limitation
 import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
-import { updateKautionAction } from "@/app/mieter-actions"; // Added
 
 // Lazy load modals
 const TenantEditModal = dynamic(() => import('@/components/tenants/tenant-edit-modal').then(mod => mod.TenantEditModal), { ssr: false })
@@ -26,7 +25,8 @@ const AufgabeEditModal = dynamic(() => import('@/components/tasks/aufgabe-edit-m
 const BetriebskostenEditModal = dynamic(() => import('@/components/finance/betriebskosten-edit-modal').then(mod => mod.BetriebskostenEditModal), { ssr: false })
 const AblesungenModal = dynamic(() => import('@/components/meters/ablesungen-modal').then(mod => mod.AblesungenModal), { ssr: false })
 const ZaehlerModal = dynamic(() => import('@/components/meters/zaehler-modal').then(mod => mod.ZaehlerModal), { ssr: false })
-const KautionModal = dynamic(() => import('@/components/tenants/kaution-modal').then(mod => mod.KautionModal), { ssr: false })
+const KautionDialog = dynamic(() => import('@/components/kaution/kaution-dialog').then(mod => mod.KautionDialog), { ssr: false })
+const KautionLoeschUebersichtSheet = dynamic(() => import('@/components/kaution/kaution-loesch-uebersicht-sheet').then(mod => mod.KautionLoeschUebersichtSheet), { ssr: false })
 const HausOverviewModal = dynamic(() => import('@/components/houses/haus-overview-modal').then(mod => mod.HausOverviewModal), { ssr: false })
 const WohnungOverviewModal = dynamic(() => import('@/components/apartments/wohnung-overview-modal').then(mod => mod.WohnungOverviewModal), { ssr: false })
 const ApartmentTenantDetailsModal = dynamic(() => import('@/components/apartments/apartment-tenant-details-modal').then(mod => mod.ApartmentTenantDetailsModal), { ssr: false })
@@ -112,7 +112,17 @@ export default function DashboardInnerLayout({
 
     // Trash Bin Modal State
     isTrashBinModalOpen,
+
+    // Löschen mit Kautionsübersicht
+    isLoeschUebersichtOpen,
   } = useModalStore()
+
+  // Die Übersicht wird erst beim ersten Öffnen geladen, danach bleibt sie eingehängt, damit die Schließen-Animation der Seitenleiste läuft
+  // (sie öffnet und schließt sich selbst über den Store).
+  const [loeschUebersichtGeladen, setLoeschUebersichtGeladen] = useState(false)
+  useEffect(() => {
+    if (isLoeschUebersichtOpen) setLoeschUebersichtGeladen(true)
+  }, [isLoeschUebersichtOpen])
 
   return (
     <AuthProvider>
@@ -146,8 +156,10 @@ export default function DashboardInnerLayout({
         <ZaehlerModal />
         {/* AblesungenModal - Manages meter readings for all meter types */}
         <AblesungenModal />
-        {/* KautionModal - Handles kaution management */}
-        <KautionModal serverAction={updateKautionAction} />
+        {/* KautionDialog - Kautionsmanagement (GH-6); lädt seine Daten selbst über die Server Actions in app/kautionen-actions.ts */}
+        <KautionDialog />
+        {/* Übersicht "Kautionen werden mitgelöscht": erscheint beim Löschen von Haus/Wohnung/Mieter mit gebuchter Kaution (lib/kautionen-loeschen.ts) */}
+        {loeschUebersichtGeladen && <KautionLoeschUebersichtSheet />}
         {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
         <HausOverviewModal />
         {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}

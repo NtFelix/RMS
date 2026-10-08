@@ -10,6 +10,7 @@ import { cookies, headers } from "next/headers";
 import { safeRpcCall } from "@/lib/error-handling";
 import { logger } from "@/utils/logger";
 import { posthogLogger } from "@/lib/posthog-logger";
+import { sanitizeOrgId } from "@/lib/supabase-env";
 
 
 
@@ -384,8 +385,8 @@ export const getMyOrganisationsAction = withLogging(
 
       // Fallback to reading cookie directly on the server side
       const cookieStore = await cookies();
-      const cookieVal = cookieStore.get('current_organisation_id')?.value || null;
-      currentOrgId = (cookieVal && cookieVal !== 'null' && cookieVal !== 'private') ? cookieVal : null;
+      const cookieVal = cookieStore.get('current_organisation_id')?.value;
+      currentOrgId = sanitizeOrgId(cookieVal);
       posthogLogger.info('current_organisation_id resolved via cookie fallback', {
         'user_id': user.id,
         'cookie.value': cookieVal,

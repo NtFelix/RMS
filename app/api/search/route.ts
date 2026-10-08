@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
 import { getAccessibleHaeuserIds, getAccessibleWohnungIds } from "@/lib/object-scope";
+import { formatPlzOrt } from "@/lib/address";
 import type {
   SearchResponse,
   SearchResult as FrontendSearchResult
@@ -329,7 +330,7 @@ export async function GET(request: Request) {
               let queryBuilder = supabase
                 .from('Haeuser')
                 .select(`
-                  id, name, strasse, ort,
+                  id, name, strasse, plz, ort,
                   Wohnungen!left(id, miete, Mieter!left(id, auszug))
                 `);
 
@@ -407,7 +408,7 @@ export async function GET(request: Request) {
               return {
                 id: house.id,
                 name: house.name,
-                address: [house.strasse, house.ort].filter(Boolean).join(', '),
+                address: [house.strasse, formatPlzOrt(house.plz, house.ort)].filter(Boolean).join(', '),
                 apartment_count: apartments.length,
                 total_rent: totalRent,
                 free_apartments: freeApartments

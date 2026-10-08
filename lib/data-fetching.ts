@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "./supabase-server";
 import { isTestEnv } from "./test-utils";
 import { after } from "next/server";
 import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
+import { MIETER_SPALTEN_OHNE_KAUTION } from "./mieter-columns";
 
 // Re-export all types from the types file for backward compatibility
 // Client components should import from "@/lib/types" directly to avoid server imports
@@ -44,8 +45,9 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 
 export async function fetchHaeuser(supabaseClient?: SupabaseClient) {
   const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+  const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
   const [supabase, haeuserIds] = await Promise.all([
-    supabaseClient ?? createSupabaseServerClient(),
+    supabasePromise,
     getAccessibleHaeuserIds(),
   ]);
 
@@ -64,8 +66,9 @@ export async function fetchHaeuser(supabaseClient?: SupabaseClient) {
 
 export async function fetchWohnungen(supabaseClient?: SupabaseClient) {
   const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+  const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
   const [supabase, haeuserIds] = await Promise.all([
-    supabaseClient ?? createSupabaseServerClient(),
+    supabasePromise,
     getAccessibleHaeuserIds(),
   ]);
 
@@ -84,12 +87,14 @@ export async function fetchWohnungen(supabaseClient?: SupabaseClient) {
 
 export async function fetchMieter(supabaseClient?: SupabaseClient) {
   const { getAccessibleWohnungIds } = await import("./object-scope");
+  const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
   const [supabase, wohnungIds] = await Promise.all([
-    supabaseClient ?? createSupabaseServerClient(),
+    supabasePromise,
     getAccessibleWohnungIds(),
   ]);
 
-  let query = supabase.from("Mieter").select('*, Wohnungen(name, groesse, miete)');
+  // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
+  let query = supabase.from("Mieter").select(`${MIETER_SPALTEN_OHNE_KAUTION}, Wohnungen(name, groesse, miete)`);
   if (wohnungIds !== null) {
     query = query.in('wohnung_id', wohnungIds);
   }
@@ -101,7 +106,9 @@ export async function fetchMieter(supabaseClient?: SupabaseClient) {
     return [];
   }
 
-  return data as Mieter[];
+  // postgrest-js leitet aus der expliziten Spaltenliste eine Zeilenform ab, die nicht exakt zu `Mieter` passt
+  // (eingebettete Relation als Array); der Laufzeitwert entspricht weiterhin `Mieter`.
+  return data as unknown as Mieter[];
 }
 
 export async function fetchAufgaben(supabaseClient?: SupabaseClient) {
@@ -122,8 +129,9 @@ export async function fetchAufgaben(supabaseClient?: SupabaseClient) {
 
 export async function fetchFinanzen(supabaseClient?: SupabaseClient) {
   const { getAccessibleWohnungIds } = await import("./object-scope");
+  const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
   const [supabase, wohnungIds] = await Promise.all([
-    supabaseClient ?? createSupabaseServerClient(),
+    supabasePromise,
     getAccessibleWohnungIds(),
   ]);
 
@@ -144,8 +152,9 @@ export async function fetchFinanzen(supabaseClient?: SupabaseClient) {
 
 export async function fetchNebenkosten(year?: string, supabaseClient?: SupabaseClient): Promise<Nebenkosten[]> {
   const { getAccessibleHaeuserIds, applyHaeuserScope } = await import("./object-scope");
+  const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
   const [supabase, haeuserIds] = await Promise.all([
-    supabaseClient ?? createSupabaseServerClient(),
+    supabasePromise,
     getAccessibleHaeuserIds(),
   ]);
 
@@ -270,8 +279,9 @@ if (!latestYearData?.startdatum) {
 
 export async function fetchFinanzenByMonth(supabaseClient?: SupabaseClient) {
   const { getAccessibleWohnungIds } = await import("./object-scope");
+  const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
   const [supabase, wohnungIds] = await Promise.all([
-    supabaseClient ?? createSupabaseServerClient(),
+    supabasePromise,
     getAccessibleWohnungIds(),
   ]);
 
@@ -504,8 +514,9 @@ export async function fetchMeterReadingsByHausAndDateRange(
   supabaseClient?: SupabaseClient
 ): Promise<{ mieterList: Mieter[]; existingReadings: (ZaehlerAblesung & { mieter_id?: string })[] }> {
   const { getAccessibleHaeuserIds } = await import("./object-scope");
+  const supabasePromise = supabaseClient ? Promise.resolve(supabaseClient) : createSupabaseServerClient();
   const [supabase, haeuserIds] = await Promise.all([
-    supabaseClient ?? createSupabaseServerClient(),
+    supabasePromise,
     getAccessibleHaeuserIds(),
   ]);
 
@@ -519,7 +530,7 @@ export async function fetchMeterReadingsByHausAndDateRange(
       // 1. Fetch Mieter for the house, filtered by date range
       supabase
         .from('Mieter')
-        .select('*, Wohnungen!inner(id)')
+        .select(`${MIETER_SPALTEN_OHNE_KAUTION}, Wohnungen!inner(id)`)
         .eq('Wohnungen.haus_id', hausId)
         .lte('einzug', enddatum)
         .or(`auszug.gte.${startdatum},auszug.is.null`),
@@ -545,7 +556,7 @@ export async function fetchMeterReadingsByHausAndDateRange(
       console.error('Error fetching Zaehler_Ablesungen for Haus %s in date range %s to %s:', hausId, startdatum, enddatum, readingsError);
     }
 
-    const mieterList = (relevantMieter as Mieter[]) || [];
+    const mieterList = (relevantMieter as unknown as Mieter[]) || [];
     let existingReadings: ZaehlerAblesung[] = [];
 
     if (!readingsError && readingsWithRelations) {

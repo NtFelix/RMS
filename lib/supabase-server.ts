@@ -1,19 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { getSupabasePublicEnv, UUID_REGEX } from '@/lib/supabase-env'
+import { getSupabasePublicEnv, getOrgCookieHeader } from '@/lib/supabase-env'
 
 export async function createSupabaseServerClient(orgIdOverride?: string) {
   const cookieStore = await cookies()
-  const currentOrgId = orgIdOverride ?? cookieStore.get('current_organisation_id')?.value
-
-  const globalHeaders: Record<string, string> = {}
-  if (currentOrgId) {
-    if (UUID_REGEX.test(currentOrgId)) {
-      globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
-    } else if (process.env.NODE_ENV === 'development') {
-      console.warn('[Supabase Server] Invalid current_organisation_id format (expected UUID):', currentOrgId)
-    }
-  }
+  const rawOrgId = orgIdOverride ?? cookieStore.get('current_organisation_id')?.value
+  const globalHeaders = getOrgCookieHeader(rawOrgId, 'Supabase Server')
 
   const { url, anonKey } = getSupabasePublicEnv()
 

@@ -3,7 +3,7 @@ import { updateSession } from "@/utils/supabase/middleware"
 import posthogProxyConfig from "@/lib/posthog-proxy"
 import { createServerClient } from "@supabase/ssr"
 import { evaluatePermission, type Modul } from "@/lib/permissions-core"
-import { getSupabasePublicEnv, UUID_REGEX } from "@/lib/supabase-env"
+import { getSupabasePublicEnv, sanitizeOrgId, getOrgCookieHeader } from "@/lib/supabase-env"
 
 const { POSTHOG_PROXY_PATH } = posthogProxyConfig
 
@@ -108,15 +108,9 @@ export async function proxy(request: NextRequest) {
 
       if (matchedPrefix) {
         const modul = ROUTE_PERMISSIONS[matchedPrefix]
-        const currentOrgId = request.cookies.get('current_organisation_id')?.value
-        const globalHeaders: Record<string, string> = {}
-        if (currentOrgId) {
-          if (UUID_REGEX.test(currentOrgId)) {
-            globalHeaders['Cookie'] = `current_organisation_id=${encodeURIComponent(currentOrgId)}`
-          } else if (process.env.NODE_ENV === 'development') {
-            console.warn('[proxy] Invalid current_organisation_id format (expected UUID):', currentOrgId)
-          }
-        }
+        const rawOrgCookie = request.cookies.get('current_organisation_id')?.value
+        const currentOrgId = sanitizeOrgId(rawOrgCookie)
+        const globalHeaders = getOrgCookieHeader(rawOrgCookie, 'proxy')
 
         const { url, anonKey } = getSupabasePublicEnv()
         const supabase = createServerClient(
@@ -143,10 +137,15 @@ export async function proxy(request: NextRequest) {
         try {
           let orgId = currentOrgId
           if (!orgId) {
-            const { data: resolvedOrgId } = await supabase.rpc('current_organisation_id')
+            const { data: resolvedOrgId, error: rpcError } = await supabase.rpc('current_organisation_id')
+            if (rpcError) {
+              console.error('[Proxy] Failed to resolve fallback organisation for private/unset context:', rpcError.message)
+              throw new Error(`Fallback organisation resolution failed: ${rpcError.message}`)
+            }
             orgId = resolvedOrgId
           }
 
+          // Personal accounts (orgId is null without error) have unrestricted module access
           let hasPerm = true
           if (orgId) {
             hasPerm = await evaluatePermission(supabase, user.id, orgId, modul as Modul, 'ansehen')
@@ -162,7 +161,7 @@ export async function proxy(request: NextRequest) {
             return redirectResponse
           }
         } catch (e) {
-          console.error(`[Proxy] Exception checking permission for ${modul}:`, e)
+          console.error(`[Proxy] Exception checking permission for ${modul} (org: ${currentOrgId ?? 'private'}):`, e)
           const redirectUrl = request.nextUrl.clone()
           redirectUrl.pathname = '/unauthorized'
           const redirectResponse = NextResponse.redirect(redirectUrl)
