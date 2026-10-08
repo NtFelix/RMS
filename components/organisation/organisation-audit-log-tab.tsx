@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { AuditLogDetailSkeleton } from "./organisation-loading-skeletons";
 import { MODULE_CONFIG, ACTION_CONFIG, getTableIcon } from "@/lib/organisation/permission-utils";
+import { AUDIT_MASKED_PLACEHOLDER, isMaskedAuditValue } from "@/lib/organisation/audit-masking";
 
 interface AuditLogSummary {
   id: string;
@@ -69,6 +70,10 @@ const TABLE_NAME_MAP: Record<string, string> = {
   Organisation_Mitglieder_Policies: "Mitarbeiter-Richtlinien",
   Organisation_Mitglieder_Overrides: "Mitarbeiter-Abweichungen",
   Organisation_Einladungen: "Einladungen",
+  Kautionen: "Kautionen",
+  Kautionen_Raten: "Kautionsraten",
+  Kautionen_Zinsstaffel: "Kautions-Zinsstaffel",
+  Kautionen_Bewegungen: "Kautionsbuchungen",
 };
 
 const FRIENDLY_COLUMN_MAP: Record<string, string> = {
@@ -110,6 +115,42 @@ const FRIENDLY_COLUMN_MAP: Record<string, string> = {
   module: "Module",
   objekte: "Objektzugriff",
   policy_id: "Richtlinie",
+  // Kautionsmanagement (Kautionen, Kautionen_Bewegungen, Kautionen_Raten, Kautionen_Zinsstaffel)
+  mieter_id: "Mieter",
+  kaution_id: "Kaution",
+  kautionsart: "Kautionsart",
+  soll_betrag: "Soll-Betrag",
+  miete_bei_vertragsschluss: "Miete bei Vertragsschluss",
+  interne_notiz: "Interne Notiz",
+  quelle: "Quelle",
+  bewegungsart: "Bewegungsart",
+  wertstellung: "Wertstellung",
+  kategorie: "Kategorie",
+  grund: "Grund",
+  empfaenger: "Empfänger",
+  idempotenz_schluessel: "Idempotenzschlüssel",
+  storniert_am: "Storniert am",
+  storniert_von: "Storniert von",
+  storno_grund: "Storno-Grund",
+  rate_id: "Rate",
+  dokument_id: "Beleg",
+  rate_nr: "Rate Nr.",
+  faelligkeitsdatum: "Fälligkeit",
+  gueltig_ab: "Gültig ab",
+  zinssatz_prozent: "Zinssatz (% p. a.)",
+  zinsmethode: "Zinsmethode",
+  zinszeitraum_von: "Zinszeitraum von",
+  zinszeitraum_bis: "Zinszeitraum bis",
+  berechnungsgrundlage: "Berechnungsgrundlage",
+  kontoinhaber: "Kontoinhaber",
+  iban: "IBAN",
+  bic: "BIC",
+  bank: "Bank",
+  getrennt_angelegt: "Getrennt angelegt",
+  buerge: "Bürge / Versicherer",
+  urkundennummer: "Urkundennummer",
+  einbehalt_grund: "Einbehalt (Grund)",
+  einbehalt_seit: "Einbehalt seit",
 };
 
 
@@ -432,9 +473,20 @@ function SimpleDiff({ aktion, alteDaten, neueDaten }: { aktion: string; alteDate
     }
 
     // Primitive value
-    const displayVal = (val: any) => {
+    const displayVal = (val: any): React.ReactNode => {
       if (val === null || val === undefined) return "NULL";
       if (typeof val === "boolean") return val ? "Ja" : "Nein";
+      // Von der Datenbank maskierte Werte (z. B. IBAN, Kontoinhaber) als solche kennzeichnen.
+      if (isMaskedAuditValue(key, val)) {
+        return (
+          <span title="Aus Datenschutzgründen maskiert">
+            {val !== AUDIT_MASKED_PLACEHOLDER && <span className="mr-1.5">{val}</span>}
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              maskiert
+            </span>
+          </span>
+        );
+      }
       return String(val);
     };
 

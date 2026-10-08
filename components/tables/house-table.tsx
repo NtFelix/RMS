@@ -22,11 +22,14 @@ import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown, Home, MapPin, Ruler, Euro, TrendingUp, CheckCircle2, MoreVertical, X, Download, Trash2, Pencil, Eye } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { ActionMenu } from "@/components/ui/action-menu"
+import { formatPlzOrt } from "@/lib/address"
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary"
 
 export interface House {
   id: string
   name: string
   strasse?: string
+  plz?: number | string | null
   ort: string
   size?: string
   rent?: string
@@ -336,7 +339,7 @@ function HouseTableRow({ house, isLastRow, isSelected, selectedHouses, onSelectH
           />
         </TableCell>
         <TableCell className={`font-medium py-4 dark:text-[#f3f4f6]`}>{house.name}</TableCell>
-        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.ort}</TableCell>
+        <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{formatPlzOrt(house.plz, house.ort) || '-'}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.size ? `${house.size} m²` : "-"}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.rent ? `${house.rent} €` : "-"}</TableCell>
         <TableCell className={`py-4 dark:text-[#f3f4f6]`}>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
@@ -651,7 +654,8 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
         throw new Error(errorData.error || 'Fehler beim Löschen der Häuser.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution im Haus): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
       const failedCount = selectedIds.length - successCount;
 
       dispatchDialog({ type: "CLOSE_BULK_DELETE" });
@@ -660,7 +664,7 @@ function useHouseTable({ filter, searchQuery, reloadRef, initialHouses, selected
       if (successCount > 0) {
         toast({
           title: "Erfolg",
-          description: `${successCount} Häuser erfolgreich gelöscht${failedCount > 0 ? `, ${failedCount} fehlgeschlagen` : ''}.`,
+          description: `${successCount} Häuser erfolgreich gelöscht${formatBulkDeleteSuffix(failedCount, reasons)}`,
           variant: "success",
         });
 

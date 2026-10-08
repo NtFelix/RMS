@@ -38,7 +38,6 @@ export default function DashboardOverlayLoader() {
       state.isAufgabeModalOpen ||
       state.isBetriebskostenModalOpen ||
       state.isWasserzaehlerModalOpen ||
-      state.isKautionModalOpen ||
       state.isHausOverviewModalOpen ||
       state.isWohnungOverviewModalOpen
 
