@@ -5,16 +5,14 @@ import {
   handleSubmit,
   deleteTenantAction,
   getMieterByHausIdAction,
-  updateKautionAction,
   updateTenantApartment,
-  getSuggestedKautionAmount,
 } from '../mieter-actions';
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 
 jest.mock('next/cache', () => ({
@@ -66,10 +64,11 @@ describe('mieter-actions', () => {
       in: jest.fn().mockReturnThis(),
       or: jest.fn().mockReturnThis(),
       single: jest.fn(),
+      rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
       auth: mockAuth,
     };
 
-    (createClient as jest.Mock).mockResolvedValue(mockSupabase);
+    (createSupabaseServerClient as jest.Mock).mockResolvedValue(mockSupabase);
   });
 
   describe('handleSubmit', () => {
@@ -135,22 +134,21 @@ describe('mieter-actions', () => {
   });
 
   describe('deleteTenantAction', () => {
-    it('deletes tenant successfully', async () => {
-      mockSupabase.delete.mockReturnThis();
-      mockSupabase.eq.mockResolvedValue({ error: null });
+    it('deletes tenant successfully via soft delete', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
       const result = await deleteTenantAction('t1');
 
       expect(result.success).toBe(true);
-      expect(mockSupabase.from).toHaveBeenCalledWith('Mieter');
-      expect(mockSupabase.delete).toHaveBeenCalled();
-      expect(mockSupabase.eq).toHaveBeenCalledWith('id', 't1');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_record', {
+        p_table_name: 'Mieter',
+        p_record_id: 't1',
+      });
       expect(revalidatePath).toHaveBeenCalledWith('/mieter');
     });
 
     it('handles deletion error', async () => {
-      mockSupabase.delete.mockReturnThis();
-      mockSupabase.eq.mockResolvedValue({ error: { message: 'Delete failed' } });
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'Delete failed' } });
 
       const result = await deleteTenantAction('t1');
 
@@ -199,33 +197,6 @@ describe('mieter-actions', () => {
     });
   });
 
-  describe('updateKautionAction', () => {
-    it('updates kaution successfully', async () => {
-      const formData = new FormData();
-      formData.append('tenantId', 't1');
-      formData.append('amount', '1000');
-      formData.append('status', 'Erhalten');
-
-      // Mock existing tenant check
-      mockSupabase.single.mockResolvedValue({ data: { kaution: null }, error: null });
-      // Mock update
-      mockSupabase.update.mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
-
-      const result = await updateKautionAction(formData);
-
-      expect(result.success).toBe(true);
-      expect(revalidatePath).toHaveBeenCalledWith('/mieter');
-    });
-
-    it('validates input', async () => {
-      const formData = new FormData();
-      // Missing required fields
-      const result = await updateKautionAction(formData);
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Mieter ID ist erforderlich');
-    });
-  });
-
   describe('updateTenantApartment', () => {
     it('updates tenant apartment link', async () => {
       mockSupabase.update.mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) });
@@ -238,32 +209,4 @@ describe('mieter-actions', () => {
     });
   });
 
-  describe('getSuggestedKautionAmount', () => {
-    it('calculates suggested amount', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: {
-          wohnung_id: 'w1',
-          Wohnungen: [{ miete: 500 }] // Supabase joins return arrays usually
-        },
-        error: null
-      });
-
-      const result = await getSuggestedKautionAmount('t1');
-
-      expect(result.success).toBe(true);
-      expect(result.suggestedAmount).toBe(1500); // 3 * 500
-    });
-
-    it('returns undefined if no apartment linked', async () => {
-      mockSupabase.single.mockResolvedValue({
-        data: { wohnung_id: null, Wohnungen: [] },
-        error: null
-      });
-
-      const result = await getSuggestedKautionAmount('t1');
-
-      expect(result.success).toBe(true);
-      expect(result.suggestedAmount).toBeUndefined();
-    });
-  });
 });

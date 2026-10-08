@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { MemberPermissions, HausWithWohnungen, MemberBerechtigungen } from "@/lib/organisation-types";
@@ -17,7 +17,7 @@ import { MemberPermissions, HausWithWohnungen, MemberBerechtigungen } from "@/li
  * check_permission() correctly reads this format (uses JSONB array containment).
  */
 export async function getMitgliedPermissionsAction(mitgliedId: string): Promise<MemberPermissions> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'ansehen');
   const { data, error } = await supabase.rpc('get_mitglied_permissions', {
     p_mitglied_id: mitgliedId,
@@ -26,11 +26,15 @@ export async function getMitgliedPermissionsAction(mitgliedId: string): Promise<
     console.error("Error in get_mitglied_permissions RPC:", error);
     throw error;
   }
-  return data as MemberPermissions;
+  const permissions = data as MemberPermissions;
+  // The get_mitglied_permissions RPC can omit policy_ids entirely (e.g. a
+  // mitarbeiter with no policies assigned). Default it so the rest of the
+  // component can trust the MemberPermissions type.
+  return { ...permissions, policy_ids: permissions?.policy_ids ?? [] };
 }
 
 export async function getOrgHaeuserAction(): Promise<HausWithWohnungen[]> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'ansehen');
   const { data, error } = await supabase.rpc('get_org_haeuser_mit_wohnungen');
   if (error) {
@@ -52,7 +56,7 @@ export async function setMitgliedOverridesAction(
   berechtigungen: MemberBerechtigungen
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     await requirePermission('organisation', 'verwalten');
     const { error } = await supabase.rpc('set_mitglied_overrides', {
       p_mitglied_id: mitgliedId,

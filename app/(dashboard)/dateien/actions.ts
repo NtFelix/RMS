@@ -71,7 +71,7 @@ export interface StorageFile {
     updated_at: string
     created_at: string
     last_accessed_at: string
-    metadata: Record<string, any>
+    metadata: Record<string, unknown>
     size: number
 }
 
