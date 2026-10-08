@@ -271,7 +271,7 @@ test.describe('Business Logic Flows', () => {
     await page.waitForTimeout(300);
 
     // Submit
-    await page.getByRole('button', { name: /Speichern/i }).click();
+    await page.getByRole('button', { name: /anlegen|speichern|aktualisieren/i }).click();
 
     // Wait for modal to close
     try {

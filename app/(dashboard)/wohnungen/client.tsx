@@ -21,9 +21,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -45,6 +47,8 @@ const currencyFormatter = new Intl.NumberFormat("de-DE", {
 });
 
 // This is the new main client component, previously WohnungenPageClientComponent in page.tsx
+const VALID_WOHNUNGEN_TABS = ["apartments", "overview"] as const;
+
 export default function WohnungenClientView({
   initialWohnungenData,
   housesData,
@@ -58,7 +62,7 @@ export default function WohnungenClientView({
   canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
-  const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
+  const [currentTab, setCurrentTab] = useTabParams<"apartments" | "overview">("apartments", VALID_WOHNUNGEN_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);
@@ -190,7 +194,7 @@ export default function WohnungenClientView({
     })
   }, [selectedApartments, apartments, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async () => {
+  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
     if (selectedApartments.size === 0) return;
 
     setIsBulkDeleting(true);
@@ -200,7 +204,7 @@ export default function WohnungenClientView({
       const response = await fetch('/api/apartments/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
       });
 
       if (!response.ok) {
@@ -208,14 +212,15 @@ export default function WohnungenClientView({
         throw new Error(errorData.error || 'Fehler beim Löschen der Wohnungen.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution in der Wohnung): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
 
       setShowBulkDeleteConfirm(false);
       setSelectedApartments(new Set());
 
       toast({
         title: "Erfolg",
-        description: `${successCount} Wohnungen erfolgreich gelöscht.`,
+        description: `${successCount} Wohnungen erfolgreich gelöscht${formatBulkDeleteSuffix(selectedIds.length - successCount, reasons)}`,
         variant: "success",
       });
 
@@ -232,6 +237,14 @@ export default function WohnungenClientView({
       setIsBulkDeleting(false);
     }
   }, [selectedApartments, router, refreshTable]);
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleBulkDeleteClick = useCallback(() => {
+    void starteLoeschenMitKautionen("Wohnungen", Array.from(selectedApartments), {
+      einfach: () => setShowBulkDeleteConfirm(true),
+      loeschen: handleBulkDelete,
+    });
+  }, [selectedApartments, handleBulkDelete]);
 
   const handleAssignHouse = useCallback(async () => {
     if (selectedHouse === "none") {
@@ -367,48 +380,15 @@ export default function WohnungenClientView({
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8 p-4 sm:p-8">
-      {/* 2-way sliding toggle */}
-      <div className="flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-900/80 border border-zinc-200/30 dark:border-zinc-800/30 p-1 rounded-full relative w-full sm:w-fit max-w-[400px] select-none z-0">
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("apartments")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "apartments" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "apartments" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <Home className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Wohnungen</span>
-        </motion.button>
-
-        <motion.button
-          layout
-          type="button"
-          onClick={() => setCurrentTab("overview")}
-          className={cn(
-            "flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full h-9 px-6 relative outline-none cursor-pointer text-sm font-medium transition-colors duration-300",
-            currentTab === "overview" ? "text-gray-900 dark:text-gray-100 font-semibold" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {currentTab === "overview" && (
-            <motion.div
-              layoutId="active-wohnungen-tab-pill"
-              className="absolute inset-0 bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200/10 dark:border-zinc-700/30 rounded-full -z-10"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          )}
-          <BarChart3 className="size-4 shrink-0 transition-transform duration-300" />
-          <span>Übersicht</span>
-        </motion.button>
-      </div>
+      <AnimatedPillToggle
+        tabs={[
+          { value: "apartments", label: "Wohnungen", icon: Home },
+          { value: "overview", label: "Übersicht", icon: BarChart3 },
+        ]}
+        activeTab={currentTab}
+        onTabChange={setCurrentTab}
+        layoutId="active-wohnungen-tab-pill"
+      />
 
       {currentTab === "apartments" ? (
         <>
@@ -544,7 +524,7 @@ export default function WohnungenClientView({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowBulkDeleteConfirm(true)}
+                        onClick={handleBulkDeleteClick}
                         disabled={isBulkDeleting || !canDelete}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                       >
@@ -694,7 +674,7 @@ export default function WohnungenClientView({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleBulkDelete()} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
               {isBulkDeleting ? "Lösche..." : `${selectedApartments.size} Wohnungen löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,7 +1,7 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { MIETER_SPALTEN_OHNE_KAUTION, pickMieterSchreibbareFelder } from "@/lib/mieter-columns";
 
 // GET specific tenant by ID
 export async function GET(
@@ -11,10 +11,11 @@ export async function GET(
     try {
         const { id } = await params;
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
         const { data, error } = await supabase
             .from('Mieter')
-            .select('*, Wohnungen(id, name)')
+            // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden).
+            .select(`${MIETER_SPALTEN_OHNE_KAUTION}, Wohnungen(id, name)`)
             .eq('id', id)
             .single();
 
@@ -48,8 +49,15 @@ export async function PATCH(
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
         await requireApiPermission('mieter', 'bearbeiten');
 
-        const body = await request.json();
-        const supabase = await createClient();
+        // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
+        const body = pickMieterSchreibbareFelder(await request.json());
+        if (!body) {
+            return NextResponse.json({ error: 'Ungültiger Request-Body.' }, { status: 400, headers: NO_CACHE_HEADERS });
+        }
+        if (Object.keys(body).length === 0) {
+            return NextResponse.json({ error: 'Keine änderbaren Felder angegeben.' }, { status: 400, headers: NO_CACHE_HEADERS });
+        }
+        const supabase = await createSupabaseServerClient();
 
         // Check scope of existing tenant
         const { data: currentTenant, error: checkError } = await supabase
@@ -63,7 +71,7 @@ export async function PATCH(
         }
 
         // Check scope of new apartment if changing
-        if (body.wohnung_id && !(await verifyWohnungInScope(body.wohnung_id))) {
+        if (body.wohnung_id && !(await verifyWohnungInScope(body.wohnung_id as string))) {
             return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
@@ -71,7 +79,7 @@ export async function PATCH(
             .from('Mieter')
             .update(body)
             .eq('id', id)
-            .select();
+            .select(MIETER_SPALTEN_OHNE_KAUTION);
 
         if (error) {
             console.error(`PATCH /api/mieter/${id} error:`, error);
@@ -103,7 +111,7 @@ export async function DELETE(
         const { requireApiPermission, verifyWohnungInScope } = await import("@/lib/api-permissions");
         await requireApiPermission('mieter', 'loeschen');
 
-        const supabase = await createClient();
+        const supabase = await createSupabaseServerClient();
 
         // Check scope of existing tenant
         const { data: currentTenant, error: checkError } = await supabase
@@ -116,10 +124,10 @@ export async function DELETE(
             return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
         }
 
-        const { error } = await supabase
-            .from('Mieter')
-            .delete()
-            .eq('id', id);
+        const { error } = await supabase.rpc('soft_delete_record', {
+            p_table_name: 'Mieter',
+            p_record_id: id,
+        });
 
         if (error) {
             console.error(`DELETE /api/mieter/${id} error:`, error);

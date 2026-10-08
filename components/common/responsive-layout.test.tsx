@@ -27,6 +27,8 @@ jest.mock('@/hooks/use-toast', () => ({
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
 }));
 
 jest.mock('@/hooks/use-debounce', () => ({
@@ -119,11 +121,7 @@ describe('Responsive Layout Tests', () => {
 
       // Main container should have mobile-friendly padding
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('p-8');
-
-      // Header should stack vertically on mobile if needed
-      const headerContainer = container.querySelector('.flex.flex-row.items-center.justify-between');
-      expect(headerContainer).toBeInTheDocument();
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
 
       // Button should have responsive width
       const addButton = screen.getByRole('button', { name: /Wohnung hinzufügen/i });
@@ -135,7 +133,7 @@ describe('Responsive Layout Tests', () => {
       const { container } = render(<HaeuserClientView {...props} />);
 
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
 
       const addButton = screen.getByRole('button', { name: /Haus hinzufügen/i });
       expect(addButton).toHaveClass('sm:w-auto');
@@ -151,7 +149,7 @@ describe('Responsive Layout Tests', () => {
       const { container } = render(<MieterClientView {...props} />);
 
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
 
       const addButton = screen.getByRole('button', { name: /Mieter hinzufügen/i });
       expect(addButton).toHaveClass('sm:w-auto');
@@ -167,9 +165,9 @@ describe('Responsive Layout Tests', () => {
       const { container } = render(<FinanzenClientWrapper {...props} />);
 
       // Summary cards should stack on mobile
-      const summaryGrid = container.querySelector('.grid.gap-4.md\\:grid-cols-2.lg\\:grid-cols-4');
+      const summaryGrid = container.querySelector('.flex.flex-col.gap-3.sm\\:grid.sm\\:grid-cols-2.md\\:grid-cols-4.sm\\:gap-4');
       expect(summaryGrid).toBeInTheDocument();
-      expect(summaryGrid).toHaveClass('md:grid-cols-2', 'lg:grid-cols-4');
+      expect(summaryGrid).toHaveClass('sm:grid-cols-2', 'md:grid-cols-4');
     });
 
     it('Betriebskosten page adapts to mobile layout', () => {
@@ -182,7 +180,7 @@ describe('Responsive Layout Tests', () => {
       const { container } = render(<BetriebskostenClientView {...props} />);
 
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
 
       const addButton = screen.getByRole('button', { name: /Betriebskostenabrechnung erstellen/i });
       expect(addButton).toHaveClass('sm:w-auto');
@@ -193,10 +191,7 @@ describe('Responsive Layout Tests', () => {
       const { container } = render(<TodosClientWrapper {...props} />);
 
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
-
-      const addButton = screen.getByRole('button', { name: /Aufgabe hinzufügen/i });
-      expect(addButton).toHaveClass('sm:w-auto');
+      expect(mainContainer).toHaveClass('absolute', 'inset-0', 'flex', 'flex-col', 'p-4', 'sm:p-6', 'min-h-0', 'overflow-hidden');
     });
   });
 
@@ -244,10 +239,10 @@ describe('Responsive Layout Tests', () => {
 
       const { container } = render(<FinanzenClientWrapper {...props} />);
 
-      const summaryGrid = container.querySelector('.grid.gap-4.md\\:grid-cols-2.lg\\:grid-cols-4');
+      const summaryGrid = container.querySelector('.flex.flex-col.gap-3.sm\\:grid.sm\\:grid-cols-2.md\\:grid-cols-4.sm\\:gap-4');
       expect(summaryGrid).toBeInTheDocument();
-      // On tablet, should use 2 columns
-      expect(summaryGrid).toHaveClass('md:grid-cols-2');
+      // On tablet, should use 4 columns
+      expect(summaryGrid).toHaveClass('md:grid-cols-4');
     });
 
     it('buttons maintain proper spacing on tablet', () => {
@@ -280,11 +275,7 @@ describe('Responsive Layout Tests', () => {
 
       // Should have full desktop spacing
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('gap-8', 'p-8');
-
-      // Header should maintain horizontal layout with proper spacing
-      const headerContainer = container.querySelector('.flex.flex-row.items-center.justify-between');
-      expect(headerContainer).toBeInTheDocument();
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
     });
 
     it('Finanzen summary cards use full desktop grid layout', () => {
@@ -307,10 +298,10 @@ describe('Responsive Layout Tests', () => {
 
       const { container } = render(<FinanzenClientWrapper {...props} />);
 
-      const summaryGrid = container.querySelector('.grid.gap-4.md\\:grid-cols-2.lg\\:grid-cols-4');
+      const summaryGrid = container.querySelector('.flex.flex-col.gap-3.sm\\:grid.sm\\:grid-cols-2.md\\:grid-cols-4.sm\\:gap-4');
       expect(summaryGrid).toBeInTheDocument();
       // On desktop, should use 4 columns
-      expect(summaryGrid).toHaveClass('lg:grid-cols-4');
+      expect(summaryGrid).toHaveClass('md:grid-cols-4');
     });
 
     it('all pages maintain consistent desktop layout', () => {
@@ -319,7 +310,6 @@ describe('Responsive Layout Tests', () => {
         { component: HaeuserClientView, props: { enrichedHaeuser: [] } },
         { component: MieterClientView, props: { initialTenants: [], initialWohnungen: [], serverAction: jest.fn() } },
         { component: BetriebskostenClientView, props: { initialNebenkosten: [], initialHaeuser: [], ownerName: 'Test' } },
-        { component: TodosClientWrapper, props: { tasks: [] } },
       ];
 
       components.forEach(({ component: Component, props }) => {
@@ -327,7 +317,7 @@ describe('Responsive Layout Tests', () => {
         
         // All should have consistent main container layout
         const mainContainer = container.firstChild;
-        expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
+        expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
       });
     });
   });
@@ -396,10 +386,10 @@ describe('Responsive Layout Tests', () => {
 
       // Check if the main container has the correct classes
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-8', 'p-8');
+      expect(mainContainer).toHaveClass('flex', 'flex-col', 'gap-6', 'sm:gap-8', 'p-4', 'sm:p-8');
       
       // Check if the card is rendered
-      const card = container.querySelector('.border.bg-card');
+      const card = container.querySelector('.border.border-gray-200');
       expect(card).toBeInTheDocument();
       
       // Check if the header is rendered with the correct title
@@ -407,16 +397,8 @@ describe('Responsive Layout Tests', () => {
       expect(title).toBeInTheDocument();
       
       // Check if the search input is rendered
-      const searchInput = screen.getByPlaceholderText('Wohnung suchen...');
+      const searchInput = screen.getByPlaceholderText('Suchen...');
       expect(searchInput).toBeInTheDocument();
-      
-      // Test desktop layout by updating viewport
-      setViewportSize(1024, 768);
-      
-      // The component should automatically adapt to the new viewport size
-      // We can check if the responsive classes are applied
-      const searchContainer = screen.getByPlaceholderText('Wohnung suchen...').closest('div');
-      expect(searchContainer).toHaveClass('sm:min-w-[300px]');
     });
   });
 
@@ -517,9 +499,9 @@ describe('Responsive Layout Tests', () => {
 
       const { container } = render(<TodosClientWrapper {...props} />);
 
-      // Should maintain proper gap spacing
+      // Should maintain proper layout
       const mainContainer = container.firstChild;
-      expect(mainContainer).toHaveClass('gap-8');
+      expect(mainContainer).toHaveClass('absolute', 'inset-0', 'flex', 'flex-col');
     });
   });
 });

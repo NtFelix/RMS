@@ -8,7 +8,12 @@ export type Modul =
   | 'dokumente'
   | 'aufgaben'
   | 'vorlagen'
-  | 'organisation';
+  | 'organisation'
+  | 'api_keys'
+  // Kautionsmanagement (GH-6). Bewusst NUR hier und in den Rechte-Editoren der Organisation:
+  // Agenten, API-Schlüssel, MCP und OAuth-Consent dürfen das Modul nie erhalten (R2);
+  // die Datenbank (check_permission) sperrt diese Kontexte zusätzlich auch für Owner/Admin.
+  | 'kautionen';
 
 export type Aktion = 'ansehen' | 'erstellen' | 'bearbeiten' | 'loeschen' | 'verwalten';
 

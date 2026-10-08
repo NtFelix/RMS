@@ -47,10 +47,10 @@ const mockVariables: EnhancedMentionVariable[] = [
     keywords: ['today', 'current', 'aktuell']
   },
   {
-    id: 'vermieter.name',
-    label: 'Vermieter.Name',
-    description: 'Name des Vermieters',
-    category: 'vermieter' as const,
+    id: 'eigentuemer.name',
+    label: 'Eigentümer.Name',
+    description: 'Name des Eigentümers',
+    category: 'eigentuemer' as const,
     keywords: ['landlord', 'owner']
   }
 ];
@@ -76,7 +76,7 @@ describe('filterMentionVariables', () => {
 
     it('should filter by description (case-insensitive)', () => {
       const result = filterMentionVariables(mockVariables, 'adresse');
-      expect(result).toHaveLength(2); // wohnung.adresse and mieter.email (E-Mail-Adresse)
+      expect(result).toHaveLength(2); // wohnung.adresse and mieter.email (E-Mail-Adresse) or eigentuemer (changed from vermieter)
     });
     
     it('should be case-insensitive for all searches', () => {
@@ -175,7 +175,7 @@ describe('groupMentionVariablesByCategory', () => {
     expect(result.mieter).toHaveLength(2);
     expect(result.wohnung).toHaveLength(2);
     expect(result.datum).toHaveLength(1);
-    expect(result.vermieter).toHaveLength(1);
+    expect(result.eigentuemer).toHaveLength(1);
   });
 
   it('should handle variables without category', () => {
