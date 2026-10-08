@@ -1,12 +1,12 @@
 'use server';
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { PolicyBerechtigungen, OrganisationPolicy } from "@/lib/organisation-types";
 
 export async function getPoliciesAction(): Promise<OrganisationPolicy[]> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'ansehen');
   const { data, error } = await supabase.rpc('get_policies');
   if (error) {
@@ -16,8 +16,42 @@ export async function getPoliciesAction(): Promise<OrganisationPolicy[]> {
   return (data ?? []) as OrganisationPolicy[];
 }
 
+/** Fetches one policy when its detail panel is opened. RLS limits the row to the active organisation. */
+export async function getPolicyAction(policyId: string): Promise<OrganisationPolicy | null> {
+  const supabase = await createSupabaseServerClient();
+  await requirePermission('organisation', 'ansehen');
+
+  const { data, error } = await supabase
+    .from('Organisation_Policies')
+    .select('id, organisation_id, name, berechtigungen, erstellt_am')
+    .eq('id', policyId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching policy:", error);
+    throw error;
+  }
+
+  if (!data) return null;
+
+  // Defence in depth: verify the returned policy belongs to the user's current org.
+  // RLS already enforces this, but this catch ensures cross-org reads stay impossible
+  // even if RLS were ever misconfigured or bypassed.
+  const { data: currentOrgId, error: orgError } = await supabase.rpc('current_organisation_id');
+  if (orgError) {
+    console.error("Failed to verify organisation membership:", orgError);
+    throw orgError;
+  }
+  if (!currentOrgId || data.organisation_id !== currentOrgId) {
+    console.error("Organisation mismatch — policy does not belong to current organisation");
+    return null;
+  }
+
+  return data as OrganisationPolicy;
+}
+
 export async function createPolicyAction(name: string, berechtigungen: PolicyBerechtigungen): Promise<OrganisationPolicy> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'verwalten');
   const { data, error } = await supabase.rpc('create_policy', {
     p_name: name,
@@ -36,7 +70,7 @@ export async function updatePolicyAction(
   name: string | null,
   berechtigungen: PolicyBerechtigungen | null
 ): Promise<OrganisationPolicy> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'verwalten');
   const { data, error } = await supabase.rpc('update_policy', {
     p_policy_id: policyId,
@@ -52,7 +86,7 @@ export async function updatePolicyAction(
 }
 
 export async function deletePolicyAction(policyId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'verwalten');
   const { error } = await supabase.rpc('delete_policy', { p_policy_id: policyId });
   if (error) {
@@ -63,7 +97,7 @@ export async function deletePolicyAction(policyId: string): Promise<void> {
 }
 
 export async function getMitgliedPoliciesAction(mitgliedId: string): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'ansehen');
   const { data, error } = await supabase.rpc('get_mitglied_policies', {
     p_mitglied_id: mitgliedId,
@@ -80,7 +114,7 @@ export async function updateMitgliedPoliciesAction(
   toAssign: string[],
   toRemove: string[]
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   await requirePermission('organisation', 'verwalten');
 
   if (toAssign.length > 0) {
@@ -119,5 +153,4 @@ export async function updateMitgliedPoliciesAction(
 
   revalidatePath('/organisation');
 }
-
 

@@ -34,20 +34,33 @@ jest.mock('@/components/ui/command', () => ({
       {children}
     </div>
   ),
-  CommandDialog: ({ children, open, onOpenChange }: any) => (
-    <div 
-      data-testid="command-dialog" 
-      data-open={open}
-      onKeyDown={(e: React.KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          onOpenChange(false);
+  CommandDialog: ({ children, open, onOpenChange }: any) => {
+    React.useEffect(() => {
+      const handler = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault();
+          onOpenChange(true);
         }
-      }}
-      tabIndex={0}
-    >
-      {children}
-    </div>
-  ),
+      };
+      document.addEventListener('keydown', handler);
+      return () => document.removeEventListener('keydown', handler);
+    }, [onOpenChange]);
+
+    return (
+      <div 
+        data-testid="command-dialog" 
+        data-open={open}
+        onKeyDown={(e: React.KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            onOpenChange(false);
+          }
+        }}
+        tabIndex={0}
+      >
+        {children}
+      </div>
+    );
+  },
   CommandInput: ({ placeholder, value, onValueChange }: any) => (
     <input
       data-testid="command-input"

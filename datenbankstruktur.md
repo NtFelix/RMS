@@ -98,9 +98,13 @@ create table public."Nebenkosten" (
   wasserkosten numeric null,
   haeuser_id uuid not null,
   wasserverbrauch numeric null,
+  rechenbasis text not null default 'kalendertage',
   constraint Nebenkosten_pkey primary key (id),
   constraint Nebenkosten_haeuser_id_fkey foreign key (haeuser_id) references "Haeuser" (id),
-  constraint check_date_range check (enddatum > startdatum)
+  constraint check_date_range check (enddatum > startdatum),
+  -- 360-Tage-Rechenbasis für die Nebenkostenabrechnung: 'kalendertage' (Kalendertage,
+  -- Standard) oder '360_tage' (30 Tage je Monat / 360 Tage je Jahr)
+  constraint Nebenkosten_rechenbasis_check check (rechenbasis in ('kalendertage', '360_tage'))
 ) tablespace pg_default;
 
 -- Add index for date range queries

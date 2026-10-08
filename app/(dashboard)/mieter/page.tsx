@@ -1,27 +1,44 @@
 // "use client" directive removed - this is now a Server Component file.
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
-
 import { requireAuthenticatedUser } from "@/lib/server/route-access";
 import { fetchWithRpcFallback } from "@/lib/data-fetching";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 import { hasPermission } from "@/lib/permissions";
+import { canViewKautionen as ladeCanViewKautionen } from "@/lib/server/kautionen-recht";
 import { redirect } from "next/navigation";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
+import { getTodayISOString, isTenantActive } from "@/utils/date-calculations";
 
-export default async function MieterPage() {
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/common/table-skeleton";
+
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
+export default function MieterPage() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <MieterContent />
+    </Suspense>
+  );
+}
+
+async function MieterContent() {
   const { supabase } = await requireAuthenticatedUser();
 
   // Permission check.
-  const [canView, canCreate, canEdit, canDelete, accessibleIdsResult] = await Promise.all([
+  // `canViewKautionen` (Modul `kautionen`, GH-6) steuert nur, was die Seite anzeigt (Kautionskarte, Menüeinträge);
+  // maßgeblich bleiben die RPCs und die Datenbank.
+  const [canView, canCreate, canEdit, canDelete, canViewKautionen, accessibleIdsResult] = await Promise.all([
     hasPermission('mieter', 'ansehen'),
     hasPermission('mieter', 'erstellen'),
     hasPermission('mieter', 'bearbeiten'),
     hasPermission('mieter', 'loeschen'),
+    ladeCanViewKautionen(),
     supabase.rpc('get_accessible_haeuser_ids'),
   ]);
   const accessibleIds = accessibleIdsResult.data;
@@ -57,7 +74,9 @@ export default async function MieterPage() {
       'get_mieter_details_overview',
       {},
       async () => {
-        let q = supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
+        // Fallback-Select bewusst OHNE das Altfeld `kaution`: Sonst würde ein RPC-Fehler das Modulrecht `kautionen`
+        // umgehen und eingefrorene Altwerte anzeigen (GH-6).
+        let q = supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,status,bewerbung_score,bewerbung_metadaten,bewerbung_mail_id');
         if (accessibleIds !== null && accessibleIds.length > 0) {
           const { data: whgIds } = await supabase.from('Wohnungen').select('id').in('haus_id', accessibleIds);
           const ids = whgIds?.map(w => w.id) ?? [];
@@ -85,7 +104,8 @@ export default async function MieterPage() {
     filteredWohnungen = (rawWohnungen || []).filter((w: any) => ids.has(w.id));
   }
 
-  const today = new Date();
+  const todayStr = getTodayISOString();
+
   const wohnungen: Wohnung[] = filteredWohnungen.map((apt: any) => {
     // If the data comes from our enriched RPC, it already has status and tenant
     if (apt.status && apt.tenant != null) {
@@ -98,7 +118,7 @@ export default async function MieterPage() {
     // Fallback mapping logic
     const tenant = filteredMieter.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+    if (tenant && isTenantActive(tenant.auszug, todayStr)) {
       status = 'vermietet';
     }
     return {
@@ -109,7 +129,8 @@ export default async function MieterPage() {
     } as Wohnung;
   });
 
-  const mieter: Tenant[] = filteredMieter.map(m => ({ ...m }));
+  // Die RPC liefert `kaution` nur mit Modulrecht (sonst NULL); ohne Recht wird es hier zusätzlich entfernt.
+  const mieter: Tenant[] = filteredMieter.map(m => (canViewKautionen ? { ...m } : { ...m, kaution: null }));
 
 
 
@@ -121,6 +142,7 @@ export default async function MieterPage() {
       canCreate={canCreate}
       canEdit={canEdit}
       canDelete={canDelete}
+      canViewKautionen={canViewKautionen}
     />
   );
 }

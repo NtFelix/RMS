@@ -1,75 +1,42 @@
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from 'next/cache';
+import { createDeleteError } from '@/lib/bulk-delete-summary';
 
-export async function softDeleteEntryAction(tableName: string, recordId: string): Promise<void> {
-  const supabase = await createClient();
+/**
+ * Löscht einen Datensatz weich (Papierkorb).
+ *
+ * Haus und Wohnung gehen über die Datenbankfunktion `soft_delete_mit_kautionen`: die EINE atomare Kaskade Haus ->
+ * Wohnungen -> Mieter (samt Kautionen) in einer Transaktion mit einem Zeitstempel. Schlägt ein Schritt fehl (z. B. weil
+ * eine Kaution mit Buchungen nicht bestätigt wurde, `KA009`/`KA016`), wird nichts gelöscht und die Meldung der Datenbank
+ * weitergereicht. Es gibt keine Teilerfolge und keinen zweiten Kaskadenweg in der App.
+ *
+ * `options.pruefsumme`: Prüfsumme der bestätigten Auswirkung auf Kautionen mit Buchungen (Übersicht "Kautionen werden
+ * mitgelöscht"). Ohne sie lehnt die Datenbank das Löschen mit gebuchten Kautionen ab; ohne gebuchte Kaution wird sie nicht
+ * gebraucht. Für einen einzelnen Mieter mit Prüfsumme gilt derselbe Weg; alle anderen Datensätze gehen über `soft_delete_record`.
+ */
+export async function softDeleteEntryAction(
+  tableName: string,
+  recordId: string,
+  options?: { pruefsumme?: string | null }
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const pruefsumme = options?.pruefsumme || null;
 
-  const { error } = await supabase.rpc('soft_delete_record', {
-    p_table_name: tableName,
-    p_record_id: recordId,
-  });
+  const ueberKaskade = tableName === 'Haeuser' || tableName === 'Wohnungen' || (tableName === 'Mieter' && pruefsumme !== null);
+  const { error } = ueberKaskade
+    ? await supabase.rpc('soft_delete_mit_kautionen', { p_table_name: tableName, p_record_id: recordId, p_pruefsumme: pruefsumme })
+    : await supabase.rpc('soft_delete_record', { p_table_name: tableName, p_record_id: recordId });
   if (error) {
-    console.error('Error soft deleting record %s from %s:', recordId, tableName, error);
-    throw new Error(error.message);
-  }
-
-  // Cascade: Haeuser -> Wohnungen -> Mieter
-  if (tableName === 'Haeuser') {
-    const { data: wohnungen } = await supabase
-      .from('Wohnungen')
-      .select('id')
-      .eq('haus_id', recordId);
-
-    if (wohnungen && wohnungen.length > 0) {
-      const wohnungIds = wohnungen.map(w => w.id);
-
-      await Promise.all(
-        wohnungIds.map(wId =>
-          supabase.rpc('soft_delete_record', {
-            p_table_name: 'Wohnungen',
-            p_record_id: wId,
-          }).then(({ error }) => {
-            if (error) console.warn('Failed to cascade soft-delete apartment ' + wId + ':', error.message);
-          })
-        )
-      );
-
-      const { data: mieter } = await supabase
-        .from('Mieter')
-        .select('id')
-        .in('wohnung_id', wohnungIds);
-
-      if (mieter && mieter.length > 0) {
-        await Promise.all(
-          mieter.map(m =>
-            supabase.rpc('soft_delete_record', {
-              p_table_name: 'Mieter',
-              p_record_id: m.id,
-            }).then(({ error }) => {
-              if (error) console.warn('Failed to cascade soft-delete tenant ' + m.id + ':', error.message);
-            })
-          )
-        );
-      }
-    }
-  } else if (tableName === 'Wohnungen') {
-    const { data: mieter } = await supabase
-      .from('Mieter')
-      .select('id')
-      .eq('wohnung_id', recordId);
-
-    if (mieter && mieter.length > 0) {
-      await Promise.all(
-        mieter.map(m =>
-          supabase.rpc('soft_delete_record', {
-            p_table_name: 'Mieter',
-            p_record_id: m.id,
-          }).then(({ error }) => {
-            if (error) console.warn('Failed to cascade soft-delete tenant ' + m.id + ':', error.message);
-          })
-        )
+    // Nur Tabelle, Kennung und Code loggen (keine Inhalte der Datensätze).
+    console.error('Error soft deleting record %s from %s: %s', recordId, tableName, error.code);
+    // Die Datenbankfunktion fehlt (App vor dem Datenbank-Update ausgerollt): eine klare Meldung statt des technischen Textes.
+    if (ueberKaskade && (error.code === 'PGRST202' || error.code === '42883')) {
+      throw createDeleteError(
+        'Das Löschen ist derzeit nicht möglich: Die benötigte Datenbankfunktion ist noch nicht eingespielt. Bitte versuchen Sie es später erneut oder wenden Sie sich an den Support.',
+        error.code
       );
     }
+    throw createDeleteError(error.message, error.code);
   }
 
   revalidatePathsForTable(tableName);
@@ -86,6 +53,8 @@ export function revalidatePathsForTable(tableName: string) {
   } else if (tableName === 'Mieter') {
     revalidatePath('/mieter');
     revalidatePath('/wohnungen');
+  } else if (tableName === 'Kautionen') {
+    revalidatePath('/mieter');
   } else if (tableName === 'Finanzen') {
     revalidatePath('/finanzen');
   } else if (tableName === 'Aufgaben') {
@@ -101,4 +70,3 @@ export function revalidatePathsForTable(tableName: string) {
   }
   revalidatePath('/dashboard');
 }
-

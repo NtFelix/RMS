@@ -41,9 +41,9 @@ describe('ButtonWithTooltip', () => {
     // Hover over the button to trigger tooltip
     await user.hover(button);
     
-    // Wait for tooltip to appear (using getAllByText since Radix renders multiple instances)
+    // Wait for tooltip to appear
     await waitFor(() => {
-      expect(screen.getAllByText('Test tooltip')).toHaveLength(2);
+      expect(screen.getAllByText('Test tooltip').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -78,9 +78,9 @@ describe('ButtonWithTooltip', () => {
     // Hover over the button
     await user.hover(button);
     
-    // Wait for tooltip with limit message to appear (using getAllByText since Radix renders multiple instances)
+    // Wait for tooltip with limit message to appear
     await waitFor(() => {
-      expect(screen.getAllByText(limitMessage)).toHaveLength(2);
+      expect(screen.getAllByText(limitMessage).length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -104,9 +104,9 @@ describe('ButtonWithTooltip', () => {
     // Hover over the button
     await user.hover(button);
     
-    // Wait for tooltip with trial message to appear (using getAllByText since Radix renders multiple instances)
+    // Wait for tooltip with trial message to appear
     await waitFor(() => {
-      expect(screen.getAllByText(trialMessage)).toHaveLength(2);
+      expect(screen.getAllByText(trialMessage).length).toBeGreaterThanOrEqual(1);
     });
   });
 

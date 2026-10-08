@@ -29,6 +29,7 @@ import { CloudStorageQuickActions } from "@/components/cloud-storage/cloud-stora
 import { CloudStorageItemCard } from "@/components/cloud-storage/cloud-storage-item-card"
 import { DocumentsSummaryCards } from "@/components/common/documents-summary-cards"
 import { useStorageUsage } from "@/hooks/use-storage-usage"
+import { getStorageUsageState, NO_STORAGE_MESSAGE, STORAGE_FULL_MESSAGE } from "@/lib/storage-usage"
 import { useUserProfile } from "@/hooks/use-user-profile"
 
 interface CloudStorageProps {
@@ -69,8 +70,14 @@ export function CloudStorage({
     // Get current user for storage usage hook
     const { user } = useUserProfile()
 
-    // Get storage limit from subscription
-    const { limit: storageLimit, isLoading: isLoadingLimit } = useStorageUsage(user, initialTotalSize)
+    // Pre-computed storage usage of the organisation and the storage limit from the subscription
+    const {
+        usage: totalFileSize,
+        refresh: refreshStorageUsage,
+        limit: storageLimit,
+        isLoading: isLoadingLimit,
+    } = useStorageUsage(user, initialTotalSize)
+    const { isOverLimit: isUploadDisabled, hasNoStorageAccess } = getStorageUsageState(totalFileSize, storageLimit)
 
     // Centralized navigation management
     const {
@@ -110,7 +117,6 @@ export function CloudStorage({
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
     const [activeFilter, setActiveFilter] = useState<FilterType>('all')
-    const [totalStorageSize, setTotalStorageSize] = useState(initialTotalSize)
 
     // Track initialization
     const isInitialized = useRef(false)
@@ -150,7 +156,6 @@ export function CloudStorage({
             if (initialFiles.length > 0) setFiles(initialFiles)
             if (initialFolders.length > 0) setFolders(initialFolders)
             if (initialBreadcrumbs.length > 0) setBreadcrumbs(initialBreadcrumbs)
-            // totalStorageSize is already initialized via useState(initialTotalSize)
 
             setError(null)
             setLoading(false)
@@ -190,7 +195,6 @@ export function CloudStorage({
                     setFiles(data.files)
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
-                    setTotalStorageSize(data.totalSize)
                     setError(null)
                 })
 
@@ -247,6 +251,9 @@ export function CloudStorage({
      * Optimized refresh that syncs both store and UI
      */
     const handleRefresh = useCallback(async (showToast = true) => {
+        // Uploads, deletes and folder changes all end up here: re-read the stored usage in parallel
+        void refreshStorageUsage()
+
         try {
             const result = await navigate(currentPath, { force: true })
 
@@ -256,7 +263,6 @@ export function CloudStorage({
                     setFiles(data.files)
                     setFolders(data.folders)
                     if (data.breadcrumbs) setBreadcrumbs(data.breadcrumbs)
-                    setTotalStorageSize(data.totalSize)
                 })
 
                 if (showToast) {
@@ -275,7 +281,7 @@ export function CloudStorage({
                 })
             }
         }
-    }, [currentPath, navigate, setFiles, setFolders, setBreadcrumbs, toast, startTransition])
+    }, [currentPath, navigate, setFiles, setFolders, setBreadcrumbs, toast, startTransition, refreshStorageUsage])
 
     /**
      * Handle browser back/forward navigation
@@ -376,19 +382,6 @@ export function CloudStorage({
         sortItems(filteredFolders.map(f => ({ ...f, updated_at: '', size: 0 }))),
         [sortItems, filteredFolders]
     )
-
-    /**
-     * Calculate total file size
-     */
-    const totalFileSize = totalStorageSize
-
-    const formatFileSize = useCallback((bytes: number): string => {
-        if (bytes === 0) return '0 B'
-        const k = 1024
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-        const i = Math.floor(Math.log(bytes) / Math.log(k))
-        return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
-    }, [])
 
     const documentStats = useMemo(() => {
         const totalFiles = files.length
@@ -651,12 +644,8 @@ export function CloudStorage({
                                     selectedCount={selectedItems.size}
                                     onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
                                     onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-                                    isUploadDisabled={storageLimit === 0 || (storageLimit > 0 && totalFileSize >= storageLimit)}
-                                    storageDisabledMessage={
-                                        storageLimit === 0
-                                            ? "Dokumentenspeicher ist in Ihrem aktuellen Tarif nicht enthalten. Bitte wechseln Sie zu einem höheren Tarif."
-                                            : "Ihr Speicherlimit ist erreicht. Bitte löschen Sie Dateien oder wechseln Sie zu einem höheren Tarif."
-                                    }
+                                    isUploadDisabled={isUploadDisabled}
+                                    storageDisabledMessage={hasNoStorageAccess ? NO_STORAGE_MESSAGE : STORAGE_FULL_MESSAGE}
                                 />
 
                                 {/* Breadcrumb Navigation */}

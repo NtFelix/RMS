@@ -1,8 +1,8 @@
-export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { createRequestLogger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { formatPlzOrt } from "@/lib/address";
 
 interface ApartmentTenantDetailsResponse {
   apartment: {
@@ -27,11 +27,6 @@ interface ApartmentTenantDetailsResponse {
     leaseTerms?: string;
     paymentHistory?: PaymentRecord[];
     notes?: string;
-    kautionData?: {
-      amount?: number;
-      paymentDate?: string;
-      status?: string;
-    };
   };
   financialInfo?: {
     currentRent: number;
@@ -40,6 +35,9 @@ interface ApartmentTenantDetailsResponse {
     outstandingAmount?: number;
   };
 }
+
+/** Von dieser Route benötigte Mieterspalten (explizit, ohne das Altfeld "kaution"). */
+const TENANT_DETAIL_COLUMNS = 'id, name, email, telefonnummer, einzug, auszug, notiz';
 
 interface PaymentRecord {
   id: string;
@@ -57,7 +55,7 @@ export async function GET(
   let apartmentId: string | undefined;
   let tenantId: string | undefined;
   try {
-    const supabase = await createClient();
+    const supabase = await createSupabaseServerClient();
     // Get the parameters
     const paramsData = await params;
     apartmentId = paramsData.apartmentId;
@@ -92,6 +90,7 @@ export async function GET(
         Haeuser!inner(
           name,
           strasse,
+          plz,
           ort
         )
       `)
@@ -119,9 +118,11 @@ export async function GET(
     }
 
     // Fetch specific tenant with enhanced data
+    // Nur die benötigten Spalten; das Altfeld "kaution" wird bewusst nicht gelesen oder ausgeliefert
+    // (Kautionsdaten sind an das Modul "kautionen" gebunden, diese Route prüft nur RLS).
     const { data: tenant, error: tenantError } = await supabase
       .from('Mieter')
-      .select('*')
+      .select(TENANT_DETAIL_COLUMNS)
       .eq('id', tenantId)
       .eq('wohnung_id', apartmentId)
       .single();
@@ -174,31 +175,10 @@ export async function GET(
 
     // Build house address string
     const hausData = apartment.Haeuser as any;
-    const hausAddress = hausData?.strasse && hausData?.ort 
-      ? `${hausData.strasse}, ${hausData.ort}`
-      : hausData?.ort || undefined;
-
-    // Parse kaution data if available
-    let kautionData;
-    if (tenant.kaution) {
-      try {
-        const parsedKaution = typeof tenant.kaution === 'string' 
-          ? JSON.parse(tenant.kaution) 
-          : tenant.kaution;
-        kautionData = {
-          amount: parsedKaution.amount,
-          paymentDate: parsedKaution.paymentDate,
-          status: parsedKaution.status,
-        };
-      } catch (e) {
-        const logger = createRequestLogger(request);
-        logger.warn("Error parsing kaution data", {
-          tenantId,
-          apartmentId,
-          error: e instanceof Error ? e.message : 'Unknown error'
-        });
-      }
-    }
+    const plzOrt = formatPlzOrt(hausData?.plz, hausData?.ort);
+    const hausAddress = hausData?.strasse && plzOrt
+      ? `${hausData.strasse}, ${plzOrt}`
+      : plzOrt || undefined;
 
     // Transform the data to match the expected interface
     const response: ApartmentTenantDetailsResponse = {
@@ -226,7 +206,6 @@ export async function GET(
         leaseTerms: undefined, // Not in current schema
         paymentHistory: [], // Would need separate table/implementation
         notes: tenant.notiz || undefined,
-        kautionData,
       },
       financialInfo: {
         currentRent,

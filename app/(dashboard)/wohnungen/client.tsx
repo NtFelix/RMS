@@ -21,8 +21,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { useTabParams } from "@/hooks/use-tab-params";
 import { ApartmentsSizeDonutChart, ApartmentsOccupancyDonutChart, ApartmentsRentPerSqmBarChart } from "@/components/dashboard/dashboard-charts";
 import { AnimatedPillToggle } from "@/components/ui/animated-pill-toggle";
+import { formatBulkDeleteSuffix } from "@/lib/bulk-delete-summary";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -44,6 +47,8 @@ const currencyFormatter = new Intl.NumberFormat("de-DE", {
 });
 
 // This is the new main client component, previously WohnungenPageClientComponent in page.tsx
+const VALID_WOHNUNGEN_TABS = ["apartments", "overview"] as const;
+
 export default function WohnungenClientView({
   initialWohnungenData,
   housesData,
@@ -57,7 +62,7 @@ export default function WohnungenClientView({
   canViewMeters = true,
 }: WohnungenClientViewProps) {
   const router = useRouter()
-  const [currentTab, setCurrentTab] = useState<"apartments" | "overview">("apartments");
+  const [currentTab, setCurrentTab] = useTabParams<"apartments" | "overview">("apartments", VALID_WOHNUNGEN_TABS);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const reloadRef = useRef<(() => void) | null>(null);
@@ -189,7 +194,7 @@ export default function WohnungenClientView({
     })
   }, [selectedApartments, apartments, escapeCsvValue])
 
-  const handleBulkDelete = useCallback(async () => {
+  const handleBulkDelete = useCallback(async (pruefsummen: Pruefsummen = {}) => {
     if (selectedApartments.size === 0) return;
 
     setIsBulkDeleting(true);
@@ -199,7 +204,7 @@ export default function WohnungenClientView({
       const response = await fetch('/api/apartments/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: selectedIds, pruefsummen }),
       });
 
       if (!response.ok) {
@@ -207,14 +212,15 @@ export default function WohnungenClientView({
         throw new Error(errorData.error || 'Fehler beim Löschen der Wohnungen.');
       }
 
-      const { successCount } = await response.json();
+      // Teilerfolg (z. B. ein Mieter mit hinterlegter Kaution in der Wohnung): die Route nennt die Gründe der abgelehnten Löschungen.
+      const { successCount, reasons = [] } = await response.json();
 
       setShowBulkDeleteConfirm(false);
       setSelectedApartments(new Set());
 
       toast({
         title: "Erfolg",
-        description: `${successCount} Wohnungen erfolgreich gelöscht.`,
+        description: `${successCount} Wohnungen erfolgreich gelöscht${formatBulkDeleteSuffix(selectedIds.length - successCount, reasons)}`,
         variant: "success",
       });
 
@@ -231,6 +237,14 @@ export default function WohnungenClientView({
       setIsBulkDeleting(false);
     }
   }, [selectedApartments, router, refreshTable]);
+
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleBulkDeleteClick = useCallback(() => {
+    void starteLoeschenMitKautionen("Wohnungen", Array.from(selectedApartments), {
+      einfach: () => setShowBulkDeleteConfirm(true),
+      loeschen: handleBulkDelete,
+    });
+  }, [selectedApartments, handleBulkDelete]);
 
   const handleAssignHouse = useCallback(async () => {
     if (selectedHouse === "none") {
@@ -510,7 +524,7 @@ export default function WohnungenClientView({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowBulkDeleteConfirm(true)}
+                        onClick={handleBulkDeleteClick}
                         disabled={isBulkDeleting || !canDelete}
                         className="h-8 gap-1 sm:gap-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                       >
@@ -660,7 +674,7 @@ export default function WohnungenClientView({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isBulkDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleBulkDelete()} disabled={isBulkDeleting} className="bg-red-600 hover:bg-red-700">
               {isBulkDeleting ? "Lösche..." : `${selectedApartments.size} Wohnungen löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>
