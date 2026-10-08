@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast"
 import { DashboardTenantContextMenu } from "@/components/dashboard/dashboard-tenant-context-menu"
 import { formatNumber } from "@/utils/format"
 import { PAYMENT_TAGS } from "@/utils/constants"
+import { getCurrentMonthRange, getTodayISOString } from "@/utils/date-calculations"
 
 type TenantDataItem = {
   id: string
@@ -50,7 +51,7 @@ export function TenantDataTable() {
           miete
         )
       `)
-      .or(`auszug.is.null,auszug.gt.${new Date().toISOString()}`)
+      .or(`auszug.is.null,auszug.gt.${getTodayISOString()}`)
 
     if (mieterError) {
       console.error("Fehler beim Abrufen der Mieter:", mieterError)
@@ -59,11 +60,7 @@ export function TenantDataTable() {
     }
 
     // Finanzdaten für Mietstatus abrufen
-    const currentDate = new Date()
-    const currentMonth = currentDate.getMonth() + 1
-    const currentYear = currentDate.getFullYear()
-    const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-    const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+    const { startIso: startOfMonth, endIso: endOfMonth } = getCurrentMonthRange()
 
     const { data: finanzData, error: finanzError } = await supabase
       .from("Finanzen")
@@ -130,11 +127,7 @@ export function TenantDataTable() {
 
       if (tenant.status === 'Miete bezahlt') {
         // Lösche Mietzahlung aus Finanzen für den aktuellen Monat
-        const currentDate = new Date()
-        const currentMonth = currentDate.getMonth() + 1
-        const currentYear = currentDate.getFullYear()
-        const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-        const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+        const { startIso: startOfMonth, endIso: endOfMonth } = getCurrentMonthRange()
 
         const { data: financeEntries, error: selectError } = await supabase
           .from('Finanzen')
@@ -165,7 +158,7 @@ export function TenantDataTable() {
         })
       } else {
         // Füge Mietzahlung zu Finanzen hinzu
-        const currentDate = new Date().toISOString().split('T')[0]
+        const currentDate = getTodayISOString()
 
         const { error } = await supabase
           .from('Finanzen')

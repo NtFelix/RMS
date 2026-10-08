@@ -1,5 +1,6 @@
 
-import { handleSubmit, deleteTenantAction, getMieterByHausIdAction, updateKautionAction } from '@/app/mieter-actions';
+import { handleSubmit, deleteTenantAction, deleteAllApplicantsAction, getMieterByHausIdAction } from '@/app/mieter-actions';
+import { hasPermission } from '@/lib/permissions';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/logging-middleware';
 
@@ -189,6 +190,110 @@ describe('Mieter Server Actions', () => {
 
       expect(result).toEqual({ success: false, error: { message: 'Delete failed' } });
     });
+
+    it('shows the deletion lock of a tenant with a deposit without the technical code prefix (GH-6)', async () => {
+      mockRpc.mockResolvedValueOnce({
+        error: { message: 'KAUT_GESPERRT: Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden.' },
+      });
+
+      const result = await deleteTenantAction('tenant-123');
+
+      expect(result).toEqual({
+        success: false,
+        error: { message: 'Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden.' },
+      });
+      expect(revalidatePath).not.toHaveBeenCalledWith('/mieter');
+    });
+  });
+
+  // "Alle Bewerber löschen" (GH-6): Die Datenbank kann einzelne Löschungen ablehnen (Bewerber mit hinterlegter Kaution).
+  // Alle Löschungen werden abgewartet, die Meldung nennt die Gründe ohne technisches Präfix, die Liste wird bei einem
+  // Teilerfolg neu geladen. Echte Meldung der Datenbank: "<CODE>: <deutsche Meldung>".
+  describe('deleteAllApplicantsAction', () => {
+    const KAUTION_GRUND = 'Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden.';
+    const KAUTION_SPERRE = { message: `KAUT_GESPERRT: ${KAUTION_GRUND}`, code: 'KA009' };
+
+    /** Bewerber der Abfrage; `rpcErrors` je Bewerber-ID (fehlt der Eintrag, gelingt die Löschung). */
+    function bewerber(ids: string[], rpcErrors: Record<string, { message: string; code?: string }> = {}) {
+      mockSelectEq.mockResolvedValueOnce({ data: ids.map((id) => ({ id })), error: null });
+      mockRpc.mockImplementation(async (_name: string, args: { p_record_id: string }) => ({ error: rpcErrors[args.p_record_id] ?? null }));
+    }
+
+    let consoleErrorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      mockRpc.mockReset();
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      // Nichts in die nächsten Tests tragen (Implementierung und nicht verbrauchte Antworten der Abfrage).
+      mockRpc.mockReset();
+      mockSelectEq.mockReset();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('deletes all applicants and revalidates the tenant page', async () => {
+      bewerber(['a1', 'a2']);
+
+      const result = await deleteAllApplicantsAction();
+
+      expect(result).toEqual({ success: true });
+      expect(mockRpc).toHaveBeenCalledWith('soft_delete_record', { p_table_name: 'Mieter', p_record_id: 'a1' });
+      expect(mockRpc).toHaveBeenCalledWith('soft_delete_record', { p_table_name: 'Mieter', p_record_id: 'a2' });
+      expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+    });
+
+    it('succeeds without applicants and deletes nothing', async () => {
+      bewerber([]);
+
+      expect(await deleteAllApplicantsAction()).toEqual({ success: true });
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('works through ALL applicants on a partial failure and names the reason without the technical prefix', async () => {
+      bewerber(['a1', 'a2', 'a3'], { a2: KAUTION_SPERRE });
+
+      const result = await deleteAllApplicantsAction();
+
+      expect(mockRpc).toHaveBeenCalledTimes(3);
+      expect(result).toEqual({
+        success: false,
+        error: { message: `1 von 3 Bewerbern konnte nicht gelöscht werden. Grund: ${KAUTION_GRUND}` },
+      });
+      expect(result.error?.message).not.toContain('KAUT_GESPERRT');
+      // Zwei Bewerber sind gelöscht: die Liste muss neu geladen werden.
+      expect(revalidatePath).toHaveBeenCalledWith('/mieter');
+    });
+
+    it('uses the plural for several rejected applicants and collects each reason once', async () => {
+      bewerber(['a1', 'a2', 'a3'], { a1: KAUTION_SPERRE, a2: KAUTION_SPERRE });
+
+      const result = await deleteAllApplicantsAction();
+
+      expect(result.error?.message).toBe(`2 von 3 Bewerbern konnten nicht gelöscht werden. Grund: ${KAUTION_GRUND}`);
+    });
+
+    it('reports that nothing could be deleted when every deletion is rejected', async () => {
+      bewerber(['a1', 'a2'], { a1: KAUTION_SPERRE, a2: KAUTION_SPERRE });
+
+      const result = await deleteAllApplicantsAction();
+
+      expect(result).toEqual({
+        success: false,
+        error: { message: `Es konnten keine Bewerber gelöscht werden. Grund: ${KAUTION_GRUND}` },
+      });
+      expect(revalidatePath).not.toHaveBeenCalledWith('/mieter');
+    });
+
+    it('does not delete without the right', async () => {
+      (hasPermission as jest.Mock).mockResolvedValueOnce(false);
+
+      const result = await deleteAllApplicantsAction();
+
+      expect(result).toEqual({ success: false, error: { message: 'Keine Berechtigung' } });
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
   });
 
   describe('getMieterByHausIdAction', () => {
@@ -213,36 +318,20 @@ describe('Mieter Server Actions', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Fetch failed');
     });
-  });
 
-  describe('updateKautionAction', () => {
-    it('should update kaution successfully', async () => {
-      const formData = new FormData();
-      formData.append('tenantId', 't1');
-      formData.append('amount', '1000');
-      formData.append('status', 'Erhalten');
+    // Kautionsmanagement (GH-6): die Kaution kommt nicht mehr aus dem Altfeld Mieter.kaution, sondern über app/kautionen-actions.ts.
+    it('getMieterByHausIdAction selects explicit columns without the legacy field kaution', async () => {
+      mockSelectEq.mockResolvedValueOnce({ data: [{ id: 'w1' }], error: null });
+      mockIn.mockResolvedValueOnce({ data: [{ id: 't1', name: 'Tenant 1' }], error: null });
 
-      // Mock fetch existing tenant (select chain)
-      mockSingle.mockResolvedValueOnce({ data: { kaution: { createdAt: 'old-date' } }, error: null });
+      await getMieterByHausIdAction('haus-1');
 
-      // Mock update (update chain)
-      mockUpdateEq.mockResolvedValueOnce({ error: null });
-
-      const result = await updateKautionAction(formData);
-
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(result.success).toBe(true);
-    });
-
-    it('should fail with invalid amount', async () => {
-      const formData = new FormData();
-      formData.append('tenantId', 't1');
-      formData.append('amount', 'invalid');
-
-      const result = await updateKautionAction(formData);
-
-      expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Betrag muss eine positive Zahl sein');
+      const selects = mockSelect.mock.calls.map((call) => call[0]);
+      const mieterSelect = selects.find((value) => typeof value === 'string' && value.includes('Wohnungen('));
+      expect(mieterSelect).toBeDefined();
+      expect(mieterSelect).not.toMatch(/\*/);
+      expect(mieterSelect).not.toMatch(/kaution/i);
+      expect(mieterSelect).toContain('Wohnungen(name, groesse, miete)');
     });
   });
 });

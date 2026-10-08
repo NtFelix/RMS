@@ -31,7 +31,7 @@ jest.mock('@/app/(dashboard)/layout-inner', () => {
       const { AufgabeEditModal } = require('@/components/tasks/aufgabe-edit-modal');
       const { BetriebskostenEditModal } = require('@/components/finance/betriebskosten-edit-modal');
       const { WasserzaehlerModal } = require('@/components/water-meters/wasserzaehler-modal');
-      const { KautionModal } = require('@/components/tenants/kaution-modal');
+      const { KautionDialog } = require('@/components/kaution/kaution-dialog');
       const { ConfirmationDialog } = require('@/components/ui/confirmation-dialog');
       const store = require('@/hooks/use-modal-store').useModalStore();
       var Conf = null;
@@ -58,7 +58,7 @@ jest.mock('@/app/(dashboard)/layout-inner', () => {
         React.createElement(AufgabeEditModal),
         React.createElement(BetriebskostenEditModal),
         React.createElement(WasserzaehlerModal),
-        React.createElement(KautionModal),
+        React.createElement(KautionDialog),
         Conf
       );
     }
@@ -134,8 +134,9 @@ jest.mock('@/components/water-meters/wasserzaehler-modal', () => ({
   WasserzaehlerModal: () => <div data-testid="wasserzaehler-modal">Wasserzaehler Modal</div>
 }));
 
-jest.mock('@/components/tenants/kaution-modal', () => ({
-  KautionModal: () => <div data-testid="kaution-modal">Kaution Modal</div>
+// Kautionsmanagement (GH-6): Der Dialog lädt seine Daten selbst (Server Actions in app/kautionen-actions.ts).
+jest.mock('@/components/kaution/kaution-dialog', () => ({
+  KautionDialog: () => <div data-testid="kaution-dialog">Kaution Dialog</div>
 }));
 
 jest.mock('@/components/ui/confirmation-dialog', () => ({
@@ -144,8 +145,7 @@ jest.mock('@/components/ui/confirmation-dialog', () => ({
 
 // Mock server actions
 jest.mock('@/app/mieter-actions', () => ({
-  handleSubmit: jest.fn(),
-  updateKautionAction: jest.fn()
+  handleSubmit: jest.fn()
 }));
 
 jest.mock('@/app/(dashboard)/haeuser/actions', () => ({
@@ -275,7 +275,7 @@ describe('Overview Modals Integration', () => {
     expect(screen.getByTestId('aufgabe-edit-modal')).toBeInTheDocument();
     expect(screen.getByTestId('betriebskosten-edit-modal')).toBeInTheDocument();
     expect(screen.getByTestId('wasserzaehler-modal')).toBeInTheDocument();
-    expect(screen.getByTestId('kaution-modal')).toBeInTheDocument();
+    expect(screen.getByTestId('kaution-dialog')).toBeInTheDocument();
     
     // Verify overview modals are also rendered
     expect(screen.getByTestId('haus-overview-modal')).toBeInTheDocument();

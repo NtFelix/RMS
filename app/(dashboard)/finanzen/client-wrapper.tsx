@@ -40,6 +40,7 @@ import { CustomCombobox } from "@/components/ui/custom-combobox";
 import { TagInput } from "@/components/ui/tag-input";
 
 import { PAGINATION } from "@/constants";
+import { GERMAN_MONTHS } from "@/lib/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
@@ -411,10 +412,7 @@ export default function FinanzenClientWrapper({
       "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"
     ];
 
-    const fullMonthNamesGerman = [
-      "Januar", "Februar", "März", "April", "Mai", "Juni", 
-      "Juli", "August", "September", "Oktober", "November", "Dezember"
-    ];
+    const fullMonthNamesGerman = GERMAN_MONTHS;
 
     // Build the dataset chronologically
     return allMonthKeys.map(monthKey => {

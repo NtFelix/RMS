@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { TenantTable } from './tenant-table';
 import { Tenant } from '@/types/Tenant';
 
@@ -126,5 +126,61 @@ describe('TenantTable Filtering', () => {
     expect(screen.queryByText('Future Move-out Tenant')).not.toBeInTheDocument();
     expect(screen.getByText('Past Move-out Tenant')).toBeInTheDocument();
     expect(screen.getByText('Today Move-out Tenant')).toBeInTheDocument();
+  });
+});
+
+// Kautionsmanagement (GH-6): Der Button "Kaution" hängt am Modulrecht `kautionen: ansehen` (nicht mehr am
+// Mieter-Bearbeitungsrecht) und übergibt dem Dialog nur noch den Mieter, keine Kautionsdaten.
+describe('TenantTable Kaution (GH-6)', () => {
+  const wohnungen = [{ id: 'w1', name: 'Apartment 1' }];
+  const tenants: Tenant[] = [
+    {
+      id: '1',
+      name: 'Active Tenant',
+      wohnung_id: 'w1',
+      einzug: '2023-01-01',
+      auszug: undefined,
+      // Altfeld (Kompat-Form aus get_mieter_details_overview): darf nicht an den Store weitergereicht werden.
+      kaution: {
+        amount: 1500,
+        paymentDate: '2023-01-01',
+        status: 'Erhalten',
+        createdAt: '2023-01-01T00:00:00.000Z',
+        updatedAt: '2023-01-01T00:00:00.000Z',
+      },
+    },
+  ];
+
+  beforeEach(() => {
+    mockOpenKautionModal.mockClear();
+  });
+
+  it('shows no Kaution button without the module right (default)', () => {
+    render(<TenantTable tenants={tenants} wohnungen={wohnungen} filter="all" searchQuery="" />);
+
+    expect(screen.queryByRole('button', { name: 'Kaution' })).not.toBeInTheDocument();
+  });
+
+  it('shows no Kaution button without the module right even if the user may edit tenants', () => {
+    render(<TenantTable tenants={tenants} wohnungen={wohnungen} filter="all" searchQuery="" canEdit canViewKautionen={false} />);
+
+    expect(screen.queryByRole('button', { name: 'Kaution' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Kaution button with the module right, also for users who may not edit tenants', () => {
+    render(<TenantTable tenants={tenants} wohnungen={wohnungen} filter="all" searchQuery="" canEdit={false} canViewKautionen />);
+
+    const button = screen.getByRole('button', { name: 'Kaution' });
+    expect(button).toBeEnabled();
+  });
+
+  it('opens the deposit dialog with the tenant only (no deposit data from the list)', () => {
+    render(<TenantTable tenants={tenants} wohnungen={wohnungen} filter="all" searchQuery="" canViewKautionen />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kaution' }));
+
+    expect(mockOpenKautionModal).toHaveBeenCalledTimes(1);
+    // exakt ein Argument: kein zweiter Parameter mit Kautionsdaten
+    expect(mockOpenKautionModal).toHaveBeenCalledWith({ id: '1', name: 'Active Tenant', wohnung_id: 'w1' });
   });
 });

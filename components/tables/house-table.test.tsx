@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HouseTable, House } from './house-table';
-import { useToast } from '@/hooks/use-toast';
+import { toast, useToast } from '@/hooks/use-toast';
 
 // Mock dependencies
 jest.mock('@/hooks/use-toast');
@@ -699,6 +699,40 @@ describe('HouseTable', () => {
       // Should be sorted: Delta, Alpha (descending)
       expect(within(dataRows[0]).getByText('Haus Delta')).toBeInTheDocument();
       expect(within(dataRows[1]).getByText('Haus Alpha')).toBeInTheDocument();
+    });
+  });
+
+  // Löschen mehrerer Häuser (GH-6, Kautionsmanagement): Ein Haus kann abgelehnt werden, wenn ein Mieter darin eine
+  // hinterlegte Kaution hat. Die Route meldet den Teilerfolg mit den Gründen, die Meldung nennt sie.
+  describe('Bulk delete', () => {
+    const KAUTION_GRUND = 'Der Mieter hat eine hinterlegte Kaution und kann nicht gelöscht werden. Das Haus wurde nicht gelöscht.';
+
+    async function loescheAlleSichtbaren(antwort: unknown) {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve(antwort) });
+      const user = userEvent.setup();
+      render(
+        <HouseTable filter="all" searchQuery="" onEdit={mockOnEdit} initialHouses={mockHouses.slice(0, 2)} />
+      );
+      await user.click(screen.getAllByRole('checkbox')[0]); // alle sichtbaren Häuser auswählen
+      await user.click(screen.getByRole('button', { name: 'Löschen' }));
+      await user.click(await screen.findByRole('button', { name: '2 Häuser löschen' }));
+      await waitFor(() => expect(toast).toHaveBeenCalled());
+    }
+
+    it('names the rejected deletion and its reason after a partial success', async () => {
+      await loescheAlleSichtbaren({ successCount: 1, errorCount: 1, reasons: [KAUTION_GRUND] });
+
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Erfolg',
+        description: `1 Häuser erfolgreich gelöscht, 1 fehlgeschlagen. Grund: ${KAUTION_GRUND}`,
+        variant: 'success',
+      });
+    });
+
+    it('reports a complete success without failure text', async () => {
+      await loescheAlleSichtbaren({ successCount: 2, errorCount: 0, reasons: [] });
+
+      expect(toast).toHaveBeenCalledWith({ title: 'Erfolg', description: '2 Häuser erfolgreich gelöscht.', variant: 'success' });
     });
   });
 });

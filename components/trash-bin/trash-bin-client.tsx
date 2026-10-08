@@ -37,6 +37,7 @@ const TYPE_LABELS: Record<string, string> = {
   Zaehler_Ablesungen: 'Zählerablesung',
   Vorlagen: 'Vorlage',
   Rechnungen: 'Rechnung',
+  Kautionen: 'Kaution',
 };
 
 function formatBytes(bytes: number): string {
