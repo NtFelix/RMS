@@ -9,9 +9,13 @@ import {
   getNebenkostenDetailsAction,
   bulkDeleteNebenkosten,
   deleteRechnungenByNebenkostenId,
-  createRechnungenBatch
+  createRechnungenBatch,
+  getAbrechnungModalDataAction,
+  createAbrechnungCalculationAction,
+  createAbrechnungCalculationOptimizedAction
 } from './betriebskosten-actions';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { safeRpcCall } from '@/lib/error-handling';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/logging-middleware';
 
@@ -102,7 +106,7 @@ describe('betriebskosten-actions', () => {
       enddatum: '2023-12-31',
       nebenkostenart: ['Grundsteuer'],
       betrag: [100],
-      berechnungsart: ['qm'],
+      berechnungsart: ['pro Flaeche'],
       haeuser_id: 'house1',
     };
 
@@ -130,6 +134,62 @@ describe('betriebskosten-actions', () => {
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
     });
 
+    it('trims cost names before inserting', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      await createNebenkosten({ ...mockFormData, nebenkostenart: [' Grundsteuer '] });
+
+      expect(mockSupabase.insert).toHaveBeenCalledWith([
+        expect.objectContaining({ nebenkostenart: ['Grundsteuer'] })
+      ]);
+    });
+
+    it('stores legacy Berechnungsart spellings as their canonical value', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      await createNebenkosten({
+        ...mockFormData,
+        nebenkostenart: ['Grundsteuer', 'Müll'],
+        betrag: [100, 200],
+        berechnungsart: ['qm', 'pro person'],
+      });
+
+      expect(mockSupabase.insert).toHaveBeenCalledWith([
+        expect.objectContaining({ berechnungsart: ['pro Flaeche', 'pro Mieter'] })
+      ]);
+    });
+
+    it.each([['fix'], ['']])('rejects unknown Berechnungsart "%s"', async (berechnungsart) => {
+      const result = await createNebenkosten({ ...mockFormData, berechnungsart: [berechnungsart] });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain(`Ungültige Berechnungsart "${berechnungsart}" für Kostenart "Grundsteuer"`);
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['an empty list', []],
+      ['no list', undefined],
+    ])('rejects %s of Berechnungsart for the cost items', async (_name, berechnungsart) => {
+      const result = await createNebenkosten({ ...mockFormData, berechnungsart: berechnungsart as any });
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it('rejects duplicate nach Rechnung names', async () => {
+      const result = await createNebenkosten({
+        ...mockFormData,
+        nebenkostenart: ['Reparatur', 'Reparatur '],
+        betrag: [40, 90],
+        berechnungsart: ['nach Rechnung', 'nach Rechnung'],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('"Reparatur" ist mehrfach');
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
     it('should return error when not authenticated', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: null },
@@ -143,6 +203,54 @@ describe('betriebskosten-actions', () => {
         message: 'Nicht authentifiziert',
         data: null,
       });
+    });
+
+    it('defaults to kalendertage: creating without rechenbasis does not add the field', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      await createNebenkosten(mockFormData);
+
+      expect(mockSupabase.insert).toHaveBeenCalledWith([mockFormData]);
+    });
+
+    it('accepts a 360-day settlement whose period is a valid 12-month window', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      const result = await createNebenkosten({
+        ...mockFormData,
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.insert).toHaveBeenCalledWith([
+        expect.objectContaining({ rechenbasis: '360_tage' })
+      ]);
+    });
+
+    it('rejects a 360-day settlement whose period is not 12 whole months (02.01.-31.12.)', async () => {
+      const result = await createNebenkosten({
+        ...mockFormData,
+        startdatum: '2023-01-02',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown Rechenbasis value', async () => {
+      const result = await createNebenkosten({
+        ...mockFormData,
+        rechenbasis: 'jaehrlich' as any,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Ungültige Rechenbasis "jaehrlich"');
+      expect(mockSupabase.insert).not.toHaveBeenCalled();
     });
 
     it('should handle insert error', async () => {
@@ -184,6 +292,31 @@ describe('betriebskosten-actions', () => {
       expect(revalidatePath).toHaveBeenCalledWith('/dashboard/betriebskosten');
     });
 
+    it('rejects cost items without their Berechnungsart on update', async () => {
+      const result = await updateNebenkosten('nb1', { nebenkostenart: ['Grundsteuer'], betrag: [100] });
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects unknown Berechnungsart on update', async () => {
+      const result = await updateNebenkosten('nb1', { berechnungsart: ['nach verbrauch'] });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Ungültige Berechnungsart "nach verbrauch"');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects duplicate nach Rechnung names on update', async () => {
+      const result = await updateNebenkosten('nb1', {
+        nebenkostenart: ['Reparatur', 'Reparatur'],
+        berechnungsart: ['nach Rechnung', 'nach Rechnung'],
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
     it('should handle update error', async () => {
       mockSupabase.single.mockResolvedValue({
         data: null,
@@ -197,6 +330,76 @@ describe('betriebskosten-actions', () => {
         message: 'Update failed',
         data: null,
       });
+    });
+
+    it('accepts switching to the 360-day basis when the period is a valid 12-month window', async () => {
+      mockSupabase.single.mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      const result = await updateNebenkosten('nb1', {
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.update).toHaveBeenCalledWith(expect.objectContaining({ rechenbasis: '360_tage' }));
+    });
+
+    it('rejects switching to the 360-day basis when the period is not 12 whole months', async () => {
+      const result = await updateNebenkosten('nb1', {
+        startdatum: '2023-01-02',
+        enddatum: '2023-12-31',
+        rechenbasis: '360_tage',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('validates a period-only update against the stored 360-day basis', async () => {
+      mockSupabase.single.mockResolvedValueOnce({
+        data: { rechenbasis: '360_tage', startdatum: '2023-01-01', enddatum: '2023-12-31' },
+        error: null,
+      });
+
+      const result = await updateNebenkosten('nb1', { enddatum: '2023-12-30' });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('validates a basis-only update against the stored period', async () => {
+      mockSupabase.single.mockResolvedValueOnce({
+        data: { rechenbasis: 'kalendertage', startdatum: '2023-01-15', enddatum: '2024-01-14' },
+        error: null,
+      });
+
+      const result = await updateNebenkosten('nb1', { rechenbasis: '360_tage' });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('12 ganzen Monaten');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
+    });
+
+    it('allows a period-only update of a calendar-day settlement', async () => {
+      mockSupabase.single
+        .mockResolvedValueOnce({ data: { rechenbasis: 'kalendertage', startdatum: '2023-01-01', enddatum: '2023-12-31' }, error: null })
+        .mockResolvedValue({ data: { id: 'nb1' }, error: null });
+
+      const result = await updateNebenkosten('nb1', { enddatum: '2023-12-30' });
+
+      expect(result.success).toBe(true);
+      expect(mockSupabase.update).toHaveBeenCalledWith({ enddatum: '2023-12-30' });
+    });
+
+    it('rejects an unknown Rechenbasis value on update', async () => {
+      const result = await updateNebenkosten('nb1', { rechenbasis: 'jaehrlich' as any });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Ungültige Rechenbasis "jaehrlich"');
+      expect(mockSupabase.update).not.toHaveBeenCalled();
     });
   });
 
@@ -274,6 +477,14 @@ describe('betriebskosten-actions', () => {
       expect(mockSupabase.insert).toHaveBeenCalledWith(mockRechnungen);
     });
 
+    it('trims Rechnung names before inserting', async () => {
+      mockSupabase.select.mockResolvedValue({ data: [{}], error: null });
+
+      await createRechnungenBatch([{ ...mockRechnungen[0], name: 'R1 ' }]);
+
+      expect(mockSupabase.insert).toHaveBeenCalledWith([expect.objectContaining({ name: 'R1' })]);
+    });
+
     it('should handle error', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: { id: 'user123' } },
@@ -327,5 +538,192 @@ describe('betriebskosten-actions', () => {
 
       expect(result).toEqual({ success: true });
     });
+  });
+});
+
+const nebenkosten = {
+  id: 'nk1',
+  haeuser_id: 'h1',
+  startdatum: '2023-01-01',
+  enddatum: '2023-12-31',
+  nebenkostenart: ['Schornstein'],
+  betrag: [300], // sum of all tenants' Einzelbeträge
+  berechnungsart: ['nach Rechnung'],
+  vorauszahlungs_art: 'soll'
+};
+
+const tenants = [
+  { id: 'a', name: 'A', einzug: '2020-01-01', auszug: null, wohnung_id: 'wa', Wohnungen: { name: 'WA', groesse: 50, haus_id: 'h1' } },
+  { id: 'b', name: 'B', einzug: '2020-01-01', auszug: null, wohnung_id: 'wb', Wohnungen: { name: 'WB', groesse: 50, haus_id: 'h1' } }
+];
+
+// wa and wb are occupied, wc is vacant
+const houseApartments = [{ id: 'wa', groesse: 50 }, { id: 'wb', groesse: 50 }, { id: 'wc', groesse: 70 }];
+const proWohnungNebenkosten = { ...nebenkosten, berechnungsart: ['pro Wohnung'], Haeuser: { name: 'H', groesse: null } };
+
+const rechnungen = [
+  { id: 'r1', nebenkosten_id: 'nk1', mieter_id: 'a', name: 'Schornstein', betrag: 100 },
+  { id: 'r2', nebenkosten_id: 'nk1', mieter_id: 'b', name: 'Schornstein', betrag: 200 }
+];
+
+/**
+ * Supabase mock whose query builders resolve to a per-table result,
+ * both when awaited directly and via .single().
+ */
+function mockSupabaseWithTables(tables: Record<string, { data: unknown; error: unknown }>) {
+  const builderFor = (table: string) => {
+    const result = tables[table] ?? { data: [], error: null };
+    const builder: any = {};
+    for (const method of ['select', 'eq', 'in', 'lte', 'gte', 'or']) {
+      builder[method] = jest.fn(() => builder);
+    }
+    builder.single = jest.fn(() => Promise.resolve(result));
+    builder.then = (resolve: any, reject: any) => Promise.resolve(result).then(resolve, reject);
+    return builder;
+  };
+
+  const supabase = {
+    auth: {
+      getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user123' } }, error: null }),
+    },
+    from: jest.fn((table: string) => builderFor(table)),
+  };
+  (createSupabaseServerClient as jest.Mock).mockResolvedValue(supabase);
+  return supabase;
+}
+
+const sharesByTenant = (result: any) =>
+  Object.fromEntries(
+    result.data.tenantCalculations.map((t: any) => [t.tenantId, t.operatingCosts.costItems[0].tenantShare])
+  );
+
+describe('Abrechnung actions — nach Rechnung', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('fails in the fallback path when Rechnungen cannot be loaded for a nach Rechnung item', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: nebenkosten, error: null },
+      Mieter: { data: tenants, error: null },
+      Rechnungen: { data: null, error: { message: 'timeout' } }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Fehler beim Laden der Einzelrechnungen.');
+  });
+
+  it('still loads in the fallback path when Rechnungen fail but no item is nach Rechnung', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: { ...nebenkosten, berechnungsart: ['pro Fläche'] }, error: null },
+      Mieter: { data: tenants, error: null },
+      Rechnungen: { data: null, error: { message: 'timeout' } }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.rechnungen).toEqual([]);
+  });
+
+  it('counts all house apartments incl. vacant ones in the fallback path', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: proWohnungNebenkosten, error: null },
+      Mieter: { data: tenants, error: null },
+      Wohnungen: { data: houseApartments, error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(3);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(170);
+    expect(result.data?.houseApartments).toEqual(houseApartments);
+  });
+
+  it('falls back to the tenant apartments when the house apartments cannot be loaded', async () => {
+    mockSupabaseWithTables({
+      Nebenkosten: { data: proWohnungNebenkosten, error: null },
+      Mieter: { data: tenants, error: null },
+      Wohnungen: { data: null, error: { message: 'timeout' } }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: false, message: 'rpc down' });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(2);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(100);
+  });
+
+  it('fills missing house totals from all house apartments in the database function path', async () => {
+    // RPC without mietevo-db#48: no apartment count, no area when the house has none set
+    mockSupabaseWithTables({
+      Wohnungen: { data: houseApartments, error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [{ nebenkosten_data: { ...nebenkosten, gesamtFlaeche: null }, tenants, rechnungen: [], meters: [], readings: [] }]
+    });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.success).toBe(true);
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(3);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(170);
+  });
+
+  it('keeps the house totals the database function returns', async () => {
+    mockSupabaseWithTables({
+      Wohnungen: { data: houseApartments, error: null }
+    });
+    (safeRpcCall as jest.Mock).mockResolvedValue({
+      success: true,
+      data: [{
+        nebenkosten_data: { ...nebenkosten, gesamtFlaeche: 200, anzahlWohnungen: 4 },
+        tenants, rechnungen: [], meters: [], readings: []
+      }]
+    });
+
+    const result = await getAbrechnungModalDataAction('nk1');
+
+    expect(result.data?.nebenkosten_data.anzahlWohnungen).toBe(4);
+    expect(result.data?.nebenkosten_data.gesamtFlaeche).toBe(200);
+    // The apartment list is still returned for the vacancy costs
+    expect(result.data?.houseApartments).toEqual(houseApartments);
+  });
+
+  it.each([
+    [
+      'createAbrechnungCalculationAction',
+      createAbrechnungCalculationAction,
+      { nebenkosten_data: nebenkosten, tenants, rechnungen, meters: [], readings: [] }
+    ],
+    [
+      'createAbrechnungCalculationOptimizedAction',
+      createAbrechnungCalculationOptimizedAction,
+      {
+        // Copy: the optimized action writes gesamtFlaeche onto nebenkosten_data
+        nebenkosten_data: { ...nebenkosten },
+        tenants_with_occupancy: tenants,
+        rechnungen,
+        wasserzaehler_meters: [],
+        wasserzaehler_readings: [],
+        house_metrics: { totalArea: 100 }
+      }
+    ]
+  ])('%s bills each tenant their own Einzelbetrag', async (_name, action, rpcData) => {
+    mockSupabaseWithTables({});
+    (safeRpcCall as jest.Mock).mockResolvedValue({ success: true, data: [rpcData] });
+
+    const result = await action('nk1');
+
+    expect(result.success).toBe(true);
+    expect(sharesByTenant(result)).toEqual({ a: 100, b: 200 });
   });
 });

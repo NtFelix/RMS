@@ -63,6 +63,7 @@ describe('House Actions', () => {
         const formData = new FormData();
         formData.append('name', 'Test House');
         formData.append('ort', 'Berlin');
+        formData.append('plz', '10115');
         formData.append('strasse', 'Test Street 1');
         formData.append('groesse', '150.5');
 
@@ -76,6 +77,7 @@ describe('House Actions', () => {
         expect(builder.insert).toHaveBeenCalledWith({
           name: 'Test House',
           ort: 'Berlin',
+          plz: 10115,
           strasse: 'Test Street 1',
           groesse: 150.5,
         });
@@ -83,6 +85,54 @@ describe('House Actions', () => {
         expect(builder.single).toHaveBeenCalled();
         expect(mockRevalidatePath).toHaveBeenCalledWith('/haeuser');
         expect(result).toEqual({ success: true });
+      });
+
+      it('creates house without a plz value when plz is not provided', async () => {
+        const formData = new FormData();
+        formData.append('name', 'Test House No PLZ');
+        formData.append('ort', 'Berlin');
+
+        const builder = mockSupabase.from();
+        builder.single.mockResolvedValue({ data: { id: 'new-uuid' }, error: null });
+
+        const result = await handleSubmit(null, formData);
+
+        expect(builder.insert).toHaveBeenCalledWith({
+          name: 'Test House No PLZ',
+          ort: 'Berlin',
+          strasse: null,
+          groesse: null,
+        });
+        expect(result).toEqual({ success: true });
+      });
+
+      it('does not touch the stored plz on update when the plz key is absent', async () => {
+        const formData = new FormData();
+        formData.append('name', 'Updated House');
+        formData.append('ort', 'Hamburg');
+
+        const builder = mockSupabase.from();
+        await handleSubmit('house-1', formData);
+
+        const payload = builder.update.mock.calls[0][0];
+        expect(payload).not.toHaveProperty('plz', null);
+        expect(payload.plz).toBeUndefined();
+      });
+
+      it('rejects an invalid plz without touching the database', async () => {
+        const formData = new FormData();
+        formData.append('name', 'Test House');
+        formData.append('ort', 'Berlin');
+        formData.append('plz', '10115abc');
+
+        const builder = mockSupabase.from();
+        const result = await handleSubmit(null, formData);
+
+        expect(builder.insert).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          success: false,
+          error: { message: 'Die Postleitzahl muss aus genau 5 Ziffern bestehen.' },
+        });
       });
 
       it('returns error when insert fails', async () => {
@@ -111,6 +161,7 @@ describe('House Actions', () => {
         const formData = new FormData();
         formData.append('name', 'Updated House');
         formData.append('ort', 'Hamburg');
+        formData.append('plz', '20095');
         formData.append('strasse', 'Updated Street 2');
         formData.append('groesse', '200');
 
@@ -120,6 +171,7 @@ describe('House Actions', () => {
         expect(builder.update).toHaveBeenCalledWith({
           name: 'Updated House',
           ort: 'Hamburg',
+          plz: 20095,
           strasse: 'Updated Street 2',
           groesse: 200,
         });
@@ -155,7 +207,17 @@ describe('House Actions', () => {
 
       const result = await deleteHouseAction(houseId);
 
-      expect(mockSoftDeleteEntryAction).toHaveBeenCalledWith('Haeuser', houseId);
+      expect(mockSoftDeleteEntryAction).toHaveBeenCalledWith('Haeuser', houseId, { pruefsumme: undefined });
+    });
+
+    it('reicht die Prüfsumme der bestätigten Auswirkung auf Kautionen an die Datenbank-Löschung weiter', async () => {
+      const houseId = 'house-123';
+      const pruefsumme = '0123456789abcdef0123456789abcdef';
+
+      const result = await deleteHouseAction(houseId, pruefsumme);
+
+      expect(result.success).toBe(true);
+      expect(mockSoftDeleteEntryAction).toHaveBeenCalledWith('Haeuser', houseId, { pruefsumme });
       expect(mockRevalidatePath).toHaveBeenCalledWith('/haeuser');
       expect(result).toEqual({ success: true });
     });

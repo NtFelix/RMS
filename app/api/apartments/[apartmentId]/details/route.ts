@@ -59,9 +59,10 @@ export async function GET(
 
     // Fetch current tenant (if any)
     const today = new Date().toISOString();
+    // Nur die benötigten Spalten; das Altfeld "kaution" wird bewusst nicht gelesen.
     const { data: tenant, error: tenantError } = await supabase
       .from('Mieter')
-      .select('*')
+      .select('id, name, email, telefonnummer, einzug, auszug, notiz')
       .eq('wohnung_id', apartmentId)
       .or(`auszug.is.null,auszug.gt.${today}`)
       .order('einzug', { ascending: false })

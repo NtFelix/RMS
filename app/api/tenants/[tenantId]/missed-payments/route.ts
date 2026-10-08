@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { calculateMissedPayments } from "@/utils/tenant-payment-calculations";
 import { logger } from "@/utils/logger";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http";
+import { MIETER_SPALTEN_OHNE_KAUTION } from "@/lib/mieter-columns";
 
 export async function GET(
     request: Request,
@@ -17,10 +18,12 @@ export async function GET(
         }
 
         // Fetch tenant with apartment details
+        // Explizite Spaltenliste ohne das Altfeld "kaution" (Kautionsdaten sind an das Modul "kautionen" gebunden;
+        // die Zeile wird hier nur berechnet, aber nie ausgeliefert).
         const { data: tenant, error: tenantError } = await supabase
             .from('Mieter')
             .select(`
-        *,
+        ${MIETER_SPALTEN_OHNE_KAUTION},
         Wohnungen (
           id,
           name,

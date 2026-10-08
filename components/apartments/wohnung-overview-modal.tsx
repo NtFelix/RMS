@@ -1,5 +1,6 @@
 "use client";
 import { deleteTenantAction } from "@/app/mieter-actions";
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen";
 import {
   Dialog,
   DialogContent,
@@ -195,24 +196,28 @@ export function WohnungOverviewModal() {
     }
   };
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
   const handleDeleteMieter = (mieter: { id: string; name: string }) => {
-    setMieterToDelete(mieter);
-    setDeleteDialogOpen(true);
+    void starteLoeschenMitKautionen("Mieter", [mieter.id], {
+      einfach: () => {
+        setMieterToDelete(mieter);
+        setDeleteDialogOpen(true);
+      },
+      loeschen: (pruefsummen) => confirmDeleteMieter(mieter, pruefsummen),
+    });
   };
 
-  const confirmDeleteMieter = async () => {
-    if (!mieterToDelete) return;
-
+  const confirmDeleteMieter = async (mieter: { id: string; name: string }, pruefsummen: Pruefsummen) => {
     try {
       setIsDeleting(true);
 
       // Use the server action to delete the tenant
-      const { success, error } = await deleteTenantAction(mieterToDelete.id);
+      const { success, error } = await deleteTenantAction(mieter.id, pruefsummen[mieter.id]);
 
       if (success) {
         toast({
           title: "Erfolg",
-          description: `Der Mieter "${mieterToDelete.name}" wurde erfolgreich gelöscht.`,
+          description: `Der Mieter "${mieter.name}" wurde erfolgreich gelöscht.`,
           variant: "default",
         });
 
@@ -635,7 +640,7 @@ export function WohnungOverviewModal() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteMieter}
+              onClick={() => mieterToDelete && confirmDeleteMieter(mieterToDelete, {})}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >

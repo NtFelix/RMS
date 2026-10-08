@@ -15,6 +15,13 @@ import { useToast } from '@/hooks/use-toast';
 
 jest.mock('@/app/mieter-actions');
 
+// The 360-Tage switch (Radix Switch) measures its thumb via ResizeObserver, which JSDOM lacks
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // Mock framer-motion to avoid animation issues in JSDOM
 jest.mock('framer-motion', () => ({
   motion: {
@@ -33,6 +40,10 @@ jest.mock('@/lib/constants', () => ({
     { value: 'pro Mieter', label: 'pro Mieter' },
     { value: 'pauschal', label: 'pauschal' },
     { value: 'nach Rechnung', label: 'nach Rechnung' },
+  ],
+  GERMAN_MONTHS: [
+    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
   ],
 }));
 
@@ -327,6 +338,122 @@ describe('BetriebskostenEditModal', () => {
       });
     });
 
+    const nachRechnungEntry = (
+      nebenkostenart: string[],
+      Rechnungen: any[] = [],
+      berechnungsart: string[] = nebenkostenart.map(() => 'nach Rechnung')
+    ) => ({
+      id: 'test-id-123',
+      startdatum: '2023-01-01',
+      enddatum: '2023-12-31',
+      haeuser_id: 'h1',
+      nebenkostenart,
+      betrag: nebenkostenart.map(() => 0),
+      berechnungsart,
+      zaehlerkosten: {},
+      zaehlerverbrauch: {},
+      Haeuser: { name: 'Haus A' },
+      erstellt_von: 'u1',
+      Rechnungen,
+    });
+
+    async function openEditStep2(user: ReturnType<typeof userEvent.setup>, entry: any) {
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: entry });
+      mockGetMieterByHausIdAction.mockResolvedValue({ success: true, data: [{ id: 'm1', name: 'Mieter Eins' }] as any });
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-123' },
+      });
+
+      render(<BetriebskostenEditModal />);
+      await waitFor(() => {
+        expect(screen.getByText('Haus A')).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /Weiter/ }));
+      expect(await screen.findByText('Kostenaufstellung')).toBeInTheDocument();
+    }
+
+    it('rejects duplicate names among nach Rechnung cost items', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(['Reparatur', 'Reparatur ']));
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+          title: 'Validierungsfehler',
+          description: expect.stringContaining('"Reparatur" ist mehrfach'),
+        }));
+      });
+      expect(mockUpdateNebenkosten).not.toHaveBeenCalled();
+    });
+
+    it('saves Einzelrechnungen under the trimmed cost name', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(['Schornstein ']));
+
+      const tenantInput = await screen.findByLabelText('Mieter Eins');
+      await user.click(tenantInput);
+      await user.keyboard('50');
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateRechnungenBatch).toHaveBeenCalledWith([
+          expect.objectContaining({ mieter_id: 'm1', name: 'Schornstein', betrag: 50 })
+        ]);
+      });
+      expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-123', expect.objectContaining({
+        nebenkostenart: ['Schornstein'],
+      }));
+    });
+
+    it('loads and keeps Einzelrechnungen saved with surrounding whitespace in the name', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(
+        ['Schornstein'],
+        [{ id: 'r1', mieter_id: 'm1', name: 'Schornstein ', betrag: 500 }]
+      ));
+
+      await waitFor(() => expect(screen.getByLabelText('Mieter Eins')).toHaveValue('500'));
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateRechnungenBatch).toHaveBeenCalledWith([
+          expect.objectContaining({ mieter_id: 'm1', name: 'Schornstein', betrag: 500 })
+        ]);
+      });
+    });
+
+    it('keeps an edited Einzelbetrag when other fields change', async () => {
+      const user = userEvent.setup();
+      await openEditStep2(user, nachRechnungEntry(
+        ['Schornstein', 'Strom'],
+        [{ id: 'r1', mieter_id: 'm1', name: 'Schornstein', betrag: 100 }],
+        ['nach Rechnung', 'pauschal']
+      ));
+
+      await waitFor(() => expect(screen.getByLabelText('Mieter Eins')).toHaveValue('100'));
+      const tenantInput = screen.getByLabelText('Mieter Eins');
+      await user.clear(tenantInput);
+      await user.type(tenantInput, '150');
+
+      // Editing another cost item re-runs the Rechnungen sync
+      const stromBetrag = screen.getAllByPlaceholderText('Betrag (€)').find(el => el.id.startsWith('betrag-'))!;
+      await user.type(stromBetrag, '20');
+
+      expect(screen.getByLabelText('Mieter Eins')).toHaveValue('150');
+
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateRechnungenBatch).toHaveBeenCalledWith([
+          expect.objectContaining({ mieter_id: 'm1', name: 'Schornstein', betrag: 150 })
+        ]);
+      });
+    });
+
     it('shows error toast on submission failure', async () => {
       const user = userEvent.setup();
       mockCreateNebenkosten.mockResolvedValueOnce({
@@ -394,6 +521,175 @@ describe('BetriebskostenEditModal', () => {
       await user.click(screen.getByText('+1 Jahr'));
 
       expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('360-Tage-Rechenbasis', () => {
+    it('disables the date fields and shows the month/year steppers when switched on, and re-enables them when switched off', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+
+      expect(screen.getByLabelText('Startdatum *')).toBeEnabled();
+      expect(screen.queryByText('Startmonat')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByLabelText('Startdatum *')).toBeDisabled();
+      expect(screen.getByLabelText('Enddatum *')).toBeDisabled();
+      expect(screen.getByText('Startmonat')).toBeInTheDocument();
+      expect(screen.getByText('Startjahr')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByLabelText('Startdatum *')).toBeEnabled();
+      expect(screen.getByLabelText('Enddatum *')).toBeEnabled();
+      expect(screen.queryByText('Startmonat')).not.toBeInTheDocument();
+    });
+
+    it('wraps the Startmonat stepper from Januar to Dezember of the previous year, and back', async () => {
+      const user = userEvent.setup();
+      const currentYear = new Date().getFullYear();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+
+      // The default period starts on 01.01. of the current year
+      expect(screen.getByText('Januar')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear))).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Vorheriger Monat'));
+
+      expect(screen.getByText('Dezember')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear - 1))).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`01.12.${currentYear - 1}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`30.11.${currentYear}`)).toBeInTheDocument();
+
+      await user.click(screen.getByLabelText('Nächster Monat'));
+
+      expect(screen.getByText('Januar')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear))).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`01.01.${currentYear}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${currentYear}`)).toBeInTheDocument();
+    });
+
+    it('steps the Startjahr independently of the month', async () => {
+      const user = userEvent.setup();
+      const currentYear = new Date().getFullYear();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+      await user.click(screen.getByLabelText('Nächstes Jahr'));
+
+      expect(screen.getByText('Januar')).toBeInTheDocument();
+      expect(screen.getByText(String(currentYear + 1))).toBeInTheDocument();
+    });
+
+    it('shows no warning when switching it on for a new (unsaved) entry', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+    });
+
+    it('warns that amounts change when switching it on for an existing settlement, and clears the warning on switching off', async () => {
+      const user = userEvent.setup();
+      const mockEntry = {
+        id: 'test-id-123',
+        startdatum: '2023-03-01',
+        enddatum: '2023-12-31',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom'],
+        betrag: [100],
+        berechnungsart: ['pauschal'],
+        zaehlerkosten: {},
+        zaehlerverbrauch: {},
+        Haeuser: { name: 'Haus A' },
+        erstellt_von: 'u1',
+        Rechnungen: [],
+        rechenbasis: 'kalendertage',
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry as any });
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-123' },
+      });
+
+      render(<BetriebskostenEditModal />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Haus A')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByText(/Achtung.*Beträge dieser Abrechnung/)).toBeInTheDocument();
+      // Snaps to the 12-month window starting in the month of the existing startdatum (March)
+      expect(screen.getByText('März')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+    });
+
+    it('warns that amounts change when switching a saved 360-day settlement back to calendar days', async () => {
+      const user = userEvent.setup();
+      const mockEntry = {
+        id: 'test-id-360',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom'],
+        betrag: [100],
+        berechnungsart: ['pauschal'],
+        zaehlerkosten: {},
+        zaehlerverbrauch: {},
+        Haeuser: { name: 'Haus A' },
+        erstellt_von: 'u1',
+        Rechnungen: [],
+        rechenbasis: '360_tage',
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry as any });
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-360' },
+      });
+
+      render(<BetriebskostenEditModal />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Haus A')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.getByText(/Achtung: Ohne die 360-Tage-Rechenbasis/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch'));
+
+      expect(screen.queryByText(/Achtung/)).not.toBeInTheDocument();
+    });
+
+    it('includes rechenbasis in the submitted data', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+
+      await user.click(screen.getByRole('switch'));
+      await user.click(screen.getByRole('button', { name: /Weiter/ }));
+      expect(await screen.findByText('Kostenaufstellung')).toBeInTheDocument();
+
+      await fillCostItem(user);
+      await user.click(await screen.findByRole('button', { name: /Speichern & Abschließen/ }));
+
+      await waitFor(() => {
+        expect(mockCreateNebenkosten).toHaveBeenCalledWith(
+          expect.objectContaining({ rechenbasis: '360_tage' })
+        );
+      });
     });
   });
 });

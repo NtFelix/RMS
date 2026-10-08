@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { updateTenantApartment } from "@/app/mieter-actions"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
+import { formatBulkDeleteSuffix, formatFailureReasons, stripDbCodePrefix } from "@/lib/bulk-delete-summary"
 
 interface TenantBulkActionBarProps {
   selectedTenants: Set<string>
@@ -24,8 +26,7 @@ interface TenantBulkActionBarProps {
   wohnungsMap: Record<string, string>
   onClearSelection: () => void
   onExport: () => void
-  onDelete: () => void
-  onUpdate?: () => void // Callback to refresh the tenant list after update
+  onUpdate?: () => void // Callback to refresh the tenant list after a change (assign apartment, delete)
   canEdit?: boolean
   canDelete?: boolean
 }
@@ -36,7 +37,6 @@ export function TenantBulkActionBar({
   wohnungsMap,
   onClearSelection,
   onExport,
-  onDelete,
   onUpdate,
   canEdit = true,
   canDelete = true,
@@ -58,52 +58,79 @@ export function TenantBulkActionBar({
       });
       return;
     }
-    setIsDeleteDialogOpen(true);
+    // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+    void starteLoeschenMitKautionen("Mieter", Array.from(selectedTenants), {
+      einfach: () => setIsDeleteDialogOpen(true),
+      loeschen: handleConfirmDelete,
+    });
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (pruefsummen: Pruefsummen = {}) => {
     setIsDeleting(true);
 
     try {
+      const ids = Array.from(selectedTenants);
+
       const response = await fetch('/api/mieter/bulk-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ids: Array.from(selectedTenants)
+          ids,
+          pruefsummen
         }),
       });
 
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Fehler beim Löschen der Mieter');
+      // Die Datenbank kann einzelne Löschungen ablehnen (z. B. Mieter mit hinterlegter Kaution). Die Route meldet
+      // Teilerfolge (HTTP 200) mit den Gründen ohne technisches Präfix; ohne jeden Erfolg antwortet sie mit 409/500.
+      const successCount = Number(result.successCount) || 0;
+      const errorCount = Number(result.errorCount) || 0;
+      const reasons: string[] = Array.isArray(result.reasons)
+        ? result.reasons
+            .filter((reason: unknown): reason is string => typeof reason === 'string')
+            .map(stripDbCodePrefix)
+            .filter(Boolean)
+        : [];
+      const reasonText = formatFailureReasons(reasons);
+
+      // Bereits gelöschte Mieter sollen auch nach einem (Teil-)Fehlschlag aus der Liste verschwinden. Nur eine
+      // reine Ablehnung (409, nichts gelöscht) lässt den Stand unverändert.
+      if (successCount > 0 || response.status !== 409) {
+        onUpdate?.();
       }
 
-      const successCount = result.successCount || 0;
-      
       if (successCount > 0) {
         toast({
           title: "Erfolg",
-          description: `${successCount} Mieter erfolgreich gelöscht.`,
+          description: `${successCount} Mieter erfolgreich gelöscht${formatBulkDeleteSuffix(errorCount, reasons)}`,
           variant: "success",
         });
-        
+
         // Clear selection and close dialog
         onClearSelection();
         setIsDeleteDialogOpen(false);
-        
-        // Trigger parent to refresh the list
-        onUpdate?.();
       } else {
-        throw new Error("Keine Mieter konnten gelöscht werden.");
+        // Nichts gelöscht: Die Auswahl bleibt, damit der abgelehnte Mieter abgewählt werden kann.
+        setIsDeleteDialogOpen(false);
+        const technicalMessage = typeof result.error === 'string' && result.error ? stripDbCodePrefix(result.error) : ''
+        toast({
+          title: "Fehler",
+          description: reasonText
+            ? `Keine Mieter konnten gelöscht werden. ${reasonText}`
+            : technicalMessage || "Fehler beim Löschen der Mieter",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Bulk delete error:', error);
+      // Ergebnis unbekannt (z. B. Verbindungsabbruch): die Liste neu laden.
+      onUpdate?.();
       toast({
         title: "Fehler",
-        description: error instanceof Error ? error.message : "Fehler beim Löschen der Mieter",
+        description: "Fehler beim Löschen der Mieter",
         variant: "destructive",
       });
     } finally {
@@ -271,7 +298,7 @@ export function TenantBulkActionBar({
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={handleConfirmDelete}
+                onClick={() => handleConfirmDelete()}
                 disabled={isDeleting}
               >
                 {isDeleting ? (

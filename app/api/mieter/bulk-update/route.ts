@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
+import { pickMieterSchreibbareFelder } from "@/lib/mieter-columns"
 
 
 type BulkUpdateRequest = {
@@ -16,7 +17,7 @@ export async function PATCH(request: Request) {
     await requireApiPermission('mieter', 'bearbeiten');
 
     const supabase = await createSupabaseServerClient()
-    const { ids, updates } = await request.json() as BulkUpdateRequest
+    const { ids, updates: rawUpdates } = await request.json() as BulkUpdateRequest
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
@@ -25,7 +26,9 @@ export async function PATCH(request: Request) {
       )
     }
 
-    if (Object.keys(updates).length === 0) {
+    // Nur schreibbare Mieterspalten übernehmen; das Altfeld "kaution" wird verworfen.
+    const updates = pickMieterSchreibbareFelder(rawUpdates)
+    if (!updates || Object.keys(updates).length === 0) {
       return NextResponse.json(
         { error: "Keine Aktualisierungen angegeben." },
         { status: 400, headers: NO_CACHE_HEADERS }
@@ -53,7 +56,7 @@ export async function PATCH(request: Request) {
     }
 
     // Check scope of new target apartment
-    if (updates.wohnung_id && !(await verifyWohnungInScope(updates.wohnung_id))) {
+    if (updates.wohnung_id && !(await verifyWohnungInScope(updates.wohnung_id as string))) {
       return NextResponse.json({ error: "Permission denied" }, { status: 403, headers: NO_CACHE_HEADERS });
     }
 
@@ -61,7 +64,7 @@ export async function PATCH(request: Request) {
       .from('Mieter')
       .update(updates)
       .in('id', ids)
-      .select()
+      .select('id') // nur gezählt; keine Mieterzeilen (inkl. Altfeld "kaution") zurücklesen
 
     if (error) {
       console.error("Supabase Bulk Update Error:", error)

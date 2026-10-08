@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { formatNumber } from "@/utils/format"
 import { NO_CACHE_HEADERS } from "@/lib/constants/http"
+import { parsePlz } from "@/lib/address"
 
 export async function POST(request: Request) {
   try {
@@ -9,14 +10,23 @@ export async function POST(request: Request) {
     await requireApiPermission('haeuser', 'erstellen')
 
     const supabase = await createSupabaseServerClient()
-    const { name, strasse, ort } = await request.json()
+    const { name, strasse, ort, plz } = await request.json()
     if (!name || !strasse || !ort) {
       return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { 
         status: 400,
         headers: NO_CACHE_HEADERS
       })
     }
-    const { data, error } = await supabase.from('Haeuser').insert({ name, strasse, ort })
+    const parsedPlz = parsePlz(plz)
+    if ('error' in parsedPlz) {
+      return NextResponse.json({ error: parsedPlz.error }, {
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      })
+    }
+    // Absent key leaves the stored PLZ untouched; an explicit null/'' clears it
+    const plzValue = plz === undefined ? undefined : parsedPlz.value
+    const { data, error } = await supabase.from('Haeuser').insert({ name, strasse, ort, plz: plzValue })
     if (error) {
       console.error("Supabase Insert Error:", error)
       return NextResponse.json({ error: error.message }, { 
@@ -201,7 +211,7 @@ export async function PUT(request: Request) {
     const supabase = await createSupabaseServerClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
-    const { name, strasse, ort } = await request.json()
+    const { name, strasse, ort, plz } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: "Haus-ID ist erforderlich." }, { 
@@ -215,6 +225,15 @@ export async function PUT(request: Request) {
         headers: NO_CACHE_HEADERS
       })
     }
+    const parsedPlz = parsePlz(plz)
+    if ('error' in parsedPlz) {
+      return NextResponse.json({ error: parsedPlz.error }, {
+        status: 400,
+        headers: NO_CACHE_HEADERS
+      })
+    }
+    // Absent key leaves the stored PLZ untouched; an explicit null/'' clears it
+    const plzValue = plz === undefined ? undefined : parsedPlz.value
 
     if (!(await verifyEntityInScope(id))) {
       return NextResponse.json({ error: "Permission denied" }, { 
@@ -225,7 +244,7 @@ export async function PUT(request: Request) {
 
     const { data, error } = await supabase
       .from('Haeuser')
-      .update({ name, strasse, ort })
+      .update({ name, strasse, ort, plz: plzValue })
       .match({ id })
       .select() // Select the updated row to return it
 

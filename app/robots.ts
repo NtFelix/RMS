@@ -1,6 +1,4 @@
 import { MetadataRoute } from 'next'
-import { ROUTES } from '@/lib/constants'
-
 
 export default function robots(): MetadataRoute.Robots {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mietevo.de'
@@ -27,26 +25,6 @@ export default function robots(): MetadataRoute.Robots {
                 ],
                 disallow: [
                     '/api/',
-                    // Sensitive auth pages - keep out of search
-                    '/auth/reset-password/',
-                    '/auth/verify-email/',
-                    '/auth/update-password/',
-                    '/auth/callback/',
-                    // Private dashboard & settings pages - keep out of search
-                    `${ROUTES.HOME}/`,
-                    `${ROUTES.SETTINGS}/`,
-                    '/haeuser/',
-                    '/wohnungen/',
-                    '/mieter/',
-                    '/finanzen/',
-                    '/betriebskosten/',
-                    '/dateien/',
-                    '/todos/',
-                    '/mail/',
-                    '/vorlagen/',
-                    // Other private pages
-                    '/subscription-locked/',
-                    '/checkout/',
                 ],
             },
         ],

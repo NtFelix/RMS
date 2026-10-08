@@ -22,11 +22,13 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
 import { useModalStore } from "@/hooks/use-modal-store"
+import { starteLoeschenMitKautionen, type Pruefsummen } from "@/lib/kautionen-loeschen"
 
 export interface House {
   id: string
   name: string
   strasse?: string
+  plz?: number | string | null
   ort: string
   size?: string
   rent?: string
@@ -61,10 +63,10 @@ export function HouseContextMenu({
     }, 0);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (pruefsummen: Pruefsummen = {}) => {
     try {
       setIsDeleting(true);
-      const result = await deleteHouseAction(house.id);
+      const result = await deleteHouseAction(house.id, pruefsummen[house.id]);
 
       if (result.success) {
         toast({
@@ -95,6 +97,10 @@ export function HouseContextMenu({
     }
   };
 
+  // Zuerst die Auswirkung laden, dann EIN Dialog: ohne gebuchte Kaution die übliche Frage, sonst die Übersicht (ersetzt die Frage).
+  const handleDeleteStart = () =>
+    void starteLoeschenMitKautionen("Haeuser", [house.id], { einfach: () => setDeleteDialogOpen(true), loeschen: handleDelete });
+
   return (
     <>
       <ContextMenu>
@@ -118,7 +124,7 @@ export function HouseContextMenu({
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
-            onClick={() => setDeleteDialogOpen(true)}
+            onClick={handleDeleteStart}
             disabled={!canDelete}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
@@ -138,7 +144,7 @@ export function HouseContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => handleDelete()} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
               {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>
