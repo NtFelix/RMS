@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { STRIPE_CONFIG } from './constants/stripe';
+import { isTestEnv, isStripeMocked } from './test-utils';
 
 /**
  * Values that indicate no storage is included in the plan.
@@ -56,9 +57,53 @@ export function parseStorageString(storageString: string | undefined | null): nu
   return Math.round(value * multipliers[unit]);
 }
 
-import { isTestEnv, isStripeMocked } from './test-utils';
+export interface PlanDetails {
+  priceId: string;
+  name: string;
+  productName: string;
+  description: string | null;
+  price: number | null;
+  currency: string;
+  interval: string | null;
+  interval_count: number | null;
+  features: string[];
+  limit_wohnungen: number | null;
+  storageLimit: number; // bytes, 0 for no storage
+}
 
-export async function getPlanDetails(priceId: string) {
+// Simple in-memory cache. Stored on globalThis so it survives module re-evaluation (HMR in dev).
+// In serverless/edge environments it is per isolate/container, so it is best-effort only.
+interface CacheEntry {
+  data: PlanDetails | null; // null = price not found (negative cache)
+  expiresAt: number;
+}
+
+const globalForCache = globalThis as unknown as {
+  __planDetailsCache?: Map<string, CacheEntry>;
+  __planDetailsInflight?: Map<string, Promise<PlanDetails | null>>;
+};
+const planCache = (globalForCache.__planDetailsCache ??= new Map<string, CacheEntry>());
+const inflight = (globalForCache.__planDetailsInflight ??= new Map<string, Promise<PlanDetails | null>>());
+const CACHE_TTL_MS = 3600 * 1000; // 1 hour
+const NEGATIVE_CACHE_TTL_MS = 60 * 1000; // 1 minute
+
+const planCacheKey = (priceId: string) => `plan-details-${priceId}`;
+
+/**
+ * Drops cached plan details for one price (or all prices when omitted).
+ * Call this e.g. from a Stripe webhook on price.updated / product.updated.
+ */
+export function clearPlanDetailsCache(priceId?: string) {
+  if (priceId === undefined) {
+    planCache.clear();
+    inflight.clear();
+    return;
+  }
+  planCache.delete(planCacheKey(priceId));
+  inflight.delete(planCacheKey(priceId));
+}
+
+export async function getPlanDetails(priceId: string): Promise<PlanDetails | null> {
   if (isStripeMocked() || (isTestEnv() && (priceId?.includes('mock') ?? false))) {
     if (isTestEnv()) {
       console.warn(`STRIPE_SECRET_KEY is not set or mock ID detected (${priceId}), using mock plan details`);
@@ -79,6 +124,44 @@ export async function getPlanDetails(priceId: string) {
     throw new Error('STRIPE_SECRET_KEY is not set');
   }
 
+  // Check cache (mock responses above are intentionally never cached)
+  const cacheKey = planCacheKey(priceId);
+  const cached = planCache.get(cacheKey);
+  if (cached) {
+    if (Date.now() < cached.expiresAt) {
+      // Return a copy so callers can't mutate the shared cache entry
+      return cached.data && structuredClone(cached.data);
+    }
+    planCache.delete(cacheKey);
+  }
+
+  // Collapse concurrent cache misses for the same price into one Stripe request
+  let request = inflight.get(cacheKey);
+  if (!request) {
+    const created: Promise<PlanDetails | null> = fetchPlanDetails(priceId)
+      .then((data) => {
+        if (inflight.get(cacheKey) === created) {
+          planCache.set(cacheKey, {
+            data,
+            expiresAt: Date.now() + (data ? CACHE_TTL_MS : NEGATIVE_CACHE_TTL_MS),
+          });
+        }
+        return data;
+      })
+      .finally(() => {
+        if (inflight.get(cacheKey) === created) {
+          inflight.delete(cacheKey);
+        }
+      });
+    inflight.set(cacheKey, created);
+    request = created;
+  }
+
+  const data = await request;
+  return data && structuredClone(data);
+}
+
+async function fetchPlanDetails(priceId: string): Promise<PlanDetails | null> {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, STRIPE_CONFIG);
 
   try {
@@ -112,7 +195,7 @@ export async function getPlanDetails(priceId: string) {
       featuresArray = featuresString.split(',').map(f => f.trim()).filter(f => f); // filter empty strings
     }
 
-    const planDetails = {
+    const planDetails: PlanDetails = {
       priceId: price.id,
       name: price.nickname || product.name,
       productName: product.name,

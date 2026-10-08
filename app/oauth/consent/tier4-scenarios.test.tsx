@@ -156,7 +156,10 @@ describe('RMS Tier 4 Scenario 3 Verification: Admin MCP Access Control & Consent
                             properties: { read: true, write: false },
                             finanzen: { read: false, write: false },
                         })
-                    })
+                    }),
+                    'Claude Desktop',
+                    'https://upload.wikimedia.org/wikipedia/commons/1/14/Claude_AI_logo.svg',
+                    'https://claude.ai/api/mcp/oauth_callback'
                 );
                 expect(submitDecisionAction).toHaveBeenCalledTimes(1);
                 expect(submitDecisionAction).toHaveBeenCalledWith(sampleId, 'allow');
